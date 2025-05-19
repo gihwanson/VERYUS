@@ -1,0 +1,15 @@
+{
+  "hosting": {
+    "public": "build", 
+    "rewrites": [
+      {
+        "source": "/uploads/**",
+        "function": "api"
+      },
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}
