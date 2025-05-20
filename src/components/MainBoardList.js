@@ -1,100 +1,338 @@
-// MainBoardList.js
 import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
+import { Link } from "react-router-dom";
 import {
-  collection, query, orderBy, limit, getDocs
+  collection, query, orderBy, limit, getDocs, where
 } from "firebase/firestore";
 import { db } from "../firebase";
 
 function MainBoardList({ darkMode }) {
-  const [duetPost, setDuetPost] = useState(null);
-  const [freePost, setFreePost] = useState(null);
-  const [songPost, setSongPost] = useState(null);
-  const [advicePost, setAdvicePost] = useState(null);
-
+  const [posts, setPosts] = useState({
+    duet: { items: [], loading: true, error: null },
+    free: { items: [], loading: true, error: null },
+    song: { items: [], loading: true, error: null },
+    advice: { items: [], loading: true, error: null }
+  });
+  
+  const [activeHover, setActiveHover] = useState(null);
+  const POST_COUNT = 3; // 각 게시판별 표시할 게시물 수
+  
   useEffect(() => {
-    const fetchPost = async (collectionName, setter) => {
-      const q = query(collection(db, collectionName), orderBy("createdAt", "desc"), limit(1));
-      const snap = await getDocs(q);
-      setter(snap.docs[0] ? { id: snap.docs[0].id, ...snap.docs[0].data() } : null);
+    const fetchPosts = async (collectionName, boardType) => {
+      try {
+        // 쿼리 생성 - 최신순으로 POST_COUNT개 가져오기
+        const q = query(
+          collection(db, collectionName), 
+          orderBy("createdAt", "desc"), 
+          limit(POST_COUNT)
+        );
+        
+        const snapshot = await getDocs(q);
+        
+        if (snapshot.empty) {
+          setPosts(prev => ({
+            ...prev,
+            [boardType]: { 
+              items: [], 
+              loading: false, 
+              error: null 
+            }
+          }));
+          return;
+        }
+        
+        const fetchedPosts = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        setPosts(prev => ({
+          ...prev,
+          [boardType]: { 
+            items: fetchedPosts, 
+            loading: false, 
+            error: null 
+          }
+        }));
+      } catch (err) {
+        console.error(`${collectionName} 게시물 불러오기 오류:`, err);
+        setPosts(prev => ({
+          ...prev,
+          [boardType]: { 
+            items: [], 
+            loading: false, 
+            error: "게시물을 불러오는 중 오류가 발생했습니다." 
+          }
+        }));
+      }
     };
 
-    fetchPost("posts", setDuetPost);
-    fetchPost("freeposts", setFreePost);
-    fetchPost("songs", setSongPost);
-    fetchPost("advice", setAdvicePost);
+    // 각 게시판의 데이터 가져오기
+    fetchPosts("posts", "duet");
+    fetchPosts("freeposts", "free");
+    fetchPosts("songs", "song");
+    fetchPosts("advice", "advice");
   }, []);
-
-  const cardStyle = {
+  
+  // 시간 포맷팅 함수
+  const formatTime = (seconds) => {
+    if (!seconds) return "";
+    
+    const date = new Date(seconds * 1000);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSec / 60);
+    const diffHour = Math.floor(diffMin / 60);
+    const diffDay = Math.floor(diffHour / 24);
+    
+    if (diffSec < 60) {
+      return "방금 전";
+    } else if (diffMin < 60) {
+      return `${diffMin}분 전`;
+    } else if (diffHour < 24) {
+      return `${diffHour}시간 전`;
+    } else if (diffDay < 7) {
+      return `${diffDay}일 전`;
+    } else {
+      return `${date.getFullYear()}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getDate().toString().padStart(2, '0')}`;
+    }
+  };
+  
+  // 게시판 정보
+  const boardInfo = {
+    duet: {
+      title: "🎤 듀엣/합창 게시판",
+      color: "#7e57c2",
+      bgLight: "#f3eaff",
+      bgDark: "#3a2a5a",
+      hoverLight: "#e8dbff",
+      hoverDark: "#4a3a6a",
+      route: "/duet",
+      postRoute: "/post/duet"
+    },
+    free: {
+      title: "📝 자유 게시판",
+      color: "#1976d2",
+      bgLight: "#e3f2fd",
+      bgDark: "#193c6a",
+      hoverLight: "#d6eafb",
+      hoverDark: "#23487a",
+      route: "/freeboard",
+      postRoute: "/post/free"
+    },
+    song: {
+      title: "🎵 노래 추천 게시판",
+      color: "#d81b60",
+      bgLight: "#ffe0f0",
+      bgDark: "#5a1d3e",
+      hoverLight: "#ffd4e8",
+      hoverDark: "#6a2d4e",
+      route: "/songs",
+      postRoute: "/post/song"
+    },
+    advice: {
+      title: "💬 고민 상담 게시판",
+      color: "#3f51b5",
+      bgLight: "#e8eaf6",
+      bgDark: "#2a325a",
+      hoverLight: "#dde0f2",
+      hoverDark: "#3a426a",
+      route: "/advice",
+      postRoute: "/post/advice"
+    }
+  };
+  
+  // 기본 카드 스타일
+  const getCardStyle = (boardType, isHovering) => ({
     padding: 20,
     borderRadius: 12,
     marginBottom: 20,
-    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+    boxShadow: isHovering 
+      ? `0 4px 15px rgba(0,0,0,${darkMode ? 0.3 : 0.15})` 
+      : `0 2px 8px rgba(0,0,0,${darkMode ? 0.25 : 0.1})`,
     textDecoration: "none",
-    display: "block"
+    display: "block",
+    background: isHovering 
+      ? (darkMode ? boardInfo[boardType].hoverDark : boardInfo[boardType].hoverLight)
+      : (darkMode ? boardInfo[boardType].bgDark : boardInfo[boardType].bgLight),
+    color: darkMode ? "#fff" : "#333",
+    transition: "all 0.3s ease",
+    transform: isHovering ? "translateY(-3px)" : "translateY(0)"
+  });
+  
+  // 게시물 항목 스타일
+  const postItemStyle = {
+    padding: "10px 15px",
+    marginBottom: "8px",
+    borderRadius: "8px",
+    backgroundColor: darkMode ? "rgba(255, 255, 255, 0.05)" : "rgba(255, 255, 255, 0.5)",
+    transition: "background-color 0.2s"
+  };
+  
+  // 로딩 스켈레톤 스타일
+  const skeletonStyle = {
+    height: "20px",
+    backgroundColor: darkMode ? "#555" : "#f0f0f0",
+    borderRadius: "4px",
+    marginBottom: "10px",
+    animation: "pulse 1.5s infinite ease-in-out"
+  };
+  
+  // 더 보기 버튼 스타일
+  const viewMoreStyle = {
+    display: "inline-block",
+    padding: "8px 15px",
+    backgroundColor: "rgba(0, 0, 0, 0.1)",
+    borderRadius: "20px",
+    fontSize: "14px",
+    marginTop: "10px",
+    color: darkMode ? "#e0e0e0" : "#333",
+    transition: "background-color 0.2s",
+    cursor: "pointer",
+    textAlign: "center"
   };
 
   return (
-    <div style={{ maxWidth: 900, margin: "0 auto", padding: 20 }}>
-      {/* 🎤 듀엣/합창 게시판 */}
-      <a
-        href="/duet"
-        style={{
-          ...cardStyle,
-          background: darkMode ? "#444" : "#f3eaff",
-          color: darkMode ? "#fff" : "#333",
-        }}
-      >
-        <h2 style={{ color: "#7e57c2", marginBottom: 10 }}>🎤 듀엣/합창 게시판</h2>
-        {duetPost ? (
-          <div style={{ fontWeight: "bold" }}>▸ {duetPost.title}</div>
-        ) : <p>글이 없습니다</p>}
-      </a>
-
-      {/* 📝 자유 게시판 */}
-      <a
-        href="/freeboard"
-        style={{
-          ...cardStyle,
-          background: darkMode ? "#444" : "#e3f2fd",
-          color: darkMode ? "#fff" : "#333",
-        }}
-      >
-        <h2 style={{ color: "#1976d2", marginBottom: 10 }}>📝 자유 게시판</h2>
-        {freePost ? (
-          <div style={{ fontWeight: "bold" }}>▸ {freePost.title}</div>
-        ) : <p>글이 없습니다</p>}
-      </a>
-
-      {/* 🎵 노래 추천 게시판 */}
-      <a
-        href="/songs"
-        style={{
-          ...cardStyle,
-          background: darkMode ? "#444" : "#ffe0f0",
-          color: darkMode ? "#fff" : "#333",
-        }}
-      >
-        <h2 style={{ color: "#d81b60", marginBottom: 10 }}>🎵 노래 추천 게시판</h2>
-        {songPost ? (
-          <div style={{ fontWeight: "bold" }}>▸ {songPost.title}</div>
-        ) : <p>추천곡이 없습니다</p>}
-      </a>
-
-      {/* 💬 고민 상담 게시판 */}
-      <a
-        href="/advice"
-        style={{
-          ...cardStyle,
-          background: darkMode ? "#444" : "#e8eaf6",
-          color: darkMode ? "#fff" : "#333",
-        }}
-      >
-        <h2 style={{ color: "#3f51b5", marginBottom: 10 }}>💬 고민 상담 게시판</h2>
-        {advicePost ? (
-          <div style={{ fontWeight: "bold" }}>▸ {advicePost.title}</div>
-        ) : <p>상담글이 없습니다</p>}
-      </a>
+    <div style={{ 
+      maxWidth: 900, 
+      margin: "0 auto", 
+      padding: 20,
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+      gap: "20px"
+    }}>
+      {/* 스켈레톤 애니메이션 */}
+      <style>{`
+        @keyframes pulse {
+          0% { opacity: 0.6; }
+          50% { opacity: 1; }
+          100% { opacity: 0.6; }
+        }
+      `}</style>
+      
+      {/* 각 게시판 카드 */}
+      {Object.keys(boardInfo).map(boardType => (
+        <div 
+          key={boardType} 
+          style={getCardStyle(boardType, activeHover === boardType)}
+          onMouseEnter={() => setActiveHover(boardType)}
+          onMouseLeave={() => setActiveHover(null)}
+        >
+          <h2 style={{ 
+            color: boardInfo[boardType].color, 
+            marginBottom: 15,
+            fontSize: "20px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center"
+          }}>
+            {boardInfo[boardType].title}
+            <Link to={boardInfo[boardType].route} style={{ 
+              fontSize: "14px", 
+              color: boardInfo[boardType].color,
+              opacity: 0.8
+            }}>
+              더보기 →
+            </Link>
+          </h2>
+          
+          {/* 로딩 중 */}
+          {posts[boardType].loading && (
+            <>
+              <div style={{ ...skeletonStyle, width: "100%" }}></div>
+              <div style={{ ...skeletonStyle, width: "80%" }}></div>
+              <div style={{ ...skeletonStyle, width: "90%" }}></div>
+            </>
+          )}
+          
+          {/* 에러 상태 */}
+          {posts[boardType].error && (
+            <div style={{
+              padding: "15px",
+              backgroundColor: darkMode ? "rgba(244, 67, 54, 0.1)" : "rgba(244, 67, 54, 0.05)",
+              borderRadius: "8px",
+              color: "#f44336",
+              fontSize: "14px"
+            }}>
+              {posts[boardType].error}
+            </div>
+          )}
+          
+          {/* 데이터 없음 */}
+          {!posts[boardType].loading && !posts[boardType].error && posts[boardType].items.length === 0 && (
+            <div style={{
+              padding: "20px 0",
+              textAlign: "center",
+              color: darkMode ? "#aaa" : "#888"
+            }}>
+              {boardType === 'duet' && "작성된 글이 없습니다"}
+              {boardType === 'free' && "작성된 글이 없습니다"}
+              {boardType === 'song' && "추천곡이 없습니다"}
+              {boardType === 'advice' && "상담글이 없습니다"}
+            </div>
+          )}
+          
+          {/* 게시물 목록 */}
+          {!posts[boardType].loading && !posts[boardType].error && posts[boardType].items.length > 0 && (
+            <div>
+              {posts[boardType].items.map((post, index) => (
+                <Link 
+                  key={post.id} 
+                  to={`${boardInfo[boardType].postRoute}/${post.id}`}
+                  style={{ textDecoration: "none", color: "inherit" }}
+                >
+                  <div style={{
+                    ...postItemStyle,
+                    backgroundColor: activeHover === boardType 
+                      ? (darkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(255, 255, 255, 0.7)") 
+                      : (darkMode ? "rgba(255, 255, 255, 0.05)" : "rgba(255, 255, 255, 0.5)")
+                  }}>
+                    <div style={{ 
+                      fontWeight: "bold",
+                      marginBottom: "5px",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis"
+                    }}>
+                      {post.title}
+                    </div>
+                    <div style={{ 
+                      display: "flex", 
+                      justifyContent: "space-between", 
+                      fontSize: "12px",
+                      color: darkMode ? "#bbb" : "#666"
+                    }}>
+                      <span>{post.nickname || "익명"}</span>
+                      <span>
+                        {post.createdAt && formatTime(post.createdAt.seconds)}
+                        {post.views !== undefined && ` • 조회 ${post.views}`}
+                        {post.likes && ` • 좋아요 ${post.likes.length}`}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+              
+              <Link 
+                to={boardInfo[boardType].route}
+                style={{ 
+                  textDecoration: "none",
+                  display: "block",
+                  textAlign: "center"
+                }}
+              >
+                <div style={viewMoreStyle}>
+                  {boardType === 'duet' && "모든 듀엣 게시물 보기"}
+                  {boardType === 'free' && "모든 자유 게시물 보기"}
+                  {boardType === 'song' && "모든 노래 추천 보기"}
+                  {boardType === 'advice' && "모든 상담 게시물 보기"}
+                </div>
+              </Link>
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
