@@ -1,26 +1,41 @@
 // src/firebase.js
 
-import { initializeApp, getApps } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { initializeApp } from "firebase/app";
+import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+import { getAuth } from "firebase/auth";
 
-// 🔐 실제 프로젝트의 설정으로 바꿔줘야 함
+// 너의 Firebase 설정
 const firebaseConfig = {
-    apiKey: "AIzaSyAFnppMjf9K5Cv_ZrrC4PoE_sldORb_HGs",
-    authDomain: "veryusduet.firebaseapp.com",
-    projectId: "veryusduet",
-    storageBucket: "veryusduet.firebasestorage.app",
-    messagingSenderId: "966196979262",
-    appId: "1:966196979262:web:1d8a73f2d5af425bf7136f",
-    measurementId: "G-95YH8RLKYP"
-  };
+  apiKey: "AIzaSyAFnppMjf9K5Cv_ZrrC4PoE_sldORb_HGs",
+  authDomain: "veryusduet.firebaseapp.com",
+  projectId: "veryusduet",
+  storageBucket: "veryusduet.appspot.com",
+  messagingSenderId: "966196979262",
+  appId: "1:966196979262:web:1d8a73f2d5af425bf7136f",
+  measurementId: "G-95YH8RLKYP"
+};
 
-// 🔄 중복 초기화 방지
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+// Firebase 앱 초기화
+const app = initializeApp(firebaseConfig);
 
-// 🔗 Firebase 서비스 연결
+// Firestore 연결
 const db = getFirestore(app);
-const storage = getStorage(app);
 
-// 📤 외부에서 사용할 수 있도록 export
-export { db, storage };
+// ✅ 로컬에서 실행 중이면 Firestore Emulator에 연결 (중요!)
+
+// Storage 연결
+const storage = getStorage(app, "gs://veryusduet.appspot.com");
+
+// 인증 연결
+const auth = getAuth(app);
+
+// 디버깅용 콘솔 출력
+if (process.env.NODE_ENV === 'development') {
+  console.log('🔥 Firebase 연결 완료', {
+    projectId: firebaseConfig.projectId,
+    storageBucket: firebaseConfig.storageBucket
+  });
+}
+
+export { db, storage, auth };

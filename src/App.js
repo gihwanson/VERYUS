@@ -29,8 +29,7 @@ import WritePost from "./components/WritePost";
 import FreePostList from "./components/FreePostList";
 import Login from "./components/Login";
 import EditPost from "./components/EditPost";
-import EditComment from "./components/EditComment";
-import NoticeList from "./components/NoticeList";
+import { CommentSystem, EditCommentPage } from "./components/CommentSystem";import NoticeList from "./components/NoticeList";
 import NoticeDetail from "./components/NoticeDetail";
 import WriteNotice from "./components/WriteNotice";
 import UserProfile from "./components/UserProfile";
@@ -61,6 +60,7 @@ import NotFound from "./components/NotFound";
 import MainBoardList from "./components/MainBoardList";
 import ActivityHistory from "./components/ActivityHistory";
 import UserPage from "./components/UserPage";
+
 
 const menuItem = {
   padding: "8px 12px",
@@ -167,8 +167,7 @@ function App() {
         <Route path="/freeboard" element={<RequireAuth><FreePostList darkMode={dark} globalProfilePics={pics} globalGrades={grades} /></RequireAuth>} />
         <Route path="/post/:type/:id" element={<RequireAuth><PostDetail darkMode={dark} globalProfilePics={pics} globalGrades={grades} /></RequireAuth>} />
         <Route path="/edit/:type/:id" element={<RequireAuth><EditPost darkMode={dark} /></RequireAuth>} />
-        <Route path="/comment-edit/:type/:postId/:commentId" element={<RequireAuth><EditComment darkMode={dark} /></RequireAuth>} />
-        <Route path="/notice" element={<RequireAuth><WriteNotice darkMode={dark} /></RequireAuth>} />
+<Route path="/comment-edit/:type/:postId/:commentId" element={<RequireAuth><EditCommentPage darkMode={dark} /></RequireAuth>} />        <Route path="/notice" element={<RequireAuth><WriteNotice darkMode={dark} /></RequireAuth>} />
         <Route path="/notices" element={<RequireAuth><NoticeList darkMode={dark} /></RequireAuth>} />
         <Route path="/notice/:id" element={<RequireAuth><NoticeDetail darkMode={dark} /></RequireAuth>} />
         <Route path="/user/:userNickname" element={<RequireAuth><UserProfile darkMode={dark} /></RequireAuth>} />

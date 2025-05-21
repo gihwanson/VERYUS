@@ -65,6 +65,16 @@ export const breakpoints = {
   desktop: 1024,
 };
 
+// 미디어 쿼리 함수 추가 (styled-components용)
+export const media = {
+  mobile: `@media (max-width: ${breakpoints.mobile}px)`,
+  tablet: `@media (max-width: ${breakpoints.tablet}px)`,
+  desktop: `@media (max-width: ${breakpoints.desktop}px)`,
+};
+
+// CSS-in-JS 라이브러리용 미디어 쿼리 도우미 함수
+export const createMediaQuery = (maxWidth) => `@media (max-width: ${maxWidth}px)`;
+
 // 테마별 변수 모음
 export const lightTheme = {
   background: colors.lightBg,
@@ -91,6 +101,21 @@ export const containerStyle = {
   background: colors.lightBg,
   boxShadow: shadows.small,
   transition: transitions.medium,
+  
+  // 모바일 최적화 추가
+  [createMediaQuery(breakpoints.tablet)]: {
+    margin: "20px auto",
+    padding: 15,
+    borderRadius: 12,
+  },
+  
+  [createMediaQuery(breakpoints.mobile)]: {
+    margin: "10px auto",
+    padding: 10,
+    borderRadius: 8,
+    maxWidth: "100%",
+    width: "calc(100% - 20px)",
+  },
 };
 
 export const darkContainerStyle = {
@@ -110,6 +135,20 @@ export const cardStyle = {
   marginBottom: 16,
   boxShadow: shadows.small,
   transition: transitions.medium,
+  
+  // 모바일 최적화 추가
+  [createMediaQuery(breakpoints.tablet)]: {
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 12,
+  },
+  
+  [createMediaQuery(breakpoints.mobile)]: {
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 10,
+    boxShadow: 'none',
+  },
 };
 
 export const darkCardStyle = {
@@ -127,6 +166,17 @@ export const titleStyle = {
   fontSize: 24,
   fontWeight: "bold",
   transition: transitions.fast,
+  
+  // 모바일 최적화 추가
+  [createMediaQuery(breakpoints.tablet)]: {
+    fontSize: 22,
+    marginBottom: 16,
+  },
+  
+  [createMediaQuery(breakpoints.mobile)]: {
+    fontSize: 20,
+    marginBottom: 12,
+  },
 };
 
 export const darkTitleStyle = {
@@ -145,6 +195,20 @@ export const inputStyle = {
   transition: transitions.fast,
   outline: "none",
   boxSizing: "border-box",
+  
+  // 모바일 최적화 추가
+  [createMediaQuery(breakpoints.tablet)]: {
+    padding: "10px 14px",
+    fontSize: 15,
+    marginBottom: 12,
+  },
+  
+  [createMediaQuery(breakpoints.mobile)]: {
+    padding: "8px 12px",
+    fontSize: 14,
+    marginBottom: 10,
+    borderRadius: 8,
+  },
 };
 
 export const darkInputStyle = {
@@ -161,6 +225,11 @@ export const textareaStyle = {
   resize: "vertical",
   lineHeight: 1.5,
   fontFamily: "inherit",
+  
+  // 모바일 최적화 추가
+  [createMediaQuery(breakpoints.mobile)]: {
+    height: 100,
+  },
 };
 
 export const darkTextareaStyle = {
@@ -182,6 +251,19 @@ export const buttonBaseStyle = {
   gap: 8,
   fontSize: 16,
   outline: "none",
+  
+  // 모바일 최적화 추가
+  [createMediaQuery(breakpoints.tablet)]: {
+    padding: "10px 16px",
+    fontSize: 15,
+  },
+  
+  [createMediaQuery(breakpoints.mobile)]: {
+    padding: "8px 14px",
+    fontSize: 14,
+    borderRadius: 6,
+    gap: 6,
+  },
 };
 
 // 주요 버튼 (퍼플 컬러)
@@ -222,6 +304,13 @@ export const smallBtn = {
   borderRadius: 6,
   background: colors.primary,
   color: colors.textLight,
+  
+  // 모바일 최적화 추가
+  [createMediaQuery(breakpoints.mobile)]: {
+    padding: "5px 10px",
+    fontSize: 13,
+    borderRadius: 5,
+  },
 };
 
 export const darkSmallBtn = {
@@ -272,6 +361,25 @@ export const menuStyle = {
     transform: "translateY(-2px)",
     boxShadow: shadows.large,
   },
+  
+  // 모바일 최적화 추가
+  [createMediaQuery(breakpoints.tablet)]: {
+    padding: "12px 16px",
+    fontSize: 15,
+    minWidth: 120,
+  },
+  
+  [createMediaQuery(breakpoints.mobile)]: {
+    padding: "10px 14px",
+    fontSize: 14,
+    minWidth: 100,
+    boxShadow: shadows.small,
+    borderRadius: 8,
+    "&:hover": {
+      transform: "none",
+      boxShadow: shadows.small,
+    },
+  },
 };
 
 export const darkMenuStyle = {
@@ -290,6 +398,13 @@ export const badgeStyle = {
   borderRadius: 12,
   fontSize: 12,
   fontWeight: "bold",
+  
+  // 모바일 최적화 추가
+  [createMediaQuery(breakpoints.mobile)]: {
+    padding: "2px 6px",
+    fontSize: 11,
+    borderRadius: 10,
+  },
 };
 
 export const primaryBadge = {
@@ -312,6 +427,22 @@ export const alertStyle = {
   display: "flex",
   alignItems: "center",
   gap: 12,
+  
+  // 모바일 최적화 추가
+  [createMediaQuery(breakpoints.tablet)]: {
+    padding: 12,
+    gap: 10,
+    marginBottom: 12,
+  },
+  
+  [createMediaQuery(breakpoints.mobile)]: {
+    padding: 10,
+    gap: 8,
+    marginBottom: 10,
+    borderRadius: 6,
+    flexDirection: "column",
+    alignItems: "flex-start",
+  },
 };
 
 export const successAlert = {
@@ -363,6 +494,19 @@ export const modalContentStyle = {
   maxWidth: 500,
   width: "90%",
   boxShadow: shadows.large,
+  
+  // 모바일 최적화 추가
+  [createMediaQuery(breakpoints.tablet)]: {
+    padding: 20,
+    width: "95%",
+  },
+  
+  [createMediaQuery(breakpoints.mobile)]: {
+    padding: 16,
+    borderRadius: 10,
+    width: "95%",
+    maxWidth: "calc(100% - 20px)",
+  },
 };
 
 export const darkModalContentStyle = {
@@ -370,6 +514,81 @@ export const darkModalContentStyle = {
   background: colors.darkBg,
   color: colors.textLight,
   boxShadow: "0 8px 32px rgba(0, 0, 0, 0.5)",
+};
+
+// 게시판 및 목록 스타일 (모바일 최적화를 위해 추가)
+export const boardContainerStyle = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: "20px",
+  marginBottom: "40px",
+  
+  // 모바일 최적화
+  [createMediaQuery(breakpoints.tablet)]: {
+    gridTemplateColumns: "1fr 1fr",
+    gap: "15px",
+    marginBottom: "30px",
+  },
+  
+  [createMediaQuery(breakpoints.mobile)]: {
+    gridTemplateColumns: "1fr",
+    gap: "10px",
+    marginBottom: "20px",
+  },
+};
+
+export const boardSectionStyle = {
+  background: colors.cardLightBg,
+  borderRadius: "12px",
+  padding: "20px",
+  boxShadow: shadows.small,
+  
+  // 모바일 최적화
+  [createMediaQuery(breakpoints.tablet)]: {
+    padding: "15px",
+    borderRadius: "10px",
+  },
+  
+  [createMediaQuery(breakpoints.mobile)]: {
+    padding: "12px",
+    borderRadius: "8px",
+  },
+};
+
+// 헤더 스타일 (모바일 최적화를 위해 추가)
+export const headerStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  padding: "15px 20px",
+  backgroundColor: "#fff",
+  boxShadow: shadows.small,
+  
+  // 모바일 최적화
+  [createMediaQuery(breakpoints.tablet)]: {
+    padding: "12px 15px",
+  },
+  
+  [createMediaQuery(breakpoints.mobile)]: {
+    padding: "10px 12px",
+    flexDirection: "column",
+    alignItems: "flex-start",
+    gap: "10px",
+  },
+};
+
+export const headerMenuStyle = {
+  display: "flex",
+  gap: "20px",
+  alignItems: "center",
+  
+  // 모바일 최적화
+  [createMediaQuery(breakpoints.mobile)]: {
+    flexDirection: "column",
+    alignItems: "flex-start",
+    gap: "10px",
+    width: "100%",
+  },
 };
 
 // 유틸리티 함수
@@ -393,6 +612,15 @@ export const getThemeStyles = (isDarkMode) => ({
     overlay: modalOverlayStyle,
     content: isDarkMode ? darkModalContentStyle : modalContentStyle,
   },
+  board: {
+    container: boardContainerStyle,
+    section: boardSectionStyle,
+  },
+  header: {
+    container: headerStyle,
+    menu: headerMenuStyle,
+  },
   colors: colors,
   theme: isDarkMode ? darkTheme : lightTheme,
+  media: media, // 미디어 쿼리 추가
 });

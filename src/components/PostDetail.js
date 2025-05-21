@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
-  collection, getDocs, doc, updateDoc, deleteDoc, addDoc, Timestamp, query, where, onSnapshot, writeBatch
+  collection, getDocs, doc, getDoc, updateDoc, deleteDoc, addDoc, Timestamp, query, where, onSnapshot, writeBatch
 } from "firebase/firestore";
 import { db } from "../firebase";
 
@@ -111,11 +111,22 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
   // 게시글 정보 가져오기
   useEffect(() => {
     const fetchData = async () => {
-      const coll = getCollectionName(type);
-      const snap = await getDocs(collection(db, coll));
-      const f = snap.docs.find(d => d.id === id);
-      if (f) setPost({ id: f.id, ...f.data() });
+      try {
+        const coll = getCollectionName(type);
+        // 게시물 하나만 직접 가져오기
+        const docRef = doc(db, coll, id);
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+          setPost({ id: docSnap.id, ...docSnap.data() });
+        } else {
+          console.log("해당 게시물이 존재하지 않습니다!");
+        }
+      } catch (error) {
+        console.error("게시물 로드 오류:", error);
+      }
     };
+    
     fetchData();
   }, [type, id]);
 

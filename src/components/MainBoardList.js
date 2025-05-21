@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
 import {
@@ -14,10 +14,16 @@ function MainBoardList({ darkMode }) {
     advice: { items: [], loading: true, error: null }
   });
   
+  // ref 객체를 사용하여 직접 DOM에 접근할 링크 참조 생성
+  const linkRefs = useRef({});
+  
   const [activeHover, setActiveHover] = useState(null);
   const POST_COUNT = 3; // 각 게시판별 표시할 게시물 수
   
   useEffect(() => {
+    // ref 객체 초기화
+    linkRefs.current = {};
+    
     const fetchPosts = async (collectionName, boardType) => {
       try {
         // 쿼리 생성 - 최신순으로 POST_COUNT개 가져오기
@@ -167,7 +173,8 @@ function MainBoardList({ darkMode }) {
     marginBottom: "8px",
     borderRadius: "8px",
     backgroundColor: darkMode ? "rgba(255, 255, 255, 0.05)" : "rgba(255, 255, 255, 0.5)",
-    transition: "background-color 0.2s"
+    transition: "background-color 0.2s",
+    cursor: "pointer"
   };
   
   // 로딩 스켈레톤 스타일
@@ -193,6 +200,24 @@ function MainBoardList({ darkMode }) {
     textAlign: "center"
   };
 
+  // 하드 리다이렉트 실행 함수
+  const hardRedirect = (path) => {
+    window.location.assign(path);
+  };
+
+  // 클릭 핸들러에서 실제 a 요소 클릭 시뮬레이션
+  const simulateNativeClick = (boardType, postId) => {
+    const linkId = `${boardType}-${postId}`;
+    const linkElement = document.getElementById(linkId);
+    
+    if (linkElement) {
+      linkElement.click();
+    } else {
+      // 엘리먼트를 찾지 못한 경우 하드 리다이렉트로 대체
+      hardRedirect(`${boardInfo[boardType].postRoute}/${postId}`);
+    }
+  };
+
   return (
     <div style={{ 
       maxWidth: 900, 
@@ -208,6 +233,19 @@ function MainBoardList({ darkMode }) {
           0% { opacity: 0.6; }
           50% { opacity: 1; }
           100% { opacity: 0.6; }
+        }
+        
+        /* 링크 요소의 히든 스타일 */
+        .hidden-link {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          margin: -1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+          white-space: nowrap;
+          border: 0;
         }
       `}</style>
       
@@ -228,13 +266,17 @@ function MainBoardList({ darkMode }) {
             alignItems: "center"
           }}>
             {boardInfo[boardType].title}
-            <Link to={boardInfo[boardType].route} style={{ 
-              fontSize: "14px", 
-              color: boardInfo[boardType].color,
-              opacity: 0.8
-            }}>
+            <a 
+              href={boardInfo[boardType].route} 
+              style={{ 
+                fontSize: "14px", 
+                color: boardInfo[boardType].color,
+                opacity: 0.8,
+                textDecoration: "none"
+              }}
+            >
               더보기 →
-            </Link>
+            </a>
           </h2>
           
           {/* 로딩 중 */}
@@ -276,46 +318,57 @@ function MainBoardList({ darkMode }) {
           {/* 게시물 목록 */}
           {!posts[boardType].loading && !posts[boardType].error && posts[boardType].items.length > 0 && (
             <div>
-              {posts[boardType].items.map((post, index) => (
-                <Link 
-                  key={post.id} 
-                  to={`${boardInfo[boardType].postRoute}/${post.id}`}
-                  style={{ textDecoration: "none", color: "inherit" }}
+              {/* 숨겨진 실제 a 태그들을 미리 준비 */}
+              {posts[boardType].items.map((post) => (
+                <a
+                  key={`link-${boardType}-${post.id}`}
+                  id={`${boardType}-${post.id}`}
+                  href={`${boardInfo[boardType].postRoute}/${post.id}`}
+                  className="hidden-link"
+                  rel="noopener noreferrer"
                 >
-                  <div style={{
+                  {post.title}
+                </a>
+              ))}
+              
+              {posts[boardType].items.map((post, index) => (
+                <div 
+                  key={post.id} 
+                  onClick={() => simulateNativeClick(boardType, post.id)}
+                  style={{
                     ...postItemStyle,
                     backgroundColor: activeHover === boardType 
                       ? (darkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(255, 255, 255, 0.7)") 
                       : (darkMode ? "rgba(255, 255, 255, 0.05)" : "rgba(255, 255, 255, 0.5)")
+                  }}
+                >
+                  <div style={{ 
+                    fontWeight: "bold",
+                    marginBottom: "5px",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis"
                   }}>
-                    <div style={{ 
-                      fontWeight: "bold",
-                      marginBottom: "5px",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis"
-                    }}>
-                      {post.title}
-                    </div>
-                    <div style={{ 
-                      display: "flex", 
-                      justifyContent: "space-between", 
-                      fontSize: "12px",
-                      color: darkMode ? "#bbb" : "#666"
-                    }}>
-                      <span>{post.nickname || "익명"}</span>
-                      <span>
-                        {post.createdAt && formatTime(post.createdAt.seconds)}
-                        {post.views !== undefined && ` • 조회 ${post.views}`}
-                        {post.likes && ` • 좋아요 ${post.likes.length}`}
-                      </span>
-                    </div>
+                    {post.title}
                   </div>
-                </Link>
+                  <div style={{ 
+                    display: "flex", 
+                    justifyContent: "space-between", 
+                    fontSize: "12px",
+                    color: darkMode ? "#bbb" : "#666"
+                  }}>
+                    <span>{post.nickname || "익명"}</span>
+                    <span>
+                      {post.createdAt && formatTime(post.createdAt.seconds)}
+                      {post.views !== undefined && ` • 조회 ${post.views}`}
+                      {post.likes && ` • 좋아요 ${post.likes.length}`}
+                    </span>
+                  </div>
+                </div>
               ))}
               
-              <Link 
-                to={boardInfo[boardType].route}
+              <a 
+                href={boardInfo[boardType].route}
                 style={{ 
                   textDecoration: "none",
                   display: "block",
@@ -328,7 +381,7 @@ function MainBoardList({ darkMode }) {
                   {boardType === 'song' && "모든 노래 추천 보기"}
                   {boardType === 'advice' && "모든 상담 게시물 보기"}
                 </div>
-              </Link>
+              </a>
             </div>
           )}
         </div>
