@@ -141,17 +141,20 @@ function Header({
     { path: "/edit-password", label: "비밀번호 변경", icon: "🔑" }
   ];
   
-  // 관리자 메뉴 항목
-  const adminMenuItems = [];
-  
-  if (nick === "너래") {
-    adminMenuItems.push({ path: "/admin-eval", label: "평가 결과", icon: "👑" });
-  }
-  
-  if (role === "운영진" || role === "리더" || nick === "너래") {
-    adminMenuItems.push({ path: "/admin-user", label: "관리자메뉴", icon: "👥" });
-    adminMenuItems.push({ path: "/notices", label: "공지사항 관리", icon: "📢" });
-  }
+const adminMenuItems = [];
+
+// "너래" 닉네임이면 모든 관리자 메뉴 표시
+if (nick === "너래") {
+  adminMenuItems.push({ path: "/admin-eval", label: "평가 결과", icon: "👑" });
+  adminMenuItems.push({ path: "/admin-user", label: "관리자메뉴", icon: "👥" });
+  adminMenuItems.push({ path: "/notices", label: "공지사항 관리", icon: "📢" });
+}
+// 그 외 관리자 권한을 가진 사용자에게는 일부 메뉴만 표시
+else if (role === "운영진" || role === "리더" || role === "부운영진") {
+  adminMenuItems.push({ path: "/admin-user", label: "관리자메뉴", icon: "👥" });
+  adminMenuItems.push({ path: "/notices", label: "공지사항 관리", icon: "📢" });
+}
+
   
   // 총 알림 수 계산
   const totalNotifications = (unread || 0) + (notiCount || 0);
@@ -312,43 +315,172 @@ function Header({
         )}
       </div>
       
-      {/* 중앙: 메인 네비게이션 (데스크톱) */}
-      {!isMobile && (
-        <nav style={{
+{/* 중앙: 메인 네비게이션 (데스크톱) */}
+{!isMobile && (
+  <nav style={{
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    margin: "0 auto",
+    padding: "0 20px",
+    maxWidth: "60%", // 최대 너비 제한
+    overflowX: "auto", // 가로 스크롤 추가
+    whiteSpace: "nowrap", // 항목이 줄바꿈되지 않도록 설정
+    msOverflowStyle: "none", // IE/Edge에서 스크롤바 숨기기
+    scrollbarWidth: "none", // Firefox에서 스크롤바 숨기기
+    WebkitOverflowScrolling: "touch" // iOS에서 부드러운 스크롤 지원
+  }}>
+    {/* 스타일 태그 추가: 스크롤바 숨기기 */}
+    <style>{`
+      nav::-webkit-scrollbar {
+        display: none; /* Chrome, Safari, Opera에서 스크롤바 숨기기 */
+      }
+      
+      /* 스크롤 가능함을 나타내는 그라데이션 효과 */
+      @keyframes pulseGradient {
+        0% { opacity: 0.3; }
+        50% { opacity: 0.7; }
+        100% { opacity: 0.3; }
+      }
+      
+      .scroll-indicator {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 25px;
+        pointer-events: none;
+        z-index: 5;
+        background: linear-gradient(to right, transparent, ${dark ? '#1a1a1a' : '#ffffff'});
+        animation: pulseGradient 2s infinite;
+      }
+      
+      .scroll-indicator-left {
+        left: 0;
+        background: linear-gradient(to right, ${dark ? '#1a1a1a' : '#ffffff'}, transparent);
+      }
+      
+      .scroll-indicator-right {
+        right: 0;
+        background: linear-gradient(to left, ${dark ? '#1a1a1a' : '#ffffff'}, transparent);
+      }
+    `}</style>
+    
+    {/* 스크롤 가능 표시기 - 왼쪽 (스크롤 위치에 따라 조건부 표시) */}
+    <div className="scroll-indicator scroll-indicator-left"></div>
+    
+    {mainMenuItems.map((item) => (
+      <Link 
+        key={item.path}
+        to={item.path}
+        style={{
+          padding: "8px 12px",
+          borderRadius: "4px",
+          textDecoration: "none",
+          color: dark 
+            ? (isActive(item.path) ? "#bb86fc" : "#e0e0e0") 
+            : (isActive(item.path) ? "#7e57c2" : "#333"),
+          fontWeight: isActive(item.path) ? "bold" : "normal",
+          backgroundColor: isActive(item.path) 
+            ? (dark ? "rgba(187, 134, 252, 0.1)" : "rgba(126, 87, 194, 0.1)") 
+            : "transparent",
+          transition: "all 0.2s ease",
           display: "flex",
           alignItems: "center",
-          gap: "10px",
-          margin: "0 auto",
-          padding: "0 20px"
-        }}>
-          {mainMenuItems.map((item) => (
-            <Link 
-              key={item.path}
-              to={item.path}
-              style={{
-                padding: "8px 12px",
-                borderRadius: "4px",
-                textDecoration: "none",
-                color: dark 
-                  ? (isActive(item.path) ? "#bb86fc" : "#e0e0e0") 
-                  : (isActive(item.path) ? "#7e57c2" : "#333"),
-                fontWeight: isActive(item.path) ? "bold" : "normal",
-                backgroundColor: isActive(item.path) 
-                  ? (dark ? "rgba(187, 134, 252, 0.1)" : "rgba(126, 87, 194, 0.1)") 
-                  : "transparent",
-                transition: "all 0.2s ease",
-                display: "flex",
-                alignItems: "center",
-                gap: "5px"
-              }}
-              aria-current={isActive(item.path) ? "page" : undefined}
-            >
-              <span>{item.icon}</span>
-              <span>{item.label}</span>
-            </Link>
-          ))}
-        </nav>
-      )}
+          gap: "5px",
+          flexShrink: 0 // 항목이 줄어들지 않도록 설정
+        }}
+        aria-current={isActive(item.path) ? "page" : undefined}
+      >
+        <span>{item.icon}</span>
+        <span>{item.label}</span>
+      </Link>
+    ))}
+    
+    {/* 추가: 관리자 메뉴 항목도 메인 네비게이션에 표시 */}
+    {nick === "너래" && (
+      <>
+        <Link 
+          to="/admin-eval"
+          style={{
+            padding: "8px 12px",
+            borderRadius: "4px",
+            textDecoration: "none",
+            color: dark 
+              ? (isActive("/admin-eval") ? "#ff9800" : "#ff9800") 
+              : (isActive("/admin-eval") ? "#e65100" : "#e65100"),
+            fontWeight: isActive("/admin-eval") ? "bold" : "normal",
+            backgroundColor: isActive("/admin-eval") 
+              ? (dark ? "rgba(255, 152, 0, 0.2)" : "rgba(255, 152, 0, 0.1)") 
+              : "transparent",
+            transition: "all 0.2s ease",
+            display: "flex",
+            alignItems: "center",
+            gap: "5px",
+            flexShrink: 0 // 항목이 줄어들지 않도록 설정
+          }}
+          aria-current={isActive("/admin-eval") ? "page" : undefined}
+        >
+          <span>👑</span>
+          <span>평가 결과</span>
+        </Link>
+        
+        <Link 
+          to="/admin-user"
+          style={{
+            padding: "8px 12px",
+            borderRadius: "4px",
+            textDecoration: "none",
+            color: dark 
+              ? (isActive("/admin-user") ? "#ff9800" : "#ff9800") 
+              : (isActive("/admin-user") ? "#e65100" : "#e65100"),
+            fontWeight: isActive("/admin-user") ? "bold" : "normal",
+            backgroundColor: isActive("/admin-user") 
+              ? (dark ? "rgba(255, 152, 0, 0.2)" : "rgba(255, 152, 0, 0.1)") 
+              : "transparent",
+            transition: "all 0.2s ease",
+            display: "flex",
+            alignItems: "center",
+            gap: "5px",
+            flexShrink: 0 // 항목이 줄어들지 않도록 설정
+          }}
+          aria-current={isActive("/admin-user") ? "page" : undefined}
+        >
+          <span>👥</span>
+          <span>관리자메뉴</span>
+        </Link>
+        
+        <Link 
+          to="/notices"
+          style={{
+            padding: "8px 12px",
+            borderRadius: "4px",
+            textDecoration: "none",
+            color: dark 
+              ? (isActive("/notices") ? "#ff9800" : "#ff9800") 
+              : (isActive("/notices") ? "#e65100" : "#e65100"),
+            fontWeight: isActive("/notices") ? "bold" : "normal",
+            backgroundColor: isActive("/notices") 
+              ? (dark ? "rgba(255, 152, 0, 0.2)" : "rgba(255, 152, 0, 0.1)") 
+              : "transparent",
+            transition: "all 0.2s ease",
+            display: "flex",
+            alignItems: "center",
+            gap: "5px",
+            flexShrink: 0 // 항목이 줄어들지 않도록 설정
+          }}
+          aria-current={isActive("/notices") ? "page" : undefined}
+        >
+          <span>📢</span>
+          <span>공지사항 관리</span>
+        </Link>
+      </>
+    )}
+    
+    {/* 스크롤 가능 표시기 - 오른쪽 */}
+    <div className="scroll-indicator scroll-indicator-right"></div>
+  </nav>
+)}
+
       
       {/* 오른쪽: 프로필 & 메뉴 */}
       {nick ? (

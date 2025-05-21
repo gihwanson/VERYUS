@@ -29,15 +29,16 @@ import WritePost from "./components/WritePost";
 import FreePostList from "./components/FreePostList";
 import Login from "./components/Login";
 import EditPost from "./components/EditPost";
-import { CommentSystem, EditCommentPage } from "./components/CommentSystem";import NoticeList from "./components/NoticeList";
+import { CommentSystem, EditCommentPage } from "./components/CommentSystem";
+import NoticeList from "./components/NoticeList";
 import NoticeDetail from "./components/NoticeDetail";
 import WriteNotice from "./components/WriteNotice";
 import UserProfile from "./components/UserProfile";
 import Guestbook from "./components/Guestbook";
 import EditEntry from "./components/EditEntry";
-import Inbox from "./components/Inbox";
-import Outbox from "./components/Outbox";
 import SendMessage from "./components/SendMessage";
+import MessageBox from "./components/MessageBox";
+
 // 프로필 관련 컴포넌트
 import EditProfilePic from "./components/EditProfilePic";
 import EditIntroduction from "./components/EditIntroduction";
@@ -178,8 +179,8 @@ function App() {
         <Route path="/edit-nickname" element={<RequireAuth><EditNickname darkMode={dark} /></RequireAuth>} />
         <Route path="/edit-password" element={<RequireAuth><EditPassword darkMode={dark} /></RequireAuth>} />
         <Route path="/delete-account" element={<RequireAuth><DeleteAccount darkMode={dark} /></RequireAuth>} />
-        <Route path="/inbox" element={<RequireAuth><Inbox darkMode={dark} /></RequireAuth>} />
-        <Route path="/outbox" element={<RequireAuth><Outbox darkMode={dark} /></RequireAuth>} />
+        <Route path="/inbox" element={<RequireAuth><MessageBox darkMode={dark} mode="inbox" /></RequireAuth>} />
+        <Route path="/outbox" element={<RequireAuth><MessageBox darkMode={dark} mode="outbox" /></RequireAuth>} />
         <Route path="/send-message/:receiverNickname" element={<RequireAuth><SendMessage darkMode={dark} /></RequireAuth>} />
         <Route path="/send-notification" element={<RequireAuth><SendNotification darkMode={dark} /></RequireAuth>} />
         <Route path="/notification" element={<RequireAuth><Notification darkMode={dark} /></RequireAuth>} />

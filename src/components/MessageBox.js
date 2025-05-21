@@ -8,9 +8,9 @@ import {
 import { db } from "../firebase";
 import {
   containerStyle, darkContainerStyle, titleStyle, smallBtn
-} from "../components/style";
+} from "./style";
 
-function Inbox({ darkMode }) {
+function MessageBox({ darkMode, mode = "inbox" }) {
   const [msgs, setMsgs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -19,36 +19,47 @@ function Inbox({ darkMode }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [selectedMsgId, setSelectedMsgId] = useState(null);
-  const [filter, setFilter] = useState("all"); // 'all', 'unread', 'read'
+  const [filter, setFilter] = useState("all"); // 'all', 'unread', 'read' - 받은 쪽지함에서만 사용
   const [showReplyForm, setShowReplyForm] = useState(null); // 답장 폼을 보여줄 메시지 ID
   const [replyContent, setReplyContent] = useState(""); // 답장 내용
   
   const me = localStorage.getItem("nickname");
   const PAGE_SIZE = 10;
   
+  const isInbox = mode === "inbox";
+  
   // 기본 쿼리 생성 함수
   const createQuery = (startAfterDoc = null) => {
     let baseQuery;
     
-    // 필터에 따른 쿼리 조건 설정
-    if (filter === "unread") {
-      baseQuery = query(
-        collection(db, "messages"),
-        where("receiverNickname", "==", me),
-        where("read", "==", false),
-        orderBy("createdAt", "desc")
-      );
-    } else if (filter === "read") {
-      baseQuery = query(
-        collection(db, "messages"),
-        where("receiverNickname", "==", me),
-        where("read", "==", true),
-        orderBy("createdAt", "desc")
-      );
+    if (isInbox) {
+      // 받은 쪽지함 쿼리
+      if (filter === "unread") {
+        baseQuery = query(
+          collection(db, "messages"),
+          where("receiverNickname", "==", me),
+          where("read", "==", false),
+          orderBy("createdAt", "desc")
+        );
+      } else if (filter === "read") {
+        baseQuery = query(
+          collection(db, "messages"),
+          where("receiverNickname", "==", me),
+          where("read", "==", true),
+          orderBy("createdAt", "desc")
+        );
+      } else {
+        baseQuery = query(
+          collection(db, "messages"),
+          where("receiverNickname", "==", me),
+          orderBy("createdAt", "desc")
+        );
+      }
     } else {
+      // 보낸 쪽지함 쿼리
       baseQuery = query(
         collection(db, "messages"),
-        where("receiverNickname", "==", me),
+        where("senderNickname", "==", me),
         orderBy("createdAt", "desc")
       );
     }
@@ -65,11 +76,13 @@ function Inbox({ darkMode }) {
   useEffect(() => {
     if (!me) {
       setError("사용자 정보를 찾을 수 없습니다. 다시 로그인해주세요.");
+      setLoading(false);
       return;
     }
     
     setLoading(true);
     setError(null);
+    setMsgs([]); // 모드 전환 시 기존 메시지 초기화
     
     const q = createQuery();
     
@@ -100,8 +113,13 @@ function Inbox({ darkMode }) {
       setLoading(false);
     });
     
+    // 선택된 메시지 및 답장 폼 초기화
+    setSelectedMsgId(null);
+    setShowReplyForm(null);
+    setReplyContent("");
+    
     return () => unsubscribe();
-  }, [me, filter]); // 필터가 변경될 때마다 다시 로드
+  }, [me, mode, filter]); // 모드나 필터가 변경될 때마다 다시 로드
   
   // 더 많은 쪽지 로드
   const loadMoreMessages = async () => {
@@ -179,24 +197,32 @@ function Inbox({ darkMode }) {
       // 클라이언트 측에서 필터링할 수 있음
       let baseQuery;
       
-      if (filter === "unread") {
-        baseQuery = query(
-          collection(db, "messages"),
-          where("receiverNickname", "==", me),
-          where("read", "==", false),
-          orderBy("createdAt", "desc")
-        );
-      } else if (filter === "read") {
-        baseQuery = query(
-          collection(db, "messages"),
-          where("receiverNickname", "==", me),
-          where("read", "==", true),
-          orderBy("createdAt", "desc")
-        );
+      if (isInbox) {
+        if (filter === "unread") {
+          baseQuery = query(
+            collection(db, "messages"),
+            where("receiverNickname", "==", me),
+            where("read", "==", false),
+            orderBy("createdAt", "desc")
+          );
+        } else if (filter === "read") {
+          baseQuery = query(
+            collection(db, "messages"),
+            where("receiverNickname", "==", me),
+            where("read", "==", true),
+            orderBy("createdAt", "desc")
+          );
+        } else {
+          baseQuery = query(
+            collection(db, "messages"),
+            where("receiverNickname", "==", me),
+            orderBy("createdAt", "desc")
+          );
+        }
       } else {
         baseQuery = query(
           collection(db, "messages"),
-          where("receiverNickname", "==", me),
+          where("senderNickname", "==", me),
           orderBy("createdAt", "desc")
         );
       }
@@ -204,10 +230,19 @@ function Inbox({ darkMode }) {
       const querySnapshot = await getDocs(baseQuery);
       const filteredMsgs = querySnapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data(), read: doc.data().read || false }))
-        .filter(msg => 
-          msg.content.toLowerCase().includes(searchTerm.toLowerCase()) || 
-          (msg.senderNickname && msg.senderNickname.toLowerCase().includes(searchTerm.toLowerCase()))
-        );
+        .filter(msg => {
+          const contentMatch = msg.content.toLowerCase().includes(searchTerm.toLowerCase());
+          let personMatch = false;
+          
+          // 받은 쪽지함에서는 보낸 사람으로, 보낸 쪽지함에서는 받는 사람으로 검색
+          if (isInbox) {
+            personMatch = msg.senderNickname && msg.senderNickname.toLowerCase().includes(searchTerm.toLowerCase());
+          } else {
+            personMatch = msg.receiverNickname && msg.receiverNickname.toLowerCase().includes(searchTerm.toLowerCase());
+          }
+          
+          return contentMatch || personMatch;
+        });
       
       setMsgs(filteredMsgs);
       setHasMore(false); // 검색 시에는 페이지네이션 비활성화
@@ -266,12 +301,14 @@ function Inbox({ darkMode }) {
     });
   };
   
-  // 필터 변경 핸들러
+  // 필터 변경 핸들러 (받은 쪽지함에서만 사용)
   const handleFilterChange = (newFilter) => {
-    setFilter(newFilter);
+    if (isInbox) {
+      setFilter(newFilter);
+    }
   };
   
-  // 쪽지 읽음 처리
+  // 쪽지 읽음 처리 (받은 쪽지함에서만 사용)
   const markAsRead = async (id) => {
     try {
       await updateDoc(doc(db, "messages", id), {
@@ -282,9 +319,9 @@ function Inbox({ darkMode }) {
     }
   };
   
-  // 선택된 쪽지 읽음 처리
+  // 선택된 쪽지 읽음 처리 (받은 쪽지함에서만 사용)
   const handleMarkAsRead = async (id) => {
-    if (!id) return;
+    if (!id || !isInbox) return;
     
     try {
       await markAsRead(id);
@@ -300,8 +337,10 @@ function Inbox({ darkMode }) {
     }
   };
   
-  // 선택된 모든 쪽지 읽음 처리
+  // 선택된 모든 쪽지 읽음 처리 (받은 쪽지함에서만 사용)
   const markAllAsRead = async () => {
+    if (!isInbox) return;
+    
     const unreadMessages = msgs.filter(msg => !msg.read);
     
     if (unreadMessages.length === 0) {
@@ -363,7 +402,11 @@ function Inbox({ darkMode }) {
       return;
     }
     
-    if (!window.confirm(`${msgs.length}개의 쪽지를 모두 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.`)) {
+    const confirmMsg = isInbox 
+      ? `${msgs.length}개의 쪽지를 모두 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.`
+      : `보낸 쪽지 ${msgs.length}개를 모두 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.`;
+      
+    if (!window.confirm(confirmMsg)) {
       return;
     }
     
@@ -389,8 +432,8 @@ function Inbox({ darkMode }) {
   
   // 쪽지 선택 토글
   const toggleMessageSelect = async (id, isRead) => {
-    // 선택된 쪽지가 읽지 않은 상태라면 읽음 처리
-    if (!isRead) {
+    // 받은 쪽지함에서 읽지 않은 쪽지를 선택한 경우 읽음 처리
+    if (isInbox && !isRead) {
       await handleMarkAsRead(id);
     }
     
@@ -403,8 +446,10 @@ function Inbox({ darkMode }) {
     }
   };
   
-  // 답장 폼 토글
+  // 답장 폼 토글 (받은 쪽지함에서만 사용)
   const toggleReplyForm = (id, originalContent, senderNickname) => {
+    if (!isInbox) return;
+    
     if (showReplyForm === id) {
       setShowReplyForm(null);
       setReplyContent("");
@@ -448,20 +493,40 @@ function Inbox({ darkMode }) {
   };
   
   // 카드 스타일 - 다크모드와 읽음 상태에 따라 조정
-  const getCardStyle = (isRead, isSelected) => ({
-    margin: "12px 0",
-    padding: 14,
-    borderRadius: 12,
-    background: darkMode 
-      ? (isSelected ? "#4a3a7a" : isRead ? "#2d2d3d" : "#3a2a5a") 
-      : (isSelected ? "#e6d6ff" : isRead ? "#f5f5f5" : "#f3e7ff"),
-    border: `1px solid ${darkMode ? "#513989" : "#b49ddb"}`,
-    color: darkMode ? "#e0e0e0" : "#000",
-    cursor: "pointer",
-    transition: "background-color 0.2s",
-    position: "relative",
-    opacity: isRead ? 0.85 : 1
-  });
+  const getCardStyle = (isRead, isSelected) => {
+    // 받은 쪽지함에서는 읽음 상태를 스타일에 반영
+    if (isInbox) {
+      return {
+        margin: "12px 0",
+        padding: 14,
+        borderRadius: 12,
+        background: darkMode 
+          ? (isSelected ? "#4a3a7a" : isRead ? "#2d2d3d" : "#3a2a5a") 
+          : (isSelected ? "#e6d6ff" : isRead ? "#f5f5f5" : "#f3e7ff"),
+        border: `1px solid ${darkMode ? "#513989" : "#b49ddb"}`,
+        color: darkMode ? "#e0e0e0" : "#000",
+        cursor: "pointer",
+        transition: "background-color 0.2s",
+        position: "relative",
+        opacity: isRead ? 0.85 : 1
+      };
+    } else {
+      // 보낸 쪽지함에서는 읽음 상태를 스타일에 덜 강조
+      return {
+        margin: "12px 0",
+        padding: 14,
+        borderRadius: 12,
+        background: darkMode 
+          ? (isSelected ? "#4a3a7a" : "#3a2a5a") 
+          : (isSelected ? "#e6d6ff" : "#f3e7ff"),
+        border: `1px solid ${darkMode ? "#513989" : "#b49ddb"}`,
+        color: darkMode ? "#e0e0e0" : "#000",
+        cursor: "pointer",
+        transition: "background-color 0.2s",
+        position: "relative"
+      };
+    }
+  };
   
   // 버튼 스타일
   const buttonStyle = {
@@ -507,6 +572,12 @@ function Inbox({ darkMode }) {
     fontSize: "14px",
     fontFamily: "inherit"
   };
+  
+  // 모드에 따른 제목과 검색 플레이스홀더 설정
+  const title = isInbox ? "📨 받은 쪽지함" : "✉️ 보낸 쪽지함";
+  const searchPlaceholder = isInbox 
+    ? "보낸 사람 또는 내용으로 검색" 
+    : "받는 사람 또는 내용으로 검색";
 
   return (
     <div style={darkMode ? darkContainerStyle : containerStyle}>
@@ -516,30 +587,91 @@ function Inbox({ darkMode }) {
         alignItems: "center", 
         marginBottom: "15px" 
       }}>
-        <h1 style={titleStyle}>📨 받은 쪽지함</h1>
+        <h1 style={titleStyle}>{title}</h1>
         
+        {isInbox && (
+          <div>
+            <button 
+              onClick={markAllAsRead}
+              style={{
+                ...buttonStyle,
+                backgroundColor: "#4caf50"
+              }}
+              disabled={msgs.filter(m => !m.read).length === 0}
+            >
+              모두 읽음
+            </button>
+            <button 
+              onClick={deleteAllMessages}
+              style={{
+                ...buttonStyle,
+                backgroundColor: "#f44336"
+              }}
+              disabled={msgs.length === 0}
+            >
+              모두 삭제
+            </button>
+          </div>
+        )}
+        
+        {!isInbox && msgs.length > 0 && (
+          <div>
+            <button 
+              onClick={deleteAllMessages}
+              style={{
+                ...buttonStyle,
+                backgroundColor: "#f44336"
+              }}
+            >
+              모두 삭제
+            </button>
+          </div>
+        )}
+      </div>
+      
+      {/* 모드 전환 버튼 */}
+      <div style={{ 
+        display: "flex", 
+        marginBottom: "20px",
+        justifyContent: "space-between",
+        alignItems: "center"
+      }}>
         <div>
           <button 
-            onClick={markAllAsRead}
+            onClick={() => window.location.href = "/inbox"}
             style={{
               ...buttonStyle,
-              backgroundColor: "#4caf50"
+              backgroundColor: isInbox ? "#7e57c2" : (darkMode ? "#555" : "#e0e0e0"),
+              color: isInbox ? "white" : (darkMode ? "#fff" : "#000")
             }}
-            disabled={msgs.filter(m => !m.read).length === 0}
           >
-            모두 읽음
+            받은 쪽지함
           </button>
           <button 
-            onClick={deleteAllMessages}
+            onClick={() => window.location.href = "/outbox"}
             style={{
               ...buttonStyle,
-              backgroundColor: "#f44336"
+              backgroundColor: !isInbox ? "#7e57c2" : (darkMode ? "#555" : "#e0e0e0"),
+              color: !isInbox ? "white" : (darkMode ? "#fff" : "#000")
             }}
-            disabled={msgs.length === 0}
           >
-            모두 삭제
+            보낸 쪽지함
           </button>
         </div>
+        
+        {/* 새 쪽지 작성 버튼 */}
+        <CustomLink 
+          to={`/send-message/`}
+          style={{
+            ...buttonStyle,
+            backgroundColor: "#00a0a0",
+            color: "white",
+            textDecoration: "none",
+            display: "inline-block"
+          }}
+        >
+          + 새 쪽지
+        </CustomLink>
       </div>
       
       {/* 검색 폼 */}
@@ -552,7 +684,7 @@ function Inbox({ darkMode }) {
           type="text"
           value={searchTerm}
           onChange={handleSearchTermChange}
-          placeholder="보낸 사람 또는 내용으로 검색"
+          placeholder={searchPlaceholder}
           style={inputStyle}
         />
         <button 
@@ -577,47 +709,53 @@ function Inbox({ darkMode }) {
         )}
       </form>
       
-      {/* 필터 버튼 */}
-      <div style={{ marginBottom: "20px" }}>
-        <button 
-          onClick={() => handleFilterChange("all")}
-          style={getFilterButtonStyle("all")}
-        >
-          전체 보기
-        </button>
-        <button 
-          onClick={() => handleFilterChange("unread")}
-          style={getFilterButtonStyle("unread")}
-        >
-          읽지 않음
-        </button>
-        <button 
-          onClick={() => handleFilterChange("read")}
-          style={getFilterButtonStyle("read")}
-        >
-          읽음
-        </button>
-      </div>
+      {/* 필터 버튼 - 받은 쪽지함에서만 표시 */}
+      {isInbox && (
+        <div style={{ marginBottom: "20px" }}>
+          <button 
+            onClick={() => handleFilterChange("all")}
+            style={getFilterButtonStyle("all")}
+          >
+            전체 보기
+          </button>
+          <button 
+            onClick={() => handleFilterChange("unread")}
+            style={getFilterButtonStyle("unread")}
+          >
+            읽지 않음
+          </button>
+          <button 
+            onClick={() => handleFilterChange("read")}
+            style={getFilterButtonStyle("read")}
+          >
+            읽음
+          </button>
+        </div>
+      )}
       
-      {/* 읽지 않은 쪽지 카운트 */}
+      {/* 쪽지 카운트 */}
       {!loading && !error && (
         <div style={{ 
           marginBottom: "15px", 
           fontSize: "14px", 
           color: darkMode ? "#bbb" : "#666" 
         }}>
-          {filter === "all" && (
-            <>
-              전체: <strong>{msgs.length}개</strong> {hasMore ? '이상' : ''}
-              {' | '}
-              읽지 않음: <strong>{msgs.filter(m => !m.read).length}개</strong>
-            </>
-          )}
-          {filter === "unread" && (
-            <>읽지 않은 쪽지: <strong>{msgs.length}개</strong> {hasMore ? '이상' : ''}</>
-          )}
-          {filter === "read" && (
-            <>읽은 쪽지: <strong>{msgs.length}개</strong> {hasMore ? '이상' : ''}</>
+          {isInbox ? (
+            filter === "all" ? (
+              <>
+                전체: <strong>{msgs.length}개</strong> {hasMore ? '이상' : ''}
+                {' | '}
+                읽지 않음: <strong>{msgs.filter(m => !m.read).length}개</strong>
+              </>
+            ) : filter === "unread" ? (
+              <>읽지 않은 쪽지: <strong>{msgs.length}개</strong> {hasMore ? '이상' : ''}</>
+            ) : (
+              <>읽은 쪽지: <strong>{msgs.length}개</strong> {hasMore ? '이상' : ''}</>
+            )
+          ) : (
+            isSearching 
+              ? <><strong>{msgs.length}개</strong>의 검색 결과</>
+              : <>보낸 쪽지: <strong>{msgs.length}개</strong> {hasMore ? '이상' : ''}</>
           )}
         </div>
       )}
@@ -655,7 +793,7 @@ function Inbox({ darkMode }) {
         }}>
           <p>{error}</p>
           <button 
-            onClick={clearSearch}
+                        onClick={clearSearch}
             style={{
               padding: "8px 16px",
               backgroundColor: "#d32f2f",
@@ -682,11 +820,13 @@ function Inbox({ darkMode }) {
           <p style={{ fontSize: "16px", color: darkMode ? "#bbb" : "#666" }}>
             {isSearching
               ? "검색 결과가 없습니다."
-              : filter === "unread"
-                ? "읽지 않은 쪽지가 없습니다."
-                : filter === "read"
-                  ? "읽은 쪽지가 없습니다."
-                  : "받은 쪽지가 없습니다."}
+              : isInbox
+                ? filter === "unread"
+                  ? "읽지 않은 쪽지가 없습니다."
+                  : filter === "read"
+                    ? "읽은 쪽지가 없습니다."
+                    : "받은 쪽지가 없습니다."
+                : "보낸 쪽지가 없습니다."}
           </p>
           {isSearching && (
             <button 
@@ -716,10 +856,10 @@ function Inbox({ darkMode }) {
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <p style={{ fontWeight: "bold", marginTop: 0 }}>
-                <strong>보낸 사람:</strong> {msg.senderNickname || "알 수 없음"}
+                <strong>{isInbox ? "보낸 사람" : "받는 사람"}:</strong> {isInbox ? (msg.senderNickname || "알 수 없음") : (msg.receiverNickname || "알 수 없음")}
               </p>
               
-              {!msg.read && (
+              {isInbox && !msg.read && (
                 <div style={{ 
                   width: "10px", 
                   height: "10px", 
@@ -753,19 +893,21 @@ function Inbox({ darkMode }) {
               
               {selectedMsgId === msg.id && (
                 <div>
+                  {isInbox && (
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleReplyForm(msg.id, msg.content, msg.senderNickname);
+                      }}
+                      style={{
+                        ...smallBtn,
+                        marginRight: "5px"
+                      }}
+                    >
+                      ↩️ 답장하기
+                    </button>
+                  )}
                   <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleReplyForm(msg.id, msg.content, msg.senderNickname);
-                    }}
-                    style={{
-                      ...smallBtn,
-                      marginRight: "5px"
-                    }}
-                  >
-                    ↩️ 답장하기
-                  </button>
-                                    <button 
                     onClick={(e) => {
                       e.stopPropagation();
                       deleteMessage(msg.id);
@@ -785,10 +927,26 @@ function Inbox({ darkMode }) {
                 </div>
               )}
             </div>
+            
+            {/* 읽음 상태 표시 (보낸 쪽지함에서만) */}
+            {!isInbox && msg.read && (
+              <div style={{ 
+                position: "absolute", 
+                top: "10px", 
+                right: "10px", 
+                fontSize: "12px",
+                color: darkMode ? "#aaa" : "#888",
+                backgroundColor: darkMode ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.7)",
+                padding: "2px 6px",
+                borderRadius: "10px"
+              }}>
+                읽음
+              </div>
+            )}
           </div>
           
-          {/* 답장 폼 */}
-          {showReplyForm === msg.id && (
+          {/* 답장 폼 (받은 쪽지함에서만) */}
+          {isInbox && showReplyForm === msg.id && (
             <div style={{
               margin: "0 0 20px 20px",
               padding: "15px",
@@ -882,12 +1040,14 @@ function Inbox({ darkMode }) {
   );
 }
 
-Inbox.propTypes = {
-  darkMode: PropTypes.bool
+MessageBox.propTypes = {
+  darkMode: PropTypes.bool,
+  mode: PropTypes.oneOf(["inbox", "outbox"])
 };
 
-Inbox.defaultProps = {
-  darkMode: false
+MessageBox.defaultProps = {
+  darkMode: false,
+  mode: "inbox"
 };
 
-export default Inbox;
+export default MessageBox;

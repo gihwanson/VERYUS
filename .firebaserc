@@ -1,5 +1,7 @@
 {
   "projects": {
     "default": "veryusduet"
-  }
+  },
+  "targets": {},
+  "etags": {}
 }

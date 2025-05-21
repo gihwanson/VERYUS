@@ -10,6 +10,8 @@ import { db, storage } from "../firebase";
 import {
   containerStyle, darkContainerStyle, titleStyle, purpleBtn
 } from "../components/style";
+import ImageUploader from "../components/ImageUploader"; // ⬅ 이 줄 추가
+
 
 function EditProfilePic({ darkMode, globalProfilePics }) {
   const [file, setFile] = useState(null);
@@ -117,58 +119,38 @@ function EditProfilePic({ darkMode, globalProfilePics }) {
     }
   };
   
-  // 프로필 사진 저장
-  const saveProfilePicture = async () => {
-    if (!file) {
-      setError("이미지를 선택해주세요.");
-      return;
-    }
-    
-    if (!userId) {
-      setError("사용자 정보를 찾을 수 없습니다. 다시 로그인해주세요.");
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // 파일명에 UUID 추가하여 고유성 보장
-      const fileExtension = file.name.split('.').pop();
-      const fileName = `profiles/${uuidv4()}.${fileExtension}`;
-      const storageRef = ref(storage, fileName);
-      
-      // Storage에 업로드
-      await uploadBytes(storageRef, file);
-      
-      // 다운로드 URL 가져오기
-      const downloadUrl = await getDownloadURL(storageRef);
-      
-      // Firestore 사용자 정보 업데이트
-      await updateDoc(doc(db, "users", userId), { 
-        profilePicUrl: downloadUrl,
-        updatedAt: new Date()
-      });
-      
-      // 이전 프로필 사진 삭제 (옵션)
-      if (oldStoragePath) {
-        try {
-          const oldRef = ref(storage, oldStoragePath);
-          await deleteObject(oldRef);
-        } catch (deleteErr) {
-          console.error("이전 프로필 사진 삭제 오류:", deleteErr);
-          // 이전 이미지 삭제 실패는 치명적이지 않으므로 무시
-        }
-      }
-      
-      alert("프로필 사진이 성공적으로 변경되었습니다.");
-      navigate("/mypage");
-    } catch (err) {
-      console.error("프로필 사진 변경 오류:", err);
-      setError("프로필 사진 변경 중 오류가 발생했습니다. 다시 시도해주세요.");
-      setLoading(false);
-    }
-  };
+// 🔁 기존의 fetch()로 이미지 업로드하던 부분은 삭제
+const saveProfilePicture = async () => {
+  if (!preview) {
+    setError("이미지를 선택해주세요.");
+    return;
+  }
+
+  if (!userId) {
+    setError("사용자 정보를 찾을 수 없습니다. 다시 로그인해주세요.");
+    return;
+  }
+
+  try {
+    setLoading(true);
+    setError(null);
+
+    // ✅ Firestore에 저장할 URL은 preview에 있음
+    await updateDoc(doc(db, "users", userId), { 
+      profilePicUrl: preview,
+      updatedAt: new Date()
+    });
+
+    alert("프로필 사진이 성공적으로 변경되었습니다.");
+    navigate("/mypage");
+
+  } catch (err) {
+    console.error("프로필 사진 변경 오류:", err);
+    setError("프로필 사진 변경 중 오류가 발생했습니다. 다시 시도해주세요.");
+    setLoading(false);
+  }
+};
+
   
   // 파일 선택 취소
   const cancelFileSelection = () => {
@@ -346,6 +328,11 @@ function EditProfilePic({ darkMode, globalProfilePics }) {
           >
             파일 선택
           </label>
+
+          <ImageUploader uploadType="profile" onUploadSuccess={(url) => {
+  setPreview(url);
+  setFile({ name: url.split("/").pop(), size: 100 });
+}} />
           
           {file && (
             <span style={{ 
