@@ -125,12 +125,13 @@ function AdvicePostList({ darkMode, globalProfilePics, globalGrades }) {
     
     // 컴포넌트 언마운트 시 구독 해제
     return () => unsubscribe();
-  }, [sortOrder, categoryFilter]);
+  }, [fetchPosts]);
 
-  // 정렬 방식이나 카테고리 필터가 변경되면 데이터 다시 로드
   useEffect(() => {
-    fetchPosts();
-  }, [sortOrder, categoryFilter]);
+    if (search) {
+      fetchPosts();
+    }
+  }, [search, fetchPosts]);
 
   const loadMorePosts = () => {
     if (!loading && hasMore) {

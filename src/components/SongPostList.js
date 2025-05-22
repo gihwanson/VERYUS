@@ -326,6 +326,16 @@ function SongPostList({ darkMode, globalProfilePics, globalGrades }) {
     display: "block"
   };
 
+  useEffect(() => {
+    if (search || isFilterOpen) {
+      loadPosts();
+    }
+  }, [search, isFilterOpen, loadPosts]);
+
+  useEffect(() => {
+    loadPosts();
+  }, [loadPosts]);
+
   return (
     <div style={darkMode ? darkContainerStyle : containerStyle}>
       <h1 style={titleStyle}>🎵 노래 추천 게시판</h1>

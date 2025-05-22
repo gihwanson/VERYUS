@@ -62,6 +62,7 @@ import MainBoardList from "./components/MainBoardList";
 import ActivityHistory from "./components/ActivityHistory";
 import UserPage from "./components/UserPage";
 
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 const menuItem = {
   padding: "8px 12px",
@@ -73,6 +74,15 @@ const menuItem = {
 };
 
 function App() {
+
+  useEffect(() => {
+  const auth = getAuth();
+  const user = auth.currentUser;
+  if (user) {
+    console.log("🔥 현재 로그인된 UID:", user.uid);
+  }
+}, []);
+
   const [dark, setDark] = useState(localStorage.getItem("darkMode") === "true");
   const [pics, setPics] = useState({});
   const [intros, setIntros] = useState({});
@@ -88,21 +98,16 @@ function App() {
     });
   };
 
-  useEffect(() => {
-    (async () => {
-      const snap = await getDocs(collection(db, "users"));
-      const p = {}, i = {}, g = {};
-      snap.docs.forEach(d => {
-        const u = d.data();
-        p[u.nickname] = u.profilePicUrl || DEFAULT_AVATAR;
-        i[u.nickname] = u.introduction || "";
-        g[u.nickname] = u.grade || "";
-      });
-      setPics(p);
-      setIntros(i);
-      setGrades(g);
-    })();
-  }, []);
+ useEffect(() => {
+  const auth = getAuth();
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      console.log("🔥 현재 로그인된 UID:", user.uid);
+    } else {
+      console.log("❌ 로그인된 사용자가 없습니다.");
+    }
+  });
+}, []);
 
   useEffect(() => {
     const nickname = localStorage.getItem("nickname");

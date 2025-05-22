@@ -119,9 +119,8 @@ function EditProfilePic({ darkMode, globalProfilePics }) {
     }
   };
   
-// 🔁 기존의 fetch()로 이미지 업로드하던 부분은 삭제
 const saveProfilePicture = async () => {
-  if (!preview) {
+  if (!file) {
     setError("이미지를 선택해주세요.");
     return;
   }
@@ -135,9 +134,22 @@ const saveProfilePicture = async () => {
     setLoading(true);
     setError(null);
 
-    // ✅ Firestore에 저장할 URL은 preview에 있음
-    await updateDoc(doc(db, "users", userId), { 
-      profilePicUrl: preview,
+    // 🔁 파일을 Firebase Storage에 업로드
+    const storageRef = ref(storage, `profiles/${uuidv4()}_${file.name}`);
+    await uploadBytes(storageRef, file);
+
+    // 🔁 다운로드 URL 받아오기
+    const downloadURL = await getDownloadURL(storageRef);
+
+    // 🔁 기존 프로필 이미지 삭제 (옵션)
+    if (oldStoragePath) {
+      const oldRef = ref(storage, oldStoragePath);
+      await deleteObject(oldRef).catch(() => {});
+    }
+
+    // 🔁 Firestore 업데이트
+    await updateDoc(doc(db, "users", userId), {
+      profilePicUrl: downloadURL,
       updatedAt: new Date()
     });
 
@@ -329,10 +341,13 @@ const saveProfilePicture = async () => {
             파일 선택
           </label>
 
-          <ImageUploader uploadType="profile" onUploadSuccess={(url) => {
-  setPreview(url);
-  setFile({ name: url.split("/").pop(), size: 100 });
-}} />
+          <ImageUploader 
+  uploadType="profile"
+  onUploadSuccess={(url) => {
+    setPreview(url);         // 이게 이제 base64 아님 — 실제 public URL임
+    setFile({ name: url.split("/").pop(), size: 100 }); // 그냥 파일 이름 표현용
+  }} 
+/>
           
           {file && (
             <span style={{ 

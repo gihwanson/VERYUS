@@ -45,7 +45,7 @@ function EvaluatePage({ darkMode }) {
     };
     fetchRole();
     fetchRecentEvaluations();
-  }, [evaluator]);
+  }, [evaluator, fetchRecentEvaluations]);
 
   const fetchRecentEvaluations = async () => {
     try {
