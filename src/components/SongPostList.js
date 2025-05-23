@@ -74,16 +74,6 @@ function SongPostList({ darkMode, globalProfilePics, globalGrades }) {
           orderBy(orderByField, orderDirection),
           limit(POSTS_PER_PAGE)
         );
-        
-        const snapshot = await getDocs(q);
-        const newPosts = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        
-        setPosts(newPosts);
-        setLastVisible(snapshot.docs[snapshot.docs.length - 1] || null);
-        setHasMore(snapshot.docs.length === POSTS_PER_PAGE);
       } else {
         // 추가 페이지
         q = query(
@@ -93,17 +83,22 @@ function SongPostList({ darkMode, globalProfilePics, globalGrades }) {
           startAfter(lastVisible),
           limit(POSTS_PER_PAGE)
         );
-        
-        const snapshot = await getDocs(q);
-        const newPosts = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        
-        setPosts(prev => [...prev, ...newPosts]);
-        setLastVisible(snapshot.docs[snapshot.docs.length - 1] || null);
-        setHasMore(snapshot.docs.length === POSTS_PER_PAGE);
       }
+      
+      const snapshot = await getDocs(q);
+      const newPosts = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      if (isInitialLoad) {
+        setPosts(newPosts);
+      } else {
+        setPosts(prev => [...prev, ...newPosts]);
+      }
+      
+      setLastVisible(snapshot.docs[snapshot.docs.length - 1] || null);
+      setHasMore(snapshot.docs.length === POSTS_PER_PAGE);
     } catch (error) {
       console.error("게시글 로딩 중 오류:", error);
     } finally {
@@ -111,34 +106,74 @@ function SongPostList({ darkMode, globalProfilePics, globalGrades }) {
     }
   };
 
-  // 처음 로드 시 게시글 가져오기
+  // 실시간 업데이트 설정
   useEffect(() => {
-    loadPosts(true);
-    
-    // 추가: 검색이나 필터링을 하지 않을 때만 실시간 업데이트
-    if (!search && !isFilterOpen && categoryFilter === "all" && !showMine) {
-      const q = query(
+    // 실시간 업데이트는 필터가 없을 때만 적용
+    if (!search && categoryFilter === "all" && !showMine && sortBy === "recent") {
+      // 게시글 실시간 업데이트
+      const postsQuery = query(
         collection(db, "songs"),
         orderBy("createdAt", "desc"),
-        limit(POSTS_PER_PAGE)
+        limit(1)
       );
       
-      const unsubscribe = onSnapshot(q, snapshot => {
-        const updatedPosts = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        
-        setPosts(updatedPosts);
-        setLastVisible(snapshot.docs[snapshot.docs.length - 1] || null);
-        setHasMore(snapshot.docs.length === POSTS_PER_PAGE);
+      const unsubscribeFromPosts = onSnapshot(postsQuery, snapshot => {
+        const changes = snapshot.docChanges();
+        changes.forEach(change => {
+          if (change.type === "added") {
+            const newPost = {
+              id: change.doc.id,
+              ...change.doc.data()
+            };
+            
+            setPosts(prev => {
+              const exists = prev.some(p => p.id === newPost.id);
+              if (!exists) {
+                return [newPost, ...prev];
+              }
+              return prev;
+            });
+          }
+        });
       });
-      
-      return () => unsubscribe();
-    }
-  }, [sortBy, categoryFilter, showMine]);
 
-  // Intersection Observer 설정 (무한 스크롤)
+      // 댓글 수 실시간 업데이트를 위한 구독
+      const unsubscribeFromComments = onSnapshot(
+        collection(db, "comments"),
+        (snapshot) => {
+          snapshot.docChanges().forEach((change) => {
+            const commentData = change.doc.data();
+            const postId = commentData.postId;
+
+            if (change.type === "added" || change.type === "removed") {
+              // 해당 게시글의 댓글 수 업데이트
+              setPosts(prev => prev.map(post => {
+                if (post.id === postId) {
+                  return {
+                    ...post,
+                    commentCount: (post.commentCount || 0) + (change.type === "added" ? 1 : -1)
+                  };
+                }
+                return post;
+              }));
+            }
+          });
+        }
+      );
+      
+      return () => {
+        unsubscribeFromPosts();
+        unsubscribeFromComments();
+      };
+    }
+  }, [sortBy, categoryFilter, showMine, search]);
+
+  // 검색이나 필터 변경 시 데이터 다시 로드
+  useEffect(() => {
+    loadPosts(true);
+  }, [search, categoryFilter, showMine, sortBy]);
+
+  // 무한 스크롤
   useEffect(() => {
     const observer = new IntersectionObserver(
       entries => {
@@ -146,7 +181,7 @@ function SongPostList({ darkMode, globalProfilePics, globalGrades }) {
           loadPosts();
         }
       },
-      { threshold: 0.5 }
+      { threshold: 0.1 }
     );
     
     if (observerRef.current) {
@@ -175,24 +210,33 @@ function SongPostList({ darkMode, globalProfilePics, globalGrades }) {
 
   // 게시글 날짜 포맷팅
   const formatDate = (timestamp) => {
-    if (!timestamp) return "날짜 없음";
+    if (!timestamp) return "";
     
-    const date = new Date(timestamp.seconds * 1000);
-    const now = new Date();
-    const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) {
-      return "오늘";
-    } else if (diffDays === 1) {
-      return "어제";
-    } else if (diffDays < 7) {
-      return `${diffDays}일 전`;
-    } else if (diffDays < 30) {
-      return `${Math.floor(diffDays / 7)}주 전`;
-    } else if (diffDays < 365) {
-      return `${Math.floor(diffDays / 30)}개월 전`;
-    } else {
-      return `${Math.floor(diffDays / 365)}년 전`;
+    try {
+      const date = new Date(timestamp.seconds * 1000);
+      const now = new Date();
+      const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+      const diffHours = Math.floor((now - date) / (1000 * 60 * 60));
+      const diffMinutes = Math.floor((now - date) / (1000 * 60));
+      
+      if (diffMinutes < 1) {
+        return "방금 전";
+      } else if (diffHours < 1) {
+        return `${diffMinutes}분 전`;
+      } else if (diffHours < 24) {
+        return `${diffHours}시간 전`;
+      } else if (diffDays === 0) {
+        return "오늘";
+      } else if (diffDays === 1) {
+        return "어제";
+      } else if (diffDays < 7) {
+        return `${diffDays}일 전`;
+      } else {
+        return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
+      }
+    } catch (error) {
+      console.error("날짜 포맷팅 오류:", error);
+      return "";
     }
   };
 
@@ -326,15 +370,11 @@ function SongPostList({ darkMode, globalProfilePics, globalGrades }) {
     display: "block"
   };
 
-  useEffect(() => {
-    if (search || isFilterOpen) {
-      loadPosts();
-    }
-  }, [search, isFilterOpen, loadPosts]);
-
-  useEffect(() => {
-    loadPosts();
-  }, [loadPosts]);
+  // Avatar 컴포넌트 기본 이미지 수정
+  const getDefaultAvatar = (nickname) => {
+    if (!nickname) return "/default-avatar.png";
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(nickname)}&background=random`;
+  };
 
   return (
     <div style={darkMode ? darkContainerStyle : containerStyle}>
@@ -558,7 +598,7 @@ function SongPostList({ darkMode, globalProfilePics, globalGrades }) {
                     gap: 10
                   }}>
                     <Avatar 
-                      src={globalProfilePics[p.nickname] || "https://via.placeholder.com/30"}
+                      src={globalProfilePics[p.nickname] || getDefaultAvatar(p.nickname)}
                       size={24}
                       alt={p.nickname || "알 수 없음"}
                     />

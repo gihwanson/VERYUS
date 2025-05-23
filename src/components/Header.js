@@ -3,6 +3,8 @@ import { useNavigate, Link, useLocation } from "react-router-dom";
 import PropTypes from "prop-types";
 import logo from "../assets/logo.png";
 import defaultAvatar from "../assets/default-avatar.png";
+import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
+import { db } from "../firebase";
 
 function Header({ 
   dark, 
@@ -20,6 +22,7 @@ function Header({
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [screenWidth, setScreenWidth] = useState(window.innerWidth);
   const [scrolled, setScrolled] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
   const menuRef = useRef(null);
@@ -97,6 +100,26 @@ function Header({
       window.removeEventListener("scroll", handleScroll);
     };
   }, []);
+  
+  // 알림 개수 실시간 업데이트
+  useEffect(() => {
+    if (!nick) return;
+
+    // 읽지 않은 알림 쿼리
+    const q = query(
+      collection(db, "notifications"),
+      where("receiverNickname", "==", nick),
+      where("isRead", "==", false),
+      orderBy("createdAt", "desc")
+    );
+
+    // 실시간 구독
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setUnreadNotifications(snapshot.size);
+    });
+
+    return () => unsubscribe();
+  }, [nick]);
   
   // 메뉴 아이템 클릭 시 네비게이션 처리
   const handleNavigate = (path) => {
@@ -181,19 +204,42 @@ else if (role === "운영진" || role === "리더" || role === "부운영진") {
     }
   });
 
+  // 메뉴 토글 함수
+  const toggleMenu = () => {
+    setShowMenu(!showMenu);
+  };
+
+  // 모바일 메뉴 토글 함수
+  const toggleMobileMenu = () => {
+    setShowMobileMenu(!showMobileMenu);
+  };
+
+  // 로그아웃 처리
+  const handleLogout = () => {
+    if (window.confirm("로그아웃 하시겠습니까?")) {
+      logout();
+      setShowMenu(false);
+      setShowMobileMenu(false);
+      navigate("/");
+    }
+  };
+
   return (
     <header style={{
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
       padding: isMobile ? "10px 15px" : "10px 20px",
-      backgroundColor: dark ? (scrolled ? "#1a1a1a" : "#1a1a1ae6") : (scrolled ? "#fff" : "#ffffffe6"),
-      boxShadow: scrolled ? "0 2px 8px rgba(0, 0, 0, 0.15)" : "none",
+      backgroundColor: dark 
+        ? (scrolled ? "rgba(89, 61, 135, 0.98)" : "rgba(89, 61, 135, 0.95)") 
+        : (scrolled ? "rgba(126, 87, 194, 0.98)" : "rgba(126, 87, 194, 0.95)"),
+      boxShadow: scrolled ? "0 2px 8px rgba(0, 0, 0, 0.2)" : "none",
       backdropFilter: scrolled ? "none" : "blur(8px)",
       position: "sticky",
       top: 0,
       zIndex: 100,
-      transition: "all 0.3s ease"
+      transition: "all 0.3s ease",
+      color: "#fff"
     }}>
       {/* 애니메이션 키프레임 */}
       <style>{`
@@ -220,11 +266,11 @@ else if (role === "운영진" || role === "리더" || role === "부운영진") {
         }
         
         .menu-item:hover {
-          background-color: ${dark ? "rgba(126, 87, 194, 0.15)" : "rgba(126, 87, 194, 0.05)"};
+          background-color: ${dark ? "rgba(255, 255, 255, 0.1)" : "rgba(255, 255, 255, 0.2)"};
         }
         
         .header-shadow {
-          box-shadow: 0 2px 8px rgba(0, 0, 0, ${dark ? 0.25 : 0.1});
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
         
         .logo-pulse:hover {
@@ -259,7 +305,7 @@ else if (role === "운영진" || role === "리더" || role === "부운영진") {
           <span style={{ 
             fontWeight: "bold", 
             fontSize: isMobile ? 18 : 20, 
-            color: dark ? "#bb86fc" : "#7e57c2",
+            color: "#ffffff",
             transition: "all 0.3s ease"
           }}>
             Veryus
@@ -270,7 +316,7 @@ else if (role === "운영진" || role === "리더" || role === "부운영진") {
         {isMobile && (
           <button 
             id="mobile-menu-toggle"
-            onClick={() => setShowMobileMenu(!showMobileMenu)}
+            onClick={toggleMobileMenu}
             aria-label={showMobileMenu ? "메뉴 닫기" : "메뉴 열기"}
             aria-expanded={showMobileMenu}
             aria-controls="mobile-menu"
@@ -323,51 +369,13 @@ else if (role === "운영진" || role === "리더" || role === "부운영진") {
     gap: "10px",
     margin: "0 auto",
     padding: "0 20px",
-    maxWidth: "60%", // 최대 너비 제한
-    overflowX: "auto", // 가로 스크롤 추가
-    whiteSpace: "nowrap", // 항목이 줄바꿈되지 않도록 설정
-    msOverflowStyle: "none", // IE/Edge에서 스크롤바 숨기기
-    scrollbarWidth: "none", // Firefox에서 스크롤바 숨기기
-    WebkitOverflowScrolling: "touch" // iOS에서 부드러운 스크롤 지원
+    maxWidth: "60%",
+    overflowX: "auto",
+    whiteSpace: "nowrap",
+    msOverflowStyle: "none",
+    scrollbarWidth: "none",
+    WebkitOverflowScrolling: "touch"
   }}>
-    {/* 스타일 태그 추가: 스크롤바 숨기기 */}
-    <style>{`
-      nav::-webkit-scrollbar {
-        display: none; /* Chrome, Safari, Opera에서 스크롤바 숨기기 */
-      }
-      
-      /* 스크롤 가능함을 나타내는 그라데이션 효과 */
-      @keyframes pulseGradient {
-        0% { opacity: 0.3; }
-        50% { opacity: 0.7; }
-        100% { opacity: 0.3; }
-      }
-      
-      .scroll-indicator {
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        width: 25px;
-        pointer-events: none;
-        z-index: 5;
-        background: linear-gradient(to right, transparent, ${dark ? '#1a1a1a' : '#ffffff'});
-        animation: pulseGradient 2s infinite;
-      }
-      
-      .scroll-indicator-left {
-        left: 0;
-        background: linear-gradient(to right, ${dark ? '#1a1a1a' : '#ffffff'}, transparent);
-      }
-      
-      .scroll-indicator-right {
-        right: 0;
-        background: linear-gradient(to left, ${dark ? '#1a1a1a' : '#ffffff'}, transparent);
-      }
-    `}</style>
-    
-    {/* 스크롤 가능 표시기 - 왼쪽 (스크롤 위치에 따라 조건부 표시) */}
-    <div className="scroll-indicator scroll-indicator-left"></div>
-    
     {mainMenuItems.map((item) => (
       <Link 
         key={item.path}
@@ -376,108 +384,49 @@ else if (role === "운영진" || role === "리더" || role === "부운영진") {
           padding: "8px 12px",
           borderRadius: "4px",
           textDecoration: "none",
-          color: dark 
-            ? (isActive(item.path) ? "#bb86fc" : "#e0e0e0") 
-            : (isActive(item.path) ? "#7e57c2" : "#333"),
+          color: isActive(item.path) ? "#ffffff" : "rgba(255, 255, 255, 0.85)",
           fontWeight: isActive(item.path) ? "bold" : "normal",
           backgroundColor: isActive(item.path) 
-            ? (dark ? "rgba(187, 134, 252, 0.1)" : "rgba(126, 87, 194, 0.1)") 
+            ? "rgba(255, 255, 255, 0.2)" 
             : "transparent",
           transition: "all 0.2s ease",
           display: "flex",
           alignItems: "center",
           gap: "5px",
-          flexShrink: 0 // 항목이 줄어들지 않도록 설정
+          flexShrink: 0,
+          position: "relative",
+          "&:hover": {
+            backgroundColor: "rgba(255, 255, 255, 0.1)",
+            color: "#ffffff"
+          }
         }}
         aria-current={isActive(item.path) ? "page" : undefined}
       >
         <span>{item.icon}</span>
         <span>{item.label}</span>
+        {item.path === "/notification" && unreadNotifications > 0 && (
+          <span style={{
+            position: "absolute",
+            top: "-5px",
+            right: "-5px",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            minWidth: "18px",
+            height: "18px",
+            borderRadius: "9px",
+            backgroundColor: "#ff4444",
+            color: "white",
+            fontSize: "10px",
+            fontWeight: "bold",
+            padding: "0 4px",
+            border: "2px solid rgba(126, 87, 194, 1)"
+          }}>
+            {unreadNotifications}
+          </span>
+        )}
       </Link>
     ))}
-    
-    {/* 추가: 관리자 메뉴 항목도 메인 네비게이션에 표시 */}
-    {nick === "너래" && (
-      <>
-        <Link 
-          to="/admin-eval"
-          style={{
-            padding: "8px 12px",
-            borderRadius: "4px",
-            textDecoration: "none",
-            color: dark 
-              ? (isActive("/admin-eval") ? "#ff9800" : "#ff9800") 
-              : (isActive("/admin-eval") ? "#e65100" : "#e65100"),
-            fontWeight: isActive("/admin-eval") ? "bold" : "normal",
-            backgroundColor: isActive("/admin-eval") 
-              ? (dark ? "rgba(255, 152, 0, 0.2)" : "rgba(255, 152, 0, 0.1)") 
-              : "transparent",
-            transition: "all 0.2s ease",
-            display: "flex",
-            alignItems: "center",
-            gap: "5px",
-            flexShrink: 0 // 항목이 줄어들지 않도록 설정
-          }}
-          aria-current={isActive("/admin-eval") ? "page" : undefined}
-        >
-          <span>👑</span>
-          <span>평가 결과</span>
-        </Link>
-        
-        <Link 
-          to="/admin-user"
-          style={{
-            padding: "8px 12px",
-            borderRadius: "4px",
-            textDecoration: "none",
-            color: dark 
-              ? (isActive("/admin-user") ? "#ff9800" : "#ff9800") 
-              : (isActive("/admin-user") ? "#e65100" : "#e65100"),
-            fontWeight: isActive("/admin-user") ? "bold" : "normal",
-            backgroundColor: isActive("/admin-user") 
-              ? (dark ? "rgba(255, 152, 0, 0.2)" : "rgba(255, 152, 0, 0.1)") 
-              : "transparent",
-            transition: "all 0.2s ease",
-            display: "flex",
-            alignItems: "center",
-            gap: "5px",
-            flexShrink: 0 // 항목이 줄어들지 않도록 설정
-          }}
-          aria-current={isActive("/admin-user") ? "page" : undefined}
-        >
-          <span>👥</span>
-          <span>관리자메뉴</span>
-        </Link>
-        
-        <Link 
-          to="/notices"
-          style={{
-            padding: "8px 12px",
-            borderRadius: "4px",
-            textDecoration: "none",
-            color: dark 
-              ? (isActive("/notices") ? "#ff9800" : "#ff9800") 
-              : (isActive("/notices") ? "#e65100" : "#e65100"),
-            fontWeight: isActive("/notices") ? "bold" : "normal",
-            backgroundColor: isActive("/notices") 
-              ? (dark ? "rgba(255, 152, 0, 0.2)" : "rgba(255, 152, 0, 0.1)") 
-              : "transparent",
-            transition: "all 0.2s ease",
-            display: "flex",
-            alignItems: "center",
-            gap: "5px",
-            flexShrink: 0 // 항목이 줄어들지 않도록 설정
-          }}
-          aria-current={isActive("/notices") ? "page" : undefined}
-        >
-          <span>📢</span>
-          <span>공지사항 관리</span>
-        </Link>
-      </>
-    )}
-    
-    {/* 스크롤 가능 표시기 - 오른쪽 */}
-    <div className="scroll-indicator scroll-indicator-right"></div>
   </nav>
 )}
 
@@ -514,8 +463,8 @@ else if (role === "운영진" || role === "리더" || role === "부운영진") {
           <div style={{ position: "relative" }}>
             <div 
               ref={profileRef}
-              onClick={() => setShowMenu(prev => !prev)}
-              onKeyDown={(e) => handleKeyDown(e, () => setShowMenu(prev => !prev))}
+              onClick={toggleMenu}
+              onKeyDown={(e) => handleKeyDown(e, toggleMenu)}
               tabIndex="0"
               role="button"
               aria-haspopup="true"
@@ -791,8 +740,8 @@ else if (role === "운영진" || role === "리더" || role === "부운영진") {
                 
                 {/* 로그아웃 버튼 */}
                 <div 
-                  onClick={() => { logout(); setShowMenu(false); }}
-                  onKeyDown={(e) => handleKeyDown(e, () => { logout(); setShowMenu(false); })}
+                  onClick={handleLogout}
+                  onKeyDown={(e) => handleKeyDown(e, handleLogout)}
                   tabIndex="0"
                   role="menuitem"
                   className="menu-item"
@@ -1164,8 +1113,8 @@ else if (role === "운영진" || role === "리더" || role === "부운영진") {
               
               {/* 모바일 로그아웃 버튼 */}
               <div 
-                onClick={logout}
-                onKeyDown={(e) => handleKeyDown(e, logout)}
+                onClick={handleLogout}
+                onKeyDown={(e) => handleKeyDown(e, handleLogout)}
                 tabIndex="0"
                 role="button"
                 style={{

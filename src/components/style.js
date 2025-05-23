@@ -92,70 +92,76 @@ export const darkTheme = {
   border: colors.borderDark,
 };
 
-// 컨테이너 스타일
+// 전역 스타일 상수
 export const containerStyle = {
-  maxWidth: 800,
-  margin: "40px auto",
-  padding: 20,
-  borderRadius: 16,
-  background: colors.lightBg,
-  boxShadow: shadows.small,
-  transition: transitions.medium,
-  
-  // 모바일 최적화 추가
-  [createMediaQuery(breakpoints.tablet)]: {
-    margin: "20px auto",
-    padding: 15,
-    borderRadius: 12,
-  },
-  
-  [createMediaQuery(breakpoints.mobile)]: {
-    margin: "10px auto",
-    padding: 10,
-    borderRadius: 8,
-    maxWidth: "100%",
-    width: "calc(100% - 20px)",
-  },
+  maxWidth: "1200px",
+  margin: "0 auto",
+  padding: "20px",
+  backgroundColor: "#ffffff",
+  borderRadius: "8px",
+  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
 };
 
 export const darkContainerStyle = {
   ...containerStyle,
-  background: colors.darkBg,
-  color: colors.textLight,
-  boxShadow: "none",
-  border: `1px solid ${colors.borderDark}`,
+  backgroundColor: "#2a2a2a",
+  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
 };
 
-// 카드 스타일 (게시글, 댓글 등)
+// 전역 배경색 스타일
+export const globalBackgroundStyle = {
+  backgroundColor: "#f8f5ff", // 라이트 모드의 연한 보라색 배경
+  minHeight: "100vh",
+  transition: "background-color 0.3s ease",
+};
+
+export const darkGlobalBackgroundStyle = {
+  ...globalBackgroundStyle,
+  backgroundColor: "#1a1a2e", // 다크 모드의 진한 남색 배경
+};
+
+// 섹션 컨테이너 스타일
+export const sectionContainerStyle = {
+  backgroundColor: "rgba(255, 255, 255, 0.8)",
+  borderRadius: "12px",
+  padding: "20px",
+  marginBottom: "20px",
+  backdropFilter: "blur(8px)",
+  boxShadow: "0 4px 6px rgba(0, 0, 0, 0.05)",
+  border: "1px solid rgba(126, 87, 194, 0.1)",
+};
+
+export const darkSectionContainerStyle = {
+  ...sectionContainerStyle,
+  backgroundColor: "rgba(42, 42, 42, 0.8)",
+  border: "1px solid rgba(126, 87, 194, 0.2)",
+  boxShadow: "0 4px 6px rgba(0, 0, 0, 0.2)",
+};
+
+// 카드 스타일
 export const cardStyle = {
-  padding: 16,
-  borderRadius: 12,
-  background: colors.cardLightBg,
-  border: `1px solid ${colors.borderLight}`,
-  marginBottom: 16,
-  boxShadow: shadows.small,
-  transition: transitions.medium,
-  
-  // 모바일 최적화 추가
-  [createMediaQuery(breakpoints.tablet)]: {
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 12,
-  },
-  
-  [createMediaQuery(breakpoints.mobile)]: {
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 10,
-    boxShadow: 'none',
+  backgroundColor: "#ffffff",
+  borderRadius: "8px",
+  padding: "15px",
+  marginBottom: "15px",
+  boxShadow: "0 2px 4px rgba(126, 87, 194, 0.1)",
+  border: "1px solid rgba(126, 87, 194, 0.1)",
+  transition: "transform 0.2s ease, box-shadow 0.2s ease",
+  "&:hover": {
+    transform: "translateY(-2px)",
+    boxShadow: "0 4px 8px rgba(126, 87, 194, 0.15)",
   },
 };
 
 export const darkCardStyle = {
   ...cardStyle,
-  background: colors.cardDarkBg,
-  border: `1px solid ${colors.borderDark}`,
-  color: colors.textLight,
+  backgroundColor: "#2a2a2a",
+  border: "1px solid rgba(126, 87, 194, 0.2)",
+  boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
+  "&:hover": {
+    transform: "translateY(-2px)",
+    boxShadow: "0 4px 8px rgba(0, 0, 0, 0.3)",
+  },
 };
 
 // 제목 스타일

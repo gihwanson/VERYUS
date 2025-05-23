@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
-  collection, query, orderBy, limit, getDocs, where
+  collection, query, orderBy, limit, getDocs, where, onSnapshot
 } from "firebase/firestore";
 import { db } from "../firebase";
 
 function MainBoardList({ darkMode }) {
+  const navigate = useNavigate();
   const [posts, setPosts] = useState({
     duet: { items: [], loading: true, error: null },
     free: { items: [], loading: true, error: null },
@@ -19,6 +20,9 @@ function MainBoardList({ darkMode }) {
   
   const [activeHover, setActiveHover] = useState(null);
   const POST_COUNT = 3; // 각 게시판별 표시할 게시물 수
+  
+  // 댓글 수 실시간 업데이트를 위한 상태 추가
+  const [commentCounts, setCommentCounts] = useState({});
   
   useEffect(() => {
     // ref 객체 초기화
@@ -80,6 +84,27 @@ function MainBoardList({ darkMode }) {
     fetchPosts("advice", "advice");
   }, []);
   
+  // 댓글 수 실시간 감시 설정
+  useEffect(() => {
+    const unsubscribes = [];
+
+    Object.keys(boardInfo).forEach(boardType => {
+      // 각 게시판의 최근 게시글들에 대한 댓글 컬렉션 감시
+      posts[boardType].items.forEach(post => {
+        const commentRef = collection(db, `${boardType}-${post.id}-comments`);
+        const unsubscribe = onSnapshot(commentRef, (snapshot) => {
+          setCommentCounts(prev => ({
+            ...prev,
+            [`${boardType}-${post.id}`]: snapshot.size
+          }));
+        });
+        unsubscribes.push(unsubscribe);
+      });
+    });
+
+    return () => unsubscribes.forEach(unsubscribe => unsubscribe());
+  }, [posts]);
+  
   // 시간 포맷팅 함수
   const formatTime = (seconds) => {
     if (!seconds) return "";
@@ -115,7 +140,7 @@ function MainBoardList({ darkMode }) {
       hoverLight: "#e8dbff",
       hoverDark: "#4a3a6a",
       route: "/duet",
-      postRoute: "/post/duet"
+      postRoute: "/post/post"
     },
     free: {
       title: "📝 자유 게시판",
@@ -125,7 +150,7 @@ function MainBoardList({ darkMode }) {
       hoverLight: "#d6eafb",
       hoverDark: "#23487a",
       route: "/freeboard",
-      postRoute: "/post/free"
+      postRoute: "/post/freepost"
     },
     song: {
       title: "🎵 노래 추천 게시판",
@@ -200,22 +225,9 @@ function MainBoardList({ darkMode }) {
     textAlign: "center"
   };
 
-  // 하드 리다이렉트 실행 함수
-  const hardRedirect = (path) => {
-    window.location.assign(path);
-  };
-
-  // 클릭 핸들러에서 실제 a 요소 클릭 시뮬레이션
-  const simulateNativeClick = (boardType, postId) => {
-    const linkId = `${boardType}-${postId}`;
-    const linkElement = document.getElementById(linkId);
-    
-    if (linkElement) {
-      linkElement.click();
-    } else {
-      // 엘리먼트를 찾지 못한 경우 하드 리다이렉트로 대체
-      hardRedirect(`${boardInfo[boardType].postRoute}/${postId}`);
-    }
+  // 게시글 클릭 핸들러
+  const handlePostClick = (boardType, postId) => {
+    navigate(`${boardInfo[boardType].postRoute}/${postId}`);
   };
 
   return (
@@ -331,10 +343,10 @@ function MainBoardList({ darkMode }) {
                 </a>
               ))}
               
-              {posts[boardType].items.map((post, index) => (
+              {posts[boardType].items.map((post) => (
                 <div 
                   key={post.id} 
-                  onClick={() => simulateNativeClick(boardType, post.id)}
+                  onClick={() => handlePostClick(boardType, post.id)}
                   style={{
                     ...postItemStyle,
                     backgroundColor: activeHover === boardType 
@@ -342,27 +354,16 @@ function MainBoardList({ darkMode }) {
                       : (darkMode ? "rgba(255, 255, 255, 0.05)" : "rgba(255, 255, 255, 0.5)")
                   }}
                 >
-                  <div style={{ 
-                    fontWeight: "bold",
-                    marginBottom: "5px",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis"
-                  }}>
-                    {post.title}
-                  </div>
-                  <div style={{ 
-                    display: "flex", 
-                    justifyContent: "space-between", 
-                    fontSize: "12px",
-                    color: darkMode ? "#bbb" : "#666"
-                  }}>
-                    <span>{post.nickname || "익명"}</span>
-                    <span>
-                      {post.createdAt && formatTime(post.createdAt.seconds)}
-                      {post.views !== undefined && ` • 조회 ${post.views}`}
-                      {post.likes && ` • 좋아요 ${post.likes.length}`}
-                    </span>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ flex: 1, marginRight: 10 }}>
+                      <div style={{ fontSize: "14px", marginBottom: "4px" }}>{post.title}</div>
+                      <div style={{ fontSize: "12px", color: darkMode ? "#bbb" : "#666" }}>
+                        {post.nickname} • {formatTime(post.createdAt.seconds)} • 
+                        <span style={{ marginLeft: "5px" }}>
+                          💬 {commentCounts[`${boardType}-${post.id}`] || 0}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}

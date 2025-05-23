@@ -63,6 +63,7 @@ import ActivityHistory from "./components/ActivityHistory";
 import UserPage from "./components/UserPage";
 
 import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { globalBackgroundStyle, darkGlobalBackgroundStyle, sectionContainerStyle, darkSectionContainerStyle } from './components/style';
 
 const menuItem = {
   padding: "8px 12px",
@@ -151,62 +152,72 @@ function App() {
 
   return (
     <Router>
-      <Header
-        dark={dark}
-        toggleDark={toggleDark}
-        nick={nick}
-        grades={grades}
-        unread={unread}
-        logout={logout}
-        purpleBtn={purpleBtn}
-        globalProfilePics={pics}
-        role={role}
-      />
-
-      <Routes>
-        <Route path="/" element={nick ? 
-          <><MainBoardList darkMode={dark} /><ActivityHistory darkMode={dark} /></> 
-          : <Login darkMode={dark} />} />
-        <Route path="/login" element={<Login darkMode={dark} />} />
-        <Route path="/signup" element={<Signup darkMode={dark} />} />
-        <Route path="/write/:category" element={<RequireAuth><WritePost darkMode={dark} /></RequireAuth>} />
-        <Route path="/freeboard" element={<RequireAuth><FreePostList darkMode={dark} globalProfilePics={pics} globalGrades={grades} /></RequireAuth>} />
-        <Route path="/post/:type/:id" element={<RequireAuth><PostDetail darkMode={dark} globalProfilePics={pics} globalGrades={grades} /></RequireAuth>} />
-        <Route path="/edit/:type/:id" element={<RequireAuth><EditPost darkMode={dark} /></RequireAuth>} />
-<Route path="/comment-edit/:type/:postId/:commentId" element={<RequireAuth><EditCommentPage darkMode={dark} /></RequireAuth>} />        <Route path="/notice" element={<RequireAuth><WriteNotice darkMode={dark} /></RequireAuth>} />
-        <Route path="/notices" element={<RequireAuth><NoticeList darkMode={dark} /></RequireAuth>} />
-        <Route path="/notice/:id" element={<RequireAuth><NoticeDetail darkMode={dark} /></RequireAuth>} />
-        <Route path="/user/:userNickname" element={<RequireAuth><UserProfile darkMode={dark} /></RequireAuth>} />
-        <Route path="/guestbook/:owner" element={<RequireAuth><Guestbook darkMode={dark} /></RequireAuth>} />
-        <Route path="/edit-profilepic" element={<RequireAuth><EditProfilePic darkMode={dark} /></RequireAuth>} />
-        <Route path="/edit-introduction" element={<RequireAuth><EditIntroduction darkMode={dark} /></RequireAuth>} />
-        <Route path="/edit-grade" element={<RequireAuth><EditGrade darkMode={dark} /></RequireAuth>} />
-        <Route path="/edit-nickname" element={<RequireAuth><EditNickname darkMode={dark} /></RequireAuth>} />
-        <Route path="/edit-password" element={<RequireAuth><EditPassword darkMode={dark} /></RequireAuth>} />
-        <Route path="/delete-account" element={<RequireAuth><DeleteAccount darkMode={dark} /></RequireAuth>} />
-        <Route path="/inbox" element={<RequireAuth><MessageBox darkMode={dark} mode="inbox" /></RequireAuth>} />
-        <Route path="/outbox" element={<RequireAuth><MessageBox darkMode={dark} mode="outbox" /></RequireAuth>} />
-        <Route path="/send-message/:receiverNickname" element={<RequireAuth><SendMessage darkMode={dark} /></RequireAuth>} />
-        <Route path="/send-notification" element={<RequireAuth><SendNotification darkMode={dark} /></RequireAuth>} />
-        <Route path="/notification" element={<RequireAuth><Notification darkMode={dark} /></RequireAuth>} />
-        <Route path="/admin" element={<RequireAuth><AdminPanel darkMode={dark} /></RequireAuth>} />
-        <Route path="/stats" element={<RequireAuth><StatsPage darkMode={dark} /></RequireAuth>} />
-        <Route path="/popular" element={<RequireAuth><PopularPosts darkMode={dark} /></RequireAuth>} />
-        <Route path="/mypage" element={<RequireAuth><MyPage darkMode={dark} globalProfilePics={pics} globalIntroductions={intros} globalGrades={grades} /></RequireAuth>} />
-        <Route path="/duet" element={<RequireAuth><PostList darkMode={dark} globalProfilePics={pics} globalGrades={grades} /></RequireAuth>} />
-        <Route path="/songs" element={<RequireAuth><SongPostList darkMode={dark} globalProfilePics={pics} globalGrades={grades} /></RequireAuth>} />
-        <Route path="/advice" element={<RequireAuth><AdvicePostList darkMode={dark} globalProfilePics={pics} globalGrades={grades} /></RequireAuth>} />
-        <Route path="/userpage/:nickname" element={<RequireAuth><UserPage darkMode={dark} globalProfilePics={pics} globalIntroductions={intros} globalGrades={grades} /></RequireAuth>} />
-        <Route path="/edit-entry/:entryId" element={<RequireAuth><EditEntry darkMode={dark} /></RequireAuth>} />
-        <Route path="*" element={<NotFound darkMode={dark} />} />
-        <Route path="/evaluate" element={<RequireAuth><EvaluatePage darkMode={dark} /></RequireAuth>} />
-        <Route path="/admin-eval" element={<RequireAuth><AdminEvalPage darkMode={dark} /></RequireAuth>} />
-        <Route path="/admin-user" element={
-          (role === "운영진" || role === "리더" || localStorage.getItem("nickname") === "너래")
-            ? <AdminUserPage darkMode={dark} globalGrades={grades} setGrades={setGrades} />
-            : <div style={{ padding: "2rem", textAlign: "center" }}>⛔ 접근 권한이 없습니다.</div>
-        } />
-      </Routes>
+      <div style={dark ? darkGlobalBackgroundStyle : globalBackgroundStyle}>
+        <Header
+          dark={dark}
+          toggleDark={toggleDark}
+          nick={nick}
+          grades={grades}
+          unread={unread}
+          logout={logout}
+          purpleBtn={purpleBtn}
+          globalProfilePics={pics}
+          role={role}
+        />
+        <div style={{
+          maxWidth: "1200px",
+          margin: "20px auto",
+          padding: "0 20px"
+        }}>
+          <div style={dark ? darkSectionContainerStyle : sectionContainerStyle}>
+            <Routes>
+              <Route path="/" element={nick ? 
+                <><MainBoardList darkMode={dark} /><ActivityHistory darkMode={dark} /></> 
+                : <Login darkMode={dark} />} />
+              <Route path="/login" element={<Login darkMode={dark} />} />
+              <Route path="/signup" element={<Signup darkMode={dark} />} />
+              <Route path="/write/:category" element={<RequireAuth><WritePost darkMode={dark} /></RequireAuth>} />
+              <Route path="/freeboard" element={<RequireAuth><FreePostList darkMode={dark} globalProfilePics={pics} globalGrades={grades} /></RequireAuth>} />
+              <Route path="/post/:type/:id" element={<RequireAuth><PostDetail darkMode={dark} globalProfilePics={pics} globalGrades={grades} /></RequireAuth>} />
+              <Route path="/edit/:type/:id" element={<RequireAuth><EditPost darkMode={dark} /></RequireAuth>} />
+              <Route path="/comment-edit/:type/:postId/:commentId" element={<RequireAuth><EditCommentPage darkMode={dark} /></RequireAuth>} />
+              <Route path="/notice" element={<RequireAuth><WriteNotice darkMode={dark} /></RequireAuth>} />
+              <Route path="/notices" element={<RequireAuth><NoticeList darkMode={dark} /></RequireAuth>} />
+              <Route path="/notice/:id" element={<RequireAuth><NoticeDetail darkMode={dark} /></RequireAuth>} />
+              <Route path="/user/:userNickname" element={<RequireAuth><UserProfile darkMode={dark} /></RequireAuth>} />
+              <Route path="/guestbook/:owner" element={<RequireAuth><Guestbook darkMode={dark} /></RequireAuth>} />
+              <Route path="/edit-profilepic" element={<RequireAuth><EditProfilePic darkMode={dark} /></RequireAuth>} />
+              <Route path="/edit-introduction" element={<RequireAuth><EditIntroduction darkMode={dark} /></RequireAuth>} />
+              <Route path="/edit-grade" element={<RequireAuth><EditGrade darkMode={dark} /></RequireAuth>} />
+              <Route path="/edit-nickname" element={<RequireAuth><EditNickname darkMode={dark} /></RequireAuth>} />
+              <Route path="/edit-password" element={<RequireAuth><EditPassword darkMode={dark} /></RequireAuth>} />
+              <Route path="/delete-account" element={<RequireAuth><DeleteAccount darkMode={dark} /></RequireAuth>} />
+              <Route path="/inbox" element={<RequireAuth><MessageBox darkMode={dark} mode="inbox" /></RequireAuth>} />
+              <Route path="/outbox" element={<RequireAuth><MessageBox darkMode={dark} mode="outbox" /></RequireAuth>} />
+              <Route path="/send-message/:receiverNickname" element={<RequireAuth><SendMessage darkMode={dark} /></RequireAuth>} />
+              <Route path="/send-notification" element={<RequireAuth><SendNotification darkMode={dark} /></RequireAuth>} />
+              <Route path="/notification" element={<RequireAuth><Notification darkMode={dark} /></RequireAuth>} />
+              <Route path="/admin" element={<RequireAuth><AdminPanel darkMode={dark} /></RequireAuth>} />
+              <Route path="/stats" element={<RequireAuth><StatsPage darkMode={dark} /></RequireAuth>} />
+              <Route path="/popular" element={<RequireAuth><PopularPosts darkMode={dark} /></RequireAuth>} />
+              <Route path="/mypage" element={<RequireAuth><MyPage darkMode={dark} globalProfilePics={pics} globalIntroductions={intros} globalGrades={grades} /></RequireAuth>} />
+              <Route path="/duet" element={<RequireAuth><PostList darkMode={dark} globalProfilePics={pics} globalGrades={grades} /></RequireAuth>} />
+              <Route path="/songs" element={<RequireAuth><SongPostList darkMode={dark} globalProfilePics={pics} globalGrades={grades} /></RequireAuth>} />
+              <Route path="/advice" element={<RequireAuth><AdvicePostList darkMode={dark} globalProfilePics={pics} globalGrades={grades} /></RequireAuth>} />
+              <Route path="/userpage/:nickname" element={<RequireAuth><UserPage darkMode={dark} globalProfilePics={pics} globalIntroductions={intros} globalGrades={grades} /></RequireAuth>} />
+              <Route path="/edit-entry/:entryId" element={<RequireAuth><EditEntry darkMode={dark} /></RequireAuth>} />
+              <Route path="*" element={<NotFound darkMode={dark} />} />
+              <Route path="/evaluate" element={<RequireAuth><EvaluatePage darkMode={dark} /></RequireAuth>} />
+              <Route path="/admin-eval" element={<RequireAuth><AdminEvalPage darkMode={dark} /></RequireAuth>} />
+              <Route path="/admin-user" element={
+                (role === "운영진" || role === "리더" || localStorage.getItem("nickname") === "너래")
+                  ? <AdminUserPage darkMode={dark} globalGrades={grades} setGrades={setGrades} />
+                  : <div style={{ padding: "2rem", textAlign: "center" }}>⛔ 접근 권한이 없습니다.</div>
+              } />
+            </Routes>
+          </div>
+        </div>
+      </div>
     </Router>
   );
 }

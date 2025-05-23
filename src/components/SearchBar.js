@@ -1,26 +1,42 @@
 // SearchBar.js
 
-import React, { useState } from "react";
+import React, { useState } from 'react';
 import PropTypes from "prop-types";
-import { darkInputStyle, inputStyle, purpleBtn } from "../components/style";
+import './SearchBar.css';  // CSS 파일 import
 
-function SearchBar({ darkMode, onSearch }) {
-  const [k, setK] = useState("");
+function SearchBar({ darkMode, onSearch, placeholder }) {
+  const [searchTerm, setSearchTerm] = useState('');
   
-  const go = () => onSearch(k);
-  
-  const onKey = e => e.key === "Enter" && go();
+  const handleSearch = (e) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    onSearch(value);
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      onSearch(searchTerm);
+    }
+  };
   
   return (
-    <div style={{ margin: "20px 0" }}>
-      <input
-        value={k}
-        onChange={e => setK(e.target.value)}
-        onKeyDown={onKey}
-        placeholder="검색"
-        style={darkMode ? darkInputStyle : inputStyle}
-      />
-      <button onClick={go} style={purpleBtn}>검색</button>
+    <div className={`search-bar-container ${darkMode ? 'dark' : ''}`}>
+      <div className="search-input-wrapper">
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={handleSearch}
+          onKeyPress={handleKeyPress}
+          placeholder={placeholder || "검색어를 입력하세요..."}
+          className="search-input"
+        />
+        <button 
+          onClick={() => onSearch(searchTerm)} 
+          className={`search-button ${darkMode ? 'dark' : ''}`}
+        >
+          🔍
+        </button>
+      </div>
     </div>
   );
 }
@@ -28,7 +44,8 @@ function SearchBar({ darkMode, onSearch }) {
 // Props 검증 추가
 SearchBar.propTypes = {
   darkMode: PropTypes.bool,
-  onSearch: PropTypes.func.isRequired
+  onSearch: PropTypes.func.isRequired,
+  placeholder: PropTypes.string
 };
 
 // 기본값 설정
