@@ -141,7 +141,15 @@ function EditIntroduction({ darkMode }) {
     width: "100%",
     margin: "0 auto",
     boxShadow: `0 2px 8px rgba(0, 0, 0, ${darkMode ? 0.3 : 0.1})`,
-    border: `1px solid ${darkMode ? "#444" : "#eee"}`
+    border: `1px solid ${darkMode ? "#444" : "#eee"}`,
+    boxSizing: "border-box",
+    wordWrap: "break-word",
+    overflowWrap: "break-word",
+    // 모바일 반응형
+    "@media (max-width: 768px)": {
+      padding: "15px",
+      margin: "0 10px"
+    }
   };
   
   // 글자 수 스타일
@@ -158,7 +166,13 @@ function EditIntroduction({ darkMode }) {
   const buttonGroupStyle = {
     display: "flex",
     justifyContent: "space-between",
-    marginTop: "20px"
+    marginTop: "20px",
+    gap: "10px",
+    // 모바일 반응형
+    "@media (max-width: 768px)": {
+      flexDirection: "column",
+      gap: "15px"
+    }
   };
   
   // 예시 버튼 스타일
@@ -171,7 +185,16 @@ function EditIntroduction({ darkMode }) {
     cursor: "pointer",
     fontSize: "14px",
     margin: "0 8px 8px 0",
-    transition: "background-color 0.2s"
+    transition: "background-color 0.2s",
+    boxSizing: "border-box",
+    wordWrap: "break-word",
+    overflowWrap: "break-word",
+    // 모바일 반응형
+    "@media (max-width: 768px)": {
+      fontSize: "12px",
+      padding: "6px 10px",
+      margin: "0 4px 6px 0"
+    }
   };
   
   // 예시 자기소개 템플릿
@@ -250,7 +273,16 @@ function EditIntroduction({ darkMode }) {
                 resize: "vertical",
                 padding: "15px",
                 fontSize: "16px",
-                lineHeight: 1.5
+                lineHeight: 1.5,
+                boxSizing: "border-box",
+                wordWrap: "break-word",
+                overflowWrap: "break-word",
+                // 모바일 반응형
+                "@media (max-width: 768px)": {
+                  minHeight: "120px",
+                  padding: "12px",
+                  fontSize: "16px"
+                }
               }}
               disabled={saving}
               maxLength={MAX_CHAR_COUNT}
@@ -313,7 +345,15 @@ function EditIntroduction({ darkMode }) {
                 border: "none",
                 borderRadius: "4px",
                 cursor: "pointer",
-                fontSize: "16px"
+                fontSize: "16px",
+                boxSizing: "border-box",
+                minHeight: "44px", // 모바일 터치 영역
+                flex: 1,
+                // 모바일 반응형
+                "@media (max-width: 768px)": {
+                  fontSize: "14px",
+                  padding: "12px 20px"
+                }
               }}
               disabled={saving}
               type="button"
@@ -330,7 +370,14 @@ function EditIntroduction({ darkMode }) {
                 alignItems: "center",
                 justifyContent: "center",
                 minWidth: "120px",
-                opacity: saving ? 0.7 : 1
+                opacity: saving ? 0.7 : 1,
+                flex: 1,
+                minHeight: "44px", // 모바일 터치 영역
+                // 모바일 반응형
+                "@media (max-width: 768px)": {
+                  fontSize: "14px",
+                  padding: "12px 20px"
+                }
               }}
               disabled={saving}
               type="button"

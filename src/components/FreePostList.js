@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import PropTypes from "prop-types";
 import {
   collection, query, orderBy, onSnapshot, getDocs, limit, startAfter,
-  where, getCountFromServer
+  getCountFromServer, addDoc, Timestamp
 } from "firebase/firestore";
 import { db } from "../firebase";
 import SearchBar from "./SearchBar";
@@ -23,7 +23,11 @@ const gradeEmojis = {
   "지구": "🌏",
   "토성": "🪐",
   "태양": "🌞",
-  "은하": "🌌"
+  "은하": "🌌",
+  "맥주": "🍺",
+  "번개": "⚡",
+  "달": "🌙",
+  "별": "⭐"
 };
 
 function FreePostList({ darkMode, globalProfilePics, globalGrades }) {
@@ -35,6 +39,7 @@ function FreePostList({ darkMode, globalProfilePics, globalGrades }) {
   const [lastVisible, setLastVisible] = useState(null);
   const [hasMore, setHasMore] = useState(true);
   const [sortOption, setSortOption] = useState("date"); // 'date', 'likes', 'comments'
+  const [loadingMore, setLoadingMore] = useState(false);
   
   const me = localStorage.getItem("nickname");
   const navigate = useNavigate();
@@ -160,7 +165,7 @@ function FreePostList({ darkMode, globalProfilePics, globalGrades }) {
   const loadMorePosts = async () => {
     if (!lastVisible || !hasMore || loading) return;
     
-    setLoading(true);
+    setLoadingMore(true);
     
     try {
       const q = createQuery(lastVisible);
@@ -210,7 +215,7 @@ function FreePostList({ darkMode, globalProfilePics, globalGrades }) {
       setError("추가 게시물을 불러오는 중 오류가 발생했습니다.");
     }
     
-    setLoading(false);
+    setLoadingMore(false);
   };
   
   // 정렬 옵션 변경 핸들러
@@ -327,6 +332,40 @@ function FreePostList({ darkMode, globalProfilePics, globalGrades }) {
     fontSize: "14px",
     transition: "background-color 0.2s ease"
   });
+
+  // 쪽지 보내기 함수
+  const sendMessage = async (receiverNickname, postTitle) => {
+    if (!me) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
+    
+    if (me === receiverNickname) {
+      alert("자신에게는 쪽지를 보낼 수 없습니다.");
+      return;
+    }
+    
+    const messageContent = prompt(`${receiverNickname}님에게 보낼 메시지를 입력하세요:`);
+    if (!messageContent || !messageContent.trim()) {
+      return;
+    }
+    
+    try {
+      await addDoc(collection(db, "messages"), {
+        senderNickname: me,
+        receiverNickname: receiverNickname,
+        content: messageContent.trim(),
+        createdAt: Timestamp.now(),
+        read: false,
+        relatedPostTitle: postTitle
+      });
+      
+      alert("쪽지가 전송되었습니다.");
+    } catch (error) {
+      console.error("쪽지 전송 오류:", error);
+      alert("쪽지 전송 중 오류가 발생했습니다.");
+    }
+  };
 
   return (
     <div style={darkMode ? darkContainerStyle : containerStyle}>
@@ -603,46 +642,14 @@ function FreePostList({ darkMode, globalProfilePics, globalGrades }) {
                 </span>
               </div>
               
-              <div style={{ display: "flex", gap: "12px" }}>
+              <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
                 <span style={{ display: "flex", alignItems: "center" }}>
-                  <span style={{ marginRight: "4px" }}>❤️</span>
-                  {post.likes || 0}
+                  👍 {post.likes || 0}
                 </span>
                 <span style={{ display: "flex", alignItems: "center" }}>
-                  <span style={{ marginRight: "4px" }}>💬</span>
-                  {commentCounts[post.id] || 0}
+                  💬 {commentCounts[post.id] || 0}
                 </span>
-                {post.reports > 0 && (
-                  <span style={{ display: "flex", alignItems: "center", color: "#f44336" }}>
-                    <span style={{ marginRight: "4px" }}>🚨</span>
-                    {post.reports}
-                  </span>
-                )}
               </div>
-            </div>
-            
-            {/* 액션 버튼 */}
-            <div style={{ 
-              display: "flex", 
-              justifyContent: "flex-end",
-              marginTop: "10px" 
-            }}>
-              {post.nickname !== me && (
-                <Link to={`/send-message/${post.nickname || "알 수 없음"}`}>
-                  <button style={{
-                    ...smallBtn,
-                    backgroundColor: darkMode ? "rgba(126, 87, 194, 0.2)" : "rgba(126, 87, 194, 0.1)",
-                    color: darkMode ? "#d4c2ff" : "#7e57c2",
-                    border: `1px solid ${darkMode ? "#513989" : "#b49ddb"}`,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "4px"
-                  }}>
-                    <span>✉️</span>
-                    쪽지 보내기
-                  </button>
-                </Link>
-              )}
             </div>
           </div>
         ))}
@@ -668,6 +675,39 @@ function FreePostList({ darkMode, globalProfilePics, globalGrades }) {
           </div>
         )}
         
+        {/* 추가 로딩 중일 때 표시 */}
+        {loadingMore && (
+          <div style={{ 
+            textAlign: "center", 
+            padding: "20px",
+            color: "#666"
+          }}>
+            <div style={{
+              display: "inline-block",
+              width: "20px",
+              height: "20px",
+              border: "3px solid #f3f3f3",
+              borderTop: "3px solid #7e57c2",
+              borderRadius: "50%",
+              animation: "spin 1s linear infinite"
+            }}></div>
+            <p style={{ margin: "10px 0 0 0" }}>더 많은 게시글을 불러오는 중...</p>
+          </div>
+        )}
+        
+        {/* 더 불러올 게시글이 없을 때 표시 */}
+        {!loading && !loadingMore && !hasMore && posts.length > 0 && (
+          <div style={{ 
+            textAlign: "center", 
+            padding: "20px",
+            color: "#666",
+            borderTop: "1px solid #e0e0e0",
+            marginTop: "20px"
+          }}>
+            <p style={{ margin: 0 }}>📄 모든 게시글을 확인했습니다</p>
+          </div>
+        )}
+        
         {/* 추가 로딩 인디케이터 */}
         {loading && posts.length > 0 && (
           <div style={{ textAlign: "center", padding: "20px 0" }}>
@@ -683,6 +723,14 @@ function FreePostList({ darkMode, globalProfilePics, globalGrades }) {
           </div>
         )}
       </div>
+      
+      {/* 애니메이션 스타일 추가 */}
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

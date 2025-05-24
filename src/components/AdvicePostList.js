@@ -11,7 +11,7 @@ import {
   containerStyle, darkContainerStyle, titleStyle, purpleBtn, smallBtn
 } from "../components/style";
 
-// gradeEmojis 객체 추가
+// gradeEmojis 객체 업데이트
 const gradeEmojis = {
   "체리": "🍒",
   "블루베리": "🫐",
@@ -21,7 +21,12 @@ const gradeEmojis = {
   "수박": "🍉",
   "지구": "🌏",
   "토성": "🪐",
-  "태양": "🌞"
+  "태양": "🌞",
+  "은하": "🌌",
+  "맥주": "🍺",
+  "번개": "⚡",
+  "달": "🌙",
+  "별": "⭐"
 };
 
 function AdvicePostList({ darkMode, globalProfilePics, globalGrades }) {
@@ -112,20 +117,28 @@ function AdvicePostList({ darkMode, globalProfilePics, globalGrades }) {
   };
 
   useEffect(() => {
-    // 실시간 업데이트를 위한 onSnapshot
+    // 초기 데이터 로드
+    fetchPosts(true);
+  }, [sortOrder, categoryFilter]);
+
+  useEffect(() => {
+    // 실시간 업데이트를 위한 onSnapshot (새 게시글이나 변경사항 감지용)
     const q = query(
       collection(db, "advice"),
-      orderBy("createdAt", "desc")
+      orderBy("createdAt", "desc"),
+      limit(1) // 최신 1개만 감지해서 변경사항 확인
     );
     
-    const unsubscribe = onSnapshot(q, snapshot => {
-      // 새 게시글이나 변경사항이 감지되면 fetchPosts 호출
-      fetchPosts();
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      // 변경사항이 있을 때만 전체 데이터를 다시 로드
+      if (!snapshot.empty) {
+        fetchPosts(true);
+      }
     });
     
     // 컴포넌트 언마운트 시 구독 해제
     return () => unsubscribe();
-  }, [fetchPosts]);
+  }, []);
 
   useEffect(() => {
     if (search) {

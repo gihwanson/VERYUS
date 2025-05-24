@@ -1,8 +1,8 @@
 [
   {
-    "origin": ["http://localhost:3000"],
-    "method": ["GET", "POST", "PUT", "DELETE"],
-    "responseHeader": ["Content-Type", "Authorization"],
+    "origin": ["http://localhost:3000", "http://localhost:3001", "https://veryusduet.firebaseapp.com"],
+    "method": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    "responseHeader": ["Content-Type", "Authorization", "Access-Control-Allow-Origin", "Access-Control-Allow-Headers"],
     "maxAgeSeconds": 3600
   }
 ]

@@ -4,8 +4,9 @@ import PropTypes from "prop-types";
 import { 
   collection, query, where, getDocs, limit 
 } from "firebase/firestore";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import sha256 from "crypto-js/sha256";
-import { db } from "../firebase";
+import { db, auth } from "../firebase";
 import {
   containerStyle, darkContainerStyle, titleStyle, inputStyle, darkInputStyle, purpleBtn
 } from "./style";
@@ -99,6 +100,34 @@ function Login({ darkMode }) {
         setError("비밀번호가 일치하지 않습니다.");
         setLoading(false);
         return;
+      }
+      
+      // Firebase Auth에도 로그인 (이메일이 있는 경우)
+      try {
+        if (userData.email) {
+          // 기존 사용자면 로그인 시도
+          try {
+            await signInWithEmailAndPassword(auth, userData.email, formData.password);
+            console.log("Firebase Auth 로그인 성공");
+          } catch (authError) {
+            // 로그인 실패시 계정 생성 시도 (비밀번호가 다를 수 있음)
+            console.log("Firebase Auth 로그인 실패, 계정 생성 시도:", authError.code);
+            if (authError.code === 'auth/user-not-found' || authError.code === 'auth/wrong-password') {
+              try {
+                await createUserWithEmailAndPassword(auth, userData.email, formData.password);
+                console.log("Firebase Auth 계정 생성 성공");
+              } catch (createError) {
+                console.log("Firebase Auth 계정 생성도 실패:", createError.message);
+                // Auth 로그인 실패해도 로컬 로그인은 계속 진행
+              }
+            }
+          }
+        } else {
+          console.log("이메일 정보가 없어 Firebase Auth 로그인을 건너뜁니다.");
+        }
+      } catch (authError) {
+        console.log("Firebase Auth 처리 중 오류:", authError);
+        // Auth 실패해도 로컬 로그인은 계속 진행
       }
       
       // 로그인 성공 처리

@@ -19,15 +19,13 @@ function Header({
   role 
 }) {
   const [showMenu, setShowMenu] = useState(false);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [screenWidth, setScreenWidth] = useState(window.innerWidth);
   const [scrolled, setScrolled] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
-  const menuRef = useRef(null);
   const profileRef = useRef(null);
-  const mobileMenuRef = useRef(null);
+  const menuRef = useRef(null);
   
   // 현재 활성화된 메뉴 항목 확인
   const isActive = (path) => {
@@ -40,12 +38,6 @@ function Header({
       if (menuRef.current && !menuRef.current.contains(event.target) &&
           profileRef.current && !profileRef.current.contains(event.target)) {
         setShowMenu(false);
-      }
-      
-      if (mobileMenuRef.current && 
-          !mobileMenuRef.current.contains(event.target) && 
-          event.target.id !== 'mobile-menu-toggle') {
-        setShowMobileMenu(false);
       }
     };
     
@@ -60,7 +52,6 @@ function Header({
     const handleEscKey = (event) => {
       if (event.key === "Escape") {
         setShowMenu(false);
-        setShowMobileMenu(false);
       }
     };
     
@@ -73,10 +64,7 @@ function Header({
   // 화면 크기 변경 감지
   useEffect(() => {
     const handleResize = () => {
-      setScreenWidth(window.innerWidth);
-      if (window.innerWidth > 768) {
-        setShowMobileMenu(false);
-      }
+      setIsMobile(window.innerWidth <= 768);
     };
     
     window.addEventListener("resize", handleResize);
@@ -125,7 +113,6 @@ function Header({
   const handleNavigate = (path) => {
     navigate(path);
     setShowMenu(false);
-    setShowMobileMenu(false);
   };
   
   // Enter 키 핸들러
@@ -148,8 +135,7 @@ function Header({
   // 사용자 메뉴 항목 (드롭다운)
   const userMenuItems = [
     { path: "/mypage", label: "마이페이지", icon: "👤" },
-    { path: "/inbox", label: "받은쪽지함", icon: "📬", hasNotif: unread > 0, notifCount: unread },
-    { path: "/outbox", label: "보낸쪽지함", icon: "📤" },
+    { path: "/inbox", label: "쪽지함", icon: "📬", hasNotif: unread > 0, notifCount: unread },
     { path: `/guestbook/${nick}`, label: "내 방명록", icon: "📖" },
     { path: "/notification", label: "알림", icon: "🔔", hasNotif: notiCount > 0, notifCount: notiCount },
     { path: "/evaluate", label: "등급 평가", icon: "📝" }
@@ -168,22 +154,18 @@ const adminMenuItems = [];
 
 // "너래" 닉네임이면 모든 관리자 메뉴 표시
 if (nick === "너래") {
+  adminMenuItems.push({ path: "/new-admin-panel", label: "관리자패널", icon: "🛠️" });
   adminMenuItems.push({ path: "/admin-eval", label: "평가 결과", icon: "👑" });
-  adminMenuItems.push({ path: "/admin-user", label: "관리자메뉴", icon: "👥" });
   adminMenuItems.push({ path: "/notices", label: "공지사항 관리", icon: "📢" });
 }
-// 그 외 관리자 권한을 가진 사용자에게는 일부 메뉴만 표시
+// 그 외 관리자 권한을 가진 사용자에게는 관리자패널만 표시
 else if (role === "운영진" || role === "리더" || role === "부운영진") {
-  adminMenuItems.push({ path: "/admin-user", label: "관리자메뉴", icon: "👥" });
-  adminMenuItems.push({ path: "/notices", label: "공지사항 관리", icon: "📢" });
+  adminMenuItems.push({ path: "/new-admin-panel", label: "관리자패널", icon: "🛠️" });
 }
 
   
   // 총 알림 수 계산
   const totalNotifications = (unread || 0) + (notiCount || 0);
-  
-  // 모바일뷰 여부
-  const isMobile = screenWidth <= 768;
   
   // 메뉴 아이템 스타일
   const getMenuItemStyle = (isMenuActive = false) => ({
@@ -208,18 +190,12 @@ else if (role === "운영진" || role === "리더" || role === "부운영진") {
   const toggleMenu = () => {
     setShowMenu(!showMenu);
   };
-
-  // 모바일 메뉴 토글 함수
-  const toggleMobileMenu = () => {
-    setShowMobileMenu(!showMobileMenu);
-  };
-
+  
   // 로그아웃 처리
   const handleLogout = () => {
     if (window.confirm("로그아웃 하시겠습니까?")) {
       logout();
       setShowMenu(false);
-      setShowMobileMenu(false);
       navigate("/");
     }
   };
@@ -280,6 +256,25 @@ else if (role === "운영진" || role === "리더" || role === "부운영진") {
         .notification-badge {
           animation: pulse 1s infinite;
         }
+        
+        /* 드롭다운 메뉴 스크롤바 스타일 */
+        div[role="menu"]::-webkit-scrollbar {
+          width: 6px;
+        }
+        
+        div[role="menu"]::-webkit-scrollbar-track {
+          background: ${dark ? "#333" : "#f1f1f1"};
+          border-radius: 3px;
+        }
+        
+        div[role="menu"]::-webkit-scrollbar-thumb {
+          background: ${dark ? "#666" : "#ccc"};
+          border-radius: 3px;
+        }
+        
+        div[role="menu"]::-webkit-scrollbar-thumb:hover {
+          background: ${dark ? "#777" : "#999"};
+        }
       `}</style>
       
       {/* 왼쪽: 로고 */}
@@ -289,8 +284,7 @@ else if (role === "운영진" || role === "리더" || role === "부운영진") {
           className="logo-pulse"
           style={{ 
             display: "flex", 
-            alignItems: "center", 
-            gap: 10,
+            alignItems: "center",
             textDecoration: "none"
           }}
         >
@@ -298,67 +292,11 @@ else if (role === "운영진" || role === "리더" || role === "부운영진") {
             src={logo} 
             alt="Veryus 로고" 
             style={{ 
-              height: isMobile ? 50 : 60,
+              height: isMobile ? 60 : 70,
               transition: "all 0.3s ease"
             }} 
           />
-          <span style={{ 
-            fontWeight: "bold", 
-            fontSize: isMobile ? 18 : 20, 
-            color: "#ffffff",
-            transition: "all 0.3s ease"
-          }}>
-            Veryus
-          </span>
         </Link>
-        
-        {/* 모바일 메뉴 토글 버튼 */}
-        {isMobile && (
-          <button 
-            id="mobile-menu-toggle"
-            onClick={toggleMobileMenu}
-            aria-label={showMobileMenu ? "메뉴 닫기" : "메뉴 열기"}
-            aria-expanded={showMobileMenu}
-            aria-controls="mobile-menu"
-            style={{
-              background: "none",
-              border: "none",
-              fontSize: "24px",
-              cursor: "pointer",
-              color: dark ? "#e0e0e0" : "#333",
-              marginLeft: "10px",
-              padding: "5px",
-              position: "relative",
-              zIndex: 101
-            }}
-          >
-            {showMobileMenu ? "✕" : "☰"}
-            
-            {/* 알림 표시 */}
-            {nick && totalNotifications > 0 && (
-              <div className="notification-badge" style={{
-                position: "absolute",
-                top: -2,
-                right: -2,
-                background: "#f44336",
-                color: "white",
-                fontSize: "10px",
-                borderRadius: "50%",
-                minWidth: "16px",
-                height: "16px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "2px",
-                fontWeight: "bold",
-                border: "2px solid",
-                borderColor: dark ? "#1a1a1a" : "#fff"
-              }}>
-                {totalNotifications}
-              </div>
-            )}
-          </button>
-        )}
       </div>
       
 {/* 중앙: 메인 네비게이션 (데스크톱) */}
@@ -552,8 +490,13 @@ else if (role === "운영진" || role === "리더" || role === "부운영진") {
                   padding: "8px",
                   zIndex: 999,
                   minWidth: "220px",
+                  maxHeight: isMobile ? "60vh" : "80vh",
+                  overflowY: "auto",
                   animation: "slideDown 0.2s ease-out",
-                  transformOrigin: "top right"
+                  transformOrigin: "top right",
+                  WebkitOverflowScrolling: "touch",
+                  scrollbarWidth: "thin",
+                  scrollbarColor: `${dark ? "#666 #333" : "#ccc #f5f5f5"}`
                 }}
                 role="menu"
               >
@@ -805,402 +748,6 @@ else if (role === "운영진" || role === "리더" || role === "부운영진") {
             </Link>
           )}
         </div>
-      )}
-      
-      {/* 모바일 메뉴 (슬라이드 인) */}
-      {isMobile && showMobileMenu && (
-        <div
-          id="mobile-menu"
-          ref={mobileMenuRef}
-          style={{
-            position: "fixed",
-            top: 0,
-            right: 0,
-            width: "75%",
-            maxWidth: "300px",
-            height: "100vh",
-            backgroundColor: dark ? "#1a1a1a" : "#fff",
-            boxShadow: `0 0 20px rgba(0, 0, 0, ${dark ? 0.5 : 0.2})`,
-            zIndex: 100,
-            padding: "20px",
-            paddingTop: "70px",
-            overflowY: "auto",
-            animation: "slideInRight 0.3s ease-out"
-          }}
-        >
-          {/* 모바일 프로필 섹션 */}
-          {nick && (
-            <div style={{
-              padding: "15px",
-              borderRadius: "12px",
-              backgroundColor: dark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.02)",
-              marginBottom: "20px",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center"
-            }}>
-              <img
-                src={globalProfilePics[nick] || defaultAvatar}
-                alt="프로필"
-                style={{
-                  width: 80,
-                  height: 80,
-                  borderRadius: "50%",
-                  objectFit: "cover",
-                  border: `3px solid ${dark ? "#bb86fc" : "#7e57c2"}`
-                }}
-              />
-              <div style={{ 
-                marginTop: "12px", 
-                fontWeight: "bold",
-                fontSize: "18px",
-                color: dark ? "#e0e0e0" : "#333"
-              }}>
-                {nick}
-              </div>
-              <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
-                {grades[nick] && (
-                  <div style={{
-                    display: "inline-flex",
-                    padding: "3px 10px",
-                    borderRadius: "12px",
-                    backgroundColor: dark ? "rgba(126, 87, 194, 0.2)" : "rgba(126, 87, 194, 0.1)",
-                    color: dark ? "#bb86fc" : "#7e57c2",
-                    fontSize: "13px",
-                    fontWeight: "bold"
-                  }}>
-                    {grades[nick]}
-                  </div>
-                )}
-                                {role && (
-                  <div style={{
-                    display: "inline-flex",
-                    padding: "3px 10px",
-                    borderRadius: "12px",
-                    backgroundColor: dark ? "rgba(255, 152, 0, 0.2)" : "rgba(255, 152, 0, 0.1)",
-                    color: dark ? "#ff9800" : "#e65100",
-                    fontSize: "13px",
-                    fontWeight: "bold"
-                  }}>
-                    {role}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-          
-          {/* 모바일 메인 메뉴 */}
-          <div style={{ 
-            marginBottom: "20px",
-            borderRadius: "10px",
-            overflow: "hidden",
-            backgroundColor: dark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.02)",
-          }}>
-            {mainMenuItems.map((item) => (
-              <div 
-                key={item.path}
-                onClick={() => handleNavigate(item.path)}
-                onKeyDown={(e) => handleKeyDown(e, () => handleNavigate(item.path))}
-                tabIndex="0"
-                role="menuitem"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "10px",
-                  padding: "12px 15px",
-                  cursor: "pointer",
-                  borderBottom: `1px solid ${dark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)"}`,
-                  backgroundColor: isActive(item.path) 
-                    ? (dark ? "rgba(126, 87, 194, 0.3)" : "rgba(126, 87, 194, 0.1)") 
-                    : "transparent",
-                  color: dark 
-                    ? (isActive(item.path) ? "#bb86fc" : "#e0e0e0") 
-                    : (isActive(item.path) ? "#7e57c2" : "#333"),
-                  fontWeight: isActive(item.path) ? "bold" : "normal",
-                  fontSize: "16px"
-                }}
-              >
-                <span style={{ fontSize: "20px" }}>{item.icon}</span>
-                <span>{item.label}</span>
-              </div>
-            ))}
-          </div>
-          
-          {/* 모바일 사용자 메뉴 */}
-          {nick && (
-            <>
-              <div style={{ 
-                marginBottom: "20px",
-                borderRadius: "10px",
-                overflow: "hidden",
-                backgroundColor: dark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.02)"
-              }}>
-                <div style={{
-                  padding: "10px 15px",
-                  fontWeight: "bold",
-                  fontSize: "14px",
-                  color: dark ? "#bb86fc" : "#7e57c2",
-                  borderBottom: `1px solid ${dark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)"}`
-                }}>
-                  내 활동
-                </div>
-                
-                {userMenuItems.map((item) => (
-                  <div 
-                    key={item.path}
-                    onClick={() => handleNavigate(item.path)}
-                    onKeyDown={(e) => handleKeyDown(e, () => handleNavigate(item.path))}
-                    tabIndex="0"
-                    role="menuitem"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "10px",
-                      padding: "12px 15px",
-                      cursor: "pointer",
-                      borderBottom: `1px solid ${dark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)"}`,
-                      backgroundColor: isActive(item.path) 
-                        ? (dark ? "rgba(126, 87, 194, 0.3)" : "rgba(126, 87, 194, 0.1)") 
-                        : "transparent",
-                      color: dark 
-                        ? (isActive(item.path) ? "#bb86fc" : "#e0e0e0") 
-                        : (isActive(item.path) ? "#7e57c2" : "#333"),
-                      fontWeight: isActive(item.path) ? "bold" : "normal",
-                      fontSize: "16px",
-                      position: "relative"
-                    }}
-                  >
-                    <span style={{ fontSize: "20px" }}>{item.icon}</span>
-                    <span>{item.label}</span>
-                    {item.hasNotif && item.notifCount > 0 && (
-                      <span style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        minWidth: "20px",
-                        height: "20px",
-                        borderRadius: "10px",
-                        backgroundColor: "#f44336",
-                        color: "white",
-                        fontSize: "12px",
-                        fontWeight: "bold",
-                        padding: "0 6px",
-                        marginLeft: "auto"
-                      }}>
-                        {item.notifCount}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-              
-              {/* 모바일 설정 메뉴 */}
-              <div style={{ 
-                marginBottom: "20px",
-                borderRadius: "10px",
-                overflow: "hidden",
-                backgroundColor: dark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.02)"
-              }}>
-                <div style={{
-                  padding: "10px 15px",
-                  fontWeight: "bold",
-                  fontSize: "14px",
-                  color: dark ? "#bb86fc" : "#7e57c2",
-                  borderBottom: `1px solid ${dark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)"}`
-                }}>
-                  설정
-                </div>
-                
-                {settingsItems.map((item) => (
-                  <div 
-                    key={item.path}
-                    onClick={() => handleNavigate(item.path)}
-                    onKeyDown={(e) => handleKeyDown(e, () => handleNavigate(item.path))}
-                    tabIndex="0"
-                    role="menuitem"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "10px",
-                      padding: "12px 15px",
-                      cursor: "pointer",
-                      borderBottom: `1px solid ${dark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)"}`,
-                      backgroundColor: isActive(item.path) 
-                        ? (dark ? "rgba(126, 87, 194, 0.3)" : "rgba(126, 87, 194, 0.1)") 
-                        : "transparent",
-                      color: dark 
-                        ? (isActive(item.path) ? "#bb86fc" : "#e0e0e0") 
-                        : (isActive(item.path) ? "#7e57c2" : "#333"),
-                      fontWeight: isActive(item.path) ? "bold" : "normal",
-                      fontSize: "16px"
-                    }}
-                  >
-                    <span style={{ fontSize: "20px" }}>{item.icon}</span>
-                    <span>{item.label}</span>
-                  </div>
-                ))}
-                
-                {/* 모바일 다크모드 토글 */}
-                <div 
-                  onClick={() => { toggleDark(); }}
-                  onKeyDown={(e) => handleKeyDown(e, () => { toggleDark(); })}
-                  tabIndex="0"
-                  role="menuitem"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px",
-                    padding: "12px 15px",
-                    cursor: "pointer",
-                    borderBottom: `1px solid ${dark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)"}`,
-                    color: dark ? "#e0e0e0" : "#333",
-                    fontSize: "16px"
-                  }}
-                >
-                  <span style={{ fontSize: "20px" }}>{dark ? "🌞" : "🌓"}</span>
-                  <span>{dark ? "라이트모드" : "다크모드"}</span>
-                </div>
-              </div>
-              
-              {/* 모바일 관리자 메뉴 */}
-              {adminMenuItems.length > 0 && (
-                <div style={{ 
-                  marginBottom: "20px",
-                  borderRadius: "10px",
-                  overflow: "hidden",
-                  backgroundColor: dark ? "rgba(255, 152, 0, 0.1)" : "rgba(255, 152, 0, 0.05)"
-                }}>
-                  <div style={{
-                    padding: "10px 15px",
-                    fontWeight: "bold",
-                    fontSize: "14px",
-                    color: dark ? "#ff9800" : "#e65100",
-                    borderBottom: `1px solid ${dark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)"}`
-                  }}>
-                    관리자 도구
-                  </div>
-                  
-                  {adminMenuItems.map((item) => (
-                    <div 
-                      key={item.path}
-                      onClick={() => handleNavigate(item.path)}
-                      onKeyDown={(e) => handleKeyDown(e, () => handleNavigate(item.path))}
-                      tabIndex="0"
-                      role="menuitem"
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "10px",
-                        padding: "12px 15px",
-                        cursor: "pointer",
-                        borderBottom: `1px solid ${dark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)"}`,
-                        backgroundColor: isActive(item.path) 
-                          ? (dark ? "rgba(255, 152, 0, 0.2)" : "rgba(255, 152, 0, 0.1)") 
-                          : "transparent",
-                        color: dark 
-                          ? (isActive(item.path) ? "#ff9800" : "#ff9800") 
-                          : (isActive(item.path) ? "#e65100" : "#e65100"),
-                        fontWeight: isActive(item.path) ? "bold" : "normal",
-                        fontSize: "16px"
-                      }}
-                    >
-                      <span style={{ fontSize: "20px" }}>{item.icon}</span>
-                      <span>{item.label}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              
-              {/* 모바일 로그아웃 버튼 */}
-              <div 
-                onClick={handleLogout}
-                onKeyDown={(e) => handleKeyDown(e, handleLogout)}
-                tabIndex="0"
-                role="button"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "10px",
-                  padding: "15px",
-                  borderRadius: "10px",
-                  backgroundColor: dark ? "rgba(244, 67, 54, 0.2)" : "rgba(244, 67, 54, 0.1)",
-                  color: dark ? "#f44336" : "#d32f2f",
-                  fontWeight: "bold",
-                  cursor: "pointer",
-                  marginTop: "20px"
-                }}
-              >
-                <span style={{ fontSize: "20px" }}>🚪</span>
-                <span>로그아웃</span>
-              </div>
-            </>
-          )}
-          
-          {/* 미로그인 시 모바일 로그인/회원가입 버튼 */}
-          {!nick && (
-            <div style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "15px",
-              marginTop: "20px"
-            }}>
-              <Link 
-                to="/login" 
-                style={{
-                  ...purpleBtn,
-                  textDecoration: "none",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: "15px",
-                  fontSize: "16px",
-                  textAlign: "center"
-                }}
-                onClick={() => setShowMobileMenu(false)}
-              >
-                로그인
-              </Link>
-              <Link 
-                to="/signup" 
-                style={{
-                  textDecoration: "none",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: "15px",
-                  fontSize: "16px",
-                  textAlign: "center",
-                  border: `1px solid ${dark ? "#bb86fc" : "#7e57c2"}`,
-                  borderRadius: "4px",
-                  color: dark ? "#bb86fc" : "#7e57c2",
-                  backgroundColor: "transparent"
-                }}
-                onClick={() => setShowMobileMenu(false)}
-              >
-                회원가입
-              </Link>
-            </div>
-          )}
-        </div>
-      )}
-      
-      {/* 모바일 메뉴가 열렸을 때 배경 오버레이 */}
-      {isMobile && showMobileMenu && (
-        <div 
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100vw",
-            height: "100vh",
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            zIndex: 99,
-            animation: "fadeIn 0.3s ease-out"
-          }}
-          onClick={() => setShowMobileMenu(false)}
-          aria-hidden="true"
-        />
       )}
     </header>
   );

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { collection, getDocs, deleteDoc, doc, getDoc, updateDoc } from "firebase/firestore";
+import { collection, getDocs, deleteDoc, doc, getDoc, updateDoc, query, where, limit } from "firebase/firestore";
 import { db } from "../firebase";
 
 function getGrade(score) {
@@ -162,29 +162,42 @@ function AdminEvalPage({ darkMode }) {
 
     setUpdating(true);
     try {
-      // 해당 사용자 문서 찾기
-      const userQuery = await getDocs(collection(db, "users"));
-      let userId = null;
-      
-      userQuery.forEach(doc => {
-        const data = doc.data();
-        if (data.nickname === nickname) {
-          userId = doc.id;
-        }
-      });
+      // 쿼리를 사용하여 특정 사용자만 조회 (성능 개선)
+      const userQuery = query(
+        collection(db, "users"), 
+        where("nickname", "==", nickname),
+        limit(1)
+      );
+      const userSnapshot = await getDocs(userQuery);
 
-      if (!userId) {
+      if (userSnapshot.empty) {
         alert("사용자를 찾을 수 없습니다.");
         setUpdating(false);
         return;
       }
 
-      // 등급 업데이트
-      await updateDoc(doc(db, "users", userId), { grade });
+      const userDoc = userSnapshot.docs[0];
+      const currentData = userDoc.data();
+      
+      // 현재 등급과 동일한지 확인
+      if (currentData.grade === grade) {
+        alert(`${nickname}님은 이미 ${grade} 등급입니다.`);
+        setUpdating(false);
+        return;
+      }
+
+      // 등급 업데이트 (변경된 필드만 업데이트)
+      await updateDoc(userDoc.ref, { 
+        grade,
+        updatedAt: new Date()
+      });
+      
+      console.log(`등급 업데이트 완료: ${nickname} -> ${grade}`);
       alert(`${nickname}님의 등급이 ${grade}로 업데이트되었습니다.`);
+      
     } catch (err) {
       console.error("등급 업데이트 중 오류:", err);
-      alert("등급 업데이트 중 오류가 발생했습니다.");
+      alert("등급 업데이트 중 오류가 발생했습니다: " + err.message);
     } finally {
       setUpdating(false);
     }

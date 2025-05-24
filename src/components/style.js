@@ -38,7 +38,7 @@ export const colors = {
   textMuted: "#666",
   textMutedDark: "#aaa",
   
-  // 경계선 색상
+ // 경계선 색상
   borderLight: "#b49ddb",
   borderDark: "#555",
 };
@@ -94,18 +94,24 @@ export const darkTheme = {
 
 // 전역 스타일 상수
 export const containerStyle = {
-  maxWidth: "1200px",
-  margin: "0 auto",
   padding: "20px",
-  backgroundColor: "#ffffff",
-  borderRadius: "8px",
-  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
+  minHeight: "100vh",
+  width: "100%",
+  maxWidth: "100%",
+  margin: "0 auto",
+  boxSizing: "border-box",
+  wordWrap: "break-word",
+  overflowWrap: "break-word",
+  // 모바일 반응형
+  "@media (max-width: 768px)": {
+    padding: "10px",
+  }
 };
 
 export const darkContainerStyle = {
   ...containerStyle,
-  backgroundColor: "#2a2a2a",
-  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
+  backgroundColor: "#1a1a1a",
+  color: "#e0e0e0"
 };
 
 // 전역 배경색 스타일
@@ -129,6 +135,16 @@ export const sectionContainerStyle = {
   backdropFilter: "blur(8px)",
   boxShadow: "0 4px 6px rgba(0, 0, 0, 0.05)",
   border: "1px solid rgba(126, 87, 194, 0.1)",
+  width: "100%",
+  maxWidth: "100%",
+  boxSizing: "border-box",
+  wordWrap: "break-word",
+  overflowWrap: "break-word",
+  // 모바일 반응형
+  "@media (max-width: 768px)": {
+    padding: "15px",
+    marginBottom: "15px",
+  }
 };
 
 export const darkSectionContainerStyle = {
@@ -193,49 +209,50 @@ export const darkTitleStyle = {
 // 입력 필드 스타일
 export const inputStyle = {
   width: "100%",
+  maxWidth: "100%",
   padding: "12px 16px",
-  marginBottom: 16,
-  borderRadius: 10,
-  border: "1px solid #ccc",
-  fontSize: 16,
-  transition: transitions.fast,
+  borderRadius: "8px",
+  border: "1px solid #ddd",
+  fontSize: "16px", // iOS에서 줌 방지
   outline: "none",
+  transition: "border-color 0.2s ease",
   boxSizing: "border-box",
-  
-  // 모바일 최적화 추가
-  [createMediaQuery(breakpoints.tablet)]: {
+  wordWrap: "break-word",
+  overflowWrap: "break-word",
+  "&:focus": {
+    borderColor: "#7e57c2",
+    boxShadow: "0 0 0 2px rgba(126, 87, 194, 0.2)"
+  },
+  // 모바일 반응형
+  "@media (max-width: 768px)": {
     padding: "10px 14px",
-    fontSize: 15,
-    marginBottom: 12,
-  },
-  
-  [createMediaQuery(breakpoints.mobile)]: {
-    padding: "8px 12px",
-    fontSize: 14,
-    marginBottom: 10,
-    borderRadius: 8,
-  },
+    fontSize: "16px", // iOS 줌 방지를 위해 16px 유지
+  }
 };
 
 export const darkInputStyle = {
   ...inputStyle,
-  background: "#444",
-  color: colors.textLight,
-  border: `1px solid ${colors.borderDark}`,
+  backgroundColor: "#2a2a2a",
+  color: "#e0e0e0",
+  border: "1px solid #444",
+  "&:focus": {
+    borderColor: "#bb86fc",
+    boxShadow: "0 0 0 2px rgba(187, 134, 252, 0.2)"
+  }
 };
 
 // 텍스트 영역 스타일
 export const textareaStyle = {
   ...inputStyle,
-  height: 120,
+  minHeight: "120px",
   resize: "vertical",
-  lineHeight: 1.5,
   fontFamily: "inherit",
-  
-  // 모바일 최적화 추가
-  [createMediaQuery(breakpoints.mobile)]: {
-    height: 100,
-  },
+  lineHeight: "1.5",
+  // 모바일 반응형
+  "@media (max-width: 768px)": {
+    minHeight: "100px",
+    padding: "10px 14px",
+  }
 };
 
 export const darkTextareaStyle = {
@@ -272,25 +289,30 @@ export const buttonBaseStyle = {
   },
 };
 
-// 주요 버튼 (퍼플 컬러)
+// 보라색 버튼 스타일
 export const purpleBtn = {
-  ...buttonBaseStyle,
-  width: "100%",
-  background: colors.primary,
-  color: colors.textLight,
-  boxShadow: shadows.small,
+  backgroundColor: "#7e57c2",
+  color: "white",
+  border: "none",
+  padding: "12px 24px",
+  borderRadius: "6px",
+  fontSize: "16px",
+  fontWeight: "bold",
+  cursor: "pointer",
+  transition: "all 0.3s ease",
+  boxSizing: "border-box",
+  minHeight: "44px", // 모바일 터치 영역
+  wordWrap: "break-word",
+  overflowWrap: "break-word",
   "&:hover": {
-    background: colors.primaryDark,
-    transform: "translateY(-2px)",
-    boxShadow: shadows.medium,
+    backgroundColor: "#6a4cac",
+    transform: "translateY(-1px)"
   },
-  "&:active": {
-    transform: "translateY(0)",
-  },
-  "&:disabled": {
-    opacity: 0.7,
-    cursor: "not-allowed",
-  },
+  // 모바일 반응형
+  "@media (max-width: 768px)": {
+    padding: "10px 20px",
+    fontSize: "14px",
+  }
 };
 
 export const darkPurpleBtn = {
@@ -302,21 +324,28 @@ export const darkPurpleBtn = {
   },
 };
 
-// 작은 버튼
+// 작은 버튼 스타일
 export const smallBtn = {
-  ...buttonBaseStyle,
-  padding: "6px 12px",
-  fontSize: 14,
-  borderRadius: 6,
-  background: colors.primary,
-  color: colors.textLight,
-  
-  // 모바일 최적화 추가
-  [createMediaQuery(breakpoints.mobile)]: {
-    padding: "5px 10px",
-    fontSize: 13,
-    borderRadius: 5,
+  backgroundColor: "#7e57c2",
+  color: "white",
+  border: "none",
+  padding: "8px 16px",
+  borderRadius: "4px",
+  fontSize: "14px",
+  cursor: "pointer",
+  transition: "all 0.2s ease",
+  boxSizing: "border-box",
+  minHeight: "40px", // 모바일 터치 영역
+  wordWrap: "break-word",
+  overflowWrap: "break-word",
+  "&:hover": {
+    backgroundColor: "#6a4cac"
   },
+  // 모바일 반응형
+  "@media (max-width: 768px)": {
+    padding: "6px 12px",
+    fontSize: "12px",
+  }
 };
 
 export const darkSmallBtn = {

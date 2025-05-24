@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import PropTypes from "prop-types";
 import {
-  collection, getDocs, query, where, doc, updateDoc
+  collection, getDocs, query, where, doc, updateDoc, serverTimestamp
 } from "firebase/firestore";
 import { db } from "../firebase";
 import {
@@ -17,7 +17,8 @@ function EditNickname({ darkMode }) {
   const [userId, setUserId] = useState(null);
   const [nicknameValidation, setNicknameValidation] = useState({
     isValid: false,
-    message: ""
+    message: "",
+    checking: false
   });
   
   const navigate = useNavigate();
@@ -52,6 +53,63 @@ function EditNickname({ darkMode }) {
     fetchUserId();
   }, [navigate]);
   
+  // 닉네임 중복 확인 (자동 체크)
+  const checkNicknameDuplicate = useCallback(async (nickname) => {
+    if (!nickname.trim() || nickname === currentNickname) {
+      return;
+    }
+    
+    // 기본 유효성 검사 먼저 수행
+    if (nickname.length < 2 || nickname.length > 20) {
+      return;
+    }
+    
+    const allowedChars = /^[가-힣a-zA-Z0-9_-]+$/;
+    if (!allowedChars.test(nickname)) {
+      return;
+    }
+    
+    try {
+      setNicknameValidation(prev => ({ ...prev, checking: true }));
+      
+      // 닉네임 중복 확인 쿼리
+      const q = query(collection(db, "users"), where("nickname", "==", nickname));
+      const snapshot = await getDocs(q);
+      
+      if (!snapshot.empty) {
+        setNicknameValidation({
+          isValid: false,
+          message: "이미 사용 중인 닉네임입니다.",
+          checking: false
+        });
+      } else {
+        setNicknameValidation({
+          isValid: true,
+          message: "사용 가능한 닉네임입니다.",
+          checking: false
+        });
+      }
+    } catch (err) {
+      console.error("닉네임 중복 확인 오류:", err);
+      setNicknameValidation({
+        isValid: false,
+        message: "중복 확인 중 오류가 발생했습니다.",
+        checking: false
+      });
+    }
+  }, [currentNickname]);
+  
+  // 닉네임 입력 시 자동 중복 체크
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (newNickname.trim() && newNickname !== currentNickname) {
+        checkNicknameDuplicate(newNickname);
+      }
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [newNickname, currentNickname, checkNicknameDuplicate]);
+  
   // 닉네임 입력 핸들러
   const handleNicknameChange = (e) => {
     const value = e.target.value;
@@ -65,7 +123,8 @@ function EditNickname({ darkMode }) {
     if (!nickname.trim()) {
       setNicknameValidation({
         isValid: false,
-        message: ""
+        message: "",
+        checking: false
       });
       return;
     }
@@ -74,7 +133,8 @@ function EditNickname({ darkMode }) {
     if (nickname === currentNickname) {
       setNicknameValidation({
         isValid: false,
-        message: "현재 닉네임과 동일합니다."
+        message: "현재 닉네임과 동일합니다.",
+        checking: false
       });
       return;
     }
@@ -83,7 +143,8 @@ function EditNickname({ darkMode }) {
     if (nickname.length < 2) {
       setNicknameValidation({
         isValid: false,
-        message: "닉네임은 2자 이상이어야 합니다."
+        message: "닉네임은 2자 이상이어야 합니다.",
+        checking: false
       });
       return;
     }
@@ -91,7 +152,8 @@ function EditNickname({ darkMode }) {
     if (nickname.length > 20) {
       setNicknameValidation({
         isValid: false,
-        message: "닉네임은 20자 이하여야 합니다."
+        message: "닉네임은 20자 이하여야 합니다.",
+        checking: false
       });
       return;
     }
@@ -101,47 +163,18 @@ function EditNickname({ darkMode }) {
     if (!allowedChars.test(nickname)) {
       setNicknameValidation({
         isValid: false,
-        message: "한글, 영문, 숫자, 밑줄(_), 하이픈(-) 만 사용 가능합니다."
+        message: "한글, 영문, 숫자, 밑줄(_), 하이픈(-) 만 사용 가능합니다.",
+        checking: false
       });
       return;
     }
     
-    // 모든 검사 통과
+    // 모든 검사 통과 - 중복 체크는 useEffect에서 처리
     setNicknameValidation({
-      isValid: true,
-      message: "사용 가능한 닉네임입니다."
+      isValid: false,
+      message: "중복 확인 중...",
+      checking: true
     });
-  };
-  
-  // 닉네임 중복 확인
-  const checkNicknameDuplicate = async () => {
-    if (!nicknameValidation.isValid) return;
-    
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // 닉네임 중복 확인 쿼리
-      const q = query(collection(db, "users"), where("nickname", "==", newNickname));
-      const snapshot = await getDocs(q);
-      
-      if (!snapshot.empty) {
-        setNicknameValidation({
-          isValid: false,
-          message: "이미 사용 중인 닉네임입니다."
-        });
-      } else {
-        setNicknameValidation({
-          isValid: true,
-          message: "사용 가능한 닉네임입니다."
-        });
-      }
-    } catch (err) {
-      console.error("닉네임 중복 확인 오류:", err);
-      setError("닉네임 중복 확인 중 오류가 발생했습니다.");
-    } finally {
-      setLoading(false);
-    }
   };
   
   // 닉네임 변경 저장
@@ -183,7 +216,7 @@ function EditNickname({ darkMode }) {
       // Firestore 사용자 정보 업데이트
       await updateDoc(doc(db, "users", userId), {
         nickname: newNickname,
-        updatedAt: new Date()
+        updatedAt: serverTimestamp()
       });
       
       // 로컬 스토리지 업데이트
@@ -297,7 +330,6 @@ function EditNickname({ darkMode }) {
             <input 
               value={newNickname} 
               onChange={handleNicknameChange} 
-              onBlur={checkNicknameDuplicate}
               placeholder="새 닉네임을 입력하세요" 
               style={{
                 ...(darkMode ? darkInputStyle : inputStyle),
@@ -309,7 +341,31 @@ function EditNickname({ darkMode }) {
             />
           </div>
           <div style={getValidationStyle()}>
-            {newNickname && nicknameValidation.message}
+            {newNickname && (
+              <>
+                {nicknameValidation.checking && (
+                  <span style={{ display: "flex", alignItems: "center" }}>
+                    <span style={{ 
+                      display: "inline-block", 
+                      width: "12px", 
+                      height: "12px", 
+                      border: "2px solid #f3f3f3", 
+                      borderTop: "2px solid #7e57c2", 
+                      borderRadius: "50%", 
+                      animation: "spin 1s linear infinite",
+                      marginRight: "8px"
+                    }}></span>
+                    중복 확인 중...
+                  </span>
+                )}
+                {!nicknameValidation.checking && nicknameValidation.message && (
+                  <span style={{ display: "flex", alignItems: "center" }}>
+                    {nicknameValidation.isValid ? "✓ " : "✗ "}
+                    {nicknameValidation.message}
+                  </span>
+                )}
+              </>
+            )}
           </div>
         </div>
         

@@ -295,40 +295,36 @@ function NotificationsTab({ darkMode, navigate }) {
   
   // 알림 클릭 핸들러 - 게시글로 이동 기능 추가
   const handleNotificationClick = async (notification) => {
-    if (!notification.read) {
-      await markAsRead(notification.id);
-    }
-    
-    // 알림 타입에 따라 다른 페이지로 라우팅
-    if (notification.targetId) {
-      switch (notification.type) {
-        case "comment":
-          navigate(`/post/${notification.targetId}`);
-          break;
-        case "like":
-          navigate(`/post/${notification.targetId}`);
-          break;
-        case "message":
-          navigate(`/inbox/${notification.targetId}`);
-          break;
-        case "follow":
-          navigate(`/user/${notification.fromUserId}`);
-          break;
-        case "notice":
-          navigate(`/notice/${notification.targetId}`);
-          break;
-        case "system":
-          if (notification.targetUrl) {
-            navigate(notification.targetUrl);
-          }
-          break;
-        default:
-          // targetId가 있지만 특정 타입이 없는 경우 기본적으로 게시글로 이동
-          navigate(`/post/${notification.targetId}`);
+    try {
+      if (!notification.read) {
+        await markAsRead(notification.id);
       }
-    } else if (notification.targetUrl) {
-      // targetId는 없지만 targetUrl이 있는 경우
-      navigate(notification.targetUrl);
+      
+      // 알림 타입에 따라 다른 페이지로 라우팅
+      if (notification.relatedPostId && notification.relatedPostType) {
+        // 게시글 관련 알림인 경우 해당 게시글로 이동
+        const url = `/post/${notification.relatedPostType}/${notification.relatedPostId}`;
+        
+        // 댓글이나 답글 관련 알림인 경우 해당 댓글로 스크롤
+        if (notification.commentId) {
+          navigate(`${url}?comment=${notification.commentId}`);
+        } else {
+          navigate(url);
+        }
+      } else if (notification.link) {
+        // link 속성이 있는 경우 해당 URL로 이동
+        navigate(notification.link);
+      } else if (notification.targetUrl) {
+        // targetUrl이 있는 경우 해당 URL로 이동
+        navigate(notification.targetUrl);
+      } else {
+        // 기본 동작: 알림 메시지를 표시하고 홈으로 이동
+        alert(notification.message || "알림을 확인했습니다.");
+        navigate("/");
+      }
+    } catch (error) {
+      console.error("알림 처리 중 오류:", error);
+      alert("알림을 처리하는 중 오류가 발생했습니다.");
     }
   };
 
@@ -573,10 +569,10 @@ function NotificationsTab({ darkMode, navigate }) {
             opacity: notification.read ? 0.8 : 1,
             position: "relative",
             transition: "background-color 0.3s ease",
-            cursor: notification.targetId || notification.targetUrl ? "pointer" : "default"
+            cursor: notification.relatedPostId || notification.relatedPostType || notification.targetUrl ? "pointer" : "default"
           }}
           onClick={() => {
-            if (notification.targetId || notification.targetUrl) {
+            if (notification.relatedPostId || notification.relatedPostType || notification.targetUrl) {
               handleNotificationClick(notification);
             } else if (!notification.read) {
               markAsRead(notification.id);
@@ -608,7 +604,7 @@ function NotificationsTab({ darkMode, navigate }) {
                 {formatDate(notification.createdAt.seconds)}
               </p>
               {/* 이동 가능한 알림에 대한 표시 */}
-              {(notification.targetId || notification.targetUrl) && (
+              {(notification.relatedPostId || notification.relatedPostType || notification.targetUrl) && (
                 <p style={{ 
                   fontSize: 12, 
                   color: darkMode ? "#9575cd" : "#7e57c2",

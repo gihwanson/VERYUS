@@ -4,6 +4,9 @@ import {
   collection, getDocs, doc, getDoc, updateDoc, deleteDoc, addDoc, Timestamp, query, where, onSnapshot, writeBatch
 } from "firebase/firestore";
 import { db } from "../firebase";
+import TaggedText from './TaggedText';
+import TagInput from './TagInput';
+import { processTaggedUsers, createTagNotification } from '../utils/tagNotification';
 
 function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
   const { type, id } = useParams();
@@ -25,6 +28,16 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
     border: "1px solid #b49ddb",
     color: "#000",
     marginBottom: 30,
+    width: "100%",
+    maxWidth: "100%",
+    boxSizing: "border-box",
+    wordWrap: "break-word",
+    overflowWrap: "break-word",
+    // 모바일 반응형
+    "@media (max-width: 768px)": {
+      padding: "16px",
+      marginBottom: "20px"
+    }
   };
   const authorBox = {
     display: "flex",
@@ -81,6 +94,16 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
     borderRadius: 12,
     marginBottom: 30,
     border: "1px solid #d6c4f2",
+    width: "100%",
+    maxWidth: "100%",
+    boxSizing: "border-box",
+    wordWrap: "break-word",
+    overflowWrap: "break-word",
+    // 모바일 반응형
+    "@media (max-width: 768px)": {
+      padding: "15px",
+      marginBottom: "20px"
+    }
   };
   const commentInputStyle = {
     width: "100%",
@@ -91,6 +114,16 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
     resize: "none",
     marginBottom: 8,
     fontFamily: "inherit",
+    boxSizing: "border-box",
+    fontSize: "16px", // iOS 줌 방지
+    wordWrap: "break-word",
+    overflowWrap: "break-word",
+    // 모바일 반응형
+    "@media (max-width: 768px)": {
+      height: "60px",
+      padding: "10px",
+      fontSize: "16px" // iOS 줌 방지 유지
+    }
   };
   const commentBtnStyle = {
     padding: "8px 16px",
@@ -106,6 +139,15 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
     padding: 20,
     borderRadius: 12,
     border: "1px solid #d6c4f2",
+    width: "100%",
+    maxWidth: "100%",
+    boxSizing: "border-box",
+    wordWrap: "break-word",
+    overflowWrap: "break-word",
+    // 모바일 반응형
+    "@media (max-width: 768px)": {
+      padding: "15px"
+    }
   };
 
   // 게시글 정보 가져오기
@@ -153,7 +195,11 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
       ? "freeposts"
       : type === "song"
       ? "songs"
-      : "advice";
+      : type === "advice"
+      ? "advice"
+      : type === "recording"
+      ? "recordings"
+      : "posts"; // 기본값
   };
 
   const togglePartnerDone = async (newVal) => {
@@ -202,7 +248,7 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
     if (!commentText.trim()) return alert("댓글 내용을 입력하세요");
     
     // 댓글 추가
-    await addDoc(collection(db, `${type}-${id}-comments`), {
+    const commentRef = await addDoc(collection(db, `${type}-${id}-comments`), {
       nickname: me,
       text: commentText,
       isPrivate: isPrivateComment,
@@ -211,6 +257,20 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
       likes: 0,
       likedBy: []
     });
+    
+    // 태그된 사용자들에게 알림 생성
+    const taggedUsers = processTaggedUsers(commentText);
+    for (const taggedUser of taggedUsers) {
+      await createTagNotification({
+        taggedUser,
+        taggerNickname: me,
+        postId: id,
+        postType: type,
+        postTitle: post.title,
+        commentId: commentRef.id,
+        commentText
+      });
+    }
     
     // 게시글 작성자에게 알림 추가 (본인이 아닌 경우에만)
     if (post.nickname !== me) {
@@ -233,6 +293,40 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
     setIsPrivateComment(false);
   };
 
+  // 쪽지 보내기 함수
+  const sendMessage = async (receiverNickname, relatedPostTitle = null) => {
+    if (!me) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
+    
+    if (me === receiverNickname) {
+      alert("자신에게는 쪽지를 보낼 수 없습니다.");
+      return;
+    }
+    
+    const messageContent = prompt(`${receiverNickname}님에게 보낼 메시지를 입력하세요:`);
+    if (!messageContent || !messageContent.trim()) {
+      return;
+    }
+    
+    try {
+      await addDoc(collection(db, "messages"), {
+        senderNickname: me,
+        receiverNickname: receiverNickname,
+        content: messageContent.trim(),
+        createdAt: Timestamp.now(),
+        read: false,
+        relatedPostTitle: relatedPostTitle
+      });
+      
+      alert("쪽지가 전송되었습니다.");
+    } catch (error) {
+      console.error("쪽지 전송 오류:", error);
+      alert("쪽지 전송 중 오류가 발생했습니다.");
+    }
+  };
+
   if (!post) return <div style={containerStyle}>로딩 중...</div>;
 
   const author = post.nickname || "알 수 없음";
@@ -240,8 +334,31 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
   const profileUrl = globalProfilePics?.[author];
   const canEditOrDelete = post.nickname === me || role === "운영진" || role === "리더";
 
+  // 게시글 내용 스타일 추가
+  const styles = {
+    content: {
+      marginTop: 20,
+      whiteSpace: "pre-wrap",
+      wordBreak: "break-word",
+      lineHeight: 1.6,
+      fontSize: 15,
+      color: darkMode ? "#e0e0e0" : "#333"
+    }
+  };
+
   return (
-    <div style={{ marginBottom: 40 }}>
+    <div style={{ 
+      marginBottom: 40, 
+      width: "100%", 
+      maxWidth: "100%", 
+      boxSizing: "border-box",
+      wordWrap: "break-word",
+      overflowWrap: "break-word",
+      // 모바일 반응형
+      "@media (max-width: 768px)": {
+        marginBottom: "20px"
+      }
+    }}>
       <div style={postStyle}>
         <h1 style={{ color: "#7e57c2" }}>{post.title}</h1>
 
@@ -268,7 +385,49 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
           />
         )}
 
-        <div style={{ marginTop: 20, whiteSpace: "pre-wrap" }}>{post.content}</div>
+        {/* 녹음 파일 표시 */}
+        {post.recordingUrl && (
+          <div style={{
+            backgroundColor: darkMode ? "#333" : "#f8f4ff",
+            padding: "15px",
+            borderRadius: "10px",
+            marginTop: "15px",
+            border: `2px solid ${darkMode ? "#7e57c2" : "#e8dbff"}`
+          }}>
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              color: darkMode ? "#bb86fc" : "#7e57c2",
+              fontSize: "16px",
+              fontWeight: "bold",
+              marginBottom: "10px"
+            }}>
+              🎵 녹음 파일
+            </div>
+            <audio 
+              controls 
+              style={{ 
+                width: "100%",
+                outline: "none"
+              }}
+              preload="metadata"
+            >
+              <source src={post.recordingUrl} type="audio/mpeg" />
+              <source src={post.recordingUrl} type="audio/wav" />
+              <source src={post.recordingUrl} type="audio/ogg" />
+              브라우저가 오디오 재생을 지원하지 않습니다.
+            </audio>
+          </div>
+        )}
+
+        {/* 게시글 내용 */}
+        <div style={styles.content}>
+          <TaggedText 
+            text={post.content} 
+            darkMode={darkMode}
+          />
+        </div>
 
         <button
           onClick={toggleLike}
@@ -276,6 +435,21 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
         >
           ❤️ ({post.likes || 0})
         </button>
+
+        {/* 쪽지 보내기 버튼 추가 */}
+        {me && me !== post.nickname && (
+          <button
+            onClick={() => sendMessage(post.nickname, post.title)}
+            style={{
+              ...smallBtn,
+              background: darkMode ? "#4caf50" : "#2e7d32",
+              marginTop: 16,
+              marginLeft: 8
+            }}
+          >
+            💌 쪽지 보내기
+          </button>
+        )}
 
         {canEditOrDelete && (
           <div style={{ marginTop: 20 }}>
@@ -312,11 +486,14 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
       {/* 댓글 작성 부분 */}
       <div style={commentInputContainerStyle}>
         <h3 style={{ color: "#7e57c2", marginBottom: 12 }}>댓글 작성</h3>
-        <textarea
+        <TagInput
           value={commentText}
-          onChange={(e) => setCommentText(e.target.value)}
-          placeholder="댓글을 입력하세요..."
-          style={commentInputStyle}
+          onChange={setCommentText}
+          onTag={(username) => console.log('Tagged:', username)}
+          placeholder="댓글을 입력하세요... (@를 입력하여 다른 사용자를 태그할 수 있습니다)"
+          darkMode={darkMode}
+          maxLength={1000}
+          style={{ marginBottom: 8 }}
         />
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
           <label style={{ fontSize: 14 }}>
@@ -379,12 +556,30 @@ function CommentItem({ comment, type, postId, darkMode, me, postOwner, postTitle
     border: "1px solid #b49ddb",
     borderRadius: 10,
     padding: 16,
+    width: "100%",
+    maxWidth: "100%",
+    boxSizing: "border-box",
+    wordWrap: "break-word",
+    overflowWrap: "break-word",
+    // 모바일 반응형
+    "@media (max-width: 768px)": {
+      padding: "12px"
+    }
   };
   const secretCommentBoxStyle = {
     background: "#f0f0f0",
     border: "1px solid #ccc",
     borderRadius: 10,
     padding: 16,
+    width: "100%",
+    maxWidth: "100%",
+    boxSizing: "border-box",
+    wordWrap: "break-word",
+    overflowWrap: "break-word",
+    // 모바일 반응형
+    "@media (max-width: 768px)": {
+      padding: "12px"
+    }
   };
   const commentHeaderStyle = {
     display: "flex",
@@ -420,6 +615,16 @@ function CommentItem({ comment, type, postId, darkMode, me, postOwner, postTitle
     padding: 12,
     background: "#efe2ff",
     borderRadius: 8,
+    width: "100%",
+    maxWidth: "100%",
+    boxSizing: "border-box",
+    wordWrap: "break-word",
+    overflowWrap: "break-word",
+    // 모바일 반응형
+    "@media (max-width: 768px)": {
+      padding: "10px",
+      marginTop: "10px"
+    }
   };
   const replyInputStyle = {
     width: "100%",
@@ -429,6 +634,16 @@ function CommentItem({ comment, type, postId, darkMode, me, postOwner, postTitle
     border: "1px solid #d6c4f2",
     resize: "none",
     fontFamily: "inherit",
+    boxSizing: "border-box",
+    fontSize: "16px", // iOS 줌 방지
+    wordWrap: "break-word",
+    overflowWrap: "break-word",
+    // 모바일 반응형
+    "@media (max-width: 768px)": {
+      height: "50px",
+      padding: "8px",
+      fontSize: "16px" // iOS 줌 방지 유지
+    }
   };
   const repliesContainerStyle = {
     marginTop: 12,
@@ -502,12 +717,12 @@ function CommentItem({ comment, type, postId, darkMode, me, postOwner, postTitle
     }
   };
 
-  // 답글 작성 함수에 알림 생성 로직 추가
+  // 답글 작성 함수
   const submitReply = async () => {
     if (!replyText.trim()) return alert("내용을 입력하세요");
 
     // 답글 추가
-    await addDoc(collection(db, `${type}-${postId}-comments`), {
+    const replyRef = await addDoc(collection(db, `${type}-${postId}-comments`), {
       nickname: me,
       text: replyText,
       isPrivate,
@@ -516,6 +731,20 @@ function CommentItem({ comment, type, postId, darkMode, me, postOwner, postTitle
       likes: 0,
       likedBy: []
     });
+    
+    // 태그된 사용자들에게 알림 생성
+    const taggedUsers = processTaggedUsers(replyText);
+    for (const taggedUser of taggedUsers) {
+      await createTagNotification({
+        taggedUser,
+        taggerNickname: me,
+        postId: postId,
+        postType: type,
+        postTitle: postTitle,
+        commentId: replyRef.id,
+        commentText: replyText
+      });
+    }
     
     // 원 댓글 작성자에게 알림 추가 (본인 제외)
     if (comment.nickname !== me) {
@@ -558,6 +787,40 @@ function CommentItem({ comment, type, postId, darkMode, me, postOwner, postTitle
   const deleteComment = async () => {
     if (!window.confirm("댓글을 삭제할까요?")) return;
     await deleteDoc(doc(db, `${type}-${postId}-comments`, comment.id));
+  };
+
+  // 쪽지 보내기 함수
+  const sendMessageToCommentAuthor = async () => {
+    if (!me) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
+    
+    if (me === comment.author) {
+      alert("자신에게는 쪽지를 보낼 수 없습니다.");
+      return;
+    }
+    
+    const messageContent = prompt(`${comment.author}님에게 보낸 메시지를 입력하세요:`);
+    if (!messageContent || !messageContent.trim()) {
+      return;
+    }
+    
+    try {
+      await addDoc(collection(db, "messages"), {
+        senderNickname: me,
+        receiverNickname: comment.author,
+        content: messageContent.trim(),
+        createdAt: Timestamp.now(),
+        read: false,
+        relatedPostTitle: postTitle
+      });
+      
+      alert("쪽지가 전송되었습니다.");
+    } catch (error) {
+      console.error("쪽지 전송 오류:", error);
+      alert("쪽지 전송 중 오류가 발생했습니다.");
+    }
   };
 
   return (
@@ -608,16 +871,31 @@ function CommentItem({ comment, type, postId, darkMode, me, postOwner, postTitle
                 </button>
               </>
             )}
+            {/* 쪽지 보내기 버튼 추가 */}
+            {me && me !== comment.author && (
+              <button 
+                onClick={sendMessageToCommentAuthor} 
+                style={{
+                  ...commentActionBtnStyle,
+                  background: darkMode ? "#4caf50" : "#2e7d32"
+                }}
+              >
+                💌 쪽지
+              </button>
+            )}
           </div>
         )}
 
         {showReplyBox && (
           <div style={replyBoxStyle}>
-            <textarea
+            <TagInput
               value={replyText}
-              onChange={e => setReplyText(e.target.value)}
-              placeholder="답글 작성"
-              style={replyInputStyle}
+              onChange={setReplyText}
+              onTag={(username) => console.log('Tagged:', username)}
+              placeholder="답글을 입력하세요... (@를 입력하여 다른 사용자를 태그할 수 있습니다)"
+              darkMode={darkMode}
+              maxLength={1000}
+              style={{ marginBottom: 8 }}
             />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
               <label style={{ fontSize: 14 }}>
@@ -741,6 +1019,40 @@ function ReplyItem({ reply, type, postId, darkMode, me, postOwner, postTitle }) 
     await deleteDoc(doc(db, `${type}-${postId}-comments`, reply.id));
   };
 
+  // 쪽지 보내기 함수
+  const sendMessageToReplyAuthor = async () => {
+    if (!me) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
+    
+    if (me === reply.nickname) {
+      alert("자신에게는 쪽지를 보낼 수 없습니다.");
+      return;
+    }
+    
+    const messageContent = prompt(`${reply.nickname}님에게 보낼 메시지를 입력하세요:`);
+    if (!messageContent || !messageContent.trim()) {
+      return;
+    }
+    
+    try {
+      await addDoc(collection(db, "messages"), {
+        senderNickname: me,
+        receiverNickname: reply.nickname,
+        content: messageContent.trim(),
+        createdAt: Timestamp.now(),
+        read: false,
+        relatedPostTitle: postTitle
+      });
+      
+      alert("쪽지가 전송되었습니다.");
+    } catch (error) {
+      console.error("쪽지 전송 오류:", error);
+      alert("쪽지 전송 중 오류가 발생했습니다.");
+    }
+  };
+
   return (
     <div style={replyItemStyle}>
       <div style={replyHeaderStyle}>
@@ -761,25 +1073,32 @@ function ReplyItem({ reply, type, postId, darkMode, me, postOwner, postTitle }) 
 
       {canView && (
         <div style={replyActionStyle}>
-          <button onClick={toggleLike} style={commentActionBtnStyle}>
-            👍 {likes}
+          <button 
+            onClick={toggleLike} 
+            style={{
+              ...commentActionBtnStyle,
+              background: isLiked ? "#6a1b9a" : "#7e57c2"
+            }}
+            disabled={isLiked}
+          >
+            {isLiked ? "👍" : "👍"} {likes}
           </button>
-
           {reply.nickname === me && (
-            <>
-              <button
-                onClick={() => window.location.href = `/comment-edit/${type}/${postId}/${reply.id}`}
-                style={{ ...commentActionBtnStyle, background: '#6a1b9a' }}
-              >
-                ✏️ 수정
-              </button>
-              <button
-                onClick={deleteReply}
-                style={{ ...commentActionBtnStyle, background: 'red' }}
-              >
-                🗑️ 삭제
-              </button>
-            </>
+            <button onClick={deleteReply} style={{ ...commentActionBtnStyle, background: "#dc3545" }}>
+              삭제
+            </button>
+          )}
+          {/* 쪽지 보내기 버튼 추가 */}
+          {me && me !== reply.nickname && (
+            <button 
+              onClick={sendMessageToReplyAuthor} 
+              style={{
+                ...commentActionBtnStyle,
+                background: darkMode ? "#4caf50" : "#2e7d32"
+              }}
+            >
+              💌 쪽지
+            </button>
           )}
         </div>
       )}

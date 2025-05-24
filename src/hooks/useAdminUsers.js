@@ -67,23 +67,45 @@ export const useAdminUsers = (activeFilter = 'all', sortBy = 'nickname', sortDir
         
         // 필터 적용
         if (activeFilter === 'admin') {
-          userQuery = query(userQuery, where('role', '==', '관리자'));
+          userQuery = query(
+            collection(db, 'users'),
+            where('role', 'in', ['운영진', '리더', '부운영진']),
+            orderBy(sortBy, sortDirection),
+            limit(USERS_PER_PAGE)
+          );
         } else if (activeFilter === 'recent') {
           const thirtyDaysAgo = new Date();
           thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-          userQuery = query(userQuery, where('createdAt', '>=', thirtyDaysAgo));
+          userQuery = query(
+            collection(db, 'users'),
+            where('createdAt', '>=', thirtyDaysAgo),
+            orderBy('createdAt', 'desc'),
+            limit(USERS_PER_PAGE)
+          );
         }
         
+        // 실시간 리스너 설정
         unsubscribe = onSnapshot(userQuery, 
           (snapshot) => {
             const userData = [];
+            const seenIds = new Set(); // 중복 체크를 위한 Set
+            
             snapshot.forEach((doc) => {
-              userData.push({ id: doc.id, ...doc.data() });
+              const id = doc.id;
+              // 중복 ID 체크
+              if (!seenIds.has(id)) {
+                seenIds.add(id);
+                userData.push({ id, ...doc.data() });
+              }
             });
+            
             setUsers(userData);
             setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
             setHasMore(snapshot.docs.length === USERS_PER_PAGE);
             setLoading(false);
+            
+            // 새로운 데이터가 감지되면 강제로 다시 렌더링
+            console.log("사용자 데이터 업데이트됨:", userData.length, "명 (중복 제거됨)");
           },
           (err) => {
             console.error('사용자 데이터 로드 오류:', err);
@@ -155,7 +177,12 @@ export const useAdminUsers = (activeFilter = 'all', sortBy = 'nickname', sortDir
 
       if (snapshot.docs.length > 0) {
         setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
-        setUsers(prev => [...prev, ...newUsers]);
+        // 중복 제거하여 사용자 추가
+        setUsers(prev => {
+          const existingIds = new Set(prev.map(user => user.id));
+          const filteredNewUsers = newUsers.filter(user => !existingIds.has(user.id));
+          return [...prev, ...filteredNewUsers];
+        });
       } else {
         setHasMore(false);
       }
@@ -175,6 +202,16 @@ export const useAdminUsers = (activeFilter = 'all', sortBy = 'nickname', sortDir
         ...data,
         updatedAt: serverTimestamp()
       });
+      
+      // 실시간 업데이트를 위해 로컬 상태도 즉시 업데이트
+      setUsers(prevUsers => 
+        prevUsers.map(user => 
+          user.id === userId 
+            ? { ...user, ...data }
+            : user
+        )
+      );
+      
       return true;
     } catch (err) {
       setError('사용자 정보 업데이트 중 오류가 발생했습니다');

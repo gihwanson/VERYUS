@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import {
-  collection, getDocs, doc, deleteDoc, query, orderBy, limit, where, updateDoc
+  collection, getDocs, doc, deleteDoc, query, orderBy, limit, where, updateDoc, onSnapshot
 } from "firebase/firestore";
 import { db } from "../firebase";
 import {
@@ -30,21 +30,34 @@ function AdminPanel({ darkMode }) {
     try {
       setLoading(true);
       
-      // 사용자 데이터 가져오기
-      const userSnap = await getDocs(collection(db, "users"));
-      setUsers(userSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      // 사용자 데이터 실시간 리스너 설정
+      const userUnsubscribe = onSnapshot(collection(db, "users"), (snapshot) => {
+        const userData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        setUsers(userData);
+        console.log("사용자 데이터 실시간 업데이트:", userData.length, "명");
+      });
       
-      // 게시글 데이터 가져오기
+      // 게시글 데이터 실시간 리스너 설정
       const postQuery = query(
         collection(db, "posts"), 
         orderBy("reports", "desc")
       );
-      const postSnap = await getDocs(postQuery);
-      setPosts(postSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const postUnsubscribe = onSnapshot(postQuery, (snapshot) => {
+        const postData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        setPosts(postData);
+        console.log("게시글 데이터 실시간 업데이트:", postData.length, "개");
+      });
+      
+      setLoading(false);
+      
+      // cleanup 함수 반환
+      return () => {
+        userUnsubscribe();
+        postUnsubscribe();
+      };
     } catch (error) {
       console.error("데이터 로딩 중 오류:", error);
       alert("데이터를 불러오는 중 오류가 발생했습니다.");
-    } finally {
       setLoading(false);
     }
   };
@@ -55,8 +68,7 @@ function AdminPanel({ darkMode }) {
     try {
       setLoading(true);
       await deleteDoc(doc(db, "posts", id));
-      // 로컬 상태 업데이트
-      setPosts(posts.filter(p => p.id !== id));
+      // 실시간 리스너가 있으므로 로컬 상태 업데이트 제거
       alert("삭제되었습니다");
     } catch (error) {
       console.error("게시글 삭제 중 오류:", error);
@@ -72,12 +84,28 @@ function AdminPanel({ darkMode }) {
     try {
       setLoading(true);
       await updateDoc(doc(db, "posts", id), { reports: 0 });
-      // 로컬 상태 업데이트
-      setPosts(posts.map(p => p.id === id ? {...p, reports: 0} : p));
+      // 실시간 리스너가 있으므로 로컬 상태 업데이트 제거
       alert("게시글 신고가 초기화되었습니다");
     } catch (error) {
       console.error("신고 초기화 중 오류:", error);
       alert("신고를 초기화하는 중 오류가 발생했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 사용자 삭제 함수 추가
+  const deleteUser = async (id, nickname) => {
+    if (!window.confirm(`정말로 "${nickname}" 사용자를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`)) return;
+    
+    try {
+      setLoading(true);
+      await deleteDoc(doc(db, "users", id));
+      // 실시간 리스너가 있으므로 로컬 상태 업데이트 제거
+      alert("사용자가 삭제되었습니다");
+    } catch (error) {
+      console.error("사용자 삭제 중 오류:", error);
+      alert("사용자를 삭제하는 중 오류가 발생했습니다.");
     } finally {
       setLoading(false);
     }
@@ -419,6 +447,7 @@ function AdminPanel({ darkMode }) {
                         <th style={thStyle}>이메일</th>
                         <th style={thStyle}>등급</th>
                         <th style={thStyle}>가입일</th>
+                        <th style={thStyle}>관리</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -431,6 +460,20 @@ function AdminPanel({ darkMode }) {
                             {user.createdAt 
                               ? new Date(user.createdAt.seconds * 1000).toLocaleDateString() 
                               : "알 수 없음"}
+                          </td>
+                          <td style={tdStyle}>
+                            <div style={buttonRowStyle}>
+                              <button 
+                                onClick={() => deleteUser(user.id, user.nickname)} 
+                                style={{
+                                  ...smallBtn,
+                                  background: "red",
+                                  color: "white"
+                                }}
+                              >
+                                삭제
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -532,8 +575,8 @@ function AdminPanel({ darkMode }) {
                     {users
                       .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
                       .slice(0, 5)
-                      .map(user => (
-                        <tr key={user.id}>
+                      .map((user, index) => (
+                        <tr key={`recent-user-${user.id}-${index}`}>
                           <td style={tdStyle}>{user.nickname || "알 수 없음"}</td>
                           <td style={tdStyle}>
                             {user.createdAt 

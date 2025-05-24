@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { GRADES, ROLES } from '../../constants/adminConstants';
 
@@ -8,9 +8,12 @@ const UserTable = memo(({
   onSelect,
   onSelectAll,
   onEdit,
+  onDelete,
   darkMode,
   loading
 }) => {
+  const [modifiedUsers, setModifiedUsers] = useState({});
+
   const styles = {
     table: {
       width: '100%',
@@ -74,19 +77,65 @@ const UserTable = memo(({
     date: {
       color: darkMode ? '#aaa' : '#666',
       fontSize: '12px'
+    },
+    button: {
+      padding: '6px 10px',
+      border: 'none',
+      borderRadius: '4px',
+      fontSize: '12px',
+      cursor: 'pointer',
+      margin: '0 2px',
+      transition: 'all 0.2s ease'
+    },
+    saveButton: {
+      background: darkMode ? '#4CAF50' : '#4CAF50',
+      color: '#fff'
+    },
+    deleteButton: {
+      background: darkMode ? '#f44336' : '#f44336',
+      color: '#fff'
+    },
+    actionButtons: {
+      display: 'flex',
+      gap: '4px',
+      alignItems: 'center',
+      justifyContent: 'center'
     }
   };
 
-  const handleEditGrade = (userId, newGrade) => {
-    onEdit(userId, { grade: newGrade });
+  const handleFieldChange = (userId, field, value) => {
+    setModifiedUsers(prev => ({
+      ...prev,
+      [userId]: {
+        ...prev[userId],
+        [field]: value
+      }
+    }));
   };
 
-  const handleEditRole = (userId, newRole) => {
-    onEdit(userId, { role: newRole });
+  const handleSave = (userId) => {
+    if (modifiedUsers[userId]) {
+      onEdit(userId, modifiedUsers[userId]);
+      setModifiedUsers(prev => {
+        const newState = { ...prev };
+        delete newState[userId];
+        return newState;
+      });
+    }
   };
 
-  const handleEditNickname = (userId, newNickname) => {
-    onEdit(userId, { nickname: newNickname });
+  const handleDelete = (userId, nickname) => {
+    if (window.confirm(`정말로 "${nickname}" 사용자를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`)) {
+      onDelete(userId);
+    }
+  };
+
+  const getUserFieldValue = (user, field) => {
+    return modifiedUsers[user.id]?.[field] ?? user[field] ?? '';
+  };
+
+  const hasModifications = (userId) => {
+    return modifiedUsers[userId] && Object.keys(modifiedUsers[userId]).length > 0;
   };
 
   return (
@@ -96,7 +145,7 @@ const UserTable = memo(({
           <th style={styles.th}>
             <input
               type="checkbox"
-              checked={selectedUsers.length === users.length}
+              checked={selectedUsers.length === users.length && users.length > 0}
               onChange={onSelectAll}
               style={styles.checkbox}
               disabled={loading}
@@ -106,6 +155,7 @@ const UserTable = memo(({
           <th style={styles.th}>등급</th>
           <th style={styles.th}>역할</th>
           <th style={styles.th}>가입일</th>
+          <th style={styles.th}>작업</th>
         </tr>
       </thead>
       <tbody>
@@ -128,22 +178,29 @@ const UserTable = memo(({
             <td style={styles.td}>
               <input
                 type="text"
-                value={user.nickname || ''}
-                onChange={(e) => handleEditNickname(user.id, e.target.value)}
+                value={getUserFieldValue(user, 'nickname')}
+                onChange={(e) => handleFieldChange(user.id, 'nickname', e.target.value)}
                 style={{
                   ...styles.select,
-                  border: 'none',
-                  background: 'transparent',
-                  padding: '2px 4px'
+                  border: hasModifications(user.id) && modifiedUsers[user.id]?.nickname !== undefined ? 
+                    `2px solid ${darkMode ? '#4CAF50' : '#4CAF50'}` : 
+                    `1px solid ${darkMode ? '#555' : '#e0e0e0'}`,
+                  background: darkMode ? '#363639' : '#fff',
+                  padding: '6px 10px'
                 }}
                 disabled={loading}
               />
             </td>
             <td style={styles.td}>
               <select
-                value={user.grade || ''}
-                onChange={(e) => handleEditGrade(user.id, e.target.value)}
-                style={styles.select}
+                value={getUserFieldValue(user, 'grade')}
+                onChange={(e) => handleFieldChange(user.id, 'grade', e.target.value)}
+                style={{
+                  ...styles.select,
+                  border: hasModifications(user.id) && modifiedUsers[user.id]?.grade !== undefined ? 
+                    `2px solid ${darkMode ? '#4CAF50' : '#4CAF50'}` : 
+                    `1px solid ${darkMode ? '#555' : '#e0e0e0'}`
+                }}
                 disabled={loading}
               >
                 <option value="">등급 선택</option>
@@ -156,9 +213,14 @@ const UserTable = memo(({
             </td>
             <td style={styles.td}>
               <select
-                value={user.role || ''}
-                onChange={(e) => handleEditRole(user.id, e.target.value)}
-                style={styles.select}
+                value={getUserFieldValue(user, 'role')}
+                onChange={(e) => handleFieldChange(user.id, 'role', e.target.value)}
+                style={{
+                  ...styles.select,
+                  border: hasModifications(user.id) && modifiedUsers[user.id]?.role !== undefined ? 
+                    `2px solid ${darkMode ? '#4CAF50' : '#4CAF50'}` : 
+                    `1px solid ${darkMode ? '#555' : '#e0e0e0'}`
+                }}
                 disabled={loading}
               >
                 <option value="">역할 선택</option>
@@ -169,8 +231,30 @@ const UserTable = memo(({
                 ))}
               </select>
             </td>
-            <td style={{...styles.td, ...styles.tdLast, ...styles.date}}>
+            <td style={{...styles.td, ...styles.date}}>
               {user.createdAt ? new Date(user.createdAt.seconds * 1000).toLocaleDateString() : '알 수 없음'}
+            </td>
+            <td style={{...styles.td, ...styles.tdLast}}>
+              <div style={styles.actionButtons}>
+                {hasModifications(user.id) && (
+                  <button
+                    onClick={() => handleSave(user.id)}
+                    style={{...styles.button, ...styles.saveButton}}
+                    disabled={loading}
+                    title="변경 사항 저장"
+                  >
+                    💾 저장
+                  </button>
+                )}
+                <button
+                  onClick={() => handleDelete(user.id, user.nickname)}
+                  style={{...styles.button, ...styles.deleteButton}}
+                  disabled={loading}
+                  title="사용자 삭제"
+                >
+                  🗑️ 삭제
+                </button>
+              </div>
             </td>
           </tr>
         ))}
@@ -185,6 +269,7 @@ UserTable.propTypes = {
   onSelect: PropTypes.func.isRequired,
   onSelectAll: PropTypes.func.isRequired,
   onEdit: PropTypes.func.isRequired,
+  onDelete: PropTypes.func.isRequired,
   darkMode: PropTypes.bool.isRequired,
   loading: PropTypes.bool
 };

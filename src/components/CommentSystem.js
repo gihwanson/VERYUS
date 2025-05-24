@@ -2,13 +2,14 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import PropTypes from "prop-types";
 import {
   collection, doc, updateDoc, deleteDoc, addDoc, Timestamp, query, where, onSnapshot,
-  limit, startAfter, getDocs, getDoc, serverTimestamp, increment, writeBatch
+  limit, startAfter, getDocs, getDoc, serverTimestamp, increment, writeBatch, arrayUnion
 } from "firebase/firestore";
 import { db } from "../firebase";
 import CustomLink from "./CustomLink";
 import Avatar from "./Avatar";
-import { getThemeStyles } from "../components/style";
 import { orderBy } from "firebase/firestore";
+import TaggedText from './TaggedText';
+import { createTagNotification, processTaggedUsers } from '../utils/tagNotification';
 
 
 // 댓글 관련 상수 정의
@@ -34,7 +35,6 @@ function CommentSystem({ postId, type, darkMode, postOwner, postTitle, globalPro
   const [focusedCommentId, setFocusedCommentId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [visibleCommentCount, setVisibleCommentCount] = useState(0);
   const [expandedReplies, setExpandedReplies] = useState({});
   const [replyInfo, setReplyInfo] = useState(null); // 답글 작성 대상 정보 (commentId, authorName)
   
@@ -44,9 +44,6 @@ function CommentSystem({ postId, type, darkMode, postOwner, postTitle, globalPro
   
   const me = localStorage.getItem("nickname");
   
-  // 스타일 가져오기
-  const styles = getThemeStyles(darkMode);
-
   // URL에서 댓글 ID 가져오기 (댓글로 직접 이동 시)
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -108,7 +105,6 @@ function CommentSystem({ postId, type, darkMode, postOwner, postTitle, globalPro
         }));
         
         setComments(commentsData);
-        setVisibleCommentCount(commentsData.length);
         setIsLoading(false);
         
         // 마지막 문서 저장 (페이지네이션용)
@@ -257,7 +253,7 @@ function CommentSystem({ postId, type, darkMode, postOwner, postTitle, globalPro
       }));
       
       setComments(prev => [...prev, ...newComments]);
-      setVisibleCommentCount(prev => prev + newComments.length);
+      setIsLoading(false);
       setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
       
       // 더 불러올 댓글이 없으면 hasMore를 false로 설정
@@ -281,20 +277,8 @@ function CommentSystem({ postId, type, darkMode, postOwner, postTitle, globalPro
     setLastVisible(null);
     setHasMore(true);
     setIsLoading(true);
-    setVisibleCommentCount(0);
     setExpandedReplies({});
   }, [sortOrder]);
-
-  // 새 댓글 작성 시작
-  const startNewComment = () => {
-    setReplyInfo(null);
-    setIsPrivate(false);
-    setNewComment("");
-    
-    if (textareaRef.current) {
-      textareaRef.current.focus();
-    }
-  };
 
   // 답글 작성 시작
   const startReply = (commentId, authorName) => {
@@ -398,7 +382,7 @@ function CommentSystem({ postId, type, darkMode, postOwner, postTitle, globalPro
   // 댓글/답글에 대한 알림 생성
   const createNotificationsForComment = async (commentText, isReply, parentId) => {
     try {
-      // 1. 새 댓글인 경우 - 게시글 작성자에게 알림
+      // 1. 새 댓글인 경우 - 게시글 작성자에게 알림 (타인의 게시글인 경우에만)
       if (!isReply && postOwner !== me) {
         await addDoc(collection(db, "notifications"), {
           receiverNickname: postOwner,
@@ -459,8 +443,8 @@ function CommentSystem({ postId, type, darkMode, postOwner, postTitle, globalPro
           }
         }
       }
-    } catch (err) {
-      console.error("알림 생성 중 오류:", err);
+    } catch (error) {
+      console.error("알림 생성 중 오류:", error);
     }
   };
 
@@ -683,16 +667,20 @@ function CommentSystem({ postId, type, darkMode, postOwner, postTitle, globalPro
     
     const grade = globalGrades[nickname];
     const gradeEmojis = {
-      "🍒": "🍒",
-      "🫐": "🫐", 
-      "🥝": "🥝",
-      "🍎": "🍎",
-      "🍈": "🍈",
-      "🍉": "🍉",
-      "🌏": "🌏",
-      "🪐": "🪐",
-      "🌞": "🌞",
-      "🌌": "🌌"
+      "체리": "🍒",
+      "블루베리": "🫐",
+      "키위": "🥝",
+      "사과": "🍎",
+      "멜론": "🍈",
+      "수박": "🍉",
+      "지구": "🌏",
+      "토성": "🪐",
+      "태양": "🌞",
+      "은하": "🌌",
+      "맥주": "🍺",
+      "번개": "⚡",
+      "달": "🌙",
+      "별": "⭐"
     };
     
     return gradeEmojis[grade] || grade;
@@ -736,21 +724,40 @@ function CommentSystem({ postId, type, darkMode, postOwner, postTitle, globalPro
 
   // 메모이제이션된 스타일
   const memoizedStyles = useMemo(() => ({
-    // 메인 컨테이너 스타일
     container: {
-      marginTop: 40
+      width: '100%',
+      maxWidth: '100%',
+      margin: '0',
+      padding: '0',
+      boxSizing: 'border-box',
+      overflow: 'hidden',
     },
-    
-    // 댓글 입력 영역 스타일
     commentBox: {
-      padding: 16,
-      borderRadius: 12,
-      background: darkMode ? "#333" : "#f3e7ff",
-      border: `1px solid ${darkMode ? "#555" : "#d6c4f2"}`,
-      marginBottom: 20,
+      width: '100%',
+      maxWidth: '100%',
+      padding: '20px',
+      backgroundColor: darkMode ? '#2d2d2d' : '#fff',
+      borderRadius: '20px',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+      marginBottom: '20px',
+      boxSizing: 'border-box',
+      overflow: 'hidden',
+      margin: '0 auto',
     },
-    
-    // 댓글 섹션 제목 스타일
+    textarea: {
+      width: '100%',
+      maxWidth: '100%',
+      minHeight: '100px',
+      padding: '12px',
+      borderRadius: '15px',
+      border: '1px solid #ddd',
+      resize: 'vertical',
+      fontFamily: 'inherit',
+      fontSize: '14px',
+      backgroundColor: darkMode ? '#3d3d3d' : '#fff',
+      color: darkMode ? '#fff' : '#333',
+      boxSizing: 'border-box',
+    },
     sectionTitle: {
       color: darkMode ? "#e0d3ff" : "#7e57c2",
       fontSize: 18,
@@ -760,39 +767,11 @@ function CommentSystem({ postId, type, darkMode, postOwner, postTitle, globalPro
       alignItems: "center",
       gap: 8
     },
-    
-    // 섹션 제목 카운트 스타일
     titleCount: {
       fontSize: 14,
       color: darkMode ? "#bb86fc" : "#9c68e6",
       fontWeight: "normal"
     },
-    
-    // 댓글 입력창 스타일
-    textarea: {
-      width: "100%",
-      minHeight: "100px",
-      padding: "12px 14px",
-      borderRadius: 8,
-      border: `1px solid ${darkMode ? "#555" : "#d6c4f2"}`,
-      background: darkMode ? "#2a2a2a" : "#fff",
-      color: darkMode ? "#e0e0e0" : "#333",
-      fontSize: 15,
-      fontFamily: "inherit",
-      resize: "vertical",
-      boxSizing: "border-box"
-    },
-    
-    // 체크박스 레이블
-    checkbox: {
-      display: "flex",
-      alignItems: "center",
-      fontSize: 14,
-      color: darkMode ? "#aaa" : "#666",
-      cursor: "pointer"
-    },
-    
-    // 댓글 수 표시 스타일
     charCount: {
       display: "flex", 
       justifyContent: "space-between", 
@@ -800,16 +779,12 @@ function CommentSystem({ postId, type, darkMode, postOwner, postTitle, globalPro
       fontSize: 14,
       color: darkMode ? "#aaa" : "#777"
     },
-    
-    // 버튼 영역 스타일
     buttonRow: {
       display: "flex", 
       justifyContent: "space-between", 
       marginTop: 12, 
       alignItems: "center"
     },
-    
-    // 기본 버튼 스타일
     button: {
       primary: {
         padding: "8px 16px",
@@ -843,15 +818,11 @@ function CommentSystem({ postId, type, darkMode, postOwner, postTitle, globalPro
         transition: "background 0.2s"
       }
     },
-    
-    // 비밀댓글 안내 스타일
     privateInfo: {
       fontSize: 12, 
       color: darkMode ? "#ff9800" : "#e67e22",
       marginTop: 8
     },
-    
-    // 정렬 버튼 스타일
     sortButton: {
       background: "transparent",
       border: "none",
@@ -865,56 +836,50 @@ function CommentSystem({ postId, type, darkMode, postOwner, postTitle, globalPro
       borderRadius: 4,
       transition: "background 0.2s"
     },
-    
-    // 댓글 목록 헤더 스타일
     listHeader: {
       display: "flex", 
       justifyContent: "space-between", 
       alignItems: "center",
       marginBottom: 16
     },
-    
-    // 댓글 컨테이너 스타일
     commentContainer: {
       marginBottom: 16
     },
-    
-    // 댓글 박스 스타일
     commentItem: {
       background: darkMode ? "#333" : "#f3e7ff",
       border: `1px solid ${darkMode ? "#555" : "#b49ddb"}`,
-      borderRadius: 10,
+      borderRadius: 16,
       padding: 16,
       color: darkMode ? "#fff" : "#000",
       position: "relative",
       transition: "background 0.3s, transform 0.2s",
+      width: '100%',
+      maxWidth: '100%',
+      boxSizing: 'border-box',
+      margin: '0 auto',
     },
-    
-    // 비밀 댓글 스타일
     secretComment: {
       background: darkMode ? "#3a3a3a" : "#f0f0f0",
       border: `1px solid ${darkMode ? "#555" : "#ccc"}`,
-      borderRadius: 10,
+      borderRadius: 16,
       padding: 16,
       color: darkMode ? "#aaa" : "#888",
+      width: '100%',
+      maxWidth: '100%',
+      boxSizing: 'border-box',
+      margin: '0 auto',
     },
-    
-    // 댓글 헤더 스타일
     commentHeader: {
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
       marginBottom: 10,
     },
-    
-    // 유저 정보 스타일
     userInfo: {
       display: "flex",
       alignItems: "center",
       gap: 8,
     },
-    
-    // 댓글 텍스트 스타일
     commentText: {
       whiteSpace: "pre-wrap",
       fontSize: 15,
@@ -922,23 +887,17 @@ function CommentSystem({ postId, type, darkMode, postOwner, postTitle, globalPro
       wordBreak: "break-word",
       color: darkMode ? "#eee" : "#333",
     },
-    
-    // 비밀 댓글 텍스트 스타일
     secretText: {
       color: darkMode ? "#999" : "#888",
       fontStyle: "italic",
       textAlign: "center",
     },
-    
-    // 댓글 액션 스타일
     commentAction: {
       display: "flex",
       gap: 8,
       marginTop: 12,
       flexWrap: "wrap",
     },
-    
-    // 댓글 액션 버튼 스타일
     actionButton: {
       padding: "6px 12px",
       background: darkMode ? "#7e57c2aa" : "#7e57c2",
@@ -953,15 +912,11 @@ function CommentSystem({ postId, type, darkMode, postOwner, postTitle, globalPro
       transition: "background 0.2s",
       boxShadow: darkMode ? "none" : "0 2px 4px rgba(0,0,0,0.1)",
     },
-    
-    // 답글 컨테이너 스타일
     repliesContainer: {
       marginTop: 16,
       paddingLeft: 16,
       borderLeft: `2px solid ${darkMode ? "#555" : "#d6c4f2"}`,
     },
-    
-    // 답글 수 배지 스타일
     replyBadge: {
       display: "inline-flex",
       alignItems: "center",
@@ -974,21 +929,15 @@ function CommentSystem({ postId, type, darkMode, postOwner, postTitle, globalPro
       marginBottom: 8,
       cursor: "pointer",
     },
-    
-    // 답글 아이템 스타일
     replyItem: {
       marginTop: 10,
       paddingTop: 10,
       borderTop: `1px dashed ${darkMode ? "#555" : "#d6c4f2"}`,
     },
-    
-    // 날짜 스타일
     dateTime: {
       fontSize: 12,
       color: darkMode ? "#aaa" : "#666",
     },
-    
-    // 답글 텍스트 스타일
     replyText: {
       whiteSpace: "pre-wrap",
       fontSize: 14,
@@ -996,8 +945,6 @@ function CommentSystem({ postId, type, darkMode, postOwner, postTitle, globalPro
       color: darkMode ? "#ddd" : "#333",
       wordBreak: "break-word"
     },
-    
-    // 답글 작성 영역 스타일
     replyBox: {
       marginTop: 12,
       padding: 12,
@@ -1005,8 +952,6 @@ function CommentSystem({ postId, type, darkMode, postOwner, postTitle, globalPro
       borderRadius: 8,
       transition: "all 0.3s ease",
     },
-    
-    // 더보기 버튼 스타일
     loadMoreButton: {
       width: "100%",
       padding: "10px",
@@ -1019,8 +964,6 @@ function CommentSystem({ postId, type, darkMode, postOwner, postTitle, globalPro
       cursor: "pointer",
       transition: "background 0.2s",
     },
-    
-    // 에러 메시지 스타일
     errorMessage: {
       padding: "8px 12px",
       marginBottom: 10,
@@ -1029,8 +972,6 @@ function CommentSystem({ postId, type, darkMode, postOwner, postTitle, globalPro
       borderRadius: 6,
       fontSize: 14
     },
-    
-    // 댓글 없음 스타일
     noComments: {
       textAlign: "center", 
       padding: "30px 20px", 
@@ -1038,6 +979,13 @@ function CommentSystem({ postId, type, darkMode, postOwner, postTitle, globalPro
       background: darkMode ? "#333" : "#f5f0ff",
       borderRadius: 12,
       margin: "20px 0"
+    },
+    checkbox: {
+      display: "flex",
+      alignItems: "center",
+      fontSize: 14,
+      color: darkMode ? "#aaa" : "#666",
+      cursor: "pointer"
     }
   }), [darkMode]);
 
@@ -1091,421 +1039,561 @@ function CommentSystem({ postId, type, darkMode, postOwner, postTitle, globalPro
     };
   }, [darkMode]);
 
+  // 댓글 작성 핸들러
+  const handleCommentSubmit = async () => {
+    if (!newComment.trim()) return;
+
+    try {
+      const commentData = {
+        text: newComment,
+        author: me,
+        createdAt: serverTimestamp(),
+        likes: [],
+        replies: []
+      };
+
+      const commentRef = await addDoc(collection(db, `${type}-${postId}-comments`), commentData);
+      
+      // 게시글에 댓글 ID 추가
+      await updateDoc(doc(db, type, postId), {
+        comments: arrayUnion(commentRef.id)
+      });
+
+      // 태그된 사용자들에게 알림 생성
+      const taggedUsers = processTaggedUsers(newComment);
+      for (const taggedUser of taggedUsers) {
+        await createTagNotification({
+          taggedUser,
+          taggerNickname: me,
+          postId,
+          postType: type,
+          postTitle,
+          commentId: commentRef.id,
+          commentText: newComment
+        });
+      }
+
+      // 게시글 작성자에게 알림 생성 (자신의 게시글이 아닌 경우에만)
+      if (postOwner !== me) {
+        await createNotificationsForComment(newComment);
+      }
+
+      setNewComment('');
+      setComments(prev => [{ ...commentData, id: commentRef.id }, ...prev]);
+    } catch (error) {
+      console.error("댓글 작성 중 오류:", error);
+    }
+  };
+
+  // 쪽지 보내기 함수
+  const sendMessage = async (receiverNickname) => {
+    if (!me) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
+    
+    if (me === receiverNickname) {
+      alert("자신에게는 쪽지를 보낼 수 없습니다.");
+      return;
+    }
+    
+    const messageContent = prompt(`${receiverNickname}님에게 보낼 메시지를 입력하세요:`);
+    if (!messageContent || !messageContent.trim()) {
+      return;
+    }
+    
+    try {
+      await addDoc(collection(db, "messages"), {
+        senderNickname: me,
+        receiverNickname: receiverNickname,
+        content: messageContent.trim(),
+        createdAt: Timestamp.now(),
+        read: false,
+        relatedPostTitle: postTitle
+      });
+      
+      alert("쪽지가 전송되었습니다.");
+    } catch (error) {
+      console.error("쪽지 전송 오류:", error);
+      alert("쪽지 전송 중 오류가 발생했습니다.");
+    }
+  };
+
   // 컴포넌트 렌더링 부분
   return (
-    <div style={memoizedStyles.container}>
-      {/* 댓글 작성 영역 */}
-      <div style={memoizedStyles.commentBox} ref={textareaRef}>
-        <h2 style={memoizedStyles.sectionTitle}>
-          <span>💬 댓글 작성</span>
-          {commentCount > 0 && (
-            <span style={memoizedStyles.titleCount}>
-              총 {commentCount + replyCount}개의 댓글
-            </span>
-          )}
-        </h2>
-        
-        {error && (
-          <div style={memoizedStyles.errorMessage}>
-            {error}
-          </div>
-        )}
-        
-        {/* 답글 작성 중인지 표시 */}
-        {replyInfo && (
-          <div style={{
-            padding: "8px 12px",
-            marginBottom: 10,
-            backgroundColor: darkMode ? "#4a3580" : "#e5daff",
-            borderRadius: 6,
-            fontSize: 14,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center"
-          }}>
-            <span>
-              <strong>{replyInfo.authorName}</strong>님에게 답글 작성 중
-            </span>
-            <button 
-              onClick={() => setReplyInfo(null)}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: darkMode ? "#ddd" : "#333",
-                cursor: "pointer",
-                fontSize: 16
-              }}
-            >
-              ×
-            </button>
-          </div>
-        )}
-
-        {/* 댓글/답글 입력 영역 */}
-        <textarea
-          ref={replyInfo ? replyTextareaRef : textareaRef}
-          value={newComment}
-          onChange={replyInfo ? handleReplyInputChange : (e => setNewComment(e.target.value))}
-          onKeyDown={handleKeyDown}
-          placeholder={replyInfo 
-            ? `${replyInfo.authorName}님에게 답글 작성...` 
-            : "댓글을 입력하세요... (Shift+Enter: 줄바꿈, Enter: 등록)"
-          }
-          style={memoizedStyles.textarea}
-          disabled={isSubmitting}
-        />
-        
-        {/* 글자 수 카운터 */}
-        <div style={memoizedStyles.charCount}>
-          <span>{newComment.length}/{MAX_COMMENT_LENGTH}자</span>
-          {newComment.length > MAX_COMMENT_LENGTH && (
-            <span style={{ color: "red" }}>
-              {newComment.length - MAX_COMMENT_LENGTH}자 초과
-            </span>
-          )}
-        </div>
-        
-        {/* 비밀댓글 체크박스와 버튼 */}
-        <div style={memoizedStyles.buttonRow}>
-          <label style={memoizedStyles.checkbox}>
-            <input
-              type="checkbox"
-              checked={isPrivate}
-              onChange={e => setIsPrivate(e.target.checked)}
-              disabled={isSubmitting}
-              style={{ marginRight: 8 }}
-            /> 
-            <span>🔒 비밀{replyInfo ? '답글' : '댓글'}로 작성</span>
-          </label>
-          
-          <div style={{ display: "flex", gap: 8 }}>
-            {newComment.trim() && (
-              <button 
-                onClick={cancelComment}
-                style={{
-                  ...memoizedStyles.button.secondary,
-                  opacity: isSubmitting ? 0.7 : 1,
-                  cursor: isSubmitting ? "not-allowed" : "pointer"
-                }}
-                disabled={isSubmitting}
-              >
-                취소
-              </button>
+    <div style={{
+      width: '100%',
+      maxWidth: '100%',
+      boxSizing: 'border-box',
+      overflow: 'hidden',
+    }}>
+      <div style={memoizedStyles.container}>
+        {/* 댓글 작성 영역 */}
+        <div style={memoizedStyles.commentBox} ref={textareaRef}>
+          <h2 style={memoizedStyles.sectionTitle}>
+            <span>💬 댓글 작성</span>
+            {commentCount > 0 && (
+              <span style={memoizedStyles.titleCount}>
+                총 {commentCount + replyCount}개의 댓글
+              </span>
             )}
-            
-            <button 
-              onClick={addComment} 
-              style={{
-                ...memoizedStyles.button.primary,
-                opacity: (isSubmitting || !newComment.trim() || newComment.length > MAX_COMMENT_LENGTH) ? 0.7 : 1,
-                cursor: (isSubmitting || !newComment.trim() || newComment.length > MAX_COMMENT_LENGTH) ? "not-allowed" : "pointer"
-              }}
-              disabled={isSubmitting || !newComment.trim() || newComment.length > MAX_COMMENT_LENGTH}
-            >
-              {isSubmitting ? "저장 중..." : `${replyInfo ? '답글' : '댓글'} 등록`}
-            </button>
+          </h2>
+          
+          {error && (
+            <div style={memoizedStyles.errorMessage}>
+              {error}
+            </div>
+          )}
+          
+          {/* 답글 작성 중인지 표시 */}
+          {replyInfo && (
+            <div style={{
+              padding: "8px 12px",
+              marginBottom: 10,
+              backgroundColor: darkMode ? "#4a3580" : "#e5daff",
+              borderRadius: 6,
+              fontSize: 14,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center"
+            }}>
+              <span>
+                <strong>{replyInfo.authorName}</strong>님에게 답글 작성 중
+              </span>
+              <button 
+                onClick={() => setReplyInfo(null)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: darkMode ? "#ddd" : "#333",
+                  cursor: "pointer",
+                  fontSize: 16
+                }}
+              >
+                ×
+              </button>
+            </div>
+          )}
+
+          {/* 댓글/답글 입력 영역 */}
+          <textarea
+            ref={replyInfo ? replyTextareaRef : textareaRef}
+            value={newComment}
+            onChange={replyInfo ? handleReplyInputChange : (e => setNewComment(e.target.value))}
+            onKeyDown={handleKeyDown}
+            placeholder={replyInfo 
+              ? `${replyInfo.authorName}님에게 답글 작성...` 
+              : "댓글을 입력하세요... (Shift+Enter: 줄바꿈, Enter: 등록)"
+            }
+            style={{
+              width: "100%",
+              padding: "12px",
+              borderRadius: "8px",
+              border: "1px solid #ccc",
+              resize: "vertical",
+              fontFamily: "inherit",
+              fontSize: "14px",
+              backgroundColor: darkMode ? "#3d3d3d" : "#fff",
+              color: darkMode ? "#fff" : "#333",
+              boxSizing: "border-box",
+              minHeight: "100px"
+            }}
+            disabled={isSubmitting}
+          />
+          
+          {/* 글자 수 카운터 */}
+          <div style={memoizedStyles.charCount}>
+            <span>{newComment.length}/{MAX_COMMENT_LENGTH}자</span>
+            {newComment.length > MAX_COMMENT_LENGTH && (
+              <span style={{ color: "red" }}>
+                {newComment.length - MAX_COMMENT_LENGTH}자 초과
+              </span>
+            )}
           </div>
+          
+          {/* 비밀댓글 체크박스와 버튼 */}
+          <div style={memoizedStyles.buttonRow}>
+            <label style={memoizedStyles.checkbox}>
+              <input
+                type="checkbox"
+                checked={isPrivate}
+                onChange={e => setIsPrivate(e.target.checked)}
+                disabled={isSubmitting}
+                style={{ marginRight: 8 }}
+              /> 
+              <span>🔒 비밀{replyInfo ? '답글' : '댓글'}로 작성</span>
+            </label>
+            
+            <div style={{ display: "flex", gap: 8 }}>
+              {newComment.trim() && (
+                <button 
+                  onClick={cancelComment}
+                  style={{
+                    ...memoizedStyles.button.secondary,
+                    opacity: isSubmitting ? 0.7 : 1,
+                    cursor: isSubmitting ? "not-allowed" : "pointer"
+                  }}
+                  disabled={isSubmitting}
+                >
+                  취소
+                </button>
+              )}
+              
+              <button 
+                onClick={handleCommentSubmit} 
+                style={{
+                  ...memoizedStyles.button.primary,
+                  opacity: (isSubmitting || !newComment.trim() || newComment.length > MAX_COMMENT_LENGTH) ? 0.7 : 1,
+                  cursor: (isSubmitting || !newComment.trim() || newComment.length > MAX_COMMENT_LENGTH) ? "not-allowed" : "pointer"
+                }}
+                disabled={isSubmitting || !newComment.trim() || newComment.length > MAX_COMMENT_LENGTH}
+              >
+                {isSubmitting ? "저장 중..." : `${replyInfo ? '답글' : '댓글'} 등록`}
+              </button>
+            </div>
+          </div>
+          
+          {/* 비밀댓글 안내 */}
+          {isPrivate && (
+            <div style={memoizedStyles.privateInfo}>
+              * 비밀{replyInfo ? '답글' : '댓글'}은 작성자와 게시글 작성자만 볼 수 있습니다
+            </div>
+          )}
         </div>
-        
-        {/* 비밀댓글 안내 */}
-        {isPrivate && (
-          <div style={memoizedStyles.privateInfo}>
-            * 비밀{replyInfo ? '답글' : '댓글'}은 작성자와 게시글 작성자만 볼 수 있습니다
+
+        {/* 댓글 목록 */}
+        {comments.length > 0 ? (
+          <div>
+            {/* 댓글 목록 헤더 */}
+            <div style={memoizedStyles.listHeader}>
+              <h2 style={memoizedStyles.sectionTitle}>
+                <span>💬 댓글 목록</span>
+                <span style={memoizedStyles.titleCount}>
+                  {commentCount}개의 댓글, {replyCount}개의 답글
+                </span>
+              </h2>
+              
+              <button 
+                onClick={toggleSortOrder}
+                style={memoizedStyles.sortButton}
+                title={sortOrder === "asc" ? "최신 댓글 순서로 보기" : "오래된 댓글 순서로 보기"}
+              >
+                <span>정렬: {sortOrder === "asc" ? "오래된 순" : "최신 순"}</span>
+                <span>{sortOrder === "asc" ? "↑" : "↓"}</span>
+              </button>
+            </div>
+            
+            {/* 댓글 리스트 */}
+            <div style={{ marginTop: 20 }}>
+              {comments.map(comment => {
+                const isNewComment = newCommentIds.includes(comment.id);
+                const isFocused = focusedCommentId === comment.id;
+                const canView = !comment.isPrivate || comment.nickname === me || postOwner === me;
+                const isLiked = comment.likedBy?.includes(me) || false;
+                const hasReplies = comment.replyCount > 0 || comment.replies?.length > 0;
+                const isExpanded = expandedReplies[comment.id] || false;
+                
+                return (
+                  <div 
+                    key={comment.id} 
+                    id={`comment-${comment.id}`}
+                    style={{
+                      ...memoizedStyles.commentContainer,
+                      ...(isNewComment ? { animation: "fadeBackground 5s ease-out" } : {}),
+                      ...(isFocused ? { scrollMarginTop: "70px" } : {})
+                    }}
+                  >
+                    {/* 메인 댓글 */}
+                    <div style={canView ? memoizedStyles.commentItem : memoizedStyles.secretComment}>
+                      {/* 댓글 헤더 (작성자 정보) */}
+                      <div style={memoizedStyles.commentHeader}>
+                        <div style={memoizedStyles.userInfo}>
+                          <CustomLink to={`/userpage/${comment.nickname || "알 수 없음"}`} style={{ textDecoration: "none" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <Avatar 
+                                src={getProfilePic(comment.nickname)}
+                                size={28}
+                                alt={comment.nickname || "사용자"}
+                              />
+                              <div style={{ display: "flex", alignItems: "center" }}>
+                                <strong style={{ color: darkMode ? "#fff" : "#333" }}>{comment.nickname || "알 수 없음"}</strong>
+                                {getGradeEmoji(comment.nickname) && (
+                                  <span style={{ marginLeft: 4 }}>{getGradeEmoji(comment.nickname)}</span>
+                                )}
+                              </div>
+                            </div>
+                          </CustomLink>
+                          {comment.isPrivate && (
+                            <span style={{ fontSize: 14, color: darkMode ? "#ff9800" : "#e67e22" }}>🔒</span>
+                          )}
+                        </div>
+                        <span style={memoizedStyles.dateTime}>
+                          {formatDate(comment.createdAt?.seconds || comment.createdAt)}
+                        </span>
+                      </div>
+                      
+                      {/* 댓글 내용 */}
+                      {canView ? (
+                        <TaggedText 
+                          text={comment.text} 
+                          darkMode={darkMode}
+                        />
+                      ) : (
+                        <p style={memoizedStyles.secretText}>🔒 비밀댓글입니다</p>
+                      )}
+
+                      {/* 댓글 액션 버튼들 */}
+                      {canView && (
+                        <div style={memoizedStyles.commentAction}>
+                          <button 
+                            onClick={() => toggleLike(comment.id, isLiked)} 
+                            style={{
+                              ...memoizedStyles.actionButton,
+                              background: isLiked 
+                                ? (darkMode ? "#6a1b9a" : "#6a1b9a") 
+                                : (darkMode ? "#7e57c2aa" : "#7e57c2"),
+                            }}
+                            disabled={isLiked}
+                            title={isLiked ? "이미 좋아요를 눌렀습니다" : "좋아요"}
+                          >
+                            {isLiked ? "❤️" : "👍"} {comment.likes || 0}
+                          </button>
+
+                          <button 
+                            style={{
+                              ...memoizedStyles.actionButton,
+                              padding: "4px 10px"
+                            }} 
+                            onClick={() => startReply(comment.id, comment.nickname)}
+                          >
+                            ↪️ 답글
+                          </button>
+
+                          {/* 쪽지 보내기 버튼 추가 */}
+                          {me && me !== comment.nickname && (
+                            <button
+                              onClick={() => sendMessage(comment.nickname)}
+                              style={{
+                                ...memoizedStyles.actionButton,
+                                background: darkMode ? "#4caf50" : "#2e7d32",
+                                padding: "4px 10px"
+                              }}
+                            >
+                              💌 쪽지
+                            </button>
+                          )}
+
+                          {comment.nickname === me && (
+                            <>
+                              <button
+                                onClick={() => goToEditComment(comment.id)}
+                                style={{ 
+                                  ...memoizedStyles.actionButton, 
+                                  background: darkMode ? '#6a1b9a99' : '#6a1b9a',
+                                  padding: "4px 10px"
+                                }}
+                              >
+                                ✏️ 수정
+                              </button>
+                              <button
+                                onClick={() => confirmDeleteComment(comment.id)}
+                                style={{
+                                  ...memoizedStyles.button.danger,
+                                  padding: "4px 10px"
+                                }}
+                              >
+                                🗑️ 삭제
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
+
+                      {/* 답글 수 표시 및 토글 버튼 */}
+                      {hasReplies && (
+                        <div 
+                          style={{
+                            ...memoizedStyles.replyBadge,
+                            marginTop: 12
+                          }}
+                          onClick={() => loadReplies(comment.id)}
+                        >
+                          <span style={{ marginRight: 4 }}>
+                            {isExpanded ? "▼" : "►"}
+                          </span>
+                          <span>
+                            💬 답글 {comment.replyCount || comment.replies?.length || 0}개
+                            {isExpanded ? " 숨기기" : " 보기"}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* 답글 목록 */}
+                      {isExpanded && comment.replies && comment.replies.length > 0 && (
+                        <div 
+                          style={memoizedStyles.repliesContainer}
+                          className="reply-transition fade-in"
+                        >
+                          {comment.replies.map(reply => {
+                            const replyCanView = !reply.isPrivate || reply.nickname === me || postOwner === me;
+                            const replyIsLiked = reply.likedBy?.includes(me) || false;
+                            
+                            return (
+                              <div 
+                                key={reply.id} 
+                                id={`comment-${reply.id}`}
+                                style={memoizedStyles.replyItem}
+                              >
+                                {/* 답글 헤더 */}
+                                <div style={memoizedStyles.commentHeader}>
+                                  <div style={memoizedStyles.userInfo}>
+                                    <CustomLink to={`/userpage/${reply.nickname || "알 수 없음"}`} style={{ textDecoration: "none" }}>
+                                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                        <Avatar 
+                                          src={getProfilePic(reply.nickname)}
+                                          size={24}
+                                          alt={reply.nickname || "사용자"}
+                                        />
+                                        <div style={{ display: "flex", alignItems: "center" }}>
+                                          <strong style={{ color: darkMode ? "#fff" : "#333" }}>{reply.nickname || "알 수 없음"}</strong>
+                                          {getGradeEmoji(reply.nickname) && (
+                                            <span style={{ marginLeft: 4 }}>{getGradeEmoji(reply.nickname)}</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </CustomLink>
+                                    {reply.isPrivate && (
+                                      <span style={{ fontSize: 14, color: darkMode ? "#ff9800" : "#e67e22" }}>🔒</span>
+                                    )}
+                                  </div>
+                                  <span style={memoizedStyles.dateTime}>
+                                    {formatDate(reply.createdAt?.seconds || reply.createdAt)}
+                                  </span>
+                                </div>
+                                
+                                {/* 답글 내용 */}
+                                {replyCanView ? (
+                                  <TaggedText 
+                                    text={reply.text} 
+                                    darkMode={darkMode}
+                                  />
+                                ) : (
+                                  <p style={memoizedStyles.secretText}>🔒 비밀답글입니다</p>
+                                )}
+
+                                {/* 답글 액션 버튼들 */}
+                                {replyCanView && (
+                                  <div style={memoizedStyles.commentAction}>
+                                    <button 
+                                      onClick={() => toggleLike(reply.id, replyIsLiked, comment.id)} 
+                                      style={{
+                                        ...memoizedStyles.actionButton,
+                                        background: replyIsLiked 
+                                          ? (darkMode ? "#6a1b9a" : "#6a1b9a") 
+                                          : (darkMode ? "#7e57c2aa" : "#7e57c2"),
+                                        padding: "4px 10px"
+                                      }}
+                                      disabled={replyIsLiked}
+                                      title={replyIsLiked ? "이미 좋아요를 눌렀습니다" : "좋아요"}
+                                    >
+                                      {replyIsLiked ? "❤️" : "👍"} {reply.likes || 0}
+                                    </button>
+
+                                    <button 
+                                      style={{
+                                        ...memoizedStyles.actionButton,
+                                        padding: "4px 10px"
+                                      }} 
+                                      onClick={() => startReply(comment.id, reply.nickname)}
+                                    >
+                                      ↪️ 답글
+                                    </button>
+
+                                    {/* 답글 작성자에게 쪽지 보내기 버튼 추가 */}
+                                    {me && me !== reply.nickname && (
+                                      <button
+                                        onClick={() => sendMessage(reply.nickname)}
+                                        style={{
+                                          ...memoizedStyles.actionButton,
+                                          background: darkMode ? "#4caf50" : "#2e7d32",
+                                          padding: "4px 10px"
+                                        }}
+                                      >
+                                        💌 쪽지
+                                      </button>
+                                    )}
+
+                                    {reply.nickname === me && (
+                                      <>
+                                        <button
+                                          onClick={() => goToEditComment(reply.id)}
+                                          style={{ 
+                                            ...memoizedStyles.actionButton, 
+                                            background: darkMode ? '#6a1b9a99' : '#6a1b9a',
+                                            padding: "4px 10px"
+                                          }}
+                                        >
+                                          ✏️ 수정
+                                        </button>
+                                        <button
+                                          onClick={() => confirmDeleteComment(reply.id, false, comment.id)}
+                                          style={{
+                                            ...memoizedStyles.button.danger,
+                                            padding: "4px 10px"
+                                          }}
+                                        >
+                                          🗑️ 삭제
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              
+              {/* 댓글 더 불러오기 버튼 */}
+              {hasMore && (
+                <button 
+                  onClick={loadMoreComments}
+                  disabled={isLoadingMore}
+                  style={{
+                    ...memoizedStyles.loadMoreButton,
+                    opacity: isLoadingMore ? 0.7 : 1,
+                    cursor: isLoadingMore ? "not-allowed" : "pointer"
+                  }}
+                >
+                  {isLoadingMore ? "불러오는 중..." : "댓글 더 보기"}
+                </button>
+              )}
+              
+              {/* 스크롤 기준점 */}
+              <div ref={commentsEndRef} />
+            </div>
+          </div>
+        ) : isLoading ? (
+          <div style={{ 
+            textAlign: "center", 
+            padding: "30px 20px", 
+            color: darkMode ? "#aaa" : "#777",
+            background: darkMode ? "#333" : "#f5f0ff",
+            borderRadius: 12,
+            margin: "20px 0"
+          }}>
+            <p>댓글을 불러오는 중입니다...</p>
+          </div>
+        ) : (
+          <div style={memoizedStyles.noComments}>
+            <p>아직 댓글이 없습니다. 첫 댓글을 작성해보세요!</p>
           </div>
         )}
       </div>
-
-      {/* 댓글 목록 */}
-      {comments.length > 0 ? (
-        <div>
-          {/* 댓글 목록 헤더 */}
-          <div style={memoizedStyles.listHeader}>
-            <h2 style={memoizedStyles.sectionTitle}>
-              <span>💬 댓글 목록</span>
-              <span style={memoizedStyles.titleCount}>
-                {commentCount}개의 댓글, {replyCount}개의 답글
-              </span>
-            </h2>
-            
-            <button 
-              onClick={toggleSortOrder}
-              style={memoizedStyles.sortButton}
-              title={sortOrder === "asc" ? "최신 댓글 순서로 보기" : "오래된 댓글 순서로 보기"}
-            >
-              <span>정렬: {sortOrder === "asc" ? "오래된 순" : "최신 순"}</span>
-              <span>{sortOrder === "asc" ? "↑" : "↓"}</span>
-            </button>
-          </div>
-          
-          {/* 댓글 리스트 */}
-          <div style={{ marginTop: 20 }}>
-            {comments.map(comment => {
-              const isNewComment = newCommentIds.includes(comment.id);
-              const isFocused = focusedCommentId === comment.id;
-              const canView = !comment.isPrivate || comment.nickname === me || postOwner === me;
-              const isLiked = comment.likedBy?.includes(me) || false;
-              const hasReplies = comment.replyCount > 0 || comment.replies?.length > 0;
-              const isExpanded = expandedReplies[comment.id] || false;
-              
-              return (
-                <div 
-                  key={comment.id} 
-                  id={`comment-${comment.id}`}
-                  style={{
-                    ...memoizedStyles.commentContainer,
-                    ...(isNewComment ? { animation: "fadeBackground 5s ease-out" } : {}),
-                    ...(isFocused ? { scrollMarginTop: "70px" } : {})
-                  }}
-                >
-                  {/* 메인 댓글 */}
-                  <div style={canView ? memoizedStyles.commentItem : memoizedStyles.secretComment}>
-                    {/* 댓글 헤더 (작성자 정보) */}
-                    <div style={memoizedStyles.commentHeader}>
-                      <div style={memoizedStyles.userInfo}>
-                        <CustomLink to={`/userpage/${comment.nickname || "알 수 없음"}`} style={{ textDecoration: "none" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <Avatar 
-                              src={getProfilePic(comment.nickname)}
-                              size={28}
-                              alt={comment.nickname || "사용자"}
-                            />
-                            <div style={{ display: "flex", alignItems: "center" }}>
-                              <strong style={{ color: darkMode ? "#fff" : "#333" }}>{comment.nickname || "알 수 없음"}</strong>
-                              {getGradeEmoji(comment.nickname) && (
-                                <span style={{ marginLeft: 4 }}>{getGradeEmoji(comment.nickname)}</span>
-                              )}
-                            </div>
-                          </div>
-                        </CustomLink>
-                        {comment.isPrivate && (
-                          <span style={{ fontSize: 14, color: darkMode ? "#ff9800" : "#e67e22" }}>🔒</span>
-                        )}
-                      </div>
-                      <span style={memoizedStyles.dateTime}>
-                        {formatDate(comment.createdAt?.seconds || comment.createdAt)}
-                      </span>
-                    </div>
-                    
-                    {/* 댓글 내용 */}
-                    {canView ? (
-                      <p style={memoizedStyles.commentText}>{comment.text}</p>
-                    ) : (
-                      <p style={memoizedStyles.secretText}>🔒 비밀댓글입니다</p>
-                    )}
-
-                    {/* 댓글 액션 버튼들 */}
-                    {canView && (
-                      <div style={memoizedStyles.commentAction}>
-                        <button 
-                          onClick={() => toggleLike(comment.id, isLiked)} 
-                          style={{
-                            ...memoizedStyles.actionButton,
-                            background: isLiked 
-                              ? (darkMode ? "#6a1b9a" : "#6a1b9a") 
-                              : (darkMode ? "#7e57c2aa" : "#7e57c2"),
-                          }}
-                          disabled={isLiked}
-                          title={isLiked ? "이미 좋아요를 눌렀습니다" : "좋아요"}
-                        >
-                          {isLiked ? "❤️" : "👍"} {comment.likes || 0}
-                        </button>
-
-                        <button 
-                          style={memoizedStyles.actionButton} 
-                          onClick={() => startReply(comment.id, comment.nickname)}
-                        >
-                          ↪️ 답글
-                        </button>
-
-                        {comment.nickname === me && (
-                          <>
-                            <button
-                              onClick={() => goToEditComment(comment.id)}
-                              style={{ 
-                                ...memoizedStyles.actionButton, 
-                                background: darkMode ? '#6a1b9a99' : '#6a1b9a' 
-                              }}
-                            >
-                              ✏️ 수정
-                            </button>
-                            <button
-                              onClick={() => confirmDeleteComment(comment.id, hasReplies)}
-                              style={memoizedStyles.button.danger}
-                            >
-                              🗑️ 삭제
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    )}
-
-                    {/* 답글 수 표시 및 토글 버튼 */}
-                    {hasReplies && (
-                      <div 
-                        style={{
-                          ...memoizedStyles.replyBadge,
-                          marginTop: 12
-                        }}
-                        onClick={() => loadReplies(comment.id)}
-                      >
-                        <span style={{ marginRight: 4 }}>
-                          {isExpanded ? "▼" : "►"}
-                        </span>
-                        <span>
-                          💬 답글 {comment.replyCount || comment.replies?.length || 0}개
-                          {isExpanded ? " 숨기기" : " 보기"}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* 답글 목록 */}
-                    {isExpanded && comment.replies && comment.replies.length > 0 && (
-                      <div 
-                        style={memoizedStyles.repliesContainer}
-                        className="reply-transition fade-in"
-                      >
-                        {comment.replies.map(reply => {
-                          const replyCanView = !reply.isPrivate || reply.nickname === me || postOwner === me;
-                          const replyIsLiked = reply.likedBy?.includes(me) || false;
-                          
-                          return (
-                            <div 
-                              key={reply.id} 
-                              id={`comment-${reply.id}`}
-                              style={memoizedStyles.replyItem}
-                            >
-                              {/* 답글 헤더 */}
-                              <div style={memoizedStyles.commentHeader}>
-                                <div style={memoizedStyles.userInfo}>
-                                  <CustomLink to={`/userpage/${reply.nickname || "알 수 없음"}`} style={{ textDecoration: "none" }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                      <Avatar 
-                                        src={getProfilePic(reply.nickname)}
-                                        size={24}
-                                        alt={reply.nickname || "사용자"}
-                                      />
-                                      <div style={{ display: "flex", alignItems: "center" }}>
-                                        <strong style={{ color: darkMode ? "#fff" : "#333" }}>{reply.nickname || "알 수 없음"}</strong>
-                                        {getGradeEmoji(reply.nickname) && (
-                                          <span style={{ marginLeft: 4 }}>{getGradeEmoji(reply.nickname)}</span>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </CustomLink>
-                                  {reply.isPrivate && (
-                                    <span style={{ fontSize: 14, color: darkMode ? "#ff9800" : "#e67e22" }}>🔒</span>
-                                  )}
-                                </div>
-                                <span style={memoizedStyles.dateTime}>
-                                  {formatDate(reply.createdAt?.seconds || reply.createdAt)}
-                                </span>
-                              </div>
-                              
-                              {/* 답글 내용 */}
-                              {replyCanView ? (
-                                <p style={memoizedStyles.replyText}>{reply.text}</p>
-                              ) : (
-                                <p style={memoizedStyles.secretText}>🔒 비밀답글입니다</p>
-                              )}
-
-                              {/* 답글 액션 버튼들 */}
-                              {replyCanView && (
-                                <div style={memoizedStyles.commentAction}>
-                                  <button 
-                                    onClick={() => toggleLike(reply.id, replyIsLiked, comment.id)} 
-                                    style={{
-                                      ...memoizedStyles.actionButton,
-                                      background: replyIsLiked 
-                                        ? (darkMode ? "#6a1b9a" : "#6a1b9a") 
-                                        : (darkMode ? "#7e57c2aa" : "#7e57c2"),
-                                      padding: "4px 10px"
-                                    }}
-                                    disabled={replyIsLiked}
-                                    title={replyIsLiked ? "이미 좋아요를 눌렀습니다" : "좋아요"}
-                                  >
-                                    {replyIsLiked ? "❤️" : "👍"} {reply.likes || 0}
-                                  </button>
-
-                                  <button 
-                                    style={{
-                                      ...memoizedStyles.actionButton,
-                                      padding: "4px 10px"
-                                    }} 
-                                    onClick={() => startReply(comment.id, reply.nickname)}
-                                  >
-                                    ↪️ 답글
-                                  </button>
-
-                                  {reply.nickname === me && (
-                                    <>
-                                      <button
-                                        onClick={() => goToEditComment(reply.id)}
-                                        style={{ 
-                                          ...memoizedStyles.actionButton, 
-                                          background: darkMode ? '#6a1b9a99' : '#6a1b9a',
-                                          padding: "4px 10px"
-                                        }}
-                                      >
-                                        ✏️ 수정
-                                      </button>
-                                      <button
-                                        onClick={() => confirmDeleteComment(reply.id, false, comment.id)}
-                                        style={{
-                                          ...memoizedStyles.button.danger,
-                                          padding: "4px 10px"
-                                        }}
-                                      >
-                                        🗑️ 삭제
-                                      </button>
-                                    </>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-            
-            {/* 댓글 더 불러오기 버튼 */}
-            {hasMore && (
-              <button 
-                onClick={loadMoreComments}
-                disabled={isLoadingMore}
-                style={{
-                  ...memoizedStyles.loadMoreButton,
-                  opacity: isLoadingMore ? 0.7 : 1,
-                  cursor: isLoadingMore ? "not-allowed" : "pointer"
-                }}
-              >
-                {isLoadingMore ? "불러오는 중..." : "댓글 더 보기"}
-              </button>
-            )}
-            
-            {/* 스크롤 기준점 */}
-            <div ref={commentsEndRef} />
-          </div>
-        </div>
-            ) : isLoading ? (
-        <div style={{ 
-          textAlign: "center", 
-          padding: "30px 20px", 
-          color: darkMode ? "#aaa" : "#777",
-          background: darkMode ? "#333" : "#f5f0ff",
-          borderRadius: 12,
-          margin: "20px 0"
-        }}>
-          <p>댓글을 불러오는 중입니다...</p>
-        </div>
-      ) : (
-        <div style={memoizedStyles.noComments}>
-          <p>아직 댓글이 없습니다. 첫 댓글을 작성해보세요!</p>
-        </div>
-      )}
     </div>
   );
 }
@@ -1533,9 +1621,6 @@ function EditComment({ commentId, type, postId, darkMode, onSave, onCancel, init
   const [isPrivate, setIsPrivate] = useState(initialIsPrivate || false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  
-  // 스타일 가져오기
-  const styles = getThemeStyles(darkMode);
   
   // 댓글 업데이트 함수
   const updateComment = async () => {
@@ -1599,7 +1684,16 @@ function EditComment({ commentId, type, postId, darkMode, onSave, onCancel, init
         value={commentText}
         onChange={(e) => setCommentText(e.target.value)}
         style={{
-          ...styles.textarea,
+          width: "100%",
+          padding: "12px",
+          borderRadius: "8px",
+          border: "1px solid #ccc",
+          resize: "vertical",
+          fontFamily: "inherit",
+          fontSize: "14px",
+          backgroundColor: darkMode ? "#3d3d3d" : "#fff",
+          color: darkMode ? "#fff" : "#333",
+          boxSizing: "border-box",
           minHeight: "100px"
         }}
         placeholder="댓글 내용을 입력하세요..."

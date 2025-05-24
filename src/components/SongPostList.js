@@ -14,7 +14,7 @@ import {
 } from "./style";
 import Avatar from "./Avatar";
 
-// gradeEmojis 객체 추가
+// gradeEmojis 객체 업데이트
 const gradeEmojis = {
   "체리": "🍒",
   "블루베리": "🫐",
@@ -24,7 +24,12 @@ const gradeEmojis = {
   "수박": "🍉",
   "지구": "🌏",
   "토성": "🪐",
-  "태양": "🌞"
+  "태양": "🌞",
+  "은하": "🌌",
+  "맥주": "🍺",
+  "번개": "⚡",
+  "달": "🌙",
+  "별": "⭐"
 };
 
 function SongPostList({ darkMode, globalProfilePics, globalGrades }) {

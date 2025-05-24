@@ -10,7 +10,11 @@ export const GRADES = [
   { value: "🌏", label: "🌏 지구", level: 7 },
   { value: "🪐", label: "🪐 토성", level: 8 },
   { value: "🌞", label: "🌞 태양", level: 9 },
-  { value: "🌌", label: "🌌 은하", level: 10 }
+  { value: "🌌", label: "🌌 은하", level: 10 },
+  { value: "🍺", label: "🍺 맥주", level: 11 },
+  { value: "⚡", label: "⚡ 번개", level: 12 },
+  { value: "🌙", label: "🌙 달", level: 13 },
+  { value: "⭐", label: "⭐ 별", level: 14 }
 ];
 
 export const ROLES = [

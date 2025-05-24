@@ -11,3 +11,66 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* 모바일 최적화를 위한 전역 스타일 */
+* {
+  box-sizing: border-box;
+}
+
+/* 모바일에서 텍스트가 영역을 벗어나지 않도록 */
+div, p, span, h1, h2, h3, h4, h5, h6 {
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/* 모바일에서 이미지가 영역을 벗어나지 않도록 */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* 모바일에서 입력 필드가 영역을 벗어나지 않도록 */
+input, textarea, select {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* 모바일에서 테이블이 영역을 벗어나지 않도록 */
+table {
+  width: 100%;
+  table-layout: fixed;
+  word-wrap: break-word;
+}
+
+/* 모바일 반응형 텍스트 크기 */
+@media (max-width: 768px) {
+  html {
+    font-size: 14px;
+  }
+  
+  h1 {
+    font-size: 1.8rem;
+  }
+  
+  h2 {
+    font-size: 1.5rem;
+  }
+  
+  h3 {
+    font-size: 1.3rem;
+  }
+  
+  /* 모바일에서 버튼 터치 영역 확보 */
+  button {
+    min-height: 44px;
+    padding: 8px 16px;
+  }
+  
+  /* 모바일에서 링크 터치 영역 확보 */
+  a {
+    min-height: 44px;
+    display: inline-block;
+    padding: 4px 0;
+  }
+}

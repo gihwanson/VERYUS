@@ -28,25 +28,6 @@ function EvaluatePage({ darkMode }) {
 
   const evaluator = localStorage.getItem("nickname");
 
-  useEffect(() => {
-    const fetchRole = async () => {
-      if (!evaluator) return;
-      try {
-        const q = query(collection(db, "users"), where("nickname", "==", evaluator));
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-          const data = snap.docs[0].data();
-          setMyRole(data.role || "");
-        }
-      } catch (err) {
-        console.error("Error fetching user role:", err);
-        setError("사용자 역할을 가져오는 중 오류가 발생했습니다.");
-      }
-    };
-    fetchRole();
-    fetchRecentEvaluations();
-  }, [evaluator, fetchRecentEvaluations]);
-
   const fetchRecentEvaluations = async () => {
     try {
       const q = query(
@@ -66,6 +47,25 @@ function EvaluatePage({ darkMode }) {
       console.error("Error fetching recent evaluations:", err);
     }
   };
+
+  useEffect(() => {
+    const fetchRole = async () => {
+      if (!evaluator) return;
+      try {
+        const q = query(collection(db, "users"), where("nickname", "==", evaluator));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const data = snap.docs[0].data();
+          setMyRole(data.role || "");
+        }
+      } catch (err) {
+        console.error("Error fetching user role:", err);
+        setError("사용자 역할을 가져오는 중 오류가 발생했습니다.");
+      }
+    };
+    fetchRole();
+    fetchRecentEvaluations();
+  }, [evaluator]);
 
   const searchUsers = async (searchTerm) => {
     if (!searchTerm.trim() || searchTerm.length < 2) {

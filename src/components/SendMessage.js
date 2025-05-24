@@ -197,7 +197,12 @@ function SendMessage({ darkMode, globalProfilePics, globalGrades }) {
       "수박": "🍉",
       "지구": "🌏",
       "토성": "🪐",
-      "태양": "🌞"
+      "태양": "🌞",
+      "은하": "🌌",
+      "맥주": "🍺",
+      "번개": "⚡",
+      "달": "🌙",
+      "별": "⭐"
     };
     
     return gradeEmojis[globalGrades[nickname]] || "";

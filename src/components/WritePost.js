@@ -17,10 +17,12 @@ function WritePost({ darkMode }) {
   const [privatePost, setPrivatePost] = useState(false);
   const [partnerDone, setPartnerDone] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState("");  // 서브 카테고리
+  const [selectedCategory, setSelectedCategory] = useState("");
   const [attachedImages, setAttachedImages] = useState([]);
   const [imagePreviewUrls, setImagePreviewUrls] = useState([]);
   const [characterCount, setCharacterCount] = useState(0);
+  const [recordingFile, setRecordingFile] = useState(null);
+  const [recordingPreview, setRecordingPreview] = useState("");
   const nav = useNavigate();
   
   // 중요: 닉네임 가져오기
@@ -51,6 +53,9 @@ function WritePost({ darkMode }) {
         case "free":
           setSelectedCategory("general");
           break;
+        case "recording":
+          setSelectedCategory("cover");
+          break;
         default:
           break;
       }
@@ -68,6 +73,7 @@ function WritePost({ darkMode }) {
       case "song": return "songs";
       case "advice": return "advice";
       case "free": return "freeposts";
+      case "recording": return "recordingPosts";
       default: return "posts";
     }
   };
@@ -116,6 +122,17 @@ function WritePost({ darkMode }) {
             { value: "humor", label: "유머" },
             { value: "review", label: "후기" },
             { value: "news", label: "소식" }
+          ]
+        };
+      case "recording":
+        return {
+          title: "🎤 녹음 게시판 글쓰기",
+          categories: [
+            { value: "cover", label: "커버곡" },
+            { value: "original", label: "창작곡" },
+            { value: "practice", label: "연습" },
+            { value: "duet", label: "듀엣/합창" },
+            { value: "solo", label: "솔로" }
           ]
         };
       default:
@@ -188,6 +205,49 @@ function WritePost({ darkMode }) {
     return imageUrls;
   };
   
+  // 녹음 파일 처리 함수
+  const handleRecordingUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // 오디오 파일 형식 체크
+    if (!file.type.startsWith('audio/')) {
+      alert('오디오 파일만 업로드 가능합니다.');
+      return;
+    }
+
+    // 파일 크기 체크 (50MB 이하)
+    if (file.size > 50 * 1024 * 1024) {
+      alert('파일 크기는 50MB를 초과할 수 없습니다.');
+      return;
+    }
+
+    setRecordingFile(file);
+    setRecordingPreview(file.name);
+  };
+
+  // 녹음 파일 제거
+  const removeRecording = () => {
+    setRecordingFile(null);
+    setRecordingPreview("");
+  };
+
+  // 녹음 파일 업로드 및 URL 획득
+  const uploadRecording = async () => {
+    if (!recordingFile) return null;
+
+    const timestamp = new Date().getTime();
+    const fileExtension = recordingFile.name.split('.').pop().toLowerCase();
+    const safeFileName = `${nick}_${timestamp}_recording.${fileExtension}`;
+    const filePath = `recordings/${safeFileName}`;
+
+    const storageRef = ref(storage, filePath);
+    await uploadBytes(storageRef, recordingFile);
+    const downloadUrl = await getDownloadURL(storageRef);
+    
+    return downloadUrl;
+  };
+  
   // 폼 유효성 검사
   const validateForm = () => {
     if (!title.trim()) {
@@ -242,6 +302,9 @@ function WritePost({ darkMode }) {
       // 이미지 업로드
       const imageUrls = await uploadImages();
       
+      // 녹음 파일 업로드
+      const recordingUrl = await uploadRecording();
+      
       // 게시글 데이터 저장 (nickname 필드 확실히 추가)
       await addDoc(collection(db, getCollectionName()), {
         nickname: nick,
@@ -255,6 +318,7 @@ function WritePost({ darkMode }) {
         likedBy: [],
         category: selectedCategory,
         images: imageUrls,
+        recordingUrl: recordingUrl,
         viewCount: 0,
         commentCount: 0,
         lastUpdated: serverTimestamp(),
@@ -269,6 +333,7 @@ function WritePost({ darkMode }) {
         case "song": nav("/songs"); break;
         case "advice": nav("/advice"); break;
         case "free": nav("/freeboard"); break;
+        case "recording": nav("/recordings"); break;
         default: nav("/");
       }
     } catch (error) {
@@ -470,6 +535,65 @@ function WritePost({ darkMode }) {
         )}
       </div>
       
+      {/* 녹음 파일 첨부 (recording 카테고리일 때만 표시) */}
+      {category === "recording" && (
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ 
+            display: "block", 
+            marginBottom: 8, 
+            fontSize: 16,
+            color: darkMode ? "#fff" : "#333"
+          }}>
+            녹음 파일 첨부 (최대 1개, 50MB 이하)
+          </label>
+          <input
+            type="file"
+            accept="audio/*"
+            onChange={handleRecordingUpload}
+            style={{ 
+              display: "block", 
+              marginBottom: 10,
+              color: darkMode ? "#fff" : "#333"
+            }}
+            disabled={isLoading}
+          />
+          
+          {/* 녹음 파일 미리보기 */}
+          {recordingPreview && (
+            <div style={{
+              backgroundColor: darkMode ? "#444" : "#f5f5f5",
+              padding: "10px",
+              borderRadius: "8px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginTop: "10px"
+            }}>
+              <span style={{ 
+                color: darkMode ? "#fff" : "#333",
+                fontSize: "14px"
+              }}>
+                🎵 {recordingPreview}
+              </span>
+              <button
+                onClick={removeRecording}
+                style={{
+                  background: "rgba(255, 0, 0, 0.7)",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  padding: "4px 8px",
+                  cursor: "pointer",
+                  fontSize: "12px"
+                }}
+              >
+                제거
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+      
       {/* 옵션 선택 */}
       <div style={{ marginBottom: 24 }}>
         <label style={{ 
@@ -526,6 +650,7 @@ function WritePost({ darkMode }) {
                 case "song": nav("/songs"); break;
                 case "advice": nav("/advice"); break;
                 case "free": nav("/freeboard"); break;
+                case "recording": nav("/recordings"); break;
                 default: nav("/");
               }
             }

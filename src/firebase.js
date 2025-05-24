@@ -10,7 +10,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyAFnppMjf9K5Cv_ZrrC4PoE_sldORb_HGs",
   authDomain: "veryusduet.firebaseapp.com",
   projectId: "veryusduet",
-  storageBucket: "veryusduet.appspot.com",
+  storageBucket: "veryusduet.firebasestorage.app",
   messagingSenderId: "966196979262",
   appId: "1:966196979262:web:1d8a73f2d5af425bf7136f",
   measurementId: "G-95YH8RLKYP"
@@ -25,7 +25,7 @@ const db = getFirestore(app);
 // ✅ 로컬에서 실행 중이면 Firestore Emulator에 연결 (중요!)
 
 // Storage 연결
-const storage = getStorage(app, "gs://veryusduet.appspot.com");
+const storage = getStorage(app);
 
 // 인증 연결
 const auth = getAuth(app);

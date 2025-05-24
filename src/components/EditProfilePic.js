@@ -153,8 +153,13 @@ const saveProfilePicture = async () => {
       updatedAt: new Date()
     });
 
+    // 로컬 스토리지에 새 프로필 이미지 URL 저장 (임시)
+    localStorage.setItem(`profilePic_${nick}`, downloadURL);
+
     alert("프로필 사진이 성공적으로 변경되었습니다.");
-    navigate("/mypage");
+    
+    // 페이지를 새로고침하여 변경된 프로필을 반영
+    window.location.href = "/mypage";
 
   } catch (err) {
     console.error("프로필 사진 변경 오류:", err);

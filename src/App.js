@@ -9,19 +9,16 @@ import {
   onSnapshot, where
 } from "firebase/firestore";
 import { db } from './firebase';
-import logo from "./assets/logo.png";
 import EvaluatePage from "./pages/EvaluatePage";
 import AdminEvalPage from "./pages/AdminEvalPage";
-import AdminUserPage from "./pages/AdminUserPage";
 import Header from "./components/Header";
 import RequireAuth from "./components/RequireAuth";
 import Signup from "./components/Signup";
 import PostDetail from "./components/PostDetail";
-import { darkInputStyle, textareaStyle, purpleBtn, smallBtn, menuStyle, containerStyle, darkContainerStyle, titleStyle, inputStyle } from "./components/style";
+import { GradeProvider, useGrades } from "./contexts/GradeContext";
+import { purpleBtn } from "./components/style";
 
-import { DEFAULT_AVATAR } from "./components/style";
 import MyPage from "./components/MyPage";
-import SearchBar from "./components/SearchBar";
 import PostList from "./components/PostList";
 import SongPostList from "./components/SongPostList";
 import AdvicePostList from "./components/AdvicePostList";
@@ -29,7 +26,7 @@ import WritePost from "./components/WritePost";
 import FreePostList from "./components/FreePostList";
 import Login from "./components/Login";
 import EditPost from "./components/EditPost";
-import { CommentSystem, EditCommentPage } from "./components/CommentSystem";
+import { EditCommentPage } from "./components/CommentSystem";
 import NoticeList from "./components/NoticeList";
 import NoticeDetail from "./components/NoticeDetail";
 import WriteNotice from "./components/WriteNotice";
@@ -61,36 +58,27 @@ import NotFound from "./components/NotFound";
 import MainBoardList from "./components/MainBoardList";
 import ActivityHistory from "./components/ActivityHistory";
 import UserPage from "./components/UserPage";
+import MemberList from "./components/MemberList";
+import MyPosts from "./components/MyPosts";
+import MyComments from "./components/MyComments";
+import MyLikes from "./components/MyLikes";
+import NewAdminPanel from "./components/NewAdminPanel";
+import UploadRecording from "./components/UploadRecording";
+import RecordingBoard from "./components/RecordingBoard";
+import UserRecordings from "./components/UserRecordings";
+import RecordingComments from "./components/RecordingComments";
 
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { globalBackgroundStyle, darkGlobalBackgroundStyle, sectionContainerStyle, darkSectionContainerStyle } from './components/style';
 
-const menuItem = {
-  padding: "8px 12px",
-  cursor: "pointer",
-  borderRadius: 6,
-  fontSize: 14,
-  transition: "background 0.2s",
-  marginBottom: 4
-};
-
-function App() {
-
-  useEffect(() => {
-  const auth = getAuth();
-  const user = auth.currentUser;
-  if (user) {
-    console.log("🔥 현재 로그인된 UID:", user.uid);
-  }
-}, []);
-
+function AppContent() {
   const [dark, setDark] = useState(localStorage.getItem("darkMode") === "true");
-  const [pics, setPics] = useState({});
-  const [intros, setIntros] = useState({});
-  const [grades, setGrades] = useState({});
-  const [unread, setUnread] = useState(0);
+  const [userStats, setUserStats] = useState({});
   const nick = localStorage.getItem("nickname");
   const [role, setRole] = useState(localStorage.getItem("role") || "");
+  
+  // GradeContext에서 등급 정보 가져오기
+  const { grades, profilePics, introductions, setGrades } = useGrades();
 
   const toggleDark = () => {
     setDark(prev => {
@@ -99,16 +87,16 @@ function App() {
     });
   };
 
- useEffect(() => {
-  const auth = getAuth();
-  onAuthStateChanged(auth, (user) => {
-    if (user) {
-      console.log("🔥 현재 로그인된 UID:", user.uid);
-    } else {
-      console.log("❌ 로그인된 사용자가 없습니다.");
-    }
-  });
-}, []);
+  useEffect(() => {
+    const auth = getAuth();
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        console.log("🔥 현재 로그인된 UID:", user.uid);
+      } else {
+        console.log("❌ 로그인된 사용자가 없습니다.");
+      }
+    });
+  }, []);
 
   useEffect(() => {
     const nickname = localStorage.getItem("nickname");
@@ -128,27 +116,83 @@ function App() {
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, "users"), (snapshot) => {
-      const gradeMap = {};
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        if (data.nickname && data.grade) {
-          gradeMap[data.nickname] = data.grade;
-        }
-      });
-      setGrades(gradeMap);
-    });
-  
-    return () => unsubscribe();
-  }, []);
-  
   const logout = () => {
+    // 중복 실행 방지
+    if (window.logoutInProgress) return;
+    
     if (window.confirm("로그아웃 하시겠습니까?")) {
+      window.logoutInProgress = true;
       localStorage.removeItem("nickname");
-      window.location.href = "/login";
+      localStorage.removeItem("role");
+      localStorage.removeItem("autoLogin");
+      
+      setTimeout(() => {
+        window.logoutInProgress = false;
+        window.location.href = "/login";
+      }, 100);
     }
   };
+
+  // 사용자 통계 실시간 계산
+  useEffect(() => {
+    const calculateUserStats = async () => {
+      try {
+        const statsMap = {};
+        
+        // 모든 사용자 가져오기
+        const usersSnapshot = await getDocs(collection(db, "users"));
+        const userNicknames = usersSnapshot.docs.map(doc => doc.data().nickname).filter(Boolean);
+        
+        for (const nickname of userNicknames) {
+          // 게시물 수 계산 (모든 게시판)
+          const [duetPosts, freePosts, songPosts, advicePosts] = await Promise.all([
+            getDocs(query(collection(db, "posts"), where("nickname", "==", nickname))),
+            getDocs(query(collection(db, "freeposts"), where("nickname", "==", nickname))),
+            getDocs(query(collection(db, "songs"), where("nickname", "==", nickname))),
+            getDocs(query(collection(db, "advice"), where("nickname", "==", nickname)))
+          ]);
+          
+          const postCount = duetPosts.size + freePosts.size + songPosts.size + advicePosts.size;
+          
+          // 댓글 수 계산 (모든 댓글 컬렉션)
+          const commentCollections = await Promise.all([
+            getDocs(query(collection(db, "comments"), where("author", "==", nickname))),
+            getDocs(query(collection(db, "freecomments"), where("author", "==", nickname))),
+            getDocs(query(collection(db, "songcomments"), where("author", "==", nickname))),
+            getDocs(query(collection(db, "advicecomments"), where("author", "==", nickname)))
+          ]);
+          
+          const commentCount = commentCollections.reduce((total, collection) => total + collection.size, 0);
+          
+          // 방명록 방문자 수 계산
+          const guestbookSnapshot = await getDocs(collection(db, `guestbook-${nickname}`));
+          const visitorCount = guestbookSnapshot.size;
+          
+          // 받은 좋아요 수 계산 (추후 구현 가능)
+          const likesReceived = 0; // 임시값
+          
+          statsMap[nickname] = {
+            postCount,
+            commentCount,
+            likesReceived,
+            visitorCount
+          };
+        }
+        
+        setUserStats(statsMap);
+        console.log("사용자 통계 업데이트 완료:", Object.keys(statsMap).length, "명");
+      } catch (error) {
+        console.error("사용자 통계 계산 오류:", error);
+      }
+    };
+    
+    // 초기 계산
+    calculateUserStats();
+    
+    // 5분마다 통계 업데이트 (더 자주 업데이트)
+    const interval = setInterval(calculateUserStats, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <Router>
@@ -158,27 +202,29 @@ function App() {
           toggleDark={toggleDark}
           nick={nick}
           grades={grades}
-          unread={unread}
+          unread={0}
           logout={logout}
           purpleBtn={purpleBtn}
-          globalProfilePics={pics}
+          globalProfilePics={profilePics}
           role={role}
         />
         <div style={{
           maxWidth: "1200px",
           margin: "20px auto",
-          padding: "0 20px"
+          padding: "0 20px",
+          boxSizing: "border-box",
+          width: "100%"
         }}>
           <div style={dark ? darkSectionContainerStyle : sectionContainerStyle}>
             <Routes>
               <Route path="/" element={nick ? 
-                <><MainBoardList darkMode={dark} /><ActivityHistory darkMode={dark} /></> 
+                <><MainBoardList darkMode={dark} globalProfilePics={profilePics} globalGrades={grades} /><ActivityHistory darkMode={dark} /><MemberList darkMode={dark} /></> 
                 : <Login darkMode={dark} />} />
               <Route path="/login" element={<Login darkMode={dark} />} />
               <Route path="/signup" element={<Signup darkMode={dark} />} />
               <Route path="/write/:category" element={<RequireAuth><WritePost darkMode={dark} /></RequireAuth>} />
-              <Route path="/freeboard" element={<RequireAuth><FreePostList darkMode={dark} globalProfilePics={pics} globalGrades={grades} /></RequireAuth>} />
-              <Route path="/post/:type/:id" element={<RequireAuth><PostDetail darkMode={dark} globalProfilePics={pics} globalGrades={grades} /></RequireAuth>} />
+              <Route path="/freeboard" element={<RequireAuth><FreePostList darkMode={dark} globalProfilePics={profilePics} globalGrades={grades} /></RequireAuth>} />
+              <Route path="/post/:type/:id" element={<RequireAuth><PostDetail darkMode={dark} globalProfilePics={profilePics} globalGrades={grades} /></RequireAuth>} />
               <Route path="/edit/:type/:id" element={<RequireAuth><EditPost darkMode={dark} /></RequireAuth>} />
               <Route path="/comment-edit/:type/:postId/:commentId" element={<RequireAuth><EditCommentPage darkMode={dark} /></RequireAuth>} />
               <Route path="/notice" element={<RequireAuth><WriteNotice darkMode={dark} /></RequireAuth>} />
@@ -192,33 +238,45 @@ function App() {
               <Route path="/edit-nickname" element={<RequireAuth><EditNickname darkMode={dark} /></RequireAuth>} />
               <Route path="/edit-password" element={<RequireAuth><EditPassword darkMode={dark} /></RequireAuth>} />
               <Route path="/delete-account" element={<RequireAuth><DeleteAccount darkMode={dark} /></RequireAuth>} />
-              <Route path="/inbox" element={<RequireAuth><MessageBox darkMode={dark} mode="inbox" /></RequireAuth>} />
-              <Route path="/outbox" element={<RequireAuth><MessageBox darkMode={dark} mode="outbox" /></RequireAuth>} />
-              <Route path="/send-message/:receiverNickname" element={<RequireAuth><SendMessage darkMode={dark} /></RequireAuth>} />
+              <Route path="/inbox" element={<RequireAuth><MessageBox darkMode={dark} /></RequireAuth>} />
+              <Route path="/messages" element={<RequireAuth><MessageBox darkMode={dark} /></RequireAuth>} />
+              <Route path="/send-message/:nickname" element={<RequireAuth><SendMessage darkMode={dark} /></RequireAuth>} />
               <Route path="/send-notification" element={<RequireAuth><SendNotification darkMode={dark} /></RequireAuth>} />
               <Route path="/notification" element={<RequireAuth><Notification darkMode={dark} /></RequireAuth>} />
               <Route path="/admin" element={<RequireAuth><AdminPanel darkMode={dark} /></RequireAuth>} />
               <Route path="/stats" element={<RequireAuth><StatsPage darkMode={dark} /></RequireAuth>} />
               <Route path="/popular" element={<RequireAuth><PopularPosts darkMode={dark} /></RequireAuth>} />
-              <Route path="/mypage" element={<RequireAuth><MyPage darkMode={dark} globalProfilePics={pics} globalIntroductions={intros} globalGrades={grades} /></RequireAuth>} />
-              <Route path="/duet" element={<RequireAuth><PostList darkMode={dark} globalProfilePics={pics} globalGrades={grades} /></RequireAuth>} />
-              <Route path="/songs" element={<RequireAuth><SongPostList darkMode={dark} globalProfilePics={pics} globalGrades={grades} /></RequireAuth>} />
-              <Route path="/advice" element={<RequireAuth><AdvicePostList darkMode={dark} globalProfilePics={pics} globalGrades={grades} /></RequireAuth>} />
-              <Route path="/userpage/:nickname" element={<RequireAuth><UserPage darkMode={dark} globalProfilePics={pics} globalIntroductions={intros} globalGrades={grades} /></RequireAuth>} />
+              <Route path="/mypage" element={<RequireAuth><MyPage darkMode={dark} userStats={userStats} /></RequireAuth>} />
+              <Route path="/duet" element={<RequireAuth><PostList darkMode={dark} globalProfilePics={profilePics} globalGrades={grades} /></RequireAuth>} />
+              <Route path="/songs" element={<RequireAuth><SongPostList darkMode={dark} globalProfilePics={profilePics} globalGrades={grades} /></RequireAuth>} />
+              <Route path="/advice" element={<RequireAuth><AdvicePostList darkMode={dark} globalProfilePics={profilePics} globalGrades={grades} /></RequireAuth>} />
+              <Route path="/userpage/:nickname" element={<RequireAuth><UserPage darkMode={dark} globalProfilePics={profilePics} globalIntroductions={introductions} globalGrades={grades} /></RequireAuth>} />
+              <Route path="/my-posts" element={<RequireAuth><MyPosts darkMode={dark} /></RequireAuth>} />
+              <Route path="/my-comments" element={<RequireAuth><MyComments darkMode={dark} /></RequireAuth>} />
               <Route path="/edit-entry/:entryId" element={<RequireAuth><EditEntry darkMode={dark} /></RequireAuth>} />
+              <Route path="/my-likes" element={<RequireAuth><MyLikes darkMode={dark} /></RequireAuth>} />
               <Route path="*" element={<NotFound darkMode={dark} />} />
               <Route path="/evaluate" element={<RequireAuth><EvaluatePage darkMode={dark} /></RequireAuth>} />
               <Route path="/admin-eval" element={<RequireAuth><AdminEvalPage darkMode={dark} /></RequireAuth>} />
-              <Route path="/admin-user" element={
-                (role === "운영진" || role === "리더" || localStorage.getItem("nickname") === "너래")
-                  ? <AdminUserPage darkMode={dark} globalGrades={grades} setGrades={setGrades} />
-                  : <div style={{ padding: "2rem", textAlign: "center" }}>⛔ 접근 권한이 없습니다.</div>
-              } />
+              <Route path="/new-admin-panel" element={<RequireAuth><NewAdminPanel darkMode={dark} /></RequireAuth>} />
+              <Route path="/upload-recording" element={<RequireAuth><UploadRecording darkMode={dark} /></RequireAuth>} />
+              <Route path="/recordings" element={<RequireAuth><RecordingBoard darkMode={dark} globalProfilePics={profilePics} globalGrades={grades} /></RequireAuth>} />
+              <Route path="/recording-board" element={<RequireAuth><RecordingBoard darkMode={dark} globalProfilePics={profilePics} globalGrades={grades} /></RequireAuth>} />
+              <Route path="/user-recordings/:nickname" element={<RequireAuth><UserRecordings darkMode={dark} globalProfilePics={profilePics} globalGrades={grades} /></RequireAuth>} />
+              <Route path="/recording-comments/:recordingId" element={<RequireAuth><RecordingComments darkMode={dark} /></RequireAuth>} />
             </Routes>
           </div>
         </div>
       </div>
     </Router>
+  );
+}
+
+function App() {
+  return (
+    <GradeProvider>
+      <AppContent />
+    </GradeProvider>
   );
 }
 

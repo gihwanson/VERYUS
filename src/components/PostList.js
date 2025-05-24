@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import PropTypes from "prop-types";
 import {
-  collection, query, orderBy, onSnapshot, getDocs, limit
+  collection, query, orderBy, onSnapshot, getDocs, limit, startAfter, addDoc, Timestamp
 } from "firebase/firestore";
 import { db } from "../firebase";
 import SearchBar from "./SearchBar";
@@ -27,7 +27,11 @@ const gradeEmojis = {
   "수박": "🍉",
   "지구": "🌏",
   "토성": "🪐",
-  "태양": "🌞"
+  "태양": "🌞",
+  "맥주": "🍺",
+  "번개": "⚡",
+  "달": "🌙",
+  "별": "⭐"
 };
 
 function PostList({ darkMode, globalProfilePics, globalGrades }) {
@@ -37,7 +41,9 @@ function PostList({ darkMode, globalProfilePics, globalGrades }) {
   const [sortType, setSortType] = useState("newest"); // newest, popular, comments
   const [filterType, setFilterType] = useState("all"); // all, recruiting, completed
   const [loading, setLoading] = useState(true); // 로딩 상태 추가
-  const [visiblePosts, setVisiblePosts] = useState(10); // 초기에 보여줄 게시글 수
+  const [loadingMore, setLoadingMore] = useState(false); // 추가 로딩 상태
+  const [hasMore, setHasMore] = useState(true); // 더 불러올 게시글이 있는지
+  const [lastVisible, setLastVisible] = useState(null); // 마지막으로 불러온 문서
   const me = localStorage.getItem("nickname");
   const nav = useNavigate();
 
@@ -54,63 +60,107 @@ function PostList({ darkMode, globalProfilePics, globalGrades }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // 게시글 및 댓글 수 가져오기 - 최적화
+  // 초기 게시글 가져오기
   useEffect(() => {
     if (!me) return;
     
     setLoading(true);
     
-    // 초기에는 최근 게시글 20개만 가져옴 (성능 최적화)
+    // 초기에는 최근 게시글 15개만 가져옴
     const q = query(
       collection(db, "posts"), 
       orderBy("createdAt", "desc"),
-      limit(20)
+      limit(15)
     );
     
     const unsubscribe = onSnapshot(q, s => {
-      const arr = s.docs.map(d => ({ id: d.id, ...d.data() }));
-      setPosts(arr);
-      setLoading(false);
-      
-      // 댓글 수 가져오기를 일괄 처리
-      const postIds = arr.map(p => p.id);
-      const fetchCommentCounts = async () => {
-        const commentCounts = {};
+      if (s.docs.length > 0) {
+        const arr = s.docs.map(d => ({ id: d.id, ...d.data() }));
+        setPosts(arr);
+        setLastVisible(s.docs[s.docs.length - 1]);
+        setHasMore(s.docs.length === 15); // 15개 미만이면 더 이상 없음
+        setLoading(false);
         
-        for (const postId of postIds) {
-          if (!(postId in cCnt)) {
-            const commentSnap = await getDocs(collection(db, `post-${postId}-comments`));
-            commentCounts[postId] = commentSnap.size;
-          }
-        }
-        
-        if (Object.keys(commentCounts).length > 0) {
-          setCCnt(prevCounts => ({ ...prevCounts, ...commentCounts }));
-        }
-      };
-      
-      fetchCommentCounts();
+        // 댓글 수 가져오기
+        const postIds = arr.map(p => p.id);
+        fetchCommentCounts(postIds);
+      } else {
+        setPosts([]);
+        setHasMore(false);
+        setLoading(false);
+      }
     });
     
     return unsubscribe;
   }, [me]);
 
+  // 댓글 수 가져오기 함수
+  const fetchCommentCounts = async (postIds) => {
+    const commentCounts = {};
+    
+    for (const postId of postIds) {
+      if (!(postId in cCnt)) {
+        const commentSnap = await getDocs(collection(db, `post-${postId}-comments`));
+        commentCounts[postId] = commentSnap.size;
+      }
+    }
+    
+    if (Object.keys(commentCounts).length > 0) {
+      setCCnt(prevCounts => ({ ...prevCounts, ...commentCounts }));
+    }
+  };
+
   // 더 많은 게시글 로드 (무한 스크롤)
-  const loadMorePosts = useCallback(() => {
-    setVisiblePosts(prev => prev + 10);
-  }, []);
+  const loadMorePosts = useCallback(async () => {
+    if (!hasMore || loadingMore || !lastVisible) return;
+    
+    setLoadingMore(true);
+    
+    try {
+      const q = query(
+        collection(db, "posts"),
+        orderBy("createdAt", "desc"),
+        startAfter(lastVisible),
+        limit(10)
+      );
+      
+      const snapshot = await getDocs(q);
+      
+      if (snapshot.docs.length > 0) {
+        const newPosts = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        setPosts(prevPosts => [...prevPosts, ...newPosts]);
+        setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+        setHasMore(snapshot.docs.length === 10); // 10개 미만이면 더 이상 없음
+        
+        // 새 게시글들의 댓글 수 가져오기
+        const newPostIds = newPosts.map(p => p.id);
+        await fetchCommentCounts(newPostIds);
+      } else {
+        setHasMore(false);
+      }
+    } catch (error) {
+      console.error("추가 게시글 로드 오류:", error);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [hasMore, loadingMore, lastVisible, cCnt]);
 
   // 스크롤 이벤트 처리 (무한 스크롤)
   useEffect(() => {
     const handleScroll = () => {
-      if (window.innerHeight + document.documentElement.scrollTop >= document.documentElement.scrollHeight - 300) {
+      if (
+        hasMore && 
+        !loadingMore && 
+        window.innerHeight + document.documentElement.scrollTop >= 
+        document.documentElement.scrollHeight - 300
+      ) {
         loadMorePosts();
       }
     };
     
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [loadMorePosts]);
+  }, [loadMorePosts, hasMore, loadingMore]);
 
   // 검색어로 필터링 및 정렬
   const filtered = posts.filter(p => {
@@ -138,7 +188,7 @@ function PostList({ darkMode, globalProfilePics, globalGrades }) {
   });
 
   // 현재 보여줄 게시글 (무한 스크롤용)
-  const currentPosts = sortedPosts.slice(0, visiblePosts);
+  const currentPosts = sortedPosts.slice(0, posts.length);
 
   // 상대 시간 표시 함수
   const getRelativeTime = (timestamp) => {
@@ -383,6 +433,40 @@ function PostList({ darkMode, globalProfilePics, globalGrades }) {
     fontSize: "24px"
   };
 
+  // 쪽지 보내기 함수
+  const sendMessage = async (receiverNickname, postTitle) => {
+    if (!me) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
+    
+    if (me === receiverNickname) {
+      alert("자신에게는 쪽지를 보낼 수 없습니다.");
+      return;
+    }
+    
+    const messageContent = prompt(`${receiverNickname}님에게 보낼 메시지를 입력하세요:`);
+    if (!messageContent || !messageContent.trim()) {
+      return;
+    }
+    
+    try {
+      await addDoc(collection(db, "messages"), {
+        senderNickname: me,
+        receiverNickname: receiverNickname,
+        content: messageContent.trim(),
+        createdAt: Timestamp.now(),
+        read: false,
+        relatedPostTitle: postTitle
+      });
+      
+      alert("쪽지가 전송되었습니다.");
+    } catch (error) {
+      console.error("쪽지 전송 오류:", error);
+      alert("쪽지 전송 중 오류가 발생했습니다.");
+    }
+  };
+
   return (
     <div style={pageContainer}>
       <div style={headerStyle}>
@@ -539,6 +623,39 @@ function PostList({ darkMode, globalProfilePics, globalGrades }) {
             더 보기 ({currentPosts.length}/{sortedPosts.length})
           </button>
         )}
+        
+        {/* 추가 로딩 중일 때 표시 */}
+        {loadingMore && (
+          <div style={{ 
+            textAlign: "center", 
+            padding: "20px",
+            color: "#666"
+          }}>
+            <div style={{
+              display: "inline-block",
+              width: "20px",
+              height: "20px",
+              border: "3px solid #f3f3f3",
+              borderTop: "3px solid #8e5bd4",
+              borderRadius: "50%",
+              animation: "spin 1s linear infinite"
+            }}></div>
+            <p style={{ margin: "10px 0 0 0" }}>더 많은 게시글을 불러오는 중...</p>
+          </div>
+        )}
+        
+        {/* 더 불러올 게시글이 없을 때 표시 */}
+        {!loading && !loadingMore && !hasMore && posts.length > 0 && (
+          <div style={{ 
+            textAlign: "center", 
+            padding: "20px",
+            color: "#666",
+            borderTop: "1px solid #e0e0e0",
+            marginTop: "20px"
+          }}>
+            <p style={{ margin: 0 }}>📄 모든 게시글을 확인했습니다</p>
+          </div>
+        )}
       </div>
       
       {/* 모바일에서만 플로팅 글쓰기 버튼 표시 */}
@@ -551,6 +668,14 @@ function PostList({ darkMode, globalProfilePics, globalGrades }) {
           ✏️
         </button>
       )}
+      
+      {/* 애니메이션 스타일 추가 */}
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }
