@@ -205,7 +205,7 @@ else if (role === "운영진" || role === "리더" || role === "부운영진") {
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
-      padding: isMobile ? "10px 15px" : "10px 20px",
+      padding: isMobile ? "8px 12px" : "10px 20px",
       backgroundColor: dark 
         ? (scrolled ? "rgba(89, 61, 135, 0.98)" : "rgba(89, 61, 135, 0.95)") 
         : (scrolled ? "rgba(126, 87, 194, 0.98)" : "rgba(126, 87, 194, 0.95)"),
@@ -215,7 +215,8 @@ else if (role === "운영진" || role === "리더" || role === "부운영진") {
       top: 0,
       zIndex: 100,
       transition: "all 0.3s ease",
-      color: "#fff"
+      color: "#fff",
+      minHeight: isMobile ? "56px" : "64px"
     }}>
       {/* 애니메이션 키프레임 */}
       <style>{`
@@ -275,6 +276,15 @@ else if (role === "운영진" || role === "리더" || role === "부운영진") {
         div[role="menu"]::-webkit-scrollbar-thumb:hover {
           background: ${dark ? "#777" : "#999"};
         }
+        
+        /* 모바일 터치 최적화 */
+        @media (max-width: 768px) {
+          .menu-item {
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+          }
+        }
       `}</style>
       
       {/* 왼쪽: 로고 */}
@@ -292,7 +302,7 @@ else if (role === "운영진" || role === "리더" || role === "부운영진") {
             src={logo} 
             alt="Veryus 로고" 
             style={{ 
-              height: isMobile ? 60 : 70,
+              height: isMobile ? 48 : 70,
               transition: "all 0.3s ease"
             }} 
           />
@@ -304,7 +314,7 @@ else if (role === "운영진" || role === "리더" || role === "부운영진") {
   <nav style={{
     display: "flex",
     alignItems: "center",
-    gap: "10px",
+    gap: "8px",
     margin: "0 auto",
     padding: "0 20px",
     maxWidth: "60%",
@@ -320,7 +330,7 @@ else if (role === "운영진" || role === "리더" || role === "부운영진") {
         to={item.path}
         style={{
           padding: "8px 12px",
-          borderRadius: "4px",
+          borderRadius: "6px",
           textDecoration: "none",
           color: isActive(item.path) ? "#ffffff" : "rgba(255, 255, 255, 0.85)",
           fontWeight: isActive(item.path) ? "bold" : "normal",
@@ -333,12 +343,21 @@ else if (role === "운영진" || role === "리더" || role === "부운영진") {
           gap: "5px",
           flexShrink: 0,
           position: "relative",
-          "&:hover": {
-            backgroundColor: "rgba(255, 255, 255, 0.1)",
-            color: "#ffffff"
-          }
+          fontSize: "14px"
         }}
         aria-current={isActive(item.path) ? "page" : undefined}
+        onMouseEnter={(e) => {
+          if (!isActive(item.path)) {
+            e.target.style.backgroundColor = "rgba(255, 255, 255, 0.1)";
+            e.target.style.color = "#ffffff";
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isActive(item.path)) {
+            e.target.style.backgroundColor = "transparent";
+            e.target.style.color = "rgba(255, 255, 255, 0.85)";
+          }
+        }}
       >
         <span>{item.icon}</span>
         <span>{item.label}</span>

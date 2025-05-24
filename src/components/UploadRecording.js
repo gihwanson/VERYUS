@@ -118,16 +118,18 @@ function UploadRecording({ darkMode }) {
               console.log("다운로드 URL 획득:", downloadURL);
               
               // 업로드 목적지에 따라 다른 컬렉션에 저장
-              const collectionName = uploadDestination === "mypage" ? 'mypage_recordings' : (uploadDestination === "board" ? 'recordings' : null);
+              const collectionName = uploadDestination === "mypage" ? 'mypage_recordings' : 'recordings';
               
               const docData = {
                 title: title.trim(),
                 content: description.trim(),
+                description: description.trim(), // 녹음게시판 호환성을 위해 추가
                 fileName: file.name,
                 fileSize: file.size,
                 fileType: file.type,
-                recordingURL: downloadURL, // 녹음게시판 호환을 위해 recordingURL 사용
-                nickname: currentUser, // 녹음게시판 호환을 위해 nickname 사용
+                recordingURL: downloadURL, // 녹음게시판에서 사용하는 필드명
+                downloadURL: downloadURL, // 마이페이지에서 사용하는 필드명
+                nickname: currentUser,
                 uploaderNickname: currentUser,
                 createdAt: Timestamp.now(),
                 likes: 0,
@@ -137,11 +139,6 @@ function UploadRecording({ darkMode }) {
                 isPrivate: !isPublic
               };
               
-              // 녹음게시판용 추가 필드
-              if (uploadDestination === "board") {
-                docData.description = description.trim();
-              }
-
               await addDoc(collection(db, collectionName), docData);
               
               alert('녹음 파일이 성공적으로 업로드되었습니다!');
