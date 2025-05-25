@@ -120,7 +120,7 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
     fetchPosts("freeposts", "free");
     fetchPosts("songs", "song");
     fetchPosts("advice", "advice");
-    fetchPosts("mypage_recordings", "recording");
+    fetchPosts("recordings", "recording");
     fetchPosts("special_moments", "specialMoments");
   }, []);
   
@@ -137,7 +137,7 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
           { name: "freeposts", type: "free" },
           { name: "songs", type: "song" },
           { name: "advice", type: "advice" },
-          { name: "mypage_recordings", type: "recording" },
+          { name: "recordings", type: "recording" },
           { name: "special_moments", type: "specialMoments" }
         ];
 
@@ -186,11 +186,11 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
           allHotPosts = [...allHotPosts, ...posts];
         }
 
-        // 좋아요 수 + 댓글 수로 정렬하고 상위 3개 선택 (가중치: 좋아요 1, 댓글 1.5)
+        // 좋아요 수 + 댓글 수 + 조회수로 정렬하고 상위 3개 선택 (가중치: 좋아요 1, 댓글 1.5, 조회수 0.1)
         const sortedHotPosts = allHotPosts
           .sort((a, b) => {
-            const scoreA = (a.likeCount || 0) + (a.commentCount || 0) * 1.5;
-            const scoreB = (b.likeCount || 0) + (b.commentCount || 0) * 1.5;
+            const scoreA = (a.likes || 0) + (a.commentCount || 0) * 1.5 + (a.viewCount || 0) * 0.1;
+            const scoreB = (b.likes || 0) + (b.commentCount || 0) * 1.5 + (b.viewCount || 0) * 0.1;
             return scoreB - scoreA;
           })
           .slice(0, 3);
@@ -311,7 +311,7 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
       hoverLight: "#e8dbff",
       hoverDark: "#4a3a6a",
       route: "/recordings",
-      postRoute: "/post/recording"
+      postRoute: "/recording-comments"
     },
     score: {
       title: "🏆 콘테스트",

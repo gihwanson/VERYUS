@@ -18,11 +18,12 @@ function UploadRecording({ darkMode }) {
   const currentUser = localStorage.getItem("nickname");
   
   // URL 경로에 따라 업로드 목적지 결정
-  const isForRecordingBoard = location.pathname === "/upload-recording";
-  const isFromMyPage = location.state?.from === "mypage" || location.pathname.includes("mypage");
+  const isFromMyPage = location.state?.from === "mypage" || 
+                      location.pathname.includes("mypage") || 
+                      location.search.includes("from=mypage");
   
-  // 실제 업로드 목적지 결정
-  const uploadDestination = isFromMyPage ? "mypage" : (isForRecordingBoard ? "board" : "mypage");
+  // 실제 업로드 목적지 결정 - 마이페이지에서 온 경우에만 마이페이지에 저장
+  const uploadDestination = isFromMyPage ? "mypage" : "board";
   
   // Firebase Auth 상태 확인 및 익명 로그인
   const ensureAuthenticated = async () => {
@@ -147,7 +148,7 @@ function UploadRecording({ darkMode }) {
               if (uploadDestination === "mypage") {
                 navigate('/mypage');
               } else if (uploadDestination === "board") {
-                navigate('/recording-board');
+                navigate('/recordings');
               }
               
               resolve();
@@ -375,7 +376,13 @@ function UploadRecording({ darkMode }) {
           {isUploading ? "업로드 중..." : "업로드"}
         </button>
         <button
-          onClick={() => navigate('/mypage')}
+          onClick={() => {
+            if (uploadDestination === "mypage") {
+              navigate('/mypage');
+            } else {
+              navigate('/recordings');
+            }
+          }}
           style={cancelButtonStyle}
           disabled={isUploading}
         >

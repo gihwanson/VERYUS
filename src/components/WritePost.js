@@ -23,6 +23,8 @@ function WritePost({ darkMode }) {
   const [characterCount, setCharacterCount] = useState(0);
   const [recordingFile, setRecordingFile] = useState(null);
   const [recordingPreview, setRecordingPreview] = useState("");
+  const [videoFile, setVideoFile] = useState(null);
+  const [videoPreview, setVideoPreview] = useState("");
   const [isNotice, setIsNotice] = useState(false);
   const nav = useNavigate();
   
@@ -262,6 +264,49 @@ function WritePost({ darkMode }) {
     return downloadUrl;
   };
   
+  // 영상 파일 처리 함수
+  const handleVideoUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // 비디오 파일 형식 체크
+    if (!file.type.startsWith('video/')) {
+      alert('비디오 파일만 업로드 가능합니다.');
+      return;
+    }
+
+    // 파일 크기 체크 (100MB 이하)
+    if (file.size > 100 * 1024 * 1024) {
+      alert('영상 파일 크기는 100MB를 초과할 수 없습니다.');
+      return;
+    }
+
+    setVideoFile(file);
+    setVideoPreview(file.name);
+  };
+
+  // 영상 파일 제거
+  const removeVideo = () => {
+    setVideoFile(null);
+    setVideoPreview("");
+  };
+
+  // 영상 파일 업로드 및 URL 획득
+  const uploadVideo = async () => {
+    if (!videoFile) return null;
+
+    const timestamp = new Date().getTime();
+    const fileExtension = videoFile.name.split('.').pop().toLowerCase();
+    const safeFileName = `${nick}_${timestamp}_video.${fileExtension}`;
+    const filePath = `videos/${safeFileName}`;
+
+    const storageRef = ref(storage, filePath);
+    await uploadBytes(storageRef, videoFile);
+    const downloadUrl = await getDownloadURL(storageRef);
+    
+    return downloadUrl;
+  };
+
   // 폼 유효성 검사
   const validateForm = () => {
     if (!title.trim()) {
@@ -325,6 +370,9 @@ function WritePost({ darkMode }) {
       // 녹음 파일 업로드
       const recordingUrl = await uploadRecording();
       
+      // 영상 파일 업로드
+      const videoUrl = await uploadVideo();
+      
       // 게시글 데이터 저장 (nickname 필드 확실히 추가)
       await addDoc(collection(db, getCollectionName()), {
         nickname: nick,
@@ -339,6 +387,7 @@ function WritePost({ darkMode }) {
         category: selectedCategory,
         images: imageUrls,
         recordingUrl: recordingUrl,
+        videoUrl: videoUrl,
         viewCount: 0,
         commentCount: 0,
         lastUpdated: serverTimestamp(),
@@ -558,6 +607,65 @@ function WritePost({ darkMode }) {
         )}
       </div>
       
+      {/* 영상 파일 첨부 (special-moments 카테고리일 때만 표시) */}
+      {category === "special-moments" && (
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ 
+            display: "block", 
+            marginBottom: 8, 
+            fontSize: 16,
+            color: darkMode ? "#fff" : "#333"
+          }}>
+            영상 파일 첨부 (최대 1개, 100MB 이하)
+          </label>
+          <input
+            type="file"
+            accept="video/*"
+            onChange={handleVideoUpload}
+            style={{ 
+              display: "block", 
+              marginBottom: 10,
+              color: darkMode ? "#fff" : "#333"
+            }}
+            disabled={isLoading}
+          />
+          
+          {/* 영상 파일 미리보기 */}
+          {videoPreview && (
+            <div style={{
+              backgroundColor: darkMode ? "#444" : "#f5f5f5",
+              padding: "10px",
+              borderRadius: "8px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginTop: "10px"
+            }}>
+              <span style={{ 
+                color: darkMode ? "#fff" : "#333",
+                fontSize: "14px"
+              }}>
+                🎬 {videoPreview}
+              </span>
+              <button
+                onClick={removeVideo}
+                style={{
+                  background: "rgba(255, 0, 0, 0.7)",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  padding: "4px 8px",
+                  cursor: "pointer",
+                  fontSize: "12px"
+                }}
+              >
+                제거
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* 녹음 파일 첨부 (recording 카테고리일 때만 표시) */}
       {category === "recording" && (
         <div style={{ marginBottom: 20 }}>

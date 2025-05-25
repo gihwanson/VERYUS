@@ -227,7 +227,7 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
       : type === "advice"
       ? "advice"
       : type === "recording"
-      ? "mypage_recordings"
+      ? "recordings"
       : type === "special-moment"
       ? "special_moments"
       : "posts"; // 기본값
@@ -401,7 +401,9 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
         <div style={authorBox}>
           {profileUrl && <img src={profileUrl} alt="프로필" style={profilePicStyle} />}
           <div>
-            <strong>{author}</strong>
+            <Link to={`/userpage/${post.nickname}`} style={{ textDecoration: "none" }}>
+              <strong style={{ color: darkMode ? "#e0e0e0" : "#333", cursor: "pointer" }}>{author}</strong>
+            </Link>
             {grade && <span style={{ marginLeft: 6, color: darkMode ? "#bb86fc" : "#7e57c2" }}>({getGradeEmoji(grade)})</span>}
           </div>
         </div>
@@ -517,6 +519,52 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
               <source src={post.recordingUrl || post.recordingURL || post.downloadURL} type="audio/ogg" />
               브라우저가 오디오 재생을 지원하지 않습니다.
             </audio>
+          </div>
+        )}
+
+        {/* 영상 파일 표시 */}
+        {post.videoUrl && (
+          <div style={{
+            backgroundColor: darkMode ? "#333" : "#f8f4ff",
+            padding: "15px",
+            borderRadius: "10px",
+            marginTop: "15px",
+            border: `2px solid ${darkMode ? "#7e57c2" : "#e8dbff"}`
+          }}>
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              color: darkMode ? "#bb86fc" : "#7e57c2",
+              fontSize: "16px",
+              fontWeight: "bold",
+              marginBottom: "10px"
+            }}>
+              🎬 영상 파일
+            </div>
+            <video 
+              controls 
+              style={{ 
+                width: "100%",
+                maxHeight: "400px",
+                borderRadius: "8px",
+                outline: "none"
+              }}
+              preload="metadata"
+            >
+              <source src={post.videoUrl} type="video/mp4" />
+              <source src={post.videoUrl} type="video/webm" />
+              <source src={post.videoUrl} type="video/ogg" />
+              브라우저가 비디오 재생을 지원하지 않습니다.
+            </video>
+            <p style={{
+              fontSize: "12px",
+              color: darkMode ? "#aaa" : "#666",
+              marginTop: "8px",
+              fontStyle: "italic"
+            }}>
+              💡 영상을 클릭하여 재생/일시정지할 수 있습니다
+            </p>
           </div>
         )}
 
@@ -944,7 +992,11 @@ function CommentItem({ comment, type, postId, darkMode, me, postOwner, postTitle
       <div style={canView ? commentBoxStyle : secretCommentBoxStyle}>
         <div style={commentHeaderStyle}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <strong>{comment.nickname || "알 수 없음"}</strong>
+            <Link to={`/userpage/${comment.nickname}`} style={{ textDecoration: "none" }}>
+              <strong style={{ color: darkMode ? "#bb86fc" : "#7e57c2", cursor: "pointer" }}>
+                {comment.nickname || "알 수 없음"}
+              </strong>
+            </Link>
             {comment.isPrivate && <span style={{ fontSize: 14, color: "#e67e22" }}>🔒</span>}
           </div>
           <span style={{ fontSize: 12, color: darkMode ? "#aaa" : "#666" }}>
@@ -1174,7 +1226,11 @@ function ReplyItem({ reply, type, postId, darkMode, me, postOwner, postTitle }) 
     <div style={replyItemStyle}>
       <div style={replyHeaderStyle}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <strong>{reply.nickname || "알 수 없음"}</strong>
+          <Link to={`/userpage/${reply.nickname}`} style={{ textDecoration: "none" }}>
+            <strong style={{ color: darkMode ? "#bb86fc" : "#7e57c2", cursor: "pointer" }}>
+              {reply.nickname || "알 수 없음"}
+            </strong>
+          </Link>
           {reply.isPrivate && <span style={{ fontSize: 14, color: "#e67e22" }}>🔒</span>}
         </div>
         <span style={{ fontSize: 12, color: darkMode ? "#aaa" : "#666" }}>

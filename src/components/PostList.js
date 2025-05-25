@@ -640,8 +640,8 @@ function PostList({ darkMode, globalProfilePics, globalGrades }) {
                     {(cCnt[p.id] ?? 0)}
                   </span>
                   <span style={statItemStyle}>
-                    <span role="img" aria-label="report" style={{ marginRight: "3px" }}>🚨</span> 
-                    {p.reports || 0}
+                    <span role="img" aria-label="views" style={{ marginRight: "3px" }}>👁️</span> 
+                    {p.viewCount || 0}
                   </span>
                 </div>
                 
