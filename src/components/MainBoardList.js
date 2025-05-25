@@ -17,8 +17,7 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
     score: { items: [], loading: true, error: null }
   });
   
-  const [contests, setContests] = useState([]);
-  const [contestsLoading, setContestsLoading] = useState(true);
+
   
   // ref 객체를 사용하여 직접 DOM에 접근할 링크 참조 생성
   const linkRefs = useRef({});
@@ -94,28 +93,7 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
       }
     };
 
-    // 콘테스트 데이터 가져오기
-    const fetchContests = async () => {
-      try {
-        const q = query(
-          collection(db, "contests"),
-          orderBy("createdAt", "desc"),
-          limit(3)
-        );
-        
-        const snapshot = await getDocs(q);
-        const contestsData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        
-        setContests(contestsData);
-      } catch (error) {
-        console.error("콘테스트 데이터 로딩 오류:", error);
-      } finally {
-        setContestsLoading(false);
-      }
-    };
+
 
     // 각 게시판의 데이터 가져오기
     fetchPosts("posts", "duet");
@@ -123,8 +101,6 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
     fetchPosts("songs", "song");
     fetchPosts("advice", "advice");
     fetchPosts("recordings", "recording");
-    fetchPosts("scores", "score");
-    fetchContests();
   }, []);
   
   useEffect(() => {
@@ -153,11 +129,30 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
           );
 
           const snapshot = await getDocs(q);
-          const posts = snapshot.docs.map(doc => ({
-            id: doc.id,
-            type: col.type,
-            ...doc.data(),
-            likeCount: doc.data().likes ? Object.keys(doc.data().likes).length : 0
+          const posts = await Promise.all(snapshot.docs.map(async (doc) => {
+            const postData = {
+              id: doc.id,
+              type: col.type,
+              ...doc.data(),
+              likeCount: doc.data().likes ? Object.keys(doc.data().likes).length : 0
+            };
+
+            // 댓글 수 가져오기
+            try {
+              const commentCollectionName = commentCollectionMap[col.type];
+              if (commentCollectionName) {
+                const commentRef = collection(db, `${commentCollectionName}-${doc.id}-comments`);
+                const commentSnapshot = await getDocs(commentRef);
+                postData.commentCount = commentSnapshot.size;
+              } else {
+                postData.commentCount = 0;
+              }
+            } catch (error) {
+              console.error(`댓글 수 가져오기 오류 (${doc.id}):`, error);
+              postData.commentCount = 0;
+            }
+
+            return postData;
           }));
 
           allHotPosts = [...allHotPosts, ...posts];
@@ -291,31 +286,38 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
   };
   
   // 기본 카드 스타일
-  const getCardStyle = (boardType, isHovering) => ({
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 20,
-    boxShadow: isHovering 
-      ? `0 4px 15px rgba(0,0,0,${darkMode ? 0.3 : 0.15})` 
-      : `0 2px 8px rgba(0,0,0,${darkMode ? 0.25 : 0.1})`,
-    textDecoration: "none",
-    display: "block",
-    background: isHovering 
-      ? (darkMode ? boardInfo[boardType].hoverDark : boardInfo[boardType].hoverLight)
-      : (darkMode ? boardInfo[boardType].bgDark : boardInfo[boardType].bgLight),
-    color: darkMode ? "#fff" : "#333",
-    transition: "all 0.3s ease",
-    transform: isHovering ? "translateY(-3px)" : "translateY(0)"
-  });
+  const getCardStyle = (boardType, isHovering) => {
+    const isMobile = window.innerWidth <= 768;
+    return {
+      padding: isMobile ? 15 : 20,
+      borderRadius: isMobile ? 8 : 12,
+      marginBottom: isMobile ? 10 : 20,
+      boxShadow: isHovering 
+        ? `0 4px 15px rgba(0,0,0,${darkMode ? 0.3 : 0.15})` 
+        : `0 2px 8px rgba(0,0,0,${darkMode ? 0.25 : 0.1})`,
+      textDecoration: "none",
+      display: "block",
+      background: isHovering 
+        ? (darkMode ? boardInfo[boardType].hoverDark : boardInfo[boardType].hoverLight)
+        : (darkMode ? boardInfo[boardType].bgDark : boardInfo[boardType].bgLight),
+      color: darkMode ? "#fff" : "#333",
+      transition: "all 0.3s ease",
+      transform: isHovering ? "translateY(-3px)" : "translateY(0)",
+      width: "100%",
+      boxSizing: "border-box"
+    };
+  };
   
   // 게시물 항목 스타일
   const postItemStyle = {
-    padding: "10px 15px",
-    marginBottom: "8px",
-    borderRadius: "8px",
+    padding: window.innerWidth <= 768 ? "12px" : "10px 15px",
+    marginBottom: window.innerWidth <= 768 ? "10px" : "8px",
+    borderRadius: window.innerWidth <= 768 ? "6px" : "8px",
     backgroundColor: darkMode ? "rgba(255, 255, 255, 0.05)" : "rgba(255, 255, 255, 0.5)",
     transition: "background-color 0.2s",
-    cursor: "pointer"
+    cursor: "pointer",
+    width: "100%",
+    boxSizing: "border-box"
   };
   
   // 로딩 스켈레톤 스타일
@@ -330,15 +332,17 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
   // 더 보기 버튼 스타일
   const viewMoreStyle = {
     display: "inline-block",
-    padding: "8px 15px",
+    padding: window.innerWidth <= 768 ? "12px 20px" : "8px 15px",
     backgroundColor: "rgba(0, 0, 0, 0.1)",
     borderRadius: "20px",
-    fontSize: "14px",
-    marginTop: "10px",
+    fontSize: window.innerWidth <= 768 ? "15px" : "14px",
+    marginTop: window.innerWidth <= 768 ? "15px" : "10px",
     color: darkMode ? "#e0e0e0" : "#333",
     transition: "background-color 0.2s",
     cursor: "pointer",
-    textAlign: "center"
+    textAlign: "center",
+    width: "100%",
+    boxSizing: "border-box"
   };
 
   // 게시글 클릭 핸들러
@@ -346,20 +350,22 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
     navigate(`${boardInfo[boardType].postRoute}/${postId}`);
   };
 
-  const handleContestClick = (contestId) => {
-    navigate(`/register-score/${contestId}`);
-  };
+
 
   return (
     <div>
       {/* 메인 게시판 목록 */}
       <div style={{ 
-        maxWidth: 900, 
-        margin: "0 auto", 
-        padding: 20,
+        width: "100%",
+        maxWidth: "none",
+        margin: "0", 
+        padding: window.innerWidth <= 768 ? "10px" : "20px",
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-        gap: "20px"
+        gridTemplateColumns: window.innerWidth <= 768 
+          ? "1fr" 
+          : "repeat(auto-fit, minmax(300px, 1fr))",
+        gap: window.innerWidth <= 768 ? "15px" : "20px",
+        boxSizing: "border-box"
       }}>
         {/* 스켈레톤 애니메이션 */}
         <style>{`
@@ -386,7 +392,11 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
         {/* 핫한 게시글 섹션 */}
         <div style={getCardStyle("free", activeHover === "hot")}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 15 }}>
-            <h3 style={{ margin: 0, color: darkMode ? "#fff" : "#333" }}>
+            <h3 style={{ 
+              margin: 0, 
+              color: darkMode ? "#fff" : "#333",
+              fontSize: window.innerWidth <= 768 ? "16px" : "18px"
+            }}>
               🔥 지금 핫한 게시글
             </h3>
           </div>
@@ -415,13 +425,23 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div style={{ flex: 1, marginRight: 10 }}>
-                    <div style={{ fontSize: "14px", marginBottom: "4px" }}>
+                    <div style={{ 
+                      fontSize: window.innerWidth <= 768 ? "15px" : "14px", 
+                      marginBottom: "4px",
+                      lineHeight: "1.4"
+                    }}>
                       {post.title}
                     </div>
-                    <div style={{ fontSize: "12px", color: darkMode ? "#bbb" : "#666" }}>
+                    <div style={{ 
+                      fontSize: window.innerWidth <= 768 ? "13px" : "12px", 
+                      color: darkMode ? "#bbb" : "#666" 
+                    }}>
                       {post.nickname} • {formatTime(post.createdAt.seconds)} • 
                       <span style={{ marginLeft: "5px" }}>
                         ❤️ {post.likeCount || 0}
+                      </span>
+                      <span style={{ marginLeft: "5px" }}>
+                        💬 {post.commentCount || 0}
                       </span>
                     </div>
                   </div>
@@ -440,59 +460,7 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
           )}
         </div>
         
-        {/* 콘테스트 섹션 */}
-        <div style={getCardStyle("score", activeHover === "score")}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 15 }}>
-            <h3 style={{ margin: 0, color: darkMode ? "#fff" : "#333" }}>
-              {boardInfo.score.title}
-            </h3>
-            <Link to="/scores" style={viewMoreStyle}>
-              더 보기
-            </Link>
-          </div>
 
-          {contestsLoading ? (
-            Array(3).fill(null).map((_, i) => (
-              <div key={i} style={skeletonStyle}></div>
-            ))
-          ) : contests.length === 0 ? (
-            <div style={postItemStyle}>
-              <p style={{ margin: 0, color: darkMode ? "#ccc" : "#666" }}>
-                진행중인 콘테스트가 없습니다.
-              </p>
-            </div>
-          ) : (
-            contests.map(contest => (
-              <div
-                key={contest.id}
-                style={{
-                  ...postItemStyle,
-                  ":hover": {
-                    backgroundColor: darkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(255, 255, 255, 0.7)"
-                  }
-                }}
-                onClick={() => handleContestClick(contest.id)}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <div style={{ fontWeight: "bold", marginBottom: 5 }}>
-                      {contest.title}
-                    </div>
-                    <div style={{ fontSize: "0.9em", color: darkMode ? "#ccc" : "#666" }}>
-                      주최자: {contest.organizer}
-                    </div>
-                  </div>
-                  <div style={{ 
-                    fontSize: "0.8em", 
-                    color: contest.status === "진행중" ? "#4caf50" : "#ff9800"
-                  }}>
-                    {contest.status || "진행중"}
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
         
         {/* 각 게시판 카드 */}
         {Object.keys(boardInfo).map(boardType => {
@@ -507,8 +475,8 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
             >
               <h2 style={{ 
                 color: boardInfo[boardType].color, 
-                marginBottom: 15,
-                fontSize: "20px",
+                marginBottom: window.innerWidth <= 768 ? 12 : 15,
+                fontSize: window.innerWidth <= 768 ? "16px" : "20px",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center"
@@ -594,8 +562,15 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <div style={{ flex: 1, marginRight: 10 }}>
-                          <div style={{ fontSize: "14px", marginBottom: "4px" }}>{post.title}</div>
-                          <div style={{ fontSize: "12px", color: darkMode ? "#bbb" : "#666" }}>
+                          <div style={{ 
+                            fontSize: window.innerWidth <= 768 ? "15px" : "14px", 
+                            marginBottom: "4px",
+                            lineHeight: "1.4"
+                          }}>{post.title}</div>
+                          <div style={{ 
+                            fontSize: window.innerWidth <= 768 ? "13px" : "12px", 
+                            color: darkMode ? "#bbb" : "#666" 
+                          }}>
                             {post.nickname} • {formatTime(post.createdAt.seconds)} • 
                             <span style={{ marginLeft: "5px" }}>
                               💬 {commentCounts[`${boardType}-${post.id}`] || 0}
