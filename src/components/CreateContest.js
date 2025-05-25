@@ -151,6 +151,21 @@ function CreateContest({ darkMode }) {
         return;
       }
 
+      // 팀원 유효성 검사
+      const emptyTeams = teams.filter(team => team.members.length === 0);
+      if (emptyTeams.length > 0) {
+        alert(`팀 ${emptyTeams.map(team => team.id).join(', ')}에 팀원이 없습니다.\n모든 팀에 최소 1명 이상의 팀원이 필요합니다.`);
+        setLoading(false);
+        return;
+      }
+
+      // 등급전일 경우 심사위원 유효성 검사
+      if (category === "grade" && selectedJudges.length === 0) {
+        alert("등급전의 경우 최소 1명 이상의 심사위원이 필요합니다.");
+        setLoading(false);
+        return;
+      }
+
       // 콘테스트 생성
       const contestData = {
         title,
@@ -176,8 +191,8 @@ function CreateContest({ darkMode }) {
         await addDoc(collection(db, "contestTeams"), {
           contestId: contestRef.id,
           teamNumber: team.id,
-          memberIds: team.members.map(member => member.id), // Document ID 리스트
-          members: team.members.map(member => member.nickname), // 닉네임 리스트
+          memberIds: team.members.map(member => member.id),
+          members: team.members.map(member => member.nickname),
           createdAt: serverTimestamp()
         });
       }
