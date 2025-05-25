@@ -123,10 +123,25 @@ function RegisterScore({ darkMode }) {
   }, [contestId, navigate, userId]);
 
   const handleScoreChange = (teamId, value) => {
-    setScores(prev => ({
-      ...prev,
-      [teamId]: value
-    }));
+    // 입력값이 비어있거나 숫자가 아닌 경우 빈 문자열로 설정
+    if (value === "" || isNaN(value)) {
+      setScores(prev => ({
+        ...prev,
+        [teamId]: ""
+      }));
+      return;
+    }
+
+    // 숫자로 변환
+    const numValue = parseInt(value);
+    
+    // 0-100 범위의 정수만 허용
+    if (numValue >= 0 && numValue <= 100 && Number.isInteger(Number(value))) {
+      setScores(prev => ({
+        ...prev,
+        [teamId]: value
+      }));
+    }
   };
 
   const handleReviewChange = (teamId, value) => {
@@ -144,6 +159,32 @@ function RegisterScore({ darkMode }) {
       if (!userId) {
         alert("로그인이 필요합니다.");
         navigate("/login");
+        return;
+      }
+
+      // 모든 팀의 점수 유효성 검사
+      let hasError = false;
+      let errorMessage = "";
+
+      // 빈 점수 확인
+      const emptyScores = teams.filter(team => !scores[team.id]);
+      if (emptyScores.length > 0) {
+        errorMessage = "모든 팀의 점수를 입력해야 합니다.";
+        hasError = true;
+      }
+
+      // 점수 범위 확인
+      for (const team of teams) {
+        const score = parseFloat(scores[team.id]);
+        if (!hasError && (isNaN(score) || score < 0 || score > 100 || !Number.isInteger(score))) {
+          errorMessage = `팀 ${team.teamNumber}의 점수가 유효하지 않습니다.\n점수는 0부터 100 사이의 정수여야 합니다.`;
+          hasError = true;
+        }
+      }
+
+      if (hasError) {
+        alert(errorMessage);
+        setLoading(false);
         return;
       }
 
@@ -166,13 +207,7 @@ function RegisterScore({ darkMode }) {
 
       // 모든 팀의 점수와 리뷰 저장
       for (const team of teams) {
-        const score = parseFloat(scores[team.id]);
-        if (isNaN(score) || score < 0 || score > 100) {
-          alert("점수는 0에서 100 사이의 숫자여야 합니다.");
-          setLoading(false);
-          return;
-        }
-
+        const score = parseInt(scores[team.id]);
         await addDoc(collection(db, "contestRecords"), {
           contestId,
           teamId: team.id,
@@ -287,11 +322,33 @@ function RegisterScore({ darkMode }) {
                     type="number"
                     min="0"
                     max="100"
+                    step="1"
                     value={scores[team.id]}
                     onChange={(e) => handleScoreChange(team.id, e.target.value)}
-                    style={inputStyle}
+                    style={{
+                      ...inputStyle,
+                      borderColor: scores[team.id] === "" ? "#ff4444" : (
+                        isNaN(scores[team.id]) || parseFloat(scores[team.id]) < 0 || 
+                        parseFloat(scores[team.id]) > 100 || 
+                        !Number.isInteger(Number(scores[team.id]))
+                      ) ? "#ff4444" : darkMode ? "#4d4d4d" : "#e0e0e0"
+                    }}
                     required
+                    placeholder="0-100"
                   />
+                  {scores[team.id] !== "" && (
+                    isNaN(scores[team.id]) || parseFloat(scores[team.id]) < 0 || 
+                    parseFloat(scores[team.id]) > 100 || 
+                    !Number.isInteger(Number(scores[team.id]))
+                  ) && (
+                    <div style={{ 
+                      color: "#ff4444", 
+                      fontSize: "12px", 
+                      marginTop: "4px" 
+                    }}>
+                      0-100 사이의 정수를 입력하세요
+                    </div>
+                  )}
                 </td>
                 <td style={cellStyle}>
                   <textarea
