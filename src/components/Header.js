@@ -162,7 +162,7 @@ function Header({
     { path: "/notification", label: "알림", icon: "🔔", hasNotif: notiCount > 0, notifCount: notiCount },
     { 
       path: "/scores", 
-      label: `콘테스트${activeContests.length > 0 ? ` (진행중 ${activeContests.length}개)` : endedContests.length > 0 ? ` (종료 ${endedContests.length}개)` : ""}`, 
+      label: `콘테스트${activeContests.length > 0 ? ` (진행중 ${activeContests.length}개)` : ""}`, 
       icon: "🏆" 
     },
     { path: "/evaluate", label: "등급 평가", icon: "📝" }
@@ -499,27 +499,20 @@ else if (role === "운영진" || role === "리더" || role === "부운영진") {
                 </>
               )}
               
-              {/* 알림 표시 */}
-              {totalNotifications > 0 && (
-                <div className="notification-badge" style={{
+              {/* 알림 표시 - 빨간 점 */}
+              {(totalNotifications > 0 || unreadNotifications > 0) && (
+                <div className="notification-dot" style={{
                   position: "absolute",
-                  top: -4,
-                  right: -4,
+                  top: 2,
+                  right: 2,
                   background: "#f44336",
-                  color: "white",
-                  fontSize: "10px",
                   borderRadius: "50%",
-                  minWidth: "16px",
-                  height: "16px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: "2px",
-                  fontWeight: "bold",
+                  width: "12px",
+                  height: "12px",
                   border: "2px solid",
-                  borderColor: dark ? "#1a1a1a" : "#fff"
+                  borderColor: dark ? "#1a1a1a" : "#fff",
+                  animation: "pulse 2s infinite"
                 }}>
-                  {totalNotifications}
                 </div>
               )}
             </div>

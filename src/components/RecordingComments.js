@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   collection, 
   doc, 
@@ -10,7 +10,8 @@ import {
   updateDoc,
   Timestamp,
   query,
-  orderBy 
+  orderBy,
+  getDocs
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { containerStyle, darkContainerStyle, titleStyle } from './style';
@@ -26,18 +27,24 @@ function RecordingComments({ darkMode }) {
   
   const currentUser = localStorage.getItem('nickname');
 
-  // 녹음 정보 가져오기
+  // 녹음 정보 가져오기 및 조회수 증가
   useEffect(() => {
     const fetchRecording = async () => {
       try {
-        const recordingRef = doc(db, 'mypage_recordings', recordingId);
+        const recordingRef = doc(db, 'recordings', recordingId);
         const recordingSnap = await getDoc(recordingRef);
         
         if (recordingSnap.exists()) {
-          setRecording({ id: recordingSnap.id, ...recordingSnap.data() });
+          const recordingData = { id: recordingSnap.id, ...recordingSnap.data() };
+          setRecording(recordingData);
+          
+          // 조회수 증가
+          await updateDoc(recordingRef, {
+            viewCount: (recordingData.viewCount || 0) + 1
+          });
         } else {
           console.error('녹음을 찾을 수 없습니다.');
-          navigate('/mypage');
+          navigate('/recordings');
         }
       } catch (error) {
         console.error('녹음 로드 오류:', error);
@@ -90,7 +97,7 @@ function RecordingComments({ darkMode }) {
       });
 
       // 녹음 파일의 댓글 수 업데이트
-      const recordingRef = doc(db, 'mypage_recordings', recordingId);
+      const recordingRef = doc(db, 'recordings', recordingId);
       await updateDoc(recordingRef, {
         commentCount: comments.length + 1
       });
@@ -118,7 +125,7 @@ function RecordingComments({ darkMode }) {
       await deleteDoc(doc(db, `recording-comments-${recordingId}`, commentId));
       
       // 녹음 파일의 댓글 수 업데이트
-      const recordingRef = doc(db, 'mypage_recordings', recordingId);
+      const recordingRef = doc(db, 'recordings', recordingId);
       await updateDoc(recordingRef, {
         commentCount: Math.max(0, comments.length - 1)
       });
@@ -127,6 +134,34 @@ function RecordingComments({ darkMode }) {
     } catch (error) {
       console.error('댓글 삭제 오류:', error);
       alert('댓글 삭제 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 녹음 게시글 삭제
+  const deleteRecording = async () => {
+    if (currentUser !== recording?.uploaderNickname) {
+      alert('본인이 작성한 게시글만 삭제할 수 있습니다.');
+      return;
+    }
+
+    if (!window.confirm('이 녹음 게시글을 정말로 삭제하시겠습니까?\n삭제된 게시글과 모든 댓글은 복구할 수 없습니다.')) return;
+
+    try {
+      // 1. 모든 댓글 삭제
+      const commentsSnapshot = await getDocs(collection(db, `recording-comments-${recordingId}`));
+      const deleteCommentPromises = commentsSnapshot.docs.map(commentDoc => 
+        deleteDoc(doc(db, `recording-comments-${recordingId}`, commentDoc.id))
+      );
+      await Promise.all(deleteCommentPromises);
+
+      // 2. 녹음 게시글 삭제
+      await deleteDoc(doc(db, 'recordings', recordingId));
+
+      alert('녹음 게시글이 삭제되었습니다.');
+      navigate('/recordings');
+    } catch (error) {
+      console.error('녹음 게시글 삭제 오류:', error);
+      alert('녹음 게시글 삭제 중 오류가 발생했습니다.');
     }
   };
 
@@ -160,7 +195,7 @@ function RecordingComments({ darkMode }) {
       <div style={darkMode ? darkContainerStyle : containerStyle}>
         <div style={{ textAlign: 'center', padding: '40px 0' }}>
           <h2>녹음을 찾을 수 없습니다.</h2>
-          <button onClick={() => navigate('/mypage')} style={{
+          <button onClick={() => navigate('/recordings')} style={{
             padding: '10px 20px',
             backgroundColor: '#7e57c2',
             color: 'white',
@@ -168,7 +203,7 @@ function RecordingComments({ darkMode }) {
             borderRadius: '6px',
             cursor: 'pointer'
           }}>
-            마이페이지로 돌아가기
+            녹음게시판으로 돌아가기
           </button>
         </div>
       </div>
@@ -187,7 +222,7 @@ function RecordingComments({ darkMode }) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
           <button
-            onClick={() => navigate('/mypage')}
+            onClick={() => navigate('/recordings')}
             style={{
               padding: '8px 16px',
               backgroundColor: darkMode ? '#555' : '#e0e0e0',
@@ -207,6 +242,24 @@ function RecordingComments({ darkMode }) {
           }}>
             🎵 {recording.title} - 댓글
           </h1>
+          {/* 작성자만 삭제 버튼 표시 */}
+          {currentUser === recording?.uploaderNickname && (
+            <button
+              onClick={deleteRecording}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#dc3545',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: 'bold'
+              }}
+            >
+              🗑️ 게시글 삭제
+            </button>
+          )}
         </div>
 
         {/* 녹음 정보 */}
@@ -241,7 +294,7 @@ function RecordingComments({ darkMode }) {
             color: darkMode ? '#aaa' : '#888',
             marginBottom: '15px'
           }}>
-            <span>👤 {recording.uploaderNickname}</span>
+            <span>👤 <Link to={`/userpage/${recording.uploaderNickname}`} style={{ color: darkMode ? "#bb86fc" : "#7e57c2", textDecoration: "none" }}>{recording.uploaderNickname}</Link></span>
             <span>📅 {formatDate(recording.createdAt)}</span>
             <span>📁 {recording.fileName}</span>
           </div>
@@ -349,12 +402,15 @@ function RecordingComments({ darkMode }) {
                     marginBottom: '10px'
                   }}>
                     <div>
-                      <strong style={{
-                        color: darkMode ? '#e0e0e0' : '#333',
-                        marginRight: '10px'
-                      }}>
-                        {comment.author}
-                      </strong>
+                      <Link to={`/userpage/${comment.author}`} style={{ textDecoration: "none" }}>
+                        <strong style={{
+                          color: darkMode ? '#bb86fc' : '#7e57c2',
+                          marginRight: '10px',
+                          cursor: 'pointer'
+                        }}>
+                          {comment.author}
+                        </strong>
+                      </Link>
                       <span style={{
                         fontSize: '12px',
                         color: darkMode ? '#aaa' : '#666'

@@ -281,14 +281,24 @@ function SongPostList({ darkMode, globalProfilePics, globalGrades }) {
   const currentCardStyle = darkMode ? darkCardStyle : cardStyle;
   
   const postCardStyle = {
-    ...currentCardStyle,
+    background: darkMode 
+      ? "linear-gradient(135deg, #2a1b3d 0%, #1a1530 100%)"
+      : "linear-gradient(135deg, #f8f5ff 0%, #f0ebff 100%)",
+    borderRadius: "12px",
+    padding: "20px",
     margin: "16px 0",
     position: "relative",
     transition: "transform 0.2s, box-shadow 0.2s",
     cursor: "pointer",
+    boxShadow: darkMode 
+      ? "0 4px 20px rgba(126, 87, 194, 0.3)" 
+      : "0 4px 20px rgba(126, 87, 194, 0.1)",
+    border: `1px solid ${darkMode ? "#444" : "#e0e0e0"}`,
     "&:hover": {
       transform: "translateY(-2px)",
-      boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)"
+      boxShadow: darkMode 
+        ? "0 8px 30px rgba(126, 87, 194, 0.4)" 
+        : "0 8px 30px rgba(126, 87, 194, 0.2)"
     }
   };
   

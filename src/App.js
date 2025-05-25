@@ -267,6 +267,9 @@ function AppContent() {
               <Route path="/new-admin-panel" element={<RequireAuth><NewAdminPanel darkMode={dark} /></RequireAuth>} />
               <Route path="/upload-recording" element={<RequireAuth><UploadRecording darkMode={dark} /></RequireAuth>} />
               <Route path="/recordings" element={<RequireAuth><RecordingBoard darkMode={dark} globalProfilePics={profilePics} globalGrades={grades} /></RequireAuth>} />
+              <Route path="/recording-board" element={<RequireAuth><RecordingBoard darkMode={dark} globalProfilePics={profilePics} globalGrades={grades} /></RequireAuth>} />
+              <Route path="/write/recording" element={<RequireAuth><WritePost darkMode={dark} /></RequireAuth>} />
+              <Route path="/post/recording/:id" element={<RequireAuth><PostDetail darkMode={dark} globalProfilePics={profilePics} globalGrades={grades} /></RequireAuth>} />
               <Route path="/user-recordings/:nickname" element={<RequireAuth><UserRecordings darkMode={dark} globalProfilePics={profilePics} globalGrades={grades} /></RequireAuth>} />
               <Route path="/recording-comments/:recordingId" element={<RequireAuth><RecordingComments darkMode={dark} /></RequireAuth>} />
               <Route path="/special-moments" element={<RequireAuth><SpecialMoments darkMode={dark} globalProfilePics={profilePics} globalGrades={grades} /></RequireAuth>} />
