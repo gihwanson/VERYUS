@@ -16,7 +16,7 @@ function ScoreBoard({ darkMode, globalProfilePics, globalGrades }) {
   
   // 운영진 권한 체크 함수
   const isAdmin = () => {
-    return userRole === "운영진" || userRole === "부운영진";
+    return userRole === "운영진" || userRole === "부운영진" || userRole === "리더";
   };
 
   // 콘테스트 생성 권한 체크 및 알림
