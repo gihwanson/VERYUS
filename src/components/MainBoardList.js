@@ -308,7 +308,7 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
     transform: isHovering ? "translateY(-3px)" : "translateY(0)"
   });
   
-  // 게시물 항목 스타일
+  // 게시물 항목 스타일 변경
   const postItemStyle = {
     padding: "10px 15px",
     marginBottom: "8px",
