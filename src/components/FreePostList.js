@@ -692,10 +692,13 @@ function FreePostList({ darkMode, globalProfilePics, globalGrades }) {
               
               <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
                 <span style={{ display: "flex", alignItems: "center" }}>
-                  👍 {post.likes || 0}
+                  ❤️ {post.likes || 0}
                 </span>
                 <span style={{ display: "flex", alignItems: "center" }}>
                   💬 {commentCounts[post.id] || 0}
+                </span>
+                <span style={{ display: "flex", alignItems: "center" }}>
+                  👁️ {post.viewCount || 0}
                 </span>
               </div>
             </div>

@@ -424,7 +424,33 @@ function SpecialMoments({ darkMode, globalProfilePics, globalGrades, showOnlyPre
                 }}
                 >
                   {/* 배경 이미지/미디어 */}
-                  {post.images && post.images.length > 0 && (
+                  {post.videoUrl ? (
+                    <div style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      backgroundColor: darkMode ? "rgba(0,0,0,0.8)" : "rgba(0,0,0,0.6)",
+                      borderRadius: "12px"
+                    }}>
+                      <div style={{
+                        width: "60px",
+                        height: "60px",
+                        borderRadius: "50%",
+                        backgroundColor: "rgba(255, 255, 255, 0.9)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "24px"
+                      }}>
+                        ▶️
+                      </div>
+                    </div>
+                  ) : post.images && post.images.length > 0 && (
                     <div style={{
                       position: "absolute",
                       top: 0,

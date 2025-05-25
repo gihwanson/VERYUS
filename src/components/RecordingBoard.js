@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import PropTypes from "prop-types";
 import {
-  collection, query, orderBy, onSnapshot, getDocs, limit, startAfter, where
+  collection, query, orderBy, onSnapshot, getDocs, limit, startAfter, where, updateDoc, doc, deleteDoc
 } from "firebase/firestore";
 import { db } from "../firebase";
 import SearchBar from "./SearchBar";
@@ -64,7 +64,7 @@ function RecordingBoard({ darkMode, globalProfilePics, globalGrades }) {
     setLoading(true);
     
     const q = query(
-      collection(db, "mypage_recordings"),
+      collection(db, "recordings"),
       orderBy("createdAt", "desc"),
       limit(15)
     );
@@ -116,7 +116,7 @@ function RecordingBoard({ darkMode, globalProfilePics, globalGrades }) {
     
     try {
       const q = query(
-        collection(db, "mypage_recordings"),
+        collection(db, "recordings"),
         orderBy("createdAt", "desc"),
         startAfter(lastVisible),
         limit(10)
@@ -204,6 +204,51 @@ function RecordingBoard({ darkMode, globalProfilePics, globalGrades }) {
     if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}일 전`;
     if (diffInSeconds < 31536000) return `${Math.floor(diffInSeconds / 2592000)}개월 전`;
     return `${Math.floor(diffInSeconds / 31536000)}년 전`;
+  };
+
+  // 조회수 증가 함수
+  const incrementViewCount = async (postId) => {
+    try {
+      const postRef = doc(db, "recordings", postId);
+      const currentPost = posts.find(p => p.id === postId);
+      if (currentPost) {
+        await updateDoc(postRef, {
+          viewCount: (currentPost.viewCount || 0) + 1
+        });
+      }
+    } catch (error) {
+      console.error("조회수 업데이트 오류:", error);
+    }
+  };
+
+  // 녹음 게시글 삭제 함수
+  const deleteRecording = async (postId, uploaderNickname, event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (me !== uploaderNickname) {
+      alert('본인이 작성한 게시글만 삭제할 수 있습니다.');
+      return;
+    }
+
+    if (!window.confirm('이 녹음 게시글을 정말로 삭제하시겠습니까?\n삭제된 게시글과 모든 댓글은 복구할 수 없습니다.')) return;
+
+    try {
+      // 1. 모든 댓글 삭제
+      const commentsSnapshot = await getDocs(collection(db, `recording-comments-${postId}`));
+      const deleteCommentPromises = commentsSnapshot.docs.map(commentDoc => 
+        deleteDoc(doc(db, `recording-comments-${postId}`, commentDoc.id))
+      );
+      await Promise.all(deleteCommentPromises);
+
+      // 2. 녹음 게시글 삭제
+      await deleteDoc(doc(db, "recordings", postId));
+
+      alert('녹음 게시글이 삭제되었습니다.');
+    } catch (error) {
+      console.error("녹음 게시글 삭제 오류:", error);
+      alert('녹음 게시글 삭제 중 오류가 발생했습니다.');
+    }
   };
 
   // 스타일 정의
@@ -480,6 +525,7 @@ function RecordingBoard({ darkMode, globalProfilePics, globalGrades }) {
                   color: "inherit",
                   display: "block"
                 }}
+                onClick={() => incrementViewCount(post.id)}
               >
                 <h3 style={{
                   margin: "0 0 12px 0",
@@ -588,6 +634,28 @@ function RecordingBoard({ darkMode, globalProfilePics, globalGrades }) {
                   <span>❤️ {post.likes || 0}</span>
                   <span>💬 {cCnt[post.id] || 0}</span>
                 </div>
+                
+                {/* 작성자만 삭제 버튼 표시 */}
+                {me === post.uploaderNickname && (
+                  <button
+                    onClick={(e) => deleteRecording(post.id, post.uploaderNickname, e)}
+                    style={{
+                      padding: "6px 12px",
+                      backgroundColor: "#dc3545",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      fontSize: isMobile ? "11px" : "12px",
+                      fontWeight: "bold",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px"
+                    }}
+                  >
+                    🗑️ 삭제
+                  </button>
+                )}
               </div>
             </div>
           ))}

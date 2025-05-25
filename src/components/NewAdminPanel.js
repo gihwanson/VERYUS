@@ -970,8 +970,17 @@ function NewAdminPanel({ darkMode }) {
   }
 
   return (
-    <div style={darkMode ? darkContainerStyle : containerStyle}>
-      <div style={cardStyle}>
+    <div style={{
+      minHeight: "100vh",
+      backgroundColor: darkMode ? "#1a1a1a" : "#f5f0ff",
+      padding: "0",
+      color: darkMode ? "#e0e0e0" : "#333"
+    }}>
+      <div style={{
+        backgroundColor: darkMode ? "#1a1a1a" : "#f5f0ff",
+        padding: "20px",
+        minHeight: "100vh"
+      }}>
         <h1 style={{
           ...titleStyle,
           background: darkMode 

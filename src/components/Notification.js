@@ -106,26 +106,34 @@ function NotificationsTab({ darkMode, navigate }) {
   const [filter, setFilter] = useState("all"); // 'all', 'unread', 'read'
   const PAGE_SIZE = 10;
   
+  // 현재 로그인한 사용자 닉네임 가져오기
+  const currentUser = localStorage.getItem("nickname");
+  
   // 기본 쿼리 생성 함수
   const createQuery = useCallback((startAfterDoc = null) => {
+    if (!currentUser) return null;
+    
     let baseQuery;
     
-    // 필터에 따른 쿼리 조건 설정
+    // 필터에 따른 쿼리 조건 설정 (항상 현재 사용자의 알림만)
     if (filter === "unread") {
       baseQuery = query(
         collection(db, "notifications"),
-        where("read", "==", false),
+        where("receiverNickname", "==", currentUser),
+        where("isRead", "==", false),
         orderBy("createdAt", "desc")
       );
     } else if (filter === "read") {
       baseQuery = query(
         collection(db, "notifications"),
-        where("read", "==", true),
+        where("receiverNickname", "==", currentUser),
+        where("isRead", "==", true),
         orderBy("createdAt", "desc")
       );
     } else {
       baseQuery = query(
         collection(db, "notifications"),
+        where("receiverNickname", "==", currentUser),
         orderBy("createdAt", "desc")
       );
     }
@@ -136,14 +144,25 @@ function NotificationsTab({ darkMode, navigate }) {
     }
     
     return query(baseQuery, limit(PAGE_SIZE));
-  }, [filter]);
+  }, [filter, currentUser]);
   
   // 초기 데이터 로드
   useEffect(() => {
+    if (!currentUser) {
+      setLoading(false);
+      setError("로그인이 필요합니다.");
+      return;
+    }
+    
     setLoading(true);
     setError(null);
     
     const q = createQuery();
+    
+    if (!q) {
+      setLoading(false);
+      return;
+    }
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       if (snapshot.empty) {
@@ -160,7 +179,7 @@ function NotificationsTab({ darkMode, navigate }) {
       const notifications = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        read: doc.data().read || false, // 읽음 상태가 없으면 기본값 false
+        isRead: doc.data().isRead || false, // 읽음 상태가 없으면 기본값 false
         type: doc.data().type || "default", // 알림 유형이 없으면 기본값 "default"
       }));
       
@@ -174,7 +193,7 @@ function NotificationsTab({ darkMode, navigate }) {
     });
     
     return () => unsubscribe();
-  }, [filter, createQuery]); 
+  }, [filter, createQuery, currentUser]); 
   
   // 더 많은 알림 로드
   const loadMoreNotifications = async () => {
@@ -199,7 +218,7 @@ function NotificationsTab({ darkMode, navigate }) {
       const newNotifications = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        read: doc.data().read || false,
+        isRead: doc.data().isRead || false,
         type: doc.data().type || "default",
       }));
       
@@ -222,7 +241,7 @@ function NotificationsTab({ darkMode, navigate }) {
   const markAsRead = async (id) => {
     try {
       await updateDoc(doc(db, "notifications", id), {
-        read: true
+        isRead: true
       });
     } catch (err) {
       console.error("알림 읽음 처리 오류:", err);
@@ -231,7 +250,7 @@ function NotificationsTab({ darkMode, navigate }) {
   
   // 선택된 알림 모두 읽음 처리
   const markAllAsRead = async () => {
-    const unreadNotifications = list.filter(notification => !notification.read);
+    const unreadNotifications = list.filter(notification => !notification.isRead);
     
     if (unreadNotifications.length === 0) {
       alert("읽지 않은 알림이 없습니다.");
@@ -244,7 +263,7 @@ function NotificationsTab({ darkMode, navigate }) {
     
     try {
       const promises = unreadNotifications.map(notification => 
-        updateDoc(doc(db, "notifications", notification.id), { read: true })
+        updateDoc(doc(db, "notifications", notification.id), { isRead: true })
       );
       
       await Promise.all(promises);
