@@ -8,6 +8,24 @@ import TaggedText from './TaggedText';
 import TagInput from './TagInput';
 import { processTaggedUsers, createTagNotification } from '../utils/tagNotification';
 
+// 등급 이모지 매핑
+const gradeEmojis = {
+  "체리": "🍒",
+  "블루베리": "🫐",
+  "키위": "🥝",
+  "사과": "🍎",
+  "멜론": "🍈",
+  "수박": "🍉",
+  "지구": "🌏",
+  "토성": "🪐",
+  "태양": "🌞",
+  "은하": "🌌",
+  "맥주": "🍺",
+  "번개": "⚡",
+  "달": "🌙",
+  "별": "⭐"
+};
+
 function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
   const { type, id } = useParams();
   const [post, setPost] = useState(null);
@@ -19,14 +37,23 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
   const role = localStorage.getItem("role");
   const nav = useNavigate();
 
+  // 등급 이모지 가져오기 함수
+  const getGradeEmoji = (grade) => {
+    return gradeEmojis[grade] || grade;
+  };
+
   // 스타일 정의
-  const containerStyle = { padding: "2rem" };
+  const containerStyle = { 
+    padding: "2rem",
+    backgroundColor: darkMode ? "#1a1a1a" : "#ffffff",
+    minHeight: "100vh"
+  };
   const postStyle = {
-    background: "#f3e7ff",
+    background: darkMode ? "#2a2a2a" : "#f3e7ff",
     padding: 24,
     borderRadius: 16,
-    border: "1px solid #b49ddb",
-    color: "#000",
+    border: darkMode ? "1px solid #444" : "1px solid #b49ddb",
+    color: darkMode ? "#e0e0e0" : "#000",
     marginBottom: 30,
     width: "100%",
     maxWidth: "100%",
@@ -50,7 +77,7 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
     width: 36,
     height: 36,
     borderRadius: "50%",
-    border: "2px solid #7e57c2",
+    border: darkMode ? "2px solid #bb86fc" : "2px solid #7e57c2",
     objectFit: "cover",
   };
   const smallBtn = {
@@ -61,7 +88,7 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
     cursor: "pointer",
   };
   const editBtn = {
-    background: "#7e57c2",
+    background: darkMode ? "#bb86fc" : "#7e57c2",
     color: "#fff",
     border: "none",
     borderRadius: 6,
@@ -70,7 +97,7 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
     cursor: "pointer",
   };
   const deleteBtn = {
-    background: "red",
+    background: darkMode ? "#cf6679" : "red",
     color: "#fff",
     border: "none",
     borderRadius: 6,
@@ -81,19 +108,19 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
   const partnerDoneStyle = {
     marginTop: 16,
     padding: "6px 10px",
-    background: "#e0ffe0",
-    color: "#1a6f1a",
+    background: darkMode ? "#2d5d2d" : "#e0ffe0",
+    color: darkMode ? "#81c784" : "#1a6f1a",
     borderRadius: 6,
     fontWeight: "bold",
   };
 
   // 댓글 스타일
   const commentInputContainerStyle = {
-    background: "#f9f2ff",
+    background: darkMode ? "#333" : "#f9f2ff",
     padding: 20,
     borderRadius: 12,
     marginBottom: 30,
-    border: "1px solid #d6c4f2",
+    border: darkMode ? "1px solid #555" : "1px solid #d6c4f2",
     width: "100%",
     maxWidth: "100%",
     boxSizing: "border-box",
@@ -110,7 +137,9 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
     height: 80,
     padding: 12,
     borderRadius: 8,
-    border: "1px solid #d6c4f2",
+    border: darkMode ? "1px solid #555" : "1px solid #d6c4f2",
+    backgroundColor: darkMode ? "#444" : "#ffffff",
+    color: darkMode ? "#e0e0e0" : "#000",
     resize: "none",
     marginBottom: 8,
     fontFamily: "inherit",
@@ -127,7 +156,7 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
   };
   const commentBtnStyle = {
     padding: "8px 16px",
-    background: "#7e57c2",
+    background: darkMode ? "#bb86fc" : "#7e57c2",
     color: "white",
     border: "none",
     borderRadius: 6,
@@ -135,10 +164,10 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
     fontWeight: "bold",
   };
   const commentListContainerStyle = {
-    background: "#f9f2ff",
+    background: darkMode ? "#333" : "#f9f2ff",
     padding: 20,
     borderRadius: 12,
-    border: "1px solid #d6c4f2",
+    border: darkMode ? "1px solid #555" : "1px solid #d6c4f2",
     width: "100%",
     maxWidth: "100%",
     boxSizing: "border-box",
@@ -198,7 +227,9 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
       : type === "advice"
       ? "advice"
       : type === "recording"
-      ? "recordings"
+      ? "mypage_recordings"
+      : type === "special-moment"
+      ? "special_moments"
       : "posts"; // 기본값
   };
 
@@ -360,33 +391,101 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
       }
     }}>
       <div style={postStyle}>
-        <h1 style={{ color: "#7e57c2" }}>{post.title}</h1>
+        <h1 style={{ 
+          color: darkMode ? "#bb86fc" : "#7e57c2",
+          borderBottom: darkMode ? "2px solid #bb86fc" : "2px solid #7e57c2",
+          paddingBottom: "10px",
+          marginBottom: "20px"
+        }}>{post.title}</h1>
 
         <div style={authorBox}>
           {profileUrl && <img src={profileUrl} alt="프로필" style={profilePicStyle} />}
           <div>
             <strong>{author}</strong>
-            {grade && <span style={{ marginLeft: 6, color: "#7e57c2" }}>({grade})</span>}
+            {grade && <span style={{ marginLeft: 6, color: darkMode ? "#bb86fc" : "#7e57c2" }}>({getGradeEmoji(grade)})</span>}
           </div>
         </div>
 
-        <p style={{ fontSize: 12, color: "#555" }}>
+        <p style={{ fontSize: 12, color: darkMode ? "#aaa" : "#555" }}>
           {new Date(post.createdAt.seconds * 1000).toLocaleString()} | 작성자:{" "}
-          <Link to={`/userpage/${post.nickname}`} style={{ color: "#555", textDecoration: "none" }}>
+          <Link to={`/userpage/${post.nickname}`} style={{ color: darkMode ? "#bb86fc" : "#7e57c2", textDecoration: "none" }}>
             {post.nickname}
           </Link>
         </p>
 
-        {post.fileUrl && (
+        {/* 첨부 이미지들 표시 */}
+        {post.images && post.images.length > 0 && (
+          <div style={{ marginTop: 20 }}>
+            <h4 style={{
+              color: darkMode ? "#bb86fc" : "#7e57c2",
+              marginBottom: "12px",
+              fontSize: "16px"
+            }}>
+              📷 첨부 이미지
+            </h4>
+            <div style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "15px"
+            }}>
+              {post.images.map((imageUrl, index) => (
+                <div
+                  key={index}
+                  style={{
+                    maxWidth: "500px",
+                    borderRadius: "12px",
+                    overflow: "hidden",
+                    boxShadow: "0 4px 15px rgba(0, 0, 0, 0.1)",
+                    border: `2px solid ${darkMode ? "#444" : "#e8dbff"}`,
+                    cursor: "pointer",
+                    transition: "transform 0.2s ease"
+                  }}
+                  onClick={() => window.open(imageUrl, '_blank')}
+                  onMouseEnter={(e) => e.target.style.transform = "scale(1.02)"}
+                  onMouseLeave={(e) => e.target.style.transform = "scale(1)"}
+                >
+                  <img
+                    src={imageUrl}
+                    alt={`첨부 이미지 ${index + 1}`}
+                    style={{
+                      width: "100%",
+                      height: "auto",
+                      maxHeight: "400px",
+                      objectFit: "contain",
+                      display: "block"
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+            <p style={{
+              fontSize: "12px",
+              color: darkMode ? "#aaa" : "#666",
+              marginTop: "8px",
+              fontStyle: "italic"
+            }}>
+              💡 이미지를 클릭하면 원본 크기로 볼 수 있습니다
+            </p>
+          </div>
+        )}
+
+        {/* 레거시 단일 이미지 지원 */}
+        {post.fileUrl && !post.images && (
           <img
             src={post.fileUrl}
             alt="첨부 이미지"
-            style={{ maxWidth: "100%", marginTop: 10 }}
+            style={{ 
+              maxWidth: "100%", 
+              marginTop: 10,
+              borderRadius: "8px",
+              cursor: "pointer"
+            }}
+            onClick={() => window.open(post.fileUrl, '_blank')}
           />
         )}
 
         {/* 녹음 파일 표시 */}
-        {post.recordingUrl && (
+        {(post.recordingUrl || post.recordingURL || post.downloadURL) && (
           <div style={{
             backgroundColor: darkMode ? "#333" : "#f8f4ff",
             padding: "15px",
@@ -413,16 +512,24 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
               }}
               preload="metadata"
             >
-              <source src={post.recordingUrl} type="audio/mpeg" />
-              <source src={post.recordingUrl} type="audio/wav" />
-              <source src={post.recordingUrl} type="audio/ogg" />
+              <source src={post.recordingUrl || post.recordingURL || post.downloadURL} type="audio/mpeg" />
+              <source src={post.recordingUrl || post.recordingURL || post.downloadURL} type="audio/wav" />
+              <source src={post.recordingUrl || post.recordingURL || post.downloadURL} type="audio/ogg" />
               브라우저가 오디오 재생을 지원하지 않습니다.
             </audio>
           </div>
         )}
 
         {/* 게시글 내용 */}
-        <div style={styles.content}>
+        <div style={{
+          ...styles.content,
+          border: darkMode ? "1px solid #555" : "1px solid #d6c4f2",
+          borderRadius: "8px",
+          padding: "15px",
+          backgroundColor: darkMode ? "#444" : "#fafafa",
+          marginTop: "15px",
+          lineHeight: "1.6"
+        }}>
           <TaggedText 
             text={post.content} 
             darkMode={darkMode}
@@ -431,7 +538,13 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
 
         <button
           onClick={toggleLike}
-          style={{ ...smallBtn, background: liked ? "#c77dff" : "#7e57c2", marginTop: 16 }}
+          style={{ 
+            ...smallBtn, 
+            background: liked 
+              ? (darkMode ? "#d48cff" : "#c77dff") 
+              : (darkMode ? "#bb86fc" : "#7e57c2"), 
+            marginTop: 16 
+          }}
         >
           ❤️ ({post.likes || 0})
         </button>
@@ -485,7 +598,7 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
 
       {/* 댓글 작성 부분 */}
       <div style={commentInputContainerStyle}>
-        <h3 style={{ color: "#7e57c2", marginBottom: 12 }}>댓글 작성</h3>
+        <h3 style={{ color: darkMode ? "#bb86fc" : "#7e57c2", marginBottom: 12 }}>댓글 작성</h3>
         <TagInput
           value={commentText}
           onChange={setCommentText}
@@ -510,12 +623,12 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
 
       {/* 댓글 목록 */}
       <div style={commentListContainerStyle}>
-        <h3 style={{ color: "#7e57c2", marginBottom: 12 }}>
+        <h3 style={{ color: darkMode ? "#bb86fc" : "#7e57c2", marginBottom: 12 }}>
           댓글 목록 ({comments.length})
         </h3>
         
         {comments.length === 0 ? (
-          <p style={{ textAlign: "center", color: "#666", marginTop: 20 }}>
+          <p style={{ textAlign: "center", color: darkMode ? "#aaa" : "#666", marginTop: 20 }}>
             첫 댓글을 작성해보세요!
           </p>
         ) : (
@@ -552,8 +665,8 @@ function CommentItem({ comment, type, postId, darkMode, me, postOwner, postTitle
     marginBottom: 16,
   };
   const commentBoxStyle = {
-    background: "#f3e7ff",
-    border: "1px solid #b49ddb",
+    background: darkMode ? "#444" : "#f3e7ff",
+    border: darkMode ? "1px solid #666" : "1px solid #b49ddb",
     borderRadius: 10,
     padding: 16,
     width: "100%",
@@ -567,8 +680,8 @@ function CommentItem({ comment, type, postId, darkMode, me, postOwner, postTitle
     }
   };
   const secretCommentBoxStyle = {
-    background: "#f0f0f0",
-    border: "1px solid #ccc",
+    background: darkMode ? "#555" : "#f0f0f0",
+    border: darkMode ? "1px solid #777" : "1px solid #ccc",
     borderRadius: 10,
     padding: 16,
     width: "100%",
@@ -590,9 +703,10 @@ function CommentItem({ comment, type, postId, darkMode, me, postOwner, postTitle
   const commentTextStyle = {
     whiteSpace: "pre-wrap",
     fontSize: 15,
+    color: darkMode ? "#e0e0e0" : "#000",
   };
   const secretCommentTextStyle = {
-    color: "#888",
+    color: darkMode ? "#aaa" : "#888",
     fontStyle: "italic",
     textAlign: "center",
   };
@@ -603,7 +717,7 @@ function CommentItem({ comment, type, postId, darkMode, me, postOwner, postTitle
   };
   const commentActionBtnStyle = {
     padding: "4px 10px",
-    background: "#7e57c2",
+    background: darkMode ? "#bb86fc" : "#7e57c2",
     color: "white",
     border: "none",
     borderRadius: 4,
@@ -613,7 +727,7 @@ function CommentItem({ comment, type, postId, darkMode, me, postOwner, postTitle
   const replyBoxStyle = {
     marginTop: 12,
     padding: 12,
-    background: "#efe2ff",
+    background: darkMode ? "#555" : "#efe2ff",
     borderRadius: 8,
     width: "100%",
     maxWidth: "100%",
@@ -631,7 +745,9 @@ function CommentItem({ comment, type, postId, darkMode, me, postOwner, postTitle
     height: 60,
     padding: 10,
     borderRadius: 6,
-    border: "1px solid #d6c4f2",
+    border: darkMode ? "1px solid #666" : "1px solid #d6c4f2",
+    backgroundColor: darkMode ? "#666" : "#ffffff",
+    color: darkMode ? "#e0e0e0" : "#000",
     resize: "none",
     fontFamily: "inherit",
     boxSizing: "border-box",
@@ -648,11 +764,11 @@ function CommentItem({ comment, type, postId, darkMode, me, postOwner, postTitle
   const repliesContainerStyle = {
     marginTop: 12,
     paddingLeft: 12,
-    borderLeft: "2px solid #d6c4f2",
+    borderLeft: darkMode ? "2px solid #666" : "2px solid #d6c4f2",
   };
   const commentBtnStyle = {
     padding: "8px 16px",
-    background: "#7e57c2",
+    background: darkMode ? "#bb86fc" : "#7e57c2",
     color: "white",
     border: "none",
     borderRadius: 6,
@@ -831,7 +947,7 @@ function CommentItem({ comment, type, postId, darkMode, me, postOwner, postTitle
             <strong>{comment.nickname || "알 수 없음"}</strong>
             {comment.isPrivate && <span style={{ fontSize: 14, color: "#e67e22" }}>🔒</span>}
           </div>
-          <span style={{ fontSize: 12, color: "#666" }}>
+          <span style={{ fontSize: 12, color: darkMode ? "#aaa" : "#666" }}>
             {new Date(comment.createdAt.seconds * 1000).toLocaleString()}
           </span>
         </div>
@@ -943,7 +1059,7 @@ function ReplyItem({ reply, type, postId, darkMode, me, postOwner, postTitle }) 
   const replyItemStyle = {
     marginTop: 10,
     paddingTop: 10,
-    borderTop: "1px dashed #d6c4f2",
+    borderTop: darkMode ? "1px dashed #666" : "1px dashed #d6c4f2",
   };
   const replyHeaderStyle = {
     display: "flex",
@@ -954,9 +1070,10 @@ function ReplyItem({ reply, type, postId, darkMode, me, postOwner, postTitle }) 
   const replyTextStyle = {
     whiteSpace: "pre-wrap",
     fontSize: 14,
+    color: darkMode ? "#e0e0e0" : "#000",
   };
   const secretCommentTextStyle = {
-    color: "#888",
+    color: darkMode ? "#aaa" : "#888",
     fontStyle: "italic",
     textAlign: "center",
     fontSize: 14,
@@ -968,7 +1085,7 @@ function ReplyItem({ reply, type, postId, darkMode, me, postOwner, postTitle }) 
   };
   const commentActionBtnStyle = {
     padding: "4px 10px",
-    background: "#7e57c2",
+    background: darkMode ? "#bb86fc" : "#7e57c2",
     color: "white",
     border: "none",
     borderRadius: 4,
@@ -1060,7 +1177,7 @@ function ReplyItem({ reply, type, postId, darkMode, me, postOwner, postTitle }) 
           <strong>{reply.nickname || "알 수 없음"}</strong>
           {reply.isPrivate && <span style={{ fontSize: 14, color: "#e67e22" }}>🔒</span>}
         </div>
-        <span style={{ fontSize: 12, color: "#666" }}>
+        <span style={{ fontSize: 12, color: darkMode ? "#aaa" : "#666" }}>
           {new Date(reply.createdAt.seconds * 1000).toLocaleString()}
         </span>
       </div>
@@ -1077,14 +1194,16 @@ function ReplyItem({ reply, type, postId, darkMode, me, postOwner, postTitle }) 
             onClick={toggleLike} 
             style={{
               ...commentActionBtnStyle,
-              background: isLiked ? "#6a1b9a" : "#7e57c2"
+              background: isLiked 
+                ? (darkMode ? "#9c27b0" : "#6a1b9a") 
+                : (darkMode ? "#bb86fc" : "#7e57c2")
             }}
             disabled={isLiked}
           >
             {isLiked ? "👍" : "👍"} {likes}
           </button>
           {reply.nickname === me && (
-            <button onClick={deleteReply} style={{ ...commentActionBtnStyle, background: "#dc3545" }}>
+            <button onClick={deleteReply} style={{ ...commentActionBtnStyle, background: darkMode ? "#cf6679" : "#dc3545" }}>
               삭제
             </button>
           )}

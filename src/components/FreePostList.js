@@ -270,10 +270,27 @@ function FreePostList({ darkMode, globalProfilePics, globalGrades }) {
     (!post.isPrivate || post.nickname === me)
   );
   
-  // 정렬 옵션에 따라 게시물 정렬
-  const sortedPosts = sortOption === "comments" 
-    ? getSortedPostsByComments(filteredPosts)
-    : filteredPosts;
+  // 정렬 옵션에 따라 게시물 정렬 (공지사항이 항상 최상위)
+  const sortedPosts = (() => {
+    let sorted = sortOption === "comments" 
+      ? getSortedPostsByComments(filteredPosts)
+      : filteredPosts;
+    
+    // 공지사항을 최상위로 정렬
+    return [...sorted].sort((a, b) => {
+      // 먼저 공지사항 여부로 정렬 (공지사항이 위에)
+      if (a.isNotice && !b.isNotice) return -1;
+      if (!a.isNotice && b.isNotice) return 1;
+      
+      // 둘 다 공지사항이면 noticeOrder로 정렬 (최신 공지사항이 위에)
+      if (a.isNotice && b.isNotice) {
+        return (b.noticeOrder || 0) - (a.noticeOrder || 0);
+      }
+      
+      // 일반 게시글은 기존 정렬 유지
+      return 0;
+    });
+  })();
   
   // 카드 스타일 - 다크모드 적용
   const getCardStyle = (darkMode) => ({
@@ -555,13 +572,39 @@ function FreePostList({ darkMode, globalProfilePics, globalGrades }) {
         {sortedPosts.map(post => (
           <div 
             key={post.id} 
-            style={getCardStyle(darkMode)}
+            style={post.isNotice ? {
+              ...getCardStyle(darkMode),
+              background: "linear-gradient(135deg, #7e57c2 0%, #9c68e6 100%)",
+              color: "white",
+              border: "2px solid #7e57c2",
+              boxShadow: "0 4px 15px rgba(126, 87, 194, 0.3)",
+              position: "relative"
+            } : getCardStyle(darkMode)}
           >
+            {post.isNotice && (
+              <div style={{
+                position: "absolute",
+                top: "10px",
+                right: "10px",
+                background: "rgba(255, 255, 255, 0.9)",
+                color: "#7e57c2",
+                padding: "4px 8px",
+                borderRadius: "12px",
+                fontSize: "12px",
+                fontWeight: "bold",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px"
+              }}>
+                📢 공지사항
+              </div>
+            )}
+            
             <Link 
               to={`/post/freepost/${post.id}`} 
               style={{
                 textDecoration: "none",
-                color: darkMode ? "#e0e0e0" : "#333",
+                color: post.isNotice ? "white" : (darkMode ? "#e0e0e0" : "#333"),
                 display: "block"
               }}
             >
@@ -580,14 +623,16 @@ function FreePostList({ darkMode, globalProfilePics, globalGrades }) {
                   textOverflow: "ellipsis",
                   display: "-webkit-box",
                   WebkitLineClamp: 2,
-                  WebkitBoxOrient: "vertical"
+                  WebkitBoxOrient: "vertical",
+                  color: post.isNotice ? "white" : (darkMode ? "#e0e0e0" : "#333"),
+                  marginTop: post.isNotice ? "25px" : "0"
                 }}>
                   {post.title}
                   {post.isPrivate && (
                     <span style={{ 
                       marginLeft: "8px",
                       fontSize: "14px",
-                      color: darkMode ? "#ff9800" : "#e67e22",
+                      color: post.isNotice ? "rgba(255, 255, 255, 0.8)" : (darkMode ? "#ff9800" : "#e67e22"),
                       fontWeight: "normal"
                     }}>
                       🔒 비공개
@@ -601,7 +646,7 @@ function FreePostList({ darkMode, globalProfilePics, globalGrades }) {
             {post.content && (
               <div style={{
                 fontSize: "14px",
-                color: darkMode ? "#bbb" : "#555",
+                color: post.isNotice ? "rgba(255, 255, 255, 0.9)" : (darkMode ? "#bbb" : "#555"),
                 marginTop: "8px",
                 marginBottom: "10px",
                 overflow: "hidden",
@@ -617,13 +662,16 @@ function FreePostList({ darkMode, globalProfilePics, globalGrades }) {
             )}
             
             {/* 게시물 하단 정보 */}
-            <div style={cardMetaStyle}>
+            <div style={{
+              ...cardMetaStyle,
+              color: post.isNotice ? "rgba(255, 255, 255, 0.9)" : (darkMode ? "#bbb" : "#666")
+            }}>
               <div>
                 <Link 
                   to={`/userpage/${post.nickname || "알 수 없음"}`} 
                   style={{
                     textDecoration: "none",
-                    color: darkMode ? "#d4c2ff" : "#7e57c2",
+                    color: post.isNotice ? "white" : (darkMode ? "#d4c2ff" : "#7e57c2"),
                     fontWeight: "bold",
                     display: "inline-flex",
                     alignItems: "center",

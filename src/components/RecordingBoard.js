@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import PropTypes from "prop-types";
 import {
-  collection, query, orderBy, onSnapshot, getDocs, limit, startAfter
+  collection, query, orderBy, onSnapshot, getDocs, limit, startAfter, where
 } from "firebase/firestore";
 import { db } from "../firebase";
 import SearchBar from "./SearchBar";
@@ -71,14 +71,16 @@ function RecordingBoard({ darkMode, globalProfilePics, globalGrades }) {
     
     const unsubscribe = onSnapshot(q, s => {
       if (s.docs.length > 0) {
-        const arr = s.docs.map(d => ({ id: d.id, ...d.data() }));
-        setPosts(arr);
+        const allPosts = s.docs.map(d => ({ id: d.id, ...d.data() }));
+        // 삭제된 게시글 필터링 (클라이언트 사이드)
+        const filteredPosts = allPosts.filter(post => !post.deleted);
+        setPosts(filteredPosts);
         setLastVisible(s.docs[s.docs.length - 1]);
         setHasMore(s.docs.length === 15);
         setLoading(false);
         
         // 댓글 수 가져오기
-        const postIds = arr.map(p => p.id);
+        const postIds = filteredPosts.map(p => p.id);
         fetchCommentCounts(postIds);
       } else {
         setPosts([]);
@@ -96,7 +98,7 @@ function RecordingBoard({ darkMode, globalProfilePics, globalGrades }) {
     
     for (const postId of postIds) {
       if (!(postId in cCnt)) {
-        const commentSnap = await getDocs(collection(db, `mypage-recording-${postId}-comments`));
+        const commentSnap = await getDocs(collection(db, `recording-comments-${postId}`));
         commentCounts[postId] = commentSnap.size;
       }
     }
@@ -123,7 +125,9 @@ function RecordingBoard({ darkMode, globalProfilePics, globalGrades }) {
       const snapshot = await getDocs(q);
       
       if (snapshot.docs.length > 0) {
-        const newPosts = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        const allNewPosts = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        // 삭제된 게시글 필터링
+        const newPosts = allNewPosts.filter(post => !post.deleted);
         setPosts(prevPosts => [...prevPosts, ...newPosts]);
         setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
         setHasMore(snapshot.docs.length === 10);
@@ -164,8 +168,18 @@ function RecordingBoard({ darkMode, globalProfilePics, globalGrades }) {
     return searchContent.includes(search) && (!p.isPrivate || p.uploaderNickname === me);
   });
   
-  // 정렬 기준에 따라 정렬
+  // 정렬 기준에 따라 정렬 (공지사항이 항상 최상위)
   const sortedPosts = [...filtered].sort((a, b) => {
+    // 먼저 공지사항 여부로 정렬 (공지사항이 위에)
+    if (a.isNotice && !b.isNotice) return -1;
+    if (!a.isNotice && b.isNotice) return 1;
+    
+    // 둘 다 공지사항이면 noticeOrder로 정렬 (최신 공지사항이 위에)
+    if (a.isNotice && b.isNotice) {
+      return (b.noticeOrder || 0) - (a.noticeOrder || 0);
+    }
+    
+    // 일반 게시글 정렬
     if (sortType === "newest") {
       return b.createdAt.seconds - a.createdAt.seconds;
     } else if (sortType === "popular") {

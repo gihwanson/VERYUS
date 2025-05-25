@@ -212,6 +212,21 @@ function SongPostList({ darkMode, globalProfilePics, globalGrades }) {
     (p.title?.toLowerCase() + p.content?.toLowerCase()).includes(search.toLowerCase()) &&
     (!p.isPrivate || p.nickname === me)
   ) : posts.filter(p => !p.isPrivate || p.nickname === me);
+  
+  // 공지사항을 최상위로 정렬
+  const sortedFiltered = [...filtered].sort((a, b) => {
+    // 먼저 공지사항 여부로 정렬 (공지사항이 위에)
+    if (a.isNotice && !b.isNotice) return -1;
+    if (!a.isNotice && b.isNotice) return 1;
+    
+    // 둘 다 공지사항이면 noticeOrder로 정렬 (최신 공지사항이 위에)
+    if (a.isNotice && b.isNotice) {
+      return (b.noticeOrder || 0) - (a.noticeOrder || 0);
+    }
+    
+    // 일반 게시글은 기존 정렬 유지
+    return 0;
+  });
 
   // 게시글 날짜 포맷팅
   const formatDate = (timestamp) => {
@@ -540,7 +555,7 @@ function SongPostList({ darkMode, globalProfilePics, globalGrades }) {
       </div>
       
       <div style={{ marginTop: 20 }}>
-        {filtered.length === 0 ? (
+        {sortedFiltered.length === 0 ? (
           <div style={emptyStateStyle}>
             <p>등록된 게시글이 없습니다.</p>
             {search && <p>다른 검색어로 시도하거나 필터를 초기화해 보세요.</p>}
@@ -566,7 +581,7 @@ function SongPostList({ darkMode, globalProfilePics, globalGrades }) {
             )}
           </div>
         ) : (
-          filtered.map(p => (
+          sortedFiltered.map(p => (
             <div 
               key={p.id} 
               style={postCardStyle}

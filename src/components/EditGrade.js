@@ -404,15 +404,21 @@ function EditGrade({ darkMode }) {
             backgroundColor: darkMode ? "#333" : "#f5f5f5",
             borderRadius: "4px",
             marginTop: "20px",
-            marginBottom: "20px"
+            marginBottom: "20px",
+            lineHeight: "1.6"
           }}>
             <p style={{ margin: "0 0 10px 0", fontWeight: "bold" }}>등급 시스템 안내</p>
-            <p style={{ margin: "0 0 10px 0" }}>
-              등급은 사이트에서의 활동과 참여도를 나타내는 지표입니다.
-              각 등급은 다른 사용자들에게 표시되며, 자신에게 맞는 등급을 선택해보세요.
+            <p style={{ margin: "0 0 8px 0" }}>
+              본 등급은 전문 수준의 실력 분류가 아닌,
+            </p>
+            <p style={{ margin: "0 0 8px 0" }}>
+              취미로 노래를 즐기는 분들을 위한 재미 요소로 만들어진 등급 시스템입니다.
+            </p>
+            <p style={{ margin: "0 0 8px 0" }}>
+              하지만 이 등급은 팀 운영에 있어 중요한 하나의 문화와 구성으로 자리 잡고 있기에,
             </p>
             <p style={{ margin: 0 }}>
-              등급은 사용자가 직접 설정할 수 있으며, 사이트 활동에 따라 변경될 수 있습니다.
+              가볍게 받아들이시되 진지한 자세로 함께 참여해주시면 감사하겠습니다.
             </p>
           </div>
           
