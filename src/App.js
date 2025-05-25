@@ -67,6 +67,9 @@ import UploadRecording from "./components/UploadRecording";
 import RecordingBoard from "./components/RecordingBoard";
 import UserRecordings from "./components/UserRecordings";
 import RecordingComments from "./components/RecordingComments";
+import ScoreBoard from "./components/ScoreBoard";
+import CreateContest from "./components/CreateContest";
+import RegisterScore from "./components/RegisterScore";
 
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { globalBackgroundStyle, darkGlobalBackgroundStyle, sectionContainerStyle, darkSectionContainerStyle } from './components/style';
@@ -255,6 +258,9 @@ function AppContent() {
               <Route path="/my-comments" element={<RequireAuth><MyComments darkMode={dark} /></RequireAuth>} />
               <Route path="/edit-entry/:entryId" element={<RequireAuth><EditEntry darkMode={dark} /></RequireAuth>} />
               <Route path="/my-likes" element={<RequireAuth><MyLikes darkMode={dark} /></RequireAuth>} />
+              <Route path="/scores" element={<RequireAuth><ScoreBoard darkMode={dark} globalProfilePics={profilePics} globalGrades={grades} /></RequireAuth>} />
+              <Route path="/create-contest" element={<RequireAuth><CreateContest darkMode={dark} /></RequireAuth>} />
+              <Route path="/register-score/:contestId" element={<RequireAuth><RegisterScore darkMode={dark} /></RequireAuth>} />
               <Route path="*" element={<NotFound darkMode={dark} />} />
               <Route path="/evaluate" element={<RequireAuth><EvaluatePage darkMode={dark} /></RequireAuth>} />
               <Route path="/admin-eval" element={<RequireAuth><AdminEvalPage darkMode={dark} /></RequireAuth>} />
