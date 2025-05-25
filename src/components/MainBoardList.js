@@ -29,6 +29,18 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
   // 댓글 수 실시간 업데이트를 위한 상태 추가
   const [commentCounts, setCommentCounts] = useState({});
   
+  const [hotPosts, setHotPosts] = useState([]);
+  const [hotPostsLoading, setHotPostsLoading] = useState(true);
+  
+  // 게시판 타입과 댓글 컬렉션 이름 매핑
+  const commentCollectionMap = {
+    duet: "post",
+    free: "freepost", 
+    song: "song",
+    advice: "advice",
+    recording: "recordingPost"
+  };
+  
   useEffect(() => {
     // ref 객체 초기화
     linkRefs.current = {};
@@ -115,18 +127,61 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
     fetchContests();
   }, []);
   
+  useEffect(() => {
+    const fetchHotPosts = async () => {
+      try {
+        // 일주일 전 날짜 계산
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+        // 각 게시판의 핫한 게시글 가져오기
+        const collections = [
+          { name: "posts", type: "duet" },
+          { name: "freeposts", type: "free" },
+          { name: "songs", type: "song" },
+          { name: "advice", type: "advice" },
+          { name: "recordings", type: "recording" }
+        ];
+
+        let allHotPosts = [];
+
+        for (const col of collections) {
+          const q = query(
+            collection(db, col.name),
+            where("createdAt", ">=", oneWeekAgo),
+            orderBy("createdAt", "desc")
+          );
+
+          const snapshot = await getDocs(q);
+          const posts = snapshot.docs.map(doc => ({
+            id: doc.id,
+            type: col.type,
+            ...doc.data(),
+            likeCount: doc.data().likes ? Object.keys(doc.data().likes).length : 0
+          }));
+
+          allHotPosts = [...allHotPosts, ...posts];
+        }
+
+        // 좋아요 수로 정렬하고 상위 3개 선택
+        const sortedHotPosts = allHotPosts
+          .sort((a, b) => b.likeCount - a.likeCount)
+          .slice(0, 3);
+
+        setHotPosts(sortedHotPosts);
+      } catch (error) {
+        console.error("핫한 게시글 로딩 오류:", error);
+      } finally {
+        setHotPostsLoading(false);
+      }
+    };
+
+    fetchHotPosts();
+  }, []);
+  
   // 댓글 수 실시간 감시 설정
   useEffect(() => {
     const unsubscribes = [];
-
-    // 게시판 타입과 댓글 컬렉션 이름 매핑
-    const commentCollectionMap = {
-      duet: "post",
-      free: "freepost", 
-      song: "song",
-      advice: "advice",
-      recording: "recordingPost"
-    };
 
     Object.keys(boardInfo).forEach(boardType => {
       // 각 게시판의 최근 게시글들에 댓글 컬렉션 감시
@@ -327,6 +382,63 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
             border: 0;
           }
         `}</style>
+        
+        {/* 핫한 게시글 섹션 */}
+        <div style={getCardStyle("free", activeHover === "hot")}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 15 }}>
+            <h3 style={{ margin: 0, color: darkMode ? "#fff" : "#333" }}>
+              🔥 지금 핫한 게시글
+            </h3>
+          </div>
+
+          {hotPostsLoading ? (
+            Array(3).fill(null).map((_, i) => (
+              <div key={i} style={skeletonStyle}></div>
+            ))
+          ) : hotPosts.length === 0 ? (
+            <div style={postItemStyle}>
+              <p style={{ margin: 0, color: darkMode ? "#ccc" : "#666" }}>
+                인기 게시글이 없습니다.
+              </p>
+            </div>
+          ) : (
+            hotPosts.map(post => (
+              <div
+                key={post.id}
+                style={{
+                  ...postItemStyle,
+                  ":hover": {
+                    backgroundColor: darkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(255, 255, 255, 0.7)"
+                  }
+                }}
+                onClick={() => handlePostClick(post.type, post.id)}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ flex: 1, marginRight: 10 }}>
+                    <div style={{ fontSize: "14px", marginBottom: "4px" }}>
+                      {post.title}
+                    </div>
+                    <div style={{ fontSize: "12px", color: darkMode ? "#bbb" : "#666" }}>
+                      {post.nickname} • {formatTime(post.createdAt.seconds)} • 
+                      <span style={{ marginLeft: "5px" }}>
+                        ❤️ {post.likeCount || 0}
+                      </span>
+                    </div>
+                  </div>
+                  <div style={{
+                    fontSize: "12px",
+                    padding: "2px 8px",
+                    borderRadius: "12px",
+                    backgroundColor: darkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)",
+                    color: darkMode ? "#bbb" : "#666"
+                  }}>
+                    {boardInfo[post.type].title.split(" ")[1]}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
         
         {/* 콘테스트 섹션 */}
         <div style={getCardStyle("score", activeHover === "score")}>
