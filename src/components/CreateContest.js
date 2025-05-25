@@ -27,8 +27,8 @@ function CreateContest({ darkMode }) {
       return;
     }
     
-    if (userRole !== "운영진" && userRole !== "부운영진") {
-      alert("운영진만 콘테스트를 생성할 수 있습니다.");
+    if (userRole !== "운영진" && userRole !== "부운영진" && userRole !== "리더") {
+      alert("운영진 및 리더만 콘테스트를 생성할 수 있습니다.");
       navigate("/scores");
       return;
     }
@@ -145,8 +145,8 @@ function CreateContest({ darkMode }) {
       }
 
       // 한 번 더 권한 체크
-      if (!userRole || (userRole !== "운영진" && userRole !== "부운영진")) {
-        alert("운영진만 콘테스트를 생성할 수 있습니다.");
+      if (!userRole || (userRole !== "운영진" && userRole !== "부운영진" && userRole !== "리더")) {
+        alert("운영진 및 리더만 콘테스트를 생성할 수 있습니다.");
         navigate("/scores");
         return;
       }
