@@ -898,15 +898,38 @@ function NewAdminPanel({ darkMode }) {
     }
   };
 
-  // 팀별 평균 점수 계산
+  // 팀별 평균 점수 계산 (심사위원/일반 구분)
   const calculateTeamStats = (teamId) => {
     const teamRecords = contestRecords.filter(record => record.teamId === teamId);
-    if (teamRecords.length === 0) return { average: 0, count: 0 };
+    if (teamRecords.length === 0) return { average: 0, count: 0, judgeAverage: 0, normalAverage: 0 };
 
-    const sum = teamRecords.reduce((acc, curr) => acc + curr.record, 0);
+    // 심사위원 점수와 일반 점수 분리
+    const judgeRecords = teamRecords.filter(record => 
+      selectedContest.judges?.some(judge => judge.id === record.evaluatorId)
+    );
+    const normalRecords = teamRecords.filter(record => 
+      !selectedContest.judges?.some(judge => judge.id === record.evaluatorId)
+    );
+
+    // 전체 평균
+    const totalSum = teamRecords.reduce((acc, curr) => acc + curr.record, 0);
+    const totalAverage = teamRecords.length > 0 ? (totalSum / teamRecords.length).toFixed(1) : 0;
+
+    // 심사위원 평균
+    const judgeSum = judgeRecords.reduce((acc, curr) => acc + curr.record, 0);
+    const judgeAverage = judgeRecords.length > 0 ? (judgeSum / judgeRecords.length).toFixed(1) : 0;
+
+    // 일반 평가자 평균
+    const normalSum = normalRecords.reduce((acc, curr) => acc + curr.record, 0);
+    const normalAverage = normalRecords.length > 0 ? (normalSum / normalRecords.length).toFixed(1) : 0;
+
     return {
-      average: (sum / teamRecords.length).toFixed(1),
-      count: teamRecords.length
+      average: totalAverage,
+      count: teamRecords.length,
+      judgeAverage,
+      judgeCount: judgeRecords.length,
+      normalAverage,
+      normalCount: normalRecords.length
     };
   };
 
@@ -1578,9 +1601,13 @@ function NewAdminPanel({ darkMode }) {
                 <tr>
                   <th style={thStyle}>팀 번호</th>
                   <th style={thStyle}>팀원</th>
-                  <th style={thStyle}>평균 점수</th>
+                  <th style={thStyle}>전체 평균</th>
+                  {selectedContest.judges && selectedContest.judges.length > 0 && (
+                    <th style={thStyle}>심사위원 평균</th>
+                  )}
+                  <th style={thStyle}>일반 평균</th>
                   <th style={thStyle}>평가 횟수</th>
-                  <th style={thStyle}>상세 점수</th>
+                  <th style={thStyle}>상세 정보</th>
                 </tr>
               </thead>
               <tbody>
@@ -1599,19 +1626,112 @@ function NewAdminPanel({ darkMode }) {
                           {stats.average}점
                         </span>
                       </td>
+                      {selectedContest.judges && selectedContest.judges.length > 0 && (
+                        <td style={tdStyle}>
+                          <span style={{
+                            fontWeight: "bold",
+                            color: "#4caf50"
+                          }}>
+                            {stats.judgeAverage}점
+                            <small style={{ 
+                              display: "block", 
+                              fontSize: "12px", 
+                              color: darkMode ? "#aaa" : "#666" 
+                            }}>
+                              ({stats.judgeCount}명 평가)
+                            </small>
+                          </span>
+                        </td>
+                      )}
+                      <td style={tdStyle}>
+                        <span style={{
+                          fontWeight: "bold",
+                          color: "#ff9800"
+                        }}>
+                          {stats.normalAverage}점
+                          <small style={{ 
+                            display: "block", 
+                            fontSize: "12px", 
+                            color: darkMode ? "#aaa" : "#666" 
+                          }}>
+                            ({stats.normalCount}명 평가)
+                          </small>
+                        </span>
+                      </td>
                       <td style={tdStyle}>{stats.count}회</td>
                       <td style={tdStyle}>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-                          {teamRecords.map(record => (
-                            <span key={record.id} style={{
-                              padding: "2px 6px",
-                              backgroundColor: darkMode ? "#444" : "#f0f0f0",
-                              borderRadius: "4px",
-                              fontSize: "12px"
-                            }}>
-                              {record.record}점
-                            </span>
-                          ))}
+                        <div style={{ marginBottom: "10px" }}>
+                          <strong style={{ 
+                            display: "block", 
+                            marginBottom: "5px",
+                            color: darkMode ? "#bb86fc" : "#7e57c2"
+                          }}>
+                            점수 목록
+                          </strong>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                            {teamRecords.map(record => {
+                              const isJudge = selectedContest.judges?.some(
+                                judge => judge.id === record.evaluatorId
+                              );
+                              return (
+                                <span key={record.id} style={{
+                                  padding: "2px 6px",
+                                  backgroundColor: isJudge 
+                                    ? (darkMode ? "#1b5e20" : "#c8e6c9")
+                                    : (darkMode ? "#444" : "#f0f0f0"),
+                                  borderRadius: "4px",
+                                  fontSize: "12px",
+                                  color: darkMode 
+                                    ? (isJudge ? "#fff" : "#eee")
+                                    : (isJudge ? "#1b5e20" : "#333")
+                                }}>
+                                  {record.record}점
+                                  {isJudge && " (심사위원)"}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <div>
+                          <strong style={{ 
+                            display: "block", 
+                            marginBottom: "5px",
+                            color: darkMode ? "#bb86fc" : "#7e57c2"
+                          }}>
+                            리뷰
+                          </strong>
+                          <div style={{ 
+                            maxHeight: "100px", 
+                            overflowY: "auto",
+                            fontSize: "12px"
+                          }}>
+                            {teamRecords.map(record => {
+                              if (!record.review) return null;
+                              const isJudge = selectedContest.judges?.some(
+                                judge => judge.id === record.evaluatorId
+                              );
+                              return (
+                                <div key={record.id} style={{
+                                  padding: "4px 8px",
+                                  marginBottom: "4px",
+                                  backgroundColor: isJudge 
+                                    ? (darkMode ? "#1b5e20" : "#c8e6c9")
+                                    : (darkMode ? "#444" : "#f0f0f0"),
+                                  borderRadius: "4px",
+                                  color: darkMode ? "#fff" : "#333"
+                                }}>
+                                  <div style={{ 
+                                    fontSize: "11px", 
+                                    color: darkMode ? "#aaa" : "#666",
+                                    marginBottom: "2px"
+                                  }}>
+                                    {isJudge ? "심사위원" : "일반"} 평가 - {record.record}점
+                                  </div>
+                                  {record.review}
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -1620,7 +1740,7 @@ function NewAdminPanel({ darkMode }) {
               </tbody>
             </table>
 
-            {selectedContest.category === "grade" && (
+            {selectedContest.judges && selectedContest.judges.length > 0 && (
               <div style={{
                 marginTop: "30px",
                 padding: "20px",
@@ -1628,17 +1748,26 @@ function NewAdminPanel({ darkMode }) {
                 borderRadius: "8px"
               }}>
                 <h3 style={{ color: darkMode ? "#bb86fc" : "#7e57c2", marginBottom: "15px" }}>
-                  등급 기준표
+                  심사위원 목록
                 </h3>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
-                  <div>🌞 태양: 90점 이상</div>
-                  <div>🪐 토성: 80~89점</div>
-                  <div>🌏 지구: 70~79점</div>
-                  <div>🍉 수박: 60~69점</div>
-                  <div>🍈 멜론: 50~59점</div>
-                  <div>🍎 사과: 40~49점</div>
-                  <div>🥝 키위: 30~39점</div>
-                  <div>🫐 블루베리: 29점 이하</div>
+                  {selectedContest.judges.map(judge => (
+                    <div key={judge.id} style={{
+                      padding: "8px 12px",
+                      backgroundColor: darkMode ? "#444" : "#fff",
+                      borderRadius: "6px",
+                      fontSize: "14px"
+                    }}>
+                      {judge.nickname}
+                      <span style={{ 
+                        marginLeft: "8px",
+                        fontSize: "12px",
+                        color: darkMode ? "#aaa" : "#666"
+                      }}>
+                        ({judge.role})
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
