@@ -14,11 +14,16 @@ function NewAdminPanel({ darkMode }) {
   const [users, setUsers] = useState([]);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("users"); // "users", "reported", "stats"
+  const [activeTab, setActiveTab] = useState("users"); // "users", "reported", "stats", "contests"
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [editingUser, setEditingUser] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [contests, setContests] = useState([]);
+  const [selectedContest, setSelectedContest] = useState(null);
+  const [contestTeams, setContestTeams] = useState([]);
+  const [contestRecords, setContestRecords] = useState([]);
+  const [showScoreStats, setShowScoreStats] = useState(false);
   
   // 신규 가입자 추가 관련 state들을 최상단으로 이동
   const [showAddUser, setShowAddUser] = useState(false);
@@ -72,7 +77,7 @@ function NewAdminPanel({ darkMode }) {
         const userData = snapshot.docs.map(d => ({ 
           id: d.id, 
           ...d.data(),
-          firebaseId: d.id // Firebase 문서 ID 명시적 저장
+          firebaseId: d.id
         }));
         setUsers(userData);
         console.log("관리자 패널 - 사용자 데이터 업데이트:", userData.length, "명");
@@ -95,11 +100,25 @@ function NewAdminPanel({ darkMode }) {
       }
     );
 
+    // 콘테스트 실시간 리스너
+    const contestsUnsubscribe = onSnapshot(
+      query(collection(db, "contests"), orderBy("createdAt", "desc")),
+      (snapshot) => {
+        const contestData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        setContests(contestData);
+        console.log("관리자 패널 - 콘테스트:", contestData.length, "개");
+      },
+      (error) => {
+        console.error("콘테스트 데이터 로드 오류:", error);
+      }
+    );
+
     setLoading(false);
 
     return () => {
       usersUnsubscribe();
       postsUnsubscribe();
+      contestsUnsubscribe();
     };
   }, []);
 
@@ -801,6 +820,96 @@ function NewAdminPanel({ darkMode }) {
       : "linear-gradient(135deg, #f8f5ff 0%, #f0ebff 100%)"
   };
 
+  // 콘테스트 삭제 함수
+  const deleteContest = async (contestId, title) => {
+    if (!window.confirm(`"${title}" 콘테스트를 삭제하시겠습니까?\n관련된 모든 데이터가 삭제됩니다.`)) {
+      return;
+    }
+
+    try {
+      // 콘테스트 문서 삭제
+      await deleteDoc(doc(db, "contests", contestId));
+
+      // contestTeams 컬렉션에서 관련 팀 데이터 삭제
+      const teamsQuery = query(
+        collection(db, "contestTeams"),
+        where("contestId", "==", contestId)
+      );
+      const teamsSnapshot = await getDocs(teamsQuery);
+      const batch = writeBatch(db);
+      
+      teamsSnapshot.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+
+      // contestRecords 컬렉션에서 관련 기록 삭제
+      const recordsQuery = query(
+        collection(db, "contestRecords"),
+        where("contestId", "==", contestId)
+      );
+      const recordsSnapshot = await getDocs(recordsQuery);
+      
+      recordsSnapshot.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+
+      await batch.commit();
+      alert("콘테스트가 성공적으로 삭제되었습니다.");
+    } catch (error) {
+      console.error("콘테스트 삭제 오류:", error);
+      alert("콘테스트 삭제 중 오류가 발생했습니다.");
+    }
+  };
+
+  // 콘테스트 점수 통계 가져오기
+  const fetchContestStats = async (contestId) => {
+    try {
+      // 팀 정보 가져오기
+      const teamsQuery = query(
+        collection(db, "contestTeams"),
+        where("contestId", "==", contestId)
+      );
+      const teamsSnapshot = await getDocs(teamsQuery);
+      const teamsData = teamsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setContestTeams(teamsData);
+
+      // 점수 기록 가져오기
+      const recordsQuery = query(
+        collection(db, "contestRecords"),
+        where("contestId", "==", contestId)
+      );
+      const recordsSnapshot = await getDocs(recordsQuery);
+      const recordsData = recordsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setContestRecords(recordsData);
+
+      // 선택된 콘테스트 정보 설정
+      const selectedContestData = contests.find(c => c.id === contestId);
+      setSelectedContest(selectedContestData);
+      setShowScoreStats(true);
+    } catch (error) {
+      console.error("콘테스트 통계 로딩 오류:", error);
+      alert("통계 데이터를 불러오는 중 오류가 발생했습니다.");
+    }
+  };
+
+  // 팀별 평균 점수 계산
+  const calculateTeamStats = (teamId) => {
+    const teamRecords = contestRecords.filter(record => record.teamId === teamId);
+    if (teamRecords.length === 0) return { average: 0, count: 0 };
+
+    const sum = teamRecords.reduce((acc, curr) => acc + curr.record, 0);
+    return {
+      average: (sum / teamRecords.length).toFixed(1),
+      count: teamRecords.length
+    };
+  };
+
   if (loading) {
     return (
       <div style={darkMode ? darkContainerStyle : containerStyle}>
@@ -858,6 +967,12 @@ function NewAdminPanel({ darkMode }) {
             onClick={() => setActiveTab("stats")}
           >
             📊 통계
+          </button>
+          <button 
+            style={tabItemStyle(activeTab === "contests")} 
+            onClick={() => setActiveTab("contests")}
+          >
+            🏆 콘테스트 ({contests.length})
           </button>
         </div>
 
@@ -1336,6 +1451,197 @@ function NewAdminPanel({ darkMode }) {
                 </p>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* 콘테스트 관리 탭 */}
+        {activeTab === "contests" && !showScoreStats && (
+          <div>
+            <h2 style={{ marginBottom: "20px", color: darkMode ? "#fff" : "#333" }}>
+              콘테스트 관리
+            </h2>
+            <table style={tableStyle}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>제목</th>
+                  <th style={thStyle}>카테고리</th>
+                  <th style={thStyle}>주최자</th>
+                  <th style={thStyle}>참가자 수</th>
+                  <th style={thStyle}>상태</th>
+                  <th style={thStyle}>생성일</th>
+                  <th style={thStyle}>종료일</th>
+                  <th style={thStyle}>관리</th>
+                </tr>
+              </thead>
+              <tbody>
+                {contests.map(contest => (
+                  <tr key={contest.id}>
+                    <td style={tdStyle}>{contest.title}</td>
+                    <td style={tdStyle}>
+                      {contest.category === "grade" ? "등급전" : "일반 콘테스트"}
+                    </td>
+                    <td style={tdStyle}>{contest.organizer}</td>
+                    <td style={tdStyle}>{contest.participantCount || 0}명</td>
+                    <td style={tdStyle}>
+                      <span style={{
+                        padding: "4px 8px",
+                        borderRadius: "4px",
+                        backgroundColor: contest.status === "진행중" ? "#4caf50" : "#ff9800",
+                        color: "white",
+                        fontSize: "12px"
+                      }}>
+                        {contest.status || "진행중"}
+                      </span>
+                    </td>
+                    <td style={tdStyle}>
+                      {contest.createdAt ? new Date(contest.createdAt.seconds * 1000).toLocaleDateString() : "-"}
+                    </td>
+                    <td style={tdStyle}>
+                      {contest.endDate ? new Date(contest.endDate.seconds * 1000).toLocaleDateString() : "-"}
+                    </td>
+                    <td style={tdStyle}>
+                      <div style={{ display: "flex", gap: "4px" }}>
+                        <button
+                          onClick={() => fetchContestStats(contest.id)}
+                          style={{
+                            ...buttonStyle,
+                            backgroundColor: "#7e57c2",
+                            color: "white"
+                          }}
+                        >
+                          점수통계
+                        </button>
+                        <button
+                          onClick={() => deleteContest(contest.id, contest.title)}
+                          style={deleteButtonStyle}
+                        >
+                          삭제
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {contests.length === 0 && (
+              <div style={{ 
+                textAlign: "center", 
+                padding: "40px",
+                color: darkMode ? "#aaa" : "#666"
+              }}>
+                등록된 콘테스트가 없습니다.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 콘테스트 점수 통계 */}
+        {activeTab === "contests" && showScoreStats && selectedContest && (
+          <div>
+            <div style={{ 
+              display: "flex", 
+              justifyContent: "space-between", 
+              alignItems: "center",
+              marginBottom: "20px" 
+            }}>
+              <h2 style={{ color: darkMode ? "#fff" : "#333" }}>
+                {selectedContest.title} - 점수 통계
+              </h2>
+              <button
+                onClick={() => {
+                  setShowScoreStats(false);
+                  setSelectedContest(null);
+                  setContestTeams([]);
+                  setContestRecords([]);
+                }}
+                style={{
+                  ...buttonStyle,
+                  backgroundColor: "#666",
+                  color: "white",
+                  padding: "8px 16px"
+                }}
+              >
+                목록으로 돌아가기
+              </button>
+            </div>
+
+            <div style={{ marginBottom: "30px" }}>
+              <p style={{ color: darkMode ? "#ccc" : "#666" }}>
+                카테고리: {selectedContest.category === "grade" ? "등급전" : "일반 콘테스트"} |
+                주최자: {selectedContest.organizer} |
+                참가자: {selectedContest.participantCount || 0}명
+              </p>
+            </div>
+
+            <table style={tableStyle}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>팀 번호</th>
+                  <th style={thStyle}>팀원</th>
+                  <th style={thStyle}>평균 점수</th>
+                  <th style={thStyle}>평가 횟수</th>
+                  <th style={thStyle}>상세 점수</th>
+                </tr>
+              </thead>
+              <tbody>
+                {contestTeams.sort((a, b) => a.teamNumber - b.teamNumber).map(team => {
+                  const stats = calculateTeamStats(team.id);
+                  const teamRecords = contestRecords.filter(record => record.teamId === team.id);
+                  return (
+                    <tr key={team.id}>
+                      <td style={tdStyle}>{team.teamNumber}</td>
+                      <td style={tdStyle}>{team.members.join(", ")}</td>
+                      <td style={tdStyle}>
+                        <span style={{
+                          fontWeight: "bold",
+                          color: darkMode ? "#bb86fc" : "#7e57c2"
+                        }}>
+                          {stats.average}점
+                        </span>
+                      </td>
+                      <td style={tdStyle}>{stats.count}회</td>
+                      <td style={tdStyle}>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                          {teamRecords.map(record => (
+                            <span key={record.id} style={{
+                              padding: "2px 6px",
+                              backgroundColor: darkMode ? "#444" : "#f0f0f0",
+                              borderRadius: "4px",
+                              fontSize: "12px"
+                            }}>
+                              {record.record}점
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            {selectedContest.category === "grade" && (
+              <div style={{
+                marginTop: "30px",
+                padding: "20px",
+                backgroundColor: darkMode ? "#333" : "#f5f5f5",
+                borderRadius: "8px"
+              }}>
+                <h3 style={{ color: darkMode ? "#bb86fc" : "#7e57c2", marginBottom: "15px" }}>
+                  등급 기준표
+                </h3>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+                  <div>🌞 태양: 90점 이상</div>
+                  <div>🪐 토성: 80~89점</div>
+                  <div>🌏 지구: 70~79점</div>
+                  <div>🍉 수박: 60~69점</div>
+                  <div>🍈 멜론: 50~59점</div>
+                  <div>🍎 사과: 40~49점</div>
+                  <div>🥝 키위: 30~39점</div>
+                  <div>🫐 블루베리: 29점 이하</div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
