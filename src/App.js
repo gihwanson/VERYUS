@@ -68,6 +68,7 @@ import RecordingBoard from "./components/RecordingBoard";
 import UserRecordings from "./components/UserRecordings";
 import RecordingComments from "./components/RecordingComments";
 import ScoreBoard from "./components/ScoreBoard";
+import SpecialMoments from "./components/SpecialMoments";
 import CreateContest from "./components/CreateContest";
 import RegisterScore from "./components/RegisterScore";
 
@@ -212,16 +213,15 @@ function AppContent() {
           role={role}
         />
         <div style={{
-          maxWidth: "1200px",
-          margin: "20px auto",
-          padding: "0 20px",
+          margin: "20px 0",
+          padding: "0",
           boxSizing: "border-box",
           width: "100%"
         }}>
           <div style={dark ? darkSectionContainerStyle : sectionContainerStyle}>
             <Routes>
               <Route path="/" element={nick ? 
-                <><MainBoardList darkMode={dark} globalProfilePics={profilePics} globalGrades={grades} /><ActivityHistory darkMode={dark} /><MemberList darkMode={dark} /></> 
+                <><MainBoardList darkMode={dark} globalProfilePics={profilePics} globalGrades={grades} /><SpecialMoments darkMode={dark} globalProfilePics={profilePics} globalGrades={grades} showOnlyPreview={true} /><ActivityHistory darkMode={dark} /><MemberList darkMode={dark} /></> 
                 : <Login darkMode={dark} />} />
               <Route path="/login" element={<Login darkMode={dark} />} />
               <Route path="/signup" element={<Signup darkMode={dark} />} />
@@ -267,9 +267,9 @@ function AppContent() {
               <Route path="/new-admin-panel" element={<RequireAuth><NewAdminPanel darkMode={dark} /></RequireAuth>} />
               <Route path="/upload-recording" element={<RequireAuth><UploadRecording darkMode={dark} /></RequireAuth>} />
               <Route path="/recordings" element={<RequireAuth><RecordingBoard darkMode={dark} globalProfilePics={profilePics} globalGrades={grades} /></RequireAuth>} />
-              <Route path="/recording-board" element={<RequireAuth><RecordingBoard darkMode={dark} globalProfilePics={profilePics} globalGrades={grades} /></RequireAuth>} />
               <Route path="/user-recordings/:nickname" element={<RequireAuth><UserRecordings darkMode={dark} globalProfilePics={profilePics} globalGrades={grades} /></RequireAuth>} />
               <Route path="/recording-comments/:recordingId" element={<RequireAuth><RecordingComments darkMode={dark} /></RequireAuth>} />
+              <Route path="/special-moments" element={<RequireAuth><SpecialMoments darkMode={dark} globalProfilePics={profilePics} globalGrades={grades} /></RequireAuth>} />
             </Routes>
           </div>
         </div>

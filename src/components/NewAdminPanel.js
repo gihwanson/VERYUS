@@ -820,6 +820,23 @@ function NewAdminPanel({ darkMode }) {
       : "linear-gradient(135deg, #f8f5ff 0%, #f0ebff 100%)"
   };
 
+  // 콘테스트 마감 함수
+  const endContest = async (contestId, title) => {
+    if (!window.confirm(`"${title}" 콘테스트를 마감하시겠습니까?\n마감 후에는 더 이상 점수를 등록할 수 없습니다.`)) {
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, "contests", contestId), {
+        status: "종료"
+      });
+      alert("콘테스트가 마감되었습니다.");
+    } catch (error) {
+      console.error("콘테스트 마감 오류:", error);
+      alert("콘테스트 마감 중 오류가 발생했습니다.");
+    }
+  };
+
   // 콘테스트 삭제 함수
   const deleteContest = async (contestId, title) => {
     if (!window.confirm(`"${title}" 콘테스트를 삭제하시겠습니까?\n관련된 모든 데이터가 삭제됩니다.`)) {
@@ -1534,6 +1551,18 @@ function NewAdminPanel({ darkMode }) {
                         >
                           점수통계
                         </button>
+                        {contest.status !== "종료" && (
+                          <button
+                            onClick={() => endContest(contest.id, contest.title)}
+                            style={{
+                              ...buttonStyle,
+                              backgroundColor: "#ff9800",
+                              color: "white"
+                            }}
+                          >
+                            마감
+                          </button>
+                        )}
                         <button
                           onClick={() => deleteContest(contest.id, contest.title)}
                           style={deleteButtonStyle}

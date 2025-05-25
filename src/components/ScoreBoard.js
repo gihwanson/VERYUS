@@ -135,18 +135,28 @@ function ScoreBoard({ darkMode, globalProfilePics, globalGrades }) {
 
   const contestCardStyle = {
     padding: "15px",
-    backgroundColor: darkMode ? "#3d3d3d" : "#f5f5f5",
-    borderRadius: "8px",
+    background: darkMode 
+      ? "linear-gradient(135deg, #4a3a6a 0%, #5d4e75 100%)"
+      : "linear-gradient(135deg, #f3e7ff 0%, #e8dbff 100%)",
+    borderRadius: "12px",
     marginBottom: "15px",
     cursor: "pointer",
-    border: `2px solid ${darkMode ? "#4d4d4d" : "#e0e0e0"}`,
-    transition: "all 0.3s ease"
+    border: `2px solid ${darkMode ? "#7e57c2" : "#d6c4f2"}`,
+    transition: "all 0.3s ease",
+    boxShadow: darkMode 
+      ? "0 4px 15px rgba(126, 87, 194, 0.2)"
+      : "0 4px 15px rgba(126, 87, 194, 0.1)"
   };
 
   const selectedContestStyle = {
     ...contestCardStyle,
-    borderColor: "#7e57c2",
-    backgroundColor: darkMode ? "#4a3a6a" : "#f3eaff"
+    borderColor: "#bb86fc",
+    background: darkMode 
+      ? "linear-gradient(135deg, #6a4c93 0%, #7e57c2 100%)"
+      : "linear-gradient(135deg, #e8dbff 0%, #d6c4f2 100%)",
+    boxShadow: darkMode 
+      ? "0 6px 20px rgba(187, 134, 252, 0.3)"
+      : "0 6px 20px rgba(126, 87, 194, 0.2)"
   };
 
   if (loading) {

@@ -6,6 +6,24 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase";
 
+// 등급 이모지 매핑
+const gradeEmojis = {
+  "체리": "🍒",
+  "블루베리": "🫐",
+  "키위": "🥝",
+  "사과": "🍎",
+  "멜론": "🍈",
+  "수박": "🍉",
+  "지구": "🌏",
+  "토성": "🪐",
+  "태양": "🌞",
+  "은하": "🌌",
+  "맥주": "🍺",
+  "번개": "⚡",
+  "달": "🌙",
+  "별": "⭐"
+};
+
 function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
   const navigate = useNavigate();
   const [posts, setPosts] = useState({
@@ -14,7 +32,8 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
     song: { items: [], loading: true, error: null },
     advice: { items: [], loading: true, error: null },
     recording: { items: [], loading: true, error: null },
-    score: { items: [], loading: true, error: null }
+    score: { items: [], loading: true, error: null },
+    specialMoments: { items: [], loading: true, error: null }
   });
   
 
@@ -37,7 +56,8 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
     free: "freepost", 
     song: "song",
     advice: "advice",
-    recording: "recordingPost"
+    recording: "recording-comments",
+    specialMoments: "special-moment"
   };
   
   useEffect(() => {
@@ -100,7 +120,8 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
     fetchPosts("freeposts", "free");
     fetchPosts("songs", "song");
     fetchPosts("advice", "advice");
-    fetchPosts("recordings", "recording");
+    fetchPosts("mypage_recordings", "recording");
+    fetchPosts("special_moments", "specialMoments");
   }, []);
   
   useEffect(() => {
@@ -116,7 +137,8 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
           { name: "freeposts", type: "free" },
           { name: "songs", type: "song" },
           { name: "advice", type: "advice" },
-          { name: "recordings", type: "recording" }
+          { name: "mypage_recordings", type: "recording" },
+          { name: "special_moments", type: "specialMoments" }
         ];
 
         let allHotPosts = [];
@@ -141,7 +163,13 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
             try {
               const commentCollectionName = commentCollectionMap[col.type];
               if (commentCollectionName) {
-                const commentRef = collection(db, `${commentCollectionName}-${doc.id}-comments`);
+                let commentRef;
+                if (col.type === "recording") {
+                  // 녹음게시판은 특별한 컬렉션명 사용
+                  commentRef = collection(db, `${commentCollectionName}-${doc.id}`);
+                } else {
+                  commentRef = collection(db, `${commentCollectionName}-${doc.id}-comments`);
+                }
                 const commentSnapshot = await getDocs(commentRef);
                 postData.commentCount = commentSnapshot.size;
               } else {
@@ -158,9 +186,13 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
           allHotPosts = [...allHotPosts, ...posts];
         }
 
-        // 좋아요 수로 정렬하고 상위 3개 선택
+        // 좋아요 수 + 댓글 수로 정렬하고 상위 3개 선택 (가중치: 좋아요 1, 댓글 1.5)
         const sortedHotPosts = allHotPosts
-          .sort((a, b) => b.likeCount - a.likeCount)
+          .sort((a, b) => {
+            const scoreA = (a.likeCount || 0) + (a.commentCount || 0) * 1.5;
+            const scoreB = (b.likeCount || 0) + (b.commentCount || 0) * 1.5;
+            return scoreB - scoreA;
+          })
           .slice(0, 3);
 
         setHotPosts(sortedHotPosts);
@@ -182,14 +214,22 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
       // 각 게시판의 최근 게시글들에 댓글 컬렉션 감시
       posts[boardType].items.forEach(post => {
         const collectionType = commentCollectionMap[boardType];
-        const commentRef = collection(db, `${collectionType}-${post.id}-comments`);
-        const unsubscribe = onSnapshot(commentRef, (snapshot) => {
-          setCommentCounts(prev => ({
-            ...prev,
-            [`${boardType}-${post.id}`]: snapshot.size
-          }));
-        });
-        unsubscribes.push(unsubscribe);
+        if (collectionType) {
+          let commentRef;
+          if (boardType === "recording") {
+            // 녹음게시판은 특별한 컬렉션명 사용
+            commentRef = collection(db, `${collectionType}-${post.id}`);
+          } else {
+            commentRef = collection(db, `${collectionType}-${post.id}-comments`);
+          }
+          const unsubscribe = onSnapshot(commentRef, (snapshot) => {
+            setCommentCounts(prev => ({
+              ...prev,
+              [`${boardType}-${post.id}`]: snapshot.size
+            }));
+          });
+          unsubscribes.push(unsubscribe);
+        }
       });
     });
 
@@ -282,6 +322,16 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
       hoverDark: "#4a3a6a",
       route: "/scores",
       postRoute: "/post/score"
+    },
+    specialMoments: {
+      title: "✨ 베리어스의 특별한 순간들",
+      color: "#ff6d00",
+      bgLight: "#fff3e0",
+      bgDark: "#5a3a00",
+      hoverLight: "#ffe0b2",
+      hoverDark: "#6a4a10",
+      route: "/special-moments",
+      postRoute: "/post/special-moment"
     }
   };
   
@@ -436,7 +486,7 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
                       fontSize: window.innerWidth <= 768 ? "13px" : "12px", 
                       color: darkMode ? "#bbb" : "#666" 
                     }}>
-                      {post.nickname} • {formatTime(post.createdAt.seconds)} • 
+                      {post.nickname} {globalGrades[post.nickname] && gradeEmojis[globalGrades[post.nickname]]} • {formatTime(post.createdAt.seconds)} • 
                       <span style={{ marginLeft: "5px" }}>
                         ❤️ {post.likeCount || 0}
                       </span>
@@ -464,7 +514,7 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
         
         {/* 각 게시판 카드 */}
         {Object.keys(boardInfo).map(boardType => {
-          if (boardType === "score") return null; // 콘테스트 섹션은 위에서 처리했으므로 제외
+          if (boardType === "score" || boardType === "specialMoments") return null; // 콘테스트와 특별한 순간들은 별도로 처리
           
           return (
             <div 
@@ -530,6 +580,7 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
                   {boardType === 'advice' && "상담글이 없습니다"}
                   {boardType === 'recording' && "녹음 글이 없습니다"} 
                   {boardType === 'score' && "콘테스트 게시물이 없습니다"}
+                  {boardType === 'specialMoments' && "특별한 순간이 없습니다"}
                 </div>
               )}
               
@@ -571,7 +622,7 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
                             fontSize: window.innerWidth <= 768 ? "13px" : "12px", 
                             color: darkMode ? "#bbb" : "#666" 
                           }}>
-                            {post.nickname} • {formatTime(post.createdAt.seconds)} • 
+                            {post.nickname} {globalGrades[post.nickname] && gradeEmojis[globalGrades[post.nickname]]} • {formatTime(post.createdAt.seconds)} • 
                             <span style={{ marginLeft: "5px" }}>
                               💬 {commentCounts[`${boardType}-${post.id}`] || 0}
                             </span>
@@ -596,6 +647,7 @@ function MainBoardList({ darkMode, globalProfilePics, globalGrades }) {
                       {boardType === 'advice' && "모든 상담 게시물 보기"}
                       {boardType === 'recording' && "모든 녹음 게시물 보기"}
                       {boardType === 'score' && "모든 콘테스트 보기"}
+                      {boardType === 'specialMoments' && "모든 특별한 순간 보기"}
                     </div>
                   </a>
                 </div>

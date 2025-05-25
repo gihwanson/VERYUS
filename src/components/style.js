@@ -128,13 +128,13 @@ export const darkGlobalBackgroundStyle = {
 
 // 섹션 컨테이너 스타일
 export const sectionContainerStyle = {
-  backgroundColor: "rgba(255, 255, 255, 0.8)",
-  borderRadius: "12px",
-  padding: "20px",
-  marginBottom: "20px",
-  backdropFilter: "blur(8px)",
-  boxShadow: "0 4px 6px rgba(0, 0, 0, 0.05)",
-  border: "1px solid rgba(126, 87, 194, 0.1)",
+  backgroundColor: "transparent",
+  borderRadius: "0px",
+  padding: "0px",
+  marginBottom: "0px",
+  backdropFilter: "none",
+  boxShadow: "none",
+  border: "none",
   width: "100%",
   maxWidth: "100%",
   boxSizing: "border-box",
@@ -142,16 +142,16 @@ export const sectionContainerStyle = {
   overflowWrap: "break-word",
   // 모바일 반응형
   "@media (max-width: 768px)": {
-    padding: "15px",
-    marginBottom: "15px",
+    padding: "0px",
+    marginBottom: "0px",
   }
 };
 
 export const darkSectionContainerStyle = {
   ...sectionContainerStyle,
-  backgroundColor: "rgba(42, 42, 42, 0.8)",
-  border: "1px solid rgba(126, 87, 194, 0.2)",
-  boxShadow: "0 4px 6px rgba(0, 0, 0, 0.2)",
+  backgroundColor: "transparent",
+  border: "none",
+  boxShadow: "none",
 };
 
 // 카드 스타일
