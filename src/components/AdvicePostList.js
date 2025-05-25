@@ -156,6 +156,21 @@ function AdvicePostList({ darkMode, globalProfilePics, globalGrades }) {
     (p.title?.toLowerCase() + p.content?.toLowerCase()).includes(search.toLowerCase()) &&
     (!p.isPrivate || p.nickname === me)
   );
+  
+  // 공지사항을 최상위로 정렬
+  const sortedFiltered = [...filtered].sort((a, b) => {
+    // 먼저 공지사항 여부로 정렬 (공지사항이 위에)
+    if (a.isNotice && !b.isNotice) return -1;
+    if (!a.isNotice && b.isNotice) return 1;
+    
+    // 둘 다 공지사항이면 noticeOrder로 정렬 (최신 공지사항이 위에)
+    if (a.isNotice && b.isNotice) {
+      return (b.noticeOrder || 0) - (a.noticeOrder || 0);
+    }
+    
+    // 일반 게시글은 기존 정렬 유지
+    return 0;
+  });
 
   const getFormattedDate = (seconds) => {
     const now = new Date();
@@ -361,7 +376,7 @@ function AdvicePostList({ darkMode, globalProfilePics, globalGrades }) {
         <div style={{ textAlign: "center", padding: "20px" }}>
           게시글을 불러오는 중...
         </div>
-      ) : filtered.length === 0 ? (
+      ) : sortedFiltered.length === 0 ? (
         <div style={{ 
           padding: "30px", 
           textAlign: "center",
@@ -376,7 +391,7 @@ function AdvicePostList({ darkMode, globalProfilePics, globalGrades }) {
         </div>
       ) : (
         <div style={{ marginTop: 20 }}>
-          {filtered.map(post => (
+          {sortedFiltered.map(post => (
             <div 
               key={post.id} 
               style={hoveredPostId === post.id ? postItemHoverStyle : postItemStyle}

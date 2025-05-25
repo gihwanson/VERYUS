@@ -18,18 +18,22 @@ function MyPosts({ darkMode }) {
         setLoading(true);
         
         // 모든 게시판에서 내가 작성한 글 가져오기
-        const [duetPosts, freePosts, songPosts, advicePosts] = await Promise.all([
+        const [duetPosts, freePosts, songPosts, advicePosts, recordingPosts, specialMomentsPosts] = await Promise.all([
           getDocs(query(collection(db, "posts"), where("nickname", "==", nickname), orderBy("createdAt", "desc"))),
           getDocs(query(collection(db, "freeposts"), where("nickname", "==", nickname), orderBy("createdAt", "desc"))),
           getDocs(query(collection(db, "songs"), where("nickname", "==", nickname), orderBy("createdAt", "desc"))),
-          getDocs(query(collection(db, "advice"), where("nickname", "==", nickname), orderBy("createdAt", "desc")))
+          getDocs(query(collection(db, "advice"), where("nickname", "==", nickname), orderBy("createdAt", "desc"))),
+          getDocs(query(collection(db, "mypage_recordings"), where("nickname", "==", nickname), orderBy("createdAt", "desc"))),
+          getDocs(query(collection(db, "special_moments"), where("nickname", "==", nickname), orderBy("createdAt", "desc")))
         ]);
 
         const allPosts = [
           ...duetPosts.docs.map(doc => ({ id: doc.id, ...doc.data(), type: "post", boardName: "듀엣/합창" })),
           ...freePosts.docs.map(doc => ({ id: doc.id, ...doc.data(), type: "freepost", boardName: "자유게시판" })),
           ...songPosts.docs.map(doc => ({ id: doc.id, ...doc.data(), type: "song", boardName: "노래추천" })),
-          ...advicePosts.docs.map(doc => ({ id: doc.id, ...doc.data(), type: "advice", boardName: "고민상담" }))
+          ...advicePosts.docs.map(doc => ({ id: doc.id, ...doc.data(), type: "advice", boardName: "고민상담" })),
+          ...recordingPosts.docs.map(doc => ({ id: doc.id, ...doc.data(), type: "recording", boardName: "녹음게시판" })),
+          ...specialMomentsPosts.docs.map(doc => ({ id: doc.id, ...doc.data(), type: "special-moment", boardName: "특별한 순간들" }))
         ];
 
         // 최신순으로 정렬

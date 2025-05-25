@@ -22,7 +22,9 @@ function MyComments({ darkMode }) {
           { name: "posts", type: "post", boardName: "듀엣/합창" },
           { name: "freeposts", type: "freepost", boardName: "자유게시판" },
           { name: "songs", type: "song", boardName: "노래추천" },
-          { name: "advice", type: "advice", boardName: "고민상담" }
+          { name: "advice", type: "advice", boardName: "고민상담" },
+          { name: "mypage_recordings", type: "recording", boardName: "녹음게시판" },
+          { name: "special_moments", type: "special-moment", boardName: "특별한 순간들" }
         ];
 
         const allComments = [];
@@ -37,11 +39,16 @@ function MyComments({ darkMode }) {
             
             try {
               // 각 게시글의 댓글 컬렉션에서 내가 작성한 댓글 찾기
-              const commentCollectionName = `${col.type}-${postId}-comments`;
+              let commentCollectionName;
+              if (col.type === "recording") {
+                commentCollectionName = `recording-comments-${postId}`;
+              } else {
+                commentCollectionName = `${col.type}-${postId}-comments`;
+              }
+              
               const commentsQuery = query(
                 collection(db, commentCollectionName),
-                where("nickname", "==", nickname),
-                orderBy("createdAt", "desc")
+                where("nickname", "==", nickname)
               );
               const commentsSnapshot = await getDocs(commentsQuery);
               

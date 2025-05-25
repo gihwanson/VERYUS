@@ -23,10 +23,12 @@ function WritePost({ darkMode }) {
   const [characterCount, setCharacterCount] = useState(0);
   const [recordingFile, setRecordingFile] = useState(null);
   const [recordingPreview, setRecordingPreview] = useState("");
+  const [isNotice, setIsNotice] = useState(false);
   const nav = useNavigate();
   
   // 중요: 닉네임 가져오기
   const nick = localStorage.getItem("nickname");
+  const role = localStorage.getItem("role");
   
   // 글자 수 제한
   const MAX_TITLE_LENGTH = 50;
@@ -74,6 +76,7 @@ function WritePost({ darkMode }) {
       case "advice": return "advice";
       case "free": return "freeposts";
       case "recording": return "recordingPosts";
+      case "special-moments": return "special_moments";
       default: return "posts";
     }
   };
@@ -133,6 +136,17 @@ function WritePost({ darkMode }) {
             { value: "practice", label: "연습" },
             { value: "duet", label: "듀엣/합창" },
             { value: "solo", label: "솔로" }
+          ]
+        };
+      case "special-moments":
+        return {
+          title: "✨ 베리어스의 특별한 순간들",
+          categories: [
+            { value: "event", label: "이벤트" },
+            { value: "activity", label: "활동" },
+            { value: "memory", label: "추억" },
+            { value: "achievement", label: "성과" },
+            { value: "celebration", label: "축하" }
           ]
         };
       default:
@@ -294,6 +308,12 @@ function WritePost({ darkMode }) {
       return;
     }
     
+    // 특별한 순간들 게시판 권한 체크
+    if (category === "special-moments" && role !== "리더" && role !== "운영진") {
+      alert("특별한 순간들 게시판은 리더와 운영진만 글을 작성할 수 있습니다.");
+      return;
+    }
+    
     if (!validateForm()) return;
     
     try {
@@ -322,7 +342,9 @@ function WritePost({ darkMode }) {
         viewCount: 0,
         commentCount: 0,
         lastUpdated: serverTimestamp(),
-        tags: extractTags(content)  // 내용에서 태그 추출
+        tags: extractTags(content),  // 내용에서 태그 추출
+        isNotice: isNotice && (role === "리더" || role === "운영진"),  // 공지사항 여부
+        noticeOrder: isNotice && (role === "리더" || role === "운영진") ? Date.now() : null  // 공지사항 정렬 우선순위
       });
       
       alert("게시글이 등록되었습니다");
@@ -334,6 +356,7 @@ function WritePost({ darkMode }) {
         case "advice": nav("/advice"); break;
         case "free": nav("/freeboard"); break;
         case "recording": nav("/recordings"); break;
+        case "special-moments": nav("/special-moments"); break;
         default: nav("/");
       }
     } catch (error) {
@@ -615,7 +638,7 @@ function WritePost({ darkMode }) {
           </span>
         </label>
         
-        {category === "duet" && (
+        {category === "duet" && !isNotice && (
           <label style={{ 
             display: "flex", 
             alignItems: "center",
@@ -631,6 +654,34 @@ function WritePost({ darkMode }) {
             />
             <span style={{ color: darkMode ? "#fff" : "#333" }}>
               구인완료 (파트너를 모두 찾았습니다)
+            </span>
+          </label>
+        )}
+        
+        {/* 공지사항 체크박스 - 리더나 운영진만 표시 */}
+        {(role === "리더" || role === "운영진") && (
+          <label style={{ 
+            display: "flex", 
+            alignItems: "center",
+            gap: 8,
+            cursor: "pointer",
+            marginTop: 10
+          }}>
+            <input
+              type="checkbox"
+              checked={isNotice}
+              onChange={e => setIsNotice(e.target.checked)}
+              disabled={isLoading}
+              style={{ cursor: "pointer" }}
+            />
+            <span style={{ 
+              color: darkMode ? "#fff" : "#333",
+              fontWeight: "bold",
+              background: darkMode ? "rgba(255, 152, 0, 0.2)" : "rgba(255, 152, 0, 0.1)",
+              padding: "2px 8px",
+              borderRadius: "4px"
+            }}>
+              📢 공지사항으로 작성
             </span>
           </label>
         )}
