@@ -297,8 +297,9 @@ function MyPage({
       <div style={{ 
         display: "flex", 
         flexDirection: "column",
-        maxWidth: "900px", 
-        margin: "0 auto" 
+        maxWidth: "100%", 
+        margin: "0", 
+        padding: "0"
       }}>
         {/* 프로필 헤더 */}
         <div style={{
@@ -416,7 +417,7 @@ function MyPage({
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
             >
               <div style={{ fontWeight: "bold", fontSize: "18px", color: darkMode ? "#e0e0e0" : "#333" }}>{likesReceived}</div>
-              <div style={{ fontSize: "14px", color: darkMode ? "#aaa" : "#666" }}>❤️ 받은 좋아요</div>
+              <div style={{ fontSize: "14px", color: darkMode ? "#aaa" : "#666" }}>받은 좋아요</div>
             </div>
             <div 
               style={{

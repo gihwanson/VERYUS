@@ -175,8 +175,18 @@ function PostList({ darkMode, globalProfilePics, globalGrades }) {
     return searchMatch;
   });
   
-  // 정렬 기준에 따라 정렬
+  // 정렬 기준에 따라 정렬 (공지사항이 항상 최상위)
   const sortedPosts = [...filtered].sort((a, b) => {
+    // 먼저 공지사항 여부로 정렬 (공지사항이 위에)
+    if (a.isNotice && !b.isNotice) return -1;
+    if (!a.isNotice && b.isNotice) return 1;
+    
+    // 둘 다 공지사항이면 noticeOrder로 정렬 (최신 공지사항이 위에)
+    if (a.isNotice && b.isNotice) {
+      return (b.noticeOrder || 0) - (a.noticeOrder || 0);
+    }
+    
+    // 일반 게시글 정렬
     if (sortType === "newest") {
       return b.createdAt.seconds - a.createdAt.seconds;
     } else if (sortType === "popular") {
@@ -209,21 +219,21 @@ function PostList({ darkMode, globalProfilePics, globalGrades }) {
 
   // 스타일 정의 - 반응형으로 조정
   const pageContainer = {
-    backgroundColor: "#f5f0ff",
+    backgroundColor: darkMode ? "#1a1a1a" : "#f5f0ff",
     minHeight: "100vh",
     padding: isMobile ? "10px" : "15px",
-    color: "#333"
+    color: darkMode ? "#e0e0e0" : "#333"
   };
   
   const headerStyle = {
-    background: "#8e5bd4",
+    background: darkMode ? "#bb86fc" : "#8e5bd4",
     color: "white",
     padding: isMobile ? "12px 15px" : "15px 20px",
     borderRadius: "12px",
     marginBottom: "15px",
     textAlign: "center",
     fontWeight: "bold",
-    boxShadow: "0 2px 5px rgba(0,0,0,0.1)"
+    boxShadow: darkMode ? "0 2px 5px rgba(0,0,0,0.3)" : "0 2px 5px rgba(0,0,0,0.1)"
   };
   
   const headerTitleStyle = {
@@ -253,7 +263,8 @@ function PostList({ darkMode, globalProfilePics, globalGrades }) {
     padding: isMobile ? "8px 12px" : "10px 15px",
     borderRadius: "20px",
     border: "none",
-    background: "#e9e9e9",
+    background: darkMode ? "#444" : "#e9e9e9",
+    color: darkMode ? "#e0e0e0" : "#333",
     cursor: "pointer",
     fontSize: isMobile ? "13px" : "14px",
     whiteSpace: "nowrap",
@@ -263,7 +274,7 @@ function PostList({ darkMode, globalProfilePics, globalGrades }) {
   
   const activeTabStyle = {
     ...tabStyle,
-    background: "#8e5bd4",
+    background: darkMode ? "#bb86fc" : "#8e5bd4",
     color: "white",
     fontWeight: "500"
   };
@@ -282,7 +293,8 @@ function PostList({ darkMode, globalProfilePics, globalGrades }) {
     borderRadius: "15px",
     border: "none",
     fontSize: "12px",
-    background: "#e9e9e9",
+    background: darkMode ? "#444" : "#e9e9e9",
+    color: darkMode ? "#e0e0e0" : "#333",
     cursor: "pointer",
     minHeight: "32px", // 터치하기 쉽게 최소 높이 설정
     touchAction: "manipulation" // 터치 최적화
@@ -290,12 +302,12 @@ function PostList({ darkMode, globalProfilePics, globalGrades }) {
   
   const activeSortTabStyle = {
     ...sortTabStyle,
-    background: "#8e5bd4",
+    background: darkMode ? "#bb86fc" : "#8e5bd4",
     color: "white"
   };
   
   const writeButtonStyle = {
-    background: "#8e5bd4",
+    background: darkMode ? "#bb86fc" : "#8e5bd4",
     color: "white",
     border: "none",
     padding: isMobile ? "14px 0" : "12px 0", // 모바일에서 더 크게
@@ -307,7 +319,7 @@ function PostList({ darkMode, globalProfilePics, globalGrades }) {
     justifyContent: "center",
     alignItems: "center",
     fontWeight: "bold",
-    boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
+    boxShadow: darkMode ? "0 2px 5px rgba(0,0,0,0.3)" : "0 2px 5px rgba(0,0,0,0.1)",
     position: isMobile ? "sticky" : "static", // 모바일에서는 스티키로
     bottom: isMobile ? "15px" : "auto", // 모바일에서는 하단에 고정
     zIndex: isMobile ? "10" : "auto", // 다른 요소보다 위에 표시
@@ -318,17 +330,17 @@ function PostList({ darkMode, globalProfilePics, globalGrades }) {
     marginBottom: "15px",
     padding: isMobile ? "14px" : "16px",
     borderRadius: "12px",
-    background: "#f3e7ff",
-    color: "#333",
-    border: "1px solid #b49ddb",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.05)"
+    background: darkMode ? "#2a2a2a" : "#f3e7ff",
+    color: darkMode ? "#e0e0e0" : "#333",
+    border: darkMode ? "1px solid #444" : "1px solid #b49ddb",
+    boxShadow: darkMode ? "0 1px 3px rgba(0,0,0,0.3)" : "0 1px 3px rgba(0,0,0,0.05)"
   };
   
   const postTitleStyle = {
     margin: "0 0 8px 0",
     fontSize: isMobile ? "15px" : "16px",
     fontWeight: "bold",
-    color: "#333",
+    color: darkMode ? "#e0e0e0" : "#333",
     display: "flex",
     alignItems: "center",
     gap: "8px",
@@ -337,8 +349,8 @@ function PostList({ darkMode, globalProfilePics, globalGrades }) {
   
   const userInfoStyle = {
     fontSize: isMobile ? "12px" : "13px",
-    color: "#666",
-    borderBottom: "1px dashed #ccc",
+    color: darkMode ? "#aaa" : "#666",
+    borderBottom: darkMode ? "1px dashed #555" : "1px dashed #ccc",
     paddingBottom: "8px",
     marginBottom: "10px",
     display: "flex",
@@ -349,7 +361,7 @@ function PostList({ darkMode, globalProfilePics, globalGrades }) {
   
   const postTagStyle = {
     fontSize: "12px",
-    background: "#8e5bd4",
+    background: darkMode ? "#bb86fc" : "#8e5bd4",
     color: "white",
     padding: "3px 8px",
     borderRadius: "10px",
@@ -363,7 +375,7 @@ function PostList({ darkMode, globalProfilePics, globalGrades }) {
     justifyContent: isMobile ? "flex-start" : "space-between", // 모바일에서는 왼쪽 정렬
     alignItems: "center",
     fontSize: "13px",
-    color: "#666",
+    color: darkMode ? "#aaa" : "#666",
     marginTop: "10px",
     flexDirection: isMobile ? "column" : "row", // 모바일에서는 세로로 배치
     gap: isMobile ? "10px" : "0" // 모바일에서 간격 추가
@@ -376,7 +388,7 @@ function PostList({ darkMode, globalProfilePics, globalGrades }) {
   };
   
   const buttonStyle = {
-    background: "#8e5bd4",
+    background: darkMode ? "#bb86fc" : "#8e5bd4",
     color: "white",
     border: "none",
     padding: isMobile ? "8px 15px" : "6px 12px", // 모바일에서 더 크게
@@ -390,7 +402,7 @@ function PostList({ darkMode, globalProfilePics, globalGrades }) {
   const loadingStyle = {
     textAlign: "center",
     padding: "20px",
-    color: "#666"
+    color: darkMode ? "#aaa" : "#666"
   };
   
   const loadMoreStyle = {
@@ -398,8 +410,8 @@ function PostList({ darkMode, globalProfilePics, globalGrades }) {
     width: "100%",
     padding: "12px 0",
     margin: "20px 0",
-    background: "#e9e9e9",
-    color: "#666",
+    background: darkMode ? "#444" : "#e9e9e9",
+    color: darkMode ? "#e0e0e0" : "#666",
     border: "none",
     borderRadius: "8px",
     fontSize: "14px",
@@ -409,7 +421,7 @@ function PostList({ darkMode, globalProfilePics, globalGrades }) {
   
   // 스켈레톤 로딩 스타일
   const skeletonStyle = {
-    background: "#eaeaea",
+    background: darkMode ? "#444" : "#eaeaea",
     borderRadius: "5px",
     animation: "pulse 1.5s infinite",
     minHeight: "16px"
@@ -423,12 +435,12 @@ function PostList({ darkMode, globalProfilePics, globalGrades }) {
     width: "56px",
     height: "56px",
     borderRadius: "50%",
-    background: "#8e5bd4",
+    background: darkMode ? "#bb86fc" : "#8e5bd4",
     color: "white",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
+    boxShadow: darkMode ? "0 4px 8px rgba(0,0,0,0.4)" : "0 4px 8px rgba(0,0,0,0.2)",
     zIndex: 100,
     fontSize: "24px"
   };
@@ -538,21 +550,51 @@ function PostList({ darkMode, globalProfilePics, globalGrades }) {
             </div>
           ))
         ) : currentPosts.length === 0 ? (
-          <p style={{ textAlign: "center", padding: "20px", color: "#666" }}>게시글이 없습니다</p>
+          <p style={{ textAlign: "center", padding: "20px", color: darkMode ? "#aaa" : "#666" }}>게시글이 없습니다</p>
         ) : (
           currentPosts.map(p => (
-            <div key={p.id} style={postItemStyle}>
+            <div key={p.id} style={p.isNotice ? {
+              ...postItemStyle,
+              background: "linear-gradient(135deg, #7e57c2 0%, #9c68e6 100%)",
+              color: "white",
+              border: "2px solid #7e57c2",
+              boxShadow: "0 4px 15px rgba(126, 87, 194, 0.3)",
+              position: "relative"
+            } : postItemStyle}>
+              {p.isNotice && (
+                <div style={{
+                  position: "absolute",
+                  top: "10px",
+                  left: "10px",
+                  background: "rgba(255, 255, 255, 0.9)",
+                  color: "#7e57c2",
+                  padding: "4px 8px",
+                  borderRadius: "12px",
+                  fontSize: "12px",
+                  fontWeight: "bold",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px"
+                }}>
+                  📢 공지사항
+                </div>
+              )}
+              
               <Link to={`/post/post/${p.id}`} style={{ 
                 textDecoration: "none", 
-                color: "#333",
+                color: p.isNotice ? "white" : (darkMode ? "#e0e0e0" : "#333"),
                 display: "block", // 터치 영역 확장
                 margin: "-5px", // 터치 영역 확장
                 padding: "5px" // 터치 영역 확장
               }}>
-                <h3 style={postTitleStyle}>
+                <h3 style={{
+                  ...postTitleStyle,
+                  color: p.isNotice ? "white" : (darkMode ? "#e0e0e0" : "#333"),
+                  marginTop: p.isNotice ? "25px" : "0"
+                }}>
                   <Avatar src={globalProfilePics[p.nickname]} size={isMobile ? 24 : 28} />
                   {p.title.length > (isMobile ? 30 : 50) ? p.title.slice(0, isMobile ? 30 : 50) + "..." : p.title}
-                  {p.partnerDone ? (
+                  {!p.isNotice && (p.partnerDone ? (
                     <span style={{ ...postTagStyle, background: "#4caf50" }}>
                       ✅ 구인완료
                     </span>
@@ -560,16 +602,20 @@ function PostList({ darkMode, globalProfilePics, globalGrades }) {
                     <span style={postTagStyle}>
                       🔍 구인중
                     </span>
-                  )}
+                  ))}
                 </h3>
               </Link>
               
-              <div style={userInfoStyle}>
+              <div style={{
+                ...userInfoStyle,
+                color: p.isNotice ? "rgba(255, 255, 255, 0.9)" : (darkMode ? "#aaa" : "#666"),
+                borderBottom: p.isNotice ? "1px dashed rgba(255, 255, 255, 0.3)" : (darkMode ? "1px dashed #555" : "1px dashed #ccc")
+              }}>
                 <Link 
                   to={`/userpage/${p.nickname || "알 수 없음"}`} 
                   style={{ 
                     textDecoration: "none", 
-                    color: "#666",
+                    color: p.isNotice ? "white" : (darkMode ? "#bb86fc" : "#7e57c2"),
                     fontWeight: "500",
                     padding: isMobile ? "3px 0" : "0" // 모바일에서 터치 영역 넓히기
                   }}
@@ -580,7 +626,10 @@ function PostList({ darkMode, globalProfilePics, globalGrades }) {
                 {getRelativeTime(p.createdAt)}
               </div>
               
-              <div style={postStatsStyle}>
+              <div style={{
+                ...postStatsStyle,
+                color: p.isNotice ? "rgba(255, 255, 255, 0.9)" : (darkMode ? "#aaa" : "#666")
+              }}>
                 <div>
                   <span style={statItemStyle}>
                     <span role="img" aria-label="heart" style={{ marginRight: "3px" }}>❤️</span> 
@@ -629,14 +678,14 @@ function PostList({ darkMode, globalProfilePics, globalGrades }) {
           <div style={{ 
             textAlign: "center", 
             padding: "20px",
-            color: "#666"
+            color: darkMode ? "#aaa" : "#666"
           }}>
             <div style={{
               display: "inline-block",
               width: "20px",
               height: "20px",
-              border: "3px solid #f3f3f3",
-              borderTop: "3px solid #8e5bd4",
+              border: darkMode ? "3px solid #444" : "3px solid #f3f3f3",
+              borderTop: darkMode ? "3px solid #bb86fc" : "3px solid #8e5bd4",
               borderRadius: "50%",
               animation: "spin 1s linear infinite"
             }}></div>
@@ -649,8 +698,8 @@ function PostList({ darkMode, globalProfilePics, globalGrades }) {
           <div style={{ 
             textAlign: "center", 
             padding: "20px",
-            color: "#666",
-            borderTop: "1px solid #e0e0e0",
+            color: darkMode ? "#aaa" : "#666",
+            borderTop: darkMode ? "1px solid #555" : "1px solid #e0e0e0",
             marginTop: "20px"
           }}>
             <p style={{ margin: 0 }}>📄 모든 게시글을 확인했습니다</p>

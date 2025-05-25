@@ -2,8 +2,8 @@ import styled from 'styled-components';
 import { colors, typography, shadows, transitions, breakpoints } from './theme';
 
 export const Container = styled.div`
-  max-width: 800px;
-  margin: 40px auto;
+  max-width: 100%;
+  margin: 20px 0;
   padding: 24px;
   background: ${({ darkMode }) => darkMode ? '#333' : '#f3e7ff'};
   border-radius: 16px;
@@ -15,15 +15,15 @@ export const Container = styled.div`
 
   @media (max-width: ${breakpoints.tablet}px) {
     padding: 20px;
-    margin: 30px auto;
+    margin: 15px 0;
     border-radius: 14px;
   }
 
   @media (max-width: ${breakpoints.mobile}px) {
     padding: 16px;
-    margin: 20px auto;
+    margin: 10px 0;
     border-radius: 12px;
-    max-width: calc(100% - 32px);
+    max-width: 100%;
   }
 `;
 

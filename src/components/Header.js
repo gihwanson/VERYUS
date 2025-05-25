@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import PropTypes from "prop-types";
+import { collection, query, onSnapshot, where, orderBy } from "firebase/firestore";
+import { db } from "../firebase";
 import logo from "../assets/logo.png";
 import defaultAvatar from "../assets/default-avatar.png";
-import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
-import { db } from "../firebase";
 
 function Header({ 
   dark, 
@@ -22,6 +22,7 @@ function Header({
   const [scrolled, setScrolled] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [contests, setContests] = useState([]);
   const navigate = useNavigate();
   const location = useLocation();
   const profileRef = useRef(null);
@@ -108,6 +109,21 @@ function Header({
 
     return () => unsubscribe();
   }, [nick]);
+
+  // 콘테스트 데이터 실시간 가져오기
+  useEffect(() => {
+    const contestsQuery = query(collection(db, "contests"));
+    
+    const unsubscribe = onSnapshot(contestsQuery, (snapshot) => {
+      const contestData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setContests(contestData);
+    });
+    
+    return () => unsubscribe();
+  }, []);
   
   // 메뉴 아이템 클릭 시 네비게이션 처리
   const handleNavigate = (path) => {
@@ -129,16 +145,26 @@ function Header({
     { path: "/duet", label: "듀엣/합창", icon: "🎤" },
     { path: "/freeboard", label: "자유게시판", icon: "📝" },
     { path: "/songs", label: "노래추천", icon: "🎵" },
-    { path: "/advice", label: "고민상담", icon: "💬" }
+    { path: "/advice", label: "고민상담", icon: "💬" },
+    { path: "/recordings", label: "녹음게시판", icon: "🎙️" },
+    { path: "/special-moments", label: "특별한순간", icon: "✨" }
   ];
   
+  // 진행중인 콘테스트 개수 계산
+  const activeContests = contests.filter(contest => contest.status === "진행중" || !contest.status);
+  const endedContests = contests.filter(contest => contest.status === "종료");
+
   // 사용자 메뉴 항목 (드롭다운)
   const userMenuItems = [
     { path: "/mypage", label: "마이페이지", icon: "👤" },
     { path: "/inbox", label: "쪽지함", icon: "📬", hasNotif: unread > 0, notifCount: unread },
     { path: `/guestbook/${nick}`, label: "내 방명록", icon: "📖" },
     { path: "/notification", label: "알림", icon: "🔔", hasNotif: notiCount > 0, notifCount: notiCount },
-    { path: "/scores", label: "콘테스트", icon: "🏆" },
+    { 
+      path: "/scores", 
+      label: `콘테스트${activeContests.length > 0 ? ` (진행중 ${activeContests.length}개)` : endedContests.length > 0 ? ` (종료 ${endedContests.length}개)` : ""}`, 
+      icon: "🏆" 
+    },
     { path: "/evaluate", label: "등급 평가", icon: "📝" }
   ];
   
@@ -330,8 +356,8 @@ else if (role === "운영진" || role === "리더" || role === "부운영진") {
         key={item.path}
         to={item.path}
         style={{
-          padding: "8px 12px",
-          borderRadius: "6px",
+          padding: "10px 16px",
+          borderRadius: "8px",
           textDecoration: "none",
           color: isActive(item.path) ? "#ffffff" : "rgba(255, 255, 255, 0.85)",
           fontWeight: isActive(item.path) ? "bold" : "normal",
@@ -341,10 +367,10 @@ else if (role === "운영진" || role === "리더" || role === "부운영진") {
           transition: "all 0.2s ease",
           display: "flex",
           alignItems: "center",
-          gap: "5px",
+          gap: "8px",
           flexShrink: 0,
           position: "relative",
-          fontSize: "14px"
+          fontSize: "16px"
         }}
         aria-current={isActive(item.path) ? "page" : undefined}
         onMouseEnter={(e) => {
@@ -360,7 +386,7 @@ else if (role === "운영진" || role === "리더" || role === "부운영진") {
           }
         }}
       >
-        <span>{item.icon}</span>
+        <span style={{ fontSize: "18px" }}>{item.icon}</span>
         <span>{item.label}</span>
         {item.path === "/notification" && unreadNotifications > 0 && (
           <span style={{
@@ -396,26 +422,29 @@ else if (role === "운영진" || role === "리더" || role === "부운영진") {
           alignItems: "center",
           gap: "10px"
         }}>
-          {/* 다크 모드 토글 버튼 (데스크톱) */}
-          {!isMobile && (
-            <button
-              onClick={toggleDark}
-              aria-label={dark ? "라이트 모드로 전환" : "다크 모드로 전환"}
-              title={dark ? "라이트 모드로 전환" : "다크 모드로 전환"}
-              style={{
-                background: "none",
-                border: "none",
-                fontSize: "20px",
-                cursor: "pointer",
-                padding: "8px",
-                borderRadius: "50%",
-                transition: "all 0.2s ease",
-                backgroundColor: dark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)"
-              }}
-            >
-              {dark ? "🌙" : "☀️"}
-            </button>
-          )}
+          {/* 다크 모드 토글 버튼 (데스크톱과 모바일 모두) */}
+          <button
+            onClick={toggleDark}
+            aria-label={dark ? "라이트 모드로 전환" : "다크 모드로 전환"}
+            title={dark ? "라이트 모드로 전환" : "다크 모드로 전환"}
+            style={{
+              background: "none",
+              border: "none",
+              fontSize: isMobile ? "18px" : "20px",
+              cursor: "pointer",
+              padding: isMobile ? "6px" : "8px",
+              borderRadius: "50%",
+              transition: "all 0.2s ease",
+              backgroundColor: dark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)",
+              minWidth: isMobile ? "32px" : "auto",
+              minHeight: isMobile ? "32px" : "auto",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center"
+            }}
+          >
+            {dark ? "🌙" : "☀️"}
+          </button>
           
           {/* 프로필 이미지 & 드롭다운 트리거 */}
           <div style={{ position: "relative" }}>
