@@ -138,6 +138,7 @@ function Header({
     { path: "/inbox", label: "쪽지함", icon: "📬", hasNotif: unread > 0, notifCount: unread },
     { path: `/guestbook/${nick}`, label: "내 방명록", icon: "📖" },
     { path: "/notification", label: "알림", icon: "🔔", hasNotif: notiCount > 0, notifCount: notiCount },
+    { path: "/scores", label: "콘테스트", icon: "🏆" },
     { path: "/evaluate", label: "등급 평가", icon: "📝" }
   ];
   
