@@ -1435,7 +1435,7 @@ function CommentSystem({ postId, type, darkMode, postOwner, postTitle, globalPro
                           className="reply-transition fade-in"
                         >
                           {comment.replies.map(reply => {
-                            const replyCanView = !reply.isPrivate || reply.nickname === me || postOwner === me;
+                            const replyCanView = !reply.isPrivate || reply.nickname === me || postOwner === me || comment.nickname === me;
                             const replyIsLiked = reply.likedBy?.includes(me) || false;
                             
                             return (

@@ -10,7 +10,7 @@ import { db, storage } from "../firebase";
 import {
   containerStyle, darkContainerStyle, titleStyle, purpleBtn
 } from "../components/style";
-import ImageUploader from "../components/ImageUploader"; // ⬅ 이 줄 추가
+
 
 
 function EditProfilePic({ darkMode, globalProfilePics }) {
@@ -346,13 +346,7 @@ const saveProfilePicture = async () => {
             파일 선택
           </label>
 
-          <ImageUploader 
-  uploadType="profile"
-  onUploadSuccess={(url) => {
-    setPreview(url);         // 이게 이제 base64 아님 — 실제 public URL임
-    setFile({ name: url.split("/").pop(), size: 100 }); // 그냥 파일 이름 표현용
-  }} 
-/>
+
           
           {file && (
             <span style={{ 
