@@ -7,6 +7,7 @@ import { db } from "../firebase";
 import TaggedText from './TaggedText';
 import TagInput from './TagInput';
 import { processTaggedUsers, createTagNotification } from '../utils/tagNotification';
+import Avatar from './Avatar';
 
 // 등급 이모지 매핑
 const gradeEmojis = {
@@ -33,6 +34,8 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
   const [comments, setComments] = useState([]);
   const [commentText, setCommentText] = useState("");
   const [isPrivateComment, setIsPrivateComment] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const me = localStorage.getItem("nickname");
   const role = localStorage.getItem("role");
   const nav = useNavigate();
@@ -195,6 +198,8 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
         }
       } catch (error) {
         console.error("게시물 로드 오류:", error);
+      } finally {
+        setLoading(false);
       }
     };
     
@@ -241,12 +246,41 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
     setPost((prev) => ({ ...prev, partnerDone: newVal }));
   };
 
-  const onDelete = async () => {
-    if (!window.confirm("정말 이 글을 삭제할까요?")) return;
-    const coll = getCollectionName(type);
-    await deleteDoc(doc(db, coll, post.id));
-    alert("삭제되었습니다");
-    nav(`/${type === "post" ? "duet" : type === "freepost" ? "freeboard" : type}`);
+  const deletePost = async () => {
+    if (me !== post.nickname) {
+      alert('본인이 작성한 게시글만 삭제할 수 있습니다.');
+      return;
+    }
+
+    if (!window.confirm('이 게시글을 정말로 삭제하시겠습니까?\n삭제된 게시글과 모든 댓글은 복구할 수 없습니다.')) return;
+
+    try {
+      // 1. 모든 댓글 삭제
+      const commentsSnapshot = await getDocs(collection(db, `${type}-comments-${id}`));
+      const deleteCommentPromises = commentsSnapshot.docs.map(commentDoc => 
+        deleteDoc(doc(db, `${type}-comments-${id}`, commentDoc.id))
+      );
+      await Promise.all(deleteCommentPromises);
+
+      // 2. 게시글 삭제
+      await deleteDoc(doc(db, type, id));
+
+      alert('게시글이 삭제되었습니다.');
+      
+      // 게시판 타입에 따른 리다이렉션
+      switch (type) {
+        case "duet": nav("/duet"); break;
+        case "song": nav("/songs"); break;
+        case "advice": nav("/advice"); break;
+        case "free": nav("/freeboard"); break;
+        case "recording": nav("/recordings"); break;
+        case "special-moments": nav("/special-moments"); break;
+        default: nav("/");
+      }
+    } catch (error) {
+      console.error("게시글 삭제 오류:", error);
+      alert('게시글 삭제 중 오류가 발생했습니다.');
+    }
   };
 
   const toggleLike = async () => {
@@ -358,7 +392,7 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
     }
   };
 
-  if (!post) return <div style={containerStyle}>로딩 중...</div>;
+  if (loading) return <div style={containerStyle}>로딩 중...</div>;
 
   const author = post.nickname || "알 수 없음";
   const grade = globalGrades?.[author] || "";
@@ -398,22 +432,59 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
           marginBottom: "20px"
         }}>{post.title}</h1>
 
-        <div style={authorBox}>
-          {profileUrl && <img src={profileUrl} alt="프로필" style={profilePicStyle} />}
-          <div>
-            <Link to={`/userpage/${post.nickname}`} style={{ textDecoration: "none" }}>
-              <strong style={{ color: darkMode ? "#e0e0e0" : "#333", cursor: "pointer" }}>{author}</strong>
-            </Link>
-            {grade && <span style={{ marginLeft: 6, color: darkMode ? "#bb86fc" : "#7e57c2" }}>({getGradeEmoji(grade)})</span>}
+        <div style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "15px"
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <Avatar 
+              profilePic={globalProfilePics[post.nickname]} 
+              grade={globalGrades[post.nickname]}
+              size={40}
+            />
+            <div>
+              <div style={{ 
+                fontWeight: "bold",
+                color: darkMode ? "#fff" : "#333"
+              }}>
+                {post.nickname}
+              </div>
+              <div style={{ 
+                fontSize: "12px",
+                color: darkMode ? "#aaa" : "#666"
+              }}>
+                {new Date(post.createdAt.seconds * 1000).toLocaleString()}
+              </div>
+            </div>
           </div>
+          {me === post.nickname && (
+            <button
+              onClick={deletePost}
+              style={{
+                background: "rgba(255, 0, 0, 0.1)",
+                color: "#ff4444",
+                border: "1px solid #ff4444",
+                padding: "8px 15px",
+                borderRadius: "20px",
+                cursor: "pointer",
+                fontSize: "14px",
+                transition: "all 0.3s ease"
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = "#ff4444";
+                e.target.style.color = "white";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = "rgba(255, 0, 0, 0.1)";
+                e.target.style.color = "#ff4444";
+              }}
+            >
+              삭제
+            </button>
+          )}
         </div>
-
-        <p style={{ fontSize: 12, color: darkMode ? "#aaa" : "#555" }}>
-          {new Date(post.createdAt.seconds * 1000).toLocaleString()} | 작성자:{" "}
-          <Link to={`/userpage/${post.nickname}`} style={{ color: darkMode ? "#bb86fc" : "#7e57c2", textDecoration: "none" }}>
-            {post.nickname}
-          </Link>
-        </p>
 
         {/* 첨부 이미지들 표시 */}
         {post.images && post.images.length > 0 && (
@@ -633,7 +704,7 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
               )}
               <button
                 style={deleteBtn}
-                onClick={onDelete}
+                onClick={deletePost}
               >🗑️</button>
             </div>
           </div>
