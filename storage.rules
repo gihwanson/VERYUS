@@ -8,25 +8,28 @@ service firebase.storage {
     // Images: 누구나 읽을 수 있고, 로그인한 사용자는 업로드 가능
     match /images/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if request.auth != null || 
+                     (resource == null && request.resource != null);
     }
     
     // Posts: 누구나 읽을 수 있고, 로그인한 사용자는 업로드 가능
     match /posts/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if request.auth != null || 
+                     (resource == null && request.resource != null);
     }
     
     // Recordings: 누구나 읽을 수 있고, 모든 사용자가 업로드 가능 (임시)
     match /recordings/{allPaths=**} {
       allow read: if true;
-      allow write: if true;
+      allow write: if true; // 임시로 모든 사용자에게 권한 부여
     }
     
     // Profile pics: 누구나 읽을 수 있고, 로그인한 사용자는 업로드 가능
     match /profile-pics/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if request.auth != null || 
+                     (resource == null && request.resource != null);
     }
     
     // Profiles: 기존 프로필 경로도 지원
@@ -34,12 +37,6 @@ service firebase.storage {
       allow read: if true;
       allow write: if request.auth != null || 
                      (resource == null && request.resource != null);
-    }
-    
-    // Videos: 누구나 읽을 수 있고, 로그인한 사용자는 업로드 가능
-    match /videos/{allPaths=**} {
-      allow read: if true;
-      allow write: if request.auth != null;
     }
   }
 } 
