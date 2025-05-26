@@ -12,6 +12,8 @@ function UploadRecording({ darkMode }) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isPublic, setIsPublic] = useState(true);
+  const [category, setCategory] = useState('feedback');
+  const [categoryInfo, setCategoryInfo] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -137,7 +139,9 @@ function UploadRecording({ darkMode }) {
                 downloads: 0,
                 commentCount: 0,
                 viewCount: 0,
-                isPrivate: !isPublic
+                isPrivate: !isPublic,
+                category: category,
+                categoryInfo: categoryInfo
               };
               
               await addDoc(collection(db, collectionName), docData);
@@ -181,6 +185,26 @@ function UploadRecording({ darkMode }) {
       setUploadProgress(0);
     }
   };
+
+  // 카테고리 선택 시 안내문구 업데이트
+  const handleCategoryChange = (selectedCategory) => {
+    setCategory(selectedCategory);
+    
+    if (selectedCategory === 'work') {
+      setCategoryInfo('마스터링까지 완료된 작업물, 또는 연습이 끝난 최종 결과물만 올려주세요.\n긴 여정 끝에 완성된 작품, 정말 수고 많으셨습니다. 👏');
+    } else if (selectedCategory === 'confidence') {
+      setCategoryInfo('이 카테고리는 피드백 없이, 자존감을 높여주는 \'칭찬 전용 공간\'입니다.\n마음껏 자랑해주세요. 여러분의 노력과 열정을 응원합니다! 🌟');
+    } else {
+      setCategoryInfo('');
+    }
+  };
+
+  // 카테고리 옵션
+  const categoryOptions = [
+    { value: 'feedback', label: '피드백 요청 🎯' },
+    { value: 'work', label: '작업물 공유 🎨' },
+    { value: 'confidence', label: '자존감 지킴이 💝' }
+  ];
 
   const containerStyle = {
     backgroundColor: darkMode ? "#2a2a2a" : "#fff",
