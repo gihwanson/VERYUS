@@ -7,6 +7,7 @@ import { db } from "../firebase";
 import TaggedText from './TaggedText';
 import TagInput from './TagInput';
 import { processTaggedUsers, createTagNotification } from '../utils/tagNotification';
+import Avatar from './Avatar';
 
 // 등급 이모지 매핑
 const gradeEmojis = {
@@ -33,6 +34,8 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
   const [comments, setComments] = useState([]);
   const [commentText, setCommentText] = useState("");
   const [isPrivateComment, setIsPrivateComment] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const me = localStorage.getItem("nickname");
   const role = localStorage.getItem("role");
   const nav = useNavigate();
@@ -195,6 +198,8 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
         }
       } catch (error) {
         console.error("게시물 로드 오류:", error);
+      } finally {
+        setLoading(false);
       }
     };
     
@@ -241,12 +246,23 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
     setPost((prev) => ({ ...prev, partnerDone: newVal }));
   };
 
-  const onDelete = async () => {
-    if (!window.confirm("정말 이 글을 삭제할까요?")) return;
-    const coll = getCollectionName(type);
-    await deleteDoc(doc(db, coll, post.id));
-    alert("삭제되었습니다");
-    nav(`/${type === "post" ? "duet" : type === "freepost" ? "freeboard" : type}`);
+  const deletePost = async () => {
+    if (me !== post.nickname && role !== "리더" && role !== "운영진") {
+      alert("본인이 작성한 게시글만 삭제할 수 있습니다.");
+      return;
+    }
+
+    if (!window.confirm("정말로 이 게시글을 삭제하시겠습니까?")) return;
+
+    try {
+      const coll = getCollectionName(type);
+      await deleteDoc(doc(db, coll, post.id));
+      alert("게시글이 삭제되었습니다.");
+      nav(-1);
+    } catch (error) {
+      console.error("게시글 삭제 오류:", error);
+      alert("게시글 삭제 중 오류가 발생했습니다.");
+    }
   };
 
   const toggleLike = async () => {
@@ -358,7 +374,7 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
     }
   };
 
-  if (!post) return <div style={containerStyle}>로딩 중...</div>;
+  if (loading) return <div style={containerStyle}>로딩 중...</div>;
 
   const author = post.nickname || "알 수 없음";
   const grade = globalGrades?.[author] || "";
@@ -407,13 +423,6 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
             {grade && <span style={{ marginLeft: 6, color: darkMode ? "#bb86fc" : "#7e57c2" }}>({getGradeEmoji(grade)})</span>}
           </div>
         </div>
-
-        <p style={{ fontSize: 12, color: darkMode ? "#aaa" : "#555" }}>
-          {new Date(post.createdAt.seconds * 1000).toLocaleString()} | 작성자:{" "}
-          <Link to={`/userpage/${post.nickname}`} style={{ color: darkMode ? "#bb86fc" : "#7e57c2", textDecoration: "none" }}>
-            {post.nickname}
-          </Link>
-        </p>
 
         {/* 첨부 이미지들 표시 */}
         {post.images && post.images.length > 0 && (
@@ -633,7 +642,7 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
               )}
               <button
                 style={deleteBtn}
-                onClick={onDelete}
+                onClick={deletePost}
               >🗑️</button>
             </div>
           </div>

@@ -475,45 +475,112 @@ function RecordingBoard({ darkMode, globalProfilePics, globalGrades }) {
         <div>
           {sortedPosts.map((post) => (
             <div key={post.id} style={postCardStyle}>
-              <div style={{
-                display: "flex",
-                alignItems: "center",
-                marginBottom: "15px",
-                gap: "12px"
-              }}>
-                <Avatar 
-                  nickname={post.uploaderNickname}
-                  profilePic={globalProfilePics[post.uploaderNickname]}
-                  size={isMobile ? 32 : 40}
-                />
-                <div style={{ flex: 1 }}>
-                  <div style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    marginBottom: "4px"
-                  }}>
+              <div style={{ marginBottom: "15px" }}>
+                {/* 카테고리 뱃지 */}
+                <div style={{ marginBottom: "10px" }}>
+                  {post.category === 'feedback' && (
                     <span style={{
+                      backgroundColor: darkMode ? "#4caf50" : "#e8f5e9",
+                      color: darkMode ? "#fff" : "#2e7d32",
+                      padding: "4px 10px",
+                      borderRadius: "15px",
+                      fontSize: "12px",
                       fontWeight: "bold",
-                      color: darkMode ? "#e0e0e0" : "#333",
-                      fontSize: isMobile ? "14px" : "15px"
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px"
                     }}>
-                      {post.uploaderNickname}
+                      🎯 피드백 가능
                     </span>
-                    {globalGrades[post.uploaderNickname] && (
-                      <span style={{
-                        fontSize: isMobile ? "12px" : "13px",
-                        color: darkMode ? "#bb86fc" : "#7e57c2"
+                  )}
+                  {post.category === 'work' && (
+                    <span style={{
+                      backgroundColor: darkMode ? "#ff9800" : "#fff3e0",
+                      color: darkMode ? "#fff" : "#e65100",
+                      padding: "4px 10px",
+                      borderRadius: "15px",
+                      fontSize: "12px",
+                      fontWeight: "bold",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px"
+                    }}>
+                      🎨 작업물
+                    </span>
+                  )}
+                  {post.category === 'confidence' && (
+                    <span style={{
+                      backgroundColor: darkMode ? "#e91e63" : "#fce4ec",
+                      color: darkMode ? "#fff" : "#c2185b",
+                      padding: "4px 10px",
+                      borderRadius: "15px",
+                      fontSize: "12px",
+                      fontWeight: "bold",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px"
+                    }}>
+                      💝 칭찬해주세요
+                    </span>
+                  )}
+                </div>
+
+                {/* 게시글 내용 */}
+                <div style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start"
+                }}>
+                  <div style={{ flex: 1 }}>
+                    <Link
+                      to={`/post/recording/${post.id}`}
+                      style={{
+                        textDecoration: "none",
+                        color: "inherit"
+                      }}
+                    >
+                      <h3 style={{
+                        margin: "0 0 8px 0",
+                        fontSize: isMobile ? "16px" : "18px",
+                        color: darkMode ? "#fff" : "#333",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical"
                       }}>
-                        {gradeEmojis[globalGrades[post.uploaderNickname]]} {globalGrades[post.uploaderNickname]}
+                        {post.title}
+                      </h3>
+                    </Link>
+
+                    <div style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      marginBottom: "4px"
+                    }}>
+                      <span style={{
+                        fontWeight: "bold",
+                        color: darkMode ? "#e0e0e0" : "#333",
+                        fontSize: isMobile ? "14px" : "15px"
+                      }}>
+                        {post.uploaderNickname}
                       </span>
-                    )}
-                  </div>
-                  <div style={{
-                    fontSize: isMobile ? "11px" : "12px",
-                    color: darkMode ? "#aaa" : "#666"
-                  }}>
-                    {getRelativeTime(post.createdAt)}
+                      {globalGrades[post.uploaderNickname] && (
+                        <span style={{
+                          fontSize: isMobile ? "12px" : "13px",
+                          color: darkMode ? "#bb86fc" : "#7e57c2"
+                        }}>
+                          {gradeEmojis[globalGrades[post.uploaderNickname]]} {globalGrades[post.uploaderNickname]}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{
+                      fontSize: isMobile ? "11px" : "12px",
+                      color: darkMode ? "#aaa" : "#666"
+                    }}>
+                      {getRelativeTime(post.createdAt)}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -527,28 +594,6 @@ function RecordingBoard({ darkMode, globalProfilePics, globalGrades }) {
                 }}
                 onClick={() => incrementViewCount(post.id)}
               >
-                <h3 style={{
-                  margin: "0 0 12px 0",
-                  fontSize: isMobile ? "16px" : "18px",
-                  fontWeight: "bold",
-                  color: darkMode ? "#e0e0e0" : "#333",
-                  lineHeight: "1.4"
-                }}>
-                  {post.title}
-                  {post.isPrivate && (
-                    <span style={{
-                      marginLeft: "8px",
-                      fontSize: "12px",
-                      color: "#ff9800",
-                      backgroundColor: "rgba(255, 152, 0, 0.1)",
-                      padding: "2px 6px",
-                      borderRadius: "4px"
-                    }}>
-                      🔒 비공개
-                    </span>
-                  )}
-                </h3>
-
                 {(post.description || post.content) && (
                   <p style={{
                     margin: "0 0 15px 0",

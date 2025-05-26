@@ -12,6 +12,9 @@ function UploadRecording({ darkMode }) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isPublic, setIsPublic] = useState(true);
+  const [category, setCategory] = useState('');
+  const [allowFeedback, setAllowFeedback] = useState(false);
+  const [categoryInfo, setCategoryInfo] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -25,6 +28,26 @@ function UploadRecording({ darkMode }) {
   // 실제 업로드 목적지 결정 - 마이페이지에서 온 경우에만 마이페이지에 저장
   const uploadDestination = isFromMyPage ? "mypage" : "board";
   
+  // 카테고리 선택 시 안내문구 업데이트
+  const handleCategoryChange = (selectedCategory) => {
+    setCategory(selectedCategory);
+    
+    if (selectedCategory === 'work') {
+      setCategoryInfo('마스터링까지 완료된 작업물, 또는 연습이 끝난 최종 결과물만 올려주세요.\n긴 여정 끝에 완성된 작품, 정말 수고 많으셨습니다. 👏');
+    } else if (selectedCategory === 'confidence') {
+      setCategoryInfo('이 카테고리는 피드백 없이, 자존감을 높여주는 \'칭찬 전용 공간\'입니다.\n마음껏 자랑해주세요. 여러분의 노력과 열정을 응원합니다! 🌟');
+    } else {
+      setCategoryInfo('');
+    }
+  };
+
+  // 카테고리 옵션
+  const categoryOptions = [
+    { value: 'feedback', label: '피드백 요청 🎯' },
+    { value: 'work', label: '작업물 공유 🎨' },
+    { value: 'confidence', label: '자존감 지킴이 💝' }
+  ];
+
   // Firebase Auth 상태 확인 및 익명 로그인
   const ensureAuthenticated = async () => {
     return new Promise((resolve, reject) => {
@@ -75,6 +98,16 @@ function UploadRecording({ darkMode }) {
       return;
     }
 
+    if (!category) {
+      alert('카테고리를 선택해주세요.');
+      return;
+    }
+
+    if (category === 'feedback' && !allowFeedback) {
+      alert('피드백 카테고리를 선택하신 경우 피드백 허용에 동의해주세요.');
+      return;
+    }
+
     if (!currentUser) {
       alert('로그인이 필요합니다.');
       return;
@@ -90,7 +123,6 @@ function UploadRecording({ darkMode }) {
       // 파일명 생성 (중복 방지) - 안전한 파일명 생성
       const timestamp = Date.now();
       const fileExtension = file.name.split('.').pop().toLowerCase();
-      // 한글 파일명을 안전한 형태로 변환
       const safeUserName = currentUser.replace(/[^a-zA-Z0-9가-힣]/g, '_');
       const safeFileName = `${safeUserName}_${timestamp}_recording.${fileExtension}`;
       const fileName = `recordings/${safeFileName}`;
@@ -124,12 +156,12 @@ function UploadRecording({ darkMode }) {
               const docData = {
                 title: title.trim(),
                 content: description.trim(),
-                description: description.trim(), // 녹음게시판 호환성을 위해 추가
+                description: description.trim(),
                 fileName: file.name,
                 fileSize: file.size,
                 fileType: file.type,
-                recordingURL: downloadURL, // 녹음게시판에서 사용하는 필드명
-                downloadURL: downloadURL, // 마이페이지에서 사용하는 필드명
+                recordingURL: downloadURL,
+                downloadURL: downloadURL,
                 nickname: currentUser,
                 uploaderNickname: currentUser,
                 createdAt: Timestamp.now(),
@@ -137,7 +169,10 @@ function UploadRecording({ darkMode }) {
                 downloads: 0,
                 commentCount: 0,
                 viewCount: 0,
-                isPrivate: !isPublic
+                isPrivate: !isPublic,
+                category: category,
+                allowFeedback: category === 'feedback' ? allowFeedback : false,
+                categoryInfo: categoryInfo
               };
               
               await addDoc(collection(db, collectionName), docData);
@@ -272,6 +307,79 @@ function UploadRecording({ darkMode }) {
     <div style={containerStyle}>
       <h2 style={titleStyle}>🎵 녹음 파일 업로드</h2>
       
+      <div style={{ marginBottom: "20px" }}>
+        <label style={{ 
+          display: "block", 
+          marginBottom: "8px", 
+          color: darkMode ? "#e0e0e0" : "#333",
+          fontWeight: "500"
+        }}>
+          카테고리 *
+        </label>
+        <select
+          value={category}
+          onChange={(e) => handleCategoryChange(e.target.value)}
+          style={{
+            ...inputStyle,
+            cursor: "pointer"
+          }}
+          disabled={isUploading}
+        >
+          <option value="">카테고리를 선택하세요</option>
+          {categoryOptions.map(option => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        
+        {/* 카테고리 안내 메시지 */}
+        {categoryInfo && (
+          <div style={{
+            backgroundColor: darkMode ? "#333" : "#f8f4ff",
+            padding: "15px",
+            borderRadius: "8px",
+            marginTop: "10px",
+            fontSize: "14px",
+            lineHeight: "1.5",
+            whiteSpace: "pre-wrap",
+            color: darkMode ? "#e0e0e0" : "#666",
+            border: `1px solid ${darkMode ? "#444" : "#e8dbff"}`
+          }}>
+            {categoryInfo}
+          </div>
+        )}
+      </div>
+
+      {/* 피드백 허용 체크박스 (피드백 카테고리일 때만 표시) */}
+      {category === 'feedback' && (
+        <div style={{ marginBottom: "20px" }}>
+          <label style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            cursor: "pointer",
+            color: darkMode ? "#e0e0e0" : "#333"
+          }}>
+            <input
+              type="checkbox"
+              checked={allowFeedback}
+              onChange={(e) => setAllowFeedback(e.target.checked)}
+              style={{ cursor: "pointer" }}
+              disabled={isUploading}
+            />
+            피드백을 허용합니다
+          </label>
+          <p style={{
+            margin: "8px 0 0 24px",
+            fontSize: "13px",
+            color: darkMode ? "#aaa" : "#666"
+          }}>
+            체크하면 다른 사용자들이 댓글로 피드백을 제공할 수 있습니다.
+          </p>
+        </div>
+      )}
+
       <div>
         <label style={{ 
           display: "block", 
