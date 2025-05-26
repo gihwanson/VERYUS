@@ -171,7 +171,8 @@ function UploadRecording({ darkMode }) {
                 viewCount: 0,
                 isPrivate: !isPublic,
                 category: category,
-                allowFeedback: category === 'feedback' ? allowFeedback : false
+                allowFeedback: category === 'feedback' ? allowFeedback : false,
+                categoryInfo: categoryInfo
               };
               
               await addDoc(collection(db, collectionName), docData);
@@ -313,85 +314,68 @@ function UploadRecording({ darkMode }) {
           color: darkMode ? "#e0e0e0" : "#333",
           fontWeight: "500"
         }}>
-          카테고리 선택 *
+          카테고리 *
         </label>
-        <div style={{
-          display: "flex",
-          gap: "10px",
-          flexWrap: "wrap"
-        }}>
-          {categoryOptions.map((option) => (
-            <button
-              key={option.value}
-              onClick={() => handleCategoryChange(option.value)}
-              style={{
-                padding: "12px 20px",
-                borderRadius: "8px",
-                border: `2px solid ${category === option.value ? (darkMode ? "#bb86fc" : "#7e57c2") : (darkMode ? "#555" : "#ddd")}`,
-                backgroundColor: category === option.value ? (darkMode ? "#bb86fc20" : "#7e57c220") : "transparent",
-                color: darkMode ? "#e0e0e0" : "#333",
-                cursor: "pointer",
-                fontSize: "14px",
-                fontWeight: category === option.value ? "bold" : "normal",
-                transition: "all 0.3s ease"
-              }}
-            >
+        <select
+          value={category}
+          onChange={(e) => handleCategoryChange(e.target.value)}
+          style={{
+            ...inputStyle,
+            cursor: "pointer"
+          }}
+          disabled={isUploading}
+        >
+          <option value="">카테고리를 선택하세요</option>
+          {categoryOptions.map(option => (
+            <option key={option.value} value={option.value}>
               {option.label}
-            </button>
+            </option>
           ))}
-        </div>
+        </select>
         
-        {/* 카테고리 안내문구 */}
+        {/* 카테고리 안내 메시지 */}
         {categoryInfo && (
           <div style={{
-            marginTop: "12px",
-            padding: "12px 16px",
-            backgroundColor: darkMode ? "#333" : "#f5f0ff",
+            backgroundColor: darkMode ? "#333" : "#f8f4ff",
+            padding: "15px",
             borderRadius: "8px",
-            border: `1px solid ${darkMode ? "#555" : "#e8dbff"}`,
+            marginTop: "10px",
             fontSize: "14px",
-            color: darkMode ? "#ccc" : "#666",
-            lineHeight: "1.6",
-            whiteSpace: "pre-line"
+            lineHeight: "1.5",
+            whiteSpace: "pre-wrap",
+            color: darkMode ? "#e0e0e0" : "#666",
+            border: `1px solid ${darkMode ? "#444" : "#e8dbff"}`
           }}>
-            ℹ️ {categoryInfo}
+            {categoryInfo}
           </div>
         )}
       </div>
 
+      {/* 피드백 허용 체크박스 (피드백 카테고리일 때만 표시) */}
       {category === 'feedback' && (
-        <div style={{ 
-          marginBottom: "20px",
-          padding: "15px",
-          backgroundColor: darkMode ? "#333" : "#f5f0ff",
-          borderRadius: "8px",
-          border: `1px solid ${darkMode ? "#555" : "#e8dbff"}`
-        }}>
+        <div style={{ marginBottom: "20px" }}>
           <label style={{
             display: "flex",
             alignItems: "center",
             gap: "8px",
-            color: darkMode ? "#e0e0e0" : "#333",
-            cursor: "pointer"
+            cursor: "pointer",
+            color: darkMode ? "#e0e0e0" : "#333"
           }}>
             <input
               type="checkbox"
               checked={allowFeedback}
               onChange={(e) => setAllowFeedback(e.target.checked)}
               style={{ cursor: "pointer" }}
+              disabled={isUploading}
             />
-            <span style={{ fontSize: "14px" }}>
-              다른 사용자들의 피드백을 허용합니다 
-              <span style={{ color: "#ff4444" }}>*</span>
-            </span>
+            피드백을 허용합니다
           </label>
           <p style={{
             margin: "8px 0 0 24px",
-            fontSize: "12px",
-            color: darkMode ? "#aaa" : "#666",
-            fontStyle: "italic"
+            fontSize: "13px",
+            color: darkMode ? "#aaa" : "#666"
           }}>
-            피드백 카테고리를 선택하신 경우 필수로 체크해주세요
+            체크하면 다른 사용자들이 댓글로 피드백을 제공할 수 있습니다.
           </p>
         </div>
       )}
