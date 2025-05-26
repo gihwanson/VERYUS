@@ -498,13 +498,33 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
             <div style={{
               display: "flex",
               alignItems: "center",
-              gap: "10px",
-              color: darkMode ? "#bb86fc" : "#7e57c2",
-              fontSize: "16px",
-              fontWeight: "bold",
+              justifyContent: "space-between",
               marginBottom: "10px"
             }}>
-              🎵 녹음 파일
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                color: darkMode ? "#bb86fc" : "#7e57c2",
+                fontSize: "16px",
+                fontWeight: "bold",
+              }}>
+                🎵 녹음 파일
+              </div>
+              {post.wantFeedback && (
+                <div style={{
+                  backgroundColor: darkMode ? "#4a4a4a" : "#e8dbff",
+                  color: darkMode ? "#bb86fc" : "#7e57c2",
+                  padding: "6px 12px",
+                  borderRadius: "6px",
+                  fontSize: "14px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px"
+                }}>
+                  💭 피드백 허용
+                </div>
+              )}
             </div>
             <audio 
               controls 

@@ -166,9 +166,9 @@ useEffect(() => {
       }
       
       // 사용자 데이터 저장
-      await addDoc(collection(db, "users"), {
+      const userData = {
         nickname: nick,
-        id: nick,
+        id: nick, // 닉네임을 ID로 사용
         email: `${nick}@veryus.app`, // 임시 이메일
         password: sha256(pw).toString(), // 비밀번호 해싱
         profilePicUrl: profileUrl,
@@ -180,10 +180,16 @@ useEffect(() => {
         role: "일반회원", // 기본 역할
         followers: [],
         following: [],
-        lastActive: Timestamp.now()
-      });
+        lastActive: Timestamp.now(),
+        isApproved: false, // 관리자 승인 대기 상태
+        status: "pending" // 승인 대기 상태
+      };
+
+      // users 컬렉션에 문서 추가
+      const docRef = await addDoc(collection(db, "users"), userData);
+      console.log("User document created with ID:", docRef.id);
       
-      alert("가입이 완료되었습니다! 로그인해주세요.");
+      alert("회원가입이 완료되었습니다! 관리자 승인 후 로그인이 가능합니다.");
       nav("/login");
     } catch (error) {
       console.error("회원가입 중 오류 발생:", error);
