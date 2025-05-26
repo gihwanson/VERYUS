@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import PropTypes from "prop-types";
 import { 
-  collection, query, where, getDocs, limit 
+  collection, query, where, getDocs, limit, updateDoc, Timestamp
 } from "firebase/firestore";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import sha256 from "crypto-js/sha256";
@@ -77,7 +77,7 @@ function Login({ darkMode }) {
     setError("");
     
     try {
-      // 닉네임으로 사용자 검색 - 모든 사용자를 가져오는 대신 해당 닉네임만 조회
+      // 닉네임으로 사용자 검색
       const userQuery = query(
         collection(db, "users"),
         where("nickname", "==", formData.nickname),
@@ -92,8 +92,17 @@ function Login({ darkMode }) {
         return;
       }
       
-      // 비밀번호 확인
+      // 사용자 데이터 확인
       const userData = userSnapshot.docs[0].data();
+      
+      // 승인 여부 확인
+      if (!userData.isApproved && userData.status === "pending") {
+        setError("관리자 승인 대기 중입니다. 승인 후 로그인이 가능합니다.");
+        setLoading(false);
+        return;
+      }
+      
+      // 비밀번호 확인
       const hashedPassword = sha256(formData.password).toString();
       
       if (userData.password !== hashedPassword) {
@@ -102,62 +111,24 @@ function Login({ darkMode }) {
         return;
       }
       
-      // Firebase Auth에도 로그인 (이메일이 있는 경우)
-      try {
-        if (userData.email) {
-          // 기존 사용자면 로그인 시도
-          try {
-            await signInWithEmailAndPassword(auth, userData.email, formData.password);
-            console.log("Firebase Auth 로그인 성공");
-          } catch (authError) {
-            // 로그인 실패시 계정 생성 시도 (비밀번호가 다를 수 있음)
-            console.log("Firebase Auth 로그인 실패, 계정 생성 시도:", authError.code);
-            if (authError.code === 'auth/user-not-found' || authError.code === 'auth/wrong-password') {
-              try {
-                await createUserWithEmailAndPassword(auth, userData.email, formData.password);
-                console.log("Firebase Auth 계정 생성 성공");
-              } catch (createError) {
-                console.log("Firebase Auth 계정 생성도 실패:", createError.message);
-                // Auth 로그인 실패해도 로컬 로그인은 계속 진행
-              }
-            }
-          }
-        } else {
-          console.log("이메일 정보가 없어 Firebase Auth 로그인을 건너뜁니다.");
-        }
-      } catch (authError) {
-        console.log("Firebase Auth 처리 중 오류:", authError);
-        // Auth 실패해도 로컬 로그인은 계속 진행
-      }
-      
       // 로그인 성공 처리
-      if (saveId) {
-        localStorage.setItem("savedNickname", formData.nickname);
-      } else {
-        localStorage.removeItem("savedNickname");
-      }
+      localStorage.setItem("nickname", userData.nickname);
+      localStorage.setItem("role", userData.role || "일반회원");
+      localStorage.setItem("grade", userData.grade || "체리");
+      localStorage.setItem("profilePic", userData.profilePicUrl || "");
       
-      if (rememberMe) {
-        localStorage.setItem("autoLogin", "true");
-      } else {
-        localStorage.removeItem("autoLogin");
-      }
+      // 마지막 로그인 시간 업데이트
+      await updateDoc(userSnapshot.docs[0].ref, {
+        lastLogin: Timestamp.now()
+      });
       
-      // 사용자 정보 저장
-      localStorage.setItem("nickname", formData.nickname);
-      
-      // 원래 코드에서의 리다이렉션 방식 사용
-      window.location.href = "/";
-      
-      // React Router의 navigate는 아래 코드로 대체할 수 있지만, 
-      // 현재 앱에서 문제가 있다면 위의 window.location.href를 사용합니다.
-      // navigate("/");
-    } catch (err) {
-      console.error("로그인 오류:", err);
-      setError("로그인 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.");
+      navigate("/");
+    } catch (error) {
+      console.error("로그인 오류:", error);
+      setError("로그인 처리 중 오류가 발생했습니다.");
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
   
   // Enter 키 이벤트 핸들러

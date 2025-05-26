@@ -2,13 +2,15 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import PropTypes from "prop-types";
 import {
-  collection, addDoc, Timestamp, serverTimestamp
+  collection, addDoc, serverTimestamp
 } from "firebase/firestore";
 import { db, storage } from "../firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytes, getDownloadURL, uploadBytesResumable } from "firebase/storage";
 import {
   containerStyle, darkContainerStyle, titleStyle, inputStyle, darkInputStyle, textareaStyle, purpleBtn
 } from "../components/style";
+import { signInAnonymously } from "firebase/auth";
+import { auth } from "../firebase";
 
 function WritePost({ darkMode }) {
   const { category } = useParams();
@@ -26,6 +28,8 @@ function WritePost({ darkMode }) {
   const [videoFile, setVideoFile] = useState(null);
   const [videoPreview, setVideoPreview] = useState("");
   const [isNotice, setIsNotice] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [wantFeedback, setWantFeedback] = useState(false);
   const nav = useNavigate();
   
   // 중요: 닉네임 가져오기
@@ -264,25 +268,35 @@ function WritePost({ darkMode }) {
     return downloadUrl;
   };
   
-  // 영상 파일 처리 함수
-  const handleVideoUpload = (e) => {
+  // 영상 압축 함수
+  const compressVideo = async (file) => {
+    try {
+      // 현재는 압축 기능을 비활성화하고 원본 파일을 반환
+      return file;
+    } catch (error) {
+      console.error('영상 압축 중 오류:', error);
+      return file;
+    }
+  };
+
+  // 영상 파일 처리 함수 수정
+  const handleVideoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // 비디오 파일 형식 체크
     if (!file.type.startsWith('video/')) {
       alert('비디오 파일만 업로드 가능합니다.');
       return;
     }
 
-    // 파일 크기 체크 (100MB 이하)
     if (file.size > 100 * 1024 * 1024) {
-      alert('영상 파일 크기는 100MB를 초과할 수 없습니다.');
-      return;
+      const compressedFile = await compressVideo(file);
+      setVideoFile(compressedFile);
+      setVideoPreview(compressedFile.name);
+    } else {
+      setVideoFile(file);
+      setVideoPreview(file.name);
     }
-
-    setVideoFile(file);
-    setVideoPreview(file.name);
   };
 
   // 영상 파일 제거
@@ -295,16 +309,46 @@ function WritePost({ darkMode }) {
   const uploadVideo = async () => {
     if (!videoFile) return null;
 
+    // Check if user is authenticated
+    if (!auth.currentUser) {
+      try {
+        await signInAnonymously(auth);
+      } catch (error) {
+        console.error('Authentication failed:', error);
+        throw new Error('Authentication failed. Please try again.');
+      }
+    }
+
     const timestamp = new Date().getTime();
     const fileExtension = videoFile.name.split('.').pop().toLowerCase();
     const safeFileName = `${nick}_${timestamp}_video.${fileExtension}`;
     const filePath = `videos/${safeFileName}`;
 
     const storageRef = ref(storage, filePath);
-    await uploadBytes(storageRef, videoFile);
-    const downloadUrl = await getDownloadURL(storageRef);
+
+    // 업로드 진행률 추적을 위한 uploadTask 사용
+    const uploadTask = uploadBytesResumable(storageRef, videoFile);
     
-    return downloadUrl;
+    return new Promise((resolve, reject) => {
+      uploadTask.on('state_changed',
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setUploadProgress(Math.round(progress));
+        },
+        (error) => {
+          console.error('영상 업로드 오류:', error);
+          reject(error);
+        },
+        async () => {
+          try {
+            const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+            resolve(downloadUrl);
+          } catch (error) {
+            reject(error);
+          }
+        }
+      );
+    });
   };
 
   // 폼 유효성 검사
@@ -331,6 +375,11 @@ function WritePost({ darkMode }) {
     
     if (!selectedCategory) {
       alert("카테고리를 선택해주세요");
+      return false;
+    }
+
+    if (category === "recording" && !wantFeedback) {
+      alert("피드백 여부를 선택해주세요");
       return false;
     }
     
@@ -393,7 +442,9 @@ function WritePost({ darkMode }) {
         lastUpdated: serverTimestamp(),
         tags: extractTags(content),  // 내용에서 태그 추출
         isNotice: isNotice && (role === "리더" || role === "운영진"),  // 공지사항 여부
-        noticeOrder: isNotice && (role === "리더" || role === "운영진") ? Date.now() : null  // 공지사항 정렬 우선순위
+        noticeOrder: isNotice && (role === "리더" || role === "운영진") ? Date.now() : null,  // 공지사항 정렬 우선순위
+        wantFeedback: category === "recording" ? wantFeedback : null,
+        uploaderNickname: nick  // 업로더 닉네임 추가
       });
       
       alert("게시글이 등록되었습니다");
@@ -677,6 +728,14 @@ function WritePost({ darkMode }) {
           }}>
             녹음 파일 첨부 (최대 1개, 50MB 이하)
           </label>
+          <div style={{
+            fontSize: "14px",
+            color: darkMode ? "#aaa" : "#666",
+            marginBottom: "10px"
+          }}>
+            • 오디오 파일만 업로드 가능합니다 (MP3, WAV, M4A, AAC 등)
+            • 파일 크기는 50MB까지 가능합니다
+          </div>
           <input
             type="file"
             accept="audio/*"
@@ -688,6 +747,36 @@ function WritePost({ darkMode }) {
             }}
             disabled={isLoading}
           />
+          
+          {/* 피드백 허용 체크박스 추가 */}
+          <div style={{
+            marginTop: "15px",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px"
+          }}>
+            <input
+              type="checkbox"
+              id="wantFeedback"
+              checked={wantFeedback}
+              onChange={(e) => setWantFeedback(e.target.checked)}
+              style={{
+                width: "16px",
+                height: "16px",
+                cursor: "pointer"
+              }}
+            />
+            <label
+              htmlFor="wantFeedback"
+              style={{
+                color: darkMode ? "#fff" : "#333",
+                cursor: "pointer",
+                fontSize: "14px"
+              }}
+            >
+              다른 사용자의 피드백을 허용합니다
+            </label>
+          </div>
           
           {/* 녹음 파일 미리보기 */}
           {recordingPreview && (
@@ -722,6 +811,34 @@ function WritePost({ darkMode }) {
               </button>
             </div>
           )}
+        </div>
+      )}
+      
+      {/* 업로드 진행률 표시 */}
+      {isLoading && uploadProgress > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{
+            width: "100%",
+            height: "8px",
+            backgroundColor: darkMode ? "#444" : "#f5f5f5",
+            borderRadius: "4px",
+            overflow: "hidden"
+          }}>
+            <div style={{
+              width: `${uploadProgress}%`,
+              height: "100%",
+              backgroundColor: darkMode ? "#bb86fc" : "#7e57c2",
+              transition: "width 0.3s ease"
+            }} />
+          </div>
+          <p style={{
+            textAlign: "center",
+            color: darkMode ? "#bb86fc" : "#7e57c2",
+            fontSize: "14px",
+            margin: "8px 0 0 0"
+          }}>
+            업로드 중... {uploadProgress}%
+          </p>
         </div>
       )}
       
