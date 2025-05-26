@@ -10,7 +10,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyAFnppMjf9K5Cv_ZrrC4PoE_sldORb_HGs",
   authDomain: "veryusduet.firebaseapp.com",
   projectId: "veryusduet",
-  storageBucket: "veryusduet.appspot.com",
+  storageBucket: "veryusduet.firebasestorage.app",
   messagingSenderId: "966196979262",
   appId: "1:966196979262:web:1d8a73f2d5af425bf7136f",
   measurementId: "G-95YH8RLKYP"

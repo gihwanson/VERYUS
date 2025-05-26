@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import {
-  collection, onSnapshot, doc, deleteDoc, updateDoc, query, orderBy, where, writeBatch, getDocs, addDoc, limit
+  collection, onSnapshot, doc, deleteDoc, updateDoc, query, orderBy, where, writeBatch, getDocs, addDoc
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { useGrades } from "../contexts/GradeContext";
@@ -9,28 +9,23 @@ import {
   containerStyle, darkContainerStyle, titleStyle, smallBtn, purpleBtn
 } from "../components/style";
 import sha256 from "crypto-js/sha256";
-import { Timestamp } from "firebase/firestore";
 
 function NewAdminPanel({ darkMode }) {
-  // 기본 상태 관리
   const [users, setUsers] = useState([]);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("users");
+  const [activeTab, setActiveTab] = useState("users"); // "users", "reported", "stats", "contests"
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [editingUser, setEditingUser] = useState(null);
   const [editForm, setEditForm] = useState({});
-  
-  // 콘테스트 관련 상태
   const [contests, setContests] = useState([]);
   const [selectedContest, setSelectedContest] = useState(null);
   const [contestTeams, setContestTeams] = useState([]);
   const [contestRecords, setContestRecords] = useState([]);
   const [showScoreStats, setShowScoreStats] = useState(false);
   
-  // 사용자 관리 관련 상태
-  const [pendingUsers, setPendingUsers] = useState([]);
+  // 신규 가입자 추가 관련 state들을 최상단으로 이동
   const [showAddUser, setShowAddUser] = useState(false);
   const [newUserForm, setNewUserForm] = useState({
     nickname: "",
@@ -40,21 +35,10 @@ function NewAdminPanel({ darkMode }) {
     joinDate: new Date().toISOString().split('T')[0]
   });
   
-  // 게시글 관리 관련 상태
-  const [postsTab, setPostsTab] = useState("all");
-  const [postsList, setPostsList] = useState([]);
-  const [selectedPost, setSelectedPost] = useState(null);
-  const [newAuthorNickname, setNewAuthorNickname] = useState("");
-  const [postAuthorEdit, setPostAuthorEdit] = useState({
-    isEditing: false,
-    currentNickname: "",
-    newNickname: ""
-  });
-
   // 현재 사용자 권한 확인
   const currentUserRole = localStorage.getItem("role");
   const hasAdminAccess = currentUserRole === "리더" || currentUserRole === "운영진";
-
+  
   // Context에서 등급 정보 가져오기
   const { grades } = useGrades();
 
@@ -83,7 +67,6 @@ function NewAdminPanel({ darkMode }) {
     { value: "리더", label: "리더" }
   ];
 
-  // 기본 데이터 로드
   useEffect(() => {
     console.log("새 관리자 패널 초기화...");
     
@@ -138,63 +121,6 @@ function NewAdminPanel({ darkMode }) {
       contestsUnsubscribe();
     };
   }, []);
-
-  // 승인 대기 중인 사용자 목록 가져오기
-  useEffect(() => {
-    if (activeTab !== "pending") return;
-
-    const unsubscribe = onSnapshot(
-      query(
-        collection(db, "users"),
-        where("status", "==", "pending"),
-        orderBy("createdAt", "desc")
-      ),
-      (snapshot) => {
-        const pendingUsersData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setPendingUsers(pendingUsersData);
-      },
-      (error) => {
-        console.error("승인 대기 사용자 로드 오류:", error);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [activeTab]);
-
-  // 게시글 목록 가져오기
-  useEffect(() => {
-    if (activeTab !== "posts") return;
-
-    const collections = ["posts", "freeposts", "songs", "advice", "recordings"];
-    const unsubscribes = [];
-
-    collections.forEach(collectionName => {
-      const q = query(
-        collection(db, collectionName),
-        orderBy("createdAt", "desc"),
-        limit(20)
-      );
-
-      const unsubscribe = onSnapshot(q, snapshot => {
-        const posts = snapshot.docs.map(doc => ({
-          id: doc.id,
-          collection: collectionName,
-          ...doc.data()
-        }));
-        setPostsList(prev => [...prev, ...posts]);
-      });
-
-      unsubscribes.push(unsubscribe);
-    });
-
-    return () => {
-      unsubscribes.forEach(unsubscribe => unsubscribe());
-      setPostsList([]); // 컴포넌트 언마운트 시 목록 초기화
-    };
-  }, [activeTab]);
 
   // 권한이 없는 경우 접근 거부 화면 표시
   if (!hasAdminAccess) {
@@ -1024,71 +950,6 @@ function NewAdminPanel({ darkMode }) {
     };
   };
 
-  // 회원가입 승인 처리
-  const approveUser = async (userId) => {
-    try {
-      await updateDoc(doc(db, "users"), {
-        isApproved: true,
-        status: "approved",
-        approvedAt: Timestamp.now(),
-        approvedBy: localStorage.getItem("nickname")
-      });
-      alert("회원가입이 승인되었습니다.");
-    } catch (error) {
-      console.error("회원가입 승인 오류:", error);
-      alert("회원가입 승인 중 오류가 발생했습니다.");
-    }
-  };
-
-  // 회원가입 반려 처리
-  const rejectUser = async (userId) => {
-    if (!window.confirm("정말 이 사용자의 회원가입을 반려하시겠습니까?")) {
-      return;
-    }
-
-    try {
-      await deleteDoc(doc(db, "users", userId));
-      alert("회원가입이 반려되었습니다.");
-    } catch (error) {
-      console.error("회원가입 반려 오류:", error);
-      alert("회원가입 반려 중 오류가 발생했습니다.");
-    }
-  };
-
-  // 게시글 작성자 닉네임 변경 함수
-  const changePostAuthor = async (postId, currentNickname, newNickname, collectionName) => {
-    try {
-      const postRef = doc(db, collectionName, postId);
-      await updateDoc(postRef, {
-        nickname: newNickname,
-        updatedAt: Timestamp.now(),
-        updatedBy: localStorage.getItem("nickname")
-      });
-
-      // 댓글 컬렉션의 작성자 닉네임도 업데이트
-      const commentsQuery = query(
-        collection(db, `${collectionName}-comments-${postId}`),
-        where("nickname", "==", currentNickname)
-      );
-      const commentsSnapshot = await getDocs(commentsQuery);
-      
-      const batch = writeBatch(db);
-      commentsSnapshot.docs.forEach(commentDoc => {
-        batch.update(doc(db, `${collectionName}-comments-${postId}`, commentDoc.id), {
-          nickname: newNickname,
-          updatedAt: Timestamp.now(),
-          updatedBy: localStorage.getItem("nickname")
-        });
-      });
-      await batch.commit();
-
-      alert("작성자 닉네임이 변경되었습니다.");
-    } catch (error) {
-      console.error("작성자 닉네임 변경 오류:", error);
-      alert("작성자 닉네임 변경 중 오류가 발생했습니다.");
-    }
-  };
-
   if (loading) {
     return (
       <div style={darkMode ? darkContainerStyle : containerStyle}>
@@ -1161,33 +1022,6 @@ function NewAdminPanel({ darkMode }) {
             onClick={() => setActiveTab("contests")}
           >
             🏆 콘테스트 ({contests.length})
-          </button>
-          <button 
-            style={tabItemStyle(activeTab === "pending")} 
-            onClick={() => setActiveTab("pending")}
-          >
-            🔄 회원가입 승인
-            {pendingUsers.length > 0 && (
-              <span style={{
-                backgroundColor: "red",
-                color: "white",
-                borderRadius: "50%",
-                padding: "2px 6px",
-                fontSize: "12px",
-                marginLeft: "5px"
-              }}>
-                {pendingUsers.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab("posts")}
-            style={{
-              ...smallBtn,
-              backgroundColor: activeTab === "posts" ? "#7e57c2" : "#e0e0e0"
-            }}
-          >
-            게시글 관리
           </button>
         </div>
 
@@ -1762,80 +1596,6 @@ function NewAdminPanel({ darkMode }) {
           </div>
         )}
 
-        {/* 회원가입 승인 탭 */}
-        {activeTab === "pending" && (
-          <div>
-            <h2 style={{
-              fontSize: "20px",
-              marginBottom: "20px",
-              color: darkMode ? "#e0e0e0" : "#333"
-            }}>
-              🔄 회원가입 승인 대기 목록
-            </h2>
-
-            {pendingUsers.length === 0 ? (
-              <p style={{
-                textAlign: "center",
-                padding: "20px",
-                color: darkMode ? "#aaa" : "#666"
-              }}>
-                승인 대기 중인 회원가입 요청이 없습니다.
-              </p>
-            ) : (
-              <div>
-                {pendingUsers.map(user => (
-                  <div key={user.id} style={{
-                    padding: "15px",
-                    marginBottom: "10px",
-                    backgroundColor: darkMode ? "#333" : "#f5f5f5",
-                    borderRadius: "8px",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center"
-                  }}>
-                    <div>
-                      <h3 style={{
-                        margin: "0 0 5px 0",
-                        color: darkMode ? "#e0e0e0" : "#333"
-                      }}>
-                        {user.nickname}
-                      </h3>
-                      <p style={{
-                        margin: "0",
-                        fontSize: "14px",
-                        color: darkMode ? "#aaa" : "#666"
-                      }}>
-                        가입일: {new Date(user.createdAt.seconds * 1000).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div>
-                      <button
-                        onClick={() => approveUser(user.id)}
-                        style={{
-                          ...purpleBtn,
-                          marginRight: "10px",
-                          backgroundColor: "#4caf50"
-                        }}
-                      >
-                        승인
-                      </button>
-                      <button
-                        onClick={() => rejectUser(user.id)}
-                        style={{
-                          ...purpleBtn,
-                          backgroundColor: "#f44336"
-                        }}
-                      >
-                        반려
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
         {/* 콘테스트 점수 통계 */}
         {activeTab === "contests" && showScoreStats && selectedContest && (
           <div>
@@ -2046,168 +1806,6 @@ function NewAdminPanel({ darkMode }) {
                       </span>
                     </div>
                   ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* 게시글 관리 탭 */}
-        {activeTab === "posts" && (
-          <div>
-            <h2 style={{
-              fontSize: "20px",
-              marginBottom: "20px",
-              color: darkMode ? "#e0e0e0" : "#333"
-            }}>
-              📝 게시글 관리
-            </h2>
-
-            <div style={{ marginBottom: "20px" }}>
-              <input
-                type="text"
-                placeholder="게시글 검색..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  borderRadius: "8px",
-                  border: `1px solid ${darkMode ? "#555" : "#ddd"}`,
-                  backgroundColor: darkMode ? "#333" : "#fff",
-                  color: darkMode ? "#fff" : "#333"
-                }}
-              />
-            </div>
-
-            <div>
-              {postsList
-                .filter(post => 
-                  post.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                  post.content?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                  post.nickname?.toLowerCase().includes(searchTerm.toLowerCase())
-                )
-                .map(post => (
-                  <div key={post.id} style={{
-                    padding: "15px",
-                    marginBottom: "10px",
-                    backgroundColor: darkMode ? "#333" : "#f5f5f5",
-                    borderRadius: "8px",
-                    border: `1px solid ${darkMode ? "#444" : "#e0e0e0"}`
-                  }}>
-                    <div style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      marginBottom: "10px"
-                    }}>
-                      <div>
-                        <h3 style={{
-                          margin: "0 0 5px 0",
-                          color: darkMode ? "#e0e0e0" : "#333"
-                        }}>
-                          {post.title}
-                        </h3>
-                        <p style={{
-                          margin: "0",
-                          fontSize: "14px",
-                          color: darkMode ? "#aaa" : "#666"
-                        }}>
-                          작성자: {post.nickname} | 게시판: {post.collection}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setSelectedPost(post);
-                          setNewAuthorNickname(post.nickname);
-                        }}
-                        style={{
-                          ...purpleBtn,
-                          padding: "6px 12px",
-                          fontSize: "14px"
-                        }}
-                      >
-                        작성자 변경
-                      </button>
-                    </div>
-                  </div>
-                ))}
-            </div>
-
-            {/* 작성자 변경 모달 */}
-            {selectedPost && (
-              <div style={{
-                position: "fixed",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: "rgba(0, 0, 0, 0.5)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 1000
-              }}>
-                <div style={{
-                  backgroundColor: darkMode ? "#2a2a2a" : "#fff",
-                  padding: "20px",
-                  borderRadius: "12px",
-                  width: "90%",
-                  maxWidth: "500px"
-                }}>
-                  <h3 style={{
-                    margin: "0 0 20px 0",
-                    color: darkMode ? "#e0e0e0" : "#333"
-                  }}>
-                    작성자 닉네임 변경
-                  </h3>
-                  <input
-                    type="text"
-                    value={newAuthorNickname}
-                    onChange={(e) => setNewAuthorNickname(e.target.value)}
-                    placeholder="새로운 닉네임 입력"
-                    style={{
-                      width: "100%",
-                      padding: "10px",
-                      marginBottom: "20px",
-                      borderRadius: "8px",
-                      border: `1px solid ${darkMode ? "#555" : "#ddd"}`,
-                      backgroundColor: darkMode ? "#333" : "#fff",
-                      color: darkMode ? "#fff" : "#333"
-                    }}
-                  />
-                  <div style={{
-                    display: "flex",
-                    gap: "10px",
-                    justifyContent: "flex-end"
-                  }}>
-                    <button
-                      onClick={() => {
-                        changePostAuthor(
-                          selectedPost.id,
-                          selectedPost.nickname,
-                          newAuthorNickname,
-                          selectedPost.collection
-                        );
-                        setSelectedPost(null);
-                      }}
-                      style={{
-                        ...purpleBtn,
-                        backgroundColor: "#4caf50"
-                      }}
-                    >
-                      변경
-                    </button>
-                    <button
-                      onClick={() => setSelectedPost(null)}
-                      style={{
-                        ...purpleBtn,
-                        backgroundColor: "#f44336"
-                      }}
-                    >
-                      취소
-                    </button>
-                  </div>
                 </div>
               </div>
             )}

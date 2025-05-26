@@ -131,7 +131,6 @@ function NotificationsTab({ darkMode, navigate }) {
         orderBy("createdAt", "desc")
       );
     } else {
-      // 전체 알림 쿼리 - 인덱스 문제 해결을 위해 단순화
       baseQuery = query(
         collection(db, "notifications"),
         where("receiverNickname", "==", currentUser),
@@ -434,35 +433,6 @@ function NotificationsTab({ darkMode, navigate }) {
     color: filter === buttonFilter ? "white" : (darkMode ? "#fff" : "#000")
   });
 
-  // CSS 스타일 수정
-  const notificationStyle = {
-    backgroundColor: darkMode ? "#333" : "#fff",
-    padding: "15px",
-    borderRadius: "8px",
-    marginBottom: "10px",
-    position: "relative",
-    cursor: "pointer",
-    transition: "background-color 0.2s",
-  };
-
-  // 대신 CSS 클래스를 사용하여 미디어 쿼리 적용
-  const styleSheet = document.createElement("style");
-  styleSheet.textContent = `
-    @media (max-width: 480px) {
-      .notification-item {
-        padding: 10px;
-        margin-bottom: 8px;
-      }
-      .notification-message {
-        font-size: 14px;
-      }
-      .notification-meta {
-        font-size: 11px;
-      }
-    }
-  `;
-  document.head.appendChild(styleSheet);
-
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
@@ -608,10 +578,25 @@ function NotificationsTab({ darkMode, navigate }) {
       {/* 알림 목록 */}
       {list.map(notification => (
         <div 
-          key={notification.id}
-          className="notification-item"
-          style={notificationStyle}
-          onClick={() => handleNotificationClick(notification)}
+          key={notification.id} 
+          style={{
+            margin: "10px 0", 
+            padding: 12, 
+            borderRadius: 8,
+            background: getNotificationBackground(notification.type, notification.read),
+            border: `1px solid ${darkMode ? "#555" : "#ddd"}`,
+            opacity: notification.read ? 0.8 : 1,
+            position: "relative",
+            transition: "background-color 0.3s ease",
+            cursor: notification.relatedPostId || notification.relatedPostType || notification.targetUrl ? "pointer" : "default"
+          }}
+          onClick={() => {
+            if (notification.relatedPostId || notification.relatedPostType || notification.targetUrl) {
+              handleNotificationClick(notification);
+            } else if (!notification.read) {
+              markAsRead(notification.id);
+            }
+          }}
         >
           <div style={{ display: "flex", alignItems: "flex-start" }}>
             <div style={{ 

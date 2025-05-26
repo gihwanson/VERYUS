@@ -253,25 +253,14 @@ function RecordingBoard({ darkMode, globalProfilePics, globalGrades }) {
 
   // 스타일 정의
   const pageContainer = {
-    width: "100%",
-    minHeight: "100vh",
-    backgroundColor: darkMode ? "#1a1a1a" : "#f5f0ff",
-    padding: "20px"
-  };
-
-  const contentContainer = {
-    maxWidth: "100%",
+    ...(!darkMode ? containerStyle : darkContainerStyle),
+    maxWidth: "1200px",
     margin: "0 auto",
-    backgroundColor: darkMode ? "#2a2a2a" : "#fff",
-    borderRadius: "12px",
-    padding: "20px",
-    boxShadow: darkMode 
-      ? "0 4px 20px rgba(0, 0, 0, 0.3)" 
-      : "0 4px 20px rgba(0, 0, 0, 0.1)"
+    padding: isMobile ? "15px" : "20px"
   };
 
   const headerStyle = {
-    marginBottom: "20px",
+    marginBottom: "30px",
     textAlign: "center"
   };
 
@@ -283,7 +272,7 @@ function RecordingBoard({ darkMode, globalProfilePics, globalGrades }) {
     WebkitBackgroundClip: "text",
     WebkitTextFillColor: "transparent",
     backgroundClip: "text",
-    fontSize: "24px",
+    fontSize: isMobile ? "24px" : "32px",
     fontWeight: "bold",
     margin: "0"
   };
@@ -387,25 +376,23 @@ function RecordingBoard({ darkMode, globalProfilePics, globalGrades }) {
   if (loading) {
     return (
       <div style={pageContainer}>
-        <div style={contentContainer}>
-          <div style={loadingStyle}>
-            <div style={{
-              width: "40px",
-              height: "40px",
-              border: `4px solid ${darkMode ? "#444" : "#f3f3f3"}`,
-              borderTop: `4px solid ${darkMode ? "#bb86fc" : "#7e57c2"}`,
-              borderRadius: "50%",
-              animation: "spin 1s linear infinite",
-              margin: "0 auto 20px"
-            }}></div>
-            <p>녹음 게시판을 불러오는 중...</p>
-            <style>{`
-              @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-              }
-            `}</style>
-          </div>
+        <div style={loadingStyle}>
+          <div style={{
+            width: "40px",
+            height: "40px",
+            border: `4px solid ${darkMode ? "#444" : "#f3f3f3"}`,
+            borderTop: `4px solid ${darkMode ? "#bb86fc" : "#7e57c2"}`,
+            borderRadius: "50%",
+            animation: "spin 1s linear infinite",
+            margin: "0 auto 20px"
+          }}></div>
+          <p>녹음 게시판을 불러오는 중...</p>
+          <style>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
         </div>
       </div>
     );
@@ -413,37 +400,63 @@ function RecordingBoard({ darkMode, globalProfilePics, globalGrades }) {
 
   return (
     <div style={pageContainer}>
-      <div style={contentContainer}>
-        <div style={headerStyle}>
-          <h1 style={headerTitleStyle}>🎤 녹음 게시판</h1>
+      <div style={headerStyle}>
+        <h1 style={headerTitleStyle}>🎤 녹음 게시판</h1>
+      </div>
+      
+      <SearchBar darkMode={darkMode} onSearch={setSearch} isMobile={isMobile} />
+      
+      <div style={{ ...sortTabContainerStyle, ...hideScrollbarStyle }}>
+        <button 
+          style={sortType === "newest" ? activeSortTabStyle : sortTabStyle}
+          onClick={() => setSortType("newest")}
+        >
+          최신순
+        </button>
+        <button 
+          style={sortType === "popular" ? activeSortTabStyle : sortTabStyle}
+          onClick={() => setSortType("popular")}
+        >
+          인기순
+        </button>
+        <button 
+          style={sortType === "comments" ? activeSortTabStyle : sortTabStyle}
+          onClick={() => setSortType("comments")}
+        >
+          댓글순
+        </button>
+      </div>
+      
+      {/* 글쓰기 버튼 */}
+      {!isMobile && (
+        <div style={{ textAlign: "center", marginBottom: "30px" }}>
+          <Link 
+            to="/upload-recording"
+            style={{
+              ...purpleBtn,
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "12px 20px"
+            }}
+          >
+            🎤 녹음 올리기
+          </Link>
         </div>
-        
-        <SearchBar darkMode={darkMode} onSearch={setSearch} isMobile={isMobile} />
-        
-        <div style={{ ...sortTabContainerStyle, ...hideScrollbarStyle }}>
-          <button 
-            style={sortType === "newest" ? activeSortTabStyle : sortTabStyle}
-            onClick={() => setSortType("newest")}
-          >
-            최신순
-          </button>
-          <button 
-            style={sortType === "popular" ? activeSortTabStyle : sortTabStyle}
-            onClick={() => setSortType("popular")}
-          >
-            인기순
-          </button>
-          <button 
-            style={sortType === "comments" ? activeSortTabStyle : sortTabStyle}
-            onClick={() => setSortType("comments")}
-          >
-            댓글순
-          </button>
-        </div>
-        
-        {/* 글쓰기 버튼 */}
-        {!isMobile && (
-          <div style={{ textAlign: "center", marginBottom: "30px" }}>
+      )}
+
+      {/* 게시글 목록 */}
+      {sortedPosts.length === 0 ? (
+        <div style={noPostsStyle}>
+          <div style={{ fontSize: "64px", marginBottom: "20px" }}>🎤</div>
+          <h3 style={{ margin: "0 0 10px 0", color: darkMode ? "#ccc" : "#555" }}>
+            {search ? "검색 결과가 없습니다" : "첫 번째 녹음을 공유해보세요!"}
+          </h3>
+          <p style={{ fontSize: "14px", marginBottom: "20px" }}>
+            {search ? "다른 검색어로 시도해보세요" : "여러분의 아름다운 목소리를 다른 사용자들과 나누어보세요"}
+          </p>
+          {!search && (
             <Link 
               to="/upload-recording"
               style={{
@@ -451,313 +464,265 @@ function RecordingBoard({ darkMode, globalProfilePics, globalGrades }) {
                 textDecoration: "none",
                 display: "inline-flex",
                 alignItems: "center",
-                gap: "8px",
-                padding: "12px 20px"
+                gap: "8px"
               }}
             >
-              🎤 녹음 올리기
+              🎤 첫 녹음 올리기
             </Link>
-          </div>
-        )}
-
-        {/* 게시글 목록 */}
-        {sortedPosts.length === 0 ? (
-          <div style={noPostsStyle}>
-            <div style={{ fontSize: "64px", marginBottom: "20px" }}>🎤</div>
-            <h3 style={{ margin: "0 0 10px 0", color: darkMode ? "#ccc" : "#555" }}>
-              {search ? "검색 결과가 없습니다" : "첫 번째 녹음을 공유해보세요!"}
-            </h3>
-            <p style={{ fontSize: "14px", marginBottom: "20px" }}>
-              {search ? "다른 검색어로 시도해보세요" : "여러분의 아름다운 목소리를 다른 사용자들과 나누어보세요"}
-            </p>
-            {!search && (
-              <Link 
-                to="/upload-recording"
-                style={{
-                  ...purpleBtn,
-                  textDecoration: "none",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "8px"
-                }}
-              >
-                🎤 첫 녹음 올리기
-              </Link>
-            )}
-          </div>
-        ) : (
-          <div>
-            {sortedPosts.map((post) => (
-              <div key={post.id} style={postCardStyle}>
-                <div style={{
-                  display: "flex",
-                  alignItems: "center",
-                  marginBottom: "15px",
-                  gap: "12px"
-                }}>
-                  <Avatar 
-                    nickname={post.uploaderNickname}
-                    profilePic={globalProfilePics[post.uploaderNickname]}
-                    size={isMobile ? 32 : 40}
-                  />
-                  <div style={{ flex: 1 }}>
-                    <div style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      marginBottom: "4px"
-                    }}>
-                      <span style={{
-                        fontWeight: "bold",
-                        color: darkMode ? "#e0e0e0" : "#333",
-                        fontSize: isMobile ? "14px" : "15px"
-                      }}>
-                        {post.uploaderNickname}
-                      </span>
-                      {globalGrades[post.uploaderNickname] && (
-                        <span style={{
-                          fontSize: isMobile ? "12px" : "13px",
-                          color: darkMode ? "#bb86fc" : "#7e57c2"
-                        }}>
-                          {gradeEmojis[globalGrades[post.uploaderNickname]]} {globalGrades[post.uploaderNickname]}
-                        </span>
-                      )}
-                    </div>
-                    <div style={{
-                      fontSize: isMobile ? "11px" : "12px",
-                      color: darkMode ? "#aaa" : "#666"
-                    }}>
-                      {getRelativeTime(post.createdAt)}
-                    </div>
-                  </div>
-                </div>
-
-                <Link 
-                  to={`/recording-comments/${post.id}`}
-                  style={{
-                    textDecoration: "none",
-                    color: "inherit",
-                    display: "block"
-                  }}
-                  onClick={() => incrementViewCount(post.id)}
-                >
-                  <h3 style={{
-                    margin: "0 0 12px 0",
-                    fontSize: isMobile ? "16px" : "18px",
-                    fontWeight: "bold",
-                    color: darkMode ? "#e0e0e0" : "#333",
-                    lineHeight: "1.4"
+          )}
+        </div>
+      ) : (
+        <div>
+          {sortedPosts.map((post) => (
+            <div key={post.id} style={postCardStyle}>
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                marginBottom: "15px",
+                gap: "12px"
+              }}>
+                <Avatar 
+                  nickname={post.uploaderNickname}
+                  profilePic={globalProfilePics[post.uploaderNickname]}
+                  size={isMobile ? 32 : 40}
+                />
+                <div style={{ flex: 1 }}>
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    marginBottom: "4px"
                   }}>
-                    {post.title}
-                    {post.isPrivate && (
+                    <span style={{
+                      fontWeight: "bold",
+                      color: darkMode ? "#e0e0e0" : "#333",
+                      fontSize: isMobile ? "14px" : "15px"
+                    }}>
+                      {post.uploaderNickname}
+                    </span>
+                    {globalGrades[post.uploaderNickname] && (
                       <span style={{
-                        marginLeft: "8px",
-                        fontSize: "12px",
-                        color: "#ff9800",
-                        backgroundColor: "rgba(255, 152, 0, 0.1)",
-                        padding: "2px 6px",
-                        borderRadius: "4px"
+                        fontSize: isMobile ? "12px" : "13px",
+                        color: darkMode ? "#bb86fc" : "#7e57c2"
                       }}>
-                        🔒 비공개
+                        {gradeEmojis[globalGrades[post.uploaderNickname]]} {globalGrades[post.uploaderNickname]}
                       </span>
                     )}
-                  </h3>
-
-                  {(post.description || post.content) && (
-                    <p style={{
-                      margin: "0 0 15px 0",
-                      color: darkMode ? "#ccc" : "#666",
-                      fontSize: isMobile ? "13px" : "14px",
-                      lineHeight: "1.5",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      display: "-webkit-box",
-                      WebkitLineClamp: 3,
-                      WebkitBoxOrient: "vertical"
-                    }}>
-                      {post.description || post.content}
-                    </p>
-                  )}
-                </Link>
-
-                {/* 녹음 파일 표시 및 플레이어 */}
-                {(post.recordingURL || post.downloadURL) && (
-                  <div style={{
-                    backgroundColor: darkMode ? "#333" : "#f8f4ff",
-                    padding: "15px",
-                    borderRadius: "12px",
-                    marginBottom: "15px",
-                    border: `2px solid ${darkMode ? "#7e57c2" : "#e8dbff"}`
-                  }}>
-                    <div style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      marginBottom: "12px"
-                    }}>
-                      <div style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        color: darkMode ? "#bb86fc" : "#7e57c2",
-                        fontSize: "14px",
-                        fontWeight: "bold",
-                      }}>
-                        🎵 녹음 파일
-                      </div>
-                      {post.wantFeedback && (
-                        <div style={{
-                          backgroundColor: darkMode ? "#4a4a4a" : "#e8dbff",
-                          color: darkMode ? "#bb86fc" : "#7e57c2",
-                          padding: "4px 8px",
-                          borderRadius: "4px",
-                          fontSize: "12px",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "4px"
-                        }}>
-                          💭 피드백 허용
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* 오디오 플레이어 */}
-                    <audio 
-                      controls 
-                      style={{ 
-                        width: "100%",
-                        outline: "none",
-                        marginBottom: "10px"
-                      }}
-                      preload="metadata"
-                    >
-                      <source src={post.recordingURL || post.downloadURL} type="audio/mpeg" />
-                      <source src={post.recordingURL || post.downloadURL} type="audio/wav" />
-                      <source src={post.recordingURL || post.downloadURL} type="audio/ogg" />
-                      브라우저가 오디오 재생을 지원하지 않습니다.
-                    </audio>
-                    
-                    {/* 파일 정보 */}
-                    <div style={{
-                      display: "flex",
-                      gap: "15px",
-                      fontSize: "12px",
-                      color: darkMode ? "#aaa" : "#888",
-                      flexWrap: "wrap"
-                    }}>
-                      {post.fileName && <span>📁 {post.fileName}</span>}
-                      {post.fileSize && <span>📏 {(post.fileSize / (1024 * 1024)).toFixed(2)} MB</span>}
-                    </div>
                   </div>
-                )}
+                  <div style={{
+                    fontSize: isMobile ? "11px" : "12px",
+                    color: darkMode ? "#aaa" : "#666"
+                  }}>
+                    {getRelativeTime(post.createdAt)}
+                  </div>
+                </div>
+              </div>
 
+              <Link 
+                to={`/recording-comments/${post.id}`}
+                style={{
+                  textDecoration: "none",
+                  color: "inherit",
+                  display: "block"
+                }}
+                onClick={() => incrementViewCount(post.id)}
+              >
+                <h3 style={{
+                  margin: "0 0 12px 0",
+                  fontSize: isMobile ? "16px" : "18px",
+                  fontWeight: "bold",
+                  color: darkMode ? "#e0e0e0" : "#333",
+                  lineHeight: "1.4"
+                }}>
+                  {post.title}
+                  {post.isPrivate && (
+                    <span style={{
+                      marginLeft: "8px",
+                      fontSize: "12px",
+                      color: "#ff9800",
+                      backgroundColor: "rgba(255, 152, 0, 0.1)",
+                      padding: "2px 6px",
+                      borderRadius: "4px"
+                    }}>
+                      🔒 비공개
+                    </span>
+                  )}
+                </h3>
+
+                {(post.description || post.content) && (
+                  <p style={{
+                    margin: "0 0 15px 0",
+                    color: darkMode ? "#ccc" : "#666",
+                    fontSize: isMobile ? "13px" : "14px",
+                    lineHeight: "1.5",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    display: "-webkit-box",
+                    WebkitLineClamp: 3,
+                    WebkitBoxOrient: "vertical"
+                  }}>
+                    {post.description || post.content}
+                  </p>
+                )}
+              </Link>
+
+              {/* 녹음 파일 표시 및 플레이어 */}
+              {(post.recordingURL || post.downloadURL) && (
                 <div style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  paddingTop: "15px",
-                  borderTop: `1px solid ${darkMode ? "#444" : "#eee"}`
+                  backgroundColor: darkMode ? "#333" : "#f8f4ff",
+                  padding: "15px",
+                  borderRadius: "12px",
+                  marginBottom: "15px",
+                  border: `2px solid ${darkMode ? "#7e57c2" : "#e8dbff"}`
                 }}>
                   <div style={{
                     display: "flex",
-                    gap: "15px",
-                    fontSize: isMobile ? "12px" : "13px",
-                    color: darkMode ? "#aaa" : "#666"
+                    alignItems: "center",
+                    gap: "8px",
+                    color: darkMode ? "#bb86fc" : "#7e57c2",
+                    fontSize: "14px",
+                    fontWeight: "bold",
+                    marginBottom: "12px"
                   }}>
-                    <span>👁️ {post.viewCount || 0}</span>
-                    <span>❤️ {post.likes || 0}</span>
-                    <span>💬 {cCnt[post.id] || 0}</span>
+                    🎵 녹음 파일
                   </div>
                   
-                  {/* 작성자만 삭제 버튼 표시 */}
-                  {me === post.uploaderNickname && (
-                    <button
-                      onClick={(e) => deleteRecording(post.id, post.uploaderNickname, e)}
-                      style={{
-                        padding: "6px 12px",
-                        backgroundColor: "#dc3545",
-                        color: "white",
-                        border: "none",
-                        borderRadius: "6px",
-                        cursor: "pointer",
-                        fontSize: isMobile ? "11px" : "12px",
-                        fontWeight: "bold",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "4px"
-                      }}
-                    >
-                      🗑️ 삭제
-                    </button>
-                  )}
+                  {/* 오디오 플레이어 */}
+                  <audio 
+                    controls 
+                    style={{ 
+                      width: "100%",
+                      outline: "none",
+                      marginBottom: "10px"
+                    }}
+                    preload="metadata"
+                  >
+                    <source src={post.recordingURL || post.downloadURL} type="audio/mpeg" />
+                    <source src={post.recordingURL || post.downloadURL} type="audio/wav" />
+                    <source src={post.recordingURL || post.downloadURL} type="audio/ogg" />
+                    브라우저가 오디오 재생을 지원하지 않습니다.
+                  </audio>
+                  
+                  {/* 파일 정보 */}
+                  <div style={{
+                    display: "flex",
+                    gap: "15px",
+                    fontSize: "12px",
+                    color: darkMode ? "#aaa" : "#888",
+                    flexWrap: "wrap"
+                  }}>
+                    {post.fileName && <span>📁 {post.fileName}</span>}
+                    {post.fileSize && <span>📏 {(post.fileSize / (1024 * 1024)).toFixed(2)} MB</span>}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )}
 
-            {/* 로딩 더보기 */}
-            {loadingMore && (
-              <div style={loadingStyle}>
-                <div style={{
-                  width: "30px",
-                  height: "30px",
-                  border: `3px solid ${darkMode ? "#444" : "#f3f3f3"}`,
-                  borderTop: `3px solid ${darkMode ? "#bb86fc" : "#7e57c2"}`,
-                  borderRadius: "50%",
-                  animation: "spin 1s linear infinite",
-                  margin: "0 auto 10px"
-                }}></div>
-                <p>더 많은 게시글을 불러오는 중...</p>
-              </div>
-            )}
-
-            {/* 더 이상 불러올 게시글이 없을 때 */}
-            {!hasMore && sortedPosts.length > 0 && (
               <div style={{
-                textAlign: "center",
-                padding: "30px",
-                color: darkMode ? "#666" : "#999",
-                fontSize: "14px"
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                paddingTop: "15px",
+                borderTop: `1px solid ${darkMode ? "#444" : "#eee"}`
               }}>
-                모든 게시글을 확인했습니다 🎉
+                <div style={{
+                  display: "flex",
+                  gap: "15px",
+                  fontSize: isMobile ? "12px" : "13px",
+                  color: darkMode ? "#aaa" : "#666"
+                }}>
+                  <span>👁️ {post.viewCount || 0}</span>
+                  <span>❤️ {post.likes || 0}</span>
+                  <span>💬 {cCnt[post.id] || 0}</span>
+                </div>
+                
+                {/* 작성자만 삭제 버튼 표시 */}
+                {me === post.uploaderNickname && (
+                  <button
+                    onClick={(e) => deleteRecording(post.id, post.uploaderNickname, e)}
+                    style={{
+                      padding: "6px 12px",
+                      backgroundColor: "#dc3545",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      fontSize: isMobile ? "11px" : "12px",
+                      fontWeight: "bold",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px"
+                    }}
+                  >
+                    🗑️ 삭제
+                  </button>
+                )}
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          ))}
 
-        {/* 모바일에서 플로팅 글쓰기 버튼 */}
-        {isMobile && (
-          <Link 
-            to="/upload-recording"
-            style={{
-              position: "fixed",
-              bottom: "30px",
-              right: "20px",
-              width: "56px",
-              height: "56px",
-              backgroundColor: darkMode ? "#7e57c2" : "#7e57c2",
-              color: "white",
-              borderRadius: "50%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              textDecoration: "none",
-              fontSize: "24px",
-              boxShadow: "0 4px 15px rgba(126, 87, 194, 0.4)",
-              zIndex: 1000,
-              transition: "all 0.3s ease"
-            }}
-          >
-            🎤
-          </Link>
-        )}
-        
-        <style>{`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}</style>
-      </div>
+          {/* 로딩 더보기 */}
+          {loadingMore && (
+            <div style={loadingStyle}>
+              <div style={{
+                width: "30px",
+                height: "30px",
+                border: `3px solid ${darkMode ? "#444" : "#f3f3f3"}`,
+                borderTop: `3px solid ${darkMode ? "#bb86fc" : "#7e57c2"}`,
+                borderRadius: "50%",
+                animation: "spin 1s linear infinite",
+                margin: "0 auto 10px"
+              }}></div>
+              <p>더 많은 게시글을 불러오는 중...</p>
+            </div>
+          )}
+
+          {/* 더 이상 불러올 게시글이 없을 때 */}
+          {!hasMore && sortedPosts.length > 0 && (
+            <div style={{
+              textAlign: "center",
+              padding: "30px",
+              color: darkMode ? "#666" : "#999",
+              fontSize: "14px"
+            }}>
+              모든 게시글을 확인했습니다 🎉
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 모바일에서 플로팅 글쓰기 버튼 */}
+      {isMobile && (
+        <Link 
+          to="/upload-recording"
+          style={{
+            position: "fixed",
+            bottom: "30px",
+            right: "20px",
+            width: "56px",
+            height: "56px",
+            backgroundColor: darkMode ? "#7e57c2" : "#7e57c2",
+            color: "white",
+            borderRadius: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            textDecoration: "none",
+            fontSize: "24px",
+            boxShadow: "0 4px 15px rgba(126, 87, 194, 0.4)",
+            zIndex: 1000,
+            transition: "all 0.3s ease"
+          }}
+        >
+          🎤
+        </Link>
+      )}
+      
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }
