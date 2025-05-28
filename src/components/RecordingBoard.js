@@ -59,8 +59,6 @@ function RecordingBoard({ darkMode, globalProfilePics, globalGrades }) {
 
   // 초기 게시글 가져오기 (mypage_recordings 컬렉션에서)
   useEffect(() => {
-    if (!me) return;
-    
     setLoading(true);
     
     const q = query(
@@ -90,7 +88,7 @@ function RecordingBoard({ darkMode, globalProfilePics, globalGrades }) {
     });
     
     return unsubscribe;
-  }, [me]);
+  }, []);
 
   // 댓글 수 가져오기 함수
   const fetchCommentCounts = async (postIds) => {
@@ -165,7 +163,7 @@ function RecordingBoard({ darkMode, globalProfilePics, globalGrades }) {
   // 검색어로 필터링 및 정렬
   const filtered = posts.filter(p => {
     const searchContent = (p.title || '') + (p.description || p.content || '');
-    return searchContent.includes(search) && (!p.isPrivate || p.uploaderNickname === me);
+    return searchContent.includes(search) && (!p.isPrivate || (me && p.uploaderNickname === me));
   });
   
   // 정렬 기준에 따라 정렬 (공지사항이 항상 최상위)
@@ -254,14 +252,17 @@ function RecordingBoard({ darkMode, globalProfilePics, globalGrades }) {
   // 스타일 정의
   const pageContainer = {
     ...(!darkMode ? containerStyle : darkContainerStyle),
-    maxWidth: "1200px",
+    width: "100%",
+    maxWidth: "100%",
     margin: "0 auto",
-    padding: isMobile ? "15px" : "20px"
+    padding: isMobile ? "15px" : "20px",
+    boxSizing: "border-box"
   };
 
   const headerStyle = {
     marginBottom: "30px",
-    textAlign: "center"
+    textAlign: "center",
+    width: "100%"
   };
 
   const headerTitleStyle = {
@@ -282,7 +283,8 @@ function RecordingBoard({ darkMode, globalProfilePics, globalGrades }) {
     gap: "8px",
     marginBottom: "20px",
     overflowX: "auto",
-    paddingBottom: "5px"
+    paddingBottom: "5px",
+    width: "100%"
   };
 
   const hideScrollbarStyle = {
@@ -533,7 +535,7 @@ function RecordingBoard({ darkMode, globalProfilePics, globalGrades }) {
                 }}>
                   <div style={{ flex: 1 }}>
                     <Link
-                      to={`/post/recording/${post.id}`}
+                      to={`/recording-comments/${post.id}`}
                       style={{
                         textDecoration: "none",
                         color: "inherit"

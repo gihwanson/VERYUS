@@ -210,7 +210,7 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
   useEffect(() => {
     if (!id) return;
     
-    const commentsQuery = query(collection(db, `${type}-${id}-comments`), where("parentId", "==", null));
+    const commentsQuery = query(collection(db, `recording-comments-${id}`), where("parentId", "==", null));
     const unsubscribe = onSnapshot(commentsQuery, (snapshot) => {
       const commentsData = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -375,11 +375,12 @@ function PostDetail({ darkMode, globalProfilePics, globalGrades }) {
   };
 
   if (loading) return <div style={containerStyle}>로딩 중...</div>;
+  if (!post) return <div style={containerStyle}>게시글을 찾을 수 없습니다.</div>;
 
-  const author = post.nickname || "알 수 없음";
+  const author = post?.nickname || "알 수 없음";
   const grade = globalGrades?.[author] || "";
   const profileUrl = globalProfilePics?.[author];
-  const canEditOrDelete = post.nickname === me || role === "운영진" || role === "리더";
+  const canEditOrDelete = post?.nickname === me || role === "운영진" || role === "리더";
 
   // 게시글 내용 스타일 추가
   const styles = {
