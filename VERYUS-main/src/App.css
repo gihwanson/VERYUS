@@ -1,0 +1,123 @@
+@import './styles/variables.css';
+@import './styles/components.css';
+
+/* Base Styles */
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--primary-bg);
+  color: var(--text-primary);
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.app-container {
+  min-height: 100vh;
+  background: var(--primary-bg);
+}
+
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+/* Logo Animation */
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+
+.logo:hover {
+  filter: drop-shadow(0 0 2em var(--primary-alpha-20));
+}
+
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em var(--primary-alpha-30));
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+/* Layout */
+.content-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--space-lg);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  #root {
+    padding: var(--space-md);
+  }
+  
+  .content-container {
+    padding: var(--space-md);
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+/* Global button styles */
+.button-container {
+  display: flex;
+  gap: var(--space-md);
+  align-items: center;
+  margin: var(--space-md) 0;
+}
+
+.search-button,
+.write-button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: none;
+}
+
+.search-button {
+  background-color: var(--button-bg);
+  color: var(--text-secondary);
+  margin-right: auto;
+}
+
+.write-button {
+  background-color: var(--button-primary-bg);
+  color: var(--button-text-color);
+}
+
+.search-button:hover {
+  background-color: var(--button-hover-bg);
+  color: var(--primary-color);
+}
+
+.write-button:hover {
+  background-color: var(--button-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--button-shadow);
+}

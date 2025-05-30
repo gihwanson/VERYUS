@@ -1,0 +1,708 @@
+/* CSS 변수 정의 */
+:root {
+  /* Colors */
+  --primary: #8A55CC;
+  --primary-light: #B497D6;
+  --primary-dark: #7C4DBC;
+  --primary-alpha-10: rgba(138, 85, 204, 0.1);
+  --primary-alpha-20: rgba(138, 85, 204, 0.2);
+  
+  /* Background Colors */
+  --bg-gradient: linear-gradient(135deg, #E5DAF5 0%, #D4C2F0 100%);
+  --bg-white: #FFFFFF;
+  --bg-light: #F9FAFB;
+  --bg-lighter: #F3F4F6;
+  --bg-card: #FFFFFF;
+  
+  /* Text Colors */
+  --text-primary: #1F2937;
+  --text-secondary: #6B7280;
+  --text-muted: #9CA3AF;
+  --text-white: #FFFFFF;
+  
+  /* Border Colors */
+  --border-light: #E5E7EB;
+  --border-primary: #B497D6;
+  
+  /* Shadow */
+  --shadow-sm: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 8px 30px rgba(138, 85, 204, 0.1);
+  --shadow-lg: 0 12px 40px rgba(138, 85, 204, 0.15);
+  
+  /* Spacing */
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 20px;
+  --space-xl: 24px;
+  --space-2xl: 32px;
+  
+  /* Border Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+  
+  /* Transitions */
+  --transition-fast: 0.2s ease;
+  --transition-base: 0.3s ease;
+  --transition-slow: 0.4s ease;
+  
+  /* Z-index */
+  --z-dropdown: 1000;
+  --z-modal: 2000;
+  --z-tooltip: 3000;
+}
+
+/* Dark Mode */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-gradient: linear-gradient(135deg, #2D1B4B 0%, #1F1235 100%);
+    --bg-white: #1A1A1A;
+    --bg-light: #2D3748;
+    --bg-lighter: #374151;
+    --bg-card: #1A1A1A;
+    
+    --text-primary: #F9FAFB;
+    --text-secondary: #E5E7EB;
+    --text-muted: #9CA3AF;
+    
+    --border-light: #374151;
+    --border-primary: #B497D6;
+    
+    --shadow-sm: 0 4px 6px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.4);
+  }
+}
+
+/* Base Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* MyPage Layout */
+.mypage-container {
+  min-height: 100vh;
+  background: var(--primary-bg);
+  padding: var(--space-lg);
+}
+
+.mypage-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  background: var(--card-bg);
+  border-radius: var(--radius-xl);
+  padding: var(--space-xl);
+  box-shadow: var(--shadow-md);
+}
+
+/* Profile Section */
+.profile-section {
+  margin-bottom: var(--space-2xl);
+}
+
+.profile-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xl);
+}
+
+.profile-info {
+  flex: 1;
+}
+
+.profile-name {
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--space-xs);
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.profile-role {
+  font-size: var(--text-lg);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-md);
+  font-weight: 500;
+}
+
+/* Profile Image */
+.profile-image-section {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-image {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  overflow: hidden;
+  position: relative;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.profile-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+
+.upload-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.profile-image:hover .upload-overlay {
+  opacity: 1;
+}
+
+.upload-overlay span {
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+/* Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-lg);
+  margin-top: var(--space-2xl);
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  background: var(--bg-light);
+  border-radius: var(--radius-lg);
+  transition: all var(--transition-base);
+}
+
+.stat-item:hover {
+  background: var(--primary-bg);
+  transform: translateY(-2px);
+}
+
+.stat-icon {
+  width: 32px;
+  height: 32px;
+  color: var(--primary-color);
+}
+
+.stat-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-number {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.stat-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* Tab Navigation */
+.tab-navigation {
+  display: flex;
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xs);
+  margin-bottom: var(--space-xl);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-light);
+}
+
+.tab-button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: all var(--transition-base);
+}
+
+.tab-button:hover {
+  color: var(--primary-color);
+  background: var(--primary-bg);
+}
+
+.tab-button.active {
+  background: var(--primary-color);
+  color: var(--text-white);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .mypage-container {
+    padding: var(--space-md);
+  }
+  
+  .mypage-content {
+    padding: var(--space-lg);
+  }
+  
+  .profile-card {
+    flex-direction: column;
+    text-align: center;
+    gap: var(--space-lg);
+  }
+  
+  .profile-image-section {
+    margin: 0 auto;
+  }
+  
+  .profile-name {
+    font-size: var(--text-2xl);
+    justify-content: center;
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-md);
+  }
+  
+  .tab-navigation {
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+  
+  .tab-button {
+    width: 100%;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* High Contrast Mode */
+@media (forced-colors: active) {
+  .profile-card,
+  .intro-card,
+  .stats-card {
+    border: 2px solid ButtonText;
+  }
+  
+  .back-button {
+    border: 2px solid ButtonText;
+  }
+}
+
+/* 프로필 카드 */
+.profile-card,
+.intro-card,
+.stats-card,
+.tab-content {
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  padding: var(--space-xl);
+  margin-bottom: var(--space-xl);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-light);
+  transition: all var(--transition-base);
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+  }
+}
+
+/* 자기소개 카드 */
+.intro-card h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1F2937;
+  margin: 0 0 16px 0;
+  text-align: center;
+}
+
+.intro-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+}
+
+.intro-text {
+  width: 100%;
+  font-size: 14px;
+  color: #6B7280;
+  line-height: 1.6;
+  margin: 0;
+  text-align: center;
+}
+
+/* 활동 통계 카드 */
+.stats-card h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1F2937;
+  margin: 0 0 20px 0;
+}
+
+/* 편집 모드 */
+.edit-profile,
+.edit-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.edit-input {
+  padding: 12px 16px;
+  border: 2px solid #E5E7EB;
+  border-radius: 12px;
+  font-size: 16px;
+  font-family: 'Pretendard', sans-serif;
+  transition: border-color 0.3s ease;
+}
+
+.edit-input:focus {
+  outline: none;
+  border-color: #B497D6;
+}
+
+.edit-textarea {
+  padding: 12px 16px;
+  border: 2px solid #E5E7EB;
+  border-radius: 12px;
+  font-size: 14px;
+  font-family: 'Pretendard', sans-serif;
+  resize: vertical;
+  min-height: 120px;
+  transition: border-color 0.3s ease;
+}
+
+.edit-textarea:focus {
+  outline: none;
+  border-color: #B497D6;
+}
+
+.edit-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.edit-btn, .save-btn, .cancel-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Pretendard', sans-serif;
+}
+
+.edit-btn {
+  background: #F3F4F6;
+  color: #6B7280;
+}
+
+.edit-btn:hover {
+  background: #B497D6;
+  color: white;
+}
+
+.save-btn {
+  background: #10B981;
+  color: white;
+}
+
+.save-btn:hover {
+  background: #059669;
+}
+
+.cancel-btn {
+  background: #EF4444;
+  color: white;
+}
+
+.cancel-btn:hover {
+  background: #DC2626;
+}
+
+/* 방명록 */
+.guestbook-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.guestbook-write {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.guestbook-textarea {
+  padding: 16px;
+  border: 2px solid #E5E7EB;
+  border-radius: 16px;
+  font-size: 14px;
+  font-family: 'Pretendard', sans-serif;
+  resize: vertical;
+  min-height: 100px;
+  transition: border-color 0.3s ease;
+}
+
+.guestbook-textarea:focus {
+  outline: none;
+  border-color: #B497D6;
+}
+
+.send-btn {
+  align-self: flex-end;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: #B497D6;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Pretendard', sans-serif;
+}
+
+.send-btn:hover {
+  background: #8A55CC;
+}
+
+.guestbook-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.guestbook-item {
+  padding: 20px;
+  background: #F9FAFB;
+  border-radius: 16px;
+  border-left: 4px solid #B497D6;
+  transition: all 0.3s ease;
+}
+
+.guestbook-item:hover {
+  background: #F3F4F6;
+}
+
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.message-author {
+  font-weight: 600;
+  color: #B497D6;
+  font-size: 14px;
+}
+
+.message-date {
+  font-size: 12px;
+  color: #6B7280;
+}
+
+.delete-btn {
+  background: #FEE2E2;
+  color: #DC2626;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.delete-btn:hover {
+  background: #DC2626;
+  color: white;
+}
+
+.message-content {
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* 빈 상태 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: #6B7280;
+}
+
+.empty-state svg {
+  color: #D1D5DB;
+  margin-bottom: 16px;
+}
+
+.empty-state h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 8px 0;
+}
+
+.empty-state p {
+  font-size: 14px;
+  margin: 0;
+}
+
+/* 등급 섹션 스타일 */
+.grade-section {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 20px rgba(138, 85, 204, 0.1);
+  text-align: center;
+}
+
+.grade-section h3 {
+  font-size: 18px;
+  color: #374151;
+  margin: 0 0 16px 0;
+  text-align: center;
+}
+
+.grade-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.grade-emoji {
+  font-size: 32px;
+  text-align: center;
+}
+
+.grade-name {
+  font-size: 18px;
+  color: #6B7280;
+  font-weight: 500;
+  text-align: center;
+}
+
+.grade-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.grade-select {
+  padding: 8px 12px;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  font-size: 16px;
+  color: #374151;
+  background: white;
+  cursor: pointer;
+}
+
+.grade-select:focus {
+  outline: none;
+  border-color: #8A55CC;
+  box-shadow: 0 0 0 3px rgba(138, 85, 204, 0.1);
+}
+
+.grade-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 480px) {
+  .mypage-container {
+    padding: 12px;
+  }
+
+  .profile-card,
+  .intro-card,
+  .stats-card,
+  .tab-content {
+    padding: 16px;
+  }
+
+  .mypage-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .back-button {
+    width: 100%;
+    justify-content: center;
+  }
+} 

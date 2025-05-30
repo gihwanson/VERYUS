@@ -1,0 +1,257 @@
+.comment-section {
+  margin-top: 40px;
+  background: var(--card-bg);
+  border-radius: 16px;
+  box-shadow: 0 2px 15px rgba(124, 58, 237, 0.08);
+  overflow: hidden;
+  border: 2px solid var(--border-color);
+  padding: 0;
+}
+
+.dark .comment-section {
+  background: var(--card-bg);
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.2);
+  border: 2px solid var(--border-color);
+}
+
+/* 댓글 섹션 헤더 */
+.comment-header {
+  padding: 20px;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.dark .comment-header {
+  border-bottom-color: #4B5563;
+}
+
+.comment-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 18px;
+  color: #1F2937;
+}
+
+.dark .comment-header h3 {
+  color: #E5E7EB;
+}
+
+/* 댓글 작성 폼 */
+.comment-form {
+  padding: 16px;
+  border-bottom: 1px solid #E5E7EB;
+  background: var(--card-bg);
+}
+
+.dark .comment-form {
+  border-bottom-color: #4B5563;
+  background: var(--card-bg);
+}
+
+.comment-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.dark .comment-input-wrapper {
+  background: var(--card-bg);
+}
+
+.input-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.tab-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #6B7280;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-button.active {
+  background: #8A55CC;
+  color: white;
+}
+
+.dark .tab-button {
+  color: #9CA3AF;
+}
+
+.dark .tab-button.active {
+  background: #7C3AED;
+  color: white;
+}
+
+.comment-input {
+  width: 100%;
+  padding: 16px;
+  border: 2px solid #E5E7EB;
+  border-radius: 12px;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 100px;
+  background: var(--card-bg);
+  transition: all 0.3s ease;
+}
+
+.comment-input:focus {
+  outline: none;
+  border-color: #8A55CC;
+  box-shadow: 0 0 0 3px rgba(138, 85, 204, 0.1);
+}
+
+.dark .comment-input {
+  background: var(--card-bg);
+  border-color: #4B5563;
+  color: #E5E7EB;
+}
+
+.dark .comment-input:focus {
+  border-color: #7C3AED;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+}
+
+.preview-content {
+  padding: 16px;
+  min-height: 100px;
+  border: 2px solid #E5E7EB;
+  border-radius: 12px;
+  background: var(--card-bg);
+}
+
+.dark .preview-content {
+  background: var(--card-bg);
+  border-color: #4B5563;
+  color: #E5E7EB;
+}
+
+.comment-submit-btn {
+  align-self: flex-end;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #8A55CC 0%, #B377D9 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.comment-submit-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #7C4DBC 0%, #A367C9 100%);
+  transform: translateY(-1px);
+}
+
+.comment-submit-btn:disabled {
+  background: #D1D5DB;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.dark .comment-submit-btn {
+  background: #7C3AED;
+}
+
+.dark .comment-submit-btn:hover:not(:disabled) {
+  background: #6D28D9;
+}
+
+/* 댓글 목록 */
+.comments-list {
+  padding: 20px;
+}
+
+/* 빈 상태 */
+.empty-comments {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: #6B7280;
+}
+
+.empty-comments svg {
+  color: #8A55CC;
+  margin-bottom: 16px;
+}
+
+.dark .empty-comments {
+  color: #9CA3AF;
+}
+
+.dark .empty-comments svg {
+  color: #7C3AED;
+}
+
+/* 로딩 상태 */
+.comment-section.loading {
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: #6B7280;
+}
+
+.loading-spinner svg {
+  animation: spin 1s linear infinite;
+}
+
+.dark .loading-spinner {
+  color: #9CA3AF;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 반응형 디자인 */
+@media (max-width: 640px) {
+  .comment-section {
+    margin-top: 20px;
+    border-radius: 12px;
+  }
+
+  .comment-header,
+  .comment-form,
+  .comments-list {
+    padding: 16px;
+  }
+
+  .comment-input {
+    font-size: 16px;
+  }
+
+  .comment-submit-btn {
+    width: 100%;
+    justify-content: center;
+  }
+} 

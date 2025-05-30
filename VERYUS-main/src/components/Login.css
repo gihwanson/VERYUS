@@ -1,0 +1,334 @@
+/* Pretendard 폰트 import */
+@import url('https://cdn.jsdelivr.net/gh/Project-Noonnu/noonfonts_2107@1.1/Pretendard-Regular.woff2');
+
+* {
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.login-container {
+  min-height: 100vh;
+  background: var(--primary-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  box-sizing: border-box;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  background: var(--card-bg);
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: 0 4px 20px var(--shadow-color);
+}
+
+.dark .login-container {
+  background: var(--primary-bg);
+}
+
+.dark .login-card {
+  background: var(--card-bg);
+  box-shadow: 0 4px 20px var(--shadow-color);
+}
+
+.login-header {
+  margin-bottom: var(--space-3xl);
+}
+
+.app-title {
+  font-size: var(--text-4xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-sm) 0;
+  letter-spacing: -0.5px;
+}
+
+.app-subtitle {
+  font-size: var(--text-xl);
+  color: var(--text-body);
+  margin: 0 0 var(--space-xs) 0;
+  font-weight: 400;
+}
+
+.login-guide {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  margin: 0;
+  font-weight: 500;
+  background: var(--primary-alpha-10);
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-md);
+  display: inline-block;
+}
+
+.login-form {
+  margin-bottom: var(--space-2xl);
+}
+
+.input-group {
+  margin-bottom: var(--space-lg);
+}
+
+.login-input {
+  width: 100%;
+  padding: var(--space-lg) var(--space-lg);
+  border: 2px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-lg);
+  transition: all var(--transition-base);
+  background: var(--bg-input);
+  color: var(--text-body);
+}
+
+.login-input::placeholder {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.login-input:focus {
+  border-color: var(--primary);
+  background: var(--bg-white);
+  box-shadow: 0 0 0 3px var(--primary-alpha-10);
+  outline: none;
+}
+
+.error-message {
+  background: var(--bg-error);
+  border: 1px solid var(--border-error);
+  color: var(--text-error);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-lg);
+  text-align: left;
+}
+
+.login-button {
+  width: 100%;
+  padding: var(--space-lg);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  color: var(--bg-white);
+  border: none;
+  border-radius: var(--radius-lg);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  position: relative;
+  overflow: hidden;
+}
+
+.login-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.login-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.login-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.login-footer {
+  border-top: 1px solid var(--border-light);
+  padding-top: var(--space-xl);
+}
+
+.footer-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  font-weight: 500;
+  cursor: pointer;
+  padding: var(--space-xs) 0;
+  transition: color var(--transition-base);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.link-button:hover {
+  color: var(--primary-dark);
+}
+
+.separator {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+/* 회원가입 스타일 */
+.signup-input-row {
+  display: flex;
+  gap: var(--space-md);
+}
+
+.signup-input-row .input-group {
+  flex: 1;
+}
+
+.file-upload-container {
+  position: relative;
+  margin-bottom: var(--space-lg);
+}
+
+.file-upload-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  padding: var(--space-lg);
+  border: 2px dashed var(--border-light);
+  border-radius: var(--radius-lg);
+  background: var(--bg-input);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  color: var(--text-body);
+  font-size: var(--text-base);
+}
+
+.file-upload-label:hover {
+  border-color: var(--primary);
+  background: var(--bg-white);
+}
+
+.file-upload-input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.nickname-check-container {
+  position: relative;
+}
+
+.nickname-check-button {
+  position: absolute;
+  right: var(--space-xs);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--primary);
+  color: var(--bg-white);
+  border: none;
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.nickname-check-button:hover {
+  background: var(--primary-dark);
+}
+
+.nickname-check-button:disabled {
+  background: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.success-message {
+  background: var(--bg-success);
+  border: 1px solid var(--border-success);
+  color: var(--text-success);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-lg);
+  text-align: left;
+}
+
+/* 애니메이션 */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+  .login-container {
+    padding: var(--space-md);
+  }
+  
+  .login-card {
+    padding: var(--space-2xl) var(--space-xl);
+    border-radius: var(--radius-xl);
+    max-width: 100%;
+  }
+  
+  .app-title {
+    font-size: var(--text-3xl);
+  }
+  
+  .footer-links {
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+  
+  .separator {
+    display: none;
+  }
+
+  .signup-input-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .login-guide {
+    font-size: var(--text-xs);
+    padding: var(--space-xs) var(--space-sm);
+  }
+}
+
+@media (max-width: 480px) {
+  .login-card {
+    padding: var(--space-xl) var(--space-lg);
+  }
+  
+  .app-title {
+    font-size: var(--text-2xl);
+  }
+
+  .login-guide {
+    font-size: var(--text-xs);
+    padding: 5px 10px;
+  }
+}
+
+/* 접근성 개선 */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* 고대비 모드 지원 */
+@media (forced-colors: active) {
+  .login-button,
+  .nickname-check-button {
+    border: 2px solid ButtonText;
+  }
+  
+  .login-input,
+  .file-upload-label {
+    border: 2px solid ButtonText;
+  }
+} 
