@@ -1,0 +1,200 @@
+/* Global CSS Variables */
+:root {
+  /* Colors */
+  --primary-color: #7C3AED;
+  --primary-light: #8B5CF6;
+  --primary-dark: #6D28D9;
+  --primary-alpha-10: rgba(124, 58, 237, 0.1);
+  --primary-alpha-20: rgba(124, 58, 237, 0.2);
+  --primary-alpha-30: rgba(124, 58, 237, 0.3);
+
+  /* Background Colors */
+  --primary-bg: #EDE9FE;
+  --card-bg: #FFFFFF;
+  --bg-gradient: linear-gradient(135deg, #E5DAF5 0%, #D4C2F0 100%);
+  --bg-white: #FFFFFF;
+  --bg-light: #F9FAFB;
+  --bg-lighter: #F3F4F6;
+  --bg-input: #FAFAFA;
+  --bg-success: #F0FDF4;
+  --bg-error: #FEF2F2;
+  --hover-bg: #F9FAFB;
+
+  /* Text Colors */
+  --text-primary: #1F2937;
+  --text-secondary: #4B5563;
+  --text-tertiary: #6B7280;
+  --text-muted: #9CA3AF;
+  --text-white: #FFFFFF;
+  --text-success: #166534;
+  --text-error: #DC2626;
+
+  /* Border Colors */
+  --border-color: #E5E7EB;
+  --border-light: #E5E7EB;
+  --border-success: #BBF7D0;
+  --border-error: #FECACA;
+
+  /* Spacing */
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 40px;
+  --space-3xl: 48px;
+  --space-4xl: 60px;
+
+  /* Border Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-full: 9999px;
+
+  /* Font Sizes */
+  --text-xs: 13px;
+  --text-sm: 14px;
+  --text-base: 15px;
+  --text-lg: 16px;
+  --text-xl: 18px;
+  --text-2xl: 24px;
+  --text-3xl: 28px;
+  --text-4xl: 36px;
+
+  /* Shadows */
+  --shadow-sm: 0 4px 6px rgba(124, 58, 237, 0.1);
+  --shadow-md: 0 8px 25px rgba(124, 58, 237, 0.15);
+  --shadow-lg: 0 20px 40px rgba(124, 58, 237, 0.2);
+  --shadow-color: rgba(124, 58, 237, 0.1);
+
+  /* Button Styles */
+  --button-bg: #FFFFFF;
+  --button-hover-bg: #F3F4F6;
+  --button-primary-bg: var(--primary-color);
+  --button-primary-hover: var(--primary-dark);
+  --button-text-color: #FFFFFF;
+  --button-shadow: 0 2px 4px var(--shadow-color);
+  --button-spacing: var(--space-md);
+
+  /* Transitions */
+  --transition-fast: 0.2s ease;
+  --transition-base: 0.3s ease;
+  --transition-slow: 0.4s ease;
+
+  /* Z-index */
+  --z-dropdown: 1000;
+  --z-modal: 2000;
+  --z-tooltip: 3000;
+}
+
+/* Dark Mode Variables */
+.dark {
+  /* Colors */
+  --primary-color: #8B5CF6;
+  --primary-light: #A78BFA;
+  --primary-dark: #7C3AED;
+  --primary-alpha-10: rgba(139, 92, 246, 0.1);
+  --primary-alpha-20: rgba(139, 92, 246, 0.2);
+  --primary-alpha-30: rgba(139, 92, 246, 0.3);
+
+  /* Background Colors */
+  --primary-bg: #2E1065;
+  --card-bg: #262626;
+  --bg-gradient: linear-gradient(135deg, #2D1B4B 0%, #1F1235 100%);
+  --bg-white: #1A1A1A;
+  --bg-light: #2D3748;
+  --bg-lighter: #374151;
+  --bg-input: #2A2A2A;
+  --bg-success: #022C22;
+  --bg-error: #450A0A;
+  --hover-bg: #333333;
+
+  /* Text Colors */
+  --text-primary: #F9FAFB;
+  --text-secondary: #D1D5DB;
+  --text-tertiary: #9CA3AF;
+  --text-muted: #71717A;
+  --text-success: #4ADE80;
+  --text-error: #EF4444;
+
+  /* Border Colors */
+  --border-color: #404040;
+  --border-light: #2A2A2A;
+  --border-success: #065F46;
+  --border-error: #7F1D1D;
+
+  /* Button Colors */
+  --button-bg: #2a2a2a;
+  --button-hover-bg: #3a3a3a;
+
+  /* Shadows */
+  --shadow-sm: 0 4px 6px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 25px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.4);
+  --shadow-color: rgba(124, 58, 237, 0.2);
+}
+
+/* Utility Classes */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--space-md);
+}
+
+.card {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Common Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* High Contrast Mode */
+@media (forced-colors: active) {
+  .button,
+  .card {
+    border: 2px solid ButtonText;
+  }
+}
+
+/* Responsive Breakpoints */
+@custom-media --mobile (max-width: 480px);
+@custom-media --tablet (max-width: 768px);
+@custom-media --desktop (max-width: 1024px);
+@custom-media --large (max-width: 1280px); 

@@ -1,0 +1,377 @@
+/* Post Detail Layout */
+.post-detail-container {
+  width: 100%;
+  max-width: 1400px;
+  margin: 2.5rem auto 2.5rem auto;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+/* Navigation */
+.post-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin-bottom: var(--space-lg);
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-lg);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  transition: all var(--transition-base);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--button-bg);
+  margin-left: 0;
+}
+
+.back-button:hover {
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+  background: var(--primary-bg);
+  transform: translateY(-1px);
+}
+
+/* Post Content */
+.post-detail {
+  background: #fff;
+  border-radius: 24px;
+  box-shadow: 0 8px 32px rgba(124,58,237,0.12);
+  border: 2px solid #ede9fe;
+  padding: 2.5rem 2.5rem 2.5rem 2.5rem;
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.post-detail-header {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 2rem;
+  border-bottom: 1.5px solid #F3F4F6;
+  padding-bottom: 1.2rem;
+}
+
+/* Post Meta */
+.post-detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+}
+
+.post-detail-author {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.author-info {
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.author-grade-emoji {
+  font-size: 1.2em;
+}
+
+.author-role, .author-position {
+  background: var(--primary-bg);
+  color: var(--primary-color);
+  border-radius: 999px;
+  font-size: 0.85em;
+  font-weight: 500;
+  padding: 0.1em 0.7em;
+}
+
+/* Post Info */
+.post-detail-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-tertiary);
+  font-size: 1.05rem;
+  flex-wrap: wrap;
+}
+
+.post-detail-date,
+.post-detail-views {
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  white-space: nowrap;
+}
+
+/* 작성일자와 조회수 사이에 구분점 추가 */
+.post-detail-info .post-detail-date::after {
+  content: '·';
+  margin: 0 0.4em;
+  color: var(--text-tertiary);
+  font-weight: 700;
+}
+
+/* 마지막 구분점은 표시하지 않음 */
+.post-detail-info .post-detail-views::after {
+  content: '';
+}
+
+/* Title */
+.title-container {
+  margin-bottom: var(--space-xl);
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  justify-content: flex-start;
+}
+
+.post-detail-title {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.4;
+  flex: 1;
+  min-width: 0;
+}
+
+.category-tag {
+  padding: var(--space-xs) var(--space-md);
+  background: var(--primary-color);
+  color: white;
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-right: var(--space-md);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Content */
+.post-detail-content {
+  font-size: 1.13rem;
+  line-height: 1.9;
+  color: var(--text-primary);
+  background: #F6F2FF;
+  border-radius: 18px;
+  padding: 2rem 1.5rem;
+  margin: 0;
+  border: none;
+  box-shadow: 0 2px 12px rgba(124,58,237,0.04);
+  min-height: 120px;
+  word-break: break-word;
+}
+
+/* Footer */
+.post-detail-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.5rem;
+  padding-top: 1.2rem;
+  border-top: 1.5px solid #F3F4F6;
+}
+
+.post-stats {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  font-size: 1.05rem;
+  color: var(--text-tertiary);
+}
+
+/* Action Buttons */
+.post-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.action-button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-lg);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--button-bg);
+  color: var(--text-secondary);
+  transition: all var(--transition-base);
+}
+
+.action-button:hover {
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+  background: var(--primary-bg);
+  transform: translateY(-1px);
+}
+
+/* Like Button */
+.stat-button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-lg);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-full);
+  background: var(--button-bg);
+  color: var(--text-secondary);
+  font-weight: 500;
+  transition: all var(--transition-base);
+}
+
+.stat-button:hover:not(:disabled) {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  transform: translateY(-1px);
+}
+
+.stat-button.liked {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: var(--text-white);
+}
+
+.stat-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Responsive Design */
+@media (max-width: 900px) {
+  .post-detail-container {
+    max-width: 100%;
+    padding: 0 0.2rem;
+  }
+  .post-detail {
+    padding: 1.2rem 0.5rem 1rem 0.5rem;
+    border-radius: 0;
+    box-shadow: 0 2px 8px rgba(124,58,237,0.08);
+    border-width: 1px;
+  }
+  .comment-section-container, .comments-section {
+    padding: 1rem 0.2rem 1.5rem 0.2rem;
+    border-radius: 0;
+    box-shadow: 0 1.5px 8px rgba(124,58,237,0.04);
+    border-width: 1px;
+  }
+}
+
+/* Dark Mode */
+.dark .post-detail {
+  background: var(--card-bg);
+  border-color: var(--border-color);
+}
+
+.dark .post-detail-content {
+  background: transparent;
+  color: var(--text-primary);
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.dark .stat-button {
+  background: var(--button-bg);
+  border-color: var(--border-color);
+}
+
+.dark .stat-button:hover:not(:disabled) {
+  border-color: var(--primary-light);
+  color: var(--primary-light);
+  background: var(--primary-alpha-10);
+}
+
+.dark .stat-button.liked {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: var(--text-white);
+}
+
+.dark .action-button {
+  background: var(--button-bg);
+  border-color: var(--border-color);
+}
+
+.dark .action-button:hover {
+  border-color: var(--primary-light);
+  color: var(--primary-light);
+  background: var(--primary-alpha-10);
+}
+
+/* Dark Mode Support */
+.dark .post-navigation {
+  background: transparent;
+}
+
+.dark .back-button {
+  background: var(--button-bg);
+  border-color: var(--border-color);
+  color: var(--text-secondary);
+}
+
+.dark .back-button:hover {
+  color: var(--primary-light);
+  border-color: var(--primary-light);
+  background: rgba(124, 58, 237, 0.1);
+}
+
+.dark .category-tag {
+  background: var(--primary-light);
+  color: var(--card-bg);
+}
+
+/* 댓글 입력/리스트 영역 카드화 */
+.comment-section-container, .comments-section {
+  background: #fff;
+  border-radius: 24px;
+  box-shadow: 0 8px 32px rgba(124,58,237,0.12);
+  border: 2px solid #ede9fe;
+  padding: 2.5rem 2.5rem 2.5rem 2.5rem;
+  margin-bottom: 0;
+  margin-top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* 댓글 입력창 배경 강조 */
+.comment-form {
+  background: #F6F2FF;
+  border-radius: 14px;
+  padding: 1.2rem 1rem;
+  margin-bottom: 1.2rem;
+  box-shadow: 0 1.5px 8px rgba(124,58,237,0.04);
+}
+
+/* 댓글 카드 스타일 */
+.comment-item {
+  background: #FAF7FF;
+  border-radius: 12px;
+  margin-bottom: 1rem;
+  border: 1px solid #E5DAF5;
+  box-shadow: 0 1.5px 8px rgba(124,58,237,0.04);
+  padding: 1rem 1.2rem;
+}
+
+.post-detail-info-inline {
+  margin-top: 0.2rem;
+} 

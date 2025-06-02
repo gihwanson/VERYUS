@@ -1,0 +1,79 @@
+/* 알림(Notifications) UI 스타일 */
+.notifications-container {
+  max-width: 600px;
+  margin: 40px auto;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 8px 32px #E5DAF5;
+  padding: 32px 24px;
+}
+
+.notifications-container h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #8A55CC;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+}
+
+.notification-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.notification-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 0;
+  border-bottom: 1px solid #E5DAF5;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 16px;
+}
+
+.notification-item:last-child {
+  border-bottom: none;
+}
+
+.notification-item.unread {
+  background: #F6F2FF;
+  font-weight: 700;
+}
+
+.notification-item:hover {
+  background: #F3F4F6;
+}
+
+.noti-title {
+  color: #7C4DBC;
+  margin: 0 8px;
+  font-weight: 600;
+}
+
+.noti-from {
+  color: #9CA3AF;
+  font-size: 14px;
+  margin-left: 8px;
+}
+
+.noti-date {
+  color: #B497D6;
+  font-size: 13px;
+  margin-left: auto;
+}
+
+.noti-dot {
+  color: #F43F5E;
+  font-size: 18px;
+  margin-left: 8px;
+}
+
+.empty {
+  color: #B497D6;
+  text-align: center;
+  padding: 40px 0;
+  font-size: 18px;
+} 
