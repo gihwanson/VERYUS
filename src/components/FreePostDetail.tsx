@@ -439,12 +439,10 @@ const FreePostDetail: React.FC = () => {
       </div>
 
       <article className="post-detail">
-        <div className="post-detail-header">
-          <div className="title-container" style={{display:'flex',alignItems:'center',gap:'1.5rem',width:'100%'}}>
-            {post.category && (
-              <span className="category-tag">{categories.find(c => c.id === post.category)?.name || '일반'}</span>
-            )}
-            <h1 className="post-detail-title">{post.title}</h1>
+        <div className="post-detail-header" style={{ width: '100%', maxWidth: '100%', marginLeft: 0, paddingLeft: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginBottom: '2rem' }}>
+          <div className="title-container" style={{ width: '100%', maxWidth: '100%', marginLeft: 0, paddingLeft: 0, display: 'flex', alignItems: 'center', gap: '1.5rem', justifyContent: 'flex-start' }}>
+            {post.category && <span className="category-tag">{categories.find(c => c.id === post.category)?.name || '일반'}</span>}
+            <h1 className="post-detail-title" style={{ textAlign: 'left', flex: 1, maxWidth: '100%' }}>{post.title}</h1>
             <div className="post-detail-author" style={{display:'flex',alignItems:'center',gap:'0.7rem',marginLeft:'auto'}}>
               <User size={20} />
               <span className="author-info">
@@ -613,7 +611,7 @@ const FreePostDetail: React.FC = () => {
 
       {/* 댓글 영역 카드화 */}
       <div className="comment-section-container">
-        <CommentSection postId={post.id} user={user} />
+        <CommentSection postId={post.id} user={user} post={{ id: post.id, title: post.title, writerUid: post.writerUid, writerNickname: post.writerNickname }} />
       </div>
     </div>
   );

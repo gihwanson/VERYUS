@@ -350,11 +350,16 @@ const AdminUserPanel: React.FC = () => {
 
   const handleUpdateUser = async (user: AdminUser) => {
     if (!editingUser) return;
+    if (!editingUser.nickname || editingUser.nickname.trim() === '') {
+      alert('닉네임은 비워둘 수 없습니다.');
+      return;
+    }
 
     try {
       // Firestore에서 사용자 정보 업데이트
       await updateDoc(doc(db, 'users', user.uid), {
         nickname: editingUser.nickname,
+        email: editingUser.email,
         grade: editingUser.grade,
         role: editingUser.role,
         createdAt: editingUser.createdAt instanceof Date
@@ -707,8 +712,16 @@ const AdminUserPanel: React.FC = () => {
                         value={editingUser.nickname}
                         onChange={(e) => setEditingUser({...editingUser, nickname: e.target.value})}
                         className="edit-input"
+                        style={{ marginBottom: 6 }}
                       />
-                      <span className="user-email">{user.email}</span>
+                      <input
+                        type="email"
+                        value={editingUser.email}
+                        onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
+                        className="edit-input"
+                        placeholder="이메일 주소"
+                        style={{ marginBottom: 0 }}
+                      />
                     </div>
                   </div>
 

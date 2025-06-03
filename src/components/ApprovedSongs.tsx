@@ -18,6 +18,7 @@ const ApprovedSongs: React.FC = () => {
   const isLeader = user && user.role === '리더';
   const [showList, setShowList] = useState(false);
   const navigate = useNavigate();
+  const [songType, setSongType] = useState<'all' | 'solo' | 'duet'>('all');
 
   useEffect(() => {
     const fetchSongs = async () => {
@@ -77,6 +78,13 @@ const ApprovedSongs: React.FC = () => {
     setFilteredSongs(result);
   };
 
+  // 필터링된 곡 리스트
+  const displayedSongs = songs.filter(song => {
+    if (songType === 'solo') return Array.isArray(song.members) && song.members.length === 1;
+    if (songType === 'duet') return Array.isArray(song.members) && song.members.length >= 2;
+    return true;
+  });
+
   // TODO: 등록/수정/삭제/조회/버스킹 필터 기능 구현
 
   return (
@@ -127,9 +135,15 @@ const ApprovedSongs: React.FC = () => {
           <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 12 }}>
             <button onClick={() => setShowList(false)} style={{ background: '#E5DAF5', color: '#7C4DBC', border: 'none', borderRadius: 8, padding: '6px 16px', fontWeight: 600, cursor: 'pointer' }}>이전</button>
           </div>
+          {/* 필터 탭 */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16, justifyContent: 'center' }}>
+            <button onClick={() => setSongType('all')} style={{ background: songType === 'all' ? '#8A55CC' : '#F6F2FF', color: songType === 'all' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '6px 18px', fontWeight: 700, cursor: 'pointer' }}>전체</button>
+            <button onClick={() => setSongType('solo')} style={{ background: songType === 'solo' ? '#8A55CC' : '#F6F2FF', color: songType === 'solo' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '6px 18px', fontWeight: 700, cursor: 'pointer' }}>솔로곡</button>
+            <button onClick={() => setSongType('duet')} style={{ background: songType === 'duet' ? '#8A55CC' : '#F6F2FF', color: songType === 'duet' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '6px 18px', fontWeight: 700, cursor: 'pointer' }}>듀엣/합창곡</button>
+          </div>
           {loading ? <div style={{ color: '#B497D6', textAlign: 'center', marginTop: 40 }}>로딩 중...</div> : (
             <ul style={{ listStyle: 'none', padding: 0 }}>
-              {songs.map(song => (
+              {displayedSongs.map(song => (
                 <li key={song.id} style={{ padding: '12px 0', borderBottom: '1px solid #E5DAF5', display: 'flex', alignItems: 'center', gap: 16 }}>
                   <span style={{ fontWeight: 700, color: '#7C4DBC', fontSize: 18 }}>{song.title}</span>
                   <span style={{ color: '#6B7280', fontWeight: 500 }}>{song.members?.join(', ')}</span>

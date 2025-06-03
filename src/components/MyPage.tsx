@@ -85,8 +85,8 @@ const GRADE_OPTIONS = [
   '🌍', // 지구
   '🪐', // 토성
   '☀️', // 태양
-  '🌌', // 은하
-  '🍺', // 맥주
+  // '🌌', // 은하(선택 불가)
+  '🍺', // 친목
   '⚡', // 번개
   '⭐', // 별
   '🌙'  // 달
@@ -103,7 +103,7 @@ const GRADE_NAMES: { [key: string]: string } = {
   '🪐': '토성',
   '☀️': '태양',
   '🌌': '은하',
-  '🍺': '맥주',
+  '🍺': '친목',
   '⚡': '번개',
   '⭐': '별',
   '🌙': '달'
@@ -145,6 +145,10 @@ const MyPage: React.FC = () => {
 
   // Cleanup subscriptions
   const unsubscribeRef = useRef<(() => void) | null>(null);
+
+  // 가입일 관련 상태
+  const [editingJoinDate, setEditingJoinDate] = useState(false);
+  const [editJoinDate, setEditJoinDate] = useState('');
 
   // Initialize user data
   useEffect(() => {
@@ -516,6 +520,20 @@ const MyPage: React.FC = () => {
     return GRADE_NAMES[emoji] || '체리';
   };
 
+  const handleSaveJoinDate = useCallback(async () => {
+    if (!user) return;
+    try {
+      await updateDoc(doc(db, 'users', user.uid), {
+        createdAt: new Date(editJoinDate + 'T00:00:00')
+      });
+      // Firestore Timestamp를 흉내내서 화면 즉시 갱신
+      setUser({ ...user, createdAt: { seconds: Math.floor(new Date(editJoinDate + 'T00:00:00').getTime() / 1000) } });
+      setEditingJoinDate(false);
+    } catch (error) {
+      setError('가입일 저장 중 오류가 발생했습니다.');
+    }
+  }, [user, editJoinDate]);
+
   if (loading) {
     return (
       <div className="mypage-container">
@@ -555,7 +573,7 @@ const MyPage: React.FC = () => {
         padding: '40px 32px 32px 32px',
         marginBottom: '32px',
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         gap: '32px',
         boxShadow: '0 8px 30px rgba(138, 85, 204, 0.10)'
       }}>
@@ -572,7 +590,7 @@ const MyPage: React.FC = () => {
             <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleProfileImageUpload} />
           </div>
         </div>
-        <div className="profile-hero-info" style={{ flex: 1 }}>
+        <div className="profile-hero-info" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'flex-start', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <span className="profile-hero-nickname" style={{ fontSize: 24, fontWeight: 700, color: '#8A55CC' }}>{user?.nickname}</span>
             <span className="profile-hero-grade-emoji" style={{ fontSize: 30 }}>{user?.grade}</span>
@@ -610,7 +628,30 @@ const MyPage: React.FC = () => {
           ) : (
             <div style={{ marginTop: 8, fontSize: 16, color: '#6B7280' }}>{user?.intro || '한 줄 소개를 입력해보세요!'}</div>
           )}
-          <div style={{ marginTop: 8, fontSize: 14, color: '#B497D6' }}>가입일: {user?.createdAt && (new Date(user.createdAt.seconds * 1000)).toLocaleDateString('ko-KR')}</div>
+          <div style={{ marginTop: 8, fontSize: 14, color: '#B497D6' }}>
+            가입일: {editingJoinDate ? (
+              <>
+                <input
+                  type="date"
+                  value={editJoinDate}
+                  onChange={e => setEditJoinDate(e.target.value)}
+                  style={{ marginRight: 8 }}
+                />
+                <button onClick={handleSaveJoinDate} style={{ marginRight: 4, background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 6, padding: '4px 12px', fontWeight: 600, cursor: 'pointer' }}>저장</button>
+                <button onClick={() => setEditingJoinDate(false)} style={{ background: '#eee', color: '#8A55CC', border: 'none', borderRadius: 6, padding: '4px 12px', fontWeight: 600, cursor: 'pointer' }}>취소</button>
+              </>
+            ) : (
+              <>
+                {user?.createdAt && (new Date(user.createdAt.seconds * 1000)).toLocaleDateString('ko-KR')}
+                <button onClick={() => {
+                  setEditingJoinDate(true);
+                  setEditJoinDate(user?.createdAt
+                    ? new Date(user.createdAt.seconds * 1000).toISOString().slice(0, 10)
+                    : '');
+                }} style={{ marginLeft: 8, background: '#F6F2FF', color: '#8A55CC', border: 'none', borderRadius: 6, padding: '4px 12px', fontWeight: 600, cursor: 'pointer' }}>수정</button>
+              </>
+            )}
+          </div>
           {!editingProfile && (
             <button className="edit-profile-btn" style={{ marginTop: 16, padding: '8px 20px', borderRadius: 8, background: '#8A55CC', color: '#fff', fontWeight: 600, border: 'none', cursor: 'pointer', fontSize: 16 }} onClick={() => { setEditingProfile(true); setEditIntro(user?.intro || ''); }}>
               <Edit3 size={18} style={{ marginRight: 6 }} /> 프로필 수정
@@ -629,7 +670,7 @@ const MyPage: React.FC = () => {
               onChange={(e) => setSelectedGrade(e.target.value)}
               className="grade-select"
             >
-              {GRADE_OPTIONS.map(grade => (
+              {GRADE_OPTIONS.filter(g => g !== '🌌').map(grade => (
                 <option key={grade} value={grade}>
                   {grade} {getGradeName(grade)}
                 </option>

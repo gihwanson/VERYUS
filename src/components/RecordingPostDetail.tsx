@@ -99,6 +99,8 @@ const RecordingPostDetail: React.FC = () => {
   const optionsRef = useRef<HTMLDivElement>(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [messageContent, setMessageContent] = useState('');
+  const [currentTime, setCurrentTime] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
 
   useEffect(() => {
     const userString = localStorage.getItem('veryus_user');
@@ -108,38 +110,30 @@ const RecordingPostDetail: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const fetchPost = async () => {
-      if (!id) return;
-
-      try {
-        const postDoc = await getDoc(doc(db, 'posts', id));
-        if (!postDoc.exists()) {
-          setError('게시글을 찾을 수 없습니다.');
-          setLoading(false);
-          return;
-        }
-
-        const postData = {
-          id: postDoc.id,
-          ...postDoc.data()
-        } as RecordingPost;
-
-        setPost(postData);
-
-        // 조회수 증가
-        await updateDoc(doc(db, 'posts', id), {
-          views: increment(1)
-        });
-
+    if (!id) return;
+    setLoading(true);
+    const unsubscribe = onSnapshot(doc(db, 'posts', id), (docSnapshot) => {
+      if (!docSnapshot.exists()) {
+        setError('게시글을 찾을 수 없습니다.');
         setLoading(false);
-      } catch (error) {
-        console.error('게시글 로딩 오류:', error);
-        setError('게시글을 불러오는 중 오류가 발생했습니다.');
-        setLoading(false);
+        return;
       }
-    };
-
-    fetchPost();
+      const data = docSnapshot.data();
+      setPost(prev => {
+        return {
+          ...(prev || {}),
+          ...data,
+          id: docSnapshot.id,
+          likes: Array.isArray(data.likes) ? data.likes : [],
+          // writerGrade는 여기서 set하지 않음
+        } as RecordingPost;
+      });
+      setLoading(false);
+    }, (error) => {
+      setError('게시글을 불러오는 중 오류가 발생했습니다.');
+      setLoading(false);
+    });
+    return () => unsubscribe();
   }, [id]);
 
   useEffect(() => {
@@ -189,17 +183,15 @@ const RecordingPostDetail: React.FC = () => {
 
   const handleLike = async () => {
     if (!user || !post) return;
-
+    const likesArr = Array.isArray(post.likes) ? post.likes : [];
     try {
       const postRef = doc(db, 'posts', post.id);
-      const isLiked = post.likes.includes(user.uid);
-
+      const isLiked = likesArr.includes(user.uid);
       await updateDoc(postRef, {
         likes: isLiked ? arrayRemove(user.uid) : arrayUnion(user.uid),
-        likesCount: increment(isLiked ? -1 : 1)
+        likesCount: isLiked ? (post.likesCount || 0) - 1 : (post.likesCount || 0) + 1
       });
     } catch (error) {
-      console.error('좋아요 처리 오류:', error);
       alert('좋아요 처리 중 오류가 발생했습니다.');
     }
   };
@@ -301,17 +293,45 @@ const RecordingPostDetail: React.FC = () => {
           if (!prevPost) return null;
           return {
             ...prevPost,
-            writerGrade: userData.grade || prevPost.writerGrade || '🍒',
-            writerRole: userData.role || prevPost.writerRole || '일반',
-            writerPosition: userData.position || prevPost.writerPosition || ''
+            writerGrade: userData.grade || '🍒',
+            writerRole: userData.role || '일반',
+            writerPosition: userData.position || ''
           };
         });
       }
-    }, (error) => {
-      console.error('작성자 정보 구독 에러:', error);
     });
     return () => unsubscribe();
   }, [post?.writerUid]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const handleLoadedMetadata = () => setAudioDuration(audio.duration);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    return () => {
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+    };
+  }, [post?.audioUrl]);
+
+  const handleProgressBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const bar = e.currentTarget;
+    const rect = bar.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const percent = x / rect.width;
+    if (audioRef.current && audioDuration) {
+      audioRef.current.currentTime = percent * audioDuration;
+      setCurrentTime(percent * audioDuration);
+    }
+  };
+
+  const formatTime = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
 
   if (error) {
     return (
@@ -357,10 +377,10 @@ const RecordingPostDetail: React.FC = () => {
         </button>
       </div>
       <article className="post-detail">
-        <div className="post-detail-header">
-          <div className="title-container" style={{display:'flex',alignItems:'center',gap:'1.5rem',width:'100%'}}>
+        <div className="post-detail-header" style={{ width: '100%', maxWidth: '100%', marginLeft: 0, paddingLeft: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginBottom: '2rem' }}>
+          <div className="title-container" style={{ width: '100%', maxWidth: '100%', marginLeft: 0, paddingLeft: 0, display: 'flex', alignItems: 'center', gap: '1.5rem', justifyContent: 'flex-start' }}>
             <span className="category-tag">녹음</span>
-            <h1 className="post-detail-title">{post.title}</h1>
+            <h1 className="post-detail-title" style={{ textAlign: 'left', flex: 1, maxWidth: '100%' }}>{post.title}</h1>
             <div className="post-detail-author" style={{display:'flex',alignItems:'center',gap:'0.7rem',marginLeft:'auto'}}>
               <User size={20} />
               <span className="author-info">
@@ -404,7 +424,25 @@ const RecordingPostDetail: React.FC = () => {
             <button onClick={handlePlayPause} className="audio-play-btn">
               {isPlaying ? <Pause size={32} /> : <Play size={32} />}
             </button>
-            <span className="audio-duration">{formatDuration(post.duration)}</span>
+            <div style={{ flex: 1, margin: '0 16px', display: 'flex', alignItems: 'center' }}>
+              <span style={{ fontSize: 13, color: '#8A55CC', minWidth: 38 }}>{formatTime(currentTime)}</span>
+              <div
+                className="audio-progress-bar"
+                style={{ flex: 1, height: 8, background: '#E5DAF5', borderRadius: 4, margin: '0 8px', cursor: 'pointer', position: 'relative' }}
+                onClick={handleProgressBarClick}
+              >
+                <div
+                  style={{
+                    width: audioDuration ? `${(currentTime / audioDuration) * 100}%` : '0%',
+                    height: '100%',
+                    background: 'linear-gradient(90deg, #8A55CC 60%, #B497D6 100%)',
+                    borderRadius: 4,
+                    transition: 'width 0.1s',
+                  }}
+                />
+              </div>
+              <span style={{ fontSize: 13, color: '#8A55CC', minWidth: 38 }}>{formatTime(audioDuration || post.duration)}</span>
+            </div>
             <audio ref={audioRef} src={post.audioUrl} preload="auto" />
           </div>
           <div className="recording-description">{post.description}</div>
@@ -423,6 +461,16 @@ const RecordingPostDetail: React.FC = () => {
               />
               <span>{post.likesCount || 0}</span>
             </button>
+            <a
+              href={post.audioUrl}
+              download={post.fileName || 'recording.mp3'}
+              className="stat-button"
+              style={{ marginLeft: 8, display: 'inline-flex', alignItems: 'center', gap: 4, color: '#8A55CC', textDecoration: 'none', fontWeight: 600 }}
+              title="다운로드"
+            >
+              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span style={{ fontSize: 15 }}>다운로드</span>
+            </a>
           </div>
           <div className="post-actions">
             {user && user.uid === post.writerUid && (
@@ -441,7 +489,7 @@ const RecordingPostDetail: React.FC = () => {
         </div>
       </article>
       {/* 댓글 영역 */}
-      {post && <CommentSection postId={post.id} user={user} />}
+      {post && <CommentSection postId={post.id} user={user} post={{ id: post.id, title: post.title, writerUid: post.writerUid, writerNickname: post.writerNickname }} />}
       {/* 쪽지 모달 */}
       {showMessageModal && (
         <div className="modal-overlay" onClick={() => setShowMessageModal(false)}>

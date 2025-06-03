@@ -13,6 +13,7 @@ import {
   getDocs,
   writeBatch,
   getDoc,
+  deleteDoc,
 } from 'firebase/firestore';
 import type { DocumentData } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -20,6 +21,10 @@ import CommentItem from './CommentItem';
 import TagParser from './TagParser';
 import { MessageCircle, Send, Loader, User, Clock, Lock, Reply, MessageSquare, X } from 'lucide-react';
 import './CommentSection.css';
+import { MentionsInput, Mention } from 'react-mentions';
+import { getUserMentions } from '../utils/getUserMentions';
+import type { UserMention } from '../utils/getUserMentions';
+import mentionsStyle from '../styles/mentionsStyle';
 
 interface Comment {
   id: string;
@@ -48,6 +53,12 @@ interface User {
 interface CommentSectionProps {
   postId: string;
   user: User | null;
+  post: {
+    id: string;
+    title: string;
+    writerUid: string;
+    writerNickname: string;
+  };
 }
 
 interface UserData {
@@ -92,7 +103,7 @@ const emojiToGrade: { [key: string]: string } = {
   '🌙': '달'
 };
 
-const CommentSection: React.FC<CommentSectionProps> = ({ postId, user }) => {
+const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post }) => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [isSecret, setIsSecret] = useState(false);
@@ -105,6 +116,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [mentionUsers, setMentionUsers] = useState<UserMention[]>([]);
 
   // 등급 이모지 매핑 함수
   const getGradeEmoji = (grade: string) => {
@@ -175,6 +187,10 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user }) => {
     return () => unsubscribe();
   }, [postId]);
 
+  useEffect(() => {
+    getUserMentions().then(setMentionUsers);
+  }, []);
+
   const buildCommentTree = () => {
     const commentMap = new Map<string, Comment>();
     const rootComments: Comment[] = [];
@@ -220,7 +236,22 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user }) => {
       await updateDoc(doc(db, 'posts', postId), {
         commentCount: increment(1)
       });
-
+      // 댓글 알림: 게시글 작성자에게(본인이면 생략)
+      if (user.uid !== post.writerUid) {
+        try {
+          await addDoc(collection(db, 'notifications'), {
+            toUid: post.writerUid,
+            type: 'comment',
+            postId: post.id,
+            postTitle: post.title,
+            fromNickname: user.nickname,
+            createdAt: serverTimestamp(),
+            isRead: false
+          });
+        } catch (err) {
+          console.error('알림 생성 실패:', err);
+        }
+      }
       setNewComment('');
       setIsSecret(false);
     } catch (error) {
@@ -249,7 +280,29 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user }) => {
       await updateDoc(doc(db, 'posts', postId), {
         commentCount: increment(1)
       });
-
+      // 답글 알림: 부모 댓글 작성자에게(본인이면 생략)
+      try {
+        const parentCommentDoc = await getDoc(doc(db, 'comments', parentId));
+        const parentComment = parentCommentDoc.data();
+        if (parentComment && parentComment.writerUid && parentComment.writerUid !== user.uid) {
+          try {
+            await addDoc(collection(db, 'notifications'), {
+              toUid: parentComment.writerUid,
+              type: 'reply',
+              postId: post.id,
+              postTitle: post.title,
+              commentId: parentId,
+              fromNickname: user.nickname,
+              createdAt: serverTimestamp(),
+              isRead: false
+            });
+          } catch (err) {
+            console.error('답글 알림 생성 실패:', err);
+          }
+        }
+      } catch (err) {
+        console.error('부모 댓글 정보 조회 실패:', err);
+      }
       setReplyContent('');
       setReplyingTo(null);
       setIsReplySecret(false);
@@ -317,6 +370,20 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user }) => {
     }
   };
 
+  // 댓글/대댓글 삭제
+  const handleDeleteComment = async (commentId: string) => {
+    if (!window.confirm('정말로 이 댓글을 삭제하시겠습니까?')) return;
+    try {
+      await updateDoc(doc(db, 'posts', postId), { commentCount: increment(-1) });
+      await updateDoc(doc(db, 'comments', commentId), { content: '[삭제된 댓글입니다.]', isSecret: false });
+      // 실제로 완전 삭제하려면 아래 주석 해제
+      // await deleteDoc(doc(db, 'comments', commentId));
+    } catch (err) {
+      alert('댓글 삭제 중 오류가 발생했습니다.');
+      console.error('댓글 삭제 에러:', err);
+    }
+  };
+
   const commentTree = buildCommentTree();
 
   const formatDate = (timestamp: any) => {
@@ -342,7 +409,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user }) => {
   const isCommentVisible = (comment: Comment) => {
     if (!comment.isSecret) return true;
     if (!user) return false;
-    return user.uid === comment.writerUid;
+    return user.uid === comment.writerUid || user.uid === post.writerUid;
   };
 
   if (isLoading) {
@@ -391,13 +458,25 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user }) => {
                 <TagParser content={newComment} />
               </div>
             ) : (
-              <textarea
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
+              <MentionsInput
+                value={newComment || ''}
+                onChange={(event, newValue) => setNewComment(newValue)}
                 placeholder="댓글을 입력하세요... (@닉네임으로 태그 가능)"
-                className="comment-input"
+                style={mentionsStyle}
+                allowSuggestionsAboveCursor
+                singleLine={false}
                 rows={3}
-              />
+              >
+                <Mention
+                  trigger="@"
+                  data={mentionUsers && mentionUsers.length > 0
+                    ? mentionUsers.map(u => ({ id: u.nickname, display: u.nickname }))
+                    : []}
+                  markup="@{{id}}"
+                  appendSpaceOnAdd
+                  style={{ backgroundColor: '#F6F2FF', color: '#8A55CC', fontWeight: 600, borderRadius: 4, padding: '2px 4px' }}
+                />
+              </MentionsInput>
             )}
             
             <div className="comment-form-options">
@@ -475,28 +554,39 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user }) => {
                     </div>
                     <div className="comment-actions">
                       {user && (
-                        <button
-                          className="action-button"
-                          onClick={() => setReplyingTo(comment.id)}
-                          title="답글 작성"
-                        >
-                          <Reply size={16} />
-                        </button>
-                      )}
-                      {user && user.uid !== comment.writerUid && (
-                        <button
-                          className="action-button"
-                          onClick={() => {
-                            setMessageRecipient({
-                              uid: comment.writerUid,
-                              nickname: comment.writerNickname
-                            });
-                            setShowMessageModal(true);
-                          }}
-                          title={`${comment.writerNickname}님에게 쪽지 보내기`}
-                        >
-                          <MessageSquare size={16} />
-                        </button>
+                        <>
+                          <button
+                            className="action-button"
+                            onClick={() => setReplyingTo(comment.id)}
+                            title="답글 작성"
+                          >
+                            <Reply size={16} />
+                          </button>
+                          {user.uid !== comment.writerUid && (
+                            <button
+                              className="action-button"
+                              onClick={() => {
+                                setMessageRecipient({
+                                  uid: comment.writerUid,
+                                  nickname: comment.writerNickname
+                                });
+                                setShowMessageModal(true);
+                              }}
+                              title={`${comment.writerNickname}님에게 쪽지 보내기`}
+                            >
+                              <MessageSquare size={16} />
+                            </button>
+                          )}
+                          {user.uid === comment.writerUid && (
+                            <button
+                              className="action-button"
+                              onClick={() => handleDeleteComment(comment.id)}
+                              title="댓글 삭제"
+                            >
+                              <X size={16} />
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
@@ -592,28 +682,39 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user }) => {
                             </div>
                             <div className="comment-actions">
                               {user && (
-                                <button
-                                  className="action-button"
-                                  onClick={() => setReplyingTo(reply.id)}
-                                  title="답글 작성"
-                                >
-                                  <Reply size={16} />
-                                </button>
-                              )}
-                              {user && user.uid !== reply.writerUid && (
-                                <button
-                                  className="action-button"
-                                  onClick={() => {
-                                    setMessageRecipient({
-                                      uid: reply.writerUid,
-                                      nickname: reply.writerNickname
-                                    });
-                                    setShowMessageModal(true);
-                                  }}
-                                  title={`${reply.writerNickname}님에게 쪽지 보내기`}
-                                >
-                                  <MessageSquare size={16} />
-                                </button>
+                                <>
+                                  <button
+                                    className="action-button"
+                                    onClick={() => setReplyingTo(reply.id)}
+                                    title="답글 작성"
+                                  >
+                                    <Reply size={16} />
+                                  </button>
+                                  {user.uid !== reply.writerUid && (
+                                    <button
+                                      className="action-button"
+                                      onClick={() => {
+                                        setMessageRecipient({
+                                          uid: reply.writerUid,
+                                          nickname: reply.writerNickname
+                                        });
+                                        setShowMessageModal(true);
+                                      }}
+                                      title={`${reply.writerNickname}님에게 쪽지 보내기`}
+                                    >
+                                      <MessageSquare size={16} />
+                                    </button>
+                                  )}
+                                  {user.uid === reply.writerUid && (
+                                    <button
+                                      className="action-button"
+                                      onClick={() => handleDeleteComment(reply.id)}
+                                      title="댓글 삭제"
+                                    >
+                                      <X size={16} />
+                                    </button>
+                                  )}
+                                </>
                               )}
                             </div>
                           </div>

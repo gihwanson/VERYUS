@@ -204,7 +204,7 @@ const Signup: React.FC = () => {
 
       // Firestore에 사용자 데이터 저장
       const userRole = formData.nickname === '너래' ? '리더' : '일반';
-      const userGrade = '🍒체리';
+      const userGrade = '🍒';
 
       await setDoc(doc(db, 'users', user.uid), {
         uid: user.uid,
@@ -278,6 +278,12 @@ const Signup: React.FC = () => {
           </div>
 
           <div className="input-group" style={{ marginBottom: 8 }}>
+            <div style={{ color: '#F43F5E', fontSize: 13, marginBottom: 4, textAlign: 'left', fontWeight: 600 }}>
+              ※ 반드시 닉네임은 카카오톡 오픈채팅방과 같은 닉네임으로 가입 부탁드리겠습니다.
+            </div>
+          </div>
+
+          <div className="input-group" style={{ marginBottom: 8 }}>
             <input
               type="email"
               name="email"
@@ -322,14 +328,14 @@ const Signup: React.FC = () => {
               placeholder="닉네임 (2-10자)"
               className="login-input"
               required
-              style={{ flex: 1, paddingRight: 0 }}
+              style={{ flex: 1 }}
             />
             <button
               type="button"
               onClick={checkNicknameAvailability}
               disabled={checkingNickname || !formData.nickname.trim()}
               className="nickname-check-button"
-              style={{ minWidth: 120, marginTop: 0 }}
+              style={{ width: 'auto', whiteSpace: 'nowrap' }}
             >
               {checkingNickname ? '확인중...' : '닉네임 중복확인'}
             </button>

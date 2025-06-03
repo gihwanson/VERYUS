@@ -163,14 +163,12 @@ const PartnerPostDetail: React.FC = () => {
           if (!prevPost) return null;
           return {
             ...prevPost,
-            writerGrade: userData.grade || prevPost.writerGrade || '🍒',
-            writerRole: userData.role || prevPost.writerRole || '일반',
-            writerPosition: userData.position || prevPost.writerPosition || ''
+            writerGrade: userData.grade || '🍒',
+            writerRole: userData.role || '일반',
+            writerPosition: userData.position || ''
           };
         });
       }
-    }, (error) => {
-      console.error('작성자 정보 구독 에러:', error);
     });
     return () => unsubscribe();
   }, [post?.writerUid]);
@@ -180,45 +178,34 @@ const PartnerPostDetail: React.FC = () => {
       navigate('/boards/partner');
       return;
     }
-    const incrementViews = async () => {
-      const viewedPosts = sessionStorage.getItem('viewedPartnerPosts');
-      const viewedPostsArray = viewedPosts ? JSON.parse(viewedPosts) : [];
-      if (!viewedPostsArray.includes(id)) {
-        try {
-          await updateDoc(doc(db, 'posts', id), {
-            views: increment(1)
-          });
-          sessionStorage.setItem('viewedPartnerPosts', JSON.stringify([...viewedPostsArray, id]));
-        } catch (error) {
-          console.error('조회수 업데이트 에러:', error);
-        }
-      }
-    };
-    const unsubscribe = onSnapshot(
-      doc(db, 'posts', id),
-      async (docSnapshot) => {
-        if (!docSnapshot.exists() || docSnapshot.data().type !== 'partner') {
-          setPost(null);
-          setLoading(false);
-          return;
-        }
-        const data = docSnapshot.data();
-        setPost({ id: docSnapshot.id, ...data } as Post);
-        setApplicants(data.applicants || []);
-        setIsClosed(data.isClosed || false);
-        setClosedAt(data.closedAt || null);
-        setLoading(false);
-        incrementViews();
-        if (!data.isClosed && data.createdAt && Date.now() - data.createdAt.toDate().getTime() > 10 * 24 * 60 * 60 * 1000) {
-          await updateDoc(doc(db, 'posts', id), { isClosed: true, closedAt: serverTimestamp() });
-          setIsClosed(true);
-        }
-      },
-      (error) => {
-        setLoading(false);
+    setLoading(true);
+    const unsubscribe = onSnapshot(doc(db, 'posts', id), async (docSnapshot) => {
+      if (!docSnapshot.exists() || docSnapshot.data().type !== 'partner') {
         setPost(null);
+        setLoading(false);
+        return;
       }
-    );
+      const data = docSnapshot.data();
+      setPost(prev => {
+        return {
+          ...(prev || {}),
+          ...data,
+          id: docSnapshot.id,
+          likes: Array.isArray(data.likes) ? data.likes : [],
+        } as Post;
+      });
+      setApplicants(data.applicants || []);
+      setIsClosed(data.isClosed || false);
+      setClosedAt(data.closedAt || null);
+      setLoading(false);
+      if (!data.isClosed && data.createdAt && Date.now() - data.createdAt.toDate().getTime() > 10 * 24 * 60 * 60 * 1000) {
+        await updateDoc(doc(db, 'posts', id), { isClosed: true, closedAt: serverTimestamp() });
+        setIsClosed(true);
+      }
+    }, (error) => {
+      setLoading(false);
+      setPost(null);
+    });
     return () => unsubscribe();
   }, [id, navigate]);
 
@@ -264,7 +251,7 @@ const PartnerPostDetail: React.FC = () => {
     );
   }
 
-  const isLiked = user ? post.likes.includes(user.uid) : false;
+  const isLiked = post.likes.includes(user?.uid || '');
   const canEdit = user && user.uid === post.writerUid;
   const canDelete = user && (user.uid === post.writerUid || user.nickname === '너래' || user.role === '운영진' || user.role === '리더');
 
@@ -316,21 +303,13 @@ const PartnerPostDetail: React.FC = () => {
 
   const handleLike = async () => {
     if (!user || !post) return;
-    const hasLiked = post.likes.includes(user.uid);
+    const likesArr = Array.isArray(post.likes) ? post.likes : [];
+    const isLiked = likesArr.includes(user.uid);
     try {
-      if (hasLiked) {
-        await updateDoc(doc(db, 'posts', post.id), {
-          likes: arrayRemove(user.uid),
-          likesCount: (post.likesCount || 1) - 1
-        });
-        setPost(prev => prev ? { ...prev, likes: prev.likes.filter(uid => uid !== user.uid), likesCount: (prev.likesCount || 1) - 1 } : prev);
-      } else {
-        await updateDoc(doc(db, 'posts', post.id), {
-          likes: arrayUnion(user.uid),
-          likesCount: (post.likesCount || 0) + 1
-        });
-        setPost(prev => prev ? { ...prev, likes: [...prev.likes, user.uid], likesCount: (prev.likesCount || 0) + 1 } : prev);
-      }
+      await updateDoc(doc(db, 'posts', post.id), {
+        likes: isLiked ? arrayRemove(user.uid) : arrayUnion(user.uid),
+        likesCount: isLiked ? (post.likesCount || 0) - 1 : (post.likesCount || 0) + 1
+      });
     } catch (error) {
       alert('좋아요 처리 중 오류가 발생했습니다.');
     }
@@ -345,12 +324,10 @@ const PartnerPostDetail: React.FC = () => {
         </button>
       </div>
       <article className="post-detail">
-        <div className="post-detail-header">
-          <div className="title-container" style={{display:'flex',alignItems:'center',gap:'1.5rem',width:'100%'}}>
-            {post.category && (
-              <span className="category-tag">{categoryNameMap[post.category || ''] || '파트너'}</span>
-            )}
-            <h1 className="post-detail-title">{post.title}</h1>
+        <div className="post-detail-header" style={{ width: '100%', maxWidth: '100%', marginLeft: 0, paddingLeft: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginBottom: '2rem' }}>
+          <div className="title-container" style={{ width: '100%', maxWidth: '100%', marginLeft: 0, paddingLeft: 0, display: 'flex', alignItems: 'center', gap: '1.5rem', justifyContent: 'flex-start' }}>
+            {post.category && <span className="category-tag">{categoryNameMap[post.category] || '기타'}</span>}
+            <h1 className="post-detail-title" style={{ textAlign: 'left', flex: 1, maxWidth: '100%' }}>{post.title}</h1>
             <div className="post-detail-author" style={{display:'flex',alignItems:'center',gap:'0.7rem',marginLeft:'auto'}}>
               <User size={20} />
               <span className="author-info">
@@ -462,7 +439,7 @@ const PartnerPostDetail: React.FC = () => {
           </div>
         </div>
       </article>
-      <CommentSection postId={post.id} user={user} postType="partner" />
+      <CommentSection postId={post.id} user={user} post={{ id: post.id, title: post.title, writerUid: post.writerUid, writerNickname: post.writerNickname }} />
       {/* 지원자 모달 */}
       {showApplicantsModal && (
         <div className="modal-overlay" style={{position:'fixed',top:0,left:0,width:'100vw',height:'100vh',background:'rgba(0,0,0,0.25)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center'}}>

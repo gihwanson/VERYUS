@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import './Login.css';
@@ -99,31 +99,30 @@ const Login: React.FC = () => {
         formData.password
       );
       
-      // 사용자 정보 가져오기
-      const q = query(
-        collection(db, 'users'), 
-        where('nickname', '==', formData.nickname.trim())
-      );
-      const querySnapshot = await getDocs(q);
-      const userData = querySnapshot.docs[0].data();
-      
+      // 사용자 정보 가져오기 (uid로 정확히 조회)
+      const userRef = doc(db, 'users', userCredential.user.uid);
+      const userSnap = await getDoc(userRef);
+      const userData = userSnap.data();
+      if (!userData || !userData.nickname) {
+        alert('닉네임 정보가 없습니다. 관리자에게 문의하세요.');
+        setIsLoading(false);
+        return;
+      }
       // 관리자 권한 확인
       const isAdmin = userData.nickname === '너래' || 
                      userData.role === '리더' || 
                      userData.role === '운영진';
-      
       // 로그인 정보 저장
       const userInfo: UserData = {
         uid: userCredential.user.uid,
         email: foundEmail,
-        nickname: userData.nickname || userCredential.user.displayName || '',
+        nickname: userData.nickname,
         role: userData.role || '일반',
         grade: userData.grade || '🍒체리',
         profileImageUrl: userData.profileImageUrl,
         isAdmin,
         isLoggedIn: true
       };
-      
       localStorage.setItem('veryus_user', JSON.stringify(userInfo));
       window.location.replace('/');
       

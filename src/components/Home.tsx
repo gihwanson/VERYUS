@@ -21,7 +21,9 @@ import {
   LogOut,
   User,
   Plus,
-  Trophy
+  Trophy,
+  Coffee,
+  Gift
 } from 'lucide-react';
 import './Home.css';
 
@@ -80,6 +82,14 @@ interface BoardItem {
   path: string;
 }
 
+interface Contest {
+  id: string;
+  title: string;
+  type: string;
+  deadline: any;
+  ended?: boolean;
+}
+
 // Constants
 const POSTS_PER_PAGE = 10;
 const DEFAULT_BUSKING_SCHEDULE: BuskingSchedule = {
@@ -122,6 +132,8 @@ const Home: React.FC = () => {
   const [recentPartner, setRecentPartner] = useState<Post | null>(null);
   const [hasNewNotification, setHasNewNotification] = useState(false);
   const [hasNewMessage, setHasNewMessage] = useState(false);
+  const [latestContest, setLatestContest] = useState<Contest | null>(null);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   const navigate = useNavigate();
 
@@ -160,14 +172,14 @@ const Home: React.FC = () => {
     { name: '합격곡', icon: Trophy, action: () => navigate('/approved-songs') },
     { name: '마이페이지', icon: User, action: () => navigate('/mypage') },
     { name: '쪽지함', icon: MessageSquare, action: () => navigate('/messages'), badge: hasNewMessage ? '●' : undefined },
-    { name: '알림', icon: Bell, action: () => navigate('/notifications'), badge: hasNewNotification ? '●' : undefined },
+    { name: '알림', icon: Bell, action: () => navigate('/notifications'), badge: unreadNotificationCount > 0 ? String(unreadNotificationCount) : undefined },
     { name: '콘테스트', icon: Trophy, action: () => navigate('/contests') },
     { name: '설정', icon: Settings, action: () => navigate('/settings') },
     ...(isAdmin(user) ? [
       { name: '관리자 패널', icon: Settings, action: () => navigate('/admin-user') }
     ] : []),
     { name: '로그아웃', icon: LogOut, action: handleLogout }
-  ], [user, navigate, isAdmin, handleLogout, hasNewNotification, hasNewMessage]);
+  ], [user, navigate, isAdmin, handleLogout, hasNewMessage, unreadNotificationCount]);
 
   // Firestore data fetching
   const loadFirestoreData = useCallback(async () => {
@@ -415,6 +427,48 @@ const Home: React.FC = () => {
     return () => { if (unsubscribe) unsubscribe(); };
   }, []);
 
+  // 최신 콘테스트 불러오기
+  useEffect(() => {
+    const q = query(collection(db, 'contests'), orderBy('deadline', 'desc'), limit(5));
+    const unsub = onSnapshot(q, (snap) => {
+      const filtered = snap.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as Contest))
+        .filter((contest: Contest) => contest.type !== '세미등급전');
+      if (filtered.length > 0) {
+        setLatestContest(filtered[0]);
+      } else {
+        setLatestContest(null);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  // 알림 새 알림 개수 감지 useEffect
+  useEffect(() => {
+    const userString = localStorage.getItem('veryus_user');
+    const user = userString ? JSON.parse(userString) : null;
+    if (!user) return;
+    let unsubscribe: (() => void) | undefined;
+    if (db && db instanceof Object && 'collection' in db) {
+      unsubscribe = onSnapshot(
+        query(collection(db, 'notifications'), where('toUid', '==', user.uid), where('isRead', '==', false)),
+        (snap) => {
+          setUnreadNotificationCount(snap.size);
+        }
+      );
+    }
+    return () => { if (unsubscribe) unsubscribe(); };
+  }, []);
+
+  // 닉네임이 없으면 강제 로그아웃 및 안내
+  useEffect(() => {
+    if (user && !user.nickname) {
+      alert('닉네임 정보가 없습니다. 다시 로그인 해주세요.');
+      localStorage.removeItem('veryus_user');
+      navigate('/login');
+    }
+  }, [user, navigate]);
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -449,11 +503,11 @@ const Home: React.FC = () => {
                 {user?.profileImageUrl ? (
                   <img src={user.profileImageUrl} alt="프로필" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
                 ) : (
-                  user?.nickname?.charAt(0) || user?.email?.charAt(0) || 'U'
+                  user?.nickname ? user.nickname.charAt(0) : 'U'
                 )}
               </div>
               <span className="profile-name">
-                {user?.nickname || user?.email || '사용자'}
+                {user?.nickname ? user.nickname : '사용자'}
                 {user?.grade && (
                   <span className="profile-grade">({user.grade.match(/([\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}])/u)?.[0] || '🍒'})</span>
                 )}
@@ -480,7 +534,7 @@ const Home: React.FC = () => {
                 >
                   <item.icon size={16} />
                   <span>{item.name}</span>
-                  {item.badge && <span style={{ color: 'red', marginLeft: 4, fontSize: 18 }}>{item.badge}</span>}
+                  {item.badge && <span style={{ color: 'red', marginLeft: 4, fontSize: 18, fontWeight: 700 }}>{item.badge}</span>}
                 </button>
               ))}
             </div>
@@ -489,13 +543,26 @@ const Home: React.FC = () => {
       </div>
 
       <div className="home-content">
-        {/* 공지사항 카드 */}
-        <div className="home-card notice-card">
-          <div className="card-header">
-            <Bell className="card-icon" />
-            <h3 className="card-title">공지사항</h3>
+        {/* 공지사항 카드 스타일 개선: 구분선 보라색 */}
+        <div className="home-card notice-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="card-header" style={{ width: '100%', justifyContent: 'center', borderBottom: 'none', marginBottom: 0, position: 'relative' }}>
+            <Bell className="card-icon" style={{ marginRight: 12 }} />
+            <h3 className="card-title" style={{ fontSize: 28, fontWeight: 800, color: '#8A55CC', letterSpacing: 1, textAlign: 'center', flex: 'none' }}>공지사항</h3>
+          </div>
+          <div style={{ width: '100%', borderTop: '2.5px solid #B497D6', margin: '16px 0 0 0' }} />
+          <div className="notice-content" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 48, textAlign: 'center', fontSize: 20, fontWeight: 600, color: '#92400E', padding: '24px 0' }}>
+            <span style={{ flex: 1 }}>{editingNotice ? (
+              <textarea
+                value={noticeContent}
+                onChange={(e) => setNoticeContent(e.target.value)}
+                className="edit-textarea"
+                placeholder="공지사항을 입력하세요..."
+              />
+            ) : (
+              noticeContent
+            )}</span>
             {isAdmin(user) && (
-              <div className="edit-buttons">
+              <div className="edit-buttons" style={{ marginLeft: 12 }}>
                 {editingNotice ? (
                   <>
                     <button onClick={handleSaveNotice} className="save-btn">저장</button>
@@ -510,16 +577,42 @@ const Home: React.FC = () => {
               </div>
             )}
           </div>
-          <div className="notice-content">
-            {editingNotice ? (
-              <textarea
-                value={noticeContent}
-                onChange={(e) => setNoticeContent(e.target.value)}
-                className="edit-textarea"
-                placeholder="공지사항을 입력하세요..."
-              />
-            ) : (
-              noticeContent
+        </div>
+
+        {/* 콘테스트 카드 - 트로피 이모지 개최 문구 바로 왼쪽 */}
+        <div
+          className={`home-card notice-card contest-card${latestContest && latestContest.ended ? ' ended' : ''}`}
+          onClick={() => navigate('/contests')}
+          style={{
+            cursor: latestContest ? 'pointer' : 'default',
+            margin: '0 0 32px 0',
+            minHeight: 60,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            position: 'relative',
+            opacity: latestContest ? 1 : 0.85,
+          }}
+        >
+          <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 0, gap: 12 }}>
+            <Trophy size={36} color={latestContest && latestContest.ended ? '#F43F5E' : '#8A55CC'} style={{ flexShrink: 0 }} />
+            <span style={{ fontWeight: 900, fontSize: 26, color: '#8A55CC', letterSpacing: 1, textAlign: 'center', textShadow: '0 2px 8px #E5DAF5', display: 'inline-block', verticalAlign: 'middle' }}>개최(예정)된 콘테스트 알림</span>
+          </div>
+          <div style={{ width: '100%', borderTop: '2.5px solid #B497D6', margin: '16px 0 16px 0' }} />
+          <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'center' }}>
+            <div style={{ flex: 1, textAlign: 'center' }}>
+              {latestContest ? (
+                <>
+                  <div style={{ fontWeight: 800, fontSize: 28, color: latestContest.ended ? '#F43F5E' : '#7C4DBC', marginBottom: 4 }}>{latestContest.title}</div>
+                  <div style={{ color: '#B497D6', fontSize: 16, marginTop: 4 }}>마감: {latestContest.deadline && latestContest.deadline.seconds ? new Date(latestContest.deadline.seconds * 1000).toLocaleDateString('ko-KR') : ''}</div>
+                </>
+              ) : (
+                <div style={{ fontWeight: 700, fontSize: 22, color: '#B497D6' }}>개최(예정)된 콘테스트가 없습니다.</div>
+              )}
+            </div>
+            {latestContest && latestContest.ended && (
+              <span style={{ background: '#F43F5E', color: '#fff', borderRadius: 8, padding: '8px 20px', fontWeight: 700, fontSize: 18, marginLeft: 18 }}>종료됨</span>
             )}
           </div>
         </div>
