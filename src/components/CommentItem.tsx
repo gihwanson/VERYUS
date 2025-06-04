@@ -20,10 +20,11 @@ interface Comment {
   writerNickname: string;
   writerUid: string;
   createdAt: any;
-  parentId?: string;
+  parentId?: string | null;
   likedBy: string[];
   likesCount: number;
   replies?: Comment[];
+  writerGrade?: string;
 }
 
 interface User {
@@ -44,6 +45,7 @@ interface CommentItemProps {
   setReplyContent: (content: string) => void;
   onSubmitReply: (parentId: string) => void;
   onCancelReply: () => void;
+  parentAuthor?: string;
 }
 
 const CommentItem: React.FC<CommentItemProps> = ({
@@ -55,7 +57,8 @@ const CommentItem: React.FC<CommentItemProps> = ({
   replyContent,
   setReplyContent,
   onSubmitReply,
-  onCancelReply
+  onCancelReply,
+  parentAuthor
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(comment.content);
@@ -63,6 +66,9 @@ const CommentItem: React.FC<CommentItemProps> = ({
   const [likesCount, setLikesCount] = useState(comment.likesCount || 0);
   const [writerRole, setWriterRole] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+
+  // 모바일 환경 감지
+  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 640;
 
   useEffect(() => {
     if (user) {
@@ -183,7 +189,13 @@ const CommentItem: React.FC<CommentItemProps> = ({
     <div className="comment-item">
       <div className="comment-header">
         <div className="comment-info">
-          <span className="comment-author">{comment.writerNickname}</span>
+          <span className="comment-author">{comment.writerNickname}
+            {comment.writerGrade && (
+              <span className="comment-grade-emoji" title={comment.writerGrade} style={{ marginLeft: '4px' }}>
+                {comment.writerGrade}
+              </span>
+            )}
+          </span>
           {writerRole && (
             <span className={`role-badge ${writerRole}`}>
               {writerRole}
@@ -237,6 +249,11 @@ const CommentItem: React.FC<CommentItemProps> = ({
           )}
         </div>
       </div>
+
+      {/* 부모 닉네임이 있으면 답글임을 표시 */}
+      {parentAuthor && (
+        <div className="reply-to-info">@{parentAuthor} 님에게 답글</div>
+      )}
 
       <div className="comment-content">
         {isEditing ? (
@@ -318,22 +335,41 @@ const CommentItem: React.FC<CommentItemProps> = ({
 
       {/* 대댓글 목록 */}
       {comment.replies && comment.replies.length > 0 && (
-        <div className="replies-list">
-          {comment.replies.map((reply: Comment) => (
-            <CommentItem
-              key={reply.id}
-              comment={reply}
-              user={user}
-              postId={postId}
-              onReply={onReply}
-              replyingTo={replyingTo}
-              replyContent={replyContent}
-              setReplyContent={setReplyContent}
-              onSubmitReply={onSubmitReply}
-              onCancelReply={onCancelReply}
-            />
-          ))}
-        </div>
+        isMobile
+          ? comment.replies.map((reply: Comment) => (
+              <CommentItem
+                key={reply.id}
+                comment={reply}
+                user={user}
+                postId={postId}
+                onReply={onReply}
+                replyingTo={replyingTo}
+                replyContent={replyContent}
+                setReplyContent={setReplyContent}
+                onSubmitReply={onSubmitReply}
+                onCancelReply={onCancelReply}
+                parentAuthor={comment.writerNickname}
+              />
+            ))
+          : (
+            <div className="replies-list">
+              {comment.replies.map((reply: Comment) => (
+                <CommentItem
+                  key={reply.id}
+                  comment={reply}
+                  user={user}
+                  postId={postId}
+                  onReply={onReply}
+                  replyingTo={replyingTo}
+                  replyContent={replyContent}
+                  setReplyContent={setReplyContent}
+                  onSubmitReply={onSubmitReply}
+                  onCancelReply={onCancelReply}
+                  parentAuthor={comment.writerNickname}
+                />
+              ))}
+            </div>
+          )
       )}
     </div>
   );

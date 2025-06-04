@@ -18,6 +18,14 @@
 .comment-header {
   padding: 20px;
   border-bottom: 1px solid #E5E7EB;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+  padding-left: 0 !important;
+  text-align: left !important;
 }
 
 .dark .comment-header {
@@ -235,23 +243,156 @@
 
 /* 반응형 디자인 */
 @media (max-width: 640px) {
-  .comment-section {
-    margin-top: 20px;
-    border-radius: 12px;
+  /* 모든 대댓글 계층 스타일 완전 초기화 */
+  .comment-item,
+  .comment-item .replies-list > .comment-item,
+  .comment-item .replies-list > .comment-item .replies-list > .comment-item {
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+    border-left: none !important;
   }
-
+  /* 대댓글 배경만 다르게 */
+  .comment-item .replies-list > .comment-item {
+    background: #f6f2ff !important;
+    border-radius: 6px;
+    margin-top: 6px;
+  }
+  .comment-item .replies-list > .comment-item .replies-list > .comment-item {
+    background: #f9f7ff !important;
+  }
+  /* 나머지 모바일 최적화 스타일 유지 */
+  .comment-section {
+    margin-top: 10px;
+    border-radius: 8px;
+  }
   .comment-header,
   .comment-form,
   .comments-list {
-    padding: 16px;
+    padding: 8px;
   }
+  .comments-list {
+    padding: 8px 0 0 0;
+  }
+  .comment-info {
+    font-size: 14px;
+    gap: 4px;
+    flex-wrap: nowrap !important;
+    white-space: nowrap;
+    overflow-x: auto;
+  }
+  .comment-author {
+    font-size: 15px;
+    font-weight: 600;
+    margin-right: 2px;
+    white-space: nowrap;
+  }
+  .role-badge {
+    font-size: 12px;
+    padding: 1px 4px;
+    margin-right: 2px;
+    white-space: nowrap;
+  }
+  .comment-date {
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .reply-to-info {
+    font-size: 11px;
+    padding: 1px 4px;
+    margin-bottom: 2px;
+  }
+  .comment-actions {
+    gap: 4px;
+  }
+  .comment-actions button {
+    font-size: 13px;
+    padding: 2px 4px;
+    min-width: 28px;
+    min-height: 28px;
+  }
+  .comment-text, .comment-content, .comment-edit {
+    font-size: 15px;
+    word-break: break-word;
+    white-space: pre-line;
+  }
+}
 
-  .comment-input {
-    font-size: 16px;
-  }
+.reply-to-info {
+  background: #f6f2ff;
+  color: #8a55cc;
+  border-radius: 4px;
+  font-size: 13px;
+  padding: 2px 8px;
+  margin-bottom: 6px;
+  display: inline-block;
+}
 
-  .comment-submit-btn {
-    width: 100%;
-    justify-content: center;
+/* 대댓글(답글) 스타일 개선 */
+.comment-item {
+  position: relative;
+  margin-left: 0;
+  padding-left: 0;
+  background: transparent;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.comment-item .replies-list > .comment-item {
+  margin-left: 18px;
+  padding-left: 16px;
+  border-left: 2px solid #f0eaff;
+  background: #faf8ff;
+  border-radius: 10px;
+  margin-top: 10px;
+}
+
+.comment-item .replies-list > .comment-item .replies-list > .comment-item {
+  margin-left: 14px;
+  padding-left: 12px;
+  border-left: 2px solid #f0eaff;
+  background: #fcfaff;
+}
+
+/* 중첩이 깊어질수록 배경색을 더 연하게 조정할 수 있음 */
+
+@media (max-width: 640px) {
+  .comment-item .replies-list > .comment-item {
+    margin-left: 8px;
+    padding-left: 8px;
   }
+}
+
+.comment-info {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start !important;
+  text-align: left !important;
+  width: 100%;
+  padding-left: 0 !important;
+}
+
+.comment-author {
+  font-weight: 700;
+  margin-right: 6px;
+  text-align: left !important;
+  display: inline-block;
+}
+
+.role-badge {
+  margin-right: 6px;
+  font-size: 13px;
+  background: #f6f2ff;
+  color: #8a55cc;
+  border-radius: 4px;
+  padding: 2px 6px;
+  text-align: left !important;
+  display: inline-block;
+}
+
+.comment-date {
+  color: #888;
+  font-size: 13px;
+  text-align: left !important;
+  display: inline-block;
 } 
