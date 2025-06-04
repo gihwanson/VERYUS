@@ -55,7 +55,7 @@ const ContestResults: React.FC = () => {
   });
 
   return (
-    <div style={{ maxWidth: 700, margin: '40px auto', background: '#fff', borderRadius: 20, boxShadow: '0 8px 32px #E5DAF5', padding: 32 }}>
+    <div className="contest-card">
       <button
         style={{ marginBottom: 24, background: '#F6F2FF', color: '#8A55CC', borderRadius: 8, padding: '8px 20px', fontWeight: 600, fontSize: 16, border: 'none', cursor: 'pointer' }}
         onClick={() => id && window.history.back()}
@@ -68,7 +68,7 @@ const ContestResults: React.FC = () => {
       <div style={{ color: '#B497D6', fontSize: 14, marginBottom: 24, textAlign: 'center' }}>마감: {contest.deadline && (contest.deadline.seconds ? new Date(contest.deadline.seconds * 1000).toLocaleDateString('ko-KR') : '')}</div>
       <div style={{ marginBottom: 32 }}>
         <h3 style={{ color: '#8A55CC', fontWeight: 700, fontSize: 20, marginBottom: 12, textAlign: 'center' }}>최종 등급 결과</h3>
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 16, overflowX: 'auto', display: 'block' }}>
+        <table className="contest-table">
           <thead>
             <tr style={{ background: '#F6F2FF', color: '#8A55CC' }}>
               <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>닉네임</th>
@@ -96,7 +96,7 @@ const ContestResults: React.FC = () => {
       {grades.length > 0 && (
         <div style={{ marginBottom: 32 }}>
           <h3 style={{ color: '#7C4DBC', fontWeight: 700, fontSize: 18, marginBottom: 12, textAlign: 'center', borderTop: '2px solid #E5DAF5', paddingTop: 16 }}>전체 심사결과</h3>
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 16, overflowX: 'auto', display: 'block' }}>
+          <table className="contest-table">
             <thead>
               <tr style={{ background: '#F6F2FF', color: '#8A55CC' }}>
                 <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>평가자</th>
@@ -122,7 +122,7 @@ const ContestResults: React.FC = () => {
           {subAdmins.length > 0 && (
             <div style={{ marginTop: 40 }}>
               <h3 style={{ color: '#F43F5E', fontWeight: 700, fontSize: 18, marginBottom: 12, textAlign: 'center', borderTop: '2px solid #F43F5E', paddingTop: 16 }}>부운영진 평가 결과</h3>
-              <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 16, overflowX: 'auto', display: 'block' }}>
+              <table className="contest-table">
                 <thead>
                   <tr style={{ background: '#F6F2FF', color: '#F43F5E' }}>
                     <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>부운영진</th>
@@ -146,7 +146,7 @@ const ContestResults: React.FC = () => {
               </table>
               {/* 부운영진 기준 최종 등급 결과 표 */}
               <h3 style={{ color: '#F43F5E', fontWeight: 700, fontSize: 18, marginBottom: 12, textAlign: 'center', borderTop: '2px solid #F43F5E', paddingTop: 16 }}>부운영진 기준 최종 등급 결과</h3>
-              <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 16, overflowX: 'auto', display: 'block' }}>
+              <table className="contest-table">
                 <thead>
                   <tr style={{ background: '#F6F2FF', color: '#F43F5E' }}>
                     <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>닉네임</th>

@@ -169,16 +169,16 @@ const Home: React.FC = () => {
   }, []);
 
   const dropdownItems: DropdownItem[] = useMemo(() => [
-    { name: '합격곡', icon: Trophy, action: () => navigate('/approved-songs') },
-    { name: '마이페이지', icon: User, action: () => navigate('/mypage') },
-    { name: '쪽지함', icon: MessageSquare, action: () => navigate('/messages'), badge: hasNewMessage ? '●' : undefined },
-    { name: '알림', icon: Bell, action: () => navigate('/notifications'), badge: unreadNotificationCount > 0 ? String(unreadNotificationCount) : undefined },
-    { name: '콘테스트', icon: Trophy, action: () => navigate('/contests') },
-    { name: '설정', icon: Settings, action: () => navigate('/settings') },
+    { name: '합격곡', icon: () => <span style={{fontSize:18}}>🏆</span>, action: () => navigate('/approved-songs') },
+    { name: '마이페이지', icon: () => <span style={{fontSize:18}}>👤</span>, action: () => navigate('/mypage') },
+    { name: '쪽지함', icon: () => <span style={{fontSize:18}}>💌</span>, action: () => navigate('/messages'), badge: hasNewMessage ? '●' : undefined },
+    { name: '알림', icon: () => <span style={{fontSize:18}}>🔔</span>, action: () => navigate('/notifications'), badge: unreadNotificationCount > 0 ? String(unreadNotificationCount) : undefined },
+    { name: '콘테스트', icon: () => <span style={{fontSize:18}}>🎤</span>, action: () => navigate('/contests') },
+    { name: '설정', icon: () => <span style={{fontSize:18}}>⚙️</span>, action: () => navigate('/settings') },
     ...(isAdmin(user) ? [
-      { name: '관리자 패널', icon: Settings, action: () => navigate('/admin-user') }
+      { name: '관리자 패널', icon: () => <span style={{fontSize:18}}>🛠️</span>, action: () => navigate('/admin-user') }
     ] : []),
-    { name: '로그아웃', icon: LogOut, action: handleLogout }
+    { name: '로그아웃', icon: () => <span style={{fontSize:18}}>🚪</span>, action: handleLogout }
   ], [user, navigate, isAdmin, handleLogout, hasNewMessage, unreadNotificationCount]);
 
   // Firestore data fetching
@@ -486,10 +486,7 @@ const Home: React.FC = () => {
       <div className="home-header">
         <div className="header-brand">
           <img src="/veryus_logo-01.png" alt="VERYUS 로고" className="logo-image" />
-          <div className="brand-text">
-            <h1 className="home-title">VERYUS</h1>
-            <p className="home-slogan">다양한 음악을 우리답게</p>
-          </div>
+          <p className="home-slogan" style={{ marginTop: 8, textAlign: 'center' }}>다양한 음악을 우리답게</p>
         </div>
         
         {/* 프로필 드롭다운 */}
@@ -545,24 +542,13 @@ const Home: React.FC = () => {
       <div className="home-content">
         {/* 공지사항 카드 스타일 개선: 구분선 보라색 */}
         <div className="home-card notice-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="card-header" style={{ width: '100%', justifyContent: 'center', borderBottom: 'none', marginBottom: 0, position: 'relative' }}>
-            <Bell className="card-icon" style={{ marginRight: 12 }} />
-            <h3 className="card-title" style={{ fontSize: 28, fontWeight: 800, color: '#8A55CC', letterSpacing: 1, textAlign: 'center', flex: 'none' }}>공지사항</h3>
-          </div>
-          <div style={{ width: '100%', borderTop: '2.5px solid #B497D6', margin: '16px 0 0 0' }} />
-          <div className="notice-content" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 48, textAlign: 'center', fontSize: 20, fontWeight: 600, color: '#92400E', padding: '24px 0' }}>
-            <span style={{ flex: 1 }}>{editingNotice ? (
-              <textarea
-                value={noticeContent}
-                onChange={(e) => setNoticeContent(e.target.value)}
-                className="edit-textarea"
-                placeholder="공지사항을 입력하세요..."
-              />
-            ) : (
-              noticeContent
-            )}</span>
+          <div className="card-header" style={{ width: '100%', borderBottom: 'none', marginBottom: 0, position: 'relative', display: 'flex', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', padding: '24px 0 0 0' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 0, margin: '0 auto' }}>
+              <Bell className="card-icon" style={{ margin: 0, verticalAlign: 'middle' }} />
+              <h3 className="card-title" style={{ fontSize: 28, fontWeight: 800, color: '#8A55CC', letterSpacing: 1, textAlign: 'center', flex: 'none', margin: 0, display: 'inline-block', verticalAlign: 'middle', marginLeft: 0 }}>공지사항</h3>
+            </span>
             {isAdmin(user) && (
-              <div className="edit-buttons" style={{ marginLeft: 12 }}>
+              <div className="edit-buttons" style={{ position: 'absolute', right: 24, top: 24 }}>
                 {editingNotice ? (
                   <>
                     <button onClick={handleSaveNotice} className="save-btn">저장</button>
@@ -577,6 +563,19 @@ const Home: React.FC = () => {
               </div>
             )}
           </div>
+          <div style={{ width: '100%', borderTop: '2.5px solid #B497D6', margin: '16px 0 0 0' }} />
+          <div className="notice-content" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 48, textAlign: 'center', fontSize: 20, fontWeight: 600, color: '#92400E', padding: '24px 0' }}>
+            <span style={{ flex: 1 }}>{editingNotice ? (
+              <textarea
+                value={noticeContent}
+                onChange={(e) => setNoticeContent(e.target.value)}
+                className="edit-textarea"
+                placeholder="공지사항을 입력하세요..."
+              />
+            ) : (
+              noticeContent
+            )}</span>
+          </div>
         </div>
 
         {/* 콘테스트 카드 - 트로피 이모지 개최 문구 바로 왼쪽 */}
@@ -585,7 +584,6 @@ const Home: React.FC = () => {
           onClick={() => navigate('/contests')}
           style={{
             cursor: latestContest ? 'pointer' : 'default',
-            margin: '0 0 32px 0',
             minHeight: 60,
             display: 'flex',
             flexDirection: 'column',
@@ -595,24 +593,24 @@ const Home: React.FC = () => {
             opacity: latestContest ? 1 : 0.85,
           }}
         >
-          <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 0, gap: 12 }}>
-            <Trophy size={36} color={latestContest && latestContest.ended ? '#F43F5E' : '#8A55CC'} style={{ flexShrink: 0 }} />
-            <span style={{ fontWeight: 900, fontSize: 26, color: '#8A55CC', letterSpacing: 1, textAlign: 'center', textShadow: '0 2px 8px #E5DAF5', display: 'inline-block', verticalAlign: 'middle' }}>개최(예정)된 콘테스트 알림</span>
+          <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 0, gap: 8 }}>
+            <Trophy size={22} color={latestContest && latestContest.ended ? '#F43F5E' : '#8A55CC'} style={{ flexShrink: 0 }} />
+            <span className="contest-alert-title">개최(예정)된 콘테스트 알림</span>
           </div>
-          <div style={{ width: '100%', borderTop: '2.5px solid #B497D6', margin: '16px 0 16px 0' }} />
+          <div style={{ width: '100%', borderTop: '2px solid #B497D6', margin: '10px 0 10px 0' }} />
           <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'center' }}>
             <div style={{ flex: 1, textAlign: 'center' }}>
               {latestContest ? (
                 <>
-                  <div style={{ fontWeight: 800, fontSize: 28, color: latestContest.ended ? '#F43F5E' : '#7C4DBC', marginBottom: 4 }}>{latestContest.title}</div>
-                  <div style={{ color: '#B497D6', fontSize: 16, marginTop: 4 }}>마감: {latestContest.deadline && latestContest.deadline.seconds ? new Date(latestContest.deadline.seconds * 1000).toLocaleDateString('ko-KR') : ''}</div>
+                  <div className="contest-title">{latestContest.title}</div>
+                  <div className="contest-deadline">마감: {latestContest.deadline && latestContest.deadline.seconds ? new Date(latestContest.deadline.seconds * 1000).toLocaleDateString('ko-KR') : ''}</div>
                 </>
               ) : (
-                <div style={{ fontWeight: 700, fontSize: 22, color: '#B497D6' }}>개최(예정)된 콘테스트가 없습니다.</div>
+                <div style={{ fontWeight: 400, fontSize: 13, color: '#B497D6' }}>개최(예정)된 콘테스트가 없습니다.</div>
               )}
             </div>
             {latestContest && latestContest.ended && (
-              <span style={{ background: '#F43F5E', color: '#fff', borderRadius: 8, padding: '8px 20px', fontWeight: 700, fontSize: 18, marginLeft: 18 }}>종료됨</span>
+              <span style={{ background: '#F43F5E', color: '#fff', borderRadius: 8, padding: '5px 12px', fontWeight: 500, fontSize: 12, marginLeft: 10 }}>종료됨</span>
             )}
           </div>
         </div>

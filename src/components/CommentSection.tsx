@@ -552,43 +552,6 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post }) =
                         </span>
                       )}
                     </div>
-                    <div className="comment-actions">
-                      {user && (
-                        <>
-                          <button
-                            className="action-button"
-                            onClick={() => setReplyingTo(comment.id)}
-                            title="답글 작성"
-                          >
-                            <Reply size={16} />
-                          </button>
-                          {user.uid !== comment.writerUid && (
-                            <button
-                              className="action-button"
-                              onClick={() => {
-                                setMessageRecipient({
-                                  uid: comment.writerUid,
-                                  nickname: comment.writerNickname
-                                });
-                                setShowMessageModal(true);
-                              }}
-                              title={`${comment.writerNickname}님에게 쪽지 보내기`}
-                            >
-                              <MessageSquare size={16} />
-                            </button>
-                          )}
-                          {user.uid === comment.writerUid && (
-                            <button
-                              className="action-button"
-                              onClick={() => handleDeleteComment(comment.id)}
-                              title="댓글 삭제"
-                            >
-                              <X size={16} />
-                            </button>
-                          )}
-                        </>
-                      )}
-                    </div>
                   </div>
                 </div>
               </div>
@@ -600,6 +563,43 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post }) =
                     <Lock size={14} />
                     비밀댓글입니다.
                   </div>
+                )}
+              </div>
+              <div className="comment-actions">
+                {user && (
+                  <>
+                    <button
+                      className="action-button"
+                      onClick={() => setReplyingTo(comment.id)}
+                      title="답글 작성"
+                    >
+                      <Reply size={16} />
+                    </button>
+                    {user.uid !== comment.writerUid && (
+                      <button
+                        className="action-button"
+                        onClick={() => {
+                          setMessageRecipient({
+                            uid: comment.writerUid,
+                            nickname: comment.writerNickname
+                          });
+                          setShowMessageModal(true);
+                        }}
+                        title={`${comment.writerNickname}님에게 쪽지 보내기`}
+                      >
+                        <MessageSquare size={16} />
+                      </button>
+                    )}
+                    {user.uid === comment.writerUid && (
+                      <button
+                        className="action-button"
+                        onClick={() => handleDeleteComment(comment.id)}
+                        title="댓글 삭제"
+                      >
+                        <X size={16} />
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
               

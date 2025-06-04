@@ -45,7 +45,7 @@
 
 /* Post Content */
 .post-detail {
-  background: #fff;
+  background: #f6f2ff;
   border-radius: 24px;
   box-shadow: 0 8px 32px rgba(124,58,237,0.12);
   border: 2px solid #ede9fe;
@@ -169,7 +169,7 @@
   font-size: 1.13rem;
   line-height: 1.9;
   color: var(--text-primary);
-  background: #F6F2FF;
+  background: #f6f2ff;
   border-radius: 18px;
   padding: 2rem 1.5rem;
   margin: 0;
@@ -259,34 +259,39 @@
 /* Responsive Design */
 @media (max-width: 900px) {
   .post-detail-container {
-    max-width: 100%;
-    padding: 0 0.2rem;
+    padding: 0.5rem;
   }
   .post-detail {
-    padding: 1.2rem 0.5rem 1rem 0.5rem;
-    border-radius: 0;
-    box-shadow: 0 2px 8px rgba(124,58,237,0.08);
-    border-width: 1px;
+    padding: 1.2rem 0.7rem 1rem 0.7rem;
   }
-  .comment-section-container, .comments-section {
-    padding: 1rem 0.2rem 1.5rem 0.2rem;
-    border-radius: 0;
-    box-shadow: 0 1.5px 8px rgba(124,58,237,0.04);
-    border-width: 1px;
+  .post-detail-content {
+    padding: 1.2rem 0.7rem 1rem 0.7rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .post-detail-container, .post-detail, .post-detail-content {
+    padding: 1.2rem 0.7rem !important;
+    font-size: 1.05rem !important;
+    line-height: 1.8 !important;
+    word-break: break-word !important;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
   }
 }
 
 /* Dark Mode */
 .dark .post-detail {
-  background: var(--card-bg);
-  border-color: var(--border-color);
+  background: #2e1065;
+  border: 2px solid #3b2170;
+  box-shadow: 0 8px 32px rgba(124,58,237,0.18);
 }
 
 .dark .post-detail-content {
-  background: transparent;
-  color: var(--text-primary);
-  border-top: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
+  background: #2e1065;
+  color: #e0d7ff;
+  box-shadow: 0 2px 12px rgba(124,58,237,0.10);
 }
 
 .dark .stat-button {

@@ -75,7 +75,7 @@ const ContestDetail: React.FC = () => {
   if (!contest) return <div style={{ padding: 40, textAlign: 'center', color: '#B497D6' }}>콘테스트 정보를 불러오는 중...</div>;
 
   return (
-    <div style={{ maxWidth: 600, margin: '40px auto', background: '#fff', borderRadius: 20, boxShadow: '0 8px 32px #E5DAF5', padding: 32 }}>
+    <div className="contest-card">
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
         <button
           style={{ background: '#F6F2FF', color: '#8A55CC', borderRadius: 8, padding: '8px 20px', fontWeight: 600, fontSize: 16, border: 'none', cursor: 'pointer', marginRight: 16 }}

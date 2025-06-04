@@ -378,38 +378,75 @@ const RecordingPostDetail: React.FC = () => {
       </div>
       <article className="post-detail">
         <div className="post-detail-header" style={{ width: '100%', maxWidth: '100%', marginLeft: 0, paddingLeft: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginBottom: '2rem' }}>
-          <div className="title-container" style={{ width: '100%', maxWidth: '100%', marginLeft: 0, paddingLeft: 0, display: 'flex', alignItems: 'center', gap: '1.5rem', justifyContent: 'flex-start' }}>
+          <div className="title-container" style={{ width: '100%', maxWidth: '100%', marginLeft: 0, paddingLeft: 0, display: 'flex', flexDirection: window.innerWidth <= 768 ? 'column' : 'row', alignItems: window.innerWidth <= 768 ? 'flex-start' : 'center', gap: window.innerWidth <= 768 ? '0.2rem' : '1.5rem', justifyContent: 'flex-start' }}>
             <span className="category-tag">녹음</span>
-            <h1 className="post-detail-title" style={{ textAlign: 'left', flex: 1, maxWidth: '100%' }}>{post.title}</h1>
-            <div className="post-detail-author" style={{display:'flex',alignItems:'center',gap:'0.7rem',marginLeft:'auto'}}>
-              <User size={20} />
-              <span className="author-info">
-                {post.writerNickname}
-                <span className="author-grade-emoji" title={getGradeName(post.writerGrade || '🍒')}>
-                  {getGradeEmoji(post.writerGrade || '🍒')}
+            <h1 className="post-detail-title" style={{ textAlign: 'left', flex: 1, fontWeight: 800, fontSize: window.innerWidth <= 768 ? '1.5rem' : '1.25rem', marginBottom: window.innerWidth <= 768 ? '0.1rem' : 0 }}>
+              {post.title}
+            </h1>
+          </div>
+          {window.innerWidth <= 768 ? (
+            <>
+              <div className="post-detail-author" style={{display:'flex',alignItems:'center',gap:'0.4rem',margin:'0 0 0.05rem 0',padding:0}}>
+                <User size={20} />
+                <span className="author-info">
+                  {post.writerNickname}
+                  <span className="author-grade-emoji" title={getGradeName(post.writerGrade || '🍒')}>
+                    {getGradeEmoji(post.writerGrade || '🍒')}
+                  </span>
                 </span>
-              </span>
-              {post.writerRole && post.writerRole !== '일반' && (
-                <span className="author-role">{post.writerRole}</span>
-              )}
-              {post.writerPosition && (
-                <span className="author-position">{post.writerPosition}</span>
-              )}
-              <button className="message-btn" style={{ background: '#F6F2FF', border: 'none', borderRadius: 8, padding: '6px 14px', color: '#8A55CC', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }} onClick={() => setShowMessageModal(true)}>
-                <MessageSquare size={18} /> 쪽지
-              </button>
-            </div>
-          </div>
-          <div className="post-detail-info" style={{marginTop:'0.7rem'}}>
-            <span className="post-detail-date">
-              <Clock size={16} />
-              {formatDate(post.createdAt)}
-            </span>
-            <span className="post-detail-views">
-              <Eye size={16} />
-              조회 {post.views || 0}
-            </span>
-          </div>
+                {post.writerRole && post.writerRole !== '일반' && (
+                  <span className="author-role">{post.writerRole}</span>
+                )}
+                {post.writerPosition && (
+                  <span className="author-position">{post.writerPosition}</span>
+                )}
+                <button className="message-btn" style={{ background: '#F6F2FF', border: 'none', borderRadius: 8, padding: '6px 14px', color: '#8A55CC', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }} onClick={() => setShowMessageModal(true)}>
+                  <MessageSquare size={18} /> 쪽지
+                </button>
+              </div>
+              <div className="post-detail-info" style={{margin:'0 0 0.05rem 0',padding:0}}>
+                <span className="post-detail-date">
+                  <Clock size={16} />
+                  {formatDate(post.createdAt)}
+                </span>
+                <span className="post-detail-views">
+                  <Eye size={16} />
+                  조회 {post.views || 0}
+                </span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="post-detail-author" style={{display:'flex',alignItems:'center',gap:'0.7rem',marginLeft:'auto'}}>
+                <User size={20} />
+                <span className="author-info">
+                  {post.writerNickname}
+                  <span className="author-grade-emoji" title={getGradeName(post.writerGrade || '🍒')}>
+                    {getGradeEmoji(post.writerGrade || '🍒')}
+                  </span>
+                </span>
+                {post.writerRole && post.writerRole !== '일반' && (
+                  <span className="author-role">{post.writerRole}</span>
+                )}
+                {post.writerPosition && (
+                  <span className="author-position">{post.writerPosition}</span>
+                )}
+                <button className="message-btn" style={{ background: '#F6F2FF', border: 'none', borderRadius: 8, padding: '6px 14px', color: '#8A55CC', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }} onClick={() => setShowMessageModal(true)}>
+                  <MessageSquare size={18} /> 쪽지
+                </button>
+              </div>
+              <div className="post-detail-info" style={{marginTop:'0.7rem'}}>
+                <span className="post-detail-date">
+                  <Clock size={16} />
+                  {formatDate(post.createdAt)}
+                </span>
+                <span className="post-detail-views">
+                  <Eye size={16} />
+                  조회 {post.views || 0}
+                </span>
+              </div>
+            </>
+          )}
         </div>
         <div className="post-detail-content">
           {/* 업로드된 파일명 표시 */}

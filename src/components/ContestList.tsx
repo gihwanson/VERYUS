@@ -46,7 +46,7 @@ const ContestList: React.FC = () => {
   };
 
   return (
-    <div style={{ maxWidth: 800, margin: '40px auto', background: '#fff', borderRadius: 20, boxShadow: '0 8px 32px #E5DAF5', padding: 32 }}>
+    <div className="contest-card">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <h2 style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#8A55CC', fontWeight: 700, fontSize: 24, margin: 0 }}><Trophy /> 콘테스트</h2>
         <button
@@ -61,7 +61,11 @@ const ContestList: React.FC = () => {
       )}
       <ul style={{ listStyle: 'none', padding: 0 }}>
         {contests.map(contest => (
-          <li key={contest.id} style={{ padding: '16px 0', borderBottom: '1px solid #E5DAF5', display: 'flex', alignItems: 'center', gap: 16 }}>
+          <li
+            key={contest.id}
+            className={!contest.ended ? 'contest-list-item' : ''}
+            style={contest.ended ? { padding: '16px 0', borderBottom: '1px solid #E5DAF5', display: 'flex', alignItems: 'center', gap: 16 } : undefined}
+          >
             <span style={{ fontWeight: 700, color: '#7C4DBC', fontSize: 18 }}>{contest.title}</span>
             <span style={{ color: '#6B7280', fontWeight: 500 }}>{contest.type}</span>
             <span style={{ color: '#B497D6', fontSize: 14 }}>마감: {contest.deadline && (contest.deadline.seconds ? new Date(contest.deadline.seconds * 1000).toLocaleDateString('ko-KR') : '')}</span>

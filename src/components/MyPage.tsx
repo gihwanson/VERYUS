@@ -573,11 +573,12 @@ const MyPage: React.FC = () => {
         padding: '40px 32px 32px 32px',
         marginBottom: '32px',
         display: 'flex',
-        alignItems: 'flex-start',
-        gap: '32px',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '24px',
         boxShadow: '0 8px 30px rgba(138, 85, 204, 0.10)'
       }}>
-        <div className="profile-image-section" style={{ minWidth: 120, minHeight: 120 }} onClick={handleProfileImageClick}>
+        <div className="profile-image-section" style={{ minWidth: 120, minHeight: 120, marginBottom: 16, display: 'flex', justifyContent: 'center' }} onClick={handleProfileImageClick}>
           <div className="profile-image" style={{ width: 120, height: 120, border: '4px solid #B497D6', boxShadow: '0 4px 16px #E5DAF5', cursor: 'pointer', position: 'relative' }}>
             {user?.profileImageUrl ? (
               <img src={user.profileImageUrl} alt="프로필" />
@@ -590,9 +591,9 @@ const MyPage: React.FC = () => {
             <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleProfileImageUpload} />
           </div>
         </div>
-        <div className="profile-hero-info" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'flex-start', minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <span className="profile-hero-nickname" style={{ fontSize: 24, fontWeight: 700, color: '#8A55CC' }}>{user?.nickname}</span>
+        <div className="profile-hero-info" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, justifyContent: 'center' }}>
+            <span className="profile-hero-nickname" style={{ fontSize: 24, fontWeight: 700, color: '#8A55CC', textAlign: 'center' }}>{user?.nickname}</span>
             <span className="profile-hero-grade-emoji" style={{ fontSize: 30 }}>{user?.grade}</span>
             {user?.role && user.role !== '일반' && (
               <span className="profile-hero-role-emph" style={{
@@ -626,9 +627,9 @@ const MyPage: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div style={{ marginTop: 8, fontSize: 16, color: '#6B7280' }}>{user?.intro || '한 줄 소개를 입력해보세요!'}</div>
+            <div style={{ marginTop: 8, fontSize: 16, color: '#6B7280', textAlign: 'center' }}>{user?.intro || '한 줄 소개를 입력해보세요!'}</div>
           )}
-          <div style={{ marginTop: 8, fontSize: 14, color: '#B497D6' }}>
+          <div style={{ marginTop: 8, fontSize: 14, color: '#B497D6', textAlign: 'center' }}>
             가입일: {editingJoinDate ? (
               <>
                 <input

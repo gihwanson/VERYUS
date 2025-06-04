@@ -35,7 +35,7 @@ const ContestCreate: React.FC = () => {
   };
 
   return (
-    <div style={{ maxWidth: 500, margin: '40px auto', background: '#fff', borderRadius: 20, boxShadow: '0 8px 32px #E5DAF5', padding: 32 }}>
+    <div className="contest-card">
       <button
         style={{ marginBottom: 24, background: '#F6F2FF', color: '#8A55CC', borderRadius: 8, padding: '8px 20px', fontWeight: 600, fontSize: 16, border: 'none', cursor: 'pointer' }}
         onClick={() => navigate('/contests')}
