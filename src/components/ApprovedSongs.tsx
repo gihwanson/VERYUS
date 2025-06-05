@@ -19,6 +19,11 @@ const ApprovedSongs: React.FC = () => {
   const [showList, setShowList] = useState(false);
   const navigate = useNavigate();
   const [songType, setSongType] = useState<'all' | 'solo' | 'duet'>('all');
+<<<<<<< HEAD
+=======
+  const [resultSongType, setResultSongType] = useState<'all' | 'solo' | 'duet'>('all');
+  const [searchTerm, setSearchTerm] = useState('');
+>>>>>>> 6599406 (처음 커밋)
 
   useEffect(() => {
     const fetchSongs = async () => {
@@ -130,10 +135,24 @@ const ApprovedSongs: React.FC = () => {
         </div>
       )}
       {/* 합격곡 리스트 */}
+<<<<<<< HEAD
       {!showForm && showList && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 12 }}>
             <button onClick={() => setShowList(false)} style={{ background: '#E5DAF5', color: '#7C4DBC', border: 'none', borderRadius: 8, padding: '6px 16px', fontWeight: 600, cursor: 'pointer' }}>이전</button>
+=======
+      {showList && (
+        <div>
+          {/* 검색창 */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              placeholder="곡 제목 또는 닉네임 검색"
+              style={{ width: 260, padding: '8px 14px', borderRadius: 8, border: '1px solid #E5DAF5', fontSize: 15 }}
+            />
+>>>>>>> 6599406 (처음 커밋)
           </div>
           {/* 필터 탭 */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 16, justifyContent: 'center' }}>
@@ -141,6 +160,7 @@ const ApprovedSongs: React.FC = () => {
             <button onClick={() => setSongType('solo')} style={{ background: songType === 'solo' ? '#8A55CC' : '#F6F2FF', color: songType === 'solo' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '6px 18px', fontWeight: 700, cursor: 'pointer' }}>솔로곡</button>
             <button onClick={() => setSongType('duet')} style={{ background: songType === 'duet' ? '#8A55CC' : '#F6F2FF', color: songType === 'duet' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '6px 18px', fontWeight: 700, cursor: 'pointer' }}>듀엣/합창곡</button>
           </div>
+<<<<<<< HEAD
           {loading ? <div style={{ color: '#B497D6', textAlign: 'center', marginTop: 40 }}>로딩 중...</div> : (
             <ul style={{ listStyle: 'none', padding: 0 }}>
               {displayedSongs.map(song => (
@@ -158,6 +178,25 @@ const ApprovedSongs: React.FC = () => {
               ))}
             </ul>
           )}
+=======
+          {/* 리스트 필터링 */}
+          <ul style={{ listStyle: 'none', padding: 0 }}>
+            {displayedSongs
+              .filter(song => {
+                const term = searchTerm.trim().toLowerCase();
+                if (!term) return true;
+                const titleMatch = song.title?.toLowerCase().includes(term);
+                const memberMatch = Array.isArray(song.members) && song.members.some((m: string) => m.toLowerCase().includes(term));
+                return titleMatch || memberMatch;
+              })
+              .map(song => (
+                <li key={song.id} style={{ padding: '8px 0', borderBottom: '1px solid #E5DAF5', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontWeight: 700, color: '#7C4DBC' }}>{song.title}</span>
+                  <span style={{ color: '#6B7280', fontWeight: 500 }}>{song.members?.join(', ')}</span>
+                </li>
+              ))}
+          </ul>
+>>>>>>> 6599406 (처음 커밋)
         </div>
       )}
       {/* 버스킹용 합격곡 조회 폼 */}
@@ -196,6 +235,7 @@ const ApprovedSongs: React.FC = () => {
           {/* 조회 결과 리스트 */}
           {filteredSongs.length > 0 && (
             <div style={{ marginTop: 16 }}>
+<<<<<<< HEAD
               <h4 style={{ color: '#7C4DBC', fontWeight: 700, fontSize: 16, marginBottom: 8 }}>가능한 합격곡</h4>
               <ul style={{ listStyle: 'none', padding: 0 }}>
                 {filteredSongs.map(song => (
@@ -204,6 +244,28 @@ const ApprovedSongs: React.FC = () => {
                     <span style={{ color: '#6B7280', fontWeight: 500 }}>{song.members?.join(', ')}</span>
                   </li>
                 ))}
+=======
+              {/* 결과 탭 */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12, justifyContent: 'center' }}>
+                <button onClick={() => setResultSongType('all')} style={{ background: resultSongType === 'all' ? '#8A55CC' : '#F6F2FF', color: resultSongType === 'all' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '5px 16px', fontWeight: 700, cursor: 'pointer' }}>전체</button>
+                <button onClick={() => setResultSongType('solo')} style={{ background: resultSongType === 'solo' ? '#8A55CC' : '#F6F2FF', color: resultSongType === 'solo' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '5px 16px', fontWeight: 700, cursor: 'pointer' }}>솔로곡</button>
+                <button onClick={() => setResultSongType('duet')} style={{ background: resultSongType === 'duet' ? '#8A55CC' : '#F6F2FF', color: resultSongType === 'duet' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '5px 16px', fontWeight: 700, cursor: 'pointer' }}>듀엣/합창곡</button>
+              </div>
+              <h4 style={{ color: '#7C4DBC', fontWeight: 700, fontSize: 16, marginBottom: 8 }}>가능한 합격곡</h4>
+              <ul style={{ listStyle: 'none', padding: 0 }}>
+                {filteredSongs
+                  .filter(song => {
+                    if (resultSongType === 'solo') return Array.isArray(song.members) && song.members.length === 1;
+                    if (resultSongType === 'duet') return Array.isArray(song.members) && song.members.length >= 2;
+                    return true;
+                  })
+                  .map(song => (
+                    <li key={song.id} style={{ padding: '8px 0', borderBottom: '1px solid #E5DAF5', display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <span style={{ fontWeight: 700, color: '#7C4DBC' }}>{song.title}</span>
+                      <span style={{ color: '#6B7280', fontWeight: 500 }}>{song.members?.join(', ')}</span>
+                    </li>
+                  ))}
+>>>>>>> 6599406 (처음 커밋)
               </ul>
             </div>
           )}

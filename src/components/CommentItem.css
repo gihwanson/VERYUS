@@ -350,4 +350,23 @@
 .dark .mention-tag {
   color: #BB86FC;
   background: rgba(187, 134, 252, 0.1);
+<<<<<<< HEAD
+=======
+}
+
+.comment-root {
+  background: #fff;
+}
+
+.comment-reply {
+  background: #e3d0ff;
+}
+
+.dark .comment-root {
+  background: #232323;
+}
+
+.dark .comment-reply {
+  background: #3a2560;
+>>>>>>> 6599406 (처음 커밋)
 } 

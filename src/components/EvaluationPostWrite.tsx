@@ -1,24 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  collection, 
-  addDoc,
-  serverTimestamp,
-  getDoc,
-  doc as firestoreDoc
-} from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDoc, doc as firestoreDoc } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL, uploadBytesResumable } from 'firebase/storage';
 import { db, storage } from '../firebase';
-import { 
-  ArrowLeft, 
-  Mic,
-  StopCircle,
-  Save,
-  X,
-  Upload,
-  Play,
-  Pause
-} from 'lucide-react';
+import { ArrowLeft, Mic, StopCircle, Save, X, Upload, Play, Pause } from 'lucide-react';
 import './Board.css';
 
 interface User {
@@ -30,7 +15,7 @@ interface User {
   position?: string;
 }
 
-const RecordingPostWrite: React.FC = () => {
+const EvaluationPostWrite: React.FC = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [title, setTitle] = useState('');
@@ -45,10 +30,17 @@ const RecordingPostWrite: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [displayFileName, setDisplayFileName] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
-  
+  const [category, setCategory] = useState('busking');
+  const [members, setMembers] = useState<string[]>(['']);
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const categoryOptions = [
+    { id: 'busking', name: '버스킹심사곡' },
+    { id: 'feedback', name: '피드백요청' }
+  ];
 
   useEffect(() => {
     const userString = localStorage.getItem('veryus_user');
@@ -100,7 +92,6 @@ const RecordingPostWrite: React.FC = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
-      
       // 스트림 정지
       mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
     }
@@ -108,7 +99,6 @@ const RecordingPostWrite: React.FC = () => {
 
   const handlePlayPause = () => {
     if (!audioRef.current || !audioUrl) return;
-
     if (isPlaying) {
       audioRef.current.pause();
     } else {
@@ -117,81 +107,48 @@ const RecordingPostWrite: React.FC = () => {
     setIsPlaying(!isPlaying);
   };
 
-  const handleSubmit = async () => {
-    if (!user || !audioBlob) return;
-    if (!title.trim()) {
-      alert('제목을 입력해주세요.');
-      return;
-    }
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setUploading(true);
+    setUploadProgress(0);
+    setDisplayFileName(null);
+    setFileName(null);
     try {
-      setLoading(true);
-      let audioDownloadUrl = '';
-      if (audioBlob instanceof File) {
-        const fileRef = storageRef(storage, `recordings/${user.uid}/${Date.now()}_${audioBlob.name}`);
-        await uploadBytes(fileRef, audioBlob);
-        audioDownloadUrl = await getDownloadURL(fileRef);
-      } else {
-        const now = new Date();
-        const y = now.getFullYear();
-        const m = String(now.getMonth() + 1).padStart(2, '0');
-        const d = String(now.getDate()).padStart(2, '0');
-        const hh = String(now.getHours()).padStart(2, '0');
-        const mm = String(now.getMinutes()).padStart(2, '0');
-        const ss = String(now.getSeconds()).padStart(2, '0');
-        const filename = `${y}${m}${d}_${hh}${mm}${ss}.wav`;
-        const fileRef = storageRef(storage, `recordings/${user.uid}/${filename}`);
-        await uploadBytes(fileRef, audioBlob);
-        audioDownloadUrl = await getDownloadURL(fileRef);
-      }
-      // 작성자 정보 보강: users 컬렉션에서 최신 정보 fetch
-      let writerGrade = user.grade;
-      let writerRole = user.role;
-      let writerPosition = user.position;
-      if (!writerGrade || !writerRole || !writerPosition) {
-        const userDoc = await getDoc(firestoreDoc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          writerGrade = userData.grade || writerGrade;
-          writerRole = userData.role || writerRole;
-          writerPosition = userData.position || writerPosition;
+      const fileRef = storageRef(storage, `evaluations/${user.uid}/${Date.now()}_${file.name}`);
+      const uploadTask = uploadBytesResumable(fileRef, file);
+      uploadTask.on('state_changed',
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setUploadProgress(progress);
+        },
+        (error) => {
+          alert('파일 업로드 중 오류가 발생했습니다.');
+          setUploading(false);
+          setUploadProgress(null);
+        },
+        async () => {
+          const url = await getDownloadURL(uploadTask.snapshot.ref);
+          setAudioUrl(url);
+          setAudioBlob(file);
+          setUploading(false);
+          setUploadProgress(null);
+          setDisplayFileName(file.name);
+          extractDuration(url);
         }
-      }
-      // Firestore에 게시글 저장
-      await addDoc(collection(db, 'posts'), {
-        type: 'recording',
-        title,
-        description,
-        writerUid: user.uid,
-        writerNickname: user.nickname,
-        writerGrade: writerGrade || '🍒',
-        writerRole: writerRole || '일반',
-        writerPosition: writerPosition || '',
-        createdAt: serverTimestamp(),
-        audioUrl: audioDownloadUrl,
-        duration,
-        fileName: fileName || '',
-        likesCount: 0,
-        commentCount: 0,
-        views: 0,
-        likes: []
-      });
-      alert('녹음이 성공적으로 업로드되었습니다.');
-      navigate('/recording');
+      );
     } catch (error) {
-      console.error('녹음 업로드 오류:', error);
-      alert('녹음 업로드 중 오류가 발생했습니다.');
-    } finally {
-      setLoading(false);
+      alert('파일 업로드 중 오류가 발생했습니다.');
+      setUploading(false);
+      setUploadProgress(null);
     }
   };
 
   useEffect(() => {
-    // 오디오 요소 생성
     if (audioUrl) {
       audioRef.current = new Audio(audioUrl);
       audioRef.current.onended = () => setIsPlaying(false);
     }
-
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
@@ -220,81 +177,132 @@ const RecordingPostWrite: React.FC = () => {
     });
   };
 
-  // 파일 업로드 핸들러
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-    setUploading(true);
-    setUploadProgress(0);
-    setDisplayFileName(null);
-    setFileName(null);
+  const handleSubmit = async () => {
+    if (!user || !audioBlob) return;
+    if (!title.trim()) {
+      alert('제목을 입력해주세요.');
+      return;
+    }
+    if (category === 'busking' && (members.length === 0 || members.every(m => !m.trim()))) {
+      alert('닉네임을 1명 이상 입력해주세요.');
+      return;
+    }
     try {
-      const fileRef = storageRef(storage, `recordings/${user.uid}/${Date.now()}_${file.name}`);
-      const uploadTask = uploadBytesResumable(fileRef, file);
-      uploadTask.on('state_changed',
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          setUploadProgress(progress);
-        },
-        (error) => {
-          alert('파일 업로드 중 오류가 발생했습니다.');
-          setUploading(false);
-          setUploadProgress(null);
-        },
-        async () => {
-          const url = await getDownloadURL(uploadTask.snapshot.ref);
-          setAudioUrl(url);
-          setAudioBlob(file);
-          setUploading(false);
-          setUploadProgress(null);
-          setDisplayFileName(file.name);
-          setFileName(file.name);
-          extractDuration(url);
+      setLoading(true);
+      let audioDownloadUrl = '';
+      if (audioBlob instanceof File) {
+        const fileRef = storageRef(storage, `evaluations/${user.uid}/${Date.now()}_${audioBlob instanceof File ? audioBlob.name : 'audio.wav'}`);
+        await uploadBytes(fileRef, audioBlob);
+        audioDownloadUrl = await getDownloadURL(fileRef);
+      } else {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(now.getMinutes()).padStart(2, '0');
+        const ss = String(now.getSeconds()).padStart(2, '0');
+        const filename = `${y}${m}${d}_${hh}${mm}${ss}.wav`;
+        const fileRef = storageRef(storage, `evaluations/${user.uid}/${filename}`);
+        await uploadBytes(fileRef, audioBlob);
+        audioDownloadUrl = await getDownloadURL(fileRef);
+      }
+      // 작성자 정보 보강: users 컬렉션에서 최신 정보 fetch
+      let writerGrade = user.grade;
+      let writerRole = user.role;
+      let writerPosition = user.position;
+      if (!writerGrade || !writerRole || !writerPosition) {
+        const userDoc = await getDoc(firestoreDoc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          writerGrade = userData.grade || writerGrade;
+          writerRole = userData.role || writerRole;
+          writerPosition = userData.position || writerPosition;
         }
-      );
-    } catch (err) {
-      alert('파일 업로드 중 오류가 발생했습니다.');
-      setUploading(false);
-      setUploadProgress(null);
+      }
+      // Firestore에 게시글 저장
+      await addDoc(collection(db, 'posts'), {
+        type: 'evaluation',
+        category,
+        status: '대기',
+        title,
+        description,
+        writerUid: user.uid,
+        writerNickname: user.nickname,
+        writerGrade: writerGrade || '🍒',
+        writerRole: writerRole || '일반',
+        writerPosition: writerPosition || '',
+        createdAt: serverTimestamp(),
+        audioUrl: audioDownloadUrl,
+        duration,
+        fileName: fileName || '',
+        likesCount: 0,
+        commentCount: 0,
+        views: 0,
+        likes: [],
+        members: category === 'busking' ? members.filter(m => m.trim()) : [],
+      });
+      alert('평가글이 성공적으로 업로드되었습니다.');
+      navigate('/evaluation');
+    } catch (error) {
+      console.error('평가글 업로드 오류:', error);
+      alert('평가글 업로드 중 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="board-container">
-<<<<<<< HEAD
-      <div className="board-header" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <button 
-          className="back-button" 
-          onClick={() => navigate('/recording')}
-          style={{ position: 'absolute', left: '2rem' }}
-=======
       <div className="board-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '1rem', width: '100%' }}>
         <button 
           className="back-button" 
-          onClick={() => navigate('/recording')}
+          onClick={() => navigate('/evaluation')}
           style={{ position: 'static' }}
->>>>>>> 6599406 (처음 커밋)
         >
           <ArrowLeft size={20} />
           목록으로
         </button>
-<<<<<<< HEAD
-        <h1 className="board-title">
-=======
         <h1 className="board-title" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0 }}>
->>>>>>> 6599406 (처음 커밋)
           <Mic size={28} />
-          녹음하기
+          평가글 작성
         </h1>
       </div>
 
       <div className="write-form recording-form">
+        {/* 카테고리 선택 - 버튼 그룹, 가운데 정렬 */}
+        <div className="form-group" style={{ marginBottom: 12, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <label className="form-label" style={{ marginBottom: 6, textAlign: 'center' }}>카테고리</label>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+            {categoryOptions.map(opt => (
+              <button
+                key={opt.id}
+                type="button"
+                className={`category-button${category === opt.id ? ' active' : ''}`}
+                onClick={() => setCategory(opt.id)}
+                style={{
+                  minWidth: 90,
+                  padding: '7px 16px',
+                  fontSize: '1rem',
+                  borderRadius: 10,
+                  fontWeight: 600,
+                  background: category === opt.id ? '#8A55CC' : '#f6f2ff',
+                  color: category === opt.id ? 'white' : '#8A55CC',
+                  border: category === opt.id ? '2px solid #8A55CC' : '2px solid #e3d0ff',
+                  transition: 'all 0.15s'
+                }}
+              >
+                {opt.name}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="form-group">
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="제목을 입력하세요"
+            placeholder="곡제목"
             className="title-input"
           />
         </div>
@@ -308,6 +316,32 @@ const RecordingPostWrite: React.FC = () => {
             rows={4}
           />
         </div>
+
+        {/* 듀엣/합창 멤버 입력 (버스킹심사곡 선택 시만) */}
+        {category === 'busking' && (
+          <div className="form-group" style={{ marginBottom: 12 }}>
+            <label className="form-label" style={{ marginBottom: 6, textAlign: 'center', whiteSpace: 'normal' }}>
+               듀엣/합창멤버 닉네임기입 필수!(본인포함)<br/>
+               <span style={{ color: '#8A55CC', fontWeight: 500 }}>*솔로인 경우 본인 닉네임만 적어주세요.</span>
+             </label>
+            {members.map((member, idx) => (
+              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <input
+                  value={member}
+                  onChange={e => setMembers(members => members.map((m, i) => i === idx ? e.target.value : m))}
+                  style={{ flex: 1, padding: 8, borderRadius: 8, border: '1px solid #E5DAF5' }}
+                  placeholder={`멤버 닉네임 ${idx + 1}`}
+                />
+                {members.length > 1 && (
+                  <button type="button" onClick={() => setMembers(members => members.filter((_, i) => i !== idx))} style={{ background: '#F43F5E', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontWeight: 600, cursor: 'pointer' }}>삭제</button>
+                )}
+                {idx === members.length - 1 && (
+                  <button type="button" onClick={() => setMembers(members => [...members, ''])} style={{ background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontWeight: 600, cursor: 'pointer' }}>추가</button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="recording-controls" style={{ display: 'flex', flexDirection: 'row', gap: '12px', justifyContent: 'center', marginTop: '24px' }}>
           <button
@@ -336,7 +370,6 @@ const RecordingPostWrite: React.FC = () => {
             />
             <Upload size={20} style={{ marginRight: 4 }} /> 파일 업로드
           </label>
-          {uploading && <span className="uploading-text">업로드 중...</span>}
         </div>
 
         <div className="form-actions" style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '32px' }}>
@@ -350,13 +383,13 @@ const RecordingPostWrite: React.FC = () => {
             ) : (
               <>
                 <Upload size={16} />
-                업로드
+                작성하기
               </>
             )}
           </button>
           <button 
             className="cancel-button"
-            onClick={() => navigate('/recording')}
+            onClick={() => navigate('/evaluation')}
             disabled={loading}
           >
             <X size={16} />
@@ -380,6 +413,8 @@ const RecordingPostWrite: React.FC = () => {
                 <div style={{ width: `${uploadProgress}%`, height: '100%', background: '#8A55CC', borderRadius: 6, transition: 'width 0.2s' }} />
               </div>
             )}
+            {/* 업로드 중... 문구를 파일명/진행률 아래에만 표시 */}
+            {uploading && <span className="uploading-text" style={{ marginTop: 8, color: '#8A55CC', fontWeight: 500 }}>업로드 중...</span>}
           </div>
         )}
       </div>
@@ -387,4 +422,4 @@ const RecordingPostWrite: React.FC = () => {
   );
 };
 
-export default RecordingPostWrite; 
+export default EvaluationPostWrite; 

@@ -481,10 +481,17 @@
 }
 
 .post-item {
+<<<<<<< HEAD
   padding: 12px;
   background: #F9FAFB;
   border-radius: 12px;
   margin-bottom: 8px;
+=======
+  padding: 16px;
+  background: #F9FAFB;
+  border-radius: 16px;
+  margin-bottom: 10px;
+>>>>>>> 6599406 (처음 커밋)
   transition: all 0.3s ease;
   cursor: pointer;
 }
@@ -495,17 +502,28 @@
 }
 
 .post-title {
+<<<<<<< HEAD
   font-size: 14px;
   font-weight: 500;
   color: #1F2937;
   margin: 0 0 4px 0;
+=======
+  font-size: 15px;
+  font-weight: 500;
+  color: #1F2937;
+  margin: 0 0 6px 0;
+>>>>>>> 6599406 (처음 커밋)
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .post-meta {
+<<<<<<< HEAD
   font-size: 12px;
+=======
+  font-size: 13px;
+>>>>>>> 6599406 (처음 커밋)
   color: #6B7280;
   display: flex;
   justify-content: space-between;
@@ -525,7 +543,11 @@
 .boards-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
+<<<<<<< HEAD
   gap: 12px;
+=======
+  gap: 20px;
+>>>>>>> 6599406 (처음 커밋)
   margin-top: 16px;
   text-align: center;
 }
@@ -534,8 +556,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
+<<<<<<< HEAD
   gap: 12px;
   padding: 16px;
+=======
+  gap: 16px;
+  padding: 28px;
+>>>>>>> 6599406 (처음 커밋)
   background: #F9FAFB;
   border-radius: 16px;
   transition: all 0.3s ease;
@@ -551,8 +578,13 @@
 }
 
 .board-icon {
+<<<<<<< HEAD
   width: 20px;
   height: 20px;
+=======
+  width: 24px;
+  height: 24px;
+>>>>>>> 6599406 (처음 커밋)
   color: #8A55CC;
   transition: color 0.3s ease;
 }
@@ -562,7 +594,11 @@
 }
 
 .board-name {
+<<<<<<< HEAD
   font-size: 14px;
+=======
+  font-size: 18px;
+>>>>>>> 6599406 (처음 커밋)
   font-weight: 500;
   color: #1F2937;
   transition: color 0.3s ease;
@@ -795,6 +831,7 @@
   .home-card {
     margin-bottom: 10px !important;
   }
+<<<<<<< HEAD
   .boards-grid, .activities-grid {
     gap: 8px !important;
   }
@@ -805,6 +842,20 @@
   }
   .board-name {
     font-size: 13px !important;
+=======
+  .boards-grid {
+    gap: 16px;
+  }
+  .board-item {
+    padding: 20px;
+  }
+  .board-icon {
+    width: 20px;
+    height: 20px;
+  }
+  .board-name {
+    font-size: 16px;
+>>>>>>> 6599406 (처음 커밋)
   }
   .activity-section, .activity-item {
     background: #F9FAFB !important;
@@ -910,6 +961,7 @@
     font-size: 16px !important;
   }
   .board-item {
+<<<<<<< HEAD
     padding: 7px 3px !important;
     border-radius: 9px !important;
     font-size: 13px !important;
@@ -919,6 +971,21 @@
   }
   .activity-section, .activity-item {
     background: #F9FAFB !important;
+=======
+    padding: 14px;
+  }
+  .board-icon {
+    width: 18px;
+    height: 18px;
+  }
+  .board-name {
+    font-size: 14px;
+  }
+  .activity-section, .activity-item {
+    background: #F9FAFB !important;
+    border-radius: 12px !important;
+    box-shadow: 0 1.5px 4px rgba(138,85,204,0.04) !important;
+>>>>>>> 6599406 (처음 커밋)
     border: 1px solid #ede9fe !important;
   }
   .profile-dropdown {

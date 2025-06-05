@@ -467,14 +467,39 @@ const FreePostList: React.FC = () => {
             <article 
               key={post.id}
               className="post-item"
+<<<<<<< HEAD
+=======
+              style={{ minWidth: 0, overflow: 'hidden' }}
+>>>>>>> 6599406 (처음 커밋)
               onClick={() => handlePostClick(post.id)}
               ref={index === posts.length - 1 ? lastPostElementRef : null}
             >
               <div className="post-header">
                 <div className="post-main-info">
+<<<<<<< HEAD
                   <div className="post-category-title">
                     <span className="post-category category-badge">{getCategoryName(post.category)}</span>
                     <h2 className="post-title">{post.title}</h2>
+=======
+                  <div
+                    className="post-category-title"
+                    style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}
+                  >
+                    <span className="post-category category-badge">{getCategoryName(post.category)}</span>
+                    <h2
+                      className="post-title"
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        margin: 0
+                      }}
+                    >
+                      {post.title}
+                    </h2>
+>>>>>>> 6599406 (처음 커밋)
                   </div>
                 </div>
                 <div className="post-meta">

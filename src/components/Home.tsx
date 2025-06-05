@@ -107,7 +107,11 @@ const DEFAULT_TEAM_INFO: TeamInfo = {
 const BOARDS: BoardItem[] = [
   { name: '자유게시판', icon: MessageSquare, path: '/free' },
   { name: '녹음게시판', icon: Mic, path: '/recording' },
+<<<<<<< HEAD
   { name: '평가게시판', icon: Star, path: '/boards/evaluation' },
+=======
+  { name: '평가게시판', icon: Star, path: '/evaluation' },
+>>>>>>> 6599406 (처음 커밋)
   { name: '파트너모집', icon: UserPlus, path: '/boards/partner' }
 ];
 
@@ -403,7 +407,11 @@ const Home: React.FC = () => {
   };
 
   const navigateToBoard = (path: string) => {
+<<<<<<< HEAD
     if (path === '/free' || path === '/recording' || path === '/boards/partner') {
+=======
+    if (path === '/free' || path === '/recording' || path === '/boards/partner' || path === '/evaluation') {
+>>>>>>> 6599406 (처음 커밋)
       navigate(path);
     } else {
       alert(`${path} 페이지로 이동합니다. (추후 구현)`);
@@ -752,7 +760,11 @@ const Home: React.FC = () => {
           <div className="activities-grid">
             {recentFree && (
               <div className="activity-section">
+<<<<<<< HEAD
                 <h4><MessageSquare size={16} />자유게시판</h4>
+=======
+                <h4 style={{cursor:'pointer'}} onClick={() => navigate(`/free/${recentFree.id}`)}><MessageSquare size={16} />자유게시판</h4>
+>>>>>>> 6599406 (처음 커밋)
                 <div className="post-item" onClick={() => navigate(`/free/${recentFree.id}`)}>
                   <div className="post-title">{recentFree.title}</div>
                   <div className="post-meta">
@@ -764,7 +776,11 @@ const Home: React.FC = () => {
             )}
             {recentRecording && (
               <div className="activity-section">
+<<<<<<< HEAD
                 <h4><Mic size={16} />녹음게시판</h4>
+=======
+                <h4 style={{cursor:'pointer'}} onClick={() => navigate(`/recording/${recentRecording.id}`)}><Mic size={16} />녹음게시판</h4>
+>>>>>>> 6599406 (처음 커밋)
                 <div className="post-item" onClick={() => navigate(`/recording/${recentRecording.id}`)}>
                   <div className="post-title">{recentRecording.title}</div>
                   <div className="post-meta">
@@ -776,7 +792,11 @@ const Home: React.FC = () => {
             )}
             {recentEvaluation && (
               <div className="activity-section">
+<<<<<<< HEAD
                 <h4><Star size={16} />평가게시판</h4>
+=======
+                <h4 style={{cursor:'pointer'}} onClick={() => navigate(`/boards/evaluation/${recentEvaluation.id}`)}><Star size={16} />평가게시판</h4>
+>>>>>>> 6599406 (처음 커밋)
                 <div className="post-item" onClick={() => navigate(`/boards/evaluation/${recentEvaluation.id}`)}>
                   <div className="post-title">{recentEvaluation.title}</div>
                   <div className="post-meta">
@@ -788,7 +808,11 @@ const Home: React.FC = () => {
             )}
             {recentPartner && (
               <div className="activity-section">
+<<<<<<< HEAD
                 <h4><UserPlus size={16} />파트너모집</h4>
+=======
+                <h4 style={{cursor:'pointer'}} onClick={() => navigate(`/boards/partner/${recentPartner.id}`)}><UserPlus size={16} />파트너모집</h4>
+>>>>>>> 6599406 (처음 커밋)
                 <div className="post-item" onClick={() => navigate(`/boards/partner/${recentPartner.id}`)}>
                   <div className="post-title">{recentPartner.title}</div>
                   <div className="post-meta">

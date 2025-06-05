@@ -732,6 +732,18 @@ body, html {
   max-width: 100%;
 }
 
+<<<<<<< HEAD
+=======
+/* 한 줄 제목일 때 ... 처리 (카드 내에서만 적용) */
+.post-card .post-title.single-line {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  max-width: 100%;
+}
+
+>>>>>>> 6599406 (처음 커밋)
 .dark .post-card .post-title {
   color: #bb86fc;
 }
@@ -1372,6 +1384,11 @@ body, html {
   flex-direction: row;
   align-items: center;
   gap: 8px;
+<<<<<<< HEAD
+=======
+  flex-wrap: nowrap;
+  min-width: 0;
+>>>>>>> 6599406 (처음 커밋)
 }
 
 .post-category, .category-badge {
@@ -1395,8 +1412,43 @@ body, html {
   font-size: 1.13rem;
   font-weight: 700;
   color: #1F2937;
+<<<<<<< HEAD
   display: inline-block;
   vertical-align: middle;
+=======
+  display: -webkit-box;
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+  word-break: break-all;
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.open-badge, .closed-badge {
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 90px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .post-title {
+    max-width: 100%;
+    font-size: 1rem;
+  }
+  .open-badge, .closed-badge {
+    max-width: 60px;
+    font-size: 0.85rem;
+    padding: 0.2rem 0.5rem;
+  }
+>>>>>>> 6599406 (처음 커밋)
 }
 
 .post-meta {
