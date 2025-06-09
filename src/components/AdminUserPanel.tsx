@@ -40,6 +40,7 @@ import {
   UserPlus
 } from 'lucide-react';
 import './AdminUserPanel.css';
+import UserActivityBoard from './UserActivityBoard';
 
 interface AdminUser {
   uid: string;
@@ -102,6 +103,7 @@ const AdminUserPanel: React.FC = () => {
     grade: '🍒',
     role: '일반'
   });
+  const [activeTab, setActiveTab] = useState<'users' | 'activity'>('users');
 
   // 등급 옵션 (이모지로 표시)
   const gradeOptions = [
@@ -574,384 +576,397 @@ const AdminUserPanel: React.FC = () => {
 
   return (
     <div className="admin-container">
-      {/* 헤더 */}
-      <div className="admin-header">
-        <div className="header-left">
-          <button className="back-button" onClick={() => navigate('/')}>
-            <ArrowLeft size={20} />
-            홈으로
-          </button>
-          <h1 className="admin-title">
-            <Users size={28} />
-            사용자 관리 패널
-          </h1>
-        </div>
-        <div className="header-actions">
-          <button className="add-user-button" onClick={() => setShowAddUserModal(true)}>
-            <UserPlus size={20} />
-            회원 추가
-          </button>
-          <button className="export-button" onClick={exportToExcel}>
-            <Download size={20} />
-            엑셀 내보내기
-          </button>
-        </div>
+      {/* 탭 UI */}
+      <div className="admin-tabs">
+        <button className={activeTab === 'users' ? 'active' : ''} onClick={() => setActiveTab('users')}>회원 관리</button>
+        <button className={activeTab === 'activity' ? 'active' : ''} onClick={() => setActiveTab('activity')}>활동 점수판</button>
       </div>
-
-      {/* 확장된 통계 카드 */}
-      <div className="stats-grid">
-        <div className="stat-card">
-          <h3>총 회원 수</h3>
-          <div className="stat-number">{userStats.totalUsers}명</div>
-          <div className="stat-subtitle">최근 한달 가입: {userStats.recentJoins}명</div>
-        </div>
-        
-        <div className="stat-card">
-          <h3>운영진 현황</h3>
-          <div className="stat-number">{userStats.adminCount}명</div>
-          <div className="stat-subtitle">전체 대비: {((userStats.adminCount / userStats.totalUsers) * 100).toFixed(1)}%</div>
-        </div>
-
-        <div className="stat-card">
-          <h3>평균 등급</h3>
-          <div className="stat-number">{userStats.averageGrade}</div>
-          <div className="stat-distribution">
-            {Object.entries(userStats.gradeDistribution).map(([grade, count]) => (
-              <span key={grade} className="distribution-item">
-                {grade}: {count}명
-              </span>
-            ))}
+      {/* 회원 관리 탭 */}
+      {activeTab === 'users' && (
+        <>
+          {/* 헤더 */}
+          <div className="admin-header">
+            <div className="header-left">
+              <button className="back-button" onClick={() => navigate('/')}>
+                <ArrowLeft size={20} />
+                홈으로
+              </button>
+              <h1 className="admin-title">
+                <Users size={28} />
+                사용자 관리 패널
+              </h1>
+            </div>
+            <div className="header-actions">
+              <button className="add-user-button" onClick={() => setShowAddUserModal(true)}>
+                <UserPlus size={20} />
+                회원 추가
+              </button>
+              <button className="export-button" onClick={exportToExcel}>
+                <Download size={20} />
+                엑셀 내보내기
+              </button>
+            </div>
           </div>
-        </div>
 
-        <div className="stat-card">
-          <h3>역할 분포</h3>
-          <div className="stat-distribution">
-            {Object.entries(userStats.roleDistribution).map(([role, count]) => (
-              <span key={role} className="distribution-item">
-                {role}: {count}명
-              </span>
-            ))}
+          {/* 확장된 통계 카드 */}
+          <div className="stats-grid">
+            <div className="stat-card">
+              <h3>총 회원 수</h3>
+              <div className="stat-number">{userStats.totalUsers}명</div>
+              <div className="stat-subtitle">최근 한달 가입: {userStats.recentJoins}명</div>
+            </div>
+            
+            <div className="stat-card">
+              <h3>운영진 현황</h3>
+              <div className="stat-number">{userStats.adminCount}명</div>
+              <div className="stat-subtitle">전체 대비: {((userStats.adminCount / userStats.totalUsers) * 100).toFixed(1)}%</div>
+            </div>
+
+            <div className="stat-card">
+              <h3>평균 등급</h3>
+              <div className="stat-number">{userStats.averageGrade}</div>
+              <div className="stat-distribution">
+                {Object.entries(userStats.gradeDistribution).map(([grade, count]) => (
+                  <span key={grade} className="distribution-item">
+                    {grade}: {count}명
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="stat-card">
+              <h3>역할 분포</h3>
+              <div className="stat-distribution">
+                {Object.entries(userStats.roleDistribution).map(([role, count]) => (
+                  <span key={role} className="distribution-item">
+                    {role}: {count}명
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* 검색 및 필터링 */}
-      <div className="controls-section">
-        <div className="search-box">
-          <Search size={20} />
-          <input
-            type="text"
-            placeholder="닉네임 또는 이메일로 검색..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
+          {/* 검색 및 필터링 */}
+          <div className="controls-section">
+            <div className="search-box">
+              <Search size={20} />
+              <input
+                type="text"
+                placeholder="닉네임 또는 이메일로 검색..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
 
-        <div className="filter-controls">
-          <select 
-            value={filterRole} 
-            onChange={(e) => setFilterRole(e.target.value)}
-            className="filter-select"
-          >
-            <option value="all">모든 역할</option>
-            {roleOptions.map(role => (
-              <option key={role} value={role}>{role}</option>
-            ))}
-          </select>
+            <div className="filter-controls">
+              <select 
+                value={filterRole} 
+                onChange={(e) => setFilterRole(e.target.value)}
+                className="filter-select"
+              >
+                <option value="all">모든 역할</option>
+                {roleOptions.map(role => (
+                  <option key={role} value={role}>{role}</option>
+                ))}
+              </select>
 
-          <select 
-            value={filterGrade} 
-            onChange={(e) => setFilterGrade(e.target.value)}
-            className="filter-select"
-          >
-            <option value="all">모든 등급</option>
-            {gradeOptions.map(grade => (
-              <option key={grade} value={grade}>{grade}</option>
-            ))}
-          </select>
+              <select 
+                value={filterGrade} 
+                onChange={(e) => setFilterGrade(e.target.value)}
+                className="filter-select"
+              >
+                <option value="all">모든 등급</option>
+                {gradeOptions.map(grade => (
+                  <option key={grade} value={grade}>{grade}</option>
+                ))}
+              </select>
 
-          <select 
-            value={sortBy} 
-            onChange={(e) => setSortBy(e.target.value as any)}
-            className="filter-select"
-          >
-            <option value="createdAt">가입일순</option>
-            <option value="nickname">닉네임순</option>
-            <option value="grade">등급순</option>
-            <option value="role">역할순</option>
-          </select>
-        </div>
-      </div>
-
-      {/* 사용자 목록 */}
-      <div className="users-list">
-        {filteredUsers.length === 0 ? (
-          <div className="empty-state">
-            <Users size={48} />
-            <h3>검색 결과가 없습니다</h3>
-            <p>다른 검색어를 입력해보세요.</p>
+              <select 
+                value={sortBy} 
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="filter-select"
+              >
+                <option value="createdAt">가입일순</option>
+                <option value="nickname">닉네임순</option>
+                <option value="grade">등급순</option>
+                <option value="role">역할순</option>
+              </select>
+            </div>
           </div>
-        ) : (
-          filteredUsers.map((user) => (
-            <div key={user.uid} className="user-card">
-              {editingUser?.uid === user.uid ? (
-                // 편집 모드
-                <div className="edit-mode">
-                  <div className="user-profile">
-                    <div className="profile-avatar">
-                      {user.profileImageUrl ? (
-                        <img src={user.profileImageUrl} alt="프로필" />
-                      ) : (
-                        (user.nickname || '?').charAt(0)
-                      )}
+
+          {/* 사용자 목록 */}
+          <div className="users-list">
+            {filteredUsers.length === 0 ? (
+              <div className="empty-state">
+                <Users size={48} />
+                <h3>검색 결과가 없습니다</h3>
+                <p>다른 검색어를 입력해보세요.</p>
+              </div>
+            ) : (
+              filteredUsers.map((user) => (
+                <div key={user.uid} className="user-card">
+                  {editingUser?.uid === user.uid ? (
+                    // 편집 모드
+                    <div className="edit-mode">
+                      <div className="user-profile">
+                        <div className="profile-avatar">
+                          {user.profileImageUrl ? (
+                            <img src={user.profileImageUrl} alt="프로필" />
+                          ) : (
+                            (user.nickname || '?').charAt(0)
+                          )}
+                        </div>
+                        <div className="user-info">
+                          <input
+                            type="text"
+                            value={editingUser.nickname}
+                            onChange={(e) => setEditingUser({...editingUser, nickname: e.target.value})}
+                            className="edit-input"
+                            style={{ marginBottom: 6 }}
+                          />
+                          <input
+                            type="email"
+                            value={editingUser.email}
+                            onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
+                            className="edit-input"
+                            placeholder="이메일 주소"
+                            style={{ marginBottom: 0 }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="edit-controls-row">
+                        <select
+                          value={editingUser.grade}
+                          onChange={(e) => setEditingUser({...editingUser, grade: e.target.value})}
+                          className="edit-select"
+                        >
+                          {gradeOptions.map(grade => (
+                            <option key={grade} value={grade}>
+                              {grade} {getGradeName(grade)}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          value={editingUser.role}
+                          onChange={(e) => setEditingUser({...editingUser, role: e.target.value})}
+                          className="edit-select"
+                          disabled={user.uid === currentUser?.uid || (user.role === '리더' && currentUser?.role !== '리더' && currentUser?.nickname !== '너래')}
+                        >
+                          {roleOptions.map(role => (
+                            <option key={role} value={role}>{role}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="edit-controls-date">
+                        <input
+                          type="date"
+                          className="edit-input"
+                          value={(() => {
+                            if (!editingUser.createdAt) return '';
+                            if (typeof editingUser.createdAt === 'string') return editingUser.createdAt.slice(0,10);
+                            if (editingUser.createdAt.seconds) {
+                              const d = new Date(editingUser.createdAt.seconds * 1000);
+                              return d.toISOString().slice(0,10);
+                            }
+                            if (editingUser.createdAt instanceof Date) return editingUser.createdAt.toISOString().slice(0,10);
+                            return '';
+                          })()}
+                          onChange={e => {
+                            const dateStr = e.target.value;
+                            setEditingUser({
+                              ...editingUser,
+                              createdAt: new Date(dateStr + 'T00:00:00')
+                            });
+                          }}
+                          style={{ minWidth: 140 }}
+                        />
+                      </div>
+
+                      <div className="edit-actions">
+                        <button 
+                          className="save-btn"
+                          onClick={() => handleUpdateUser(user)}
+                        >
+                          <CheckCircle size={16} />
+                          저장
+                        </button>
+                        <button 
+                          className="cancel-btn"
+                          onClick={() => setEditingUser(null)}
+                        >
+                          <X size={16} />
+                          취소
+                        </button>
+                        <button
+                          className="reset-password-btn"
+                          style={{marginLeft:8, background:'#fff', color:'#8A55CC', border:'2px solid #8A55CC', borderRadius:8, padding:'0.5rem 1.1rem', fontWeight:600, cursor:'pointer'}}
+                          onClick={() => handleResetPassword(user)}
+                        >
+                          비밀번호 초기화
+                        </button>
+                      </div>
                     </div>
-                    <div className="user-info">
-                      <input
-                        type="text"
-                        value={editingUser.nickname}
-                        onChange={(e) => setEditingUser({...editingUser, nickname: e.target.value})}
-                        className="edit-input"
-                        style={{ marginBottom: 6 }}
-                      />
-                      <input
-                        type="email"
-                        value={editingUser.email}
-                        onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
-                        className="edit-input"
-                        placeholder="이메일 주소"
-                        style={{ marginBottom: 0 }}
-                      />
-                    </div>
+                  ) : (
+                    <>
+                      <div className="user-profile">
+                        <div className="profile-avatar">
+                          {user.profileImageUrl ? (
+                            <img src={user.profileImageUrl} alt="프로필" />
+                          ) : (
+                            (user.nickname || '?').charAt(0)
+                          )}
+                        </div>
+                        <div className="user-info">
+                          <div className="user-name">
+                            {user.nickname}
+                            <span className="user-grade">{getGradeDisplay(user.grade)}</span>
+                            {getRoleDisplay(user.role)}
+                          </div>
+                          <div className="user-email">{user.email}</div>
+                          <div className="user-date">
+                            <Calendar size={14} />
+                            가입일: {formatDate(user.createdAt)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="user-actions">
+                        <button 
+                          className="view-btn"
+                          onClick={() => setSelectedUser(user)}
+                        >
+                          <Eye size={16} />
+                          상세
+                        </button>
+                        <button 
+                          className="edit-btn"
+                          onClick={() => setEditingUser({...user})}
+                        >
+                          <Edit3 size={16} />
+                          수정
+                        </button>
+                        <button 
+                          className="delete-btn"
+                          onClick={() => handleDeleteUser(user)}
+                        >
+                          <Trash2 size={16} />
+                          탈퇴
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* 사용자 상세 정보 모달 */}
+          {selectedUser && (
+            <div className="modal-overlay" onClick={() => setSelectedUser(null)}>
+              <div className="modal-content" onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                  <h2>사용자 상세 정보</h2>
+                  <button className="close-btn" onClick={() => setSelectedUser(null)}>
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="modal-body">
+                  <div className="detail-row">
+                    <strong>닉네임:</strong> {selectedUser.nickname}
                   </div>
+                  <div className="detail-row">
+                    <strong>이메일:</strong> {selectedUser.email}
+                  </div>
+                  <div className="detail-row">
+                    <strong>등급:</strong> {selectedUser.grade}
+                  </div>
+                  <div className="detail-row">
+                    <strong>역할:</strong> {selectedUser.role}
+                  </div>
+                  <div className="detail-row">
+                    <strong>가입일:</strong> {formatDate(selectedUser.createdAt)}
+                  </div>
+                  <div className="detail-row">
+                    <strong>UID:</strong> {selectedUser.uid}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
-                  <div className="edit-controls">
+          {/* 회원 추가 모달 */}
+          {showAddUserModal && (
+            <div className="modal-overlay" onClick={() => setShowAddUserModal(false)}>
+              <div className="modal-content" onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                  <h2>새 회원 추가</h2>
+                  <button className="close-btn" onClick={() => setShowAddUserModal(false)}>
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="modal-body">
+                  <div className="form-group">
+                    <label>이메일</label>
+                    <input
+                      type="email"
+                      value={newUser.email}
+                      onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                      placeholder="이메일 주소"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>닉네임</label>
+                    <input
+                      type="text"
+                      value={newUser.nickname}
+                      onChange={(e) => setNewUser({...newUser, nickname: e.target.value})}
+                      placeholder="닉네임"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>등급</label>
                     <select
-                      value={editingUser.grade}
-                      onChange={(e) => setEditingUser({...editingUser, grade: e.target.value})}
-                      className="edit-select"
+                      value={newUser.grade}
+                      onChange={(e) => setNewUser({...newUser, grade: e.target.value})}
                     >
                       {gradeOptions.map(grade => (
                         <option key={grade} value={grade}>
-                          {grade} {getGradeName(grade)}
+                          {grade} {gradeNames[grade]}
                         </option>
                       ))}
                     </select>
-
+                  </div>
+                  <div className="form-group">
+                    <label>역할</label>
                     <select
-                      value={editingUser.role}
-                      onChange={(e) => setEditingUser({...editingUser, role: e.target.value})}
-                      className="edit-select"
-                      disabled={user.uid === currentUser?.uid || (user.role === '리더' && currentUser?.role !== '리더' && currentUser?.nickname !== '너래')}
+                      value={newUser.role}
+                      onChange={(e) => setNewUser({...newUser, role: e.target.value})}
                     >
                       {roleOptions.map(role => (
                         <option key={role} value={role}>{role}</option>
                       ))}
                     </select>
-
-                    {/* 가입일 수정 */}
-                    <input
-                      type="date"
-                      className="edit-input"
-                      value={(() => {
-                        if (!editingUser.createdAt) return '';
-                        if (typeof editingUser.createdAt === 'string') return editingUser.createdAt.slice(0,10);
-                        if (editingUser.createdAt.seconds) {
-                          const d = new Date(editingUser.createdAt.seconds * 1000);
-                          return d.toISOString().slice(0,10);
-                        }
-                        if (editingUser.createdAt instanceof Date) return editingUser.createdAt.toISOString().slice(0,10);
-                        return '';
-                      })()}
-                      onChange={e => {
-                        const dateStr = e.target.value;
-                        setEditingUser({
-                          ...editingUser,
-                          createdAt: new Date(dateStr + 'T00:00:00')
-                        });
-                      }}
-                      style={{ minWidth: 140, marginLeft: 8 }}
-                    />
                   </div>
-
-                  <div className="edit-actions">
-                    <button 
-                      className="save-btn"
-                      onClick={() => handleUpdateUser(user)}
-                    >
+                  <div className="modal-actions">
+                    <button onClick={handleAddUser} className="save-btn">
                       <CheckCircle size={16} />
-                      저장
+                      추가
                     </button>
-                    <button 
-                      className="cancel-btn"
-                      onClick={() => setEditingUser(null)}
-                    >
+                    <button onClick={() => setShowAddUserModal(false)} className="cancel-btn">
                       <X size={16} />
                       취소
                     </button>
-                    <button
-                      className="reset-password-btn"
-                      style={{marginLeft:8, background:'#fff', color:'#8A55CC', border:'2px solid #8A55CC', borderRadius:8, padding:'0.5rem 1.1rem', fontWeight:600, cursor:'pointer'}}
-                      onClick={() => handleResetPassword(user)}
-                    >
-                      비밀번호 초기화
-                    </button>
                   </div>
                 </div>
-              ) : (
-                <>
-                  <div className="user-profile">
-                    <div className="profile-avatar">
-                      {user.profileImageUrl ? (
-                        <img src={user.profileImageUrl} alt="프로필" />
-                      ) : (
-                        (user.nickname || '?').charAt(0)
-                      )}
-                    </div>
-                    <div className="user-info">
-                      <div className="user-name">
-                        {user.nickname}
-                        <span className="user-grade">{getGradeDisplay(user.grade)}</span>
-                        {getRoleDisplay(user.role)}
-                      </div>
-                      <div className="user-email">{user.email}</div>
-                      <div className="user-date">
-                        <Calendar size={14} />
-                        가입일: {formatDate(user.createdAt)}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="user-actions">
-                    <button 
-                      className="view-btn"
-                      onClick={() => setSelectedUser(user)}
-                    >
-                      <Eye size={16} />
-                      상세
-                    </button>
-                    <button 
-                      className="edit-btn"
-                      onClick={() => setEditingUser({...user})}
-                    >
-                      <Edit3 size={16} />
-                      수정
-                    </button>
-                    <button 
-                      className="delete-btn"
-                      onClick={() => handleDeleteUser(user)}
-                    >
-                      <Trash2 size={16} />
-                      탈퇴
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* 사용자 상세 정보 모달 */}
-      {selectedUser && (
-        <div className="modal-overlay" onClick={() => setSelectedUser(null)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>사용자 상세 정보</h2>
-              <button className="close-btn" onClick={() => setSelectedUser(null)}>
-                <X size={20} />
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="detail-row">
-                <strong>닉네임:</strong> {selectedUser.nickname}
-              </div>
-              <div className="detail-row">
-                <strong>이메일:</strong> {selectedUser.email}
-              </div>
-              <div className="detail-row">
-                <strong>등급:</strong> {selectedUser.grade}
-              </div>
-              <div className="detail-row">
-                <strong>역할:</strong> {selectedUser.role}
-              </div>
-              <div className="detail-row">
-                <strong>가입일:</strong> {formatDate(selectedUser.createdAt)}
-              </div>
-              <div className="detail-row">
-                <strong>UID:</strong> {selectedUser.uid}
               </div>
             </div>
-          </div>
-        </div>
+          )}
+        </>
       )}
-
-      {/* 회원 추가 모달 */}
-      {showAddUserModal && (
-        <div className="modal-overlay" onClick={() => setShowAddUserModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>새 회원 추가</h2>
-              <button className="close-btn" onClick={() => setShowAddUserModal(false)}>
-                <X size={20} />
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label>이메일</label>
-                <input
-                  type="email"
-                  value={newUser.email}
-                  onChange={(e) => setNewUser({...newUser, email: e.target.value})}
-                  placeholder="이메일 주소"
-                />
-              </div>
-              <div className="form-group">
-                <label>닉네임</label>
-                <input
-                  type="text"
-                  value={newUser.nickname}
-                  onChange={(e) => setNewUser({...newUser, nickname: e.target.value})}
-                  placeholder="닉네임"
-                />
-              </div>
-              <div className="form-group">
-                <label>등급</label>
-                <select
-                  value={newUser.grade}
-                  onChange={(e) => setNewUser({...newUser, grade: e.target.value})}
-                >
-                  {gradeOptions.map(grade => (
-                    <option key={grade} value={grade}>
-                      {grade} {gradeNames[grade]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>역할</label>
-                <select
-                  value={newUser.role}
-                  onChange={(e) => setNewUser({...newUser, role: e.target.value})}
-                >
-                  {roleOptions.map(role => (
-                    <option key={role} value={role}>{role}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="modal-actions">
-                <button onClick={handleAddUser} className="save-btn">
-                  <CheckCircle size={16} />
-                  추가
-                </button>
-                <button onClick={() => setShowAddUserModal(false)} className="cancel-btn">
-                  <X size={16} />
-                  취소
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* 활동 점수판 탭 */}
+      {activeTab === 'activity' && (
+        <UserActivityBoard />
       )}
     </div>
   );

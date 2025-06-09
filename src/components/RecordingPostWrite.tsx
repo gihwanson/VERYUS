@@ -261,28 +261,20 @@ const RecordingPostWrite: React.FC = () => {
 
   return (
     <div className="board-container">
-<<<<<<< HEAD
-      <div className="board-header" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <button 
-          className="back-button" 
-          onClick={() => navigate('/recording')}
-          style={{ position: 'absolute', left: '2rem' }}
-=======
+
       <div className="board-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '1rem', width: '100%' }}>
         <button 
           className="back-button" 
           onClick={() => navigate('/recording')}
           style={{ position: 'static' }}
->>>>>>> 6599406 (처음 커밋)
+
         >
           <ArrowLeft size={20} />
           목록으로
         </button>
-<<<<<<< HEAD
-        <h1 className="board-title">
-=======
+
         <h1 className="board-title" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0 }}>
->>>>>>> 6599406 (처음 커밋)
+
           <Mic size={28} />
           녹음하기
         </h1>

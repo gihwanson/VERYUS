@@ -284,20 +284,9 @@ const PartnerPostList: React.FC = () => {
             >
               <div className="post-header">
                 <div className="post-main-info">
-<<<<<<< HEAD
-                  <div className="post-category-title">
-                    <span className="post-category category-badge">{categoryNameMap[post.category || ''] || '파트너'}</span>
-                    <h2 className="post-title">{post.title}</h2>
-                    {post.isClosed ? (
-                      <span className="closed-badge" style={{marginLeft:12, background:'#8A55CC', color:'#fff', fontWeight:700, borderRadius:8, padding:'0.3rem 0.9rem', fontSize:'0.98rem'}}>모집완료</span>
-                    ) : (
-                      <span className="open-badge" style={{marginLeft:12, background:'#fff', color:'#8A55CC', fontWeight:700, borderRadius:8, padding:'0.3rem 0.9rem', border:'2px solid #8A55CC', fontSize:'0.98rem'}}>모집중</span>
-                    )}
-=======
                   <div className="post-category-title" style={{display:'flex',flex:1,alignItems:'center',gap:8,minWidth:0,overflow:'hidden'}}>
                     <span className="post-category category-badge">{categoryNameMap[post.category || ''] || '파트너'}</span>
                     <h2 className="post-title" style={{flexGrow:1,minWidth:0,maxWidth:'100%',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',margin:0}}>{post.title}</h2>
->>>>>>> 6599406 (처음 커밋)
                   </div>
                 </div>
                 <div className="post-meta">
@@ -329,11 +318,7 @@ const PartnerPostList: React.FC = () => {
               <div className="post-content-preview">
                 {post.content && post.content.length > 100 ? post.content.substring(0, 100) + '...' : post.content}
               </div>
-<<<<<<< HEAD
-              <div className="post-footer">
-=======
               <div className="post-footer" style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:'auto',gap:'1rem'}}>
->>>>>>> 6599406 (처음 커밋)
                 <div className="post-stats">
                   <span className="post-stat">
                     <Heart size={16} />
@@ -350,14 +335,11 @@ const PartnerPostList: React.FC = () => {
                     </span>
                   )}
                 </div>
-<<<<<<< HEAD
-=======
                 {post.isClosed ? (
                   <span className="closed-badge" style={{background:'#8A55CC', color:'#fff', fontWeight:700, borderRadius:8, padding:'0.3rem 0.9rem', fontSize:'0.98rem', flexShrink:0, maxWidth:90, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>모집완료</span>
                 ) : (
                   <span className="open-badge" style={{background:'#fff', color:'#8A55CC', fontWeight:700, borderRadius:8, padding:'0.3rem 0.9rem', border:'2px solid #8A55CC', fontSize:'0.98rem', flexShrink:0, maxWidth:90, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>모집중</span>
                 )}
->>>>>>> 6599406 (처음 커밋)
               </div>
             </article>
           ))

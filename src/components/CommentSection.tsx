@@ -48,10 +48,7 @@ interface User {
   email: string;
   nickname?: string;
   isLoggedIn: boolean;
-<<<<<<< HEAD
-=======
   role?: string;
->>>>>>> 6599406 (처음 커밋)
 }
 
 interface CommentSectionProps {
@@ -63,11 +60,8 @@ interface CommentSectionProps {
     writerUid: string;
     writerNickname: string;
   };
-<<<<<<< HEAD
-=======
   noCommentAuthMessage?: string;
   emptyCommentMessageVisibleToRoles?: string[];
->>>>>>> 6599406 (처음 커밋)
 }
 
 interface UserData {
@@ -112,11 +106,7 @@ const emojiToGrade: { [key: string]: string } = {
   '🌙': '달'
 };
 
-<<<<<<< HEAD
-const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post }) => {
-=======
 const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noCommentAuthMessage, emptyCommentMessageVisibleToRoles }) => {
->>>>>>> 6599406 (처음 커밋)
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [isSecret, setIsSecret] = useState(false);
@@ -204,85 +194,6 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
     getUserMentions().then(setMentionUsers);
   }, []);
 
-<<<<<<< HEAD
-  const buildCommentTree = () => {
-    const commentMap = new Map<string, Comment>();
-    const rootComments: Comment[] = [];
-    
-    // 모든 댓글을 맵에 저장
-    comments.forEach(comment => {
-      commentMap.set(comment.id, { ...comment, replies: [] });
-    });
-    
-    // 댓글 트리 구성
-    comments.forEach(comment => {
-      const processedComment = commentMap.get(comment.id)!;
-      if (comment.parentId) {
-        const parent = commentMap.get(comment.parentId);
-        if (parent) {
-          if (!parent.replies) parent.replies = [];
-          parent.replies.push(processedComment);
-        }
-      } else {
-        rootComments.push(processedComment);
-      }
-    });
-
-    return rootComments;
-  };
-
-=======
-  // 댓글 평면 구조로 변환 (depth 정보 포함)
-  const getFlatComments = () => {
-    // 댓글 id로 빠른 접근을 위한 맵 생성
-    const commentMap = new Map(comments.map(c => [c.id, c]));
-    // depth 계산 함수
-    const getDepth = (comment: Comment): number => {
-      let depth = 0;
-      let current = comment;
-      while (current.parentId) {
-        const parent = commentMap.get(current.parentId);
-        if (!parent) break;
-        depth++;
-        current = parent;
-      }
-      return depth;
-    };
-    // 원댓글만 추출
-    const rootComments = comments.filter(c => !c.parentId);
-    // 각 원댓글 아래에 해당 원댓글을 부모로 하는 모든 답글(대댓글, 대대댓글 등)을 평면구조로 나열
-    const flatList: (Comment & { depth: number })[] = [];
-    rootComments.forEach(root => {
-      flatList.push({ ...root, depth: 0 });
-      // 해당 root 아래의 모든 답글(대댓글, 대대댓글 등)
-      comments
-        .filter(c => c.parentId && isDescendantOfRoot(c, root.id, commentMap))
-        .forEach(reply => {
-          flatList.push({ ...reply, depth: getDepth(reply) });
-        });
-    });
-    // 시간순(오래된 순) 정렬
-    flatList.sort((a, b) => {
-      const aTime = a.createdAt?.seconds || a.createdAt || 0;
-      const bTime = b.createdAt?.seconds || b.createdAt || 0;
-      return aTime - bTime;
-    });
-    return flatList;
-  };
-
-  // 특정 댓글이 rootId를 조상으로 두는지 확인
-  function isDescendantOfRoot(comment: Comment, rootId: string, commentMap: Map<string, Comment>): boolean {
-    let current = comment;
-    while (current.parentId) {
-      if (current.parentId === rootId) return true;
-      const parent = commentMap.get(current.parentId);
-      if (!parent) break;
-      current = parent;
-    }
-    return false;
-  }
-
->>>>>>> 6599406 (처음 커밋)
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !newComment.trim()) return;
@@ -450,11 +361,6 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
     }
   };
 
-<<<<<<< HEAD
-  const commentTree = buildCommentTree();
-
-=======
->>>>>>> 6599406 (처음 커밋)
   const formatDate = (timestamp: any) => {
     if (!timestamp) return '';
     
@@ -481,6 +387,56 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
     return user.uid === comment.writerUid || user.uid === post.writerUid;
   };
 
+  // 댓글 평면 구조로 변환 (depth 정보 포함)
+  const getFlatComments = () => {
+    // 댓글 id로 빠른 접근을 위한 맵 생성
+    const commentMap = new Map(comments.map(c => [c.id, c]));
+    // depth 계산 함수
+    const getDepth = (comment: Comment): number => {
+      let depth = 0;
+      let current = comment;
+      while (current.parentId) {
+        const parent = commentMap.get(current.parentId);
+        if (!parent) break;
+        depth++;
+        current = parent;
+      }
+      return depth;
+    };
+    // 원댓글만 추출
+    const rootComments = comments.filter(c => !c.parentId);
+    // 각 원댓글 아래에 해당 원댓글을 부모로 하는 모든 답글(대댓글, 대대댓글 등)을 평면구조로 나열
+    const flatList: (Comment & { depth: number })[] = [];
+    rootComments.forEach(root => {
+      flatList.push({ ...root, depth: 0 });
+      // 해당 root 아래의 모든 답글(대댓글, 대대댓글 등)
+      comments
+        .filter(c => c.parentId && isDescendantOfRoot(c, root.id, commentMap))
+        .forEach(reply => {
+          flatList.push({ ...reply, depth: getDepth(reply) });
+        });
+    });
+    // 시간순(오래된 순) 정렬
+    flatList.sort((a, b) => {
+      const aTime = a.createdAt?.seconds || a.createdAt || 0;
+      const bTime = b.createdAt?.seconds || b.createdAt || 0;
+      return aTime - bTime;
+    });
+    return flatList;
+  };
+
+  // 특정 댓글이 rootId를 조상으로 두는지 확인
+  function isDescendantOfRoot(comment: Comment, rootId: string, commentMap: Map<string, Comment>): boolean {
+    let current = comment;
+    while (current.parentId) {
+      if (current.parentId === rootId) return true;
+      const parent = commentMap.get(current.parentId);
+      if (!parent) break;
+      current = parent;
+    }
+    return false;
+  }
+
   if (isLoading) {
     return (
       <div className="comment-section loading">
@@ -502,11 +458,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
       </div>
 
       {/* 댓글 작성 폼 */}
-<<<<<<< HEAD
-      {user && (
-=======
       {user && (user.role === '리더' || user.role === '부운영진') ? (
->>>>>>> 6599406 (처음 커밋)
         <form onSubmit={handleSubmitComment} className="comment-form">
           <div className="comment-input-wrapper">
             <div className="input-tabs">
@@ -582,28 +534,16 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
             </button>
           </div>
         </form>
-<<<<<<< HEAD
-=======
       ) : (
         noCommentAuthMessage && (
           <div style={{ textAlign: 'center', color: '#8A55CC', fontWeight: 600, margin: '18px 0 12px 0', fontSize: '1.05rem' }}>
             {noCommentAuthMessage}
           </div>
         )
->>>>>>> 6599406 (처음 커밋)
       )}
 
       {/* 댓글 목록 */}
       <div className="comments-list">
-<<<<<<< HEAD
-        {commentTree.length === 0 ? (
-          <div className="empty-comments">
-            <MessageCircle size={48} />
-            <p>아직 댓글이 없습니다. 첫 댓글을 작성해보세요!</p>
-          </div>
-        ) : (
-          commentTree.map((comment) => (
-=======
         {getFlatComments().length === 0 ? (
           (user && emptyCommentMessageVisibleToRoles && emptyCommentMessageVisibleToRoles.includes(user.role || '')) ? (
             <div className="empty-comments">
@@ -613,7 +553,6 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
           ) : null
         ) : (
           getFlatComments().map((comment) => (
->>>>>>> 6599406 (처음 커밋)
             <CommentItem
               key={comment.id}
               comment={comment}
@@ -629,10 +568,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
                 setReplyContent('');
                 setIsReplySecret(false);
               }}
-<<<<<<< HEAD
-=======
               depth={comment.depth}
->>>>>>> 6599406 (처음 커밋)
             />
           ))
         )}

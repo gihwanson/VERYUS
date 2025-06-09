@@ -46,10 +46,7 @@ interface CommentItemProps {
   onSubmitReply: (parentId: string) => void;
   onCancelReply: () => void;
   parentAuthor?: string;
-<<<<<<< HEAD
-=======
   depth?: number;
->>>>>>> 6599406 (처음 커밋)
 }
 
 const CommentItem: React.FC<CommentItemProps> = ({
@@ -62,12 +59,8 @@ const CommentItem: React.FC<CommentItemProps> = ({
   setReplyContent,
   onSubmitReply,
   onCancelReply,
-<<<<<<< HEAD
-  parentAuthor
-=======
   parentAuthor,
   depth = 0
->>>>>>> 6599406 (처음 커밋)
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(comment.content);
@@ -194,10 +187,6 @@ const CommentItem: React.FC<CommentItemProps> = ({
     }
   };
 
-<<<<<<< HEAD
-  return (
-    <div className="comment-item">
-=======
   // 카드 색상 클래스 결정
   let cardClass = 'comment-item';
   if (depth === 0) cardClass += ' comment-root';
@@ -205,7 +194,6 @@ const CommentItem: React.FC<CommentItemProps> = ({
 
   return (
     <div className={cardClass}>
->>>>>>> 6599406 (처음 커밋)
       <div className="comment-header">
         <div className="comment-info">
           <span className="comment-author">{comment.writerNickname}
@@ -352,48 +340,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
         </div>
       )}
 
-<<<<<<< HEAD
-      {/* 대댓글 목록 */}
-      {comment.replies && comment.replies.length > 0 && (
-        isMobile
-          ? comment.replies.map((reply: Comment) => (
-              <CommentItem
-                key={reply.id}
-                comment={reply}
-                user={user}
-                postId={postId}
-                onReply={onReply}
-                replyingTo={replyingTo}
-                replyContent={replyContent}
-                setReplyContent={setReplyContent}
-                onSubmitReply={onSubmitReply}
-                onCancelReply={onCancelReply}
-                parentAuthor={comment.writerNickname}
-              />
-            ))
-          : (
-            <div className="replies-list">
-              {comment.replies.map((reply: Comment) => (
-                <CommentItem
-                  key={reply.id}
-                  comment={reply}
-                  user={user}
-                  postId={postId}
-                  onReply={onReply}
-                  replyingTo={replyingTo}
-                  replyContent={replyContent}
-                  setReplyContent={setReplyContent}
-                  onSubmitReply={onSubmitReply}
-                  onCancelReply={onCancelReply}
-                  parentAuthor={comment.writerNickname}
-                />
-              ))}
-            </div>
-          )
-      )}
-=======
       {/* 대댓글 목록 삭제: 평면 구조에서는 replies를 렌더링하지 않음 */}
->>>>>>> 6599406 (처음 커밋)
     </div>
   );
 };

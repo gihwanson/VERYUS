@@ -2,6 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, Timestamp, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useNavigate } from 'react-router-dom';
+import { collection as fbCollection, getDocs as fbGetDocs } from 'firebase/firestore';
+
+const GRADE_ORDER = [
+  '🌙', '⭐', '⚡', '🍺', '🌌', '☀️', '🪐', '🌍', '🍉', '🍈', '🍎', '🥝', '🫐', '🍒'
+]; // 높은 등급이 앞에 오도록(달~체리)
+const gradeNames = {
+  '🍒': '체리', '🫐': '블루베리', '🥝': '키위', '🍎': '사과', '🍈': '멜론', '🍉': '수박',
+  '🌍': '지구', '🪐': '토성', '☀️': '태양', '🌌': '은하', '🍺': '맥주', '⚡': '번개', '⭐': '별', '🌙': '달'
+};
 
 const ApprovedSongs: React.FC = () => {
   const [songs, setSongs] = useState<any[]>([]);
@@ -19,11 +28,10 @@ const ApprovedSongs: React.FC = () => {
   const [showList, setShowList] = useState(false);
   const navigate = useNavigate();
   const [songType, setSongType] = useState<'all' | 'solo' | 'duet'>('all');
-<<<<<<< HEAD
-=======
   const [resultSongType, setResultSongType] = useState<'all' | 'solo' | 'duet'>('all');
   const [searchTerm, setSearchTerm] = useState('');
->>>>>>> 6599406 (처음 커밋)
+  const [userMap, setUserMap] = useState<Record<string, {grade?: string}>>({});
+  const [buskingTab, setBuskingTab] = useState<'all'|'solo'|'duet'|'grade'>('all');
 
   useEffect(() => {
     const fetchSongs = async () => {
@@ -34,6 +42,19 @@ const ApprovedSongs: React.FC = () => {
     };
     fetchSongs();
   }, [sort]);
+
+  useEffect(() => {
+    // 유저 등급 정보도 fetch
+    (async () => {
+      const snap = await fbGetDocs(fbCollection(db, 'users'));
+      const map: Record<string, {grade?: string}> = {};
+      snap.docs.forEach(doc => {
+        const d = doc.data();
+        if (d.nickname) map[d.nickname] = { grade: d.grade };
+      });
+      setUserMap(map);
+    })();
+  }, []);
 
   const handleSave = async () => {
     if (!form.title.trim() || form.members.some(m => !m.trim())) {
@@ -59,7 +80,6 @@ const ApprovedSongs: React.FC = () => {
           createdByRole: user?.role || '',
         });
       }
-      setShowForm(false);
       setForm({ title: '', members: [''] });
       setEditId(null);
       // 목록 새로고침
@@ -135,12 +155,6 @@ const ApprovedSongs: React.FC = () => {
         </div>
       )}
       {/* 합격곡 리스트 */}
-<<<<<<< HEAD
-      {!showForm && showList && (
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 12 }}>
-            <button onClick={() => setShowList(false)} style={{ background: '#E5DAF5', color: '#7C4DBC', border: 'none', borderRadius: 8, padding: '6px 16px', fontWeight: 600, cursor: 'pointer' }}>이전</button>
-=======
       {showList && (
         <div>
           {/* 검색창 */}
@@ -152,7 +166,6 @@ const ApprovedSongs: React.FC = () => {
               placeholder="곡 제목 또는 닉네임 검색"
               style={{ width: 260, padding: '8px 14px', borderRadius: 8, border: '1px solid #E5DAF5', fontSize: 15 }}
             />
->>>>>>> 6599406 (처음 커밋)
           </div>
           {/* 필터 탭 */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 16, justifyContent: 'center' }}>
@@ -160,25 +173,6 @@ const ApprovedSongs: React.FC = () => {
             <button onClick={() => setSongType('solo')} style={{ background: songType === 'solo' ? '#8A55CC' : '#F6F2FF', color: songType === 'solo' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '6px 18px', fontWeight: 700, cursor: 'pointer' }}>솔로곡</button>
             <button onClick={() => setSongType('duet')} style={{ background: songType === 'duet' ? '#8A55CC' : '#F6F2FF', color: songType === 'duet' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '6px 18px', fontWeight: 700, cursor: 'pointer' }}>듀엣/합창곡</button>
           </div>
-<<<<<<< HEAD
-          {loading ? <div style={{ color: '#B497D6', textAlign: 'center', marginTop: 40 }}>로딩 중...</div> : (
-            <ul style={{ listStyle: 'none', padding: 0 }}>
-              {displayedSongs.map(song => (
-                <li key={song.id} style={{ padding: '12px 0', borderBottom: '1px solid #E5DAF5', display: 'flex', alignItems: 'center', gap: 16 }}>
-                  <span style={{ fontWeight: 700, color: '#7C4DBC', fontSize: 18 }}>{song.title}</span>
-                  <span style={{ color: '#6B7280', fontWeight: 500 }}>{song.members?.join(', ')}</span>
-                  {isAdmin && <button style={{ marginLeft: 'auto', background: '#E5DAF5', color: '#7C4DBC', borderRadius: 8, padding: '6px 16px', fontWeight: 600, border: 'none', cursor: 'pointer' }} onClick={() => {
-                    setEditId(song.id);
-                    setForm({ title: song.title, members: Array.isArray(song.members) ? song.members : [''] });
-                    setShowForm(true);
-                    setShowList(false);
-                  }}>수정</button>}
-                  {isLeader && <button style={{ background: '#F43F5E', color: '#fff', borderRadius: 8, padding: '6px 16px', fontWeight: 600, border: 'none', cursor: 'pointer' }}>삭제</button>}
-                </li>
-              ))}
-            </ul>
-          )}
-=======
           {/* 리스트 필터링 */}
           <ul style={{ listStyle: 'none', padding: 0 }}>
             {displayedSongs
@@ -193,10 +187,31 @@ const ApprovedSongs: React.FC = () => {
                 <li key={song.id} style={{ padding: '8px 0', borderBottom: '1px solid #E5DAF5', display: 'flex', alignItems: 'center', gap: 12 }}>
                   <span style={{ fontWeight: 700, color: '#7C4DBC' }}>{song.title}</span>
                   <span style={{ color: '#6B7280', fontWeight: 500 }}>{song.members?.join(', ')}</span>
+                  {isAdmin && (
+                    <>
+                      <button
+                        style={{ background: '#FBBF24', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontWeight: 600, cursor: 'pointer' }}
+                        onClick={() => {
+                          setForm({ title: song.title, members: Array.isArray(song.members) ? song.members : [''] });
+                          setEditId(song.id);
+                          setShowForm(true);
+                          setShowList(false);
+                        }}
+                      >수정</button>
+                      <button
+                        style={{ background: '#EF4444', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontWeight: 600, cursor: 'pointer' }}
+                        onClick={async () => {
+                          if (window.confirm('정말 삭제하시겠습니까?')) {
+                            await deleteDoc(doc(db, 'approvedSongs', song.id));
+                            setSongs(songs => songs.filter(s => s.id !== song.id));
+                          }
+                        }}
+                      >삭제</button>
+                    </>
+                  )}
                 </li>
               ))}
           </ul>
->>>>>>> 6599406 (처음 커밋)
         </div>
       )}
       {/* 버스킹용 합격곡 조회 폼 */}
@@ -235,37 +250,47 @@ const ApprovedSongs: React.FC = () => {
           {/* 조회 결과 리스트 */}
           {filteredSongs.length > 0 && (
             <div style={{ marginTop: 16 }}>
-<<<<<<< HEAD
-              <h4 style={{ color: '#7C4DBC', fontWeight: 700, fontSize: 16, marginBottom: 8 }}>가능한 합격곡</h4>
-              <ul style={{ listStyle: 'none', padding: 0 }}>
-                {filteredSongs.map(song => (
-                  <li key={song.id} style={{ padding: '8px 0', borderBottom: '1px solid #E5DAF5', display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span style={{ fontWeight: 700, color: '#7C4DBC' }}>{song.title}</span>
-                    <span style={{ color: '#6B7280', fontWeight: 500 }}>{song.members?.join(', ')}</span>
-                  </li>
-                ))}
-=======
               {/* 결과 탭 */}
               <div style={{ display: 'flex', gap: 8, marginBottom: 12, justifyContent: 'center' }}>
-                <button onClick={() => setResultSongType('all')} style={{ background: resultSongType === 'all' ? '#8A55CC' : '#F6F2FF', color: resultSongType === 'all' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '5px 16px', fontWeight: 700, cursor: 'pointer' }}>전체</button>
-                <button onClick={() => setResultSongType('solo')} style={{ background: resultSongType === 'solo' ? '#8A55CC' : '#F6F2FF', color: resultSongType === 'solo' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '5px 16px', fontWeight: 700, cursor: 'pointer' }}>솔로곡</button>
-                <button onClick={() => setResultSongType('duet')} style={{ background: resultSongType === 'duet' ? '#8A55CC' : '#F6F2FF', color: resultSongType === 'duet' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '5px 16px', fontWeight: 700, cursor: 'pointer' }}>듀엣/합창곡</button>
+                <button onClick={() => setBuskingTab('all')} style={{ background: buskingTab === 'all' ? '#8A55CC' : '#F6F2FF', color: buskingTab === 'all' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '5px 16px', fontWeight: 700, cursor: 'pointer' }}>전체</button>
+                <button onClick={() => setBuskingTab('solo')} style={{ background: buskingTab === 'solo' ? '#8A55CC' : '#F6F2FF', color: buskingTab === 'solo' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '5px 16px', fontWeight: 700, cursor: 'pointer' }}>솔로곡</button>
+                <button onClick={() => setBuskingTab('duet')} style={{ background: buskingTab === 'duet' ? '#8A55CC' : '#F6F2FF', color: buskingTab === 'duet' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '5px 16px', fontWeight: 700, cursor: 'pointer' }}>듀엣/합창곡</button>
+                <button onClick={() => setBuskingTab('grade')} style={{ background: buskingTab === 'grade' ? '#8A55CC' : '#F6F2FF', color: buskingTab === 'grade' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '5px 16px', fontWeight: 700, cursor: 'pointer' }}>등급순</button>
               </div>
-              <h4 style={{ color: '#7C4DBC', fontWeight: 700, fontSize: 16, marginBottom: 8 }}>가능한 합격곡</h4>
+              {/* 곡 리스트 */}
               <ul style={{ listStyle: 'none', padding: 0 }}>
                 {filteredSongs
                   .filter(song => {
-                    if (resultSongType === 'solo') return Array.isArray(song.members) && song.members.length === 1;
-                    if (resultSongType === 'duet') return Array.isArray(song.members) && song.members.length >= 2;
+                    if (buskingTab === 'solo') return Array.isArray(song.members) && song.members.length === 1;
+                    if (buskingTab === 'duet') return Array.isArray(song.members) && song.members.length >= 2;
                     return true;
                   })
-                  .map(song => (
-                    <li key={song.id} style={{ padding: '8px 0', borderBottom: '1px solid #E5DAF5', display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <span style={{ fontWeight: 700, color: '#7C4DBC' }}>{song.title}</span>
-                      <span style={{ color: '#6B7280', fontWeight: 500 }}>{song.members?.join(', ')}</span>
-                    </li>
-                  ))}
->>>>>>> 6599406 (처음 커밋)
+                  .sort((a, b) => {
+                    if (buskingTab !== 'grade') return 0;
+                    // 등급순: 곡 멤버 중 최고 등급으로 내림차순
+                    const getMaxGradeIdx = (song: any) => {
+                      const idxs = (song.members||[]).map((m:string) => GRADE_ORDER.indexOf(userMap[m]?.grade||'🍒'));
+                      return Math.min(...(idxs.length?idxs:[GRADE_ORDER.length-1]));
+                    };
+                    return getMaxGradeIdx(a) - getMaxGradeIdx(b);
+                  })
+                  .map((song) => {
+                    if (!song) return null;
+                    let maxGrade = '🍒';
+                    if (buskingTab === 'grade') {
+                      const idxs = (song.members||[]).map((m:string) => GRADE_ORDER.indexOf(userMap[m]?.grade||'🍒'));
+                      const minIdx = Math.min(...(idxs.length?idxs:[GRADE_ORDER.length-1]));
+                      maxGrade = GRADE_ORDER[minIdx] || '🍒';
+                    }
+                    return (
+                      <li key={song.id} style={{ padding: '8px 0', borderBottom: '1px solid #E5DAF5', display: 'flex', alignItems: 'center', gap: 12 }}>
+                        {buskingTab === 'grade' && <span style={{ fontWeight: 700, color: '#FBBF24', fontSize: 18 }}>{maxGrade}</span>}
+                        <span style={{ fontWeight: 700, color: '#7C4DBC' }}>{song.title}</span>
+                        <span style={{ color: '#6B7280', fontWeight: 500 }}>{song.members?.join(', ')}</span>
+                      </li>
+                    );
+                  })
+                  .filter(Boolean)}
               </ul>
             </div>
           )}

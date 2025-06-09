@@ -26,6 +26,7 @@ import {
   Gift
 } from 'lucide-react';
 import './Home.css';
+import SpecialMomentsCard from './SpecialMomentsCard';
 
 // Types
 interface User {
@@ -107,11 +108,7 @@ const DEFAULT_TEAM_INFO: TeamInfo = {
 const BOARDS: BoardItem[] = [
   { name: '자유게시판', icon: MessageSquare, path: '/free' },
   { name: '녹음게시판', icon: Mic, path: '/recording' },
-<<<<<<< HEAD
-  { name: '평가게시판', icon: Star, path: '/boards/evaluation' },
-=======
   { name: '평가게시판', icon: Star, path: '/evaluation' },
->>>>>>> 6599406 (처음 커밋)
   { name: '파트너모집', icon: UserPlus, path: '/boards/partner' }
 ];
 
@@ -407,11 +404,7 @@ const Home: React.FC = () => {
   };
 
   const navigateToBoard = (path: string) => {
-<<<<<<< HEAD
-    if (path === '/free' || path === '/recording' || path === '/boards/partner') {
-=======
     if (path === '/free' || path === '/recording' || path === '/boards/partner' || path === '/evaluation') {
->>>>>>> 6599406 (처음 커밋)
       navigate(path);
     } else {
       alert(`${path} 페이지로 이동합니다. (추후 구현)`);
@@ -624,62 +617,7 @@ const Home: React.FC = () => {
         </div>
 
         {/* 팀 소개 카드 */}
-        <div className="home-card clickable" onClick={() => !editingTeamInfo && navigateToBoard('/about')}>
-          <div className="card-header">
-            <Users className="card-icon" />
-            <h3 className="card-title">VERYUS 소개</h3>
-            {isAdmin(user) && (
-              <div className="edit-buttons">
-                {editingTeamInfo ? (
-                  <>
-                    <button onClick={handleSaveTeamInfo} className="save-btn">저장</button>
-                    <button onClick={() => setEditingTeamInfo(false)} className="cancel-btn">취소</button>
-                  </>
-                ) : (
-                  <button onClick={(e) => { e.stopPropagation(); setEditingTeamInfo(true); }} className="edit-btn">
-                    <Edit size={14} />
-                    수정
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-          <div className="team-info">
-            <div className="team-detail">
-              <Calendar className="team-detail-icon" />
-              <span>창립일: {editingTeamInfo ? (
-                <input
-                  type="text"
-                  value={teamInfo.foundDate}
-                  onChange={(e) => setTeamInfo({ ...teamInfo, foundDate: e.target.value })}
-                  className="edit-input"
-                />
-              ) : teamInfo.foundDate}</span>
-            </div>
-            <div className="team-detail">
-              <MapPin className="team-detail-icon" />
-              <span>활동지역: {editingTeamInfo ? (
-                <input
-                  type="text"
-                  value={teamInfo.location}
-                  onChange={(e) => setTeamInfo({ ...teamInfo, location: e.target.value })}
-                  className="edit-input"
-                />
-              ) : teamInfo.location}</span>
-            </div>
-            <div className="team-detail">
-              <Music className="team-detail-icon" />
-              <span>팀 목적: {editingTeamInfo ? (
-                <input
-                  type="text"
-                  value={teamInfo.purpose}
-                  onChange={(e) => setTeamInfo({ ...teamInfo, purpose: e.target.value })}
-                  className="edit-input"
-                />
-              ) : teamInfo.purpose}</span>
-            </div>
-          </div>
-        </div>
+        <SpecialMomentsCard />
 
         {/* 게시판 바로가기 */}
         <div className="home-card">
@@ -760,11 +698,7 @@ const Home: React.FC = () => {
           <div className="activities-grid">
             {recentFree && (
               <div className="activity-section">
-<<<<<<< HEAD
-                <h4><MessageSquare size={16} />자유게시판</h4>
-=======
                 <h4 style={{cursor:'pointer'}} onClick={() => navigate(`/free/${recentFree.id}`)}><MessageSquare size={16} />자유게시판</h4>
->>>>>>> 6599406 (처음 커밋)
                 <div className="post-item" onClick={() => navigate(`/free/${recentFree.id}`)}>
                   <div className="post-title">{recentFree.title}</div>
                   <div className="post-meta">
@@ -776,11 +710,7 @@ const Home: React.FC = () => {
             )}
             {recentRecording && (
               <div className="activity-section">
-<<<<<<< HEAD
-                <h4><Mic size={16} />녹음게시판</h4>
-=======
                 <h4 style={{cursor:'pointer'}} onClick={() => navigate(`/recording/${recentRecording.id}`)}><Mic size={16} />녹음게시판</h4>
->>>>>>> 6599406 (처음 커밋)
                 <div className="post-item" onClick={() => navigate(`/recording/${recentRecording.id}`)}>
                   <div className="post-title">{recentRecording.title}</div>
                   <div className="post-meta">
@@ -792,11 +722,7 @@ const Home: React.FC = () => {
             )}
             {recentEvaluation && (
               <div className="activity-section">
-<<<<<<< HEAD
-                <h4><Star size={16} />평가게시판</h4>
-=======
                 <h4 style={{cursor:'pointer'}} onClick={() => navigate(`/boards/evaluation/${recentEvaluation.id}`)}><Star size={16} />평가게시판</h4>
->>>>>>> 6599406 (처음 커밋)
                 <div className="post-item" onClick={() => navigate(`/boards/evaluation/${recentEvaluation.id}`)}>
                   <div className="post-title">{recentEvaluation.title}</div>
                   <div className="post-meta">
@@ -808,11 +734,7 @@ const Home: React.FC = () => {
             )}
             {recentPartner && (
               <div className="activity-section">
-<<<<<<< HEAD
-                <h4><UserPlus size={16} />파트너모집</h4>
-=======
                 <h4 style={{cursor:'pointer'}} onClick={() => navigate(`/boards/partner/${recentPartner.id}`)}><UserPlus size={16} />파트너모집</h4>
->>>>>>> 6599406 (처음 커밋)
                 <div className="post-item" onClick={() => navigate(`/boards/partner/${recentPartner.id}`)}>
                   <div className="post-title">{recentPartner.title}</div>
                   <div className="post-meta">

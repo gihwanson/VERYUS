@@ -55,8 +55,6 @@ import PartnerPostList from './components/PartnerPostList';
 import PartnerPostWrite from './components/PartnerPostWrite';
 // @ts-ignore
 import PartnerPostDetail from './components/PartnerPostDetail';
-<<<<<<< HEAD
-=======
 // @ts-ignore
 import EvaluationPostList from './components/EvaluationPostList';
 // @ts-ignore
@@ -65,7 +63,6 @@ import EvaluationPostWrite from './components/EvaluationPostWrite';
 import EvaluationPostDetail from './components/EvaluationPostDetail';
 // @ts-ignore
 import EvaluationPostEdit from './components/EvaluationPostEdit';
->>>>>>> 6599406 (처음 커밋)
 import './App.css';
 
 // 관리자 권한 체크 함수
@@ -370,15 +367,12 @@ function App() {
           <Route path="/boards/partner/:id" element={<PartnerPostDetail />} />
           <Route path="/boards/partner/edit/:id" element={<PartnerPostWrite />} />
           
-<<<<<<< HEAD
-=======
           {/* 평가게시판 라우트들 */}
           <Route path="/evaluation" element={<EvaluationPostList />} />
           <Route path="/evaluation/write" element={<EvaluationPostWrite />} />
           <Route path="/evaluation/:id" element={<EvaluationPostDetail />} />
           <Route path="/evaluation/edit/:id" element={<EvaluationPostEdit />} />
           
->>>>>>> 6599406 (처음 커밋)
           {/* 기타 모든 경로 - 404 대신 로그인으로 리다이렉트 */}
           <Route 
             path="*" 
