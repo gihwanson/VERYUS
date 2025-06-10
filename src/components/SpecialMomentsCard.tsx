@@ -17,6 +17,7 @@ const SpecialMomentsCard: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [selected, setSelected] = useState<Moment | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [showAllModal, setShowAllModal] = useState(false);
   const userString = localStorage.getItem('veryus_user');
   const user = userString ? JSON.parse(userString) : null;
   const isAdmin = user && (user.role === '리더' || user.role === '운영진');
@@ -74,17 +75,30 @@ const SpecialMomentsCard: React.FC = () => {
       <div className="moments-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 12 }}>
         {moments.length === 0 ? (
           <div style={{ color: '#B497D6', textAlign: 'center', gridColumn: '1/-1', padding: 24 }}>아직 등록된 순간이 없습니다.</div>
-        ) : moments.map(m => (
-          <div key={m.id} className="moment-thumb" style={{ cursor: 'pointer', borderRadius: 12, overflow: 'hidden', background: '#fff', boxShadow: '0 1px 4px #E5DAF5' }} onClick={() => { setSelected(m); setModalOpen(true); }}>
-            {m.type === 'image' ? (
-              <img src={m.url} alt={m.description || '특별한 순간'} style={{ width: '100%', height: 90, objectFit: 'cover', display: 'block' }} />
-            ) : (
-              <video src={m.url} style={{ width: '100%', height: 90, objectFit: 'cover', display: 'block' }} muted />
+        ) : (
+          <>
+            {moments.slice(0, 4).map(m => (
+              <div key={m.id} className="moment-thumb" style={{ cursor: 'pointer', borderRadius: 12, overflow: 'hidden', background: '#fff', boxShadow: '0 1px 4px #E5DAF5', display: 'flex', flexDirection: 'column', alignItems: 'center' }} onClick={() => { setSelected(m); setModalOpen(true); }}>
+                {m.type === 'image' ? (
+                  <img src={m.url} alt={m.description || '특별한 순간'} style={{ width: '100%', height: 90, objectFit: 'cover', display: 'block' }} />
+                ) : (
+                  <video src={m.url} style={{ width: '100%', height: 90, objectFit: 'cover', display: 'block' }} muted />
+                )}
+                <div style={{ fontSize: 13, color: '#7C4DBC', marginTop: 4, width: '100%', textAlign: 'center', minHeight: 18 }}>{m.description || ''}</div>
+              </div>
+            ))}
+            {moments.length > 4 && (
+              <button
+                onClick={() => setShowAllModal(true)}
+                style={{ gridColumn: '1/-1', marginTop: 8, background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 0', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}
+              >
+                전체보기
+              </button>
             )}
-          </div>
-        ))}
+          </>
+        )}
       </div>
-      {/* 모달 */}
+      {/* 개별 사진 모달 */}
       {modalOpen && selected && (
         <div className="moments-modal" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setModalOpen(false)}>
           <div style={{ background: '#fff', borderRadius: 16, padding: 16, maxWidth: 420, width: '90vw', maxHeight: '80vh', overflow: 'auto', position: 'relative' }} onClick={e => e.stopPropagation()}>
@@ -94,7 +108,27 @@ const SpecialMomentsCard: React.FC = () => {
             ) : (
               <video src={selected.url} controls style={{ width: '100%', borderRadius: 12, marginBottom: 10 }} />
             )}
-            {selected.description && <div style={{ color: '#7C4DBC', fontWeight: 500, fontSize: 15, marginTop: 6 }}>{selected.description}</div>}
+            <div style={{ color: '#7C4DBC', fontWeight: 500, fontSize: 15, marginTop: 6 }}>{selected.description || ''}</div>
+          </div>
+        </div>
+      )}
+      {/* 전체보기 모달 */}
+      {showAllModal && (
+        <div className="moments-modal" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowAllModal(false)}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 16, maxWidth: 600, width: '95vw', maxHeight: '85vh', overflow: 'auto', position: 'relative' }} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setShowAllModal(false)} style={{ position: 'absolute', top: 10, right: 10, background: 'none', border: 'none', fontSize: 22, color: '#8A55CC', cursor: 'pointer' }}>×</button>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, justifyContent: 'center' }}>
+              {moments.map(m => (
+                <div key={m.id} style={{ width: 220, marginBottom: 16, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  {m.type === 'image' ? (
+                    <img src={m.url} alt={m.description || '특별한 순간'} style={{ width: '100%', borderRadius: 12, marginBottom: 8, maxHeight: 160, objectFit: 'cover' }} />
+                  ) : (
+                    <video src={m.url} controls style={{ width: '100%', borderRadius: 12, marginBottom: 8, maxHeight: 160, objectFit: 'cover' }} />
+                  )}
+                  <div style={{ color: '#7C4DBC', fontWeight: 500, fontSize: 15, textAlign: 'center', minHeight: 18 }}>{m.description || ''}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}

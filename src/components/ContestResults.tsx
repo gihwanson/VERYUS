@@ -7,6 +7,8 @@ const ContestResults: React.FC = () => {
   const { id } = useParams();
   const [contest, setContest] = useState<any>(null);
   const [grades, setGrades] = useState<any[]>([]);
+  const [teams, setTeams] = useState<any[]>([]);
+  const [participants, setParticipants] = useState<any[]>([]);
   const userString = localStorage.getItem('veryus_user');
   const user = userString ? JSON.parse(userString) : null;
   const isAdmin = user && ['리더', '운영진', '부운영진'].includes(user.role);
@@ -16,6 +18,9 @@ const ContestResults: React.FC = () => {
     getDoc(doc(db, 'contests', id)).then(snap => setContest(snap.exists() ? { id: snap.id, ...snap.data() } : null));
     // 전체 심사결과 불러오기
     getDocs(collection(db, 'contests', id, 'grades')).then(snap => setGrades(snap.docs.map(doc => doc.data())));
+    // 팀/참가자 정보도 불러오기
+    getDocs(collection(db, 'contests', id, 'teams')).then(snap => setTeams(snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))));
+    getDocs(collection(db, 'contests', id, 'participants')).then(snap => setParticipants(snap.docs.map(doc => doc.data())));
   }, [id]);
 
   if (!contest) return <div style={{ padding: 40, textAlign: 'center', color: '#B497D6' }}>콘테스트 정보를 불러오는 중...</div>;
@@ -54,6 +59,22 @@ const ContestResults: React.FC = () => {
     if (g.comment) subAdminParticipantMap[g.target].comments.push(g.comment);
   });
 
+  // 피평가자 표시 함수
+  const getTargetDisplay = (target: string) => {
+    const team = teams.find(t => t.id === target);
+    if (team) {
+      // 듀엣: 팀명 (팀원1, 팀원2)
+      const memberNames = Array.isArray(team.members) ? team.members.map((uid: string) => {
+        const p = participants.find(pp => pp.uid === uid);
+        return p ? p.nickname : uid;
+      }).join(', ') : '';
+      return `${team.teamName} (${memberNames})`;
+    }
+    // 솔로: 닉네임
+    const solo = participants.find(p => p.uid === target);
+    return solo ? solo.nickname : target;
+  };
+
   return (
     <div className="contest-card">
       <button
@@ -78,11 +99,11 @@ const ContestResults: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {Object.entries(participantMap).map(([nickname, { scores, comments }]) => {
+            {Object.entries(participantMap).map(([target, { scores, comments }]) => {
               const avg = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
               return (
-                <tr key={nickname}>
-                  <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{nickname}</td>
+                <tr key={target}>
+                  <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{getTargetDisplay(target)}</td>
                   <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{avg ? avg.toFixed(1) : '-'}</td>
                   <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{avg ? getGrade(avg) : '-'}</td>
                   <td style={{ padding: 8, border: '1px solid #E5DAF5', maxWidth: 320, wordBreak: 'break-all', whiteSpace: 'pre-line' }}>{comments.join(', ')}</td>
@@ -110,7 +131,7 @@ const ContestResults: React.FC = () => {
               {grades.map((g, i) => (
                 <tr key={i}>
                   <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{g.evaluator}</td>
-                  <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{g.target}</td>
+                  <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{getTargetDisplay(g.target)}</td>
                   <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{g.score}</td>
                   <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{getGrade(Number(g.score))}</td>
                   <td style={{ padding: 8, border: '1px solid #E5DAF5', maxWidth: 320, wordBreak: 'break-all', whiteSpace: 'pre-line' }}>{g.comment}</td>
@@ -136,7 +157,7 @@ const ContestResults: React.FC = () => {
                   {subAdmins.map((g, i) => (
                     <tr key={i}>
                       <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{g.evaluator}</td>
-                      <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{g.target}</td>
+                      <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{getTargetDisplay(g.target)}</td>
                       <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{g.score}</td>
                       <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{getGrade(Number(g.score))}</td>
                       <td style={{ padding: 8, border: '1px solid #E5DAF5', maxWidth: 320, wordBreak: 'break-all', whiteSpace: 'pre-line' }}>{g.comment}</td>
