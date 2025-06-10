@@ -23,6 +23,8 @@ const ContestParticipate: React.FC = () => {
   const [gradeInputs, setGradeInputs] = useState<Record<string, { score: string; comment: string }>>({});
   const [grading, setGrading] = useState<Record<string, boolean>>({});
   const [successMsgMap, setSuccessMsgMap] = useState<Record<string, string>>({});
+  const [allSubmitted, setAllSubmitted] = useState(false);
+  const [showSubmitMsg, setShowSubmitMsg] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -164,6 +166,14 @@ const ContestParticipate: React.FC = () => {
     setSuccessMsgMap(msgs => ({ ...msgs, [targetId]: '이미 제출하셨습니다.' }));
   };
 
+  // 평가 완료(전체) 버튼 핸들러
+  const handleAllSubmit = () => {
+    setShowSubmitMsg(true);
+    setTimeout(() => {
+      navigate(`/contests/${id}`);
+    }, 1500);
+  };
+
   if (ended) {
     return <div style={{ padding: 40, textAlign: 'center', color: '#F43F5E', fontWeight: 700 }}>이 콘테스트는 종료되어 더 이상 참여할 수 없습니다.</div>;
   }
@@ -171,14 +181,39 @@ const ContestParticipate: React.FC = () => {
   if (!contest) return <div style={{ padding: 40, textAlign: 'center', color: '#B497D6' }}>콘테스트 정보를 불러오는 중...</div>;
 
   return (
-    <div style={{ maxWidth: 600, margin: '0 auto', padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div
+      style={{
+        maxWidth: 600,
+        margin: '0 auto',
+        padding: 24,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        width: '100%',
+        boxSizing: 'border-box',
+      }}
+    >
       <button
         style={{ background: '#F6F2FF', color: '#8A55CC', borderRadius: 8, padding: '8px 20px', fontWeight: 600, fontSize: 16, border: 'none', cursor: 'pointer', marginBottom: 24, alignSelf: 'flex-start' }}
         onClick={() => navigate(`/contests/${id}`)}
       >
         ← 콘테스트 메인으로
       </button>
-      <div className="contest-card" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#FFF7E6', borderRadius: 16, padding: 32, boxSizing: 'border-box' }}>
+      <div
+        className="contest-card"
+        style={{
+          width: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          background: '#FFF7E6',
+          borderRadius: 16,
+          padding: 32,
+          boxSizing: 'border-box',
+          maxWidth: 500,
+          minWidth: 0,
+        }}
+      >
         <h2 style={{ color: '#8A55CC', fontWeight: 700, fontSize: 28, marginBottom: 8, textAlign: 'center' }}>{contest.title}</h2>
         <div style={{ color: '#6B7280', fontWeight: 500, marginBottom: 8, textAlign: 'center' }}>{contest.type}</div>
         <div style={{ color: '#B497D6', fontSize: 15, marginBottom: 24, textAlign: 'center' }}>마감: {contest.deadline && (contest.deadline.seconds ? new Date(contest.deadline.seconds * 1000).toLocaleDateString('ko-KR') : '')}</div>
@@ -215,14 +250,15 @@ const ContestParticipate: React.FC = () => {
                 )}
               </div>
               <div style={{ width: '100%' }}>
-                <label style={{ fontWeight: 600 }}>점수(0-100)</label>
+                <label style={{ fontWeight: 600, marginBottom: 4, display: 'block' }}>점수 (0~100점 입력)</label>
                 <input
                   type="number"
                   min={0}
                   max={100}
                   value={score}
                   onChange={e => handleScoreChange(e.target.value)}
-                  style={{ width: '100%', padding: 14, fontSize: 18, borderRadius: 8, border: '1px solid #E5DAF5', marginTop: 6 }}
+                  style={{ width: '100%', padding: 14, fontSize: 18, borderRadius: 8, border: '1px solid #E5DAF5', marginTop: 2, marginBottom: 2, boxSizing: 'border-box' }}
+                  placeholder="0~100 사이의 점수를 입력하세요"
                   disabled={!hasEvaluatableTargets}
                 />
                 {suggestedGrade && (
@@ -235,11 +271,11 @@ const ContestParticipate: React.FC = () => {
                   value={comment}
                   onChange={e => setComment(e.target.value)}
                   placeholder="심사 코멘트를 입력하세요 (선택)"
-                  style={{ width: '100%', padding: 14, fontSize: 18, borderRadius: 8, border: '1px solid #E5DAF5', marginTop: 6, minHeight: 80, resize: 'vertical' }}
+                  style={{ width: '100%', padding: 14, fontSize: 18, borderRadius: 8, border: '1px solid #E5DAF5', marginTop: 6, minHeight: 120, resize: 'vertical' }}
                   disabled={!hasEvaluatableTargets}
                 />
               </div>
-              <div style={{ display: 'flex', gap: 16, justifyContent: 'center', width: '100%' }}>
+              <div style={{ display: 'flex', gap: 16, justifyContent: 'center', width: '100%', flexDirection: 'row' }}>
                 <button type="submit" style={{ background: '#8A55CC', color: '#fff', borderRadius: 8, padding: '10px 24px', fontWeight: 600, fontSize: 16, border: 'none', cursor: 'pointer' }} disabled={!hasEvaluatableTargets}>제출</button>
                 <button type="button" style={{ background: '#F43F5E', color: '#fff', borderRadius: 8, padding: '10px 24px', fontWeight: 600, fontSize: 16, border: 'none', cursor: 'pointer' }} onClick={handleComplete}>완료</button>
               </div>
@@ -268,11 +304,11 @@ const ContestParticipate: React.FC = () => {
                             type="number"
                             min={0}
                             max={100}
-                            placeholder="점수(0~100)"
+                            placeholder="0~100 사이의 점수 입력"
                             value={gradeInputs[team.id]?.score || ''}
                             onChange={e => setGradeInputs(inputs => ({ ...inputs, [team.id]: { ...inputs[team.id], score: e.target.value } }))}
                             disabled={isMyTeam || alreadyGraded || grading[team.id]}
-                            style={{ width: 80, padding: '4px 8px', borderRadius: 6, border: '1px solid #E5DAF5' }}
+                            style={{ width: '100%', maxWidth: 120, padding: '8px 12px', borderRadius: 6, border: '1px solid #E5DAF5', marginBottom: 2, boxSizing: 'border-box' }}
                           />
                           <input
                             type="text"
@@ -307,18 +343,34 @@ const ContestParticipate: React.FC = () => {
                   const isMe = user && p.uid === user.uid;
                   const alreadyGraded = gradedTargets.includes(p.uid);
                   return (
-                    <div key={p.uid} style={{ background: '#F6F2FF', borderRadius: 8, padding: '12px 16px', marginBottom: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, width: '100%' }}>
-                      <div style={{ fontWeight: 600, color: '#8A55CC', textAlign: 'center' }}>{p.nickname}</div>
+                    <div
+                      key={p.uid}
+                      style={{
+                        background: '#F6F2FF',
+                        borderRadius: 8,
+                        padding: '12px 16px',
+                        marginBottom: 12,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 8,
+                        width: '100%',
+                        filter: alreadyGraded ? 'grayscale(1) opacity(0.7)' : 'none',
+                        border: alreadyGraded ? '2px dashed #B497D6' : 'none',
+                        position: 'relative',
+                      }}
+                    >
+                      <div style={{ fontWeight: 600, color: '#8A55CC', textAlign: 'center', textDecoration: alreadyGraded ? 'line-through' : 'none' }}>{p.nickname}</div>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
                         <input
                           type="number"
                           min={0}
                           max={100}
-                          placeholder="점수(0~100)"
+                          placeholder="0~100 사이의 점수 입력"
                           value={gradeInputs[p.uid]?.score || ''}
                           onChange={e => setGradeInputs(inputs => ({ ...inputs, [p.uid]: { ...inputs[p.uid], score: e.target.value } }))}
                           disabled={isMe || alreadyGraded || grading[p.uid]}
-                          style={{ width: 80, padding: '4px 8px', borderRadius: 6, border: '1px solid #E5DAF5' }}
+                          style={{ width: '100%', maxWidth: 120, padding: '8px 12px', borderRadius: 6, border: '1px solid #E5DAF5', marginBottom: 2, boxSizing: 'border-box' }}
                         />
                         <input
                           type="text"
@@ -326,7 +378,7 @@ const ContestParticipate: React.FC = () => {
                           value={gradeInputs[p.uid]?.comment || ''}
                           onChange={e => setGradeInputs(inputs => ({ ...inputs, [p.uid]: { ...inputs[p.uid], comment: e.target.value } }))}
                           disabled={isMe || alreadyGraded || grading[p.uid]}
-                          style={{ width: 180, padding: '4px 8px', borderRadius: 6, border: '1px solid #E5DAF5' }}
+                          style={{ width: 180, padding: '8px 12px', borderRadius: 6, border: '1px solid #E5DAF5', minHeight: 40, boxSizing: 'border-box' }}
                         />
                         <button
                           style={{ background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 16px', fontWeight: 600, fontSize: 15, cursor: isMe || alreadyGraded ? 'not-allowed' : 'pointer' }}
@@ -345,6 +397,31 @@ const ContestParticipate: React.FC = () => {
                   );
                 })}
               </div>
+              {/* 평가 전체 제출완료 버튼 */}
+              <button
+                style={{
+                  marginTop: 24,
+                  background: '#8A55CC',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '12px 0',
+                  fontWeight: 700,
+                  fontSize: 18,
+                  cursor: 'pointer',
+                  width: '100%',
+                  maxWidth: 320,
+                }}
+                onClick={handleAllSubmit}
+                disabled={showSubmitMsg}
+              >
+                제출완료
+              </button>
+              {showSubmitMsg && (
+                <div style={{ color: '#10B981', fontWeight: 700, fontSize: 20, margin: '32px 0', textAlign: 'center' }}>
+                  제출이 완료되었습니다.
+                </div>
+              )}
             </>
           ) : null
         )}

@@ -335,7 +335,7 @@ const PartnerPostDetail: React.FC = () => {
             <>
               <div className="post-detail-author" style={{display:'flex',alignItems:'center',gap:'0.4rem',margin:'0 0 0.05rem 0',padding:0}}>
                 <User size={20} />
-                <span className="author-info">
+                <span className="author-info" style={{cursor:'pointer',color:'#8A55CC',textDecoration:'underline'}} onClick={() => navigate(`/mypage/${post.writerUid}`)}>
                   {post.writerNickname}
                   <span className="author-grade-emoji" title={getGradeName(post.writerGrade || '🍒')}>
                     {getGradeEmoji(post.writerGrade || '🍒')}
@@ -366,7 +366,7 @@ const PartnerPostDetail: React.FC = () => {
             <>
               <div className="post-detail-author" style={{display:'flex',alignItems:'center',gap:'0.7rem',marginLeft:'auto'}}>
                 <User size={20} />
-                <span className="author-info">
+                <span className="author-info" style={{cursor:'pointer',color:'#8A55CC',textDecoration:'underline'}} onClick={() => navigate(`/mypage/${post.writerUid}`)}>
                   {post.writerNickname}
                   <span className="author-grade-emoji" title={getGradeName(post.writerGrade || '🍒')}>
                     {getGradeEmoji(post.writerGrade || '🍒')}

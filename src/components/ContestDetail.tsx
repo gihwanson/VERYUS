@@ -265,27 +265,29 @@ const ContestDetail: React.FC = () => {
                 </div>
               )}
               {participants.filter(p => !teams.some(t => Array.isArray(t.members) && t.members.includes(p.uid))).length === 0 && <div style={{ color: '#B497D6' }}>솔로 참가자가 없습니다.</div>}
-              {participants.filter(p => !teams.some(t => Array.isArray(t.members) && t.members.includes(p.uid))).map(p => (
-                <div key={p.uid} style={{ background: '#F9FAFB', borderRadius: 8, padding: '8px 16px', marginBottom: 8, color: '#8A55CC', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <input
-                    type="checkbox"
-                    checked={selectedSolo.includes(p.uid)}
-                    onChange={e => {
-                      if (e.target.checked) {
-                        setSelectedSolo(prev => prev.length < 2 ? [...prev, p.uid] : prev);
-                      } else {
-                        setSelectedSolo(prev => prev.filter(uid => uid !== p.uid));
-                      }
-                    }}
-                    disabled={selectedSolo.length === 2 && !selectedSolo.includes(p.uid)}
-                    style={{ marginRight: 8 }}
-                  />
-                  {p.nickname}
-                  {isAdmin && (
-                    <button style={{ marginLeft: 8, background: '#F43F5E', color: '#fff', border: 'none', borderRadius: 8, padding: '2px 10px', fontWeight: 600, cursor: 'pointer', fontSize: 14 }} onClick={() => handleDeleteParticipant(p.uid)}>삭제</button>
-                  )}
-                </div>
-              ))}
+              <div style={{ maxHeight: 320, overflowY: 'auto', marginBottom: 8 }}>
+                {participants.filter(p => !teams.some(t => Array.isArray(t.members) && t.members.includes(p.uid))).map(p => (
+                  <div key={p.uid} style={{ background: '#F9FAFB', borderRadius: 8, padding: '8px 16px', marginBottom: 8, color: '#8A55CC', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedSolo.includes(p.uid)}
+                      onChange={e => {
+                        if (e.target.checked) {
+                          setSelectedSolo(prev => prev.length < 2 ? [...prev, p.uid] : prev);
+                        } else {
+                          setSelectedSolo(prev => prev.filter(uid => uid !== p.uid));
+                        }
+                      }}
+                      disabled={selectedSolo.length === 2 && !selectedSolo.includes(p.uid)}
+                      style={{ marginRight: 8 }}
+                    />
+                    {p.nickname}
+                    {isAdmin && (
+                      <button style={{ marginLeft: 8, background: '#F43F5E', color: '#fff', border: 'none', borderRadius: 8, padding: '2px 10px', fontWeight: 600, cursor: 'pointer', fontSize: 14 }} onClick={() => handleDeleteParticipant(p.uid)}>삭제</button>
+                    )}
+                  </div>
+                ))}
+              </div>
               <button
                 style={{ marginTop: 8, background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 0', fontWeight: 600, fontSize: 15, cursor: selectedSolo.length === 2 ? 'pointer' : 'not-allowed', width: '100%' }}
                 onClick={handleMakeDuet}

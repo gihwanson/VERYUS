@@ -241,7 +241,7 @@ const EvaluationPostDetail: React.FC = () => {
         <div className="post-meta" style={{ display: 'flex', alignItems: 'center', gap: '1.2rem', fontSize: '1rem', color: '#444', marginBottom: 8 }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: '0.18rem' }}>
             <User size={14} />
-            <span>{post.writerNickname}</span>
+            <span style={{cursor:'pointer',color:'#8A55CC',textDecoration:'underline'}} onClick={() => navigate(`/mypage/${post.writerUid}`)}>{post.writerNickname}</span>
           </span>
           <span style={{ color: '#bbb' }}>|</span>
           <span style={{ display: 'flex', alignItems: 'center', gap: '0.18rem' }}>

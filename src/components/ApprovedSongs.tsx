@@ -32,12 +32,20 @@ const ApprovedSongs: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [userMap, setUserMap] = useState<Record<string, {grade?: string}>>({});
   const [buskingTab, setBuskingTab] = useState<'all'|'solo'|'duet'|'grade'>('all');
+  const [manageTab, setManageTab] = useState<'all'|'solo'|'duet'|'manage'>('all');
 
   useEffect(() => {
     const fetchSongs = async () => {
       const q = query(collection(db, 'approvedSongs'), sort === 'title' ? orderBy('title') : orderBy('createdAt', 'desc'));
       const snap = await getDocs(q);
-      setSongs(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setSongs(snap.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          members: Array.isArray(data.members) ? [...data.members].sort() : [],
+        };
+      }));
       setLoading(false);
     };
     fetchSongs();
@@ -99,7 +107,7 @@ const ApprovedSongs: React.FC = () => {
     }
     const result = songs.filter(song =>
       Array.isArray(song.members) && song.members.every((member: string) => attendees.includes(member))
-    );
+    ).map(song => ({ ...song, members: [...(song.members||[])].sort() }));
     setFilteredSongs(result);
   };
 
@@ -109,6 +117,20 @@ const ApprovedSongs: React.FC = () => {
     if (songType === 'duet') return Array.isArray(song.members) && song.members.length >= 2;
     return true;
   });
+
+  // 중복 없는 닉네임 추출
+  const allMembers = songs.flatMap(song => Array.isArray(song.members) ? song.members : []);
+  const uniqueMembers = Array.from(new Set(allMembers));
+
+  // 닉네임별 합격곡 일괄 삭제
+  const handleDeleteMember = async (nickname: string) => {
+    if (!window.confirm(`${nickname}의 모든 합격곡을 삭제할까요?`)) return;
+    const toDelete = songs.filter(song => (song.members || []).includes(nickname));
+    for (const song of toDelete) {
+      await deleteDoc(doc(db, 'approvedSongs', song.id));
+    }
+    setSongs(songs => songs.filter(song => !toDelete.some(s => s.id === song.id)));
+  };
 
   // TODO: 등록/수정/삭제/조회/버스킹 필터 기능 구현
 
@@ -169,49 +191,71 @@ const ApprovedSongs: React.FC = () => {
           </div>
           {/* 필터 탭 */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 16, justifyContent: 'center' }}>
-            <button onClick={() => setSongType('all')} style={{ background: songType === 'all' ? '#8A55CC' : '#F6F2FF', color: songType === 'all' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '6px 18px', fontWeight: 700, cursor: 'pointer' }}>전체</button>
-            <button onClick={() => setSongType('solo')} style={{ background: songType === 'solo' ? '#8A55CC' : '#F6F2FF', color: songType === 'solo' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '6px 18px', fontWeight: 700, cursor: 'pointer' }}>솔로곡</button>
-            <button onClick={() => setSongType('duet')} style={{ background: songType === 'duet' ? '#8A55CC' : '#F6F2FF', color: songType === 'duet' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '6px 18px', fontWeight: 700, cursor: 'pointer' }}>듀엣/합창곡</button>
+            <button onClick={() => { setSongType('all'); setManageTab('all'); }} style={{ background: manageTab === 'all' ? '#8A55CC' : '#F6F2FF', color: manageTab === 'all' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '6px 18px', fontWeight: 700, cursor: 'pointer' }}>전체</button>
+            <button onClick={() => { setSongType('solo'); setManageTab('solo'); }} style={{ background: manageTab === 'solo' ? '#8A55CC' : '#F6F2FF', color: manageTab === 'solo' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '6px 18px', fontWeight: 700, cursor: 'pointer' }}>솔로곡</button>
+            <button onClick={() => { setSongType('duet'); setManageTab('duet'); }} style={{ background: manageTab === 'duet' ? '#8A55CC' : '#F6F2FF', color: manageTab === 'duet' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '6px 18px', fontWeight: 700, cursor: 'pointer' }}>듀엣/합창곡</button>
+            {isAdmin && (
+              <button onClick={() => setManageTab('manage')} style={{ background: manageTab === 'manage' ? '#8A55CC' : '#F6F2FF', color: manageTab === 'manage' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '6px 18px', fontWeight: 700, cursor: 'pointer' }}>관리</button>
+            )}
           </div>
-          {/* 리스트 필터링 */}
-          <ul style={{ listStyle: 'none', padding: 0 }}>
-            {displayedSongs
-              .filter(song => {
-                const term = searchTerm.trim().toLowerCase();
-                if (!term) return true;
-                const titleMatch = song.title?.toLowerCase().includes(term);
-                const memberMatch = Array.isArray(song.members) && song.members.some((m: string) => m.toLowerCase().includes(term));
-                return titleMatch || memberMatch;
-              })
-              .map(song => (
-                <li key={song.id} style={{ padding: '8px 0', borderBottom: '1px solid #E5DAF5', display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span style={{ fontWeight: 700, color: '#7C4DBC' }}>{song.title}</span>
-                  <span style={{ color: '#6B7280', fontWeight: 500 }}>{song.members?.join(', ')}</span>
-                  {isAdmin && (
-                    <>
-                      <button
-                        style={{ background: '#FBBF24', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontWeight: 600, cursor: 'pointer' }}
-                        onClick={() => {
-                          setForm({ title: song.title, members: Array.isArray(song.members) ? song.members : [''] });
-                          setEditId(song.id);
-                          setShowForm(true);
-                          setShowList(false);
-                        }}
-                      >수정</button>
-                      <button
-                        style={{ background: '#EF4444', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontWeight: 600, cursor: 'pointer' }}
-                        onClick={async () => {
-                          if (window.confirm('정말 삭제하시겠습니까?')) {
-                            await deleteDoc(doc(db, 'approvedSongs', song.id));
-                            setSongs(songs => songs.filter(s => s.id !== song.id));
-                          }
-                        }}
-                      >삭제</button>
-                    </>
-                  )}
-                </li>
-              ))}
-          </ul>
+          {/* 관리 탭: 닉네임별 합격곡 관리 */}
+          {manageTab === 'manage' && isAdmin && (
+            <div style={{ margin: '24px 0' }}>
+              <h4 style={{ color: '#8A55CC', fontWeight: 700, marginBottom: 12 }}>합격곡에 등재된 닉네임 목록</h4>
+              <ul style={{ listStyle: 'none', padding: 0 }}>
+                {uniqueMembers.map(nickname => (
+                  <li key={nickname} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                    <span style={{ fontWeight: 600, color: '#7C4DBC' }}>{nickname}</span>
+                    <button
+                      style={{ background: '#EF4444', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontWeight: 600, cursor: 'pointer' }}
+                      onClick={() => handleDeleteMember(nickname)}
+                    >삭제</button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {/* 기존 곡 리스트는 관리 탭이 아닐 때만 노출 */}
+          {manageTab !== 'manage' && (
+            <ul style={{ listStyle: 'none', padding: 0 }}>
+              {displayedSongs
+                .filter(song => {
+                  const term = searchTerm.trim().toLowerCase();
+                  if (!term) return true;
+                  const titleMatch = song.title?.toLowerCase().includes(term);
+                  const memberMatch = Array.isArray(song.members) && song.members.some((m: string) => m.toLowerCase().includes(term));
+                  return titleMatch || memberMatch;
+                })
+                .map(song => (
+                  <li key={song.id} style={{ padding: '8px 0', borderBottom: '1px solid #E5DAF5', display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontWeight: 700, color: '#7C4DBC' }}>{song.title}</span>
+                    <span style={{ color: '#6B7280', fontWeight: 500 }}>{song.members?.join(', ')}</span>
+                    {isAdmin && (
+                      <>
+                        <button
+                          style={{ background: '#FBBF24', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontWeight: 600, cursor: 'pointer' }}
+                          onClick={() => {
+                            setForm({ title: song.title, members: Array.isArray(song.members) ? song.members : [''] });
+                            setEditId(song.id);
+                            setShowForm(true);
+                            setShowList(false);
+                          }}
+                        >수정</button>
+                        <button
+                          style={{ background: '#EF4444', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontWeight: 600, cursor: 'pointer' }}
+                          onClick={async () => {
+                            if (window.confirm('정말 삭제하시겠습니까?')) {
+                              await deleteDoc(doc(db, 'approvedSongs', song.id));
+                              setSongs(songs => songs.filter(s => s.id !== song.id));
+                            }
+                          }}
+                        >삭제</button>
+                      </>
+                    )}
+                  </li>
+                ))}
+            </ul>
+          )}
         </div>
       )}
       {/* 버스킹용 합격곡 조회 폼 */}

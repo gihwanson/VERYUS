@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { collection, query, orderBy, limit, getDocs, onSnapshot, where, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, orderBy, limit, getDocs, onSnapshot, where, doc, getDoc, setDoc, updateDoc, addDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '../firebase';
 import { 
@@ -27,6 +27,11 @@ import {
 } from 'lucide-react';
 import './Home.css';
 import SpecialMomentsCard from './SpecialMomentsCard';
+import { collection as fbCollection, getDocs as fbGetDocs, query as fbQuery, where as fbWhere, limit as fbLimit } from 'firebase/firestore';
+import { useAudioPlayer } from '../App';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../firebase';
+import type { PlaylistSong } from '../App';
 
 // Types
 interface User {
@@ -112,6 +117,10 @@ const BOARDS: BoardItem[] = [
   { name: '파트너모집', icon: UserPlus, path: '/boards/partner' }
 ];
 
+const GRADE_ORDER = [
+  '🌙', '⭐', '⚡', '🍺', '🌌', '☀️', '🪐', '🌍', '🍉', '🍈', '🍎', '🥝', '🫐', '🍒'
+];
+
 const Home: React.FC = () => {
   // State
   const [user, setUser] = useState<User | null>(null);
@@ -135,8 +144,22 @@ const Home: React.FC = () => {
   const [hasNewMessage, setHasNewMessage] = useState(false);
   const [latestContest, setLatestContest] = useState<Contest | null>(null);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [searchNickname, setSearchNickname] = useState('');
+  const [nicknameResults, setNicknameResults] = useState<any[]>([]);
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [searchError, setSearchError] = useState('');
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [loadingEmojiIdx, setLoadingEmojiIdx] = useState(0);
+  const { playlist, setPlaylist, play, currentIdx, isPlaying, pause } = useAudioPlayer();
+  const [playlistSongs, setPlaylistSongs] = useState<PlaylistSong[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadForm, setUploadForm] = useState<{ title: string; artist: string; file: File | null }>({ title: '', artist: '', file: null });
+  const [showUploadForm, setShowUploadForm] = useState(false);
 
   const navigate = useNavigate();
+
+  // home-header 레이아웃 개선: 모바일에서 로고는 항상 왼쪽, 검색창/프로필은 아래에 세로로 쌓임
+  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
 
   // handleLogout 함수를 먼저 정의
   const handleLogout = useCallback(async (): Promise<void> => {
@@ -470,12 +493,77 @@ const Home: React.FC = () => {
     }
   }, [user, navigate]);
 
+  // 자동완성 닉네임 검색
+  useEffect(() => {
+    if (!searchNickname.trim()) {
+      setNicknameResults([]);
+      setShowAutocomplete(false);
+      return;
+    }
+    setSearchLoading(true);
+    const fetch = async () => {
+      const q = fbQuery(fbCollection(db, 'users'), fbWhere('nickname', '>=', searchNickname.trim()), fbWhere('nickname', '<=', searchNickname.trim() + '\uf8ff'), fbLimit(5));
+      const snap = await fbGetDocs(q);
+      const results = snap.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
+      setNicknameResults(results);
+      setShowAutocomplete(true);
+      setSearchLoading(false);
+    };
+    fetch();
+  }, [searchNickname]);
+
+  // 닉네임 검색 및 이동
+  const handleSearch = async (nickname?: string, e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const target = (nickname ?? searchNickname).trim();
+    if (!target) return;
+    setSearchLoading(true);
+    const q = fbQuery(fbCollection(db, 'users'), fbWhere('nickname', '==', target));
+    const snap = await fbGetDocs(q);
+    setSearchLoading(false);
+    if (!snap.empty) {
+      setShowAutocomplete(false);
+      setSearchError('');
+      navigate(`/mypage/${snap.docs[0].id}`);
+    } else {
+      setSearchError('존재하지 않는 닉네임입니다.');
+      setShowAutocomplete(false);
+    }
+  };
+
+  // 엔터키로 검색
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') handleSearch(undefined, e as any);
+  };
+
+  useEffect(() => {
+    if (!loading) return;
+    const interval = setInterval(() => {
+      setLoadingEmojiIdx(idx => (idx + 1) % GRADE_ORDER.length);
+    }, 350);
+    return () => clearInterval(interval);
+  }, [loading]);
+
+  // 리더/운영진 권한
+  const isLeaderOrAdmin = user && (user.role === '리더' || user.role === '운영진');
+
+  // 플레이리스트 fetch
+  useEffect(() => {
+    const fetchSongs = async () => {
+      const snap = await getDocs(query(collection(db, 'playlistSongs'), orderBy('createdAt', 'desc')));
+      const songs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as PlaylistSong[];
+      setPlaylistSongs(songs);
+      setPlaylist(songs);
+    };
+    fetchSongs();
+  }, [setPlaylist]);
+
   if (loading) {
     return (
       <div className="loading-container">
         <div className="loading-content">
-          <h2>VERYUS</h2>
-          <p>로딩 중...</p>
+          <h2 style={{ color: '#8A55CC', fontWeight: 700, fontSize: 32, marginBottom: 16 }}>VERYUS</h2>
+          <div style={{ fontSize: 48, margin: '24px 0', transition: 'all 0.2s' }}>{GRADE_ORDER[loadingEmojiIdx]}</div>
         </div>
       </div>
     );
@@ -489,8 +577,6 @@ const Home: React.FC = () => {
           <img src="/veryus_logo-01.png" alt="VERYUS 로고" className="logo-image" />
           <p className="home-slogan" style={{ marginTop: 8, textAlign: 'center' }}>다양한 음악을 우리답게</p>
         </div>
-        
-        {/* 프로필 드롭다운 */}
         <div className="profile-dropdown">
           <button 
             className="profile-button"
@@ -506,9 +592,7 @@ const Home: React.FC = () => {
               </div>
               <span className="profile-name">
                 {user?.nickname ? user.nickname : '사용자'}
-                {user?.grade && (
-                  <span className="profile-grade">({user.grade.match(/([\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}])/u)?.[0] || '🍒'})</span>
-                )}
+                <span className="profile-grade">{user?.grade ? user.grade : '🍒'}</span>
               </span>
               <span className="profile-chevron">
                 <ChevronDown 
@@ -518,7 +602,6 @@ const Home: React.FC = () => {
               </span>
             </div>
           </button>
-          
           {dropdownOpen && (
             <div className="dropdown-menu">
               {dropdownItems.map((item, index) => (
@@ -538,6 +621,52 @@ const Home: React.FC = () => {
             </div>
           )}
         </div>
+      </div>
+      {/* 닉네임 검색창: 공지사항 카드 바로 위에 위치 */}
+      <div className="nickname-search-bar" style={{
+        maxWidth: 340,
+        margin: '24px auto 16px auto',
+        width: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+        <form style={{ position: 'relative', width: '100%' }} onSubmit={e => handleSearch(undefined, e)}>
+          <input
+            type="text"
+            value={searchNickname}
+            onChange={e => { setSearchNickname(e.target.value); setSearchError(''); }}
+            onFocus={() => setShowAutocomplete(!!nicknameResults.length)}
+            onBlur={() => setTimeout(() => setShowAutocomplete(false), 150)}
+            onKeyDown={handleSearchKeyDown}
+            placeholder="닉네임을 입력하세요"
+            style={{ width: '100%', padding: '8px 14px', borderRadius: 8, border: '1px solid #E5DAF5', fontSize: 15, background: '#fff' }}
+          />
+          <button
+            type="submit"
+            style={{ position: 'absolute', right: 4, top: 4, background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 6, padding: '4px 10px', fontWeight: 600, cursor: 'pointer', fontSize: 14 }}
+          >검색</button>
+          {showAutocomplete && nicknameResults.length > 0 && (
+            <div style={{ position: 'absolute', top: 38, left: 0, width: '100%', background: '#fff', border: '1px solid #E5DAF5', borderRadius: 8, boxShadow: '0 2px 8px #E5DAF5', zIndex: 1000 }}>
+              {nicknameResults.map(u => (
+                <div
+                  key={u.uid}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', cursor: 'pointer', borderBottom: '1px solid #F6F2FF' }}
+                  onMouseDown={() => handleSearch(u.nickname)}
+                >
+                  <div style={{ width: 28, height: 28, borderRadius: '50%', overflow: 'hidden', background: '#F6F2FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {u.profileImageUrl ? <img src={u.profileImageUrl} alt="프로필" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (u.nickname ? u.nickname.charAt(0) : 'U')}
+                  </div>
+                  <span style={{ fontWeight: 600, color: '#7C4DBC' }}>{u.nickname}</span>
+                  {u.grade && <span style={{ color: '#8A55CC', fontWeight: 500 }}>{u.grade}</span>}
+                  {u.role && u.role !== '일반' && <span style={{ color: '#FBBF24', fontWeight: 600, fontSize: 13, marginLeft: 4 }}>{u.role}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+          {searchError && <div style={{ color: '#F43F5E', fontWeight: 600, fontSize: 13, marginTop: 2 }}>{searchError}</div>}
+        </form>
       </div>
 
       <div className="home-content">
@@ -722,8 +851,8 @@ const Home: React.FC = () => {
             )}
             {recentEvaluation && (
               <div className="activity-section">
-                <h4 style={{cursor:'pointer'}} onClick={() => navigate(`/boards/evaluation/${recentEvaluation.id}`)}><Star size={16} />평가게시판</h4>
-                <div className="post-item" onClick={() => navigate(`/boards/evaluation/${recentEvaluation.id}`)}>
+                <h4 style={{cursor:'pointer'}} onClick={() => navigate(`/evaluation/${recentEvaluation.id}`)}><Star size={16} />평가게시판</h4>
+                <div className="post-item" onClick={() => navigate(`/evaluation/${recentEvaluation.id}`)}>
                   <div className="post-title">{recentEvaluation.title}</div>
                   <div className="post-meta">
                     <span>{(recentEvaluation as any).author || (recentEvaluation as any).writerNickname || '-'}</span>

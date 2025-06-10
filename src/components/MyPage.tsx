@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { 
   collection, 
   query, 
@@ -74,6 +74,14 @@ interface GuestbookMessage {
   toNickname: string;
 }
 
+interface ApprovedSong {
+  id: string;
+  title: string;
+  members: string[];
+  createdAt?: any;
+  grade?: string;
+}
+
 // 등급 관련 상수
 const GRADE_OPTIONS = [
   '🍒', // 체리
@@ -86,32 +94,23 @@ const GRADE_OPTIONS = [
   '🪐', // 토성
   '☀️', // 태양
   // '🌌', // 은하(선택 불가)
-  '🍺', // 친목
-  '⚡', // 번개
-  '⭐', // 별
-  '🌙'  // 달
+  '🌙', // 달
 ];
 
-const GRADE_NAMES: { [key: string]: string } = {
-  '🍒': '체리',
-  '🫐': '블루베리',
-  '🥝': '키위',
-  '🍎': '사과',
-  '🍈': '멜론',
-  '🍉': '수박',
-  '🌍': '지구',
-  '🪐': '토성',
-  '☀️': '태양',
-  '🌌': '은하',
-  '🍺': '친목',
-  '⚡': '번개',
-  '⭐': '별',
-  '🌙': '달'
+const GRADE_ORDER = [
+  '🌙', '⭐', '⚡', '🍺', '🌌', '☀️', '🪐', '🌍', '🍉', '🍈', '🍎', '🥝', '🫐', '🍒'
+];
+
+const GRADE_NAMES: Record<string, string> = {
+  '🍒': '체리', '🫐': '블루베리', '🥝': '키위', '🍎': '사과', '🍈': '멜론', '🍉': '수박',
+  '🌍': '지구', '🪐': '토성', '☀️': '태양', '🌌': '은하', '🍺': '맥주', '⚡': '번개', '⭐': '별', '🌙': '달'
 };
 
 const MyPage: React.FC = () => {
   const navigate = useNavigate();
+  const { uid } = useParams();
   const [user, setUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'posts' | 'evaluations' | 'guestbook'>('posts');
@@ -119,6 +118,7 @@ const MyPage: React.FC = () => {
   const [editingIntro, setEditingIntro] = useState(false);
   const [editingGrade, setEditingGrade] = useState(false);
   const [selectedGrade, setSelectedGrade] = useState('');
+  const [isOwner, setIsOwner] = useState(false);
   
   // 편집 상태
   const [editNickname, setEditNickname] = useState('');
@@ -142,6 +142,8 @@ const MyPage: React.FC = () => {
   const [recentRecording, setRecentRecording] = useState<Post | null>(null);
   const [recentEvaluation, setRecentEvaluation] = useState<Post | null>(null);
   const [recentPartner, setRecentPartner] = useState<Post | null>(null);
+  const [myEvaluationPosts, setMyEvaluationPosts] = useState<Post[]>([]);
+  const [approvedSongs, setApprovedSongs] = useState<ApprovedSong[]>([]);
 
   // Cleanup subscriptions
   const unsubscribeRef = useRef<(() => void) | null>(null);
@@ -150,59 +152,103 @@ const MyPage: React.FC = () => {
   const [editingJoinDate, setEditingJoinDate] = useState(false);
   const [editJoinDate, setEditJoinDate] = useState('');
 
+  // 유저 등급 정보 fetch
+  const [userMap, setUserMap] = useState<Record<string, {grade?: string}>>({});
+  const [showAllSongs, setShowAllSongs] = useState(false);
+
   // Initialize user data
   useEffect(() => {
-    try {
-      const userString = localStorage.getItem('veryus_user');
-      if (!userString) {
-        navigate('/login');
-        return;
+    // 항상 로그인 유저 정보 세팅
+    const userString = localStorage.getItem('veryus_user');
+    if (!userString) {
+      navigate('/login');
+      return;
+    }
+    const loginUser = JSON.parse(userString) as User;
+    setCurrentUser(loginUser);
+
+    async function fetchUserData(targetUid: string) {
+      try {
+        const userDoc = await getDoc(doc(db, 'users', targetUid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data() as User;
+          setUser({ ...userData, uid: targetUid });
+          setEditNickname(userData.nickname || '');
+          setEditIntro(userData.intro || '');
+          setSelectedGrade(userData.grade || '🍒');
+          // 본인 여부 판별
+          let isMe = loginUser.uid === targetUid;
+          setIsOwner(isMe);
+          // load data for this user
+          loadUserData(targetUid, isMe);
+          loadMyPosts(userData.nickname);
+          loadActivityStats(userData.nickname);
+          setupGuestMessagesListener(userData.nickname);
+          fetchRecentPosts();
+          loadMyEvaluationPosts(userData.nickname);
+          loadApprovedSongs(userData.nickname);
+        } else {
+          setError('존재하지 않는 유저입니다.');
+        }
+      } catch (error) {
+        setError('유저 정보를 불러오는 중 오류가 발생했습니다.');
+      } finally {
+        setLoading(false);
       }
-
-      const currentUser = JSON.parse(userString) as User;
-      setUser(currentUser);
-      setEditNickname(currentUser.nickname || '');
-      setEditIntro(currentUser.intro || '');
-      setSelectedGrade(currentUser.grade || '🍒');
-
-      // Load initial data
-      loadUserData(currentUser.uid);
-      loadMyPosts(currentUser.nickname);
-      loadActivityStats(currentUser.nickname);
-      setupGuestMessagesListener(currentUser.nickname);
-      fetchRecentPosts();
+    }
+    try {
+      if (uid) {
+        fetchUserData(uid);
+      } else {
+        setUser(loginUser);
+        setEditNickname(loginUser.nickname || '');
+        setEditIntro(loginUser.intro || '');
+        setSelectedGrade(loginUser.grade || '🍒');
+        setIsOwner(true);
+        // Firestore에서 내 정보가 있으면 덮어씌우고, 없으면 fallback
+        loadUserData(loginUser.uid, true).catch((err) => {
+          setError('내 사용자 정보를 Firestore에서 찾을 수 없습니다. (localStorage 정보만 표시)');
+          setLoading(false);
+        });
+        loadMyPosts(loginUser.nickname);
+        loadActivityStats(loginUser.nickname);
+        setupGuestMessagesListener(loginUser.nickname);
+        fetchRecentPosts();
+        loadMyEvaluationPosts(loginUser.nickname);
+        loadApprovedSongs(loginUser.nickname);
+        setLoading(false); // Firestore 실패해도 localStorage 정보로 렌더링
+      }
     } catch (error) {
       console.error('Error initializing user data:', error);
       setError('사용자 데이터를 불러오는 중 오류가 발생했습니다.');
-    } finally {
       setLoading(false);
     }
-
     // Cleanup function
     return () => {
       if (unsubscribeRef.current) {
         unsubscribeRef.current();
       }
     };
-  }, [navigate]);
+  }, [navigate, uid]);
 
-  const loadUserData = useCallback(async (uid: string) => {
+  const loadUserData = useCallback(async (uid: string, isOwner: boolean) => {
     try {
       const userDoc = await getDoc(doc(db, 'users', uid));
       if (!userDoc.exists()) {
+        if (isOwner) return; // 본인 마이페이지면 localStorage 정보만 사용
         throw new Error('사용자를 찾을 수 없습니다.');
       }
-
       const userData = { uid, ...userDoc.data() } as User;
       setUser(userData);
       setEditNickname(userData.nickname || '');
       setEditIntro(userData.intro || '');
       setSelectedGrade(userData.grade || '🍒');
-      
-      localStorage.setItem('veryus_user', JSON.stringify(userData));
+      if (isOwner) {
+        localStorage.setItem('veryus_user', JSON.stringify(userData));
+      }
     } catch (error) {
       console.error('Error loading user data:', error);
-      setError('사용자 데이터를 불러오는 중 오류가 발생했습니다.');
+      if (!isOwner) setError('사용자 데이터를 불러오는 중 오류가 발생했습니다.');
     }
   }, []);
 
@@ -213,13 +259,11 @@ const MyPage: React.FC = () => {
         where('writerNickname', '==', nickname),
         orderBy('createdAt', 'desc')
       );
-      
       const snapshot = await getDocs(postsQuery);
       const posts = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Post[];
-      
       setMyPosts(posts);
     } catch (error) {
       console.error('Error loading posts:', error);
@@ -291,6 +335,7 @@ const MyPage: React.FC = () => {
   }, []);
 
   const handleProfileImageUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isOwner) return;
     const file = event.target.files?.[0];
     if (!file || !user) return;
 
@@ -326,7 +371,6 @@ const MyPage: React.FC = () => {
 
       const updatedUser = { ...user, profileImageUrl: downloadURL };
       setUser(updatedUser);
-      localStorage.setItem('veryus_user', JSON.stringify(updatedUser));
 
       if (oldImageUrl) {
         try {
@@ -349,10 +393,10 @@ const MyPage: React.FC = () => {
         setError('알 수 없는 오류가 발생했습니다.');
       }
     }
-  }, [user, auth]);
+  }, [user, auth, isOwner]);
 
   const handleSaveProfile = useCallback(async () => {
-    if (!user) return;
+    if (!user || !isOwner) return;
 
     try {
       const oldNickname = user.nickname;
@@ -367,7 +411,6 @@ const MyPage: React.FC = () => {
 
       const updatedUser = { ...user, nickname: editNickname };
       setUser(updatedUser);
-      localStorage.setItem('veryus_user', JSON.stringify(updatedUser));
 
       setEditingProfile(false);
       
@@ -380,7 +423,7 @@ const MyPage: React.FC = () => {
       console.error('Error saving profile:', error);
       setError('프로필 저장 중 오류가 발생했습니다.');
     }
-  }, [user, editNickname, loadMyPosts, loadActivityStats, setupGuestMessagesListener]);
+  }, [user, editNickname, loadMyPosts, loadActivityStats, setupGuestMessagesListener, isOwner]);
 
   const updateNicknameInAllDocuments = async (oldNickname: string, newNickname: string) => {
     try {
@@ -430,9 +473,6 @@ const MyPage: React.FC = () => {
 
       const updatedUser = { ...user, intro: editIntro };
       setUser(updatedUser);
-      localStorage.setItem('veryus_user', JSON.stringify(updatedUser));
-
-      setEditingIntro(false);
     } catch (error) {
       console.error('Error saving intro:', error);
       setError('자기소개 저장 중 오류가 발생했습니다.');
@@ -440,31 +480,29 @@ const MyPage: React.FC = () => {
   }, [user, editIntro]);
 
   const handleSendGuestMessage = useCallback(async () => {
-    if (!newGuestMessage.trim() || !user) return;
-
+    if (!newGuestMessage.trim() || !user || !currentUser) return;
     try {
       await addDoc(collection(db, 'guestbook'), {
         toNickname: user.nickname,
-        fromNickname: user.nickname,
+        fromNickname: currentUser.nickname,
         message: newGuestMessage,
         createdAt: serverTimestamp()
       });
-
       setNewGuestMessage('');
     } catch (error) {
       console.error('Error sending guest message:', error);
       setError('방명록 작성 중 오류가 발생했습니다.');
     }
-  }, [newGuestMessage, user]);
+  }, [newGuestMessage, user, currentUser]);
 
   const handleDeleteGuestMessage = useCallback(async (messageId: string, fromNickname: string) => {
     if (!user) return;
-    
     if (fromNickname !== user.nickname && user.nickname !== user.nickname) {
       setError('삭제 권한이 없습니다.');
       return;
     }
-
+    // 삭제 확인 안내
+    if (!window.confirm('정말로 이 방명록 메시지를 삭제하시겠습니까?')) return;
     try {
       await deleteDoc(doc(db, 'guestbook', messageId));
     } catch (error) {
@@ -482,12 +520,6 @@ const MyPage: React.FC = () => {
       });
 
       setUser(prev => prev ? { ...prev, grade: newGrade } : null);
-      localStorage.setItem('veryus_user', JSON.stringify({
-        ...user,
-        grade: newGrade
-      }));
-
-      setEditingGrade(false);
     } catch (error) {
       console.error('Error changing grade:', error);
       setError('등급 변경 중 오류가 발생했습니다.');
@@ -534,6 +566,73 @@ const MyPage: React.FC = () => {
     }
   }, [user, editJoinDate]);
 
+  const loadMyEvaluationPosts = useCallback(async (nickname: string) => {
+    try {
+      // 1. 내가 작성자
+      const writerQuery = query(
+        collection(db, 'posts'),
+        where('type', '==', 'evaluation'),
+        where('writerNickname', '==', nickname)
+      );
+      const writerSnap = await getDocs(writerQuery);
+      // 2. 내가 멤버
+      const memberQuery = query(
+        collection(db, 'posts'),
+        where('type', '==', 'evaluation'),
+        where('members', 'array-contains', nickname)
+      );
+      const memberSnap = await getDocs(memberQuery);
+      // 중복 제거
+      const allDocs = [...writerSnap.docs, ...memberSnap.docs];
+      const uniqueMap = new Map();
+      allDocs.forEach(doc => uniqueMap.set(doc.id, { id: doc.id, ...doc.data() }));
+      const posts = Array.from(uniqueMap.values()) as Post[];
+      // 최신순 정렬
+      posts.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      setMyEvaluationPosts(posts);
+    } catch (error) {
+      console.error('Error loading evaluation posts:', error);
+      setError('평가 이력 불러오기 오류');
+    }
+  }, []);
+
+  const loadApprovedSongs = useCallback(async (nickname: string) => {
+    try {
+      const q = query(collection(db, 'approvedSongs'), where('members', 'array-contains', nickname));
+      const snap = await getDocs(q);
+      const songs = snap.docs.map(doc => {
+        const data = doc.data() as ApprovedSong;
+        return { ...data, id: doc.id };
+      });
+      // 최신순 정렬(합격일 createdAt 기준)
+      songs.sort((a, b) => ((b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
+      setApprovedSongs(songs);
+    } catch (error) {
+      console.error('합격곡 불러오기 오류:', error);
+      setApprovedSongs([]);
+    }
+  }, []);
+
+  // 유저 등급 정보 fetch
+  useEffect(() => {
+    (async () => {
+      const snap = await getDocs(collection(db, 'users'));
+      const map: Record<string, {grade?: string}> = {};
+      snap.docs.forEach(doc => {
+        const d = doc.data();
+        if (d.nickname) map[d.nickname] = { grade: d.grade };
+      });
+      setUserMap(map);
+    })();
+  }, []);
+
+  // 합격곡 등급 계산 함수
+  const getSongGrade = (song: ApprovedSong) => {
+    const idxs = (song.members||[]).map((m:string) => GRADE_ORDER.indexOf(userMap[m]?.grade||'🍒'));
+    const minIdx = Math.min(...(idxs.length?idxs:[GRADE_ORDER.length-1]));
+    return GRADE_ORDER[minIdx] || '🍒';
+  };
+
   if (loading) {
     return (
       <div className="mypage-container">
@@ -578,17 +677,21 @@ const MyPage: React.FC = () => {
         gap: '24px',
         boxShadow: '0 8px 30px rgba(138, 85, 204, 0.10)'
       }}>
-        <div className="profile-image-section" style={{ minWidth: 120, minHeight: 120, marginBottom: 16, display: 'flex', justifyContent: 'center' }} onClick={handleProfileImageClick}>
-          <div className="profile-image" style={{ width: 120, height: 120, border: '4px solid #B497D6', boxShadow: '0 4px 16px #E5DAF5', cursor: 'pointer', position: 'relative' }}>
+        <div className="profile-image-section" style={{ minWidth: 120, minHeight: 120, marginBottom: 16, display: 'flex', justifyContent: 'center' }} onClick={isOwner ? handleProfileImageClick : undefined}>
+          <div className="profile-image" style={{ width: 120, height: 120, border: '4px solid #B497D6', boxShadow: '0 4px 16px #E5DAF5', cursor: isOwner ? 'pointer' : 'default', position: 'relative' }}>
             {user?.profileImageUrl ? (
               <img src={user.profileImageUrl} alt="프로필" />
             ) : (
               <User size={64} color="#B497D6" />
             )}
-            <div className="upload-overlay" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.3)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.3s' }}>
-              <Camera size={28} />
-            </div>
-            <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleProfileImageUpload} />
+            {isOwner && (
+              <>
+                <div className="upload-overlay" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.3)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.3s' }}>
+                  <Camera size={28} />
+                </div>
+                <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleProfileImageUpload} />
+              </>
+            )}
           </div>
         </div>
         <div className="profile-hero-info" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: 0 }}>
@@ -644,16 +747,18 @@ const MyPage: React.FC = () => {
             ) : (
               <>
                 {user?.createdAt && (new Date(user.createdAt.seconds * 1000)).toLocaleDateString('ko-KR')}
-                <button onClick={() => {
-                  setEditingJoinDate(true);
-                  setEditJoinDate(user?.createdAt
-                    ? new Date(user.createdAt.seconds * 1000).toISOString().slice(0, 10)
-                    : '');
-                }} style={{ marginLeft: 8, background: '#F6F2FF', color: '#8A55CC', border: 'none', borderRadius: 6, padding: '4px 12px', fontWeight: 600, cursor: 'pointer' }}>수정</button>
+                {isOwner && (
+                  <button onClick={() => {
+                    setEditingJoinDate(true);
+                    setEditJoinDate(user?.createdAt
+                      ? new Date(user.createdAt.seconds * 1000).toISOString().slice(0, 10)
+                      : '');
+                  }} style={{ marginLeft: 8, background: '#F6F2FF', color: '#8A55CC', border: 'none', borderRadius: 6, padding: '4px 12px', fontWeight: 600, cursor: 'pointer' }}>수정</button>
+                )}
               </>
             )}
           </div>
-          {!editingProfile && (
+          {isOwner && !editingProfile && (
             <button className="edit-profile-btn" style={{ marginTop: 16, padding: '8px 20px', borderRadius: 8, background: '#8A55CC', color: '#fff', fontWeight: 600, border: 'none', cursor: 'pointer', fontSize: 16 }} onClick={() => { setEditingProfile(true); setEditIntro(user?.intro || ''); }}>
               <Edit3 size={18} style={{ marginRight: 6 }} /> 프로필 수정
             </button>
@@ -705,16 +810,18 @@ const MyPage: React.FC = () => {
             <span className="grade-name">
               {user?.grade ? getGradeName(getGradeDisplay(user.grade)) : '체리'}
             </span>
-            <button
-              className="edit-btn"
-              onClick={() => {
-                setEditingGrade(true);
-                setSelectedGrade(user?.grade ? getGradeDisplay(user.grade) : '🍒');
-              }}
-            >
-              <Edit3 size={16} />
-              수정
-            </button>
+            {isOwner && (
+              <button
+                className="edit-btn"
+                onClick={() => {
+                  setEditingGrade(true);
+                  setSelectedGrade(user?.grade ? getGradeDisplay(user.grade) : '🍒');
+                }}
+              >
+                <Edit3 size={16} />
+                수정
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -796,11 +903,39 @@ const MyPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 설정/계정 카드 */}
-      <div className="settings-section" style={{ display: 'flex', gap: 24, marginBottom: 32 }}>
-        <button className="settings-card" style={{ flex: 1, background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px #E5DAF5', border: 'none', fontWeight: 600, color: '#8A55CC', fontSize: 16, cursor: 'pointer' }} onClick={() => navigate('/settings')}>프로필/계정 설정</button>
-        <button className="settings-card" style={{ flex: 1, background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px #E5DAF5', border: 'none', fontWeight: 600, color: '#8A55CC', fontSize: 16, cursor: 'pointer' }} onClick={() => auth.signOut()}>로그아웃</button>
+      {/* 합격곡 카드 */}
+      <div className="approved-songs-card" style={{ marginBottom: 32, background: '#F6F2FF', borderRadius: 16, padding: 24, boxShadow: '0 2px 8px #E5DAF5' }}>
+        <h3 style={{ fontSize: 20, fontWeight: 700, color: '#8A55CC', marginBottom: 16 }}>합격곡</h3>
+        {approvedSongs.length === 0 ? (
+          <div style={{ color: '#B497D6', textAlign: 'center', fontWeight: 500 }}>아직 합격곡이 없습니다.</div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {(showAllSongs ? approvedSongs : approvedSongs.slice(0,5)).map(song => (
+                <div key={song.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid #E5DAF5' }}>
+                  <span style={{ fontSize: 22 }}>{getSongGrade(song)}</span>
+                  <span style={{ fontWeight: 700, color: '#8A55CC', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => navigate('/approved-songs')}>{song.title}</span>
+                  <span style={{ color: '#7C4DBC', fontWeight: 500, fontSize: 14 }}>멤버: {Array.isArray(song.members) ? song.members.join(', ') : ''}</span>
+                  <span style={{ color: '#9CA3AF', fontSize: 12 }}>{song.createdAt && song.createdAt.seconds ? (new Date(song.createdAt.seconds * 1000)).toLocaleDateString('ko-KR') : ''}</span>
+                </div>
+              ))}
+            </div>
+            {approvedSongs.length > 5 && (
+              <button style={{ marginTop: 12, background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 18px', fontWeight: 600, cursor: 'pointer' }} onClick={() => setShowAllSongs(v => !v)}>
+                {showAllSongs ? '접기' : `더보기 (${approvedSongs.length - 5}곡)`}
+              </button>
+            )}
+          </>
+        )}
       </div>
+
+      {/* 설정/계정 카드 */}
+      {isOwner && (
+        <div className="settings-section" style={{ display: 'flex', gap: 24, marginBottom: 32 }}>
+          <button className="settings-card" style={{ flex: 1, background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px #E5DAF5', border: 'none', fontWeight: 600, color: '#8A55CC', fontSize: 16, cursor: 'pointer' }} onClick={() => navigate('/settings')}>프로필/계정 설정</button>
+          <button className="settings-card" style={{ flex: 1, background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px #E5DAF5', border: 'none', fontWeight: 600, color: '#8A55CC', fontSize: 16, cursor: 'pointer' }} onClick={() => auth.signOut()}>로그아웃</button>
+        </div>
+      )}
 
       {/* 탭 네비게이션 */}
       <div className="tab-navigation">
@@ -857,11 +992,27 @@ const MyPage: React.FC = () => {
 
         {activeTab === 'evaluations' && (
           <div className="evaluations-list">
-            <div className="empty-state">
-              <Star size={48} />
-              <h3>평가 이력이 없습니다</h3>
-              <p>평가 시스템이 구현되면 여기에 표시됩니다.</p>
-            </div>
+            {myEvaluationPosts.length === 0 ? (
+              <div className="empty-state">
+                <Star size={48} />
+                <h3>평가 이력이 없습니다</h3>
+                <p>평가받은 게시글이 여기에 표시됩니다.</p>
+              </div>
+            ) : (
+              myEvaluationPosts.map((post) => (
+                <div key={post.id} className="evaluation-item">
+                  <h4 className="post-title">{post.title}</h4>
+                  <div className="post-meta">
+                    <span className="post-type">{post.type}</span>
+                    <span className="post-date">{formatDate(post.createdAt)}</span>
+                    <div className="post-stats">
+                      <span><Heart size={12} /> {post.likesCount}</span>
+                      <span><MessageCircle size={12} /> {post.commentCount}</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         )}
 
@@ -879,7 +1030,6 @@ const MyPage: React.FC = () => {
                 보내기
               </button>
             </div>
-
             <div className="guestbook-list">
               {guestMessages.length === 0 ? (
                 <div className="empty-state">
@@ -893,7 +1043,7 @@ const MyPage: React.FC = () => {
                     <div className="message-header">
                       <span className="message-author">{message.fromNickname}</span>
                       <span className="message-date">{formatDate(message.createdAt)}</span>
-                      {(message.fromNickname === user?.nickname) && (
+                      {(currentUser && message.fromNickname === currentUser.nickname) && (
                         <button 
                           onClick={() => handleDeleteGuestMessage(message.id, message.fromNickname)}
                           className="delete-btn"

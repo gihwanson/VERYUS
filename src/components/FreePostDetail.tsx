@@ -432,7 +432,7 @@ const FreePostDetail: React.FC = () => {
   const authorBlock = (
     <>
       <User size={20} />
-      <span className="author-info">
+      <span className="author-info" style={{cursor:'pointer',color:'#8A55CC',textDecoration:'underline'}} onClick={() => navigate(`/mypage/${post.writerUid}`)}>
         {post.writerNickname}
         <span className="author-grade-emoji" title={getGradeName(post.writerGrade || '🍒')}>
           {getGradeEmoji(post.writerGrade || '🍒')}
