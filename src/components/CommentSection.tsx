@@ -458,7 +458,9 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
       </div>
 
       {/* 댓글 작성 폼 */}
-      {user && (user.role === '리더' || user.role === '부운영진') ? (
+      {user && (
+        !noCommentAuthMessage || (user.role === '리더' || user.role === '부운영진')
+      ) ? (
         <form onSubmit={handleSubmitComment} className="comment-form">
           <div className="comment-input-wrapper">
             <div className="input-tabs">

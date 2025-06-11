@@ -206,10 +206,12 @@ const ApprovedSongs: React.FC = () => {
                 {uniqueMembers.map(nickname => (
                   <li key={nickname} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
                     <span style={{ fontWeight: 600, color: '#7C4DBC' }}>{nickname}</span>
-                    <button
-                      style={{ background: '#EF4444', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontWeight: 600, cursor: 'pointer' }}
-                      onClick={() => handleDeleteMember(nickname)}
-                    >삭제</button>
+                    {isLeader && (
+                      <button
+                        style={{ background: '#EF4444', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontWeight: 600, cursor: 'pointer' }}
+                        onClick={() => handleDeleteMember(nickname)}
+                      >삭제</button>
+                    )}
                   </li>
                 ))}
               </ul>

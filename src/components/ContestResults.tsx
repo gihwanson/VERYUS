@@ -25,8 +25,10 @@ const ContestResults: React.FC = () => {
 
   if (!contest) return <div style={{ padding: 40, textAlign: 'center', color: '#B497D6' }}>콘테스트 정보를 불러오는 중...</div>;
 
-  if ((contest?.type === '정규등급전' || contest?.type === '세미등급전') && (!user || user.role !== '리더' || user.nickname !== '너래')) {
-    return <div style={{ padding: 40, textAlign: 'center', color: '#B497D6' }}>등급전 결과는 리더(너래)만 확인할 수 있습니다.</div>;
+  if (!user || user.role !== '리더') {
+    return <div style={{ padding: 40, textAlign: 'center', color: '#B497D6' }}>
+      콘테스트 결과는 리더만 확인할 수 있습니다.
+    </div>;
   }
 
   // 참가자별 평균점수/등급/코멘트 계산

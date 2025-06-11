@@ -64,6 +64,8 @@ import EvaluationPostWrite from './components/EvaluationPostWrite';
 import EvaluationPostDetail from './components/EvaluationPostDetail';
 // @ts-ignore
 import EvaluationPostEdit from './components/EvaluationPostEdit';
+// @ts-ignore
+import PracticeRoom from './components/PracticeRoom';
 import './App.css';
 
 const GRADE_ORDER = [
@@ -168,7 +170,8 @@ const AudioPlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }
   const [playlist, setPlaylist] = useState<PlaylistSong[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const [userPaused, setUserPaused] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadForm, setUploadForm] = useState<{ title: string; artist: string; file: File | null }>({ title: '', artist: '', file: null });
@@ -186,12 +189,12 @@ const AudioPlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }
 
   // 랜덤 자동재생 (플레이리스트가 바뀌면)
   useEffect(() => {
-    if (playlist.length > 0) {
+    if (playlist.length > 0 && !userPaused) {
       const idx = Math.floor(Math.random() * playlist.length);
       setCurrentIdx(idx);
       setIsPlaying(true);
     }
-  }, [playlist]);
+  }, [playlist, userPaused]);
 
   // 실제 오디오 제어
   useEffect(() => {
@@ -221,8 +224,12 @@ const AudioPlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }
   const play = (idx: number) => {
     setCurrentIdx(idx);
     setIsPlaying(true);
+    setUserPaused(false);
   };
-  const pause = () => setIsPlaying(false);
+  const pause = () => {
+    setIsPlaying(false);
+    setUserPaused(true);
+  };
   const playNext = () => setCurrentIdx(idx => (idx + 1) % playlist.length);
   const playPrev = () => setCurrentIdx(idx => (idx - 1 + playlist.length) % playlist.length);
 
@@ -654,6 +661,9 @@ function App() {
             <Route path="/evaluation/write" element={<EvaluationPostWrite />} />
             <Route path="/evaluation/:id" element={<EvaluationPostDetail />} />
             <Route path="/evaluation/edit/:id" element={<EvaluationPostEdit />} />
+            
+            {/* 연습장 라우트 */}
+            <Route path="/practice-room" element={<PracticeRoom />} />
             
             {/* 기타 모든 경로 - 404 대신 로그인으로 리다이렉트 */}
             <Route 

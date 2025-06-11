@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import './Board.css';
 import CommentSection from './CommentSection';
+import { useAudioPlayer } from '../App';
 
 interface User {
   uid: string;
@@ -101,6 +102,9 @@ const RecordingPostDetail: React.FC = () => {
   const [messageContent, setMessageContent] = useState('');
   const [currentTime, setCurrentTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
+  const { isPlaying: isGlobalPlaying, pause: pauseGlobal, play: playGlobal, currentIdx: globalIdx } = useAudioPlayer();
+  // 글로벌 플레이리스트 상태 기억용
+  const globalStateRef = React.useRef<{idx: number, wasPlaying: boolean}>({idx: 0, wasPlaying: false});
 
   useEffect(() => {
     const userString = localStorage.getItem('veryus_user');
@@ -171,14 +175,19 @@ const RecordingPostDetail: React.FC = () => {
   }, []);
 
   const handlePlayPause = () => {
-    if (!audioRef.current || !post?.audioUrl) return;
-
+    if (!audioRef.current) return;
     if (isPlaying) {
       audioRef.current.pause();
+      setIsPlaying(false);
+      // 이전 글로벌 상태로 복귀
+      if (globalStateRef.current.wasPlaying) playGlobal(globalStateRef.current.idx);
     } else {
+      // 녹음 오디오 재생 전 글로벌 상태 저장
+      globalStateRef.current = { idx: globalIdx, wasPlaying: isGlobalPlaying };
       audioRef.current.play();
+      setIsPlaying(true);
+      if (isGlobalPlaying) pauseGlobal();
     }
-    setIsPlaying(!isPlaying);
   };
 
   const handleLike = async () => {

@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import './Board.css';
 import CommentSection from './CommentSection';
+import { useAudioPlayer } from '../App';
 
 interface User {
   uid: string;
@@ -101,6 +102,9 @@ const EvaluationPostDetail: React.FC = () => {
   const optionsRef = useRef<HTMLDivElement>(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [messageContent, setMessageContent] = useState('');
+  const { isPlaying: isGlobalPlaying, pause: pauseGlobal, play: playGlobal, currentIdx: globalIdx } = useAudioPlayer();
+  // 글로벌 플레이리스트 상태 기억용
+  const globalStateRef = React.useRef<{idx: number, wasPlaying: boolean}>({idx: 0, wasPlaying: false});
 
   useEffect(() => {
     const userString = localStorage.getItem('veryus_user');
@@ -168,6 +172,18 @@ const EvaluationPostDetail: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!id) return;
+    // 세션당 한 번만 조회수 증가
+    const viewedPosts = sessionStorage.getItem('viewedEvalPosts');
+    const viewedPostsArray = viewedPosts ? JSON.parse(viewedPosts) : [];
+    if (!viewedPostsArray.includes(id)) {
+      updateDoc(doc(db, 'posts', id), { views: increment(1) })
+        .catch(err => console.error('조회수 업데이트 에러:', err));
+      sessionStorage.setItem('viewedEvalPosts', JSON.stringify([...viewedPostsArray, id]));
+    }
+  }, [id]);
 
   const handleLike = async () => {
     if (!user || !post) return;
@@ -370,6 +386,9 @@ function AudioPlayer({ audioUrl, duration }: { audioUrl: string, duration?: numb
   const [currentTime, setCurrentTime] = React.useState(0);
   const [audioDuration, setAudioDuration] = React.useState(duration || 0);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
+  const { isPlaying: isGlobalPlaying, pause: pauseGlobal, play: playGlobal, currentIdx: globalIdx } = useAudioPlayer();
+  // 글로벌 플레이리스트 상태 기억용
+  const globalStateRef = React.useRef<{idx: number, wasPlaying: boolean}>({idx: 0, wasPlaying: false});
 
   React.useEffect(() => {
     if (audioUrl) {
@@ -401,10 +420,16 @@ function AudioPlayer({ audioUrl, duration }: { audioUrl: string, duration?: numb
     if (!audioRef.current) return;
     if (isPlaying) {
       audioRef.current.pause();
+      setIsPlaying(false);
+      // 이전 글로벌 상태로 복귀
+      if (globalStateRef.current.wasPlaying) playGlobal(globalStateRef.current.idx);
     } else {
+      // 녹음 오디오 재생 전 글로벌 상태 저장
+      globalStateRef.current = { idx: globalIdx, wasPlaying: isGlobalPlaying };
       audioRef.current.play();
+      setIsPlaying(true);
+      if (isGlobalPlaying) pauseGlobal();
     }
-    setIsPlaying(!isPlaying);
   };
 
   const handleProgressBarClick = (e: React.MouseEvent<HTMLDivElement>) => {

@@ -193,6 +193,7 @@ const Home: React.FC = () => {
   }, []);
 
   const dropdownItems: DropdownItem[] = useMemo(() => [
+    { name: '연습장', icon: () => <span style={{fontSize:18}}>🎹</span>, action: () => navigate('/practice-room') },
     { name: '합격곡', icon: () => <span style={{fontSize:18}}>🏆</span>, action: () => navigate('/approved-songs') },
     { name: '마이페이지', icon: () => <span style={{fontSize:18}}>👤</span>, action: () => navigate('/mypage') },
     { name: '쪽지함', icon: () => <span style={{fontSize:18}}>💌</span>, action: () => navigate('/messages'), badge: hasNewMessage ? '●' : undefined },
