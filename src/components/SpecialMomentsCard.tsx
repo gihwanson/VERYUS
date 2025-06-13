@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { collection, getDocs, orderBy, query, limit, addDoc, Timestamp } from 'firebase/firestore';
 import { db, storage } from '../firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, ref as storageRef, deleteObject } from 'firebase/storage';
 
 interface Moment {
   id: string;
@@ -61,6 +61,29 @@ const SpecialMomentsCard: React.FC = () => {
     }
   };
 
+  // 삭제 함수 추가
+  const handleDeleteMoment = async (moment: Moment) => {
+    if (!window.confirm('정말로 이 사진/영상을 삭제하시겠습니까?')) return;
+    try {
+      // 1. Storage에서 파일 삭제
+      const url = moment.url;
+      // Storage 경로 추출 (specialMoments/...)
+      const pathMatch = url.match(/specialMoments%2F([^?]+)/);
+      if (pathMatch) {
+        const filePath = decodeURIComponent('specialMoments/' + pathMatch[1]);
+        await deleteObject(storageRef(storage, filePath));
+      }
+      // 2. Firestore에서 문서 삭제
+      await import('firebase/firestore').then(({ deleteDoc, doc }) =>
+        deleteDoc(doc(db, 'specialMoments', moment.id))
+      );
+      await fetchMoments();
+      alert('삭제가 완료되었습니다.');
+    } catch (err) {
+      alert('삭제 중 오류가 발생했습니다.');
+    }
+  };
+
   return (
     <div className="special-moments-card" style={{ background: '#F6F2FF', borderRadius: 18, boxShadow: '0 2px 12px #E5DAF5', padding: 24, marginBottom: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -87,7 +110,7 @@ const SpecialMomentsCard: React.FC = () => {
                 <div style={{ fontSize: 13, color: '#7C4DBC', marginTop: 4, width: '100%', textAlign: 'center', minHeight: 18 }}>{m.description || ''}</div>
               </div>
             ))}
-            {moments.length > 4 && (
+            {moments.length > 0 && (
               <button
                 onClick={() => setShowAllModal(true)}
                 style={{ gridColumn: '1/-1', marginTop: 8, background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 0', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}
@@ -102,7 +125,10 @@ const SpecialMomentsCard: React.FC = () => {
       {modalOpen && selected && (
         <div className="moments-modal" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setModalOpen(false)}>
           <div style={{ background: '#fff', borderRadius: 16, padding: 16, maxWidth: 420, width: '90vw', maxHeight: '80vh', overflow: 'auto', position: 'relative' }} onClick={e => e.stopPropagation()}>
-            <button onClick={() => setModalOpen(false)} style={{ position: 'absolute', top: 10, right: 10, background: 'none', border: 'none', fontSize: 22, color: '#8A55CC', cursor: 'pointer' }}>×</button>
+            <button
+              onClick={e => { e.stopPropagation(); setModalOpen(false); }}
+              style={{ position: 'absolute', top: 10, right: 10, background: 'none', border: 'none', fontSize: 22, color: '#8A55CC', cursor: 'pointer', zIndex: 10 }}
+            >×</button>
             {selected.type === 'image' ? (
               <img src={selected.url} alt={selected.description || '특별한 순간'} style={{ width: '100%', borderRadius: 12, marginBottom: 10 }} />
             ) : (
@@ -126,6 +152,9 @@ const SpecialMomentsCard: React.FC = () => {
                     <video src={m.url} controls style={{ width: '100%', borderRadius: 12, marginBottom: 8, maxHeight: 160, objectFit: 'cover' }} />
                   )}
                   <div style={{ color: '#7C4DBC', fontWeight: 500, fontSize: 15, textAlign: 'center', minHeight: 18 }}>{m.description || ''}</div>
+                  {isAdmin && (
+                    <button onClick={() => handleDeleteMoment(m)} style={{ marginTop: 6, background: '#F43F5E', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 14px', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>삭제</button>
+                  )}
                 </div>
               ))}
             </div>

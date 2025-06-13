@@ -1290,4 +1290,116 @@
     margin-top: 0;
     width: auto;
   }
+}
+
+/* 등급 관리 탭 스타일 */
+.grades-panel {
+  padding: 20px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.grades-header {
+  margin-bottom: 24px;
+}
+
+.grades-header h2 {
+  font-size: 1.5rem;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.grades-header p {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.grades-list table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+}
+
+.grades-list th {
+  background: #f8f9fa;
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #444;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.grades-list td {
+  padding: 12px;
+  border-bottom: 1px solid #e9ecef;
+  vertical-align: middle;
+}
+
+.grade-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  background: #f8f9fa;
+  color: #444;
+}
+
+.grade-badge.expected {
+  background: #F6F2FF;
+  color: #8A55CC;
+}
+
+.promote-button {
+  background: #8A55CC;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.promote-button:hover {
+  background: #7C4DBC;
+}
+
+/* 관리자 탭 버튼 스타일 개선 */
+.admin-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.admin-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #f8f9fa;
+  color: #666;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.admin-tabs button:hover {
+  background: #e9ecef;
+}
+
+.admin-tabs button.active {
+  background: #8A55CC;
+  color: white;
+}
+
+.admin-tabs button svg {
+  width: 20px;
+  height: 20px;
 } 

@@ -277,9 +277,15 @@ const EvaluationPostDetail: React.FC = () => {
           </div>
         )}
         {(!post.status || post.status === '대기') && (
-          <div style={{marginBottom: 12, color: '#888', fontWeight: 600, fontSize: '1.05rem', background:'#F3F4F6', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
-            아직 대기중 입니다
-          </div>
+          post.category === 'feedback' ? (
+            <div style={{marginBottom: 12, color: '#8A55CC', fontWeight: 700, fontSize: '1.08rem', background:'#F6F2FF', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
+              피드백을 남겨주세요!
+            </div>
+          ) : (
+            <div style={{marginBottom: 12, color: '#888', fontWeight: 600, fontSize: '1.05rem', background:'#F3F4F6', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
+              아직 대기중 입니다
+            </div>
+          )
         )}
         {/* 함께한 멤버 노출 */}
         {Array.isArray(post.members) && post.members.length > 0 && (
@@ -374,7 +380,20 @@ const EvaluationPostDetail: React.FC = () => {
             <button className="action-button" onClick={handleDelete} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--button-bg)', color: 'var(--text-secondary)', cursor: 'pointer', transition: 'all 0.2s ease' }}><Trash size={20} /> 삭제</button>
           </div>
         </div>
-        <CommentSection postId={post.id} user={user} post={post} noCommentAuthMessage="해당 게시판은 리더와, 부운영진만 댓글을 달 수 있습니다" emptyCommentMessageVisibleToRoles={['리더', '부운영진']} />
+        {/* 댓글 영역 */}
+        {post && (
+          <CommentSection
+            postId={post.id}
+            user={user}
+            post={post}
+            {...(post.category === 'feedback'
+              ? {}
+              : {
+                  noCommentAuthMessage: '해당 게시판은 리더와, 부운영진만 댓글을 달 수 있습니다',
+                  emptyCommentMessageVisibleToRoles: ['리더', '부운영진'],
+                })}
+          />
+        )}
       </div>
     </div>
   );
@@ -400,6 +419,7 @@ function AudioPlayer({ audioUrl, duration }: { audioUrl: string, duration?: numb
         audioRef.current.pause();
         audioRef.current = null;
       }
+      setIsPlaying(false); // 언마운트 시 재생상태 false로
     };
   }, [audioUrl]);
 

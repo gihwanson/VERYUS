@@ -287,8 +287,8 @@ const RecordingPostDetail: React.FC = () => {
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
-        audioRef.current = null;
       }
+      setIsPlaying(false);
     };
   }, [post?.audioUrl]);
 

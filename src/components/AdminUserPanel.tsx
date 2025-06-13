@@ -13,7 +13,8 @@ import {
   limit,
   addDoc,
   serverTimestamp,
-  setDoc
+  setDoc,
+  Timestamp
 } from 'firebase/firestore';
 import { 
   createUserWithEmailAndPassword,
@@ -103,7 +104,7 @@ const AdminUserPanel: React.FC = () => {
     grade: '🍒',
     role: '일반'
   });
-  const [activeTab, setActiveTab] = useState<'users' | 'activity'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'activity' | 'grades'>('users');
 
   // 등급 옵션 (이모지로 표시)
   const gradeOptions = [
@@ -120,6 +121,19 @@ const AdminUserPanel: React.FC = () => {
     '🌙', // 달
   ];
 
+  // 등급 순서 정의 (낮은 등급이 앞에 오도록)
+  const GRADE_ORDER = [
+    '🍒', // 체리 (가장 낮음)
+    '🫐', // 블루베리
+    '🥝', // 키위
+    '🍎', // 사과
+    '🍈', // 멜론
+    '🍉', // 수박
+    '🌍', // 지구
+    '🪐', // 토성
+    '☀️'  // 태양 (가장 높음)
+  ];
+
   // 등급 이름 매핑
   const gradeNames: GradeNames = {
     '🍒': '체리',
@@ -130,26 +144,11 @@ const AdminUserPanel: React.FC = () => {
     '🍉': '수박',
     '🌍': '지구',
     '🪐': '토성',
-    '☀️': '태양',
-    '🌌': '은하',
-    '🌙': '달',
+    '☀️': '태양'
   };
   
   // 역할 옵션
   const roleOptions = ['일반', '부운영진', '운영진', '리더'];
-
-  // 등급 순서 정의 (평균 계산용)
-  const GRADE_ORDER = [
-    '🫐', // 블루베리
-    '🥝', // 키위
-    '🍎', // 사과
-    '🍈', // 멜론
-    '🍉', // 수박
-    '🌍', // 지구
-    '🪐', // 토성
-    '☀️', // 태양
-    '🌌'  // 은하
-  ];
 
   useEffect(() => {
     // 현재 사용자 정보 확인
@@ -359,10 +358,10 @@ const AdminUserPanel: React.FC = () => {
         grade: editingUser.grade,
         role: editingUser.role,
         createdAt: editingUser.createdAt instanceof Date
-          ? editingUser.createdAt
+          ? Timestamp.fromDate(editingUser.createdAt)
           : (editingUser.createdAt?.seconds
-              ? new Date(editingUser.createdAt.seconds * 1000)
-              : editingUser.createdAt)
+              ? editingUser.createdAt
+              : Timestamp.now())
       });
 
       // 닉네임이 변경된 경우, 관련 게시글과 댓글 업데이트
@@ -557,6 +556,75 @@ const AdminUserPanel: React.FC = () => {
     }
   };
 
+  // 예상등급(다음 등급) 구하는 함수
+  const getNextGrade = (currentGrade: string) => {
+    const idx = GRADE_ORDER.indexOf(currentGrade);
+    if (idx === -1 || idx === GRADE_ORDER.length - 1) return '-';
+    return GRADE_ORDER[idx + 1];
+  };
+
+  // 활동 기간 계산 (3개월 단위)
+  const calculateActivityMonths = (createdAt: any): number => {
+    if (!createdAt) return 0;
+    const now = new Date();
+    let joinDate: Date;
+    if (createdAt.seconds) {
+      joinDate = new Date(createdAt.seconds * 1000);
+    } else if (createdAt instanceof Date) {
+      joinDate = createdAt;
+    } else if (typeof createdAt === 'string') {
+      joinDate = new Date(createdAt);
+    } else {
+      return 0;
+    }
+    const monthsDiff = (now.getFullYear() - joinDate.getFullYear()) * 12 +
+      (now.getMonth() - joinDate.getMonth());
+    return monthsDiff;
+  };
+
+  // 예상등급(가입일 기준) 구하는 함수
+  const getExpectedGrade = (user: AdminUser): string => {
+    const activityMonths = calculateActivityMonths(user.createdAt);
+    const gradeIdx = Math.min(Math.floor(activityMonths / 3), GRADE_ORDER.length - 1);
+    const expectedGrade = GRADE_ORDER[gradeIdx];
+    // 이미 현재 등급이 예상등급 이상이면 '-' 표시
+    const currentIdx = GRADE_ORDER.indexOf(user.grade);
+    if (currentIdx >= gradeIdx) return '-';
+    return expectedGrade;
+  };
+
+  // 승급 가능 여부 확인
+  const canPromote = (user: AdminUser): boolean => {
+    const activityMonths = calculateActivityMonths(user.createdAt);
+    const currentGradeIndex = GRADE_ORDER.indexOf(user.grade);
+    const maxGradeIndex = Math.min(
+      Math.floor(activityMonths / 3),
+      GRADE_ORDER.length - 1
+    );
+    
+    return currentGradeIndex < maxGradeIndex;
+  };
+
+  // 승급 처리 함수
+  const handleGradePromotion = async (user: AdminUser) => {
+    const nextGrade = getNextGrade(user.grade);
+    if (!window.confirm(`${user.nickname}님의 등급을 ${gradeNames[nextGrade]}로 승급하시겠습니까?`)) return;
+    
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        grade: nextGrade
+      });
+      
+      // 사용자 목록 새로고침
+      await fetchUsers();
+      alert('등급이 성공적으로 변경되었습니다.');
+    } catch (error) {
+      console.error('등급 변경 중 오류:', error);
+      alert('등급 변경 중 오류가 발생했습니다.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="admin-container">
@@ -569,15 +637,33 @@ const AdminUserPanel: React.FC = () => {
   }
 
   return (
-    <div className="admin-container">
-      {/* 탭 UI */}
-      <div className="admin-tabs">
-        <button className={activeTab === 'users' ? 'active' : ''} onClick={() => setActiveTab('users')}>회원 관리</button>
-        <button className={activeTab === 'activity' ? 'active' : ''} onClick={() => setActiveTab('activity')}>활동 점수판</button>
+    <div className="admin-panel">
+      <div className="admin-header">
+        <h1>관리자 패널</h1>
+        <div className="admin-tabs">
+          <button 
+            className={activeTab === 'users' ? 'active' : ''} 
+            onClick={() => setActiveTab('users')}
+          >
+            <Users size={20} /> 사용자 관리
+          </button>
+          <button 
+            className={activeTab === 'activity' ? 'active' : ''} 
+            onClick={() => setActiveTab('activity')}
+          >
+            <Activity size={20} /> 활동 현황
+          </button>
+          <button 
+            className={activeTab === 'grades' ? 'active' : ''} 
+            onClick={() => setActiveTab('grades')}
+          >
+            <Crown size={20} /> 등급 관리
+          </button>
+        </div>
       </div>
-      {/* 회원 관리 탭 */}
+
       {activeTab === 'users' && (
-        <>
+        <div className="users-panel">
           {/* 헤더 */}
           <div className="admin-header">
             <div className="header-left">
@@ -768,10 +854,20 @@ const AdminUserPanel: React.FC = () => {
                           })()}
                           onChange={e => {
                             const dateStr = e.target.value;
-                            setEditingUser({
-                              ...editingUser,
-                              createdAt: new Date(dateStr + 'T00:00:00')
-                            });
+                            // YYYY-MM-DD 형식만 허용
+                            if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                              const [year, month, day] = dateStr.split('-').map(Number);
+                              const utcDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
+                              setEditingUser({
+                                ...editingUser,
+                                createdAt: utcDate
+                              });
+                            } else {
+                              // 입력 중간에는 createdAt을 변경하지 않음
+                              setEditingUser({
+                                ...editingUser
+                              });
+                            }
                           }}
                           style={{ minWidth: 140 }}
                         />
@@ -956,11 +1052,72 @@ const AdminUserPanel: React.FC = () => {
               </div>
             </div>
           )}
-        </>
+        </div>
       )}
-      {/* 활동 점수판 탭 */}
+
       {activeTab === 'activity' && (
-        <UserActivityBoard />
+        <div className="activity-panel">
+          <UserActivityBoard />
+        </div>
+      )}
+
+      {activeTab === 'grades' && (
+        <div className="grades-panel">
+          <div className="grades-header">
+            <h2>등급 관리</h2>
+            <p>멤버들의 활동 기간과 현재 등급을 확인하고 관리할 수 있습니다.</p>
+          </div>
+          
+          <div className="grades-list">
+            <table>
+              <thead>
+                <tr>
+                  <th>닉네임</th>
+                  <th>현재 등급</th>
+                  <th>입장일</th>
+                  <th>활동 기간</th>
+                  <th>예상 등급</th>
+                  <th>관리</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredUsers.map(user => {
+                  const activityMonths = calculateActivityMonths(user.createdAt);
+                  const expectedGrade = getExpectedGrade(user);
+                  const canPromoteUser = canPromote(user);
+                  
+                  return (
+                    <tr key={user.uid}>
+                      <td>{user.nickname}</td>
+                      <td>
+                        <span className="grade-badge">
+                          {user.grade} {gradeNames[user.grade]}
+                        </span>
+                      </td>
+                      <td>{formatDate(user.createdAt)}</td>
+                      <td>{activityMonths}개월</td>
+                      <td>
+                        <span className="grade-badge expected">
+                          {getExpectedGrade(user)} {getExpectedGrade(user) !== '-' ? gradeNames[getExpectedGrade(user)] : ''}
+                        </span>
+                      </td>
+                      <td>
+                        {canPromoteUser && (
+                          <button
+                            className="promote-button"
+                            onClick={() => handleGradePromotion(user)}
+                          >
+                            승급
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
     </div>
   );

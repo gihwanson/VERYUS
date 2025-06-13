@@ -488,6 +488,17 @@ const MyPage: React.FC = () => {
         message: newGuestMessage,
         createdAt: serverTimestamp()
       });
+      // 방명록 알림 추가
+      if (user.uid) {
+        await addDoc(collection(db, 'notifications'), {
+          toUid: user.uid,
+          type: 'guestbook',
+          fromNickname: currentUser.nickname,
+          postTitle: '',
+          createdAt: serverTimestamp(),
+          isRead: false
+        });
+      }
       setNewGuestMessage('');
     } catch (error) {
       console.error('Error sending guest message:', error);

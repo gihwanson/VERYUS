@@ -110,10 +110,15 @@ const PracticeRoom: React.FC = () => {
     setNewSong('');
   };
 
-  // 곡 완료 체크 (일반곡)
-  const handleToggleDone = async (id: string, done: boolean, song?: PracticeSong) => {
+  // 곡 완료 체크 (practiceSongs에서: done만 변경)
+  const handleToggleDoneOnlyMine = async (id: string, done: boolean) => {
+    await updateDoc(doc(db, 'practiceSongs', id), { done: !done });
+    alert('연습완료곡 카테고리로 이동되었습니다');
+  };
+
+  // 제안곡 탭에서만 사용: fromDone/toDone 변경
+  const handleToggleSuggestionDone = async (id: string, done: boolean, song?: PracticeSong) => {
     if (song?.isSuggestion && song.suggestionId) {
-      // 제안곡 체크: 내 역할에 따라 fromDone/toDone만 변경
       const isFrom = user.nickname === song.fromNickname;
       const field = isFrom ? 'fromDone' : 'toDone';
       // 문서 존재 여부 확인
@@ -127,6 +132,14 @@ const PracticeRoom: React.FC = () => {
       // practiceSongs에도 fromDone/toDone 필드 업데이트
       await updateDoc(doc(db, 'practiceSongs', id), { [field]: !(song[field] ?? false) });
       alert('연습완료곡 카테고리로 이동되었습니다');
+    }
+  };
+
+  // 기존 handleToggleDone은 일반곡만 처리
+  const handleToggleDone = async (id: string, done: boolean, song?: PracticeSong) => {
+    if (song?.isSuggestion) {
+      // do nothing (분리)
+      return;
     } else {
       // 일반곡
       await updateDoc(doc(db, 'practiceSongs', id), { done: !done });
@@ -167,6 +180,27 @@ const PracticeRoom: React.FC = () => {
   // 곡 제안 수락/거절: updateDoc 후 fetchSuggestions
   const handleAcceptSuggestion = async (id: string) => {
     await updateDoc(doc(db, 'practiceSuggestions', id), { status: 'accepted' });
+    // 내 연습곡에 추가 (중복 방지)
+    const q = query(collection(db, 'practiceSongs'), where('uid', '==', user.uid), where('suggestionId', '==', id));
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      // 제안곡 정보 가져오기
+      const suggestionSnap = await getDocs(query(collection(db, 'practiceSuggestions'), where('__name__', '==', id)));
+      const suggestion = suggestionSnap.docs[0]?.data();
+      if (suggestion) {
+        await addDoc(collection(db, 'practiceSongs'), {
+          uid: user.uid,
+          title: suggestion.songTitle,
+          isSuggestion: true,
+          fromNickname: suggestion.fromNickname,
+          toNickname: suggestion.toNickname,
+          suggestionId: id,
+          fromDone: suggestion.fromDone ?? false,
+          toDone: suggestion.toDone ?? false,
+          createdAt: new Date()
+        });
+      }
+    }
     fetchSuggestions();
   };
   const handleRejectSuggestion = async (id: string) => {
@@ -249,10 +283,10 @@ const PracticeRoom: React.FC = () => {
       return;
     }
     setOtherUser(other);
-    // 2. 해당 유저의 연습곡 불러오기 (createdAt 필드가 있는 곡만 최신 30개, 없으면 기존 방식)
+    // 2. 해당 유저의 연습곡 불러오기 (제한 없이 전체)
     let songsSnap;
     try {
-      songsSnap = await getDocs(query(collection(db, 'practiceSongs'), where('uid', '==', other.uid), orderBy('createdAt', 'desc'), limit(30)));
+      songsSnap = await getDocs(query(collection(db, 'practiceSongs'), where('uid', '==', other.uid), orderBy('createdAt', 'desc')));
       setOtherPractice(songsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as PracticeSong)));
     } catch (e) {
       songsSnap = await getDocs(query(collection(db, 'practiceSongs'), where('uid', '==', other.uid)));
@@ -277,7 +311,7 @@ const PracticeRoom: React.FC = () => {
     setOtherUser(userObj);
     let songsSnap;
     try {
-      songsSnap = await getDocs(query(collection(db, 'practiceSongs'), where('uid', '==', userObj.uid), orderBy('createdAt', 'desc'), limit(30)));
+      songsSnap = await getDocs(query(collection(db, 'practiceSongs'), where('uid', '==', userObj.uid), orderBy('createdAt', 'desc')));
       setOtherPractice(songsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as PracticeSong)));
     } catch (e) {
       songsSnap = await getDocs(query(collection(db, 'practiceSongs'), where('uid', '==', userObj.uid)));
@@ -349,7 +383,7 @@ const PracticeRoom: React.FC = () => {
                   <input
                     type="checkbox"
                     checked={song.done}
-                    onChange={() => handleToggleDone(song.id, song.done ?? false, song)}
+                    onChange={() => handleToggleDoneOnlyMine(song.id, song.done ?? false)}
                   />
                   <span style={{ textDecoration: 'none', color: '#222', flex: 1 }}>
                     {song.title}
@@ -377,7 +411,7 @@ const PracticeRoom: React.FC = () => {
                         checked={!!myDone}
                         onChange={async () => {
                           if (!window.confirm('연습완료 하시겠습니까?')) return;
-                          await handleToggleDone(song.id, !!myDone, song);
+                          await handleToggleSuggestionDone(song.id, !!myDone, song);
                         }}
                       />
                       <span style={{ flex: 1, textDecoration: 'none', color: '#222' }}>
@@ -473,14 +507,17 @@ const PracticeRoom: React.FC = () => {
             {songs.filter(song => (song.done || song.fromDone || song.toDone)).length === 0 && (
               <li style={{ color: '#B497D6', textAlign: 'center', padding: 16 }}>아직 연습완료곡이 없습니다.</li>
             )}
-            {songs.filter(song => (song.done || song.fromDone || song.toDone)).map(song => (
-              <li key={song.id} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, background: '#F6F2FF', borderRadius: 8, padding: 8 }}>
-                <span style={{ textDecoration: 'line-through', color: '#8A55CC', flex: 1 }}>
-                  {song.title} <span style={{ color: '#B497D6', fontSize: 13 }}>{song.isSuggestion ? `(from ${song.fromNickname})` : ''}</span> <span style={{ fontSize: 14, color: '#8A55CC' }}>(완료)</span>
-                </span>
-                <button onClick={() => handleDeleteSong(song.id)} style={{ background: '#B497D6', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 12px', fontWeight: 600 }}>삭제</button>
-              </li>
-            ))}
+            {songs.filter(song => (song.done || song.fromDone || song.toDone)).map(song => {
+              let display = song.title;
+              return (
+                <li key={song.id} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, background: '#F6F2FF', borderRadius: 8, padding: 8 }}>
+                  <span style={{ color: '#8A55CC', flex: 1 }}>
+                    {display}
+                  </span>
+                  <button onClick={() => handleDeleteSong(song.id)} style={{ background: '#B497D6', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 12px', fontWeight: 600 }}>삭제</button>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
@@ -523,16 +560,34 @@ const PracticeRoom: React.FC = () => {
                   ))}
                 </ul>
               </div>
+              {/* 연습완료곡 */}
+              <div style={{ marginBottom: 20 }}>
+                <h4 style={{ color: '#8A55CC', fontWeight: 700, fontSize: 16, marginBottom: 8 }}>연습완료곡</h4>
+                <ul style={{ listStyle: 'none', padding: 0 }}>
+                  {otherPractice.filter(song => (!song.isSuggestion && song.done) || (song.isSuggestion && (song.fromDone || song.toDone))).length === 0 && <li style={{ color: '#B497D6', textAlign: 'center', padding: 12 }}>아직 연습완료곡이 없습니다.</li>}
+                  {otherPractice.filter(song => (!song.isSuggestion && song.done) || (song.isSuggestion && (song.fromDone || song.toDone))).map(song => {
+                    let display = song.title;
+                    return (
+                      <li key={song.id} style={{ marginBottom: 8 }}>
+                        {display}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
               {/* 제안곡 */}
               <div>
                 <h4 style={{ color: '#8A55CC', fontWeight: 700, fontSize: 16, marginBottom: 8 }}>제안곡</h4>
                 <ul style={{ listStyle: 'none', padding: 0 }}>
                   {otherPractice.filter(song => song.isSuggestion && !(song.fromDone || song.toDone)).length === 0 && <li style={{ color: '#B497D6', textAlign: 'center', padding: 12 }}>아직 제안곡이 없습니다.</li>}
-                  {otherPractice.filter(song => song.isSuggestion && !(song.fromDone || song.toDone)).map(song => (
-                    <li key={song.id} style={{ marginBottom: 8 }}>
-                      {song.title} <span style={{ color: '#B497D6', fontSize: 13 }}>(from {song.fromNickname})</span>
-                    </li>
-                  ))}
+                  {otherPractice.filter(song => song.isSuggestion && !(song.fromDone || song.toDone)).map(song => {
+                    let display = song.title;
+                    return (
+                      <li key={song.id} style={{ marginBottom: 8 }}>
+                        {display}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             </div>

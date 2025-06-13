@@ -415,7 +415,7 @@ const EvaluationPostList: React.FC = () => {
                   letterSpacing: '0.01em',
                   whiteSpace: 'nowrap',
                 }}>
-                  {post.status || '대기'}
+                  {post.category === 'feedback' ? '피드백' : (post.status || '대기')}
                 </span>
               </div>
             </article>
