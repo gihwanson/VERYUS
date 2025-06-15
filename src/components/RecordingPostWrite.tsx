@@ -321,7 +321,7 @@ const RecordingPostWrite: React.FC = () => {
           <label className="record-button upload-audio-label" style={{ minWidth: '160px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: uploading ? 'not-allowed' : 'pointer' }}>
             <input
               type="file"
-              accept="audio/*"
+              accept="audio/*,video/quicktime,.mov"
               style={{ display: 'none' }}
               onChange={handleFileUpload}
               disabled={uploading}

@@ -19,19 +19,19 @@
 }
 
 .dark {
-  --primary-color: #8B5CF6;
-  --primary-light: #A78BFA;
+  --primary-color: #A78BFA;
+  --primary-light: #C4B5FD;
   --primary-dark: #7C3AED;
-  --primary-bg: #2E1065;
-  --card-bg: #262626;
-  --text-primary: #F9FAFB;
-  --text-secondary: #D1D5DB;
-  --text-tertiary: #9CA3AF;
-  --border-color: #404040;
-  --hover-bg: #333333;
-  --button-bg: #2a2a2a;
-  --button-hover-bg: #3a3a3a;
-  --shadow-color: rgba(124, 58, 237, 0.2);
+  --primary-bg: #181825;
+  --card-bg: #232136;
+  --text-primary: #F4F4F5;
+  --text-secondary: #B5BFE2;
+  --text-tertiary: #6E6A86;
+  --border-color: #393552;
+  --hover-bg: #2A283E;
+  --button-bg: #232136;
+  --button-hover-bg: #393552;
+  --shadow-color: rgba(124, 58, 237, 0.25);
   --radius-lg: 16px;
   --radius-md: 8px;
   --button-shadow: 0 2px 8px rgba(124, 58, 237, 0.05);
@@ -60,7 +60,7 @@ body, html {
 
 .dark .board-container {
   background: var(--primary-bg);
-  color: rgba(255, 255, 255, 0.87);
+  color: var(--text-primary);
 }
 
 /* 게시판 헤더 스타일 */
@@ -732,18 +732,6 @@ body, html {
   max-width: 100%;
 }
 
-<<<<<<< HEAD
-=======
-/* 한 줄 제목일 때 ... 처리 (카드 내에서만 적용) */
-.post-card .post-title.single-line {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: block;
-  max-width: 100%;
-}
-
->>>>>>> 6599406 (처음 커밋)
 .dark .post-card .post-title {
   color: #bb86fc;
 }
@@ -1384,11 +1372,6 @@ body, html {
   flex-direction: row;
   align-items: center;
   gap: 8px;
-<<<<<<< HEAD
-=======
-  flex-wrap: nowrap;
-  min-width: 0;
->>>>>>> 6599406 (처음 커밋)
 }
 
 .post-category, .category-badge {
@@ -1412,10 +1395,6 @@ body, html {
   font-size: 1.13rem;
   font-weight: 700;
   color: #1F2937;
-<<<<<<< HEAD
-  display: inline-block;
-  vertical-align: middle;
-=======
   display: -webkit-box;
   vertical-align: middle;
   overflow: hidden;
@@ -1448,7 +1427,6 @@ body, html {
     font-size: 0.85rem;
     padding: 0.2rem 0.5rem;
   }
->>>>>>> 6599406 (처음 커밋)
 }
 
 .post-meta {
@@ -2682,4 +2660,65 @@ body, html {
   .stat-button svg, .action-button svg {
     margin-right: 0.3em;
   }
+}
+
+.dark .post-card, .dark .settings-card, .dark .mypage-content, .dark .grade-section, .dark .stat-item, .dark .board-title-section, .dark .board-header, .dark .board-title, .dark .board-container {
+  background: #232136 !important;
+  color: #F4F4F5 !important;
+  box-shadow: 0 4px 18px rgba(124,58,237,0.13) !important;
+}
+.dark .post-title, .dark .post-content-preview, .dark .post-detail-title, .dark .board-title, .dark .stat-number, .dark .grade-emoji, .dark .grade-name, .dark .profile-name, .dark .user-name {
+  color: #F4F4F5 !important;
+}
+.dark .post-meta, .dark .post-date, .dark .stat-label, .dark .comment-date, .dark .comment-meta, .dark .post-card .post-category, .dark .post-card .category-badge {
+  color: #B5BFE2 !important;
+}
+
+.dark .post-card, .dark .stat-item, .dark .mypage-content {
+  background: linear-gradient(135deg, #232136 80%, #393552 100%) !important;
+  color: #F4F4F5 !important;
+  border-radius: 18px !important;
+  border: 1.5px solid #393552 !important;
+  box-shadow: 0 4px 24px rgba(124,58,237,0.18) !important;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.dark .post-card:hover, .dark .stat-item:hover {
+  background: linear-gradient(135deg, #393552 80%, #232136 100%) !important;
+  box-shadow: 0 8px 32px rgba(167,139,250,0.22) !important;
+}
+.dark .post-title, .dark .stat-number {
+  color: #fff !important;
+  font-weight: 700 !important;
+}
+.dark .post-meta, .dark .stat-label, .dark .post-date {
+  color: #A78BFA !important;
+}
+.dark .post-card .post-category, .dark .category-badge {
+  background: #393552 !important;
+  color: #A78BFA !important;
+  border-radius: 8px !important;
+  padding: 2px 8px !important;
+}
+
+.dark .side-menu, .dark .dropdown-menu, .dark .profile-menu {
+  background: #232136 !important;
+  color: #F4F4F5 !important;
+  box-shadow: 0 4px 24px rgba(124,58,237,0.18) !important;
+}
+.dark .side-menu li, .dark .dropdown-menu li, .dark .profile-menu li {
+  color: #F4F4F5 !important;
+}
+.dark .side-menu li.disabled, .dark .dropdown-menu li.disabled, .dark .profile-menu li.disabled {
+  color: #6E6A86 !important;
+}
+.dark .side-menu li.logout, .dark .dropdown-menu li.logout, .dark .profile-menu li.logout {
+  color: #F87171 !important;
+}
+.dark .side-menu li:hover, .dark .dropdown-menu li:hover, .dark .profile-menu li:hover {
+  background: #393552 !important;
+  color: #A78BFA !important;
+}
+
+.dark body, .dark html, .dark #root, .dark .board-container, .dark .main-bg {
+  background: #181825 !important;
 }

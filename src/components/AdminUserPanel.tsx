@@ -563,8 +563,8 @@ const AdminUserPanel: React.FC = () => {
     return GRADE_ORDER[idx + 1];
   };
 
-  // 활동 기간 계산 (3개월 단위)
-  const calculateActivityMonths = (createdAt: any): number => {
+  // 활동 기간 계산 (정확한 일수 기준)
+  const calculateActivityDays = (createdAt: any): number => {
     if (!createdAt) return 0;
     const now = new Date();
     let joinDate: Date;
@@ -577,15 +577,18 @@ const AdminUserPanel: React.FC = () => {
     } else {
       return 0;
     }
-    const monthsDiff = (now.getFullYear() - joinDate.getFullYear()) * 12 +
-      (now.getMonth() - joinDate.getMonth());
-    return monthsDiff;
+    
+    // 밀리초 단위의 차이를 일수로 변환
+    const diffTime = Math.abs(now.getTime() - joinDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
   };
 
   // 예상등급(가입일 기준) 구하는 함수
   const getExpectedGrade = (user: AdminUser): string => {
-    const activityMonths = calculateActivityMonths(user.createdAt);
-    const gradeIdx = Math.min(Math.floor(activityMonths / 3), GRADE_ORDER.length - 1);
+    const activityDays = calculateActivityDays(user.createdAt);
+    // 3개월 = 약 90일, 6개월 = 약 180일, 12개월 = 약 365일
+    const gradeIdx = Math.min(Math.floor(activityDays / 90), GRADE_ORDER.length - 1);
     const expectedGrade = GRADE_ORDER[gradeIdx];
     // 이미 현재 등급이 예상등급 이상이면 '-' 표시
     const currentIdx = GRADE_ORDER.indexOf(user.grade);
@@ -593,15 +596,16 @@ const AdminUserPanel: React.FC = () => {
     return expectedGrade;
   };
 
-  // 승급 가능 여부 확인
+  // 승급 가능 여부 확인 (정확히 90일 단위로만 승급)
   const canPromote = (user: AdminUser): boolean => {
-    const activityMonths = calculateActivityMonths(user.createdAt);
+    const activityDays = calculateActivityDays(user.createdAt);
     const currentGradeIndex = GRADE_ORDER.indexOf(user.grade);
     const maxGradeIndex = Math.min(
-      Math.floor(activityMonths / 3),
+      Math.floor(activityDays / 90),
       GRADE_ORDER.length - 1
     );
-    
+    // 90일이 안 됐으면 승급 불가
+    if (activityDays < 90) return false;
     return currentGradeIndex < maxGradeIndex;
   };
 
@@ -793,7 +797,19 @@ const AdminUserPanel: React.FC = () => {
                           {user.profileImageUrl ? (
                             <img src={user.profileImageUrl} alt="프로필" />
                           ) : (
-                            (user.nickname || '?').charAt(0)
+                            <div style={{ 
+                              width: '100%', 
+                              height: '100%', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center',
+                              background: '#F3F4F6',
+                              color: '#8A55CC',
+                              fontSize: '24px',
+                              fontWeight: '600'
+                            }}>
+                              <User size={32} />
+                            </div>
                           )}
                         </div>
                         <div className="user-info">
@@ -904,7 +920,19 @@ const AdminUserPanel: React.FC = () => {
                           {user.profileImageUrl ? (
                             <img src={user.profileImageUrl} alt="프로필" />
                           ) : (
-                            (user.nickname || '?').charAt(0)
+                            <div style={{ 
+                              width: '100%', 
+                              height: '100%', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center',
+                              background: '#F3F4F6',
+                              color: '#8A55CC',
+                              fontSize: '24px',
+                              fontWeight: '600'
+                            }}>
+                              <User size={32} />
+                            </div>
                           )}
                         </div>
                         <div className="user-info">
@@ -1082,7 +1110,7 @@ const AdminUserPanel: React.FC = () => {
               </thead>
               <tbody>
                 {filteredUsers.map(user => {
-                  const activityMonths = calculateActivityMonths(user.createdAt);
+                  const activityDays = calculateActivityDays(user.createdAt);
                   const expectedGrade = getExpectedGrade(user);
                   const canPromoteUser = canPromote(user);
                   
@@ -1095,7 +1123,7 @@ const AdminUserPanel: React.FC = () => {
                         </span>
                       </td>
                       <td>{formatDate(user.createdAt)}</td>
-                      <td>{activityMonths}개월</td>
+                      <td>{activityDays}일</td>
                       <td>
                         <span className="grade-badge expected">
                           {getExpectedGrade(user)} {getExpectedGrade(user) !== '-' ? gradeNames[getExpectedGrade(user)] : ''}

@@ -59,22 +59,19 @@
 /* Dark Mode */
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg-gradient: linear-gradient(135deg, #2D1B4B 0%, #1F1235 100%);
-    --bg-white: #1A1A1A;
-    --bg-light: #2D3748;
-    --bg-lighter: #374151;
-    --bg-card: #1A1A1A;
-    
-    --text-primary: #F9FAFB;
-    --text-secondary: #E5E7EB;
-    --text-muted: #9CA3AF;
-    
-    --border-light: #374151;
-    --border-primary: #B497D6;
-    
-    --shadow-sm: 0 4px 6px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.3);
-    --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.4);
+    --bg-gradient: linear-gradient(135deg, #181825 0%, #232136 100%);
+    --bg-white: #181825;
+    --bg-light: #232136;
+    --bg-lighter: #2A283E;
+    --bg-card: #232136;
+    --text-primary: #F4F4F5;
+    --text-secondary: #B5BFE2;
+    --text-muted: #6E6A86;
+    --border-light: #393552;
+    --border-primary: #A78BFA;
+    --shadow-sm: 0 4px 6px rgba(124, 58, 237, 0.18);
+    --shadow-md: 0 8px 30px rgba(124, 58, 237, 0.22);
+    --shadow-lg: 0 12px 40px rgba(124, 58, 237, 0.28);
   }
 }
 
@@ -725,4 +722,52 @@ body {
   background: #F3F4F6 !important; /* soft gray */
   border: 1.5px solid #E5E7EB !important;
   box-shadow: 0 2px 8px rgba(209, 213, 219, 0.08) !important;
+}
+
+/* 주요 UI 요소 다크모드 개선 */
+@media (prefers-color-scheme: dark) {
+  .mypage-container, .mypage-content, .profile-card, .stats-grid, .intro-card, .guestbook-section, .grade-section {
+    background: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-light) !important;
+    box-shadow: 0 4px 24px var(--shadow-md) !important;
+  }
+  .profile-image, .profile-avatar, .edit-input, .edit-textarea, .guestbook-textarea, .grade-select, .tab-button, .send-btn {
+    background: #232136 !important;
+    color: #F4F4F5 !important;
+    border-color: #393552 !important;
+  }
+  .edit-input:focus, .edit-textarea:focus, .guestbook-textarea:focus, .grade-select:focus {
+    border-color: #A78BFA !important;
+    box-shadow: 0 0 0 2px #A78BFA44 !important;
+  }
+  .edit-btn, .save-btn, .cancel-btn, .send-btn {
+    background: #A78BFA !important;
+    color: #fff !important;
+    border: none !important;
+  }
+  .edit-btn:hover, .save-btn:hover, .cancel-btn:hover, .send-btn:hover {
+    background: #7C3AED !important;
+  }
+  .profile-name, .user-name, .grade-emoji {
+    color: #A78BFA !important;
+  }
+  .stat-label, .profile-role, .grade-name {
+    color: var(--text-secondary) !important;
+  }
+  .tab-button.active {
+    background: #393552 !important;
+    color: #A78BFA !important;
+  }
+  .mypage-content, .profile-card, .stat-item, .grade-section, .intro-card, .guestbook-section {
+    background: #232136 !important;
+    color: #F4F4F5 !important;
+    box-shadow: 0 4px 18px rgba(124,58,237,0.13) !important;
+  }
+  .profile-name, .user-name, .stat-number, .grade-emoji, .grade-name {
+    color: #F4F4F5 !important;
+  }
+  .stat-label, .profile-role, .grade-section h3, .guestbook-item .message-date {
+    color: #B5BFE2 !important;
+  }
 } 

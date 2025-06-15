@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   doc, 
   getDoc, 
@@ -103,6 +103,7 @@ const EvaluationPostDetail: React.FC = () => {
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [messageContent, setMessageContent] = useState('');
   const { isPlaying: isGlobalPlaying, pause: pauseGlobal, play: playGlobal, currentIdx: globalIdx } = useAudioPlayer();
+  const location = useLocation();
   // 글로벌 플레이리스트 상태 기억용
   const globalStateRef = React.useRef<{idx: number, wasPlaying: boolean}>({idx: 0, wasPlaying: false});
 
@@ -116,6 +117,17 @@ const EvaluationPostDetail: React.FC = () => {
   useEffect(() => {
     if (!id) return;
     setLoading(true);
+    // 조회수 증가 - 항상 1씩 증가
+    const incrementViews = async () => {
+      try {
+        await updateDoc(doc(db, 'posts', id), {
+          views: increment(1)
+        });
+      } catch (error) {
+        console.error('조회수 업데이트 에러:', error);
+      }
+    };
+    incrementViews();
     const unsubscribe = onSnapshot(doc(db, 'posts', id), (docSnapshot) => {
       if (!docSnapshot.exists()) {
         setError('게시글을 찾을 수 없습니다.');
@@ -405,25 +417,18 @@ function AudioPlayer({ audioUrl, duration }: { audioUrl: string, duration?: numb
   const [currentTime, setCurrentTime] = React.useState(0);
   const [audioDuration, setAudioDuration] = React.useState(duration || 0);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
-  const { isPlaying: isGlobalPlaying, pause: pauseGlobal, play: playGlobal, currentIdx: globalIdx } = useAudioPlayer();
-  // 글로벌 플레이리스트 상태 기억용
-  const globalStateRef = React.useRef<{idx: number, wasPlaying: boolean}>({idx: 0, wasPlaying: false});
+  const location = useLocation();
 
-  React.useEffect(() => {
-    if (audioUrl) {
-      audioRef.current = new Audio(audioUrl);
-      audioRef.current.onended = () => setIsPlaying(false);
+  // 라우트 변경 시 오디오 일시정지
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      setIsPlaying(false);
     }
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-      setIsPlaying(false); // 언마운트 시 재생상태 false로
-    };
-  }, [audioUrl]);
+    // eslint-disable-next-line
+  }, [location.pathname]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
@@ -441,25 +446,9 @@ function AudioPlayer({ audioUrl, duration }: { audioUrl: string, duration?: numb
     if (isPlaying) {
       audioRef.current.pause();
       setIsPlaying(false);
-      // 이전 글로벌 상태로 복귀
-      if (globalStateRef.current.wasPlaying) playGlobal(globalStateRef.current.idx);
     } else {
-      // 녹음 오디오 재생 전 글로벌 상태 저장
-      globalStateRef.current = { idx: globalIdx, wasPlaying: isGlobalPlaying };
       audioRef.current.play();
       setIsPlaying(true);
-      if (isGlobalPlaying) pauseGlobal();
-    }
-  };
-
-  const handleProgressBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const bar = e.currentTarget;
-    const rect = bar.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const percent = x / rect.width;
-    if (audioRef.current && audioDuration) {
-      audioRef.current.currentTime = percent * audioDuration;
-      setCurrentTime(percent * audioDuration);
     }
   };
 
@@ -479,7 +468,16 @@ function AudioPlayer({ audioUrl, duration }: { audioUrl: string, duration?: numb
         <div
           className="audio-progress-bar"
           style={{ flex: 1, height: 8, background: '#E5DAF5', borderRadius: 4, margin: '0 8px', cursor: 'pointer', position: 'relative' }}
-          onClick={handleProgressBarClick}
+          onClick={e => {
+            const bar = e.currentTarget;
+            const rect = bar.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const percent = x / rect.width;
+            if (audioRef.current && audioDuration) {
+              audioRef.current.currentTime = percent * audioDuration;
+              setCurrentTime(percent * audioDuration);
+            }
+          }}
         >
           <div
             style={{

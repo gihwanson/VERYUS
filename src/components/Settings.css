@@ -11,8 +11,8 @@
 
 /* 다크모드 */
 .dark .settings-container {
-  background: #1a1a1a;
-  color: #e0e0e0;
+  background: #181825 !important;
+  color: #F4F4F5 !important;
 }
 
 /* 헤더 */
@@ -46,14 +46,14 @@
 }
 
 .dark .back-button {
-  background: #2d2d2d;
-  color: #bb86fc;
-  box-shadow: 0 2px 8px rgba(187, 134, 252, 0.1);
+  background: #232136 !important;
+  color: #A78BFA !important;
+  border: 1.5px solid #393552 !important;
 }
 
 .dark .back-button:hover {
-  background: #bb86fc;
-  color: #1a1a1a;
+  background: #A78BFA !important;
+  color: #232136 !important;
 }
 
 .settings-title {
@@ -86,12 +86,14 @@
 }
 
 .dark .settings-card {
-  background: #2d2d2d;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  background: #232136 !important;
+  color: #F4F4F5 !important;
+  border-color: #393552 !important;
+  box-shadow: 0 4px 24px rgba(124, 58, 237, 0.22) !important;
 }
 
 .dark .settings-card:hover {
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 6px 32px rgba(124, 58, 237, 0.28) !important;
 }
 
 .card-header {
@@ -167,7 +169,7 @@
 }
 
 .dark .user-name {
-  color: #e0e0e0;
+  color: #F4F4F5 !important;
 }
 
 .user-email {
@@ -177,7 +179,7 @@
 }
 
 .dark .user-email {
-  color: #aaa;
+  color: #B5BFE2 !important;
 }
 
 .user-grade {
@@ -205,7 +207,7 @@
 }
 
 .dark .setting-item span {
-  color: #e0e0e0;
+  color: #F4F4F5 !important;
 }
 
 /* 토글 스위치 */
@@ -226,11 +228,11 @@
 }
 
 .dark .toggle-switch {
-  background: #404040;
+  background: #393552 !important;
 }
 
 .dark .toggle-switch.active {
-  background: #bb86fc;
+  background: #A78BFA !important;
 }
 
 .toggle-slider {
@@ -281,14 +283,14 @@
 }
 
 .dark .nickname-input {
-  background: #404040;
-  border-color: #555;
-  color: #e0e0e0;
+  background: #232136 !important;
+  color: #F4F4F5 !important;
+  border-color: #393552 !important;
 }
 
 .dark .nickname-input:focus {
-  border-color: #bb86fc;
-  box-shadow: 0 0 0 3px rgba(187, 134, 252, 0.1);
+  border-color: #A78BFA !important;
+  box-shadow: 0 0 0 2px #A78BFA44 !important;
 }
 
 .edit-buttons {
@@ -336,6 +338,16 @@
 .cancel-btn:hover {
   background: #4b5563;
   transform: translateY(-1px);
+}
+
+.dark .save-btn, .dark .edit-btn, .dark .cancel-btn {
+  background: #A78BFA !important;
+  color: #fff !important;
+  border: none !important;
+}
+
+.dark .save-btn:hover, .dark .edit-btn:hover, .dark .cancel-btn:hover {
+  background: #7C3AED !important;
 }
 
 /* 위험 구역 */
@@ -491,4 +503,49 @@
   .danger-actions {
     gap: 12px;
   }
+}
+
+.dark .settings-title, .dark .card-icon, .dark .user-grade {
+  color: #A78BFA !important;
+}
+
+.dark .user-name {
+  color: #F4F4F5 !important;
+}
+
+.dark .user-email {
+  color: #B5BFE2 !important;
+}
+
+.dark .setting-item span {
+  color: #F4F4F5 !important;
+}
+
+.dark .toggle-switch {
+  background: #393552 !important;
+}
+
+.dark .toggle-switch.active {
+  background: #A78BFA !important;
+}
+
+.dark .nickname-input, .dark .edit-input {
+  background: #232136 !important;
+  color: #F4F4F5 !important;
+  border-color: #393552 !important;
+}
+
+.dark .nickname-input:focus, .dark .edit-input:focus {
+  border-color: #A78BFA !important;
+  box-shadow: 0 0 0 2px #A78BFA44 !important;
+}
+
+.dark .save-btn, .dark .edit-btn, .dark .cancel-btn {
+  background: #A78BFA !important;
+  color: #fff !important;
+  border: none !important;
+}
+
+.dark .save-btn:hover, .dark .edit-btn:hover, .dark .cancel-btn:hover {
+  background: #7C3AED !important;
 } 

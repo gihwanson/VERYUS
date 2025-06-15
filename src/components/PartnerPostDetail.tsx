@@ -178,7 +178,25 @@ const PartnerPostDetail: React.FC = () => {
       navigate('/boards/partner');
       return;
     }
-    setLoading(true);
+
+    // 조회수 증가 - 세션당 한 번만
+    const incrementViews = async () => {
+      const viewedPosts = sessionStorage.getItem('viewedPartnerPosts');
+      const viewedPostsArray = viewedPosts ? JSON.parse(viewedPosts) : [];
+      
+      if (!viewedPostsArray.includes(id)) {
+        try {
+          await updateDoc(doc(db, 'posts', id), {
+            views: increment(1)
+          });
+          sessionStorage.setItem('viewedPartnerPosts', JSON.stringify([...viewedPostsArray, id]));
+        } catch (error) {
+          console.error('조회수 업데이트 에러:', error);
+        }
+      }
+    };
+
+    // 실시간 게시글 데이터 구독
     const unsubscribe = onSnapshot(doc(db, 'posts', id), async (docSnapshot) => {
       if (!docSnapshot.exists() || docSnapshot.data().type !== 'partner') {
         setPost(null);

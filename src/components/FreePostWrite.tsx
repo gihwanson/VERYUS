@@ -40,7 +40,8 @@ const categories = [
   { id: 'general', name: '일반', icon: '💬' },
   { id: 'question', name: '질문', icon: '❓' },
   { id: 'share', name: '정보공유', icon: '📢' },
-  { id: 'discussion', name: '토론', icon: '💭' }
+  { id: 'discussion', name: '토론', icon: '💭' },
+  { id: 'request', name: '신청곡', icon: '🎵' },
 ];
 
 const AUTO_SAVE_INTERVAL = 30000; // 30초
@@ -57,6 +58,7 @@ const FreePostWrite: React.FC = () => {
     return userStr ? JSON.parse(userStr) : null;
   });
   const [isEditMode, setIsEditMode] = useState(false);
+  const [requestTarget, setRequestTarget] = useState('');
 
   // 수정 모드일 때 게시글 불러오기
   useEffect(() => {
@@ -85,9 +87,13 @@ const FreePostWrite: React.FC = () => {
       navigate('/login');
       return;
     }
-    if (!title.trim() || !content.trim()) {
-      alert('제목과 내용을 모두 입력해주세요.');
+    if (!title.trim() || !content.trim() || (category === 'request' && !requestTarget.trim())) {
+      alert('제목, 내용을 모두 입력해주시고, 신청곡은 대상도 입력해주세요.');
       return;
+    }
+    let finalContent = content;
+    if (category === 'request' && requestTarget.trim()) {
+      finalContent = `신청 대상: ${requestTarget.trim()}\n` + content;
     }
     try {
       setIsSubmitting(true);
@@ -95,7 +101,7 @@ const FreePostWrite: React.FC = () => {
         // 수정
         await updateDoc(doc(db, 'posts', id), {
           title,
-          content,
+          content: finalContent,
           category,
           updatedAt: serverTimestamp(),
         });
@@ -106,7 +112,7 @@ const FreePostWrite: React.FC = () => {
         const postRef = collection(db, 'posts');
         const newPost = {
           title,
-          content,
+          content: finalContent,
           category,
           type: 'free',
           writerUid: user.uid,
@@ -154,6 +160,20 @@ const FreePostWrite: React.FC = () => {
               ))}
             </div>
           </div>
+
+          {category === 'request' && (
+            <div className="form-group" style={{ marginTop: 12 }}>
+              <div style={{ fontWeight: 600, color: '#8A55CC', marginBottom: 6 }}>대상은?</div>
+              <input
+                type="text"
+                className="title-input"
+                placeholder="누구에게 신청하고 싶나요?"
+                value={requestTarget}
+                onChange={e => setRequestTarget(e.target.value)}
+                maxLength={50}
+              />
+            </div>
+          )}
 
           <div className="form-group">
             <label htmlFor="title" className="form-label">제목</label>

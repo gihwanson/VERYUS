@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   collection, 
   query, 
@@ -120,6 +120,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [mentionUsers, setMentionUsers] = useState<UserMention[]>([]);
+  const mentionsInputRef = useRef<any>(null);
 
   // 등급 이모지 매핑 함수
   const getGradeEmoji = (grade: string) => {
@@ -486,22 +487,45 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
               </div>
             ) : (
               <MentionsInput
-                value={newComment || ''}
+                ref={mentionsInputRef}
+                value={newComment}
                 onChange={(event, newValue) => setNewComment(newValue)}
                 placeholder="댓글을 입력하세요... (@닉네임으로 태그 가능)"
                 style={mentionsStyle}
                 allowSuggestionsAboveCursor
                 singleLine={false}
                 rows={3}
+                onBlur={e => setTimeout(() => {}, 200)}
               >
                 <Mention
                   trigger="@"
-                  data={mentionUsers && mentionUsers.length > 0
-                    ? mentionUsers.map(u => ({ id: u.nickname, display: u.nickname }))
-                    : []}
+                  data={mentionUsers.map(u => ({ id: u.nickname, display: u.nickname }))}
                   markup="@{{id}}"
                   appendSpaceOnAdd
                   style={{ backgroundColor: '#F6F2FF', color: '#8A55CC', fontWeight: 600, borderRadius: 4, padding: '2px 4px' }}
+                  renderSuggestion={(entry, search, highlightedDisplay, index, focused) => (
+                    <div
+                      onMouseDown={e => {
+                        e.preventDefault();
+                        setTimeout(() => {
+                          (e.target as HTMLElement).click();
+                        }, 0);
+                      }}
+                      onClick={e => {
+                        // react-mentions 내부적으로 하이라이트 처리됨
+                      }}
+                      style={{
+                        background: focused ? '#F6F2FF' : '#fff',
+                        color: focused ? '#8A55CC' : '#1F2937',
+                        fontWeight: 600,
+                        borderRadius: 4,
+                        padding: '8px 16px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {highlightedDisplay}
+                    </div>
+                  )}
                 />
               </MentionsInput>
             )}

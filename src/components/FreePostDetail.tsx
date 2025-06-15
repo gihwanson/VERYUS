@@ -70,7 +70,8 @@ const categories: Category[] = [
   { id: 'general', name: '일반' },
   { id: 'question', name: '질문' },
   { id: 'share', name: '정보공유' },
-  { id: 'discussion', name: '토론' }
+  { id: 'discussion', name: '토론' },
+  { id: 'request', name: '신청곡' },
 ];
 
 // 등급 이모지 매핑
@@ -502,9 +503,19 @@ const FreePostDetail: React.FC = () => {
         </div>
 
         <div className="post-detail-content">
-          {post.content.split('\n').map((line, index) => (
-            <p key={index}>{line}</p>
-          ))}
+          {post.category === 'request' && post.content.startsWith('신청 대상:') && (
+            <div style={{background:'#F6F2FF',color:'#8A55CC',borderRadius:8,padding:'10px 0',marginBottom:16,fontWeight:600,fontSize:'1.08rem',textAlign:'center'}}>
+              {(() => {
+                const match = post.content.match(/^신청 대상: (.+)/);
+                return match ? `"${match[1].split('\n')[0]}"에게 신청곡이 들어왔어요!` : '신청곡이 들어왔어요!';
+              })()}
+            </div>
+          )}
+          <div>
+            {post.category === 'request' && post.content.startsWith('신청 대상:')
+              ? post.content.split('\n').slice(1).map((line, index) => <p key={index}>{line}</p>)
+              : post.content.split('\n').map((line, index) => <p key={index}>{line}</p>)}
+          </div>
         </div>
         
         <div className="post-detail-footer">

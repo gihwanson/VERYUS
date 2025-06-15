@@ -355,6 +355,10 @@ const RecordingPostList: React.FC = () => {
           </button>
         </div>
       </div>
+      <div style={{ width: '100%', background: '#F6F2FF', color: '#8A55CC', fontWeight: 600, fontSize: '1.08rem', borderRadius: 12, padding: '18px 0', textAlign: 'center', margin: '18px 0 24px 0' }}>
+        해당게시판은 개인녹음 소장용 게시판입니다. <br />
+        평가/피드백을 위한 녹음은 <b>평가게시판</b>으로 가주세요.
+      </div>
       <div className="post-list">
         {loading ? (
           <div className="loading-container">
