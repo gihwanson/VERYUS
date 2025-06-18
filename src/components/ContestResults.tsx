@@ -9,6 +9,8 @@ const ContestResults: React.FC = () => {
   const [grades, setGrades] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
   const [participants, setParticipants] = useState<any[]>([]);
+  const [selectedEvaluator, setSelectedEvaluator] = useState<string>('');
+  const [selectedTarget, setSelectedTarget] = useState<string>('');
   const userString = localStorage.getItem('veryus_user');
   const user = userString ? JSON.parse(userString) : null;
   const isAdmin = user && ['리더', '운영진', '부운영진'].includes(user.role);
@@ -67,14 +69,61 @@ const ContestResults: React.FC = () => {
     if (team) {
       // 듀엣: 팀명 (팀원1, 팀원2)
       const memberNames = Array.isArray(team.members) ? team.members.map((uid: string) => {
+        // 먼저 participants에서 찾기
         const p = participants.find(pp => pp.uid === uid);
-        return p ? p.nickname : uid;
+        if (p && p.nickname) {
+          return p.nickname;
+        }
+        
+        // 그래도 찾지 못하면 uid에서 닉네임 추출 시도
+        if (uid.startsWith('custom_')) {
+          const parts = uid.split('_');
+          if (parts.length >= 2) {
+            return parts[1]; // custom_닉네임_timestamp_random에서 닉네임 부분
+          }
+        }
+        
+        // 최후의 수단으로 uid 표시 (하지만 더 읽기 쉽게)
+        return `참가자_${uid.slice(-4)}`;
       }).join(', ') : '';
       return `${team.teamName} (${memberNames})`;
     }
     // 솔로: 닉네임
     const solo = participants.find(p => p.uid === target);
-    return solo ? solo.nickname : target;
+    if (solo && solo.nickname) {
+      return solo.nickname;
+    }
+    
+    // 솔로 참가자도 찾지 못하면 uid에서 닉네임 추출 시도
+    if (target.startsWith('custom_')) {
+      const parts = target.split('_');
+      if (parts.length >= 2) {
+        return parts[1];
+      }
+    }
+    
+    return `참가자_${target.slice(-4)}`;
+  };
+
+  // 고유 평가자 목록 생성
+  const uniqueEvaluators = Array.from(new Set(grades.map(g => g.evaluator))).sort();
+  
+  // 고유 피평가자 목록 생성
+  const uniqueTargets = Array.from(new Set(grades.map(g => g.target)))
+    .map(target => ({ id: target, display: getTargetDisplay(target) }))
+    .sort((a, b) => a.display.localeCompare(b.display));
+
+  // 필터링된 평가 데이터
+  const filteredGrades = grades.filter(g => {
+    const matchEvaluator = !selectedEvaluator || g.evaluator === selectedEvaluator;
+    const matchTarget = !selectedTarget || g.target === selectedTarget;
+    return matchEvaluator && matchTarget;
+  });
+
+  // 필터 초기화 함수
+  const resetFilters = () => {
+    setSelectedEvaluator('');
+    setSelectedTarget('');
   };
 
   return (
@@ -119,6 +168,67 @@ const ContestResults: React.FC = () => {
       {grades.length > 0 && (
         <div style={{ marginBottom: 32 }}>
           <h3 style={{ color: '#7C4DBC', fontWeight: 700, fontSize: 18, marginBottom: 12, textAlign: 'center', borderTop: '2px solid #E5DAF5', paddingTop: 16 }}>전체 심사결과</h3>
+          
+          {/* 필터링 UI */}
+          <div style={{ display: 'flex', gap: 16, marginBottom: 16, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <label style={{ fontWeight: 600, color: '#7C4DBC', minWidth: 60 }}>평가자:</label>
+              <select
+                value={selectedEvaluator}
+                onChange={e => setSelectedEvaluator(e.target.value)}
+                style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #E5DAF5', fontSize: 14, minWidth: 120 }}
+              >
+                <option value="">전체</option>
+                {uniqueEvaluators.map(evaluator => (
+                  <option key={evaluator} value={evaluator}>{evaluator}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <label style={{ fontWeight: 600, color: '#7C4DBC', minWidth: 70 }}>피평가자:</label>
+              <select
+                value={selectedTarget}
+                onChange={e => setSelectedTarget(e.target.value)}
+                style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #E5DAF5', fontSize: 14, minWidth: 150 }}
+              >
+                <option value="">전체</option>
+                {uniqueTargets.map(target => (
+                  <option key={target.id} value={target.id}>{target.display}</option>
+                ))}
+              </select>
+            </div>
+            
+            <button
+              onClick={resetFilters}
+              style={{ 
+                background: '#F43F5E', 
+                color: '#fff', 
+                border: 'none', 
+                borderRadius: 6, 
+                padding: '6px 16px', 
+                fontWeight: 600, 
+                fontSize: 14, 
+                cursor: 'pointer' 
+              }}
+            >
+              필터 초기화
+            </button>
+          </div>
+
+          {/* 필터 상태 표시 */}
+          {(selectedEvaluator || selectedTarget) && (
+            <div style={{ marginBottom: 12, padding: 8, background: '#F0F9FF', borderRadius: 6, border: '1px solid #BAE6FD', textAlign: 'center' }}>
+              <span style={{ color: '#0369A1', fontWeight: 600, fontSize: 14 }}>
+                필터 적용 중: 
+                {selectedEvaluator && ` 평가자(${selectedEvaluator})`}
+                {selectedEvaluator && selectedTarget && ' + '}
+                {selectedTarget && ` 피평가자(${getTargetDisplay(selectedTarget)})`}
+                {' '}| 총 {filteredGrades.length}개 결과
+              </span>
+            </div>
+          )}
+
           <table className="contest-table">
             <thead>
               <tr style={{ background: '#F6F2FF', color: '#8A55CC' }}>
@@ -130,7 +240,7 @@ const ContestResults: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {grades.map((g, i) => (
+              {filteredGrades.map((g, i) => (
                 <tr key={i}>
                   <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{g.evaluator}</td>
                   <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{getTargetDisplay(g.target)}</td>
@@ -139,6 +249,13 @@ const ContestResults: React.FC = () => {
                   <td style={{ padding: 8, border: '1px solid #E5DAF5', maxWidth: 320, wordBreak: 'break-all', whiteSpace: 'pre-line' }}>{g.comment}</td>
                 </tr>
               ))}
+              {filteredGrades.length === 0 && (
+                <tr>
+                  <td colSpan={5} style={{ padding: 16, textAlign: 'center', color: '#9CA3AF', fontStyle: 'italic' }}>
+                    선택한 조건에 맞는 평가 결과가 없습니다.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
           {/* 부운영진 평가 결과 별도 표 */}

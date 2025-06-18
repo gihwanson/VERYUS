@@ -11,5 +11,8 @@ export default defineConfig({
     hmr: {
       timeout: 5000 // WebSocket 연결 타임아웃 증가
     }
+  },
+  define: {
+    'process.env.VITE_APP_TITLE': JSON.stringify('VERYUS')
   }
 })

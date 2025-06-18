@@ -30,13 +30,29 @@ const ContestList: React.FC = () => {
 
   const handleParticipate = async (contest: any) => {
     if (!user) return navigate('/login');
-    if (!window.confirm('참여하시겠습니까?')) return;
-    await setDoc(firestoreDoc(db, 'contests', contest.id, 'participants', user.uid), {
-      nickname: user.nickname,
-      uid: user.uid,
-      joinedAt: new Date()
-    });
-    navigate(`/contests/${contest.id}/participate`);
+    
+    // 해당 콘테스트의 참가자 목록을 확인
+    try {
+      const participantsSnap = await getDocs(collection(db, 'contests', contest.id, 'participants'));
+      const participants = participantsSnap.docs.map(doc => doc.data());
+      
+      // 현재 로그인한 사용자의 닉네임이 참가자 목록에 있는지 확인
+      const isParticipant = participants.some(p => 
+        p.nickname && user.nickname && 
+        p.nickname.toLowerCase().trim() === user.nickname.toLowerCase().trim()
+      );
+      
+      if (isParticipant) {
+        // 참가자 목록에 있으면 바로 참여 페이지로 이동
+        navigate(`/contests/${contest.id}/participate`);
+      } else {
+        // 참가자 목록에 없으면 안내문구 표시
+        alert('현재는 직접 참가가 불가능합니다. 운영진에게 문의해 주세요.');
+      }
+    } catch (error) {
+      console.error('참가자 목록 확인 중 오류:', error);
+      alert('참가자 목록을 확인하는 중 오류가 발생했습니다.');
+    }
   };
 
   const handleEndContest = async (contest: any) => {
