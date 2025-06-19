@@ -310,17 +310,40 @@
 }
 
 .dark .post-item {
-  background: var(--card-bg, #2A2A2A);
-  border-color: var(--border-color, #404040);
+  background: linear-gradient(135deg, #2d1b69 0%, #1e1b3a 100%);
+  border-color: #4c1d95;
+  box-shadow: 0 4px 24px rgba(138, 85, 204, 0.15), 0 1.5px 4px rgba(138, 85, 204, 0.1);
 }
 
 .dark .post-item:hover {
-  background: var(--hover-bg, #383838);
+  background: linear-gradient(135deg, #3730a3 0%, #312e81 100%);
+  border-color: #8A55CC;
+  box-shadow: 0 8px 32px rgba(138, 85, 204, 0.25), 0 4px 16px rgba(138, 85, 204, 0.15);
 }
 
 .dark .post-content {
   background: var(--card-bg, #2A2A2A);
   color: var(--text-primary, #FFFFFF);
+}
+
+.dark .post-title {
+  color: #c4b5fd !important;
+}
+
+.dark .post-content-preview {
+  color: #a78bfa !important;
+}
+
+.dark .author-info {
+  color: #8b5cf6 !important;
+}
+
+.dark .post-meta {
+  color: #a855f7 !important;
+}
+
+.dark .post-stats {
+  color: #a855f7 !important;
 }
 
 .dark .comment {

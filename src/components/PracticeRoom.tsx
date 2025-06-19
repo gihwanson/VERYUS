@@ -40,11 +40,26 @@ const PracticeRoom: React.FC = () => {
   const [showUserSearch, setShowUserSearch] = useState(false);
   const [showSuggestForm, setShowSuggestForm] = useState(false);
   const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [isMobile, setIsMobile] = useState(false);
 
   const navigate = useNavigate();
 
   // 디바운스용 ref
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 모바일 화면 크기 감지
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
 
   // 연습곡 불러오기
   useEffect(() => {
@@ -349,18 +364,84 @@ const PracticeRoom: React.FC = () => {
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#B497D6' }}>불러오는 중...</div>;
 
   return (
-    <div style={{ maxWidth: 480, margin: '40px auto', background: '#fff', borderRadius: 16, boxShadow: '0 4px 24px #E5DAF5', padding: 32 }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-        <button onClick={()=>{window.location.href = '/'}} style={{ background: '#E5DAF5', color: '#8A55CC', border: 'none', borderRadius: 8, padding: '8px 20px', fontWeight: 700, fontSize: 16, marginRight: 16, cursor: 'pointer' }}>← 메인보드로</button>
-        <span style={{ fontWeight: 700, fontSize: 22, color: '#8A55CC' }}>🎹 연습장</span>
+    <div style={{ 
+      maxWidth: isMobile ? '95vw' : 480, 
+      margin: isMobile ? '20px auto' : '40px auto', 
+      background: '#fff', 
+      borderRadius: isMobile ? 12 : 16, 
+      boxShadow: '0 4px 24px #E5DAF5', 
+      padding: isMobile ? 20 : 32
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16, flexWrap: isMobile ? 'wrap' : 'nowrap', gap: isMobile ? 8 : 0 }}>
+        <button onClick={()=>{window.location.href = '/'}} style={{ 
+          background: '#E5DAF5', 
+          color: '#8A55CC', 
+          border: 'none', 
+          borderRadius: 8, 
+          padding: isMobile ? '6px 12px' : '8px 20px', 
+          fontWeight: 700, 
+          fontSize: isMobile ? 14 : 16, 
+          marginRight: isMobile ? 0 : 16, 
+          cursor: 'pointer',
+          width: isMobile ? '100%' : 'auto',
+          marginBottom: isMobile ? 8 : 0
+        }}>← 메인보드로</button>
+        <span style={{ 
+          fontWeight: 700, 
+          fontSize: isMobile ? 18 : 22, 
+          color: '#8A55CC',
+          width: isMobile ? '100%' : 'auto',
+          textAlign: isMobile ? 'center' : 'left'
+        }}>🎹 연습장</span>
       </div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
-        <button onClick={() => setTab('practice')} style={{ flex: 1, background: tab==='practice'?'#8A55CC':'#F6F2FF', color: tab==='practice'?'#fff':'#8A55CC', border: 'none', borderRadius: 8, padding: 10, fontWeight: 600 }}>내 연습곡</button>
-        <button onClick={() => setTab('suggestion')} style={{ flex: 1, background: tab==='suggestion'?'#8A55CC':'#F6F2FF', color: tab==='suggestion'?'#fff':'#8A55CC', border: 'none', borderRadius: 8, padding: 10, fontWeight: 600 }}>제안</button>
-        <button onClick={() => setTab('done')} style={{ flex: 1, background: tab==='done'?'#8A55CC':'#F6F2FF', color: tab==='done'?'#fff':'#8A55CC', border: 'none', borderRadius: 8, padding: 10, fontWeight: 600 }}>연습완료곡</button>
-        <button onClick={() => setTab('other')} style={{ flex: 1, background: tab==='other'?'#8A55CC':'#F6F2FF', color: tab==='other'?'#fff':'#8A55CC', border: 'none', borderRadius: 8, padding: 10, fontWeight: 700, fontFamily: 'inherit' }}>
-          <div style={{ fontWeight: 700, fontFamily: 'inherit' }}>연습장</div>
-          <div style={{ fontWeight: 700, fontFamily: 'inherit', fontSize: 13, color: '#B497D6', marginTop: 2 }}>훔쳐보기</div>
+      <div style={{ display: 'flex', gap: isMobile ? 4 : 8, marginBottom: 24, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+        <button onClick={() => setTab('practice')} style={{ 
+          flex: 1, 
+          background: tab==='practice'?'#8A55CC':'#F6F2FF', 
+          color: tab==='practice'?'#fff':'#8A55CC', 
+          border: 'none', 
+          borderRadius: 8, 
+          padding: isMobile ? 8 : 10, 
+          fontWeight: 600,
+          fontSize: isMobile ? 14 : 16,
+          minWidth: isMobile ? '45%' : 'auto'
+        }}>내 연습곡</button>
+        <button onClick={() => setTab('suggestion')} style={{ 
+          flex: 1, 
+          background: tab==='suggestion'?'#8A55CC':'#F6F2FF', 
+          color: tab==='suggestion'?'#fff':'#8A55CC', 
+          border: 'none', 
+          borderRadius: 8, 
+          padding: isMobile ? 8 : 10, 
+          fontWeight: 600,
+          fontSize: isMobile ? 14 : 16,
+          minWidth: isMobile ? '45%' : 'auto'
+        }}>제안</button>
+        <button onClick={() => setTab('done')} style={{ 
+          flex: 1, 
+          background: tab==='done'?'#8A55CC':'#F6F2FF', 
+          color: tab==='done'?'#fff':'#8A55CC', 
+          border: 'none', 
+          borderRadius: 8, 
+          padding: isMobile ? 8 : 10, 
+          fontWeight: 600,
+          fontSize: isMobile ? 14 : 16,
+          minWidth: isMobile ? '45%' : 'auto'
+        }}>연습완료곡</button>
+        <button onClick={() => setTab('other')} style={{ 
+          flex: 1, 
+          background: tab==='other'?'#8A55CC':'#F6F2FF', 
+          color: tab==='other'?'#fff':'#8A55CC', 
+          border: 'none', 
+          borderRadius: 8, 
+          padding: isMobile ? 8 : 10, 
+          fontWeight: 700, 
+          fontFamily: 'inherit',
+          fontSize: isMobile ? 12 : 16,
+          minWidth: isMobile ? '45%' : 'auto'
+        }}>
+          <div style={{ fontWeight: 700, fontFamily: 'inherit', fontSize: isMobile ? 12 : 14 }}>연습장</div>
+          <div style={{ fontWeight: 700, fontFamily: 'inherit', fontSize: isMobile ? 10 : 13, color: tab==='other'?'#E5DAF5':'#B497D6', marginTop: 2 }}>훔쳐보기</div>
         </button>
       </div>
       {tab==='practice' && (

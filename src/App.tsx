@@ -188,11 +188,23 @@ const AudioPlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   // 리더/운영진 권한 체크
   const userString = typeof window !== 'undefined' ? localStorage.getItem('veryus_user') : null;
   const user = userString ? JSON.parse(userString) : null;
   const isLeaderOrAdmin = user && (user.role === '리더' || user.role === '운영진');
+
+  // 화면 크기 감지
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkIsMobile();
+    window.addEventListener('resize', checkIsMobile);
+    return () => window.removeEventListener('resize', checkIsMobile);
+  }, []);
 
   // 플레이리스트가 로드되면 첫 번째 곡을 선택하지만 자동재생하지 않음
   useEffect(() => {
@@ -298,7 +310,7 @@ const AudioPlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }
       <div
         style={{
           position: 'fixed',
-          bottom: 16,
+          bottom: isMobile ? 90 : 16, // 모바일에서는 하단 네비 위로
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 9999,
@@ -322,7 +334,12 @@ const AudioPlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }
         <button
           onClick={() => setCollapsed((c) => !c)}
           tabIndex={-1}
-          style={{ ...buttonBase, width: 40, height: 40, marginRight: 0 }}
+          style={{ 
+            ...buttonBase, 
+            width: 40, 
+            height: 40, 
+            marginRight: 0
+          }}
           aria-label={collapsed ? '펼치기' : '접기'}
           onMouseOver={e => e.currentTarget.style.background = '#ede9fe'}
           onMouseOut={e => e.currentTarget.style.background = 'none'}

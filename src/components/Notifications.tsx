@@ -99,6 +99,22 @@ const Notifications: React.FC = () => {
     return NotificationService.getNotificationMessage(notification.type);
   };
 
+  const getPostTypeBadge = (postType?: string) => {
+    const badges = {
+      'free': { label: '자유', color: '#8A55CC', bg: '#F6F2FF' },
+      'recording': { label: '녹음', color: '#FF6B6B', bg: '#FFF0F0' },
+      'evaluation': { label: '평가', color: '#4ECDC4', bg: '#F0FFFF' },
+      'partner': { label: '파트너', color: '#FFE66D', bg: '#FFFEF0' },
+      'notice': { label: '공지', color: '#95A5A6', bg: '#F8F9FA' }
+    };
+    
+    if (!postType || !badges[postType as keyof typeof badges]) {
+      return { label: '게시판', color: '#8A55CC', bg: '#F6F2FF' };
+    }
+    
+    return badges[postType as keyof typeof badges];
+  };
+
   const handleGoHome = () => {
     navigate('/');
   };
@@ -116,37 +132,71 @@ const Notifications: React.FC = () => {
         <div className="empty">새 알림이 없습니다.</div>
       ) : (
         <ul className="notification-list">
-          {notifications.map(noti => (
-            <li
-              key={noti.id}
-              className={`notification-item${!noti.isRead ? ' unread' : ''}`}
-              onClick={() => handleNotificationClick(noti)}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 0 }}>
-                <span style={{ marginRight: 8 }}>{getNotificationIcon(noti.type)}</span>
-                <span style={{ fontWeight: !noti.isRead ? 700 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {getNotificationMessage(noti)}
-                </span>
-                {noti.postTitle && (
-                  <span className="noti-title" style={{ marginLeft: 8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    [{noti.postTitle}]
-                  </span>
-                )}
-                <span className="noti-from" style={{ marginLeft: 8 }}>by {noti.fromNickname}</span>
-                <span className="noti-date" style={{ marginLeft: 8 }}>{noti.createdAt && (noti.createdAt.seconds ? new Date(noti.createdAt.seconds * 1000).toLocaleString('ko-KR') : '')}</span>
-                {!noti.isRead && <span className="noti-dot" style={{ marginLeft: 8 }}>●</span>}
-              </div>
-              <button
-                className="noti-delete-btn"
-                onClick={e => { e.stopPropagation(); handleDeleteNotification(noti.id); }}
-                style={{ background: 'none', border: 'none', color: '#8A55CC', marginLeft: 12, cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}
-                title="알림 삭제"
+          {notifications.map(noti => {
+            const postBadge = getPostTypeBadge(noti.postType);
+            return (
+              <li
+                key={noti.id}
+                className={`notification-item${!noti.isRead ? ' unread' : ''}`}
+                onClick={() => handleNotificationClick(noti)}
               >
-                <X size={18} />
-              </button>
-            </li>
-          ))}
+                <div className="notification-content">
+                  {/* 상단: 아이콘, 메시지, 배지 */}
+                  <div className="notification-header">
+                    <div className="notification-icon">
+                      {getNotificationIcon(noti.type)}
+                    </div>
+                    <div className="notification-main">
+                      <div className="notification-message">
+                        {getNotificationMessage(noti)}
+                      </div>
+                      {noti.postType && (
+                        <span 
+                          className="post-type-badge"
+                          style={{ 
+                            background: postBadge.bg, 
+                            color: postBadge.color,
+                            border: `1px solid ${postBadge.color}20`
+                          }}
+                        >
+                          {postBadge.label}
+                        </span>
+                      )}
+                      {!noti.isRead && <span className="unread-indicator">●</span>}
+                    </div>
+                    <button
+                      className="notification-delete"
+                      onClick={e => { e.stopPropagation(); handleDeleteNotification(noti.id); }}
+                      title="알림 삭제"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                  
+                  {/* 하단: 게시글 제목 */}
+                  {noti.postTitle && (
+                    <div className="notification-post-title">
+                      📝 {noti.postTitle}
+                    </div>
+                  )}
+                  
+                  {/* 하단: 메타 정보 */}
+                  <div className="notification-meta">
+                    <span className="notification-author">👤 {noti.fromNickname}</span>
+                    <span className="notification-date">
+                      🕐 {noti.createdAt && (noti.createdAt.seconds ? 
+                        new Date(noti.createdAt.seconds * 1000).toLocaleDateString('ko-KR', {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        }) : '')}
+                    </span>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

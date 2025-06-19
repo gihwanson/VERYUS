@@ -140,7 +140,10 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
   const [noticeContent, setNoticeContent] = useState('🎤 12월 정기 버스킹이 홍대에서 진행됩니다! 많은 참여 부탁드려요.');
   const [teamInfo, setTeamInfo] = useState<TeamInfo>(DEFAULT_TEAM_INFO);
   const [editingActivity, setEditingActivity] = useState(false);
+  const [showBulkActivityModal, setShowBulkActivityModal] = useState(false);
+  const [bulkActivityText, setBulkActivityText] = useState('');
   const [activityHistory, setActivityHistory] = useState<Activity[]>([]);
+  const [showAllActivities, setShowAllActivities] = useState(false);
   const [recentFree, setRecentFree] = useState<Post | null>(null);
   const [recentRecording, setRecentRecording] = useState<Post | null>(null);
   const [recentEvaluation, setRecentEvaluation] = useState<Post | null>(null);
@@ -429,6 +432,97 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
     } catch (error) {
       console.error('활동 삭제 오류:', error);
       alert('활동 삭제 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 일괄 활동 입력 처리
+  const handleBulkActivitySubmit = async () => {
+    if (!bulkActivityText.trim()) {
+      alert('활동 내용을 입력해주세요.');
+      return;
+    }
+
+    try {
+      const lines = bulkActivityText.trim().split('\n');
+      const newActivities: Activity[] = [];
+
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        if (!trimmedLine) continue;
+
+        // 날짜 패턴 매칭 (XX.XX.XX 형식)
+        const dateMatch = trimmedLine.match(/^(\d{2}\.\d{2}\.\d{2})/);
+        if (dateMatch) {
+          const dateStr = dateMatch[1];
+          const title = trimmedLine.substring(dateMatch[0].length).trim();
+          
+          if (title) {
+            // 참가자 수 추출 (괄호 안의 내용)
+            const participantMatch = title.match(/\(([^)]+)\)/);
+            let participants = 0;
+            let cleanTitle = title;
+            
+            if (participantMatch) {
+              const participantInfo = participantMatch[1];
+              // 이름이 여러 개 있으면 쉼표나 '外'로 구분된 개수 계산
+              if (participantInfo.includes('外')) {
+                const baseCount = participantInfo.split('外')[0].split(/[,\s]+/).filter(name => name.trim()).length;
+                participants = baseCount + 1; // '外'는 추가 인원을 의미
+              } else {
+                participants = participantInfo.split(/[,\s]+/).filter(name => name.trim()).length;
+              }
+              // 괄호 부분을 제거하여 깔끔한 제목 생성
+              cleanTitle = title.replace(/\s*\([^)]+\)\s*$/, '');
+            }
+
+            const newActivity: Activity = {
+              id: `bulk_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              date: `20${dateStr}`, // 20XX 년도 추가
+              title: cleanTitle,
+              description: title, // 원본 제목을 설명으로 저장
+              participants: participants,
+              createdAt: new Date(),
+              createdBy: user?.nickname || user?.email
+            };
+            
+            newActivities.push(newActivity);
+          }
+        }
+      }
+
+      if (newActivities.length === 0) {
+        alert('올바른 형식의 활동 내용을 찾을 수 없습니다.\n\n예시 형식:\n23.09.24 베리어스 버스킹팀 창설\n24.03.02 광안리 쪽빛마당거리공연장 버스킹');
+        return;
+      }
+
+      // 날짜순으로 정렬 (최신순)
+      newActivities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+      // 기존 활동과 합치기 (중복 제거)
+      const existingTitles = new Set(activityHistory.map(activity => activity.title));
+      const uniqueNewActivities = newActivities.filter(activity => !existingTitles.has(activity.title));
+
+      if (uniqueNewActivities.length === 0) {
+        alert('모든 활동이 이미 존재합니다.');
+        return;
+      }
+
+      const updatedActivityHistory = [...uniqueNewActivities, ...activityHistory];
+
+      await setDoc(doc(db, 'settings', 'activityHistory'), {
+        activities: updatedActivityHistory,
+        updatedAt: new Date(),
+        updatedBy: user?.nickname || user?.email
+      });
+
+      setActivityHistory(updatedActivityHistory);
+      setShowBulkActivityModal(false);
+      setBulkActivityText('');
+      
+      alert(`${uniqueNewActivities.length}개의 활동이 성공적으로 추가되었습니다!`);
+    } catch (error) {
+      console.error('일괄 활동 추가 오류:', error);
+      alert('활동 추가 중 오류가 발생했습니다.');
     }
   };
 
@@ -742,11 +836,40 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
               <Bell className="card-icon" style={{ margin: 0, verticalAlign: 'middle' }} />
               <h3 className="card-title" style={{ fontSize: 28, fontWeight: 800, color: '#8A55CC', letterSpacing: 1, textAlign: 'center', flex: 'none', margin: 0, display: 'inline-block', verticalAlign: 'middle', marginLeft: 0 }}>공지사항</h3>
             </span>
+          </div>
+          <div style={{ width: '100%', borderTop: '2.5px solid #B497D6', margin: '16px 0 0 0' }} />
+          <div className="notice-content" style={{ 
+            width: '100%', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: isAdmin(user) ? 'space-between' : 'center', 
+            minHeight: 48, 
+            textAlign: 'center', 
+            fontSize: 20, 
+            fontWeight: 600, 
+            color: '#92400E', 
+            padding: '24px 24px' 
+          }}>
+            <span style={{ 
+              flex: isAdmin(user) ? 1 : 'none', 
+              paddingRight: isAdmin(user) ? '16px' : '0',
+              textAlign: 'center'
+            }}>{editingNotice ? (
+              <textarea
+                value={noticeContent}
+                onChange={(e) => setNoticeContent(e.target.value)}
+                className="edit-textarea"
+                placeholder="공지사항을 입력하세요..."
+                style={{ width: '100%', minHeight: '60px', textAlign: 'center' }}
+              />
+            ) : (
+              noticeContent
+            )}</span>
             {isAdmin(user) && (
-              <div className="edit-buttons" style={{ position: 'absolute', right: 24, top: 24 }}>
+              <div className="edit-buttons" style={{ flexShrink: 0 }}>
                 {editingNotice ? (
                   <>
-                    <button onClick={handleSaveNotice} className="save-btn">저장</button>
+                    <button onClick={handleSaveNotice} className="save-btn" style={{ marginRight: '8px' }}>저장</button>
                     <button onClick={() => setEditingNotice(false)} className="cancel-btn">취소</button>
                   </>
                 ) : (
@@ -757,19 +880,6 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
                 )}
               </div>
             )}
-          </div>
-          <div style={{ width: '100%', borderTop: '2.5px solid #B497D6', margin: '16px 0 0 0' }} />
-          <div className="notice-content" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 48, textAlign: 'center', fontSize: 20, fontWeight: 600, color: '#92400E', padding: '24px 0' }}>
-            <span style={{ flex: 1 }}>{editingNotice ? (
-              <textarea
-                value={noticeContent}
-                onChange={(e) => setNoticeContent(e.target.value)}
-                className="edit-textarea"
-                placeholder="공지사항을 입력하세요..."
-              />
-            ) : (
-              noticeContent
-            )}</span>
           </div>
         </div>
 
@@ -949,24 +1059,84 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
           <div className="card-header">
             <Music className="card-icon" />
             <h3 className="card-title">VERYUS 활동이력</h3>
-            {isAdmin(user) && (
-              <div className="edit-buttons">
-                <button onClick={handleAddActivity} className="add-btn">
-                  <Plus size={14} />
-                  추가
-                </button>
-                <button 
-                  onClick={() => setEditingActivity(!editingActivity)} 
-                  className={editingActivity ? "cancel-btn" : "edit-btn"}
-                >
-                  <Edit size={14} />
-                  {editingActivity ? '완료' : '편집'}
-                </button>
-              </div>
-            )}
+            <div className="edit-buttons">
+              {isAdmin(user) && (
+                <>
+                  <button onClick={handleAddActivity} className="add-btn">
+                    <Plus size={14} />
+                    추가
+                  </button>
+                  <button onClick={() => {
+                    setShowBulkActivityModal(true);
+                    // 샘플 데이터를 미리 채워넣기
+                    setBulkActivityText(`23.09.24 베리어스 버스킹팀 창설
+23.11.26 해운대 뮤직존5 버스킹
+24.03.02 광안리 쪽빛마당거리공연장 버스킹
+24.03.17 해운대 뮤직존2 버스킹
+24.06.03 해운대 뮤직존3 버스킹
+24.06.24 해운대 뮤직존4 버스킹
+24.08.02 해운대 햄튼커피&펍 공연
+24.08.04 송정해수욕장 뮤직존 버스킹
+24.08.15 송정해수욕장 뮤직존 버스킹
+24.08.17 다대포 할매집 섭외 버스킹(with 그루비팀)
+24.08.24 다대포 할매집 섭외 버스킹
+24.08.30 가산수변공원 버스킹
+24.09.08 락끼랜드 섭외 무대(with 홍록기)
+24.09.21 밀락더마켓 방구석뮤지션 참가
+24.09.22 밀락더마켓 청년가요제 참가
+24.09.22 다대포 할매집 섭외 버스킹
+24.09.23 서면 상상마당 버스킹
+24.09.24 여수 이순신광장 버스킹
+24.10.05 송정해수욕장 뮤직존 버스킹
+24.10.12 송정해수욕장 뮤직존버스킹
+24.10.13 낙동강구포나루 공연
+24.10.14 송정해수욕장 뮤직존 버스킹
+24.10.26 송정해수욕장 뮤직존 버스킹
+24.11.02 밀락더 마켓 이구역 뮤지션 (수지)
+24.11.06 경남정보대학교 초청 공연 (수지)
+24.11.09 더브라이트 광복로 공연
+24.11.23 해운대 구남로 버스킹
+24.11.23 송정해수욕장 뮤직존 버스킹
+24.12.21 밀락더마켓 캐롤콘서트 초청(수지)
+24.12.21 송정해수욕장 뮤직존 버스킹
+24.12.24 크리스마스 이브 모임
+24.12.28~29 베리어스 연말 송정 펜션 모임
+25.02.07 부산중학교 초청 공연(수지)
+25.02.22 베리어스 개최 '도전천곡'
+25.03.07 베리어스 축가 섭외(울산/너래, 해야, 성주)
+25.03.22 송정해수욕장 뮤직존 버스킹
+25.03.23 부산시 B-STAGE 수지 예선 1등 (루이 外 5명)
+25.03.23 광안리 로그인노래타운 노래녹음기능 홍보 섭외
+25.04.06 창원 용지호수 버스킹
+25.04.13 청년버스킹경연 김해가야문화축제장(너래 外)
+25.04.14 김해 가야문화축제 청년버스킹경연 예선
+25.04.19 송정해수욕장 뮤직존 버스킹
+25.04.26 송정해수욕장 버스킹
+25.05.02 세계라면축제 가요제 참가
+25.05.04 송정해수욕장 뮤직존 버스킹
+25.05.10 송정해수욕장 뮤직존 버스킹
+25.05.11 하우스뮤직 프로젝트 선정 서면 "유기체" 공연
+25.05.17 송정해수욕장 뮤직존 버스킹
+25.05.24 송정해수욕장 버스킹
+25.05.30 송정해수욕장 버스킹
+25.06.06 송정해수욕장 버스킹
+25.06.07 광안리해수욕장 달빛마당거리 버스킹`);
+                  }} className="bulk-btn">
+                    📋 일괄입력
+                  </button>
+                  <button 
+                    onClick={() => setEditingActivity(!editingActivity)} 
+                    className={editingActivity ? "cancel-btn" : "edit-btn"}
+                  >
+                    <Edit size={14} />
+                    {editingActivity ? '완료' : '편집'}
+                  </button>
+                </>
+              )}
+            </div>
           </div>
           <div className="activity-list">
-            {activityHistory.map(activity => (
+            {(showAllActivities ? activityHistory : activityHistory.slice(0, 5)).map(activity => (
               <div key={activity.id} className="activity-item">
                 <div className="activity-date">
                   {editingActivity ? (
@@ -1019,10 +1189,105 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
                 </div>
               </div>
             ))}
+            {activityHistory.length > 5 && (
+              <div className="show-more-container">
+                <button 
+                  onClick={() => setShowAllActivities(!showAllActivities)}
+                  className="show-more-btn"
+                >
+                  {showAllActivities ? (
+                    <>
+                      <span>접기</span>
+                      <span style={{ transform: 'rotate(180deg)', display: 'inline-block' }}>▼</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>더보기 ({activityHistory.length - 5}개 더)</span>
+                      <span>▼</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
       
+      {/* 일괄 활동 입력 모달 */}
+      {showBulkActivityModal && (
+        <div className="modal-overlay" onClick={() => setShowBulkActivityModal(false)}>
+          <div className="modal-content bulk-activity-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>📋 활동이력 일괄 입력</h3>
+              <button 
+                className="modal-close"
+                onClick={() => setShowBulkActivityModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="bulk-input-guide">
+                <h4>📝 입력 형식 안내</h4>
+                <div className="format-example">
+                  <code>23.09.24 베리어스 버스킹팀 창설<br/>
+                  24.03.02 광안리 쪽빛마당거리공연장 버스킹<br/>
+                  24.09.21 밀락더마켓 방구석뮤지션 참가(수지)<br/>
+                  24.11.02 밀락더 마켓 이구역 뮤지션 (수지 外 2명)</code>
+                </div>
+                <ul className="format-rules">
+                  <li>• 각 줄마다 하나의 활동을 입력</li>
+                  <li>• 날짜는 <strong>YY.MM.DD</strong> 형식으로 시작</li>
+                  <li>• 참가자는 괄호 안에 입력 (자동으로 인원수 계산)</li>
+                  <li>• 빈 줄은 자동으로 무시됩니다</li>
+                </ul>
+              </div>
+              
+              <div className="bulk-input-area">
+                <label htmlFor="bulkActivityText">활동이력 입력</label>
+                <textarea
+                  id="bulkActivityText"
+                  value={bulkActivityText}
+                  onChange={(e) => setBulkActivityText(e.target.value)}
+                  placeholder={`예시:
+23.09.24 베리어스 버스킹팀 창설
+24.03.02 광안리 쪽빛마당거리공연장 버스킹
+24.09.21 밀락더마켓 방구석뮤지션 참가(수지)
+24.11.02 밀락더 마켓 이구역 뮤지션 (수지 外 2명)
+
+위 형식으로 복사-붙여넣기 하시면 됩니다!`}
+                  rows={15}
+                  className="bulk-textarea"
+                />
+                <div className="input-stats">
+                  {bulkActivityText.trim() && (
+                    <span>
+                      {bulkActivityText.trim().split('\n').filter(line => line.trim() && line.match(/^\d{2}\.\d{2}\.\d{2}/)).length}개 활동 감지됨
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            <div className="modal-footer">
+              <button 
+                className="btn-secondary"
+                onClick={() => setShowBulkActivityModal(false)}
+              >
+                취소
+              </button>
+              <button 
+                className="btn-primary"
+                onClick={handleBulkActivitySubmit}
+                disabled={!bulkActivityText.trim()}
+              >
+                📋 일괄 추가
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

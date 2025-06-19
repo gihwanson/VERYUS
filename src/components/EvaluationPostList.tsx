@@ -348,21 +348,51 @@ const EvaluationPostList: React.FC = () => {
           posts.map((post, index) => (
             <article
               key={post.id}
-              className="post-card"
+              className="post-card evaluation-post-card"
               onClick={() => handlePostClick(post.id)}
               ref={index === posts.length - 1 ? lastPostElementRef : null}
-              style={{ cursor: 'pointer', marginBottom: 16 }}
+              style={{ 
+                cursor: 'pointer', 
+                marginBottom: 16,
+                background: 'linear-gradient(135deg, #f8f6ff 0%, #f3f0ff 100%)',
+                border: '1.5px solid #e5daf5',
+                borderRadius: '18px',
+                padding: '2rem 1.5rem 1.5rem 1.5rem',
+                boxShadow: '0 4px 24px rgba(138, 85, 204, 0.12), 0 1.5px 4px rgba(138, 85, 204, 0.08)',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'linear-gradient(135deg, #f6f2ff 0%, #ede9fe 100%)';
+                e.currentTarget.style.borderColor = '#8A55CC';
+                e.currentTarget.style.boxShadow = '0 8px 32px rgba(138, 85, 204, 0.2), 0 4px 16px rgba(138, 85, 204, 0.12)';
+                e.currentTarget.style.transform = 'translateY(-4px) scale(1.02)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'linear-gradient(135deg, #f8f6ff 0%, #f3f0ff 100%)';
+                e.currentTarget.style.borderColor = '#e5daf5';
+                e.currentTarget.style.boxShadow = '0 4px 24px rgba(138, 85, 204, 0.12), 0 1.5px 4px rgba(138, 85, 204, 0.08)';
+                e.currentTarget.style.transform = 'none';
+              }}
             >
               <div className="post-category-title" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <span className="post-category category-badge" style={{ background: post.category === 'busking' ? '#8A55CC' : '#e3d0ff', color: post.category === 'busking' ? 'white' : '#8A55CC' }}>
+                <span className="post-category category-badge" style={{ 
+                  background: post.category === 'busking' ? 'linear-gradient(135deg, #8A55CC, #7c3aed)' : 'linear-gradient(135deg, #8A55CC, #7c3aed)', 
+                  color: 'white',
+                  boxShadow: '0 2px 8px rgba(138, 85, 204, 0.3)',
+                  padding: '4px 14px',
+                  borderRadius: '12px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  letterSpacing: '0.02em'
+                }}>
                   {post.category === 'busking' ? '버스킹심사곡' : post.category === 'feedback' ? '피드백요청' : '평가'}
                 </span>
-                <h2 className="post-title" style={{ fontSize: '1.13rem', fontWeight: 700, color: '#1F2937', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{post.title}</h2>
+                <h2 className="post-title" style={{ fontSize: '1.13rem', fontWeight: 700, color: '#4c1d95', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{post.title}</h2>
               </div>
-              <div className="post-meta" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.7rem', fontSize: '0.97rem', color: '#6B7280', marginBottom: 4 }}>
+                              <div className="post-meta" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.7rem', fontSize: '0.97rem', color: '#a855f7', marginBottom: 4 }}>
                 <div className="post-author" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
                   <User size={16} />
-                  <span className="author-info" style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', fontWeight: 500, color: '#1F2937' }}>
+                                      <span className="author-info" style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', fontWeight: 500, color: '#7c3aed' }}>
                     {post.writerNickname}
                     <span className="author-grade-emoji" title={getGradeName(post.writerGrade || '🍒')}>
                       {getGradeEmoji(post.writerGrade || '🍒')}
@@ -386,7 +416,7 @@ const EvaluationPostList: React.FC = () => {
                   </span>
                 </div>
               </div>
-              <div className="post-content-preview" style={{ fontSize: '1.05rem', color: '#6B7280', margin: '0.7rem 0 1.2rem 0', lineHeight: 1.7, minHeight: '2.5em', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+              <div className="post-content-preview" style={{ fontSize: '1.05rem', color: '#6b46c1', margin: '0.7rem 0 1.2rem 0', lineHeight: 1.7, minHeight: '2.5em', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                 {post.description}
               </div>
               <div className="post-footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '1.2rem', marginTop: 'auto' }}>

@@ -242,6 +242,30 @@
 }
 
 /* 반응형 디자인 */
+@media (max-width: 768px) {
+  .comment-section {
+    margin-top: 1rem;
+    border-radius: 16px;
+    padding: 0;
+  }
+  
+  .comment-header {
+    padding: 1.2rem;
+  }
+  
+  .comment-form {
+    padding: 1.2rem;
+  }
+  
+  .comment-input-wrapper {
+    padding: 1rem;
+  }
+  
+  .comments-list {
+    padding: 1.2rem;
+  }
+}
+
 @media (max-width: 640px) {
   /* 모든 대댓글 계층 스타일 완전 초기화 */
   .comment-item,
@@ -263,15 +287,15 @@
   /* 나머지 모바일 최적화 스타일 유지 */
   .comment-section {
     margin-top: 10px;
-    border-radius: 8px;
+    border-radius: 12px;
   }
   .comment-header,
   .comment-form,
   .comments-list {
-    padding: 8px;
+    padding: 1rem;
   }
   .comments-list {
-    padding: 8px 0 0 0;
+    padding: 1rem 1rem 0.5rem 1rem;
   }
   .comment-info {
     font-size: 14px;

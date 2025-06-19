@@ -24,51 +24,193 @@
 }
 
 .notification-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 16px 0;
-  border-bottom: 1px solid #E5DAF5;
+  background: #FFFFFF;
+  border: 1px solid #E5DAF5;
+  border-radius: 12px;
+  margin-bottom: 12px;
   cursor: pointer;
-  transition: background 0.2s;
-  font-size: 16px;
+  transition: all 0.3s ease;
+  overflow: hidden;
 }
 
 .notification-item:last-child {
-  border-bottom: none;
+  margin-bottom: 0;
 }
 
 .notification-item.unread {
   background: #F6F2FF;
-  font-weight: 700;
+  border-color: #8A55CC;
+  box-shadow: 0 2px 8px rgba(138, 85, 204, 0.1);
 }
 
 .notification-item:hover {
-  background: #F3F4F6;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(138, 85, 204, 0.15);
 }
 
-.noti-title {
-  color: #7C4DBC;
-  margin: 0 8px;
+.notification-content {
+  padding: 16px;
+}
+
+.notification-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.notification-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  background: #F6F2FF;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notification-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.notification-message {
+  font-size: 15px;
   font-weight: 600;
+  color: #1F2937;
+  margin-bottom: 6px;
+  line-height: 1.4;
 }
 
-.noti-from {
-  color: #9CA3AF;
+.post-type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-right: 8px;
+}
+
+.unread-indicator {
+  color: #FF4757;
   font-size: 14px;
-  margin-left: 8px;
+  margin-left: 4px;
 }
 
-.noti-date {
-  color: #B497D6;
+.notification-delete {
+  background: none;
+  border: none;
+  color: #9CA3AF;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.notification-delete:hover {
+  background: #FEE2E2;
+  color: #DC2626;
+}
+
+.notification-post-title {
+  background: #F8F9FA;
+  border: 1px solid #E9ECEF;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 8px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #495057;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notification-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #F1F3F4;
+}
+
+.notification-author {
   font-size: 13px;
-  margin-left: auto;
+  color: #8A55CC;
+  font-weight: 500;
 }
 
-.noti-dot {
-  color: #F43F5E;
-  font-size: 18px;
-  margin-left: 8px;
+.notification-date {
+  font-size: 12px;
+  color: #9CA3AF;
+}
+
+/* 모바일 최적화 */
+@media (max-width: 768px) {
+  .notifications-container {
+    margin: 20px 16px;
+    padding: 20px 16px;
+    border-radius: 16px;
+  }
+  
+  .notifications-container h2 {
+    font-size: 20px;
+    margin-bottom: 20px;
+  }
+  
+  .notification-item {
+    margin-bottom: 16px;
+    border-radius: 16px;
+  }
+  
+  .notification-content {
+    padding: 20px;
+  }
+  
+  .notification-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+  }
+  
+  .notification-message {
+    font-size: 16px;
+    margin-bottom: 8px;
+  }
+  
+  .notification-post-title {
+    padding: 12px;
+    font-size: 15px;
+    border-radius: 10px;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    line-height: 1.5;
+  }
+  
+  .notification-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  .notification-author {
+    font-size: 14px;
+  }
+  
+  .notification-date {
+    font-size: 13px;
+  }
+  
+  .post-type-badge {
+    padding: 4px 10px;
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
 }
 
 .empty {

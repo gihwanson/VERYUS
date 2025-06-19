@@ -47,7 +47,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({ unreadNotifica
       label: '알림',
       path: '/notifications',
       isActive: location.pathname === '/notifications',
-      badge: unreadNotificationCount
+      badge: unreadNotificationCount > 0 ? unreadNotificationCount : undefined
     },
     {
       id: 'mypage',
@@ -129,7 +129,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({ unreadNotifica
                   size={20} 
                   className="bottom-nav-icon"
                 />
-                {item.badge && item.badge > 0 && (
+                {item.badge && typeof item.badge === 'number' && item.badge > 0 && (
                   <span className="bottom-nav-badge">
                     {item.badge > 99 ? '99+' : item.badge}
                   </span>
