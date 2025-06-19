@@ -14,8 +14,6 @@ import {
 import { auth, db } from '../firebase';
 import { 
   ArrowLeft, 
-  Moon, 
-  Sun, 
   Bell, 
   BellOff, 
   Edit, 
@@ -23,8 +21,10 @@ import {
   LogOut, 
   User, 
   Save,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  Palette
 } from 'lucide-react';
+import ThemeToggle from './ThemeToggle';
 import './Settings.css';
 
 interface User {
@@ -41,7 +41,6 @@ interface User {
 const Settings: React.FC = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
-  const [darkMode, setDarkMode] = useState(false);
   const [notifications, setNotifications] = useState(true);
   const [newNickname, setNewNickname] = useState('');
   const [editingNickname, setEditingNickname] = useState(false);
@@ -62,34 +61,12 @@ const Settings: React.FC = () => {
       return;
     }
 
-    // 다크모드 설정 불러오기
-    const savedDarkMode = localStorage.getItem('darkMode') === 'true';
-    setDarkMode(savedDarkMode);
-    
-    // 다크모드 적용
-    if (savedDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    // 테마는 이제 ThemeToggle 컴포넌트에서 자동으로 관리됩니다
 
     setLoading(false);
   }, [navigate]);
 
-  const handleDarkModeToggle = () => {
-    const newDarkMode = !darkMode;
-    setDarkMode(newDarkMode);
-    
-    // localStorage에 저장
-    localStorage.setItem('darkMode', newDarkMode.toString());
-    
-    // 다크모드 클래스 적용/제거
-    if (newDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  };
+  // 다크모드 토글은 이제 ThemeToggle 컴포넌트에서 처리됩니다
 
   const handleNotificationToggle = async () => {
     if (!user) return;
@@ -293,20 +270,14 @@ const Settings: React.FC = () => {
         </div>
       </div>
 
-      {/* 다크모드 설정 */}
+      {/* 테마 설정 */}
       <div className="settings-card">
         <div className="card-header">
-          {darkMode ? <Moon className="card-icon" /> : <Sun className="card-icon" />}
-          <h3>다크모드</h3>
+          <Palette className="card-icon" />
+          <h3>테마 설정</h3>
         </div>
         <div className="setting-item">
-          <span>다크모드 사용</span>
-          <button 
-            className={`toggle-switch ${darkMode ? 'active' : ''}`}
-            onClick={handleDarkModeToggle}
-          >
-            <div className="toggle-slider"></div>
-          </button>
+          <ThemeToggle variant="default" showLabels={true} />
         </div>
       </div>
 

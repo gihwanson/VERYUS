@@ -121,3 +121,14 @@ body {
   transform: translateY(-1px);
   box-shadow: var(--button-shadow);
 }
+
+/* 모바일에서 하단 네비게이션을 위한 여백 확보 */
+@media (max-width: 768px) {
+  .App {
+    padding-bottom: 80px;
+  }
+  
+  .app-container {
+    padding-bottom: 80px;
+  }
+}

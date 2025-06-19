@@ -23,7 +23,8 @@ import {
   Plus,
   Trophy,
   Coffee,
-  Gift
+  Gift,
+  Search
 } from 'lucide-react';
 import './Home.css';
 import SpecialMomentsCard from './SpecialMomentsCard';
@@ -121,7 +122,11 @@ const GRADE_ORDER = [
   '🌙', '⭐', '⚡', '🍺', '🌌', '☀️', '🪐', '🌍', '🍉', '🍈', '🍎', '🥝', '🫐', '🍒'
 ];
 
-const Home: React.FC = () => {
+interface HomeProps {
+  onSearchOpen?: () => void;
+}
+
+const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
   // State
   const [user, setUser] = useState<User | null>(null);
   const [recentPosts, setRecentPosts] = useState<Post[]>([]);
@@ -470,20 +475,42 @@ const Home: React.FC = () => {
 
   // 알림 새 알림 개수 감지 useEffect
   useEffect(() => {
-    const userString = localStorage.getItem('veryus_user');
-    const user = userString ? JSON.parse(userString) : null;
-    if (!user) return;
-    let unsubscribe: (() => void) | undefined;
-    if (db && db instanceof Object && 'collection' in db) {
-      unsubscribe = onSnapshot(
-        query(collection(db, 'notifications'), where('toUid', '==', user.uid), where('isRead', '==', false)),
-        (snap) => {
-          setUnreadNotificationCount(snap.size);
-        }
-      );
+    // user 상태나 localStorage에서 사용자 정보 가져오기
+    const userData = user || (localStorage.getItem('veryus_user') ? JSON.parse(localStorage.getItem('veryus_user')!) : null);
+    
+    if (!userData || !userData.uid) {
+      console.log('알림 구독 실패: 사용자 정보 없음', { user, userData });
+      setUnreadNotificationCount(0);
+      return;
     }
-    return () => { if (unsubscribe) unsubscribe(); };
-  }, []);
+
+    console.log('알림 개수 구독 시작:', userData.uid, userData.nickname);
+    
+    const notificationsQuery = query(
+      collection(db, 'notifications'), 
+      where('toUid', '==', userData.uid), 
+      where('isRead', '==', false)
+    );
+
+    const unsubscribe = onSnapshot(
+      notificationsQuery,
+      (snapshot) => {
+        const count = snapshot.size;
+        console.log('읽지 않은 알림 개수:', count);
+        console.log('알림 목록:', snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        setUnreadNotificationCount(count);
+      },
+      (error) => {
+        console.error('알림 개수 구독 에러:', error);
+        setUnreadNotificationCount(0);
+      }
+    );
+
+    return () => {
+      console.log('알림 구독 해제');
+      unsubscribe();
+    };
+  }, [user]); // user 상태 변경 시 재구독
 
   // 닉네임이 없으면 강제 로그아웃 및 안내
   useEffect(() => {
@@ -578,53 +605,90 @@ const Home: React.FC = () => {
           <img src="/veryus_logo-01.png" alt="VERYUS 로고" className="logo-image" />
           <p className="home-slogan" style={{ marginTop: 8, textAlign: 'center' }}>다양한 음악을 우리답게</p>
         </div>
-        <div className="profile-dropdown">
-          <button 
-            className="profile-button"
-            onClick={() => setDropdownOpen(!dropdownOpen)}
+        
+        {/* 모바일 검색창 */}
+        <div className="mobile-search-container">
+          <button
+            className="mobile-search-button"
+            onClick={() => onSearchOpen?.()}
           >
-            <div className="profile-info">
-              <div className="profile-avatar">
-                {user?.profileImageUrl ? (
-                  <img src={user.profileImageUrl} alt="프로필" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
-                ) : (
-                  user?.nickname ? user.nickname.charAt(0) : 'U'
-                )}
-              </div>
-              <span className="profile-name">
-                {user?.nickname ? user.nickname : '사용자'}
-                <span className="profile-grade">{user?.grade ? user.grade : '🍒'}</span>
-              </span>
-              <span className="profile-chevron">
-                <ChevronDown 
-                  size={16} 
-                  className={`dropdown-arrow ${dropdownOpen ? 'open' : ''}`}
-                />
-              </span>
-            </div>
+            <Search size={16} color="#8A55CC" />
+            <span>통합 검색</span>
           </button>
-          {dropdownOpen && (
-            <div className="dropdown-menu">
-              {dropdownItems.map((item, index) => (
-                <button
-                  key={index}
-                  className="dropdown-item"
-                  onClick={() => {
-                    item.action();
-                    setDropdownOpen(false);
-                  }}
-                >
-                  <item.icon size={16} />
-                  <span>{item.name}</span>
-                  {item.badge && <span style={{ color: 'red', marginLeft: 4, fontSize: 18, fontWeight: 700 }}>{item.badge}</span>}
-                </button>
-              ))}
-            </div>
-          )}
+        </div>
+        
+        {/* 데스크톱 헤더 우측 아이콘들 */}
+        <div className="header-actions desktop-only">
+          {/* 통합 검색 아이콘 */}
+          <button 
+            className="search-icon-button"
+            onClick={() => onSearchOpen?.()}
+            title="통합 검색"
+          >
+            <Search size={20} color="#8A55CC" />
+          </button>
+          
+          {/* 알림 아이콘 */}
+          <button 
+            className="notification-icon-button"
+            onClick={() => navigate('/notifications')}
+          >
+            <Bell size={20} color="#8A55CC" />
+            {unreadNotificationCount > 0 && (
+              <span className="notification-badge">
+                {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
+              </span>
+            )}
+          </button>
+          
+          <div className="profile-dropdown">
+            <button 
+              className="profile-button"
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+            >
+              <div className="profile-info">
+                <div className="profile-avatar">
+                  {user?.profileImageUrl ? (
+                    <img src={user.profileImageUrl} alt="프로필" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                  ) : (
+                    user?.nickname ? user.nickname.charAt(0) : 'U'
+                  )}
+                </div>
+                <span className="profile-name">
+                  {user?.nickname ? user.nickname : '사용자'}
+                  <span className="profile-grade">{user?.grade ? user.grade : '🍒'}</span>
+                </span>
+                <span className="profile-chevron">
+                  <ChevronDown 
+                    size={16} 
+                    className={`dropdown-arrow ${dropdownOpen ? 'open' : ''}`}
+                  />
+                </span>
+              </div>
+            </button>
+            {dropdownOpen && (
+              <div className="dropdown-menu">
+                {dropdownItems.map((item, index) => (
+                  <button
+                    key={index}
+                    className="dropdown-item"
+                    onClick={() => {
+                      item.action();
+                      setDropdownOpen(false);
+                    }}
+                  >
+                    <item.icon size={16} />
+                    <span>{item.name}</span>
+                    {item.badge && <span style={{ color: 'red', marginLeft: 4, fontSize: 18, fontWeight: 700 }}>{item.badge}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-      {/* 닉네임 검색창: 공지사항 카드 바로 위에 위치 */}
-      <div className="nickname-search-bar" style={{
+      {/* 데스크톱 닉네임 검색창 */}
+      <div className="nickname-search-bar desktop-only" style={{
         maxWidth: 340,
         margin: '24px auto 16px auto',
         width: '100%',
@@ -958,6 +1022,8 @@ const Home: React.FC = () => {
           </div>
         </div>
       </div>
+      
+
     </div>
   );
 };

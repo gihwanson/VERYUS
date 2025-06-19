@@ -25,6 +25,7 @@ import { MentionsInput, Mention } from 'react-mentions';
 import { getUserMentions } from '../utils/getUserMentions';
 import type { UserMention } from '../utils/getUserMentions';
 import mentionsStyle from '../styles/mentionsStyle';
+import { NotificationService } from '../utils/notificationService';
 
 interface Comment {
   id: string;
@@ -122,6 +123,16 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
   const [mentionUsers, setMentionUsers] = useState<UserMention[]>([]);
   const mentionsInputRef = useRef<any>(null);
 
+  // URL 경로로부터 게시판 타입 결정
+  const getPostTypeFromPath = (): string => {
+    const path = window.location.pathname;
+    if (path.includes('/free/')) return 'free';
+    if (path.includes('/recording/')) return 'recording';
+    if (path.includes('/evaluation/')) return 'evaluation';
+    if (path.includes('/boards/partner/')) return 'partner';
+    return 'free'; // 기본값
+  };
+
   // 등급 이모지 매핑 함수
   const getGradeEmoji = (grade: string) => {
     if (gradeEmojis.includes(grade)) {
@@ -217,15 +228,14 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
       // 댓글 알림: 게시글 작성자에게(본인이면 생략)
       if (user.uid !== post.writerUid) {
         try {
-          await addDoc(collection(db, 'notifications'), {
-            toUid: post.writerUid,
-            type: 'comment',
-            postId: post.id,
-            postTitle: post.title,
-            fromNickname: user.nickname,
-            createdAt: serverTimestamp(),
-            isRead: false
-          });
+          const postType = getPostTypeFromPath();
+          await NotificationService.createCommentNotification(
+            post.writerUid,
+            user.nickname || '익명',
+            post.id,
+            post.title,
+            postType
+          );
         } catch (err) {
           console.error('알림 생성 실패:', err);
         }
@@ -264,16 +274,15 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
         const parentComment = parentCommentDoc.data();
         if (parentComment && parentComment.writerUid && parentComment.writerUid !== user.uid) {
           try {
-            await addDoc(collection(db, 'notifications'), {
-              toUid: parentComment.writerUid,
-              type: 'reply',
-              postId: post.id,
-              postTitle: post.title,
-              commentId: parentId,
-              fromNickname: user.nickname,
-              createdAt: serverTimestamp(),
-              isRead: false
-            });
+            const postType = getPostTypeFromPath();
+            await NotificationService.createReplyNotification(
+              parentComment.writerUid,
+              user.nickname || '익명',
+              post.id,
+              post.title,
+              parentId,
+              postType
+            );
           } catch (err) {
             console.error('답글 알림 생성 실패:', err);
           }
@@ -584,6 +593,8 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
               comment={comment}
               user={user}
               postId={postId}
+              postTitle={post.title}
+              postType={getPostTypeFromPath()}
               onReply={setReplyingTo}
               replyingTo={replyingTo}
               replyContent={replyContent}

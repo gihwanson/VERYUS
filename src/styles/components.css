@@ -304,4 +304,89 @@
     border-radius: 10px;
     font-size: 0.98em;
   }
+}
+
+/* Enhanced Touch Feedback for all buttons */
+.button,
+.btn,
+button,
+[role="button"] {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 터치 피드백 애니메이션 */
+.button:active,
+.btn:active,
+button:active,
+[role="button"]:active {
+  transform: scale(0.95);
+  transition: transform 0.1s ease;
+}
+
+/* 하이라이트 효과 */
+.button::before,
+.btn::before,
+button::before,
+[role="button"]::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.3s ease, height 0.3s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.button:hover::before,
+.btn:hover::before,
+button:hover::before,
+[role="button"]:hover::before {
+  width: 100%;
+  height: 100%;
+}
+
+/* 모바일 터치 피드백 강화 */
+@media (max-width: 768px) {
+  .button,
+  .btn,
+  button,
+  [role="button"] {
+    min-height: 44px; /* 터치 타겟 최소 크기 */
+    min-width: 44px;
+    padding: 12px 16px;
+  }
+  
+  /* 터치 시 더 강한 스케일 효과 */
+  .button:active,
+  .btn:active,
+  button:active,
+  [role="button"]:active {
+    transform: scale(0.92);
+  }
+}
+
+/* 게시판 아이템 터치 피드백 */
+.board-item,
+.post-item,
+.activity-item,
+.member-card {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.board-item:active,
+.post-item:active,
+.activity-item:active,
+.member-card:active {
+  transform: scale(0.98);
+  background-color: rgba(138, 85, 204, 0.1);
 } 

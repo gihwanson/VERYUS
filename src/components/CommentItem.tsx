@@ -12,6 +12,7 @@ import { db } from '../firebase';
 import TagParser from './TagParser';
 import { Heart, MessageCircle, Edit, Trash2, Send, Clock } from 'lucide-react';
 import './CommentItem.css';
+import { NotificationService } from '../utils/notificationService';
 
 interface Comment {
   id: string;
@@ -39,6 +40,8 @@ interface CommentItemProps {
   comment: Comment;
   user: User | null;
   postId: string;
+  postTitle?: string;
+  postType?: string;
   onReply: (commentId: string) => void;
   replyingTo: string | null;
   replyContent: string;
@@ -53,6 +56,8 @@ const CommentItem: React.FC<CommentItemProps> = ({
   comment,
   user,
   postId,
+  postTitle,
+  postType,
   onReply,
   replyingTo,
   replyContent,
@@ -121,6 +126,23 @@ const CommentItem: React.FC<CommentItemProps> = ({
         likedBy: newIsLiked ? arrayUnion(user.uid) : arrayRemove(user.uid),
         likesCount: increment(newIsLiked ? 1 : -1)
       });
+
+      // 좋아요 알림: 댓글 작성자에게(본인이면 생략, 좋아요 취소시에는 알림 보내지 않음)
+      if (newIsLiked && user.uid !== comment.writerUid && postTitle && postType) {
+        try {
+          await NotificationService.createNotification({
+            type: 'like',
+            toUid: comment.writerUid,
+            fromNickname: user.nickname || '익명',
+            postId,
+            postTitle,
+            postType: postType as any,
+            message: `내 댓글을 좋아합니다.`
+          });
+        } catch (err) {
+          console.error('좋아요 알림 생성 실패:', err);
+        }
+      }
 
       setIsLiked(newIsLiked);
       setLikesCount(prev => prev + (newIsLiked ? 1 : -1));

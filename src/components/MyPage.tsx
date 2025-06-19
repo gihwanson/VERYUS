@@ -33,10 +33,15 @@ import {
   Users,
   Calendar,
   Trash2,
-  Send
+  Send,
+  Mic,
+  Play,
+  Pause,
+  Settings
 } from 'lucide-react';
 import './MyPage.css';
 import { auth } from '../firebase';
+import { NotificationService } from '../utils/notificationService';
 
 interface User {
   uid: string;
@@ -56,6 +61,13 @@ interface Post {
   createdAt: any;
   likesCount: number;
   commentCount: number;
+  audioUrl?: string;
+  fileName?: string;
+  duration?: number;
+  members?: string[];
+  writerNickname?: string;
+  status?: string;
+  category?: string;
 }
 
 interface ActivityStats {
@@ -113,7 +125,7 @@ const MyPage: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'posts' | 'evaluations' | 'guestbook'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'evaluations' | 'recordings' | 'guestbook'>('posts');
   const [editingProfile, setEditingProfile] = useState(false);
   const [editingIntro, setEditingIntro] = useState(false);
   const [editingGrade, setEditingGrade] = useState(false);
@@ -143,6 +155,7 @@ const MyPage: React.FC = () => {
   const [recentEvaluation, setRecentEvaluation] = useState<Post | null>(null);
   const [recentPartner, setRecentPartner] = useState<Post | null>(null);
   const [myEvaluationPosts, setMyEvaluationPosts] = useState<Post[]>([]);
+  const [myRecordings, setMyRecordings] = useState<Post[]>([]);
   const [approvedSongs, setApprovedSongs] = useState<ApprovedSong[]>([]);
 
   // Cleanup subscriptions
@@ -186,6 +199,7 @@ const MyPage: React.FC = () => {
           setupGuestMessagesListener(userData.nickname);
           fetchRecentPosts();
           loadMyEvaluationPosts(userData.nickname);
+          loadMyRecordings(userData.nickname);
           loadApprovedSongs(userData.nickname);
         } else {
           setError('존재하지 않는 유저입니다.');
@@ -215,6 +229,7 @@ const MyPage: React.FC = () => {
         setupGuestMessagesListener(loginUser.nickname);
         fetchRecentPosts();
         loadMyEvaluationPosts(loginUser.nickname);
+        loadMyRecordings(loginUser.nickname);
         loadApprovedSongs(loginUser.nickname);
         setLoading(false); // Firestore 실패해도 localStorage 정보로 렌더링
       }
@@ -418,6 +433,60 @@ const MyPage: React.FC = () => {
         loadMyPosts(editNickname);
         loadActivityStats(editNickname);
         setupGuestMessagesListener(editNickname);
+        // 평가 게시글과 녹음 다시 로드
+        const loadEvalPosts = async () => {
+          try {
+            const writerQuery = query(
+              collection(db, 'posts'),
+              where('type', '==', 'evaluation'),
+              where('writerNickname', '==', editNickname)
+            );
+            const writerSnap = await getDocs(writerQuery);
+            const memberQuery = query(
+              collection(db, 'posts'),
+              where('type', '==', 'evaluation'),
+              where('members', 'array-contains', editNickname)
+            );
+            const memberSnap = await getDocs(memberQuery);
+            const allDocs = [...writerSnap.docs, ...memberSnap.docs];
+            const uniqueMap = new Map();
+            allDocs.forEach(doc => uniqueMap.set(doc.id, { id: doc.id, ...doc.data() }));
+            const posts = Array.from(uniqueMap.values()) as Post[];
+            posts.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+            setMyEvaluationPosts(posts);
+          } catch (error) {
+            console.error('Error loading evaluation posts:', error);
+          }
+        };
+        
+        const loadRecordings = async () => {
+          try {
+            const recordingQuery = query(
+              collection(db, 'posts'),
+              where('type', '==', 'recording'),
+              where('writerNickname', '==', editNickname)
+            );
+            const recordingSnap = await getDocs(recordingQuery);
+            const evaluationQuery = query(
+              collection(db, 'posts'),
+              where('type', '==', 'evaluation'),
+              where('members', 'array-contains', editNickname)
+            );
+            const evaluationSnap = await getDocs(evaluationQuery);
+            const evaluationWithAudio = evaluationSnap.docs.filter(doc => doc.data().audioUrl);
+            const allDocs = [...recordingSnap.docs, ...evaluationWithAudio];
+            const uniqueMap = new Map();
+            allDocs.forEach(doc => uniqueMap.set(doc.id, { id: doc.id, ...doc.data() }));
+            const recordings = Array.from(uniqueMap.values()) as Post[];
+            recordings.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+            setMyRecordings(recordings);
+          } catch (error) {
+            console.error('Error loading recordings:', error);
+          }
+        };
+        
+        loadEvalPosts();
+        loadRecordings();
       }
     } catch (error) {
       console.error('Error saving profile:', error);
@@ -490,14 +559,14 @@ const MyPage: React.FC = () => {
       });
       // 방명록 알림 추가
       if (user.uid) {
-        await addDoc(collection(db, 'notifications'), {
-          toUid: user.uid,
-          type: 'guestbook',
-          fromNickname: currentUser.nickname,
-          postTitle: '',
-          createdAt: serverTimestamp(),
-          isRead: false
-        });
+        try {
+          await NotificationService.createGuestbookNotification(
+            user.uid,
+            currentUser.nickname
+          );
+        } catch (err) {
+          console.error('방명록 알림 생성 실패:', err);
+        }
       }
       setNewGuestMessage('');
     } catch (error) {
@@ -607,6 +676,42 @@ const MyPage: React.FC = () => {
     }
   }, []);
 
+  const loadMyRecordings = useCallback(async (nickname: string) => {
+    try {
+      // 1. 녹음게시판에서 본인이 작성한 녹음들
+      const recordingQuery = query(
+        collection(db, 'posts'),
+        where('type', '==', 'recording'),
+        where('writerNickname', '==', nickname)
+      );
+      const recordingSnap = await getDocs(recordingQuery);
+      
+      // 2. 평가게시판에서 members에 본인 닉네임이 포함된 녹음들 (audioUrl이 있는 것만)
+      const evaluationQuery = query(
+        collection(db, 'posts'),
+        where('type', '==', 'evaluation'),
+        where('members', 'array-contains', nickname)
+      );
+      const evaluationSnap = await getDocs(evaluationQuery);
+      
+      // 평가게시판에서 audioUrl이 있는 것만 필터링
+      const evaluationWithAudio = evaluationSnap.docs.filter(doc => doc.data().audioUrl);
+      
+      // 모든 녹음 데이터 합치기 (중복 제거)
+      const allDocs = [...recordingSnap.docs, ...evaluationWithAudio];
+      const uniqueMap = new Map();
+      allDocs.forEach(doc => uniqueMap.set(doc.id, { id: doc.id, ...doc.data() }));
+      const recordings = Array.from(uniqueMap.values()) as Post[];
+      
+      // 최신순 정렬
+      recordings.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      setMyRecordings(recordings);
+    } catch (error) {
+      console.error('내 녹음 불러오기 오류:', error);
+      setMyRecordings([]);
+    }
+  }, []);
+
   const loadApprovedSongs = useCallback(async (nickname: string) => {
     try {
       const q = query(collection(db, 'approvedSongs'), where('members', 'array-contains', nickname));
@@ -674,6 +779,12 @@ const MyPage: React.FC = () => {
           <ArrowLeft size={20} />
           홈으로
         </button>
+        {isOwner && (
+          <button className="settings-button" onClick={() => navigate('/settings')}>
+            <Settings size={20} />
+            설정
+          </button>
+        )}
       </div>
 
       {/* 프로필 히어로 섹션 */}
@@ -965,6 +1076,13 @@ const MyPage: React.FC = () => {
           평가 이력
         </button>
         <button 
+          className={`tab-button ${activeTab === 'recordings' ? 'active' : ''}`}
+          onClick={() => setActiveTab('recordings')}
+        >
+          <Mic size={16} />
+          내 녹음
+        </button>
+        <button 
           className={`tab-button ${activeTab === 'guestbook' ? 'active' : ''}`}
           onClick={() => setActiveTab('guestbook')}
         >
@@ -1019,6 +1137,120 @@ const MyPage: React.FC = () => {
                     <div className="post-stats">
                       <span><Heart size={12} /> {post.likesCount}</span>
                       <span><MessageCircle size={12} /> {post.commentCount}</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {activeTab === 'recordings' && (
+          <div className="recordings-list">
+            {myRecordings.length === 0 ? (
+              <div className="empty-state">
+                <Mic size={48} />
+                <h3>녹음이 없습니다</h3>
+                <p>녹음게시판에 업로드하거나 평가게시판에 참여해보세요!</p>
+              </div>
+            ) : (
+              myRecordings.map((post) => (
+                <div 
+                  key={post.id} 
+                  className="recording-item"
+                  style={{
+                    border: '1px solid #E5DAF5',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    marginBottom: '12px',
+                    background: '#fff',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onClick={() => {
+                    if (post.type === 'recording') {
+                      navigate(`/recording/${post.id}`);
+                    } else if (post.type === 'evaluation') {
+                      navigate(`/evaluation/${post.id}`);
+                    }
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                    <Mic size={20} style={{ color: '#8A55CC' }} />
+                    <h4 style={{ 
+                      margin: 0, 
+                      fontSize: '16px', 
+                      fontWeight: '600', 
+                      color: '#374151',
+                      flex: 1
+                    }}>
+                      {post.title}
+                    </h4>
+                    <span style={{
+                      background: post.type === 'recording' ? '#E5DAF5' : '#FEF3C7',
+                      color: post.type === 'recording' ? '#8A55CC' : '#D97706',
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: '600'
+                    }}>
+                      {post.type === 'recording' ? '녹음게시판' : '평가게시판'}
+                    </span>
+                  </div>
+                  
+                  {post.fileName && (
+                    <div style={{ 
+                      fontSize: '14px', 
+                      color: '#6B7280', 
+                      marginBottom: '8px',
+                      background: '#F9FAFB',
+                      padding: '6px 12px',
+                      borderRadius: '8px'
+                    }}>
+                      📁 {post.fileName}
+                    </div>
+                  )}
+                  
+                  {post.members && post.members.length > 0 && (
+                    <div style={{ 
+                      fontSize: '14px', 
+                      color: '#8A55CC', 
+                      marginBottom: '8px',
+                      fontWeight: '500'
+                    }}>
+                      👥 함께한 멤버: {post.members.join(', ')}
+                    </div>
+                  )}
+                  
+                  {post.status && (
+                    <div style={{ 
+                      fontSize: '14px', 
+                      marginBottom: '8px',
+                      fontWeight: '600',
+                      color: post.status === '합격' ? '#059669' : post.status === '불합격' ? '#DC2626' : '#6B7280'
+                    }}>
+                      📋 상태: {post.status}
+                    </div>
+                  )}
+                  
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    marginTop: '12px',
+                    paddingTop: '8px',
+                    borderTop: '1px solid #F3F4F6'
+                  }}>
+                    <span style={{ fontSize: '14px', color: '#9CA3AF' }}>
+                      {formatDate(post.createdAt)}
+                    </span>
+                    <div style={{ display: 'flex', gap: '12px', fontSize: '14px', color: '#6B7280' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Heart size={14} /> {post.likesCount || 0}
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <MessageCircle size={14} /> {post.commentCount || 0}
+                      </span>
                     </div>
                   </div>
                 </div>

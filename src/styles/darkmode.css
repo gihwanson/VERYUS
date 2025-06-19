@@ -1,0 +1,421 @@
+/* Global Dark Mode Styles */
+
+/* 다크모드 기본 설정 */
+:root.dark,
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* 전역 다크모드 적용 */
+.dark {
+  color-scheme: dark;
+}
+
+/* 기본 HTML 요소들 */
+.dark body {
+  background: var(--primary-bg, #121212);
+  color: var(--text-primary, #FFFFFF);
+}
+
+.dark * {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+/* 카드 및 컨테이너 */
+.dark .card,
+.dark .container,
+.dark .modal,
+.dark .dropdown,
+.dark .menu {
+  background: var(--card-bg, #2A2A2A);
+  border-color: var(--border-color, #404040);
+  color: var(--text-primary, #FFFFFF);
+}
+
+/* 입력 요소들 */
+.dark input,
+.dark textarea,
+.dark select {
+  background: var(--input-bg, #333333);
+  border-color: var(--border-color, #404040);
+  color: var(--text-primary, #FFFFFF);
+}
+
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  border-color: var(--primary-color, #9F6ADB);
+  box-shadow: 0 0 0 3px rgba(159, 106, 219, 0.1);
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: var(--text-muted, #808080);
+}
+
+/* 버튼 */
+.dark button {
+  color: var(--text-primary, #FFFFFF);
+}
+
+.dark button:hover {
+  background: var(--hover-bg, #383838);
+}
+
+.dark .btn-primary {
+  background: var(--primary-color, #9F6ADB);
+  color: white;
+}
+
+.dark .btn-primary:hover {
+  background: var(--primary-dark, #8F5ACB);
+}
+
+.dark .btn-secondary {
+  background: var(--secondary-bg, #1E1E1E);
+  border-color: var(--border-color, #404040);
+  color: var(--text-secondary, #B3B3B3);
+}
+
+.dark .btn-secondary:hover {
+  background: var(--hover-bg, #383838);
+}
+
+/* 링크 */
+.dark a {
+  color: var(--primary-color, #9F6ADB);
+}
+
+.dark a:hover {
+  color: var(--primary-light, #B485E6);
+}
+
+/* 테이블 */
+.dark table {
+  background: var(--card-bg, #2A2A2A);
+  color: var(--text-primary, #FFFFFF);
+}
+
+.dark th {
+  background: var(--secondary-bg, #1E1E1E);
+  border-color: var(--border-color, #404040);
+  color: var(--text-primary, #FFFFFF);
+}
+
+.dark td {
+  border-color: var(--border-color, #404040);
+  color: var(--text-primary, #FFFFFF);
+}
+
+.dark tr:hover {
+  background: var(--hover-bg, #383838);
+}
+
+/* 스크롤바 */
+.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: var(--secondary-bg, #1E1E1E);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--border-color, #404040);
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted, #606060);
+}
+
+/* 모달 및 오버레이 */
+.dark .modal-overlay {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.dark .modal-content {
+  background: var(--card-bg, #2A2A2A);
+  border: 1px solid var(--border-color, #404040);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* 드롭다운 */
+.dark .dropdown-menu {
+  background: var(--card-bg, #2A2A2A);
+  border-color: var(--border-color, #404040);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.dark .dropdown-item {
+  color: var(--text-primary, #FFFFFF);
+}
+
+.dark .dropdown-item:hover {
+  background: var(--hover-bg, #383838);
+}
+
+/* 알림 및 토스트 */
+.dark .toast {
+  background: var(--card-bg, #2A2A2A);
+  color: var(--text-primary, #FFFFFF);
+  border: 1px solid var(--border-color, #404040);
+}
+
+.dark .toast.success {
+  background: var(--success-bg, #1B4D3E);
+  border-color: var(--success-color, #34D399);
+}
+
+.dark .toast.error {
+  background: var(--error-bg, #4D1919);
+  border-color: var(--error-color, #F87171);
+}
+
+.dark .toast.warning {
+  background: var(--warning-bg, #4D3319);
+  border-color: var(--warning-color, #FBBF24);
+}
+
+/* 배지 및 라벨 */
+.dark .badge {
+  background: var(--primary-color, #9F6ADB);
+  color: white;
+}
+
+.dark .label {
+  color: var(--text-secondary, #B3B3B3);
+}
+
+/* 아바타 및 프로필 이미지 */
+.dark .avatar {
+  border: 2px solid var(--border-color, #404040);
+}
+
+/* 차트 및 그래프 (있는 경우) */
+.dark .chart {
+  background: var(--card-bg, #2A2A2A);
+}
+
+/* 코드 블록 */
+.dark pre,
+.dark code {
+  background: var(--secondary-bg, #1E1E1E);
+  color: var(--text-primary, #FFFFFF);
+  border: 1px solid var(--border-color, #404040);
+}
+
+/* 인용문 */
+.dark blockquote {
+  background: var(--secondary-bg, #1E1E1E);
+  border-left: 4px solid var(--primary-color, #9F6ADB);
+  color: var(--text-secondary, #B3B3B3);
+}
+
+/* 구분선 */
+.dark hr {
+  border-color: var(--border-color, #404040);
+}
+
+/* 탭 */
+.dark .tab {
+  background: var(--secondary-bg, #1E1E1E);
+  border-color: var(--border-color, #404040);
+  color: var(--text-secondary, #B3B3B3);
+}
+
+.dark .tab.active {
+  background: var(--primary-color, #9F6ADB);
+  color: white;
+}
+
+/* 진행률 바 */
+.dark .progress-bar {
+  background: var(--secondary-bg, #1E1E1E);
+}
+
+.dark .progress-fill {
+  background: var(--primary-color, #9F6ADB);
+}
+
+/* 로딩 스피너 */
+.dark .spinner {
+  border-color: var(--border-color, #404040);
+  border-top-color: var(--primary-color, #9F6ADB);
+}
+
+/* 특정 컴포넌트별 다크모드 스타일 */
+
+/* Home.tsx */
+.dark .home-container {
+  background: var(--primary-bg, #121212);
+  color: var(--text-primary, #FFFFFF);
+}
+
+.dark .home-header {
+  background: var(--card-bg, #2A2A2A);
+  border-color: var(--border-color, #404040);
+}
+
+.dark .board-cards {
+  background: var(--card-bg, #2A2A2A);
+}
+
+/* BottomNavigation.tsx */
+.dark .bottom-navigation {
+  background: rgba(42, 42, 42, 0.95);
+  border-color: var(--border-color, #404040);
+}
+
+.dark .bottom-nav-item {
+  color: var(--text-secondary, #B3B3B3);
+}
+
+.dark .bottom-nav-item.active {
+  color: var(--primary-color, #9F6ADB);
+  background: var(--hover-bg, #383838);
+}
+
+/* SearchSystem.tsx */
+.dark .search-system-modal {
+  background: var(--card-bg, #2A2A2A);
+  border: 1px solid var(--border-color, #404040);
+}
+
+.dark .search-header {
+  background: var(--secondary-bg, #1E1E1E);
+  border-color: var(--border-color, #404040);
+}
+
+.dark .search-filters {
+  background: var(--secondary-bg, #1E1E1E);
+  border-color: var(--border-color, #404040);
+}
+
+/* Settings.tsx */
+.dark .settings-container {
+  background: var(--primary-bg, #121212);
+  color: var(--text-primary, #FFFFFF);
+}
+
+.dark .settings-card {
+  background: var(--card-bg, #2A2A2A);
+  border-color: var(--border-color, #404040);
+}
+
+/* 게시판 관련 */
+.dark .post-list {
+  background: var(--primary-bg, #121212);
+}
+
+.dark .post-item {
+  background: var(--card-bg, #2A2A2A);
+  border-color: var(--border-color, #404040);
+}
+
+.dark .post-item:hover {
+  background: var(--hover-bg, #383838);
+}
+
+.dark .post-content {
+  background: var(--card-bg, #2A2A2A);
+  color: var(--text-primary, #FFFFFF);
+}
+
+.dark .comment {
+  background: var(--secondary-bg, #1E1E1E);
+  border-color: var(--border-color, #404040);
+}
+
+/* 폼 요소들 */
+.dark .form-group label {
+  color: var(--text-primary, #FFFFFF);
+}
+
+.dark .form-control {
+  background: var(--input-bg, #333333);
+  border-color: var(--border-color, #404040);
+  color: var(--text-primary, #FFFFFF);
+}
+
+.dark .form-control:focus {
+  border-color: var(--primary-color, #9F6ADB);
+  box-shadow: 0 0 0 3px rgba(159, 106, 219, 0.1);
+}
+
+/* 에러 및 성공 메시지 */
+.dark .error-message {
+  background: var(--error-bg, #4D1919);
+  color: var(--error-color, #F87171);
+  border-color: var(--error-color, #F87171);
+}
+
+.dark .success-message {
+  background: var(--success-bg, #1B4D3E);
+  color: var(--success-color, #34D399);
+  border-color: var(--success-color, #34D399);
+}
+
+.dark .warning-message {
+  background: var(--warning-bg, #4D3319);
+  color: var(--warning-color, #FBBF24);
+  border-color: var(--warning-color, #FBBF24);
+}
+
+.dark .info-message {
+  background: var(--info-bg, #1E3A5F);
+  color: var(--info-color, #60A5FA);
+  border-color: var(--info-color, #60A5FA);
+}
+
+/* 이미지 필터 (필요한 경우) */
+.dark img {
+  filter: brightness(0.9);
+}
+
+.dark .avatar img,
+.dark .profile-image {
+  filter: none; /* 프로필 이미지는 필터 적용 안함 */
+}
+
+/* 선택 영역 스타일 */
+.dark ::selection {
+  background: rgba(159, 106, 219, 0.3);
+  color: var(--text-primary, #FFFFFF);
+}
+
+/* 포커스 스타일 */
+.dark *:focus {
+  outline-color: var(--primary-color, #9F6ADB);
+}
+
+/* 미디어 쿼리 - 다크모드에서도 반응형 유지 */
+@media (max-width: 768px) {
+  .dark .mobile-only {
+    display: block !important;
+  }
+  
+  .dark .desktop-only {
+    display: none !important;
+  }
+}
+
+/* 인쇄 모드 - 다크모드에서도 인쇄 시 라이트모드 */
+@media print {
+  .dark * {
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+  }
+}
+
+/* 고대비 모드 지원 */
+@media (prefers-contrast: high) {
+  .dark {
+    --text-primary: #FFFFFF;
+    --text-secondary: #E0E0E0;
+    --border-color: #606060;
+    --primary-color: #B485E6;
+  }
+} 

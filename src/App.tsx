@@ -1,9 +1,12 @@
 import React, { useEffect, useState, createContext, useContext, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
-import { collection, getDocs, query, where, orderBy, addDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy, addDoc, deleteDoc, doc, onSnapshot } from 'firebase/firestore';
 import { uploadBytes, getDownloadURL, ref as storageRef } from 'firebase/storage';
 import type { User } from 'firebase/auth';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { initializeTheme, useTheme, updateCSSVariables } from './utils/themeService';
 // @ts-ignore
 import { auth, db, storage } from './firebase';
 // @ts-ignore
@@ -66,6 +69,10 @@ import EvaluationPostDetail from './components/EvaluationPostDetail';
 import EvaluationPostEdit from './components/EvaluationPostEdit';
 // @ts-ignore
 import PracticeRoom from './components/PracticeRoom';
+// @ts-ignore
+import BottomNavigation from './components/BottomNavigation';
+// @ts-ignore
+import SearchSystem from './components/SearchSystem';
 import './App.css';
 
 const GRADE_ORDER = [
@@ -187,14 +194,13 @@ const AudioPlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }
   const user = userString ? JSON.parse(userString) : null;
   const isLeaderOrAdmin = user && (user.role === '리더' || user.role === '운영진');
 
-  // 랜덤 자동재생 (플레이리스트가 바뀌면)
+  // 플레이리스트가 로드되면 첫 번째 곡을 선택하지만 자동재생하지 않음
   useEffect(() => {
-    if (playlist.length > 0 && !userPaused) {
-      const idx = Math.floor(Math.random() * playlist.length);
-      setCurrentIdx(idx);
-      setIsPlaying(true);
+    if (playlist.length > 0 && currentIdx >= playlist.length) {
+      // 현재 인덱스가 플레이리스트 범위를 벗어났을 때만 첫 번째 곡으로 설정
+      setCurrentIdx(0);
     }
-  }, [playlist, userPaused]);
+  }, [playlist, currentIdx]);
 
   // 실제 오디오 제어
   useEffect(() => {
@@ -287,7 +293,7 @@ const AudioPlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }
   return (
     <AudioPlayerContext.Provider value={{ playlist, currentIdx, isPlaying, play, pause, playNext, playPrev, setPlaylist }}>
       {/* 오디오 태그는 항상 렌더링 */}
-      <audio ref={audioRef} src={playlist[currentIdx]?.url} onEnded={handleEnded} style={{ display: 'none' }} autoPlay />
+      <audio ref={audioRef} src={playlist[currentIdx]?.url} onEnded={handleEnded} style={{ display: 'none' }} />
       {/* 플레이어 UI는 collapsed에 따라 숨김 처리 */}
       <div
         style={{
@@ -386,7 +392,7 @@ const AudioPlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }
             <form onSubmit={handleUpload} style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 18 }}>
               <input type="text" placeholder="곡 제목" value={uploadForm.title} onChange={e => setUploadForm(f => ({ ...f, title: e.target.value }))} style={{ padding: 7, borderRadius: 6, border: '1px solid #E5DAF5' }} />
               <input type="text" placeholder="아티스트" value={uploadForm.artist} onChange={e => setUploadForm(f => ({ ...f, artist: e.target.value }))} style={{ padding: 7, borderRadius: 6, border: '1px solid #E5DAF5' }} />
-              <input type="file" accept="audio/*" onChange={e => setUploadForm(f => ({ ...f, file: e.target.files && e.target.files[0] ? e.target.files[0] : null }))} />
+              <input type="file" accept="audio/*,.mp3,.m4a,.wav,.aac,.caf,.mp4,.mov,.3gp,.amr,.flac,.ogg,.wma" onChange={e => setUploadForm(f => ({ ...f, file: e.target.files && e.target.files[0] ? e.target.files[0] : null }))} />
               <input type="file" accept="image/*" onChange={e => setCoverFile(e.target.files && e.target.files[0] ? e.target.files[0] : null)} />
               <button type="submit" disabled={uploading} style={{ background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 0', fontWeight: 600, cursor: 'pointer', fontSize: 16 }}>{uploading ? '업로드중...' : '업로드'}</button>
             </form>
@@ -402,6 +408,11 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [loadingEmojiIdx, setLoadingEmojiIdx] = useState(0);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [showSearchSystem, setShowSearchSystem] = useState(false);
+  
+  // 테마 시스템
+  const { resolvedTheme } = useTheme();
 
   useEffect(() => {
     // Firebase Auth 상태 변화 감지
@@ -448,6 +459,43 @@ function App() {
     }, 350);
     return () => clearInterval(interval);
   }, [loading]);
+
+  // 알림 개수 실시간 업데이트
+  useEffect(() => {
+    if (!user) {
+      setUnreadNotificationCount(0);
+      return;
+    }
+
+    const notificationsQuery = query(
+      collection(db, 'notifications'),
+      where('toUid', '==', user.uid),
+      where('isRead', '==', false)
+    );
+
+    const unsubscribe = onSnapshot(
+      notificationsQuery,
+      (snapshot) => {
+        setUnreadNotificationCount(snapshot.size);
+      },
+      (error) => {
+        console.error('알림 개수 구독 에러:', error);
+        setUnreadNotificationCount(0);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user]);
+
+  // 테마 변경 시 CSS 변수 업데이트
+  useEffect(() => {
+    updateCSSVariables(resolvedTheme);
+  }, [resolvedTheme]);
+
+  // 초기 테마 설정
+  useEffect(() => {
+    initializeTheme();
+  }, []);
 
   // 로딩 중일 때 표시할 화면
   if (loading) {
@@ -496,7 +544,7 @@ function App() {
               path="/" 
               element={
                 <ProtectedRoute>
-                  <Home />
+                  <Home onSearchOpen={() => setShowSearchSystem(true)} />
                 </ProtectedRoute>
               } 
             />
@@ -671,7 +719,47 @@ function App() {
               element={<Navigate to={user ? "/" : "/login"} replace />} 
             />
           </Routes>
+          {/* 모바일 하단 네비게이션 바 */}
+          {user && (
+            <BottomNavigation 
+              unreadNotificationCount={unreadNotificationCount}
+              onSearchOpen={() => setShowSearchSystem(true)}
+            />
+          )}
         </div>
+        
+        {/* 통합 검색 시스템 */}
+        <SearchSystem 
+          isOpen={showSearchSystem}
+          onClose={() => setShowSearchSystem(false)}
+          initialQuery=""
+        />
+        
+        {/* 토스트 알림 컨테이너 */}
+        <ToastContainer
+          position="top-right"
+          autoClose={4000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
+          style={{
+            fontSize: '14px',
+            fontFamily: 'Pretendard, sans-serif'
+          }}
+          toastStyle={{
+            borderRadius: '12px',
+            boxShadow: resolvedTheme === 'dark' 
+              ? '0 4px 12px rgba(0, 0, 0, 0.3)' 
+              : '0 4px 12px rgba(138, 85, 204, 0.15)',
+            background: resolvedTheme === 'dark' ? '#2A2A2A' : '#FFFFFF',
+            color: resolvedTheme === 'dark' ? '#FFFFFF' : '#1F2937'
+          }}
+        />
       </Router>
     </AudioPlayerProvider>
   );

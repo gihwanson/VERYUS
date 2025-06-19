@@ -185,17 +185,7 @@ const EvaluationPostDetail: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    if (!id) return;
-    // 세션당 한 번만 조회수 증가
-    const viewedPosts = sessionStorage.getItem('viewedEvalPosts');
-    const viewedPostsArray = viewedPosts ? JSON.parse(viewedPosts) : [];
-    if (!viewedPostsArray.includes(id)) {
-      updateDoc(doc(db, 'posts', id), { views: increment(1) })
-        .catch(err => console.error('조회수 업데이트 에러:', err));
-      sessionStorage.setItem('viewedEvalPosts', JSON.stringify([...viewedPostsArray, id]));
-    }
-  }, [id]);
+
 
   const handleLike = async () => {
     if (!user || !post) return;

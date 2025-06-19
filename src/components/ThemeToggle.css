@@ -1,0 +1,326 @@
+/* ThemeToggle.css */
+
+/* 기본 테마 토글 */
+.theme-toggle-default {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toggle-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary, #6B7280);
+  margin-bottom: 4px;
+}
+
+.theme-options {
+  display: flex;
+  gap: 4px;
+  background: var(--secondary-bg, #F8F9FA);
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color, #E5E7EB);
+}
+
+.theme-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--text-secondary, #6B7280);
+  font-size: 13px;
+  font-weight: 500;
+  min-width: 70px;
+  justify-content: center;
+}
+
+.theme-option:hover {
+  background: var(--hover-bg, #F3F4F6);
+  color: var(--text-primary, #1F2937);
+  transform: translateY(-1px);
+}
+
+.theme-option.active {
+  background: var(--primary-color, #8A55CC);
+  color: white;
+  box-shadow: 0 2px 8px rgba(138, 85, 204, 0.25);
+}
+
+.theme-option.active:hover {
+  background: var(--primary-hover, #7A47BC);
+  transform: translateY(-1px);
+}
+
+.option-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.option-label {
+  font-weight: 500;
+}
+
+/* 컴팩트 토글 스위치 */
+.theme-toggle-compact {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.toggle-switch {
+  position: relative;
+}
+
+.toggle-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-label {
+  display: block;
+  width: 56px;
+  height: 28px;
+  background: var(--border-color, #E5E7EB);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.toggle-input:checked + .toggle-label {
+  background: var(--primary-color, #8A55CC);
+}
+
+.toggle-slider {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 24px;
+  height: 24px;
+  background: white;
+  border-radius: 50%;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toggle-input:checked + .toggle-label .toggle-slider {
+  transform: translateX(28px);
+}
+
+.toggle-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary, #6B7280);
+  transition: color 0.3s ease;
+}
+
+.toggle-input:checked + .toggle-label .toggle-icon {
+  color: var(--primary-color, #8A55CC);
+}
+
+.toggle-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary, #6B7280);
+  min-width: 40px;
+}
+
+/* 아이콘 전용 토글 */
+.theme-toggle-icon {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.theme-toggle-icon.light {
+  background: linear-gradient(135deg, #FEF3C7 0%, #FBBF24 100%);
+  color: #92400E;
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3);
+}
+
+.theme-toggle-icon.dark {
+  background: linear-gradient(135deg, #1E293B 0%, #334155 100%);
+  color: #CBD5E1;
+  box-shadow: 0 4px 12px rgba(30, 41, 59, 0.5);
+}
+
+.theme-toggle-icon:hover {
+  transform: translateY(-2px) scale(1.05);
+}
+
+.theme-toggle-icon.light:hover {
+  box-shadow: 0 6px 16px rgba(251, 191, 36, 0.4);
+}
+
+.theme-toggle-icon.dark:hover {
+  box-shadow: 0 6px 16px rgba(30, 41, 59, 0.6);
+}
+
+.icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.theme-toggle-icon:active .icon-wrapper {
+  transform: rotate(180deg);
+}
+
+/* 다크모드 스타일 */
+.dark .theme-options {
+  background: var(--secondary-bg, #1E1E1E);
+  border-color: var(--border-color, #404040);
+}
+
+.dark .theme-option {
+  color: var(--text-secondary, #B3B3B3);
+}
+
+.dark .theme-option:hover {
+  background: var(--hover-bg, #383838);
+  color: var(--text-primary, #FFFFFF);
+}
+
+.dark .toggle-label {
+  background: var(--border-color, #404040);
+}
+
+.dark .toggle-slider {
+  background: var(--card-bg, #2A2A2A);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.dark .toggle-text {
+  color: var(--text-secondary, #B3B3B3);
+}
+
+.dark .toggle-title {
+  color: var(--text-secondary, #B3B3B3);
+}
+
+/* 호버 효과 강화 */
+@media (hover: hover) {
+  .theme-option {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .theme-option::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+  }
+  
+  .theme-option:hover::before {
+    left: 100%;
+  }
+  
+  .theme-option.active::before {
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  }
+}
+
+/* 포커스 접근성 */
+.theme-option:focus,
+.toggle-label:focus,
+.theme-toggle-icon:focus {
+  outline: 2px solid var(--primary-color, #8A55CC);
+  outline-offset: 2px;
+}
+
+/* 애니메이션 감소 모드 */
+@media (prefers-reduced-motion: reduce) {
+  .theme-option,
+  .toggle-slider,
+  .toggle-icon,
+  .icon-wrapper,
+  .theme-toggle-icon {
+    transition: none;
+  }
+  
+  .theme-option::before {
+    display: none;
+  }
+}
+
+/* 모바일 최적화 */
+@media (max-width: 768px) {
+  .theme-toggle-default {
+    gap: 6px;
+  }
+  
+  .theme-option {
+    padding: 10px 8px;
+    min-width: 60px;
+    font-size: 12px;
+  }
+  
+  .option-label {
+    display: none;
+  }
+  
+  .toggle-switch {
+    transform: scale(0.9);
+  }
+  
+  .theme-toggle-icon {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+/* 고대비 모드 지원 */
+@media (prefers-contrast: high) {
+  .theme-option {
+    border: 2px solid var(--border-color, #E5E7EB);
+  }
+  
+  .theme-option.active {
+    border-color: var(--primary-color, #8A55CC);
+  }
+  
+  .toggle-label {
+    border: 2px solid var(--border-color, #E5E7EB);
+  }
+  
+  .theme-toggle-icon {
+    border: 2px solid currentColor;
+  }
+}
+
+/* 인쇄 모드에서 숨김 */
+@media print {
+  .theme-toggle-default,
+  .theme-toggle-compact,
+  .theme-toggle-icon {
+    display: none;
+  }
+} 

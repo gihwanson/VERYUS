@@ -240,7 +240,7 @@ const RecordingPostEdit: React.FC = () => {
           <label style={{ fontWeight: 600, color: '#8A55CC', marginBottom: 8 }}>오디오 파일 업로드</label>
           <input
             type="file"
-            accept="audio/*"
+            accept="audio/*,.mp3,.m4a,.wav,.aac,.caf,.mp4,.mov,.3gp,.amr,.flac,.ogg,.wma"
             onChange={handleFileUpload}
             disabled={uploading}
             style={{ marginBottom: 8 }}

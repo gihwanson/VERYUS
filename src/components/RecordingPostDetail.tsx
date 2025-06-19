@@ -38,6 +38,17 @@ import './Board.css';
 import CommentSection from './CommentSection';
 import { useAudioPlayer } from '../App';
 
+// 전역 변수로 중복 방지
+declare global {
+  interface Window {
+    recordingViewCounts: Set<string>;
+  }
+}
+
+if (!window.recordingViewCounts) {
+  window.recordingViewCounts = new Set();
+}
+
 interface User {
   uid: string;
   email: string;
@@ -88,6 +99,8 @@ const getGradeName = (emoji: string) => emojiToGrade[emoji] || '체리';
 const RecordingPostDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  
+
   const [user, setUser] = useState<User | null>(null);
   const [post, setPost] = useState<RecordingPost | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -116,6 +129,36 @@ const RecordingPostDetail: React.FC = () => {
   useEffect(() => {
     if (!id) return;
     setLoading(true);
+
+    // 조회수 증가 - 페이지 방문할 때마다 카운트 (강력한 중복 방지)
+    const incrementViews = async () => {
+      // 전역 Set으로 완전한 중복 방지
+      const simpleKey = id;
+      
+      if (window.recordingViewCounts.has(simpleKey)) {
+        return;
+      }
+      
+      // Set에 추가하여 중복 방지
+      window.recordingViewCounts.add(simpleKey);
+      
+      try {
+        await updateDoc(doc(db, 'posts', id), {
+          views: increment(1)
+        });
+        
+        // 3초 후 Set에서 제거 (새로고침 허용)
+        setTimeout(() => {
+          window.recordingViewCounts.delete(simpleKey);
+        }, 3000);
+        
+      } catch (error) {
+        console.error('조회수 업데이트 에러:', error);
+        // 에러 발생시에도 Set에서 제거
+        window.recordingViewCounts.delete(simpleKey);
+      }
+    };
+
     const unsubscribe = onSnapshot(doc(db, 'posts', id), (docSnapshot) => {
       if (!docSnapshot.exists()) {
         setError('게시글을 찾을 수 없습니다.');
@@ -137,6 +180,8 @@ const RecordingPostDetail: React.FC = () => {
       setError('게시글을 불러오는 중 오류가 발생했습니다.');
       setLoading(false);
     });
+
+    incrementViews();
     return () => unsubscribe();
   }, [id]);
 

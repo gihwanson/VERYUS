@@ -1,17 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { collection, query, where, orderBy, onSnapshot, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Bell, MessageCircle, X } from 'lucide-react';
+import { Bell, MessageCircle, X, Heart, CheckCircle, XCircle, Users, AtSign } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { NotificationService } from '../utils/notificationService';
 import './Notifications.css';
 
 interface Notification {
   id: string;
-  type: 'comment' | 'reply';
-  postId: string;
-  postTitle: string;
+  type: 'comment' | 'reply' | 'like' | 'approval' | 'rejection' | 'guestbook' | 'mention' | 'new_post' | 'partnership';
+  postId?: string;
+  postTitle?: string;
+  postType?: string;
   commentId?: string;
   fromNickname: string;
+  message?: string;
   createdAt: any;
   isRead: boolean;
 }
@@ -41,12 +44,59 @@ const Notifications: React.FC = () => {
     if (!notification.isRead) {
       await updateDoc(doc(db, 'notifications', notification.id), { isRead: true });
     }
-    navigate(`/free/${notification.postId}`); // 게시글 타입별로 라우팅 분기 필요시 추가
+    
+    // 게시글 관련 알림의 경우 해당 게시판으로 이동
+    if (notification.postId && notification.postType) {
+      const route = NotificationService.getRouteByPostType(notification.postType, notification.postId);
+      navigate(route);
+    } else if (notification.type === 'guestbook') {
+      // 방명록 알림의 경우 마이페이지로 이동
+      navigate('/mypage');
+    } else if (notification.postId) {
+      // postType이 없는 기존 알림의 경우 자유게시판으로 기본 이동
+      navigate(`/free/${notification.postId}`);
+    }
   };
 
   const handleDeleteNotification = async (id: string) => {
     if (!window.confirm('이 알림을 삭제하시겠습니까?')) return;
     await deleteDoc(doc(db, 'notifications', id));
+  };
+
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'comment':
+        return <MessageCircle size={18} className="text-blue-500" style={{ color: '#8A55CC' }} />;
+      case 'reply':
+        return <MessageCircle size={18} className="text-green-500" style={{ color: '#7C4DBC' }} />;
+      case 'like':
+        return <Heart size={18} className="text-red-500" style={{ color: '#FF4757' }} />;
+      case 'approval':
+        return <CheckCircle size={18} className="text-green-600" style={{ color: '#2ED573' }} />;
+      case 'rejection':
+        return <XCircle size={18} className="text-red-600" style={{ color: '#FF3838' }} />;
+      case 'guestbook':
+        return <Users size={18} className="text-purple-500" style={{ color: '#A55EEA' }} />;
+      case 'mention':
+        return <AtSign size={18} className="text-orange-500" style={{ color: '#FFA726' }} />;
+      default:
+        return <Bell size={18} className="text-gray-500" style={{ color: '#8A55CC' }} />;
+    }
+  };
+
+  const getNotificationMessage = (notification: Notification) => {
+    if (notification.message) {
+      return notification.message;
+    }
+    
+    // 기존 알림 타입 호환성
+    if (notification.type === 'comment') {
+      return '내 게시글에 댓글이 달렸습니다.';
+    } else if (notification.type === 'reply') {
+      return '내 댓글에 답글이 달렸습니다.';
+    }
+    
+    return NotificationService.getNotificationMessage(notification.type);
   };
 
   const handleGoHome = () => {
@@ -74,11 +124,15 @@ const Notifications: React.FC = () => {
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
             >
               <div style={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 0 }}>
-                <MessageCircle size={18} style={{ marginRight: 8, color: noti.type === 'reply' ? '#7C4DBC' : '#8A55CC' }} />
+                <span style={{ marginRight: 8 }}>{getNotificationIcon(noti.type)}</span>
                 <span style={{ fontWeight: !noti.isRead ? 700 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {noti.type === 'comment' ? '내 게시글에 댓글이 달렸습니다.' : '내 댓글에 답글이 달렸습니다.'}
+                  {getNotificationMessage(noti)}
                 </span>
-                <span className="noti-title" style={{ marginLeft: 8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>[{noti.postTitle}]</span>
+                {noti.postTitle && (
+                  <span className="noti-title" style={{ marginLeft: 8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    [{noti.postTitle}]
+                  </span>
+                )}
                 <span className="noti-from" style={{ marginLeft: 8 }}>by {noti.fromNickname}</span>
                 <span className="noti-date" style={{ marginLeft: 8 }}>{noti.createdAt && (noti.createdAt.seconds ? new Date(noti.createdAt.seconds * 1000).toLocaleString('ko-KR') : '')}</span>
                 {!noti.isRead && <span className="noti-dot" style={{ marginLeft: 8 }}>●</span>}
