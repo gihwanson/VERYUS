@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { collection, query, where, orderBy, onSnapshot, updateDoc, doc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, updateDoc, doc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Bell, MessageCircle, X, Heart, CheckCircle, XCircle, Users, AtSign, UserPlus } from 'lucide-react';
+import { Bell, MessageCircle, X, Heart, CheckCircle, XCircle, Users, AtSign, UserPlus, CheckCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { NotificationService } from '../utils/notificationService';
 import './Notifications.css';
@@ -61,6 +61,36 @@ const Notifications: React.FC = () => {
   const handleDeleteNotification = async (id: string) => {
     if (!window.confirm('이 알림을 삭제하시겠습니까?')) return;
     await deleteDoc(doc(db, 'notifications', id));
+  };
+
+  const handleMarkAllAsRead = async () => {
+    if (!user) return;
+    
+    const unreadNotifications = notifications.filter(noti => !noti.isRead);
+    
+    if (unreadNotifications.length === 0) {
+      alert('읽지 않은 알림이 없습니다.');
+      return;
+    }
+
+    if (!window.confirm(`${unreadNotifications.length}개의 읽지 않은 알림을 모두 읽음 처리하시겠습니까?`)) {
+      return;
+    }
+
+    try {
+      const batch = writeBatch(db);
+      
+      unreadNotifications.forEach(noti => {
+        const notificationRef = doc(db, 'notifications', noti.id);
+        batch.update(notificationRef, { isRead: true });
+      });
+
+      await batch.commit();
+      alert('모든 알림이 읽음 처리되었습니다.');
+    } catch (error) {
+      console.error('모두 읽음 처리 중 오류:', error);
+      alert('알림 처리 중 오류가 발생했습니다.');
+    }
   };
 
   const getNotificationIcon = (type: string) => {
@@ -128,17 +158,61 @@ const Notifications: React.FC = () => {
   if (!user) return <div className="notifications-container">로그인이 필요합니다.</div>;
   if (loading) return <div className="notifications-container">로딩 중...</div>;
 
+  const unreadCount = notifications.filter(noti => !noti.isRead).length;
+
   return (
     <div className="notifications-container">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <h2 style={{ display: 'flex', alignItems: 'center' }}><Bell size={24} style={{ color: '#8A55CC', marginRight: 8 }} />알림</h2>
-        <button onClick={handleGoHome} style={{ background: '#F6F2FF', color: '#8A55CC', border: 'none', borderRadius: 8, padding: '8px 18px', fontWeight: 600, cursor: 'pointer', fontSize: 15 }}>메인보드로</button>
+        <h2 style={{ display: 'flex', alignItems: 'center' }}>
+          <Bell size={24} style={{ color: '#8A55CC', marginRight: 8 }} />
+          알림
+          {unreadCount > 0 && (
+            <span style={{ 
+              backgroundColor: '#ef4444', 
+              color: 'white', 
+              borderRadius: '12px', 
+              fontSize: '12px', 
+              fontWeight: '700', 
+              padding: '2px 8px', 
+              marginLeft: '8px',
+              minWidth: '20px',
+              textAlign: 'center'
+            }}>
+              {unreadCount}
+            </span>
+          )}
+        </h2>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {unreadCount > 0 && (
+            <button 
+              onClick={handleMarkAllAsRead}
+              style={{ 
+                background: '#10B981', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: 8, 
+                padding: '8px 16px', 
+                fontWeight: 600, 
+                cursor: 'pointer', 
+                fontSize: 14,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+              title="모든 알림 읽음 처리"
+            >
+              <CheckCheck size={16} />
+              모두 읽음
+            </button>
+          )}
+          <button onClick={handleGoHome} style={{ background: '#F6F2FF', color: '#8A55CC', border: 'none', borderRadius: 8, padding: '8px 18px', fontWeight: 600, cursor: 'pointer', fontSize: 15 }}>메인보드로</button>
+        </div>
       </div>
-      {notifications.length === 0 ? (
+      {notifications.filter(noti => !noti.isRead).length === 0 ? (
         <div className="empty">새 알림이 없습니다.</div>
       ) : (
         <ul className="notification-list">
-          {notifications.map(noti => {
+          {notifications.filter(noti => !noti.isRead).map(noti => {
             const postBadge = getPostTypeBadge(noti.postType);
             return (
               <li

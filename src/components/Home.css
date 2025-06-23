@@ -1334,13 +1334,27 @@
 }
 
 .mobile-only {
-  display: none;
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
 }
 
 /* 모바일에서만 표시 */
 @media (max-width: 768px) {
   .mobile-only {
     display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+}
+
+/* PC에서 모바일 알림 아이콘 완전히 숨기기 */
+@media (min-width: 769px) {
+  .mobile-notification-icons {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
   }
 }
 

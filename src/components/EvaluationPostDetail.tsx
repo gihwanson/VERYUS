@@ -38,6 +38,7 @@ import {
 import './Board.css';
 import CommentSection from './CommentSection';
 import { useAudioPlayer } from '../App';
+import { NotificationService } from '../utils/notificationService';
 
 interface User {
   uid: string;
@@ -106,6 +107,26 @@ const EvaluationPostDetail: React.FC = () => {
   const location = useLocation();
   // 글로벌 플레이리스트 상태 기억용
   const globalStateRef = React.useRef<{idx: number, wasPlaying: boolean}>({idx: 0, wasPlaying: false});
+
+  // 닉네임으로 UID 찾기 함수
+  const findUidByNickname = async (nickname: string): Promise<string | null> => {
+    try {
+      const q = query(
+        collection(db, 'users'),
+        where('nickname', '==', nickname.trim())
+      );
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        const userDoc = querySnapshot.docs[0];
+        return userDoc.id; // 문서 ID가 UID
+      }
+      return null;
+    } catch (error) {
+      console.error('닉네임으로 UID 찾기 에러:', error);
+      return null;
+    }
+  };
 
   useEffect(() => {
     const userString = localStorage.getItem('veryus_user');
@@ -326,10 +347,13 @@ const EvaluationPostDetail: React.FC = () => {
               <div style={{margin:'18px 0 0 0', display:'flex', justifyContent:'center', gap:16}}>
                 <button onClick={async()=>{
                   if (!window.confirm('정말 합격 처리하시겠습니까?')) return;
-                  await updateDoc(doc(db, 'posts', post.id), { status: '합격' });
-                  setPost(p=>p ? { ...p, status: '합격' } : p);
-                  // 합격곡 자동 등록 (중복 체크 없이 무조건 등록)
+                  
                   try {
+                    // 게시글 상태 업데이트
+                    await updateDoc(doc(db, 'posts', post.id), { status: '합격' });
+                    setPost(p=>p ? { ...p, status: '합격' } : p);
+                    
+                    // 합격곡 자동 등록 (중복 체크 없이 무조건 등록)
                     const members = Array.isArray(post.members) ? post.members.filter(Boolean) : [];
                     const allMembers = [...members, post.writerNickname].filter((v, i, arr) => !!v && arr.indexOf(v) === i);
                     await addDoc(collection(db, 'approvedSongs'), {
@@ -340,14 +364,77 @@ const EvaluationPostDetail: React.FC = () => {
                       createdBy: user.nickname,
                       createdByRole: user.role || '',
                     });
+
+                    // 게시글 작성자에게 합격 알림 전송
+                    await NotificationService.createApprovalNotification(
+                      post.writerUid,
+                      post.id,
+                      post.title,
+                      'evaluation'
+                    );
+
+                    // 듀엣 파트너들에게도 합격 알림 전송
+                    if (Array.isArray(post.members) && post.members.length > 0) {
+                      for (const memberNickname of post.members) {
+                        if (memberNickname && memberNickname.trim() && memberNickname !== post.writerNickname) {
+                          const memberUid = await findUidByNickname(memberNickname);
+                          if (memberUid) {
+                            await NotificationService.createApprovalNotification(
+                              memberUid,
+                              post.id,
+                              post.title,
+                              'evaluation'
+                            );
+                          }
+                        }
+                      }
+                    }
+
+                    alert('합격 처리가 완료되었습니다. 관련 멤버들에게 알림이 전송되었습니다.');
                   } catch(e) {
-                    alert('합격곡 자동등록 중 오류가 발생했습니다.');
+                    console.error('합격 처리 중 오류:', e);
+                    alert('합격 처리 중 오류가 발생했습니다.');
                   }
                 }} style={{background:'#8A55CC',color:'#fff',fontWeight:700,padding:'8px 22px',borderRadius:8,border:'none',fontSize:16,cursor:'pointer'}}>합격</button>
+                
                 <button onClick={async()=>{
                   if (!window.confirm('정말 불합격 처리하시겠습니까?')) return;
-                  await updateDoc(doc(db, 'posts', post.id), { status: '불합격' });
-                  setPost(p=>p ? { ...p, status: '불합격' } : p);
+                  
+                  try {
+                    // 게시글 상태 업데이트
+                    await updateDoc(doc(db, 'posts', post.id), { status: '불합격' });
+                    setPost(p=>p ? { ...p, status: '불합격' } : p);
+
+                    // 게시글 작성자에게 불합격 알림 전송
+                    await NotificationService.createRejectionNotification(
+                      post.writerUid,
+                      post.id,
+                      post.title,
+                      'evaluation'
+                    );
+
+                    // 듀엣 파트너들에게도 불합격 알림 전송
+                    if (Array.isArray(post.members) && post.members.length > 0) {
+                      for (const memberNickname of post.members) {
+                        if (memberNickname && memberNickname.trim() && memberNickname !== post.writerNickname) {
+                          const memberUid = await findUidByNickname(memberNickname);
+                          if (memberUid) {
+                            await NotificationService.createRejectionNotification(
+                              memberUid,
+                              post.id,
+                              post.title,
+                              'evaluation'
+                            );
+                          }
+                        }
+                      }
+                    }
+
+                    alert('불합격 처리가 완료되었습니다. 관련 멤버들에게 알림이 전송되었습니다.');
+                  } catch(e) {
+                    console.error('불합격 처리 중 오류:', e);
+                    alert('불합격 처리 중 오류가 발생했습니다.');
+                  }
                 }} style={{background:'#F43F5E',color:'#fff',fontWeight:700,padding:'8px 22px',borderRadius:8,border:'none',fontSize:16,cursor:'pointer'}}>불합격</button>
               </div>
             )}

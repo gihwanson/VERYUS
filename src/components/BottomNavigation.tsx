@@ -1,6 +1,6 @@
 import React, { useState, useEffect, memo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, MessageSquare, Mic, Star, UserPlus, Bell, User, ChevronUp, Search } from 'lucide-react';
+import { Home, MessageSquare, Mic, Star, UserPlus, Bell, User, ChevronUp, Search, Grid3x3, ChevronDown, Menu } from 'lucide-react';
 import './BottomNavigation.css';
 
 interface BottomNavigationProps {
@@ -13,6 +13,18 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({ unreadNotifica
   const navigate = useNavigate();
   const location = useLocation();
   const [showBoardsMenu, setShowBoardsMenu] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    const saved = localStorage.getItem('bottomNavCollapsed');
+    return saved ? JSON.parse(saved) : false;
+  });
+
+  // 드래그 관련 상태
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [position, setPosition] = useState(() => {
+    const saved = localStorage.getItem('bottomNavTogglePosition');
+    return saved ? JSON.parse(saved) : { x: window.innerWidth - 84, y: window.innerHeight - 84 };
+  });
 
   const boardItems = [
     { name: '통합 검색', path: 'search', icon: Search, isSearch: true },
@@ -36,8 +48,8 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({ unreadNotifica
     },
     {
       id: 'boards',
-      icon: MessageSquare,
-      label: '게시판',
+      icon: Grid3x3,
+      label: '기능',
       path: '/free',
       isActive: location.pathname.includes('/free') || location.pathname.includes('/recording') || location.pathname.includes('/evaluation') || location.pathname.includes('/boards'),
       hasSubmenu: true
@@ -77,6 +89,69 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({ unreadNotifica
     setShowBoardsMenu(false);
   };
 
+  const toggleCollapse = () => {
+    const newCollapsed = !isCollapsed;
+    setIsCollapsed(newCollapsed);
+    localStorage.setItem('bottomNavCollapsed', JSON.stringify(newCollapsed));
+    setShowBoardsMenu(false); // 접을 때 서브메뉴도 닫기
+  };
+
+  // 드래그 핸들러들
+  const handleMouseDown = (e: React.MouseEvent) => {
+    const rect = (e.target as HTMLElement).getBoundingClientRect();
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    });
+    setIsDragging(true);
+    e.preventDefault();
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging) return;
+    
+    const newX = Math.max(0, Math.min(window.innerWidth - 48, e.clientX - dragOffset.x));
+    const newY = Math.max(0, Math.min(window.innerHeight - 48, e.clientY - dragOffset.y));
+    
+    setPosition({ x: newX, y: newY });
+  };
+
+  const handleMouseUp = () => {
+    if (isDragging) {
+      setIsDragging(false);
+      localStorage.setItem('bottomNavTogglePosition', JSON.stringify(position));
+    }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    const rect = (e.target as HTMLElement).getBoundingClientRect();
+    setDragOffset({
+      x: touch.clientX - rect.left,
+      y: touch.clientY - rect.top
+    });
+    setIsDragging(true);
+    e.preventDefault();
+  };
+
+  const handleTouchMove = (e: TouchEvent) => {
+    if (!isDragging || e.touches.length === 0) return;
+    
+    const touch = e.touches[0];
+    const newX = Math.max(0, Math.min(window.innerWidth - 48, touch.clientX - dragOffset.x));
+    const newY = Math.max(0, Math.min(window.innerHeight - 48, touch.clientY - dragOffset.y));
+    
+    setPosition({ x: newX, y: newY });
+    e.preventDefault();
+  };
+
+  const handleTouchEnd = () => {
+    if (isDragging) {
+      setIsDragging(false);
+      localStorage.setItem('bottomNavTogglePosition', JSON.stringify(position));
+    }
+  };
+
   // 외부 클릭 시 서브메뉴 닫기
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -92,10 +167,40 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({ unreadNotifica
     }
   }, [showBoardsMenu]);
 
+  // 드래그 이벤트 등록
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
+      document.addEventListener('touchend', handleTouchEnd);
+      
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+        document.removeEventListener('touchmove', handleTouchMove);
+        document.removeEventListener('touchend', handleTouchEnd);
+      };
+    }
+  }, [isDragging, dragOffset, position]);
+
+  // 화면 크기 변경 시 위치 조정
+  useEffect(() => {
+    const handleResize = () => {
+      setPosition((prev: { x: number; y: number }) => ({
+        x: Math.max(0, Math.min(window.innerWidth - 48, prev.x)),
+        y: Math.max(0, Math.min(window.innerHeight - 48, prev.y))
+      }));
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
     <>
-      {/* 게시판 서브메뉴 */}
-      {showBoardsMenu && (
+      {/* 기능 서브메뉴 */}
+      {showBoardsMenu && !isCollapsed && (
         <div className="boards-submenu">
           <div className="boards-submenu-content">
             {boardItems.map((board) => (
@@ -141,36 +246,71 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({ unreadNotifica
           </div>
         </div>
       )}
+
+      {/* 접힌 상태일 때 보이는 작은 토글 버튼 */}
+      {isCollapsed && (
+        <button 
+          className="bottom-nav-toggle-collapsed"
+          onClick={!isDragging ? toggleCollapse : undefined}
+          onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}
+          title="네비게이션 펼치기"
+          style={{
+            left: `${position.x}px`,
+            top: `${position.y}px`,
+            transform: isDragging ? 'scale(1.1)' : 'scale(1)',
+            boxShadow: isDragging ? '0 8px 24px rgba(138, 85, 204, 0.4)' : '0 4px 16px rgba(138, 85, 204, 0.3)',
+            cursor: isDragging ? 'grabbing' : 'grab',
+            transition: isDragging ? 'none' : 'all 0.3s ease'
+          }}
+        >
+          <ChevronUp size={20} />
+        </button>
+      )}
       
-      <nav className="bottom-navigation">
-        <div className="bottom-nav-container">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              className={`bottom-nav-item ${item.isActive ? 'active' : ''}`}
-              onClick={() => handleNavClick(item.path, (item as any).hasSubmenu)}
-              {...((item as any).hasSubmenu && { 'data-boards': 'true' })}
+      <nav className={`bottom-navigation ${isCollapsed ? 'collapsed' : ''}`}>
+        {!isCollapsed && (
+          <div className="bottom-nav-container">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                className={`bottom-nav-item ${item.isActive ? 'active' : ''}`}
+                onClick={() => handleNavClick(item.path, (item as any).hasSubmenu)}
+                {...((item as any).hasSubmenu && { 'data-boards': 'true' })}
+              >
+                <div className="bottom-nav-icon-container">
+                  <item.icon 
+                    size={20} 
+                    className="bottom-nav-icon"
+                  />
+                  {item.badge && typeof item.badge === 'number' && item.badge > 0 && (
+                    <span className="bottom-nav-badge-dot"></span>
+                  )}
+                  {/* 기능 버튼에 채팅 알림 표시 */}
+                  {item.id === 'boards' && unreadChatCount > 0 && (
+                    <span className="bottom-nav-badge-dot" style={{ backgroundColor: '#ef4444' }}></span>
+                  )}
+                  {(item as any).hasSubmenu && showBoardsMenu && (
+                    <ChevronUp size={12} className="submenu-indicator" />
+                  )}
+                </div>
+                <span className="bottom-nav-label">{item.label}</span>
+              </button>
+            ))}
+            
+            {/* 접기 버튼 */}
+            <button 
+              className="bottom-nav-item collapse-button"
+              onClick={toggleCollapse}
+              title="네비게이션 접기"
             >
-                          <div className="bottom-nav-icon-container">
-              <item.icon 
-                size={20} 
-                className="bottom-nav-icon"
-              />
-              {item.badge && typeof item.badge === 'number' && item.badge > 0 && (
-                <span className="bottom-nav-badge-dot"></span>
-              )}
-              {/* 게시판 버튼에 채팅 알림 표시 */}
-              {item.id === 'boards' && unreadChatCount > 0 && (
-                <span className="bottom-nav-badge-dot" style={{ backgroundColor: '#ef4444' }}></span>
-              )}
-              {(item as any).hasSubmenu && showBoardsMenu && (
-                <ChevronUp size={12} className="submenu-indicator" />
-              )}
-            </div>
-              <span className="bottom-nav-label">{item.label}</span>
+              <div className="bottom-nav-icon-container">
+                <ChevronDown size={20} className="bottom-nav-icon" />
+              </div>
+              <span className="bottom-nav-label">접기</span>
             </button>
-          ))}
-        </div>
+          </div>
+        )}
       </nav>
     </>
   );

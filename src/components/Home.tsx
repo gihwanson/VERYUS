@@ -163,11 +163,26 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
   const [announcementUnreadCount, setAnnouncementUnreadCount] = useState(0);
   const [generalChatUnreadCount, setGeneralChatUnreadCount] = useState(0);
   const [totalChatUnreadCount, setTotalChatUnreadCount] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
 
   const navigate = useNavigate();
 
-  // home-header 레이아웃 개선: 모바일에서 로고는 항상 왼쪽, 검색창/프로필은 아래에 세로로 쌓임
-  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+  // window 크기 변경 감지를 위한 useEffect
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    // 초기 설정
+    checkIsMobile();
+    
+    // 리사이즈 이벤트 리스너 추가
+    window.addEventListener('resize', checkIsMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkIsMobile);
+    };
+  }, []);
 
   // handleLogout 함수를 먼저 정의
   const handleLogout = useCallback(async (): Promise<void> => {
@@ -700,17 +715,20 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
           </button>
         </div>
 
-        {/* 모바일 우측 상단 채팅 아이콘 */}
-        <div className="mobile-notification-icons mobile-only" style={{
-          position: 'absolute',
-          top: '16px',
-          right: '16px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          zIndex: 1000
-        }}>
-          {/* 채팅방 아이콘 (항상 표시) */}
+        {/* 모바일 우측 상단 채팅 아이콘 - PC에서는 완전히 숨김 */}
+        <div 
+          className="mobile-notification-icons mobile-only" 
+          style={{
+            position: 'absolute',
+            top: '16px',
+            right: '16px',
+            display: isMobile ? 'flex' : 'none',
+            alignItems: 'center',
+            gap: '8px',
+            zIndex: 1000
+          }}
+        >
+          {/* 채팅방 아이콘 (모바일에서만 표시) */}
           <button 
             onClick={() => navigate('/messages')}
             style={{

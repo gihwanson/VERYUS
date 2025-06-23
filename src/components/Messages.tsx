@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, getDoc, updateDoc, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
-import { User, MessageSquare, Send, Menu, Star, StarOff, Paperclip, Image as ImageIcon, MoreVertical, Copy, Trash2, Flag, CornerUpLeft, Home, Users, Eye } from 'lucide-react';
+import { User, MessageSquare, Send, Menu, Paperclip, Image as ImageIcon, MoreVertical, Copy, Trash2, Flag, CornerUpLeft, Home, Users, BarChart3 } from 'lucide-react';
 import './Messages.css';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../firebase';
@@ -61,15 +61,41 @@ const Messages: React.FC = () => {
   const [newMessage, setNewMessage] = useState('');
   const [showRoomList, setShowRoomList] = useState(false);
   const [search, setSearch] = useState('');
-  const [tab, setTab] = useState<'all'|'pinned'|'unread'|'announcement'>('all');
+
   const [reactionTarget, setReactionTarget] = useState<string|null>(null);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [reactionPickerPosition, setReactionPickerPosition] = useState<{top: number, left: number}>({top: 0, left: 0});
   const [filePreview, setFilePreview] = useState<string|null>(null);
   const [fileType, setFileType] = useState<string|null>(null);
   const [fileName, setFileName] = useState<string|null>(null);
   const [contextMenu, setContextMenu] = useState<{msgId: string, x: number, y: number} | null>(null);
+
+  // 컨텍스트 메뉴 및 리액션 피커 외부 클릭 시 닫기
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      
+      if (contextMenu && !target.closest('.chat-context-menu')) {
+        setContextMenu(null);
+      }
+      
+      if (showReactionPicker && !target.closest('.reaction-picker')) {
+        setShowReactionPicker(false);
+        setReactionTarget(null);
+      }
+    };
+
+    if (contextMenu || showReactionPicker) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [contextMenu, showReactionPicker]);
   const [reportTarget, setReportTarget] = useState<Message|null>(null);
   const [reportReason, setReportReason] = useState('');
+  const [analysisTarget, setAnalysisTarget] = useState<Message|null>(null);
+  const [analysisData, setAnalysisData] = useState<any>(null);
+  const [showReadUsers, setShowReadUsers] = useState(false);
+  const [reactionModal, setReactionModal] = useState<{msgId: string, reactions: any[]} | null>(null);
   const [replyTo, setReplyTo] = useState<Message|null>(null);
   const [userProfiles, setUserProfiles] = useState<Record<string, any>>({});
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
@@ -600,23 +626,8 @@ const isMobile = isMobileView;
       </div>
     );
   };
-  // 고정/해제 토글
-  const togglePin = (room: ChatRoom) => {
-    setChatRooms(prev => prev.map(r =>
-      r.userUid === room.userUid && r.postId === room.postId
-        ? { ...r, isPinned: !r.isPinned }
-        : r
-    ));
-  };
-  // 공지방 탭 처리 (기존 호환성 유지)
-  const handleAnnouncementTab = () => {
-    handleAnnouncementSelect();
-  };
 
-  const handleOtherTab = (newTab: 'all'|'pinned') => {
-    setTab(newTab);
-    setIsAnnouncementMode(false);
-  };
+
 
   // 채팅방 선택 핸들러
   const handleRoomSelect = (room: ChatRoom) => {
@@ -630,7 +641,6 @@ const isMobile = isMobileView;
 
   // 공지방 선택 핸들러
   const handleAnnouncementSelect = () => {
-    setTab('announcement');
     setIsAnnouncementMode(true);
     setSelectedRoom(null);
     
@@ -646,12 +656,8 @@ const isMobile = isMobileView;
     setIsAnnouncementMode(false);
   };
 
-  // 탭 필터링
-  let filteredRooms = chatRooms;
-  if (tab === 'pinned') filteredRooms = chatRooms.filter(r => r.isPinned);
-  if (tab === 'announcement') filteredRooms = []; // 공지방 탭에서는 일반 채팅방 숨김
   // 검색 필터링된 채팅방
-  filteredRooms = filteredRooms.filter(room => {
+  let filteredRooms = chatRooms.filter(room => {
     if (!search.trim()) return true;
     const s = search.trim().toLowerCase();
     return (
@@ -659,8 +665,7 @@ const isMobile = isMobileView;
       (room.lastMessage.content && room.lastMessage.content.toLowerCase().includes(s))
     );
   });
-  // 고정방 우선 정렬
-  filteredRooms = [...filteredRooms.filter(r=>r.isPinned), ...filteredRooms.filter(r=>!r.isPinned)];
+
   // 날짜 구분선 생성 함수
   const getDateLabel = (date: Date) => {
     const now = new Date();
@@ -672,29 +677,52 @@ const isMobile = isMobileView;
   };
 
   // 리액션 추가/제거
-  const toggleReaction = (msg: Message, emoji: string) => {
-    if (!user) return;
-    setMessages(prevMsgs => prevMsgs.map(m => {
-      if (m.id !== msg.id) return m;
-      let reactions = m.reactions || [];
+  const toggleReaction = async (msg: Message, emoji: string) => {
+    if (!user) {
+      console.log('사용자 정보가 없습니다.');
+      return;
+    }
+    
+    console.log('리액션 토글 시작:', {msgId: msg.id, emoji, userId: user.uid});
+    
+    try {
+      let reactions = [...(msg.reactions || [])];
       const idx = reactions.findIndex(r => r.emoji === emoji);
+      
       if (idx >= 0) {
         // 이미 해당 이모지 있음
         const userIdx = reactions[idx].users.indexOf(user.uid);
         if (userIdx >= 0) {
           // 이미 리액션한 경우 제거
-          reactions[idx].users.splice(userIdx, 1);
-          if (reactions[idx].users.length === 0) reactions.splice(idx, 1);
+          reactions[idx].users = reactions[idx].users.filter(uid => uid !== user.uid);
+          if (reactions[idx].users.length === 0) {
+            reactions.splice(idx, 1);
+          }
         } else {
+          // 리액션 추가
           reactions[idx].users.push(user.uid);
         }
       } else {
+        // 새로운 리액션 추가
         reactions.push({ emoji, users: [user.uid] });
       }
-      return { ...m, reactions: [...reactions] };
-    }));
-    setShowReactionPicker(false);
-    setReactionTarget(null);
+      
+      console.log('업데이트할 리액션:', reactions);
+      
+      // 데이터베이스에 리액션 업데이트
+      await updateDoc(doc(db, 'messages', msg.id), {
+        reactions: reactions
+      });
+      
+      console.log('리액션 업데이트 성공');
+      
+      setShowReactionPicker(false);
+      setReactionTarget(null);
+    } catch (error) {
+      console.error('리액션 업데이트 실패:', error);
+      const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
+      alert(`리액션 추가에 실패했습니다: ${errorMessage}`);
+    }
   };
   // 모바일 롱탭/PC 우클릭/호버 리액션 선택
   const handleReactionOpen = (msgId: string, e?: React.MouseEvent|React.TouchEvent) => {
@@ -792,8 +820,36 @@ const isMobile = isMobileView;
   // 메시지 삭제
   const handleDelete = async (msg: Message) => {
     if (!user || msg.fromUid !== user.uid) return;
-    await deleteDoc(doc(db, 'messages', msg.id));
-    setContextMenu(null);
+    
+    if (confirm('메시지를 삭제하시겠습니까?')) {
+      try {
+        await deleteDoc(doc(db, 'messages', msg.id));
+        setContextMenu(null);
+      } catch (error) {
+        console.error('메시지 삭제 실패:', error);
+        alert('메시지 삭제에 실패했습니다. 권한을 확인해주세요.');
+      }
+    }
+  };
+
+  // 운영진/리더용 메시지 삭제 (내용을 "삭제된 내용입니다."로 변경)
+  const handleMessageDelete = async (msg: Message) => {
+    if (!user || (user.role !== '리더' && user.role !== '운영진')) return;
+    
+    if (confirm('이 메시지를 삭제하시겠습니까? (내용이 "삭제된 내용입니다."로 변경됩니다)')) {
+      try {
+        await updateDoc(doc(db, 'messages', msg.id), {
+          content: '삭제된 내용입니다.',
+          isDeleted: true,
+          deletedBy: user.uid,
+          deletedAt: serverTimestamp()
+        });
+        setContextMenu(null);
+      } catch (error) {
+        console.error('메시지 삭제 실패:', error);
+        alert('메시지 삭제에 실패했습니다.');
+      }
+    }
   };
   // 메시지 신고
   const handleReport = (msg: Message) => {
@@ -819,53 +875,197 @@ const isMobile = isMobileView;
     setContextMenu(null);
   };
 
+  // 메시지 분석
+  const handleAnalysis = async (msg: Message) => {
+    setContextMenu(null);
+    setAnalysisTarget(msg);
+    
+    try {
+      // 읽음 상태 정보 가져오기
+      let detailedReadStatus = null;
+      if (canViewReadStatus()) {
+        detailedReadStatus = await getMessageReadStatus(msg.id);
+      }
+      
+      // 해당 메시지와 관련된 채팅 분석 데이터 생성
+      const analysis = {
+        messageInfo: {
+          content: msg.content,
+          sender: msg.fromNickname,
+          timestamp: msg.createdAt,
+          hasFile: !!msg.fileUrl,
+          fileType: msg.fileType
+        },
+        contextAnalysis: await analyzeMessageContext(msg),
+        readStatus: detailedReadStatus,
+        reactions: msg.reactions || [],
+        relatedMessages: await getRelatedMessages(msg)
+      };
+      
+      setAnalysisData(analysis);
+    } catch (error) {
+      console.error('메시지 분석 실패:', error);
+      alert('분석 중 오류가 발생했습니다.');
+      setAnalysisTarget(null);
+    }
+  };
+
+  // 메시지 컨텍스트 분석
+  const analyzeMessageContext = async (msg: Message) => {
+    const now = new Date();
+    const msgDate = msg.createdAt?.toDate?.() || new Date(msg.createdAt);
+    const timeDiff = now.getTime() - msgDate.getTime();
+    
+    return {
+      timeAgo: formatTimeAgo(timeDiff),
+      messageLength: msg.content.length,
+      wordCount: msg.content.split(/\s+/).length,
+      hasEmoji: /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]/u.test(msg.content),
+      hasUrl: /https?:\/\/[^\s]+/g.test(msg.content),
+      sentiment: analyzeSentiment(msg.content)
+    };
+  };
+
+  // 관련 메시지 가져오기
+  const getRelatedMessages = async (msg: Message) => {
+    const messages = isAnnouncementMode ? announcementMessages : 
+                    (selectedRoom ? await getMessagesForRoom(selectedRoom) : []);
+    
+    // 같은 사용자의 최근 메시지들
+    const userMessages = messages
+      .filter(m => m.fromUid === msg.fromUid && m.id !== msg.id)
+      .slice(0, 5);
+    
+    // 답장이나 멘션된 메시지들
+    const replyMessages = messages
+      .filter(m => m.content.includes(msg.fromNickname) || 
+                   (msg.content.includes(m.fromNickname) && m.id !== msg.id))
+      .slice(0, 3);
+    
+    return {
+      userMessages,
+      replyMessages,
+      totalCount: messages.length
+    };
+  };
+
+  // 시간 차이 포맷팅
+  const formatTimeAgo = (timeDiff: number) => {
+    const minutes = Math.floor(timeDiff / (1000 * 60));
+    const hours = Math.floor(timeDiff / (1000 * 60 * 60));
+    const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+    
+    if (days > 0) return `${days}일 전`;
+    if (hours > 0) return `${hours}시간 전`;
+    if (minutes > 0) return `${minutes}분 전`;
+    return '방금 전';
+  };
+
+  // 간단한 감정 분석
+  const analyzeSentiment = (text: string) => {
+    const positiveWords = ['좋', '행복', '감사', '최고', '완벽', '훌륭', '멋진', '사랑', '기쁨', '웃음', '축하'];
+    const negativeWords = ['나쁘', '슬프', '화나', '짜증', '실망', '최악', '힘들', '어려', '문제', '걱정'];
+    
+    const positiveCount = positiveWords.reduce((count, word) => 
+      count + (text.includes(word) ? 1 : 0), 0);
+    const negativeCount = negativeWords.reduce((count, word) => 
+      count + (text.includes(word) ? 1 : 0), 0);
+    
+    if (positiveCount > negativeCount) return 'positive';
+    if (negativeCount > positiveCount) return 'negative';
+    return 'neutral';
+  };
+
+  // 채팅방 메시지 가져오기 (분석용)
+  const getMessagesForRoom = async (room: ChatRoom) => {
+    // 실제 구현에서는 해당 채팅방의 메시지들을 가져오는 로직
+    return [];
+  };
+
+  // 더블클릭으로 리액션 추가
+  const handleDoubleClick = (msg: Message, e?: React.MouseEvent) => {
+    if (msg.fromUid === 'system') return;
+    
+
+    
+    // 리액션 피커 위치 계산
+    if (e) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const pickerWidth = 200;
+      const pickerHeight = 40;
+      
+      let top = rect.top - pickerHeight - 10;
+      let left = rect.left + rect.width / 2 - pickerWidth / 2;
+      
+      // 화면 경계 체크
+      if (left < 10) left = 10;
+      if (left + pickerWidth > window.innerWidth - 10) left = window.innerWidth - pickerWidth - 10;
+      if (top < 10) top = rect.bottom + 10;
+      
+      setReactionPickerPosition({top, left});
+    }
+    
+    setReactionTarget(msg.id);
+    setShowReactionPicker(true);
+  };
+
+  // 모바일용 더블탭 처리
+  const [lastTap, setLastTap] = useState<{msgId: string, time: number} | null>(null);
+  
+  const handleMobileTap = (msg: Message, e?: React.MouseEvent) => {
+    if (msg.fromUid === 'system') return;
+    
+    const now = Date.now();
+    if (lastTap && lastTap.msgId === msg.id && now - lastTap.time < 500) {
+      // 더블탭 감지 (500ms 내)
+
+      
+      // 리액션 피커 위치 계산
+      if (e) {
+        const rect = e.currentTarget.getBoundingClientRect();
+        const pickerWidth = 200;
+        const pickerHeight = 45;
+        
+        let top = rect.top - pickerHeight - 10;
+        let left = rect.left + rect.width / 2 - pickerWidth / 2;
+        
+        // 화면 경계 체크
+        if (left < 10) left = 10;
+        if (left + pickerWidth > window.innerWidth - 10) left = window.innerWidth - pickerWidth - 10;
+        if (top < 10) top = rect.bottom + 10;
+        
+        setReactionPickerPosition({top, left});
+      }
+      
+      setReactionTarget(msg.id);
+      setShowReactionPicker(true);
+      setLastTap(null);
+    } else {
+      setLastTap({msgId: msg.id, time: now});
+      // 500ms 후에 lastTap 초기화
+      setTimeout(() => {
+        setLastTap(null);
+      }, 500);
+    }
+  };
+
+  // 리액션 상세 보기
+  const handleReactionDetailClick = (msg: Message) => {
+    if (msg.reactions && msg.reactions.length > 0) {
+      setReactionModal({msgId: msg.id, reactions: msg.reactions});
+    }
+  };
+
   return (
     <div className="messages-container">
       <div className={`chat-room-list always-show${isMobileView && showChatOnMobile ? ' hide-on-mobile' : ''}`}>
-        <div style={{display:'flex',alignItems:'center',gap:8,margin:'0 0 24px 24px'}}>
-          <button className="exit-home-btn" onClick={()=>window.location.href='/main'} style={{background:'none',border:'none',padding:0,cursor:'pointer'}} title="메인보드로">
+        <div style={{display:'flex',alignItems:'center',gap:8,margin:'0 0 24px 16px'}}>
+          <button className="exit-home-btn" onClick={()=>window.location.href='/'} style={{background:'none',border:'none',padding:0,cursor:'pointer'}} title="홈으로">
             <Home size={22} color="#8A55CC" />
           </button>
           <h2 style={{margin:0}}>채팅</h2>
         </div>
-        <div className="chat-room-tabs">
-          <button className={tab==='all'? 'active' : ''} onClick={()=>handleOtherTab('all')}>전체</button>
-          <button className={tab==='pinned'? 'active' : ''} onClick={()=>handleOtherTab('pinned')}>고정</button>
-          <button 
-            className={tab==='announcement'? 'active' : ''} 
-            onClick={handleAnnouncementTab} 
-            style={{
-              background: tab==='announcement' ? '#8A55CC' : '', 
-              color: tab==='announcement' ? 'white' : '',
-              position: 'relative'
-            }}
-          >
-            📢 공지방
-            {announcementUnreadCount > 0 && (
-              <span style={{
-                position: 'absolute',
-                top: '-4px',
-                right: '-4px',
-                background: '#ef4444',
-                color: 'white',
-                borderRadius: '10px',
-                minWidth: '18px',
-                height: '18px',
-                fontSize: '11px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: '700',
-                border: '2px solid white',
-                boxSizing: 'border-box',
-                lineHeight: '1',
-                padding: announcementUnreadCount > 9 ? '2px 4px' : '2px'
-              }}>
-                {announcementUnreadCount > 99 ? '99+' : announcementUnreadCount}
-              </span>
-            )}
-          </button>
-        </div>
+
         <div className="chat-room-search-bar">
           <input
             type="text"
@@ -875,64 +1075,65 @@ const isMobile = isMobileView;
             className="chat-room-search-input"
           />
         </div>
-        {(tab === 'all' || tab === 'announcement') && (
-          <div
-            className={`chat-room-item${isAnnouncementMode ? ' selected' : ''}`}
-            onClick={handleAnnouncementSelect}
-            style={{backgroundColor: isAnnouncementMode ? '#F8F4FF' : '', position: 'relative'}}
-          >
-            <div className="chat-room-profile">
-              <div style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '50%',
-                backgroundColor: '#FF6B35',
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '20px',
-                fontWeight: 'bold'
-              }}>
-                📢
-              </div>
-            </div>
-            <div className="chat-room-info">
-              <div className="chat-room-title-row">
-                <span className="chat-room-nickname" style={{fontWeight: 'bold', color: '#FF6B35'}}>공지방</span>
-                <span className="chat-room-time">
-                  {announcementMessages.length > 0 ? formatTime(announcementMessages[0].createdAt) : ''}
-                </span>
-              </div>
-              <div className="chat-room-last-message-row">
-                <span className="chat-room-last-message">
-                  {announcementMessages.length > 0 ? announcementMessages[0].content : '공지방에 오신 것을 환영합니다!'}
-                </span>
-                {announcementUnreadCount > 0 && (
-                  <span className="chat-room-unread-badge" style={{
-                    backgroundColor: '#ef4444',
-                    color: 'white',
-                    borderRadius: '10px',
-                    minWidth: '20px',
-                    height: '20px',
-                    fontSize: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: '700',
-                    marginLeft: '8px',
-                    boxSizing: 'border-box',
-                    lineHeight: '1',
-                    padding: announcementUnreadCount > 9 ? '2px 4px' : '2px'
-                  }}>
-                    {announcementUnreadCount > 99 ? '99+' : announcementUnreadCount}
-                  </span>
-                )}
-              </div>
+        
+        {/* 공지방 */}
+        <div
+          className={`chat-room-item${isAnnouncementMode ? ' selected' : ''}`}
+          onClick={handleAnnouncementSelect}
+          style={{backgroundColor: isAnnouncementMode ? '#F8F4FF' : '', position: 'relative'}}
+        >
+          <div className="chat-room-profile">
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              backgroundColor: '#FF6B35',
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '20px',
+              fontWeight: 'bold'
+            }}>
+              📢
             </div>
           </div>
-        )}
-        {filteredRooms.length === 0 && tab !== 'announcement' && <div className="empty">쪽지 내역이 없습니다.</div>}
+          <div className="chat-room-info">
+            <div className="chat-room-title-row">
+              <span className="chat-room-nickname" style={{fontWeight: 'bold', color: '#FF6B35'}}>공지방</span>
+              <span className="chat-room-time">
+                {announcementMessages.length > 0 ? formatTime(announcementMessages[0].createdAt) : ''}
+              </span>
+            </div>
+            <div className="chat-room-last-message-row">
+              <span className="chat-room-last-message">
+                {announcementMessages.length > 0 ? announcementMessages[0].content : '공지방에 오신 것을 환영합니다!'}
+              </span>
+              {announcementUnreadCount > 0 && (
+                <span className="chat-room-unread-badge" style={{
+                  backgroundColor: '#ef4444',
+                  color: 'white',
+                  borderRadius: '10px',
+                  minWidth: '20px',
+                  height: '20px',
+                  fontSize: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: '700',
+                  marginLeft: '8px',
+                  boxSizing: 'border-box',
+                  lineHeight: '1',
+                  padding: announcementUnreadCount > 9 ? '2px 4px' : '2px'
+                }}>
+                  {announcementUnreadCount > 99 ? '99+' : announcementUnreadCount}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        {filteredRooms.length === 0 && <div className="empty">쪽지 내역이 없습니다.</div>}
         {filteredRooms.map((room: ChatRoom) => (
                       <div
               key={room.userUid + (room.postId || '')}
@@ -946,9 +1147,7 @@ const isMobile = isMobileView;
               <div className="chat-room-title-row">
                 <span className="chat-room-nickname">{room.userNickname}</span>
                 <span className="chat-room-time">{formatTime(room.lastMessage.createdAt)}</span>
-                <span className="chat-room-pin-btn" onClick={e => {e.stopPropagation();togglePin(room);}} style={{marginLeft:6,cursor:'pointer'}}>
-                  {room.isPinned ? <Star size={18} color="#F6C700" fill="#F6C700" /> : <StarOff size={18} color="#B497D6" />}
-                </span>
+
               </div>
               <div className="chat-room-last-message-row">
                 <span className="chat-room-last-message">{room.lastMessage.content}</span>
@@ -1098,7 +1297,7 @@ const isMobile = isMobileView;
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: msg.fromUid === 'system' ? 'center' : msg.fromUid === user.uid ? 'flex-end' : 'flex-start',
-                      marginBottom: '16px',
+                      marginBottom: '8px',
                       maxWidth: '100%'
                     }}>
                       {/* 닉네임과 역할 표시 (시스템 메시지 제외) */}
@@ -1106,7 +1305,7 @@ const isMobile = isMobileView;
                         <div style={{
                           fontSize: '12px',
                           color: '#666',
-                          marginBottom: '4px',
+                          marginBottom: '1px',
                           display: 'flex',
                           alignItems: 'center',
                           gap: '6px',
@@ -1170,18 +1369,60 @@ const isMobile = isMobileView;
                         }}>
                           <div
                             className={`chat-message${msg.fromUid === user.uid ? ' sent' : ' received'}`}
-                            onContextMenu={e => {
-                              e.preventDefault();
-                              setContextMenu({msgId: msg.id, x: e.clientX, y: e.clientY});
+                            onDoubleClick={(e) => {
+                              e.stopPropagation();
+                              handleDoubleClick(msg, e);
                             }}
-                            onTouchStart={e => {
-                              let timeout = setTimeout(() => setContextMenu({msgId: msg.id, x: window.innerWidth/2, y: window.innerHeight/2}), 500);
+                            onClick={(e) => {
+                              if (isMobileView) {
+                                e.stopPropagation();
+                                handleMobileTap(msg, e);
+                              }
+                            }}
+                                                  onContextMenu={e => {
+                        e.preventDefault();
+                        const menuWidth = 160;
+                        const menuHeight = 200;
+                        let x = e.clientX;
+                        let y = e.clientY;
+                        
+                        // 화면 경계 체크 및 조정
+                        if (x + menuWidth > window.innerWidth) {
+                          x = window.innerWidth - menuWidth - 10;
+                        }
+                        if (y + menuHeight > window.innerHeight) {
+                          y = window.innerHeight - menuHeight - 10;
+                        }
+                        if (x < 10) x = 10;
+                        if (y < 10) y = 10;
+                        
+                        setContextMenu({msgId: msg.id, x, y});
+                      }}
+                      onTouchStart={e => {
+                        let timeout = setTimeout(() => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const menuWidth = 160;
+                          const menuHeight = 200;
+                          let x = rect.left + rect.width / 2;
+                          let y = rect.top + rect.height / 2;
+                          
+                          // 모바일에서 화면 경계 체크
+                          if (x + menuWidth > window.innerWidth) {
+                            x = window.innerWidth - menuWidth - 10;
+                          }
+                          if (y + menuHeight > window.innerHeight) {
+                            y = window.innerHeight - menuHeight - 10;
+                          }
+                          if (x < 10) x = 10;
+                          if (y < 10) y = 10;
+                          
+                          setContextMenu({msgId: msg.id, x, y});
+                        }, 500);
                               const clear = () => { clearTimeout(timeout); };
                               e.currentTarget.addEventListener('touchend', clear, { once: true });
                               e.currentTarget.addEventListener('touchmove', clear, { once: true });
                             }}
-                            onMouseEnter={e => { if (window.innerWidth > 900) handleReactionOpen(msg.id); }}
-                            onMouseLeave={handleReactionClose}
+
                             style={{ 
                               maxWidth: isMobileView ? '75%' : '65%',
                               minWidth: '0',
@@ -1198,11 +1439,35 @@ const isMobile = isMobileView;
                             
                             <div className="chat-message-content">{msg.content}</div>
                             
-                            {/* 리액션 선택창을 말풍선 안에 배치 */}
+                            {/* 리액션 선택창을 fixed 위치로 배치 */}
                             {showReactionPicker && reactionTarget === msg.id && (
-                              <div className="reaction-picker" onMouseLeave={handleReactionClose}>
+                              <div 
+                                className="reaction-picker" 
+                                style={{
+                                  top: `${reactionPickerPosition.top}px`,
+                                  left: `${reactionPickerPosition.left}px`
+                                }}
+                                onMouseLeave={handleReactionClose}
+                                onClick={(e) => e.stopPropagation()}
+                              >
                                 {reactionEmojis.map(emoji => (
-                                  <span key={emoji} className="reaction-emoji-picker" onClick={e => {e.stopPropagation();toggleReaction(msg, emoji);}}>{emoji}</span>
+                                  <span 
+                                    key={emoji} 
+                                    className="reaction-emoji-picker" 
+                                    onMouseDown={(e) => {
+                                      e.stopPropagation();
+                                      e.preventDefault();
+                                    }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      e.preventDefault();
+                                      console.log('리액션 이모지 클릭됨:', emoji);
+                                      toggleReaction(msg, emoji);
+                                    }}
+                                    style={{cursor: 'pointer'}}
+                                  >
+                                    {emoji}
+                                  </span>
                                 ))}
                               </div>
                             )}
@@ -1217,7 +1482,7 @@ const isMobile = isMobileView;
                             fontSize: '11px',
                             color: '#999',
                             whiteSpace: 'nowrap',
-                            marginBottom: '2px',
+                            marginBottom: '0px',
                             flexShrink: 0,
                             minWidth: '45px',
                             paddingLeft: msg.fromUid === user.uid ? '8px' : '0',
@@ -1229,42 +1494,7 @@ const isMobile = isMobileView;
                               {currDate.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}
                             </span>
                             
-                            {/* 읽음 상태 버튼 (공지방에서 운영진/리더만) */}
-                            {isAnnouncementMode && canViewReadStatus() && msg.fromUid !== 'system' && messageReadStatuses[msg.id] && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleReadStatusClick(msg.id, msg.content);
-                                }}
-                                style={{
-                                  background: 'none',
-                                  border: 'none',
-                                  padding: '2px',
-                                  cursor: 'pointer',
-                                  borderRadius: '50%',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  width: '16px',
-                                  height: '16px',
-                                  color: messageReadStatuses[msg.id].readPercentage >= 80 ? '#22c55e' : 
-                                        messageReadStatuses[msg.id].readPercentage >= 50 ? '#f59e0b' : '#ef4444',
-                                  transition: 'all 0.2s ease',
-                                  opacity: 0.7
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.opacity = '1';
-                                  e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.1)';
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.opacity = '0.7';
-                                  e.currentTarget.style.backgroundColor = 'transparent';
-                                }}
-                                title={`읽음 상태: ${messageReadStatuses[msg.id].readCount}/${messageReadStatuses[msg.id].totalCount}명 (${messageReadStatuses[msg.id].readPercentage}%)`}
-                              >
-                                <Eye size={10} />
-                              </button>
-                            )}
+
                           </div>
                         </div>
                       )}
@@ -1291,7 +1521,7 @@ const isMobile = isMobileView;
                               return (
                                 <span 
                                   className={`reaction-emoji${topReaction.users.includes(user?.uid) ? ' my' : ''}`} 
-                                  onClick={e => {e.stopPropagation();toggleReaction(msg, topReaction.emoji);}}
+                                  onClick={e => {e.stopPropagation(); handleReactionDetailClick(msg);}}
                                 >
                                   <span className="reaction-emoji-icon">{topReaction.emoji}</span>
                                   <span className="reaction-count">{topReaction.users.length}</span>
@@ -1313,8 +1543,10 @@ const isMobile = isMobileView;
                         <div className="chat-context-menu" style={{top: contextMenu.y, left: contextMenu.x}}>
                           <button onClick={() => handleCopy(msg)}><Copy size={16}/> 복사</button>
                           {user && msg.fromUid === user.uid && <button onClick={() => handleDelete(msg)}><Trash2 size={16}/> 삭제</button>}
+                          {user && (user.role === '리더' || user.role === '운영진') && msg.fromUid !== user.uid && <button onClick={() => handleMessageDelete(msg)}><Trash2 size={16}/> 삭제</button>}
                           <button onClick={() => handleReport(msg)}><Flag size={16}/> 신고</button>
                           <button onClick={() => handleReply(msg)}><CornerUpLeft size={16}/> 답장</button>
+                          {user && (user.role === '리더' || user.role === '운영진') && <button onClick={() => handleAnalysis(msg)}><BarChart3 size={16}/> 분석</button>}
                         </div>
                       )}
                       
@@ -1399,6 +1631,239 @@ const isMobile = isMobileView;
                   <div className="chat-report-actions">
                     <button onClick={()=>setReportTarget(null)}>취소</button>
                     <button onClick={handleReportSubmit} disabled={!reportReason.trim()}>신고</button>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* 리액션 상세 모달 */}
+            {reactionModal && (
+              <div className="chat-report-modal" onClick={() => setReactionModal(null)}>
+                <div className="chat-reaction-detail-modal" onClick={(e) => e.stopPropagation()}>
+                  <div className="chat-reaction-header">
+                    <h3>😊 리액션 상세</h3>
+                    <button 
+                      onClick={() => setReactionModal(null)}
+                      className="chat-reaction-close"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  
+                  <div className="chat-reaction-content">
+                    {reactionModal.reactions.map((reaction, index) => (
+                      <div key={index} className="reaction-detail-section">
+                        <div className="reaction-detail-header">
+                          <span className="reaction-detail-emoji">{reaction.emoji}</span>
+                          <span className="reaction-detail-count">{reaction.users.length}명</span>
+                        </div>
+                        <div className="reaction-detail-users">
+                          {reaction.users.map((userId: string, userIndex: number) => (
+                            <div key={userIndex} className="reaction-detail-user">
+                              <div className="reaction-user-profile">
+                                {userProfiles[userId]?.profileImageUrl ? (
+                                  <img 
+                                    src={userProfiles[userId].profileImageUrl} 
+                                    alt="profile"
+                                    style={{width: '24px', height: '24px', borderRadius: '50%'}}
+                                  />
+                                ) : (
+                                  <div style={{
+                                    width: '24px',
+                                    height: '24px',
+                                    borderRadius: '50%',
+                                    backgroundColor: '#8A55CC',
+                                    color: 'white',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '12px',
+                                    fontWeight: '600'
+                                  }}>
+                                    {userProfiles[userId]?.nickname?.charAt(0) || '?'}
+                                  </div>
+                                )}
+                              </div>
+                              <span className="reaction-user-nickname">
+                                {userProfiles[userId]?.nickname || '알 수 없음'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 메시지 분석 모달 */}
+            {analysisTarget && analysisData && (
+              <div className="chat-report-modal" onClick={() => {setAnalysisTarget(null); setAnalysisData(null); setShowReadUsers(false);}}>
+                <div className="chat-analysis-modal" onClick={(e) => e.stopPropagation()}>
+                  <div className="chat-analysis-header">
+                    <h3><BarChart3 size={20}/> 메시지 분석</h3>
+                    <button 
+                      onClick={() => {setAnalysisTarget(null); setAnalysisData(null); setShowReadUsers(false);}}
+                      className="chat-analysis-close"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  
+                  <div className="chat-analysis-content">
+                    {/* 메시지 정보 */}
+                    <div className="analysis-section">
+                      <h4>📝 메시지 정보</h4>
+                      <div className="analysis-item">
+                        <span className="analysis-label">발신자:</span>
+                        <span className="analysis-value">{analysisData.messageInfo.sender}</span>
+                      </div>
+                      <div className="analysis-item">
+                        <span className="analysis-label">시간:</span>
+                        <span className="analysis-value">{analysisData.contextAnalysis.timeAgo}</span>
+                      </div>
+                      <div className="analysis-item">
+                        <span className="analysis-label">글자 수:</span>
+                        <span className="analysis-value">{analysisData.contextAnalysis.messageLength}자</span>
+                      </div>
+                      <div className="analysis-item">
+                        <span className="analysis-label">단어 수:</span>
+                        <span className="analysis-value">{analysisData.contextAnalysis.wordCount}개</span>
+                      </div>
+                    </div>
+
+                    {/* 메시지 내용 */}
+                    <div className="analysis-section">
+                      <h4>💬 메시지 내용</h4>
+                      <div className="analysis-message-content">
+                        {analysisData.messageInfo.content}
+                      </div>
+                    </div>
+
+                    {/* 컨텍스트 분석 */}
+                    <div className="analysis-section">
+                      <h4>🔍 컨텍스트 분석</h4>
+                      <div className="analysis-tags">
+                        {analysisData.contextAnalysis.hasEmoji && <span className="analysis-tag emoji">이모지 포함</span>}
+                        {analysisData.contextAnalysis.hasUrl && <span className="analysis-tag url">링크 포함</span>}
+                        {analysisData.messageInfo.hasFile && <span className="analysis-tag file">파일 첨부</span>}
+                        <span className={`analysis-tag sentiment ${analysisData.contextAnalysis.sentiment}`}>
+                          {analysisData.contextAnalysis.sentiment === 'positive' ? '😊 긍정적' : 
+                           analysisData.contextAnalysis.sentiment === 'negative' ? '😔 부정적' : '😐 중립적'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 읽음 상태 */}
+                    {analysisData.readStatus && (
+                      <div className="analysis-section">
+                        <h4>👀 읽음 상태</h4>
+                        <div className="analysis-read-status">
+                          <div 
+                            className="read-status-summary clickable" 
+                            onClick={() => setShowReadUsers(!showReadUsers)}
+                            title="클릭하여 상세 목록 보기"
+                          >
+                            <div className="read-status-bar">
+                              <div 
+                                className="read-status-fill" 
+                                style={{width: `${analysisData.readStatus.readPercentage}%`}}
+                              ></div>
+                            </div>
+                            <div className="read-status-info">
+                              <span className="read-status-text">
+                                {analysisData.readStatus.readCount}/{analysisData.readStatus.totalCount}명 읽음 
+                                ({analysisData.readStatus.readPercentage}%)
+                              </span>
+                              <span className="read-status-toggle">
+                                {showReadUsers ? '▼ 숨기기' : '▶ 상세보기'}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {/* 사용자 목록 (토글 가능) */}
+                          {showReadUsers && (
+                            <>
+                              {/* 읽은 사용자 목록 */}
+                              {analysisData.readStatus.readUsers && analysisData.readStatus.readUsers.length > 0 && (
+                                <div className="read-users-section">
+                                  <h5>✅ 읽은 사용자 ({analysisData.readStatus.readUsers.length}명)</h5>
+                                  <div className="read-users-list">
+                                    {analysisData.readStatus.readUsers.map((user: any, index: number) => (
+                                      <div key={index} className="read-user-item read">
+                                        <div className="user-info">
+                                          <span className="user-nickname">{user.nickname}</span>
+                                          <span className="user-role">{user.role || '일반'}</span>
+                                        </div>
+                                        <span className="read-time">
+                                          {user.readAt ? new Date(user.readAt.seconds * 1000).toLocaleString('ko-KR', {
+                                            month: 'short',
+                                            day: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                          }) : '시간 미상'}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* 안 읽은 사용자 목록 */}
+                              {analysisData.readStatus.unreadUsers && analysisData.readStatus.unreadUsers.length > 0 && (
+                                <div className="read-users-section">
+                                  <h5>❌ 안 읽은 사용자 ({analysisData.readStatus.unreadUsers.length}명)</h5>
+                                  <div className="read-users-list">
+                                    {analysisData.readStatus.unreadUsers.map((user: any, index: number) => (
+                                      <div key={index} className="read-user-item unread">
+                                        <div className="user-info">
+                                          <span className="user-nickname">{user.nickname}</span>
+                                          <span className="user-role">{user.role || '일반'}</span>
+                                        </div>
+                                        <span className="unread-status">미읽음</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 리액션 */}
+                    {analysisData.reactions.length > 0 && (
+                      <div className="analysis-section">
+                        <h4>😊 리액션</h4>
+                        <div className="analysis-reactions">
+                          {analysisData.reactions.map((reaction: any, index: number) => (
+                            <div key={index} className="analysis-reaction">
+                              <span className="reaction-emoji">{reaction.emoji}</span>
+                              <span className="reaction-count">{reaction.users.length}명</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 관련 메시지 */}
+                    <div className="analysis-section">
+                      <h4>🔗 관련 정보</h4>
+                      <div className="analysis-item">
+                        <span className="analysis-label">같은 사용자 메시지:</span>
+                        <span className="analysis-value">{analysisData.relatedMessages.userMessages.length}개</span>
+                      </div>
+                      <div className="analysis-item">
+                        <span className="analysis-label">연관 메시지:</span>
+                        <span className="analysis-value">{analysisData.relatedMessages.replyMessages.length}개</span>
+                      </div>
+                      <div className="analysis-item">
+                        <span className="analysis-label">전체 메시지:</span>
+                        <span className="analysis-value">{analysisData.relatedMessages.totalCount}개</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1601,7 +2066,6 @@ const isMobile = isMobileView;
                 </div>
               </div>
             )}
-            <button className="exit-button" onClick={() => window.location.href = '/main'}>메인보드로 나가기</button>
           </>
         ) : (
           <div className="chat-placeholder">채팅방을 선택하세요.</div>

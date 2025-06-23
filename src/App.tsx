@@ -191,6 +191,28 @@ const AudioPlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }
   const [duration, setDuration] = useState(0);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  
+  // 드래그 관련 상태
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
+  const [isDragReady, setIsDragReady] = useState(false);
+  const [position, setPosition] = useState(() => {
+    if (typeof window === 'undefined') return { x: 0, y: 0 };
+    const saved = localStorage.getItem('audioPlayerPosition');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return {
+        x: Math.min(parsed.x, window.innerWidth - 50),
+        y: Math.min(parsed.y, window.innerHeight - 50)
+      };
+    }
+    return { 
+      x: window.innerWidth / 2, 
+      y: window.innerWidth <= 768 ? window.innerHeight - 150 : window.innerHeight - 76 
+    };
+  });
+  const playerRef = useRef<HTMLDivElement>(null);
 
   // 리더/운영진 권한 체크
   const userString = typeof window !== 'undefined' ? localStorage.getItem('veryus_user') : null;
@@ -201,6 +223,11 @@ const AudioPlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }
   useEffect(() => {
     const checkIsMobile = () => {
       setIsMobile(window.innerWidth <= 768);
+      // 화면 크기 변경 시 위치 조정
+      setPosition(prev => ({
+        x: Math.min(prev.x, window.innerWidth - 50),
+        y: Math.min(prev.y, window.innerHeight - 50)
+      }));
     };
     
     checkIsMobile();
@@ -208,6 +235,153 @@ const AudioPlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }
     return () => window.removeEventListener('resize', checkIsMobile);
   }, []);
 
+  // 드래그 이벤트 핸들러
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // 인터랙티브 요소 중에서 펼치기/접기 버튼은 예외 처리
+    const target = e.target as HTMLElement;
+    const isToggleButton = target.closest('[data-toggle-button="true"]');
+    
+    if (!isToggleButton && (
+        target.tagName === 'BUTTON' || 
+        target.closest('button') || 
+        target.tagName === 'INPUT' ||
+        (target.style.cursor === 'pointer' && !isToggleButton) ||
+        (target.closest('[style*="cursor: pointer"]') && !isToggleButton)
+    )) {
+      return;
+    }
+    
+    if (!playerRef.current) return;
+    const rect = playerRef.current.getBoundingClientRect();
+    setIsDragReady(true);
+    setDragStartPos({ x: e.clientX, y: e.clientY });
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    });
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    // 인터랙티브 요소 중에서 펼치기/접기 버튼은 예외 처리
+    const target = e.target as HTMLElement;
+    const isToggleButton = target.closest('[data-toggle-button="true"]');
+    
+    if (!isToggleButton && (
+        target.tagName === 'BUTTON' || 
+        target.closest('button') || 
+        target.tagName === 'INPUT' ||
+        (target.style.cursor === 'pointer' && !isToggleButton) ||
+        (target.closest('[style*="cursor: pointer"]') && !isToggleButton)
+    )) {
+      return;
+    }
+    
+    if (!playerRef.current) return;
+    const rect = playerRef.current.getBoundingClientRect();
+    const touch = e.touches[0];
+    setIsDragReady(true);
+    setDragStartPos({ x: touch.clientX, y: touch.clientY });
+    setDragOffset({
+      x: touch.clientX - rect.left,
+      y: touch.clientY - rect.top
+    });
+  };
+
+  // 전역 마우스/터치 이벤트 처리
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragReady && !isDragging) return;
+      
+      // 드래그 준비 상태에서 마우스가 일정 거리 이상 움직이면 드래그 시작
+      if (isDragReady && !isDragging) {
+        const distance = Math.sqrt(
+          Math.pow(e.clientX - dragStartPos.x, 2) + 
+          Math.pow(e.clientY - dragStartPos.y, 2)
+        );
+        if (distance > 5) { // 5px 이상 움직이면 드래그 시작
+          setIsDragging(true);
+          setIsDragReady(false);
+        } else {
+          return;
+        }
+      }
+      
+      if (!isDragging) return;
+      const newX = e.clientX - dragOffset.x;
+      const newY = e.clientY - dragOffset.y;
+      
+      // 화면 경계 내에서만 이동 가능
+      const maxX = window.innerWidth - (collapsed ? 50 : 280);
+      const maxY = window.innerHeight - 50;
+      
+      setPosition({
+        x: Math.max(0, Math.min(newX, maxX)),
+        y: Math.max(0, Math.min(newY, maxY))
+      });
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isDragReady && !isDragging) return;
+      const touch = e.touches[0];
+      
+      // 드래그 준비 상태에서 터치가 일정 거리 이상 움직이면 드래그 시작
+      if (isDragReady && !isDragging) {
+        const distance = Math.sqrt(
+          Math.pow(touch.clientX - dragStartPos.x, 2) + 
+          Math.pow(touch.clientY - dragStartPos.y, 2)
+        );
+        if (distance > 5) { // 5px 이상 움직이면 드래그 시작
+          setIsDragging(true);
+          setIsDragReady(false);
+        } else {
+          return;
+        }
+      }
+      
+      if (!isDragging) return;
+      const newX = touch.clientX - dragOffset.x;
+      const newY = touch.clientY - dragOffset.y;
+      
+      // 화면 경계 내에서만 이동 가능
+      const maxX = window.innerWidth - (collapsed ? 50 : 280);
+      const maxY = window.innerHeight - 50;
+      
+      setPosition({
+        x: Math.max(0, Math.min(newX, maxX)),
+        y: Math.max(0, Math.min(newY, maxY))
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      setIsDragReady(false);
+    };
+
+    const handleTouchEnd = () => {
+      setIsDragging(false);
+      setIsDragReady(false);
+    };
+
+    if (isDragReady || isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener('touchmove', handleTouchMove);
+      document.addEventListener('touchend', handleTouchEnd);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
+        };
+  }, [isDragReady, isDragging, dragOffset, dragStartPos, collapsed]);
+
+  // 위치 변경 시 localStorage에 저장
+  useEffect(() => {
+    localStorage.setItem('audioPlayerPosition', JSON.stringify(position));
+  }, [position]);
+  
   // 플레이리스트가 로드되면 첫 번째 곡을 선택하지만 자동재생하지 않음
   useEffect(() => {
     if (playlist.length > 0 && currentIdx >= playlist.length) {
@@ -310,77 +484,94 @@ const AudioPlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }
       <audio ref={audioRef} src={playlist[currentIdx]?.url} onEnded={handleEnded} style={{ display: 'none' }} />
       {/* 플레이어 UI는 collapsed에 따라 숨김 처리 */}
       <div
+        ref={playerRef}
+        onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
         style={{
           position: 'fixed',
-          bottom: isMobile ? 90 : 16, // 모바일에서는 하단 네비 위로
-          left: '50%',
-          transform: 'translateX(-50%)',
+          left: position.x,
+          top: position.y,
+          transform: collapsed ? 'translate(-50%, -50%)' : 'translate(0, 0)',
           zIndex: 9999,
           background: 'rgba(255,255,255,0.98)',
           borderRadius: 16,
-          boxShadow: collapsed ? 'none' : '0 2px 8px #E5DAF5',
-          padding: collapsed ? 0 : '12px 18px',
-          minWidth: collapsed ? 0 : 320,
-          maxWidth: collapsed ? 60 : 420,
-          width: collapsed ? 60 : '95vw',
-          height: collapsed ? 60 : 'auto',
-          display: collapsed ? 'flex' : 'flex',
+          boxShadow: isDragging 
+            ? '0 8px 24px rgba(138, 85, 204, 0.4)' 
+            : collapsed ? '0 2px 8px rgba(138, 85, 204, 0.3)' : '0 2px 8px #E5DAF5',
+          padding: collapsed ? 0 : '10px 14px',
+          minWidth: collapsed ? 0 : 280,
+          maxWidth: collapsed ? 50 : 350,
+          width: collapsed ? 50 : Math.min(350, window.innerWidth - 40),
+          height: collapsed ? 50 : 'auto',
+          display: 'flex',
           alignItems: 'center',
           justifyContent: collapsed ? 'center' : 'flex-start',
-          gap: collapsed ? 0 : 12,
+          gap: collapsed ? 0 : 10,
           flexDirection: 'row',
-          transition: 'all 0.2s',
-          visibility: collapsed ? 'visible' : 'visible',
+          transition: isDragging ? 'none' : 'all 0.2s',
+          cursor: isDragging ? 'grabbing' : 'grab',
+          userSelect: 'none',
+          touchAction: 'none',
         }}
       >
         <button
-          onClick={() => setCollapsed((c) => !c)}
+          data-toggle-button="true"
+          onClick={(e) => {
+            // 드래그 중이 아닐 때만 토글 실행
+            if (!isDragging && !isDragReady) {
+              setCollapsed((c) => !c);
+            }
+          }}
           tabIndex={-1}
           style={{ 
             ...buttonBase, 
-            width: 40, 
-            height: 40, 
-            marginRight: 0
+            width: 36, 
+            height: 36, 
+            marginRight: 0,
+            cursor: 'pointer'
           }}
           aria-label={collapsed ? '펼치기' : '접기'}
           onMouseOver={e => e.currentTarget.style.background = '#ede9fe'}
           onMouseOut={e => e.currentTarget.style.background = 'none'}
         >
-          {collapsed ? <ExpandIcon /> : <CollapseIcon />}
+          {collapsed ? <MusicNoteIcon /> : <CollapseIcon />}
         </button>
         {!collapsed && (
           <>
-            <div style={{ width: 56, height: 56, borderRadius: 8, overflow: 'hidden', background: 'none', flexShrink: 0, marginRight: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 48, height: 48, borderRadius: 6, overflow: 'hidden', background: 'none', flexShrink: 0, marginRight: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
               <img src={playlist[currentIdx]?.coverUrl || '/default_cover.png'} alt="cover" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => {
                 const img = e.currentTarget as HTMLImageElement;
                 if (!img.src.includes('/default_cover.png')) img.src = '/default_cover.png';
               }} />
             </div>
-            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4, maxWidth: 220 }}>
-              <div style={{ width: '100%', marginBottom: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginLeft: '-32px', maxWidth: 180 }}>
-                <div style={{ fontWeight: 700, color: '#222', fontSize: 16, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>{playlist[currentIdx]?.title || '플레이리스트 없음'}</div>
-                <div style={{ color: '#8A55CC', fontWeight: 500, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>{playlist[currentIdx]?.artist || ''}</div>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3, maxWidth: 190 }}>
+              <div style={{ width: '100%', marginBottom: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginLeft: '-28px', maxWidth: 160 }}>
+                <div style={{ fontWeight: 700, color: '#222', fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>{playlist[currentIdx]?.title || '플레이리스트 없음'}</div>
+                <div style={{ color: '#8A55CC', fontWeight: 500, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>{playlist[currentIdx]?.artist || ''}</div>
               </div>
               {/* 타임라인+햄버거 버튼 한 줄 */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', maxWidth: 220, marginBottom: 8 }}>
-                <span style={{ color: '#00C853', fontSize: 13, minWidth: 36 }}>{formatTime(currentTime)}</span>
-                <div style={{ flex: 1, height: 4, background: '#eee', borderRadius: 2, overflow: 'hidden', position: 'relative', cursor: 'pointer', maxWidth: 120 }} onClick={e => {
-                  const rect = (e.target as HTMLDivElement).getBoundingClientRect();
-                  const percent = (e.clientX - rect.left) / rect.width;
-                  if (audioRef.current && duration) {
-                    audioRef.current.currentTime = percent * duration;
-                  }
-                }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', maxWidth: 190, marginBottom: 6 }}>
+                <span style={{ color: '#00C853', fontSize: 11, minWidth: 30 }}>{formatTime(currentTime)}</span>
+                <div 
+                  style={{ flex: 1, height: 3, background: '#eee', borderRadius: 2, overflow: 'hidden', position: 'relative', cursor: 'pointer', maxWidth: 100 }} 
+                  onClick={e => {
+                    const rect = (e.target as HTMLDivElement).getBoundingClientRect();
+                    const percent = (e.clientX - rect.left) / rect.width;
+                    if (audioRef.current && duration) {
+                      audioRef.current.currentTime = percent * duration;
+                    }
+                  }}
+                >
                   <div style={{ width: `${progress}%`, height: '100%', background: '#8A55CC', borderRadius: 2, position: 'absolute', left: 0, top: 0 }} />
                 </div>
-                <span style={{ color: '#888', fontSize: 13, minWidth: 36, textAlign: 'right' }}>{formatTime(duration)}</span>
-                <button onClick={() => setShowPlaylistModal(true)} tabIndex={-1} style={{ ...buttonBase, width: 40, height: 40, color: '#8A55CC' }} title="플레이리스트 전체 보기" onMouseOver={e => e.currentTarget.style.background = '#ede9fe'} onMouseOut={e => e.currentTarget.style.background = 'none'}><ListIcon /></button>
+                <span style={{ color: '#888', fontSize: 11, minWidth: 30, textAlign: 'right' }}>{formatTime(duration)}</span>
+                <button onClick={() => setShowPlaylistModal(true)} tabIndex={-1} style={{ ...buttonBase, width: 32, height: 32, color: '#8A55CC', cursor: 'pointer' }} title="플레이리스트 전체 보기" onMouseOver={e => e.currentTarget.style.background = '#ede9fe'} onMouseOut={e => e.currentTarget.style.background = 'none'}><ListIcon /></button>
               </div>
               {/* 컨트롤 버튼 */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16, width: '100%', maxWidth: 220 }}>
-                <button onClick={playPrev} tabIndex={-1} style={{ ...buttonBase, width: 44, height: 44 }} onMouseOver={e => e.currentTarget.style.background = '#ede9fe'} onMouseOut={e => e.currentTarget.style.background = 'none'} aria-label="이전 곡"><PrevIcon /></button>
-                <button onClick={() => setIsPlaying((p) => !p)} tabIndex={-1} style={{ ...buttonBase, width: 54, height: 54 }} onMouseOver={e => e.currentTarget.style.background = '#ede9fe'} onMouseOut={e => e.currentTarget.style.background = 'none'} aria-label={isPlaying ? '일시정지' : '재생'}>{isPlaying ? <PauseIcon /> : <PlayIcon />}</button>
-                <button onClick={playNext} tabIndex={-1} style={{ ...buttonBase, width: 44, height: 44 }} onMouseOver={e => e.currentTarget.style.background = '#ede9fe'} onMouseOut={e => e.currentTarget.style.background = 'none'} aria-label="다음 곡"><NextIcon /></button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', maxWidth: 190 }}>
+                <button onClick={playPrev} tabIndex={-1} style={{ ...buttonBase, width: 36, height: 36, cursor: 'pointer' }} onMouseOver={e => e.currentTarget.style.background = '#ede9fe'} onMouseOut={e => e.currentTarget.style.background = 'none'} aria-label="이전 곡"><PrevIcon /></button>
+                <button onClick={() => setIsPlaying((p) => !p)} tabIndex={-1} style={{ ...buttonBase, width: 44, height: 44, cursor: 'pointer' }} onMouseOver={e => e.currentTarget.style.background = '#ede9fe'} onMouseOut={e => e.currentTarget.style.background = 'none'} aria-label={isPlaying ? '일시정지' : '재생'}>{isPlaying ? <PauseIcon /> : <PlayIcon />}</button>
+                <button onClick={playNext} tabIndex={-1} style={{ ...buttonBase, width: 36, height: 36, cursor: 'pointer' }} onMouseOver={e => e.currentTarget.style.background = '#ede9fe'} onMouseOut={e => e.currentTarget.style.background = 'none'} aria-label="다음 곡"><NextIcon /></button>
               </div>
             </div>
           </>
@@ -832,30 +1023,36 @@ const buttonBase = {
 };
 
 // SVG 아이콘 컴포넌트 정의
-const PrevIcon = ({ color = '#8A55CC', size = 28 }) => (
+const MusicNoteIcon = ({ color = '#8A55CC', size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" fill={color}/>
+  </svg>
+);
+
+const PrevIcon = ({ color = '#8A55CC', size = 24 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <rect x="15" y="6" width="2" height="12" rx="1" fill={color}/>
     <path d="M14 12L6 18V6l8 6z" fill={color}/>
   </svg>
 );
-const PlayIcon = ({ color = '#8A55CC', size = 34 }) => (
+const PlayIcon = ({ color = '#8A55CC', size = 28 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M7 5v14l11-7z" fill={color}/>
   </svg>
 );
-const PauseIcon = ({ color = '#8A55CC', size = 34 }) => (
+const PauseIcon = ({ color = '#8A55CC', size = 28 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <rect x="6" y="5" width="4" height="14" rx="1" fill={color}/>
     <rect x="14" y="5" width="4" height="14" rx="1" fill={color}/>
   </svg>
 );
-const NextIcon = ({ color = '#8A55CC', size = 28 }) => (
+const NextIcon = ({ color = '#8A55CC', size = 24 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <rect x="7" y="6" width="2" height="12" rx="1" fill={color}/>
     <path d="M10 12l8 6V6l-8 6z" fill={color}/>
   </svg>
 );
-const CollapseIcon = ({ color = '#8A55CC', size = 32 }) => (
+const CollapseIcon = ({ color = '#8A55CC', size = 24 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M7 10l5 5 5-5" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
@@ -865,7 +1062,7 @@ const ExpandIcon = ({ color = '#8A55CC', size = 32 }) => (
     <path d="M7 14l5-5 5 5" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 );
-const ListIcon = ({ color = '#8A55CC', size = 26 }) => (
+const ListIcon = ({ color = '#8A55CC', size = 22 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <rect x="4" y="6" width="16" height="2" rx="1" fill={color}/>
     <rect x="4" y="11" width="16" height="2" rx="1" fill={color}/>
