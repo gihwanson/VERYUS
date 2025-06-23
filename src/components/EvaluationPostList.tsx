@@ -436,14 +436,15 @@ const EvaluationPostList: React.FC = () => {
                   fontSize: 12.5,
                   borderRadius: 8,
                   padding: '2px 8px',
-                  background: post.status === '합격' ? '#8A55CC' : post.status === '불합격' ? '#F43F5E' : '#E5E7EB',
-                  color: post.status === '합격' ? '#fff' : post.status === '불합격' ? '#fff' : '#888',
+                  background: post.category === 'feedback' ? '#FCD34D' : post.status === '합격' ? '#10B981' : post.status === '불합격' ? '#F43F5E' : '#FFFFFF',
+                  color: post.category === 'feedback' ? '#000' : post.status === '합격' ? '#fff' : post.status === '불합격' ? '#fff' : '#333',
                   display: 'inline-block',
                   minWidth: 32,
                   maxWidth: 60,
                   textAlign: 'center',
                   letterSpacing: '0.01em',
                   whiteSpace: 'nowrap',
+                  border: post.category === 'feedback' || post.status === '합격' || post.status === '불합격' ? 'none' : '1px solid #E5E7EB',
                 }}>
                   {post.category === 'feedback' ? '피드백' : (post.status || '대기')}
                 </span>

@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import CommentSection from './CommentSection';
+import { NotificationService } from '../utils/notificationService';
 import { 
   ArrowLeft, 
   UserPlus, 
@@ -279,26 +280,94 @@ const PartnerPostDetail: React.FC = () => {
     const hasApplied = applicants.includes(user.uid);
     if (!hasApplied) {
       if (!window.confirm('지원하시겠습니까?')) return;
-      await updateDoc(doc(db, 'posts', post.id), {
-        applicants: arrayUnion(user.uid)
-      });
-      setApplicants(prev => [...prev, user.uid]);
+      try {
+        await updateDoc(doc(db, 'posts', post.id), {
+          applicants: arrayUnion(user.uid)
+        });
+        setApplicants(prev => [...prev, user.uid]);
+        
+        // 지원 시 게시글 작성자에게 알림 보내기
+        try {
+          await NotificationService.createNotification({
+            type: 'partnership',
+            toUid: post.writerUid,
+            fromNickname: user.nickname || '익명',
+            postId: post.id,
+            postTitle: post.title,
+            postType: 'partner',
+            message: '파트너 신청이 있습니다.'
+          });
+        } catch (notificationError) {
+          console.error('지원 알림 생성 실패:', notificationError);
+        }
+      } catch (error) {
+        console.error('지원 신청 중 오류:', error);
+        alert('지원 신청 중 오류가 발생했습니다.');
+      }
     } else {
       if (!window.confirm('지원을 취소하겠습니까?')) return;
-      await updateDoc(doc(db, 'posts', post.id), {
-        applicants: arrayRemove(user.uid)
-      });
-      setApplicants(prev => prev.filter(uid => uid !== user.uid));
+      try {
+        await updateDoc(doc(db, 'posts', post.id), {
+          applicants: arrayRemove(user.uid)
+        });
+        setApplicants(prev => prev.filter(uid => uid !== user.uid));
+      } catch (error) {
+        console.error('지원 취소 중 오류:', error);
+        alert('지원 취소 중 오류가 발생했습니다.');
+      }
+    }
+  };
+
+  const handleConfirmApplicant = async (applicantUid: string, applicantNickname: string) => {
+    if (!post || !user) return;
+    
+    if (!window.confirm(`${applicantNickname}님을 파트너로 확정하시겠습니까?`)) return;
+    
+    try {
+      // 확정된 지원자에게 알림 보내기
+      await NotificationService.createPartnershipConfirmedNotification(
+        applicantUid,
+        post.id,
+        post.title,
+        user.nickname || '익명'
+      );
+      
+      alert(`${applicantNickname}님을 파트너로 확정했습니다.`);
+    } catch (error) {
+      console.error('파트너 확정 처리 중 오류:', error);
+      alert('파트너 확정 처리 중 오류가 발생했습니다.');
     }
   };
 
   const handleClose = async () => {
-    if (!post) return;
-    await updateDoc(doc(db, 'posts', post.id), {
-      isClosed: true,
-      closedAt: serverTimestamp()
-    });
-    setIsClosed(true);
+    if (!post || !user) return;
+    try {
+      await updateDoc(doc(db, 'posts', post.id), {
+        isClosed: true,
+        closedAt: serverTimestamp()
+      });
+      setIsClosed(true);
+      
+      // 모든 지원자들에게 모집 완료 알림 보내기
+      if (applicants.length > 0) {
+        try {
+          const notificationPromises = applicants.map(applicantUid => 
+            NotificationService.createPartnershipClosedNotification(
+              applicantUid,
+              post.id,
+              post.title,
+              user.nickname || '익명'
+            )
+          );
+          await Promise.all(notificationPromises);
+        } catch (notificationError) {
+          console.error('모집 완료 알림 생성 실패:', notificationError);
+        }
+      }
+    } catch (error) {
+      console.error('모집 완료 처리 중 오류:', error);
+      alert('모집 완료 처리 중 오류가 발생했습니다.');
+    }
   };
 
   const handleDelete = async () => {
@@ -498,7 +567,7 @@ const PartnerPostDetail: React.FC = () => {
       {/* 지원자 모달 */}
       {showApplicantsModal && (
         <div className="modal-overlay" style={{position:'fixed',top:0,left:0,width:'100vw',height:'100vh',background:'rgba(0,0,0,0.25)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center'}}>
-          <div className="modal-content" style={{background:'#fff',borderRadius:12,padding:'2rem',minWidth:320,maxWidth:400,boxShadow:'0 4px 24px rgba(0,0,0,0.12)',position:'relative'}}>
+          <div className="modal-content" style={{background:'#fff',borderRadius:12,padding:'2rem',minWidth:400,maxWidth:500,boxShadow:'0 4px 24px rgba(0,0,0,0.12)',position:'relative'}}>
             <button style={{position:'absolute',top:12,right:12,background:'none',border:'none',fontSize:20,cursor:'pointer'}} onClick={()=>setShowApplicantsModal(false)}><X size={24}/></button>
             <h3 style={{marginBottom:16,fontWeight:700,fontSize:'1.15rem'}}>지원자 목록</h3>
             {applicantUsers.length === 0 ? (
@@ -506,8 +575,62 @@ const PartnerPostDetail: React.FC = () => {
             ) : (
               <ul style={{padding:0,listStyle:'none'}}>
                 {applicantUsers.map(u => (
-                  <li key={u.uid} style={{marginBottom:8}}>
-                    {u.nickname || u.email} {u.grade && <span style={{marginLeft:4}}>{u.grade}</span>}
+                  <li key={u.uid} style={{
+                    marginBottom:12, 
+                    display:'flex', 
+                    alignItems:'center', 
+                    justifyContent:'space-between', 
+                    padding:'8px 12px', 
+                    background:'#F8F9FA', 
+                    borderRadius:8,
+                    border:'1px solid #E9ECEF'
+                  }}>
+                    <div style={{display:'flex', alignItems:'center', gap:8}}>
+                      <span style={{fontWeight:600, color:'#495057'}}>
+                        {u.nickname || u.email}
+                      </span>
+                      {u.grade && (
+                        <span style={{fontSize:'1.1rem'}} title={u.grade}>
+                          {u.grade}
+                        </span>
+                      )}
+                      {u.role && u.role !== '일반' && (
+                        <span style={{
+                          fontSize:'11px',
+                          background:'#8A55CC',
+                          color:'white',
+                          padding:'2px 6px',
+                          borderRadius:4,
+                          fontWeight:600
+                        }}>
+                          {u.role}
+                        </span>
+                      )}
+                    </div>
+                    <button 
+                      onClick={() => handleConfirmApplicant(u.uid, u.nickname || u.email)}
+                      style={{
+                        background:'#10B981',
+                        color:'white',
+                        border:'none',
+                        borderRadius:6,
+                        padding:'4px 12px',
+                        fontSize:'12px',
+                        fontWeight:600,
+                        cursor:'pointer',
+                        transition:'all 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#059669';
+                        e.currentTarget.style.transform = 'scale(1.05)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = '#10B981';
+                        e.currentTarget.style.transform = 'scale(1)';
+                      }}
+                    >
+                      확정
+                    </button>
                   </li>
                 ))}
               </ul>

@@ -5,10 +5,11 @@ import './BottomNavigation.css';
 
 interface BottomNavigationProps {
   unreadNotificationCount: number;
+  unreadChatCount?: number;
   onSearchOpen?: () => void;
 }
 
-const BottomNavigation: React.FC<BottomNavigationProps> = memo(({ unreadNotificationCount, onSearchOpen }) => {
+const BottomNavigation: React.FC<BottomNavigationProps> = memo(({ unreadNotificationCount, unreadChatCount = 0, onSearchOpen }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [showBoardsMenu, setShowBoardsMenu] = useState(false);
@@ -22,7 +23,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({ unreadNotifica
     { name: '연습장', path: '/practice-room', icon: () => <span style={{fontSize:16}}>🎹</span>, emoji: '🎹' },
     { name: '합격곡', path: '/approved-songs', icon: () => <span style={{fontSize:16}}>🏆</span>, emoji: '🏆' },
     { name: '콘테스트', path: '/contests', icon: () => <span style={{fontSize:16}}>🎤</span>, emoji: '🎤' },
-    { name: '쪽지함', path: '/messages', icon: () => <span style={{fontSize:16}}>💌</span>, emoji: '💌' }
+    { name: '채팅방', path: '/messages', icon: () => <span style={{fontSize:16}}>💬</span>, emoji: '💬' }
   ];
 
   const navItems = [
@@ -102,6 +103,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({ unreadNotifica
                 key={board.path}
                 className={`board-submenu-item ${(board as any).isSearch ? 'search-item' : ''}`}
                 onClick={() => handleBoardClick(board.path, (board as any).isSearch)}
+                style={{ position: 'relative' }}
               >
                 {(board as any).emoji ? (
                   <span style={{fontSize: 18}}>{(board as any).emoji}</span>
@@ -109,6 +111,31 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({ unreadNotifica
                   <board.icon size={16} />
                 )}
                 <span>{board.name}</span>
+                {/* 쪽지함 알림 뱃지 */}
+                {board.path === '/messages' && unreadChatCount > 0 && (
+                  <span style={{
+                    position: 'absolute',
+                    top: '0px',
+                    right: '6px',
+                    backgroundColor: '#ef4444',
+                    color: 'white',
+                    borderRadius: '10px',
+                    minWidth: '18px',
+                    height: '18px',
+                    fontSize: '11px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: '700',
+                    border: '2px solid white',
+                    zIndex: 2,
+                    boxSizing: 'border-box',
+                    lineHeight: '1',
+                    padding: unreadChatCount > 9 ? '2px 4px' : '2px'
+                  }}>
+                    {unreadChatCount > 99 ? '99+' : unreadChatCount}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -124,20 +151,22 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({ unreadNotifica
               onClick={() => handleNavClick(item.path, (item as any).hasSubmenu)}
               {...((item as any).hasSubmenu && { 'data-boards': 'true' })}
             >
-              <div className="bottom-nav-icon-container">
-                <item.icon 
-                  size={20} 
-                  className="bottom-nav-icon"
-                />
-                {item.badge && typeof item.badge === 'number' && item.badge > 0 && (
-                  <span className="bottom-nav-badge">
-                    {item.badge > 99 ? '99+' : item.badge}
-                  </span>
-                )}
-                {(item as any).hasSubmenu && showBoardsMenu && (
-                  <ChevronUp size={12} className="submenu-indicator" />
-                )}
-              </div>
+                          <div className="bottom-nav-icon-container">
+              <item.icon 
+                size={20} 
+                className="bottom-nav-icon"
+              />
+              {item.badge && typeof item.badge === 'number' && item.badge > 0 && (
+                <span className="bottom-nav-badge-dot"></span>
+              )}
+              {/* 게시판 버튼에 채팅 알림 표시 */}
+              {item.id === 'boards' && unreadChatCount > 0 && (
+                <span className="bottom-nav-badge-dot" style={{ backgroundColor: '#ef4444' }}></span>
+              )}
+              {(item as any).hasSubmenu && showBoardsMenu && (
+                <ChevronUp size={12} className="submenu-indicator" />
+              )}
+            </div>
               <span className="bottom-nav-label">{item.label}</span>
             </button>
           ))}

@@ -71,6 +71,8 @@ import EvaluationPostEdit from './components/EvaluationPostEdit';
 import PracticeRoom from './components/PracticeRoom';
 // @ts-ignore
 import BottomNavigation from './components/BottomNavigation';
+import { subscribeToAnnouncementUnreadCount } from './utils/readStatusService';
+import { subscribeToTotalUnreadCount } from './utils/chatService';
 // @ts-ignore
 import SearchSystem from './components/SearchSystem';
 import './App.css';
@@ -426,6 +428,9 @@ function App() {
   const [loading, setLoading] = useState<boolean>(true);
   const [loadingEmojiIdx, setLoadingEmojiIdx] = useState(0);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+  const [announcementUnreadCount, setAnnouncementUnreadCount] = useState(0);
+  const [generalChatUnreadCount, setGeneralChatUnreadCount] = useState(0);
   const [showSearchSystem, setShowSearchSystem] = useState(false);
   
   // 테마 시스템
@@ -481,6 +486,9 @@ function App() {
   useEffect(() => {
     if (!user) {
       setUnreadNotificationCount(0);
+      setUnreadChatCount(0);
+      setAnnouncementUnreadCount(0);
+      setGeneralChatUnreadCount(0);
       return;
     }
 
@@ -490,7 +498,7 @@ function App() {
       where('isRead', '==', false)
     );
 
-    const unsubscribe = onSnapshot(
+    const unsubscribeNotifications = onSnapshot(
       notificationsQuery,
       (snapshot) => {
         setUnreadNotificationCount(snapshot.size);
@@ -501,8 +509,27 @@ function App() {
       }
     );
 
-    return () => unsubscribe();
+    // 공지방 안읽은 개수 구독
+    const unsubscribeAnnouncement = subscribeToAnnouncementUnreadCount(user.uid, (count) => {
+      setAnnouncementUnreadCount(count);
+    });
+
+    // 일반 채팅방 안읽은 개수 구독 
+    const unsubscribeGeneralChat = subscribeToTotalUnreadCount(user.uid, (count) => {
+      setGeneralChatUnreadCount(count);
+    });
+
+    return () => {
+      unsubscribeNotifications();
+      unsubscribeAnnouncement();
+      unsubscribeGeneralChat();
+    };
   }, [user]);
+
+  // 전체 채팅 안읽은 개수 계산
+  useEffect(() => {
+    setUnreadChatCount(announcementUnreadCount + generalChatUnreadCount);
+  }, [announcementUnreadCount, generalChatUnreadCount]);
 
   // 테마 변경 시 CSS 변수 업데이트
   useEffect(() => {
@@ -740,6 +767,7 @@ function App() {
           {user && (
             <BottomNavigation 
               unreadNotificationCount={unreadNotificationCount}
+              unreadChatCount={unreadChatCount}
               onSearchOpen={() => setShowSearchSystem(true)}
             />
           )}

@@ -73,6 +73,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
   const [likesCount, setLikesCount] = useState(comment.likesCount || 0);
   const [writerRole, setWriterRole] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [isComposing, setIsComposing] = useState(false);
 
   // 모바일 환경 감지
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 640;
@@ -312,6 +313,11 @@ const CommentItem: React.FC<CommentItemProps> = ({
                 className="comment-edit-input"
                 rows={3}
                 placeholder="댓글을 입력하세요..."
+                onCompositionStart={() => setIsComposing(true)}
+                onCompositionEnd={() => setIsComposing(false)}
+                onCompositionUpdate={() => setIsComposing(true)}
+                spellCheck={false}
+                autoComplete="off"
               />
             )}
             <div className="comment-edit-buttons">
@@ -342,6 +348,11 @@ const CommentItem: React.FC<CommentItemProps> = ({
             onChange={(e) => setReplyContent(e.target.value)}
             placeholder="답글을 입력하세요..."
             className="reply-input"
+            onCompositionStart={() => setIsComposing(true)}
+            onCompositionEnd={() => setIsComposing(false)}
+            onCompositionUpdate={() => setIsComposing(true)}
+            spellCheck={false}
+            autoComplete="off"
           />
           <div className="reply-buttons">
             <button 

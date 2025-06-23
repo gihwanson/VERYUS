@@ -1,0 +1,376 @@
+.read-status-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.read-status-modal {
+  background: white;
+  border-radius: 12px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    transform: translateY(-50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.read-status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 20px 15px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.read-status-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #212529;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #6c757d;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.close-button:hover {
+  background-color: #f8f9fa;
+  color: #495057;
+}
+
+.message-preview {
+  padding: 15px 20px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.message-preview p {
+  margin: 0;
+  font-size: 14px;
+  color: #495057;
+  line-height: 1.4;
+  font-style: italic;
+}
+
+.read-status-summary {
+  display: flex;
+  gap: 10px;
+  padding: 20px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.status-card {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.read-summary {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.unread-summary {
+  background-color: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+}
+
+.status-icon {
+  font-size: 16px;
+}
+
+.status-percentage {
+  font-weight: 600;
+}
+
+.status-section {
+  padding: 20px;
+}
+
+.status-section:not(:last-child) {
+  border-bottom: 1px solid #e9ecef;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 15px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #212529;
+}
+
+.section-icon {
+  font-size: 18px;
+}
+
+.users-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.user-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.user-item:last-child {
+  border-bottom: none;
+}
+
+.user-item.unread {
+  opacity: 0.7;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #e9ecef;
+}
+
+.user-avatar.default-avatar {
+  background-color: #8A55CC;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.user-details {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.user-nickname {
+  font-weight: 500;
+  color: #212529;
+  font-size: 14px;
+}
+
+.role-badge {
+  background-color: #6c757d;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.read-time {
+  font-size: 12px;
+  color: #6c757d;
+  white-space: nowrap;
+}
+
+.unread-indicator {
+  font-size: 12px;
+  color: #dc3545;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.empty-message {
+  text-align: center;
+  color: #6c757d;
+  font-style: italic;
+  margin: 20px 0;
+  font-size: 14px;
+}
+
+.modal-footer {
+  padding: 15px 20px 20px;
+  text-align: center;
+}
+
+.close-modal-button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.close-modal-button:hover {
+  background-color: #0056b3;
+}
+
+/* 다크모드 지원 */
+[data-theme="dark"] .read-status-modal {
+  background: #2c3e50;
+  color: #ecf0f1;
+}
+
+[data-theme="dark"] .read-status-header {
+  border-bottom-color: #34495e;
+}
+
+[data-theme="dark"] .read-status-header h3 {
+  color: #ecf0f1;
+}
+
+[data-theme="dark"] .close-button {
+  color: #bdc3c7;
+}
+
+[data-theme="dark"] .close-button:hover {
+  background-color: #34495e;
+  color: #ecf0f1;
+}
+
+[data-theme="dark"] .message-preview {
+  background-color: #34495e;
+  border-bottom-color: #34495e;
+}
+
+[data-theme="dark"] .message-preview p {
+  color: #bdc3c7;
+}
+
+[data-theme="dark"] .read-status-summary {
+  border-bottom-color: #34495e;
+}
+
+[data-theme="dark"] .read-summary {
+  background-color: #27ae60;
+  color: white;
+  border-color: #2ecc71;
+}
+
+[data-theme="dark"] .unread-summary {
+  background-color: #f39c12;
+  color: white;
+  border-color: #e67e22;
+}
+
+[data-theme="dark"] .status-section {
+  border-bottom-color: #34495e;
+}
+
+[data-theme="dark"] .section-title {
+  color: #ecf0f1;
+}
+
+[data-theme="dark"] .user-item {
+  border-bottom-color: #34495e;
+}
+
+[data-theme="dark"] .user-nickname {
+  color: #ecf0f1;
+}
+
+[data-theme="dark"] .user-avatar {
+  border-color: #34495e;
+}
+
+[data-theme="dark"] .read-time,
+[data-theme="dark"] .empty-message {
+  color: #95a5a6;
+}
+
+[data-theme="dark"] .unread-indicator {
+  color: #e74c3c;
+}
+
+/* 모바일 반응형 */
+@media (max-width: 600px) {
+  .read-status-modal-overlay {
+    padding: 10px;
+  }
+  
+  .read-status-modal {
+    max-height: 90vh;
+  }
+  
+  .read-status-summary {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .status-card {
+    justify-content: center;
+  }
+  
+  .user-info {
+    gap: 8px;
+  }
+  
+  .user-avatar {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .user-nickname {
+    font-size: 13px;
+  }
+  
+  .role-badge {
+    font-size: 10px;
+    padding: 1px 6px;
+  }
+  
+  .read-time,
+  .unread-indicator {
+    font-size: 11px;
+  }
+} 

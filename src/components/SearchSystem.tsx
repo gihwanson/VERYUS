@@ -10,17 +10,35 @@ import {
   Tag, 
   X,
   TrendingUp,
-  Hash
+  Hash,
+  Users
 } from 'lucide-react';
 import { useDebounce } from '../utils/hooks';
 import { showErrorToast } from '../utils/errorHandler';
 import { performSearch, getPopularTags, saveSearchHistory } from '../utils/searchService';
 import type { SearchResult as SearchResultType, SearchFilters as SearchFiltersType } from '../utils/searchService';
+import { 
+  collection as fbCollection, 
+  query as fbQuery, 
+  where as fbWhere, 
+  limit as fbLimit, 
+  getDocs as fbGetDocs 
+} from 'firebase/firestore';
+import { db } from '../firebase';
 import './SearchSystem.css';
 
 // 타입은 searchService에서 import
 type SearchResult = SearchResultType;
 type SearchFilters = SearchFiltersType;
+
+// 사용자 검색 결과 타입
+interface UserSearchResult {
+  uid: string;
+  nickname: string;
+  grade?: string;
+  role?: string;
+  profileImageUrl?: string;
+}
 
 interface SearchSystemProps {
   isOpen: boolean;
@@ -78,6 +96,7 @@ const SearchSystem: React.FC<SearchSystemProps> = memo(({
   
   // UI 상태
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [userResults, setUserResults] = useState<UserSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
@@ -87,18 +106,53 @@ const SearchSystem: React.FC<SearchSystemProps> = memo(({
   // 디바운스된 검색어
   const debouncedQuery = useDebounce(query, 300);
   
+  // 사용자 검색 함수
+  const searchUsers = async (searchQuery: string): Promise<UserSearchResult[]> => {
+    if (!searchQuery.trim()) return [];
+    
+    try {
+      const usersQuery = fbQuery(
+        fbCollection(db, 'users'),
+        fbWhere('nickname', '>=', searchQuery),
+        fbWhere('nickname', '<=', searchQuery + '\uf8ff'),
+        fbLimit(10)
+      );
+      
+      const snapshot = await fbGetDocs(usersQuery);
+      return snapshot.docs.map((doc: any) => ({
+        uid: doc.id,
+        nickname: doc.data().nickname,
+        grade: doc.data().grade,
+        role: doc.data().role,
+        profileImageUrl: doc.data().profileImageUrl
+      })) as UserSearchResult[];
+      
+    } catch (error) {
+      console.error('사용자 검색 실패:', error);
+      return [];
+    }
+  };
+  
   // 검색 실행
   const performSearchAction = async (searchQuery: string, searchFilters: SearchFilters) => {
     if (!searchQuery.trim() && searchFilters.tags.length === 0) {
       setResults([]);
+      setUserResults([]);
       return;
     }
     
     setLoading(true);
     try {
-      // 실제 Firebase 검색 실행
-      const searchResults = await performSearch(searchQuery, searchFilters);
+      // 병렬로 게시글 검색과 사용자 검색 실행
+      const [searchResults, userSearchResults] = await Promise.all([
+        searchQuery.trim() || searchFilters.tags.length > 0 
+          ? performSearch(searchQuery, searchFilters)
+          : Promise.resolve([]),
+        searchQuery.trim() ? searchUsers(searchQuery) : Promise.resolve([])
+      ]);
+      
       setResults(searchResults);
+      setUserResults(userSearchResults);
       
       // 검색 히스토리 저장 (선택적)
       if (searchQuery.trim()) {
@@ -108,6 +162,7 @@ const SearchSystem: React.FC<SearchSystemProps> = memo(({
     } catch (error) {
       showErrorToast(error, 'Search');
       setResults([]);
+      setUserResults([]);
     } finally {
       setLoading(false);
     }
@@ -160,6 +215,12 @@ const SearchSystem: React.FC<SearchSystemProps> = memo(({
     };
     
     navigate(`${boardPaths[result.boardType]}/${result.id}`);
+    onClose();
+  };
+
+  // 사용자 검색 결과 클릭
+  const handleUserResultClick = (user: UserSearchResult) => {
+    navigate(`/mypage/${user.uid}`);
     onClose();
   };
   
@@ -355,7 +416,7 @@ const SearchSystem: React.FC<SearchSystemProps> = memo(({
             </div>
           )}
           
-          {!loading && query && results.length === 0 && (
+          {!loading && query && results.length === 0 && userResults.length === 0 && (
             <div className="no-results">
               <Search size={48} className="no-results-icon" />
               <h3>검색 결과가 없습니다</h3>
@@ -363,63 +424,110 @@ const SearchSystem: React.FC<SearchSystemProps> = memo(({
             </div>
           )}
           
-          {!loading && results.length > 0 && (
+          {!loading && (userResults.length > 0 || results.length > 0) && (
             <div className="results-list">
               <div className="results-header">
                 <span className="results-count">
-                  총 {results.length}개의 결과
+                  총 {userResults.length + results.length}개의 결과
                 </span>
               </div>
               
-              {results.map(result => (
-                <div 
-                  key={result.id}
-                  className="result-item"
-                  onClick={() => handleResultClick(result)}
-                >
-                  <div className="result-header">
-                    <span className={`result-board ${result.boardType}`}>
-                      {BOARD_TYPES.find(b => b.value === result.boardType)?.label}
-                    </span>
-                    <span className="result-date">
-                      {new Date(result.createdAt).toLocaleDateString()}
-                    </span>
+              {/* 사용자 검색 결과 */}
+              {userResults.length > 0 && (
+                <div className="user-results-section">
+                  <div className="section-header">
+                    <Users size={16} />
+                    <span>사용자 ({userResults.length})</span>
                   </div>
                   
-                  <h3 className="result-title">
-                    {highlightText(result.title || '제목 없음', query)}
-                  </h3>
-                  
-                  <p className="result-content">
-                    {highlightText(result.content || '내용 없음', query)}
-                  </p>
-                  
-                  <div className="result-meta">
-                    <span className="result-author">
-                      <User size={12} />
-                      {result.author || '익명'}
-                    </span>
-                    
-                    {result.viewCount && (
-                      <span className="result-views">
-                        <TrendingUp size={12} />
-                        {result.viewCount}
-                      </span>
-                    )}
-                    
-                    {result.tags && result.tags.length > 0 && (
-                      <div className="result-tags">
-                        {result.tags.map(tag => (
-                          <span key={tag} className="result-tag">
-                            <Hash size={10} />
-                            {tag}
-                          </span>
-                        ))}
+                  {userResults.map(user => (
+                    <div 
+                      key={user.uid}
+                      className="user-result-item"
+                      onClick={() => handleUserResultClick(user)}
+                    >
+                      <div className="user-avatar">
+                        {user.profileImageUrl ? (
+                          <img src={user.profileImageUrl} alt={user.nickname} />
+                        ) : (
+                          user.nickname?.charAt(0) || 'U'
+                        )}
                       </div>
-                    )}
-                  </div>
+                      
+                      <div className="user-info">
+                        <div className="user-nickname">
+                          {highlightText(user.nickname || '사용자', query)}
+                          <span className="user-grade">{user.grade || '🍒'}</span>
+                        </div>
+                        
+                        {user.role && user.role !== '일반' && (
+                          <div className="user-role">{user.role}</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
+              
+              {/* 게시글 검색 결과 */}
+              {results.length > 0 && (
+                <div className="post-results-section">
+                  <div className="section-header">
+                    <Hash size={16} />
+                    <span>게시글 ({results.length})</span>
+                  </div>
+                  
+                  {results.map(result => (
+                    <div 
+                      key={result.id}
+                      className="result-item"
+                      onClick={() => handleResultClick(result)}
+                    >
+                      <div className="result-header">
+                        <span className={`result-board ${result.boardType}`}>
+                          {BOARD_TYPES.find(b => b.value === result.boardType)?.label}
+                        </span>
+                        <span className="result-date">
+                          {new Date(result.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      
+                      <h3 className="result-title">
+                        {highlightText(result.title || '제목 없음', query)}
+                      </h3>
+                      
+                      <p className="result-content">
+                        {highlightText(result.content || '내용 없음', query)}
+                      </p>
+                      
+                      <div className="result-meta">
+                        <span className="result-author">
+                          <User size={12} />
+                          {result.author || '익명'}
+                        </span>
+                        
+                        {result.viewCount && (
+                          <span className="result-views">
+                            <TrendingUp size={12} />
+                            {result.viewCount}
+                          </span>
+                        )}
+                        
+                        {result.tags && result.tags.length > 0 && (
+                          <div className="result-tags">
+                            {result.tags.map(tag => (
+                              <span key={tag} className="result-tag">
+                                <Hash size={10} />
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
           

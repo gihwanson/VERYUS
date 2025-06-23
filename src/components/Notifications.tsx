@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { collection, query, where, orderBy, onSnapshot, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Bell, MessageCircle, X, Heart, CheckCircle, XCircle, Users, AtSign } from 'lucide-react';
+import { Bell, MessageCircle, X, Heart, CheckCircle, XCircle, Users, AtSign, UserPlus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { NotificationService } from '../utils/notificationService';
 import './Notifications.css';
 
 interface Notification {
   id: string;
-  type: 'comment' | 'reply' | 'like' | 'approval' | 'rejection' | 'guestbook' | 'mention' | 'new_post' | 'partnership';
+  type: 'comment' | 'reply' | 'like' | 'approval' | 'rejection' | 'guestbook' | 'mention' | 'new_post' | 'partnership' | 'partnership_closed' | 'partnership_confirmed';
   postId?: string;
   postTitle?: string;
   postType?: string;
@@ -79,6 +79,12 @@ const Notifications: React.FC = () => {
         return <Users size={18} className="text-purple-500" style={{ color: '#A55EEA' }} />;
       case 'mention':
         return <AtSign size={18} className="text-orange-500" style={{ color: '#FFA726' }} />;
+      case 'partnership':
+        return <UserPlus size={18} className="text-yellow-500" style={{ color: '#FFE66D' }} />;
+      case 'partnership_closed':
+        return <CheckCircle size={18} className="text-green-500" style={{ color: '#10B981' }} />;
+      case 'partnership_confirmed':
+        return <CheckCircle size={18} className="text-blue-500" style={{ color: '#3B82F6' }} />;
       default:
         return <Bell size={18} className="text-gray-500" style={{ color: '#8A55CC' }} />;
     }

@@ -96,6 +96,34 @@
   animation: pulse 2s infinite;
 }
 
+.bottom-nav-badge-dot {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 8px;
+  height: 8px;
+  background: linear-gradient(135deg, #FF4757, #FF6B7A);
+  border-radius: 50%;
+  border: 2px solid white;
+  animation: pulse-dot 2s infinite;
+  box-shadow: 0 2px 8px rgba(255, 71, 87, 0.3);
+}
+
+@keyframes pulse-dot {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 .submenu-indicator {
   position: absolute;
   top: -2px;
@@ -239,6 +267,14 @@
     font-size: 8px;
     top: -6px;
     right: -6px;
+  }
+  
+  .bottom-nav-badge-dot {
+    top: -3px;
+    right: -3px;
+    width: 6px;
+    height: 6px;
+    border-width: 1.5px;
   }
   
   .boards-submenu-content {

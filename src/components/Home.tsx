@@ -24,15 +24,17 @@ import {
   Trophy,
   Coffee,
   Gift,
-  Search
+  Search,
+  Megaphone
 } from 'lucide-react';
 import './Home.css';
 import SpecialMomentsCard from './SpecialMomentsCard';
-import { collection as fbCollection, getDocs as fbGetDocs, query as fbQuery, where as fbWhere, limit as fbLimit } from 'firebase/firestore';
 import { useAudioPlayer } from '../App';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../firebase';
 import type { PlaylistSong } from '../App';
+import { subscribeToAnnouncementUnreadCount } from '../utils/readStatusService';
+import { subscribeToTotalUnreadCount } from '../utils/chatService';
 
 // Types
 interface User {
@@ -152,17 +154,15 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
   const [hasNewMessage, setHasNewMessage] = useState(false);
   const [latestContest, setLatestContest] = useState<Contest | null>(null);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
-  const [searchNickname, setSearchNickname] = useState('');
-  const [nicknameResults, setNicknameResults] = useState<any[]>([]);
-  const [showAutocomplete, setShowAutocomplete] = useState(false);
-  const [searchError, setSearchError] = useState('');
-  const [searchLoading, setSearchLoading] = useState(false);
   const [loadingEmojiIdx, setLoadingEmojiIdx] = useState(0);
   const { playlist, setPlaylist, play, currentIdx, isPlaying, pause } = useAudioPlayer();
   const [playlistSongs, setPlaylistSongs] = useState<PlaylistSong[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadForm, setUploadForm] = useState<{ title: string; artist: string; file: File | null }>({ title: '', artist: '', file: null });
   const [showUploadForm, setShowUploadForm] = useState(false);
+  const [announcementUnreadCount, setAnnouncementUnreadCount] = useState(0);
+  const [generalChatUnreadCount, setGeneralChatUnreadCount] = useState(0);
+  const [totalChatUnreadCount, setTotalChatUnreadCount] = useState(0);
 
   const navigate = useNavigate();
 
@@ -204,15 +204,15 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
     { name: '연습장', icon: () => <span style={{fontSize:18}}>🎹</span>, action: () => navigate('/practice-room') },
     { name: '합격곡', icon: () => <span style={{fontSize:18}}>🏆</span>, action: () => navigate('/approved-songs') },
     { name: '마이페이지', icon: () => <span style={{fontSize:18}}>👤</span>, action: () => navigate('/mypage') },
-    { name: '쪽지함', icon: () => <span style={{fontSize:18}}>💌</span>, action: () => navigate('/messages'), badge: hasNewMessage ? '●' : undefined },
-    { name: '알림', icon: () => <span style={{fontSize:18}}>🔔</span>, action: () => navigate('/notifications'), badge: unreadNotificationCount > 0 ? String(unreadNotificationCount) : undefined },
+    { name: '채팅방', icon: () => <span style={{fontSize:18}}>💬</span>, action: () => navigate('/messages'), badge: totalChatUnreadCount > 0 ? '●' : undefined },
+    { name: '알림', icon: () => <span style={{fontSize:18}}>🔔</span>, action: () => navigate('/notifications'), badge: unreadNotificationCount > 0 ? '●' : undefined },
     { name: '콘테스트', icon: () => <span style={{fontSize:18}}>🎤</span>, action: () => navigate('/contests') },
     { name: '설정', icon: () => <span style={{fontSize:18}}>⚙️</span>, action: () => navigate('/settings') },
     ...(isAdmin(user) ? [
       { name: '관리자 패널', icon: () => <span style={{fontSize:18}}>🛠️</span>, action: () => navigate('/admin-user') }
     ] : []),
     { name: '로그아웃', icon: () => <span style={{fontSize:18}}>🚪</span>, action: handleLogout }
-  ], [user, navigate, isAdmin, handleLogout, hasNewMessage, unreadNotificationCount]);
+  ], [user, navigate, isAdmin, handleLogout, totalChatUnreadCount, unreadNotificationCount]);
 
   // Firestore data fetching
   const loadFirestoreData = useCallback(async () => {
@@ -615,48 +615,7 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
     }
   }, [user, navigate]);
 
-  // 자동완성 닉네임 검색
-  useEffect(() => {
-    if (!searchNickname.trim()) {
-      setNicknameResults([]);
-      setShowAutocomplete(false);
-      return;
-    }
-    setSearchLoading(true);
-    const fetch = async () => {
-      const q = fbQuery(fbCollection(db, 'users'), fbWhere('nickname', '>=', searchNickname.trim()), fbWhere('nickname', '<=', searchNickname.trim() + '\uf8ff'), fbLimit(5));
-      const snap = await fbGetDocs(q);
-      const results = snap.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
-      setNicknameResults(results);
-      setShowAutocomplete(true);
-      setSearchLoading(false);
-    };
-    fetch();
-  }, [searchNickname]);
 
-  // 닉네임 검색 및 이동
-  const handleSearch = async (nickname?: string, e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const target = (nickname ?? searchNickname).trim();
-    if (!target) return;
-    setSearchLoading(true);
-    const q = fbQuery(fbCollection(db, 'users'), fbWhere('nickname', '==', target));
-    const snap = await fbGetDocs(q);
-    setSearchLoading(false);
-    if (!snap.empty) {
-      setShowAutocomplete(false);
-      setSearchError('');
-      navigate(`/mypage/${snap.docs[0].id}`);
-    } else {
-      setSearchError('존재하지 않는 닉네임입니다.');
-      setShowAutocomplete(false);
-    }
-  };
-
-  // 엔터키로 검색
-  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') handleSearch(undefined, e as any);
-  };
 
   useEffect(() => {
     if (!loading) return;
@@ -679,6 +638,36 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
     };
     fetchSongs();
   }, [setPlaylist]);
+
+  // 채팅 알림 구독
+  useEffect(() => {
+    if (!user) {
+      setAnnouncementUnreadCount(0);
+      setGeneralChatUnreadCount(0);
+      setTotalChatUnreadCount(0);
+      return;
+    }
+
+    // 공지방 안읽은 개수 구독
+    const unsubscribeAnnouncement = subscribeToAnnouncementUnreadCount(user.uid, (count) => {
+      setAnnouncementUnreadCount(count);
+    });
+
+    // 일반 채팅방 안읽은 개수 구독
+    const unsubscribeGeneralChat = subscribeToTotalUnreadCount(user.uid, (count) => {
+      setGeneralChatUnreadCount(count);
+    });
+
+    return () => {
+      unsubscribeAnnouncement();
+      unsubscribeGeneralChat();
+    };
+  }, [user]);
+
+  // 전체 채팅 알림 수 계산
+  useEffect(() => {
+    setTotalChatUnreadCount(announcementUnreadCount + generalChatUnreadCount);
+  }, [announcementUnreadCount, generalChatUnreadCount]);
 
   if (loading) {
     return (
@@ -710,6 +699,64 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
             <span>통합 검색</span>
           </button>
         </div>
+
+        {/* 모바일 우측 상단 채팅 아이콘 */}
+        <div className="mobile-notification-icons mobile-only" style={{
+          position: 'absolute',
+          top: '16px',
+          right: '16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          zIndex: 1000
+        }}>
+          {/* 채팅방 아이콘 (항상 표시) */}
+          <button 
+            onClick={() => navigate('/messages')}
+            style={{
+              background: 'white',
+              border: '2px solid #8A55CC',
+              cursor: 'pointer',
+              padding: '8px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              position: 'relative',
+              boxShadow: '0 2px 8px rgba(138, 85, 204, 0.2)',
+              transition: 'all 0.2s ease',
+            }}
+            title={`채팅방${totalChatUnreadCount > 0 ? ` (알림 ${totalChatUnreadCount}개)` : ''}`}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#f8f4ff';
+              e.currentTarget.style.transform = 'scale(1.05)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'white';
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          >
+            <MessageSquare size={20} color="#8A55CC" />
+            
+            {/* 알림이 있을 때 붉은 점 표시 */}
+            {(announcementUnreadCount > 0 || generalChatUnreadCount > 0) && (
+              <span style={{
+                position: 'absolute',
+                top: '-3px',
+                right: '-3px',
+                backgroundColor: '#ef4444',
+                width: '12px',
+                height: '12px',
+                borderRadius: '50%',
+                border: '2px solid white',
+                zIndex: 2,
+                boxShadow: '0 0 0 1px #ef4444, 0 2px 8px rgba(239, 68, 68, 0.5)',
+                animation: 'pulse 2s infinite',
+              }}>
+              </span>
+            )}
+          </button>
+        </div>
         
         {/* 데스크톱 헤더 우측 아이콘들 */}
         <div className="header-actions desktop-only">
@@ -722,16 +769,85 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
             <Search size={20} color="#8A55CC" />
           </button>
           
+          {/* 공지방 아이콘 */}
+          <button 
+            className="announcement-icon-button"
+            onClick={() => navigate('/messages')}
+            title={`공지방 알림 ${announcementUnreadCount}개`}
+            style={{ 
+              overflow: 'visible',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '8px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              position: 'relative',
+              transition: 'background-color 0.2s ease'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fef3cd'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+          >
+            <Megaphone size={20} color="#FF6B35" />
+            {announcementUnreadCount > 0 && (
+              <span 
+                style={{
+                  position: 'absolute',
+                  top: '-2px',
+                  right: '-2px',
+                  backgroundColor: '#FF6B35',
+                  color: 'white',
+                  borderRadius: '10px',
+                  minWidth: '16px',
+                  height: '16px',
+                  fontSize: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: '700',
+                  border: '2px solid white',
+                  zIndex: 2,
+                  boxSizing: 'border-box',
+                  lineHeight: '1',
+                  padding: announcementUnreadCount > 9 ? '1px 3px' : '1px',
+                  boxShadow: '0 2px 8px rgba(255, 107, 53, 0.3)'
+                }}
+              >
+                {announcementUnreadCount > 99 ? '99+' : announcementUnreadCount}
+              </span>
+            )}
+          </button>
+
+
+
           {/* 알림 아이콘 */}
           <button 
             className="notification-icon-button"
             onClick={() => navigate('/notifications')}
+            title={`알림 ${unreadNotificationCount}개`}
+            style={{ overflow: 'visible' }}
           >
             <Bell size={20} color="#8A55CC" />
             {unreadNotificationCount > 0 && (
-              <span className="notification-badge">
-                {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
-              </span>
+              <span 
+                className="notification-badge-dot"
+                style={{
+                  position: 'absolute',
+                  top: '-4px',
+                  right: '-4px',
+                  width: '10px',
+                  height: '10px',
+                  background: '#FF0000',
+                  borderRadius: '50%',
+                  border: '1.5px solid white',
+                  zIndex: 999999,
+                  pointerEvents: 'none',
+                  boxShadow: '0 0 0 1.5px #FF0000, 0 3px 12px rgba(255, 0, 0, 0.8), 0 0 8px rgba(255, 0, 0, 0.6)',
+                  animation: 'pulse-strong 1.5s infinite'
+                }}
+              ></span>
             )}
           </button>
           
@@ -739,6 +855,7 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
             <button 
               className="profile-button"
               onClick={() => setDropdownOpen(!dropdownOpen)}
+              style={{ position: 'relative' }}
             >
               <div className="profile-info">
                 <div className="profile-avatar">
@@ -773,7 +890,15 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
                   >
                     <item.icon size={16} />
                     <span>{item.name}</span>
-                    {item.badge && <span style={{ color: 'red', marginLeft: 4, fontSize: 18, fontWeight: 700 }}>{item.badge}</span>}
+                    {item.badge && item.name !== '채팅방' && <span className="dropdown-notification-dot"></span>}
+                    {item.badge && item.name === '채팅방' && (
+                      <span 
+                        className="dropdown-notification-dot"
+                        style={{
+                          display: window.innerWidth > 768 ? 'none' : 'inline-block'
+                        }}
+                      ></span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -781,52 +906,7 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
           </div>
         </div>
       </div>
-      {/* 데스크톱 닉네임 검색창 */}
-      <div className="nickname-search-bar desktop-only" style={{
-        maxWidth: 340,
-        margin: '24px auto 16px auto',
-        width: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}>
-        <form style={{ position: 'relative', width: '100%' }} onSubmit={e => handleSearch(undefined, e)}>
-          <input
-            type="text"
-            value={searchNickname}
-            onChange={e => { setSearchNickname(e.target.value); setSearchError(''); }}
-            onFocus={() => setShowAutocomplete(!!nicknameResults.length)}
-            onBlur={() => setTimeout(() => setShowAutocomplete(false), 150)}
-            onKeyDown={handleSearchKeyDown}
-            placeholder="닉네임을 입력하세요"
-            style={{ width: '100%', padding: '8px 14px', borderRadius: 8, border: '1px solid #E5DAF5', fontSize: 15, background: '#fff' }}
-          />
-          <button
-            type="submit"
-            style={{ position: 'absolute', right: 4, top: 4, background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 6, padding: '4px 10px', fontWeight: 600, cursor: 'pointer', fontSize: 14 }}
-          >검색</button>
-          {showAutocomplete && nicknameResults.length > 0 && (
-            <div style={{ position: 'absolute', top: 38, left: 0, width: '100%', background: '#fff', border: '1px solid #E5DAF5', borderRadius: 8, boxShadow: '0 2px 8px #E5DAF5', zIndex: 1000 }}>
-              {nicknameResults.map(u => (
-                <div
-                  key={u.uid}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', cursor: 'pointer', borderBottom: '1px solid #F6F2FF' }}
-                  onMouseDown={() => handleSearch(u.nickname)}
-                >
-                  <div style={{ width: 28, height: 28, borderRadius: '50%', overflow: 'hidden', background: '#F6F2FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {u.profileImageUrl ? <img src={u.profileImageUrl} alt="프로필" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (u.nickname ? u.nickname.charAt(0) : 'U')}
-                  </div>
-                  <span style={{ fontWeight: 600, color: '#7C4DBC' }}>{u.nickname}</span>
-                  {u.grade && <span style={{ color: '#8A55CC', fontWeight: 500 }}>{u.grade}</span>}
-                  {u.role && u.role !== '일반' && <span style={{ color: '#FBBF24', fontWeight: 600, fontSize: 13, marginLeft: 4 }}>{u.role}</span>}
-                </div>
-              ))}
-            </div>
-          )}
-          {searchError && <div style={{ color: '#F43F5E', fontWeight: 600, fontSize: 13, marginTop: 2 }}>{searchError}</div>}
-        </form>
-      </div>
+
 
       <div className="home-content">
         {/* 공지사항 카드 스타일 개선: 구분선 보라색 */}

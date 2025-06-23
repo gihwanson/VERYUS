@@ -1,13 +1,24 @@
 /* 쪽지함(메시지) UI 기본 스타일 */
+
+/* 전역 스타일 */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  overflow-x: hidden;
+}
+
 .messages-container {
   display: flex;
   height: 80vh;
-  max-width: 900px;
-  margin: 40px auto;
+  max-width: 860px;
+  margin: 20px auto;
   background: #fff;
   border-radius: 20px;
   box-shadow: 0 8px 32px #E5DAF5;
   overflow: hidden;
+  width: calc(100% - 80px);
 }
 
 .chat-room-list {
@@ -70,32 +81,36 @@
   flex-direction: column;
   background: #FAF9FC;
   position: relative;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .chat-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 20px 24px;
+  padding: 16px 16px;
   border-bottom: 1px solid #E5DAF5;
   background: #fff;
   font-size: 18px;
   font-weight: 600;
   color: #8A55CC;
+  box-sizing: border-box;
 }
 
 .chat-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 24px;
+  overflow-x: hidden;
+  padding: 16px 12px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 0;
+  box-sizing: border-box;
 }
 
 .chat-message {
-  max-width: 60%;
-  padding: 12px 18px;
+  padding: 12px 14px;
   border-radius: 16px;
   font-size: 15px;
   position: relative;
@@ -104,12 +119,16 @@
   align-self: flex-start;
   box-shadow: 0 2px 8px #E5DAF5;
   word-break: break-word;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  box-sizing: border-box;
 }
 
 .chat-message.sent {
   background: #8A55CC;
   color: #fff;
   align-self: flex-end;
+  margin-right: 0;
 }
 
 .chat-message-meta {
@@ -122,10 +141,11 @@
 .chat-input-bar {
   display: flex;
   align-items: center;
-  padding: 16px 24px;
+  padding: 14px 16px;
   border-top: 1px solid #E5DAF5;
   background: #fff;
   gap: 8px;
+  box-sizing: border-box;
 }
 
 .chat-input-bar input {
@@ -345,22 +365,29 @@
 .chat-message-reactions {
   display: flex;
   gap: 4px;
-  margin-top: 4px;
-  margin-bottom: 2px;
+  margin-top: 8px;
+  margin-bottom: 4px;
   align-items: center;
+  flex-wrap: wrap;
+  width: 100%;
+  position: relative;
+  z-index: 2;
 }
 
 .reaction-emoji {
   display: inline-flex;
   align-items: center;
+  gap: 2px;
   background: #fff;
   border: 1px solid #E5DAF5;
-  border-radius: 12px;
-  font-size: 16px;
-  padding: 2px 8px;
-  margin-right: 2px;
+  border-radius: 10px;
+  font-size: 14px;
+  padding: 2px 6px;
+  margin-right: 3px;
   cursor: pointer;
   transition: background 0.15s, border 0.15s;
+  line-height: 1;
+  font-weight: 500;
 }
 
 .reaction-emoji.my {
@@ -369,28 +396,49 @@
   border-color: #8A55CC;
 }
 
+.reaction-emoji-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.reaction-count {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  opacity: 0.8;
+}
+
 .reaction-picker {
   display: flex;
-  gap: 8px;
+  gap: 2px;
   background: #fff;
-  border: 1.5px solid #8A55CC;
-  border-radius: 18px;
-  box-shadow: 0 4px 16px #E5DAF5;
-  padding: 8px 12px;
+  border: 1px solid #8A55CC;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(138, 85, 204, 0.2);
+  padding: 2px 4px;
   position: absolute;
-  z-index: 10;
-  top: -38px;
+  z-index: 1000;
+  top: -32px;
   left: 50%;
   transform: translateX(-50%);
-  animation: fadeIn 0.18s;
+  animation: fadeIn 0.15s;
+  white-space: nowrap;
+  max-width: 160px;
+  min-width: 120px;
 }
 
 .reaction-emoji-picker {
-  font-size: 22px;
+  font-size: 14px;
   cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 8px;
+  padding: 2px;
+  border-radius: 4px;
   transition: background 0.15s;
+  line-height: 1;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .reaction-emoji-picker:hover {
@@ -456,65 +504,139 @@
   margin-top: 2px;
 }
 
+@media (max-width: 1200px) {
+  .messages-container {
+    width: calc(100% - 80px);
+    margin: 15px auto;
+  }
+  
+  .chat-messages {
+    padding: 12px 8px;
+  }
+  
+  .chat-message {
+    padding: 10px 12px;
+  }
+  
+  .chat-input-bar {
+    padding: 12px 12px;
+  }
+  
+  .chat-header {
+    padding: 14px 12px;
+  }
+}
+
+@media (max-width: 1000px) {
+  .messages-container {
+    width: calc(100% - 120px);
+    margin: 10px auto;
+    max-width: 780px;
+  }
+  
+  .chat-messages {
+    padding: 8px 4px;
+  }
+  
+  .chat-message {
+    padding: 6px 8px;
+    font-size: 14px;
+  }
+  
+  .chat-input-bar {
+    padding: 8px 8px;
+  }
+  
+  .chat-header {
+    padding: 10px 8px;
+    font-size: 16px;
+  }
+}
+
 @media (max-width: 900px) {
   .messages-container {
-    flex-direction: column;
+    position: relative;
     height: 100vh;
     max-width: 100vw;
+    width: 100vw;
+    margin: 0;
     border-radius: 0;
     box-shadow: none;
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
   }
   .chat-room-list.always-show {
     width: 100vw;
-    min-width: 0;
+    min-width: 100vw;
     max-width: 100vw;
+    height: 100vh;
     border-right: none;
-    border-bottom: 1px solid #E5DAF5;
-    flex-direction: row;
-    overflow-x: auto;
-    overflow-y: hidden;
-    height: 80px;
-    padding: 0 0 0 8px;
-    align-items: center;
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 0;
+    background: #fff;
+    position: relative;
+    z-index: 1;
+  }
+  .chat-room-list.always-show.hide-on-mobile {
+    display: none;
   }
   .chat-room-item {
-    min-width: 180px;
-    border-bottom: none;
-    border-right: 1px solid #E5DAF5;
+    min-width: auto;
+    width: 100%;
+    border-bottom: 1px solid #F3F4F6;
+    border-right: none;
     flex-direction: row;
     align-items: center;
-    padding: 10px 10px 10px 8px;
+    padding: 16px 20px;
   }
   .chat-room-profile {
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
     font-size: 18px;
   }
   .chat-room-info {
-    gap: 0;
+    gap: 4px;
   }
   .chat-room-title-row {
-    font-size: 15px;
+    font-size: 16px;
   }
   .chat-room-last-message-row {
-    font-size: 12px;
+    font-size: 13px;
   }
   .chat-view {
-    flex: 1;
-    min-height: 0;
+    width: 100vw;
+    height: 100vh;
+    position: absolute;
+    top: 0;
+    left: 0;
+    background: #FAF9FC;
+    z-index: 2;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .chat-view.show-on-mobile {
+    display: flex;
   }
   .chat-room-list-toggle {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    background: #fff;
-    border: 1px solid #E5DAF5;
-    border-radius: 10px;
-    padding: 8px 14px;
-    color: #8A55CC;
-    font-size: 18px;
-    margin: 12px;
-    z-index: 20;
-    position: relative;
+    justify-content: center;
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    background: #8A55CC;
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(138, 85, 204, 0.3);
+    z-index: 10;
   }
   .chat-room-list.mobile {
     display: none;
@@ -570,19 +692,29 @@
     font-size: 20px;
   }
   .reaction-picker {
-    top: auto;
-    bottom: -38px;
+    top: -36px;
+    bottom: auto;
     left: 50%;
     transform: translateX(-50%);
-    padding: 7px 8px;
+    padding: 3px 4px;
+    gap: 2px;
+    max-width: 140px;
+    min-width: 100px;
   }
   .reaction-emoji {
-    font-size: 15px;
-    padding: 2px 7px;
+    font-size: 13px;
+    padding: 2px 5px;
+    margin-right: 2px;
+  }
+  .reaction-emoji-icon {
+    font-size: 13px;
+  }
+  .reaction-count {
+    font-size: 10px;
   }
   .reaction-emoji-picker {
-    font-size: 20px;
-    padding: 2px 3px;
+    font-size: 15px;
+    padding: 2px;
   }
   .chat-attach-btn {
     margin-right: 4px;
@@ -598,6 +730,25 @@
   .chat-message-file img, .chat-message-file video {
     max-width: 120px;
     max-height: 100px;
+  }
+  
+  .chat-messages {
+    padding: 16px 12px;
+    overflow-x: hidden;
+  }
+  
+  .chat-message {
+    padding: 8px 12px;
+  }
+  
+  .chat-input-bar {
+    padding: 12px 16px;
+    box-sizing: border-box;
+  }
+  
+  .chat-header {
+    padding: 16px 16px;
+    box-sizing: border-box;
   }
 }
 

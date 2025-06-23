@@ -38,10 +38,12 @@ import {
   Eye,
   Calendar,
   Activity,
-  UserPlus
+  UserPlus,
+  Database
 } from 'lucide-react';
 import './AdminUserPanel.css';
 import UserActivityBoard from './UserActivityBoard';
+import { migrateExistingMessages } from '../utils/chatService';
 
 interface AdminUser {
   uid: string;
@@ -105,6 +107,8 @@ const AdminUserPanel: React.FC = () => {
     role: '일반'
   });
   const [activeTab, setActiveTab] = useState<'users' | 'activity' | 'grades'>('users');
+  const [isMigrating, setIsMigrating] = useState(false);
+  const [migrationStatus, setMigrationStatus] = useState('');
 
   // 등급 옵션 (이모지로 표시)
   const gradeOptions = [
@@ -629,6 +633,34 @@ const AdminUserPanel: React.FC = () => {
     }
   };
 
+  // 메시지 마이그레이션 처리 함수
+  const handleMigration = async () => {
+    if (!window.confirm('메시지 데이터를 새로운 구조로 마이그레이션하시겠습니까?\n\n이 작업은 시간이 걸릴 수 있으며, 작업 중에는 채팅 기능이 일시적으로 중단될 수 있습니다.')) {
+      return;
+    }
+
+    setIsMigrating(true);
+    setMigrationStatus('마이그레이션 시작...');
+
+    try {
+      const success = await migrateExistingMessages();
+      if (success) {
+        setMigrationStatus('마이그레이션 완료!');
+        alert('메시지 마이그레이션이 성공적으로 완료되었습니다.');
+      } else {
+        setMigrationStatus('마이그레이션 실패');
+        alert('마이그레이션 중 오류가 발생했습니다. 콘솔을 확인해주세요.');
+      }
+    } catch (error) {
+      console.error('Migration error:', error);
+      setMigrationStatus('마이그레이션 실패');
+      alert('마이그레이션 중 오류가 발생했습니다.');
+    } finally {
+      setIsMigrating(false);
+      setTimeout(() => setMigrationStatus(''), 3000);
+    }
+  };
+
   if (loading) {
     return (
       <div className="admin-container">
@@ -689,8 +721,44 @@ const AdminUserPanel: React.FC = () => {
                 <Download size={20} />
                 엑셀 내보내기
               </button>
+              <button 
+                className="migration-button" 
+                onClick={handleMigration}
+                disabled={isMigrating}
+                style={{
+                  background: isMigrating ? '#9CA3AF' : '#10B981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '8px 16px',
+                  cursor: isMigrating ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '14px',
+                  fontWeight: '600'
+                }}
+              >
+                <Database size={20} />
+                {isMigrating ? '마이그레이션 중...' : '메시지 DB 마이그레이션'}
+              </button>
             </div>
           </div>
+
+          {/* 마이그레이션 상태 표시 */}
+          {migrationStatus && (
+            <div style={{
+              background: migrationStatus.includes('실패') ? '#FEE2E2' : migrationStatus.includes('완료') ? '#D1FAE5' : '#FEF3C7',
+              color: migrationStatus.includes('실패') ? '#DC2626' : migrationStatus.includes('완료') ? '#059669' : '#D97706',
+              padding: '12px 16px',
+              borderRadius: '8px',
+              margin: '16px 0',
+              textAlign: 'center',
+              fontWeight: '600'
+            }}>
+              {migrationStatus}
+            </div>
+          )}
 
           {/* 확장된 통계 카드 */}
           <div className="stats-grid">

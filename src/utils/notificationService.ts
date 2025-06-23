@@ -2,7 +2,7 @@ import { addDoc, collection, query, where, getDocs, serverTimestamp } from 'fire
 import { db } from '../firebase';
 
 export interface NotificationData {
-  type: 'comment' | 'reply' | 'like' | 'approval' | 'rejection' | 'guestbook' | 'mention' | 'new_post' | 'partnership';
+  type: 'comment' | 'reply' | 'like' | 'approval' | 'rejection' | 'guestbook' | 'mention' | 'new_post' | 'partnership' | 'partnership_closed' | 'partnership_confirmed';
   toUid: string;
   fromNickname: string;
   postId?: string;
@@ -35,7 +35,9 @@ export class NotificationService {
       'guestbook': '방명록에 메시지를 남겼습니다.',
       'mention': '게시글에서 나를 언급했습니다.',
       'new_post': '새 게시글이 작성되었습니다.',
-      'partnership': '파트너 신청이 있습니다.'
+      'partnership': '파트너 신청이 있습니다.',
+      'partnership_closed': '지원한 파트너 모집이 완료되었습니다.',
+      'partnership_confirmed': '파트너로 확정되셨습니다!'
     };
     return messages[type] || '새 알림이 있습니다.';
   }
@@ -157,6 +159,28 @@ export class NotificationService {
       postId,
       postTitle,
       postType: postType as any
+    });
+  }
+
+  static async createPartnershipClosedNotification(toUid: string, postId: string, postTitle: string, fromNickname: string) {
+    return this.createNotification({
+      type: 'partnership_closed',
+      toUid,
+      fromNickname,
+      postId,
+      postTitle,
+      postType: 'partner'
+    });
+  }
+
+  static async createPartnershipConfirmedNotification(toUid: string, postId: string, postTitle: string, fromNickname: string) {
+    return this.createNotification({
+      type: 'partnership_confirmed',
+      toUid,
+      fromNickname,
+      postId,
+      postTitle,
+      postType: 'partner'
     });
   }
 } 

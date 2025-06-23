@@ -122,6 +122,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
   const [showPreview, setShowPreview] = useState(false);
   const [mentionUsers, setMentionUsers] = useState<UserMention[]>([]);
   const mentionsInputRef = useRef<any>(null);
+  const [isComposing, setIsComposing] = useState(false);
 
   // URL 경로로부터 게시판 타입 결정
   const getPostTypeFromPath = (): string => {
@@ -505,6 +506,9 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
                 singleLine={false}
                 rows={3}
                 onBlur={e => setTimeout(() => {}, 200)}
+                onCompositionStart={() => setIsComposing(true)}
+                onCompositionEnd={() => setIsComposing(false)}
+                onCompositionUpdate={() => setIsComposing(true)}
               >
                 <Mention
                   trigger="@"
@@ -631,6 +635,11 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
                 onChange={(e) => setMessageContent(e.target.value)}
                 placeholder="쪽지 내용을 입력하세요..."
                 className="message-textarea"
+                onCompositionStart={() => setIsComposing(true)}
+                onCompositionEnd={() => setIsComposing(false)}
+                onCompositionUpdate={() => setIsComposing(true)}
+                spellCheck={false}
+                autoComplete="off"
               />
               <div className="message-form-actions">
                 <button
