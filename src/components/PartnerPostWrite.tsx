@@ -186,9 +186,22 @@ const PartnerPostWrite: React.FC = () => {
             <textarea
               id="content"
               className="content-textarea"
-              placeholder="내용을 입력하세요"
+              placeholder="내용을 입력하세요 (Shift+Enter로 줄바꿈)"
               value={content}
               onChange={(e) => setContent(e.target.value)}
+              rows={6}
+              style={{
+                resize: 'none',
+                overflow: 'hidden',
+                minHeight: '150px',
+                maxHeight: '500px',
+                lineHeight: '1.4'
+              }}
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement;
+                target.style.height = 'auto';
+                target.style.height = Math.min(Math.max(target.scrollHeight, 150), 500) + 'px';
+              }}
             />
           </div>
           <div className="form-footer">

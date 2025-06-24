@@ -218,6 +218,7 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
   const dropdownItems: DropdownItem[] = useMemo(() => [
     { name: '연습장', icon: () => <span style={{fontSize:18}}>🎹</span>, action: () => navigate('/practice-room') },
     { name: '합격곡', icon: () => <span style={{fontSize:18}}>🏆</span>, action: () => navigate('/approved-songs') },
+    { name: '셋리스트', icon: () => <span style={{fontSize:18}}>🎵</span>, action: () => navigate('/setlist') },
     { name: '마이페이지', icon: () => <span style={{fontSize:18}}>👤</span>, action: () => navigate('/mypage') },
     { name: '채팅방', icon: () => <span style={{fontSize:18}}>💬</span>, action: () => navigate('/messages'), badge: totalChatUnreadCount > 0 ? '●' : undefined },
     { name: '알림', icon: () => <span style={{fontSize:18}}>🔔</span>, action: () => navigate('/notifications'), badge: unreadNotificationCount > 0 ? '●' : undefined },

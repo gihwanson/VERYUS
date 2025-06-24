@@ -579,8 +579,21 @@ const FreePostDetail: React.FC = () => {
               <textarea
                 value={reportReason}
                 onChange={(e) => setReportReason(e.target.value)}
-                placeholder="신고 사유를 자세히 입력해주세요..."
+                placeholder="신고 사유를 자세히 입력해주세요... (Shift+Enter로 줄바꿈)"
                 className="report-textarea"
+                rows={4}
+                style={{
+                  resize: 'none',
+                  overflow: 'hidden',
+                  minHeight: '120px',
+                  maxHeight: '250px',
+                  lineHeight: '1.4'
+                }}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  target.style.height = Math.min(Math.max(target.scrollHeight, 120), 250) + 'px';
+                }}
               />
             </div>
             
@@ -622,8 +635,25 @@ const FreePostDetail: React.FC = () => {
             <textarea
               value={messageContent}
               onChange={e => setMessageContent(e.target.value)}
-              placeholder="쪽지 내용을 입력하세요..."
-              style={{ width: '100%', minHeight: 80, borderRadius: 8, border: '1px solid #E5DAF5', padding: 12, marginBottom: 16 }}
+              placeholder="쪽지 내용을 입력하세요... (Shift+Enter로 줄바꿈)"
+              style={{ 
+                width: '100%', 
+                minHeight: 80, 
+                maxHeight: 200,
+                borderRadius: 8, 
+                border: '1px solid #E5DAF5', 
+                padding: 12, 
+                marginBottom: 16,
+                resize: 'none',
+                overflow: 'hidden',
+                lineHeight: '1.4',
+                fontFamily: 'inherit'
+              }}
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement;
+                target.style.height = 'auto';
+                target.style.height = Math.min(Math.max(target.scrollHeight, 80), 200) + 'px';
+              }}
             />
             <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
               <button onClick={() => setShowMessageModal(false)} style={{ background: '#eee', border: 'none', borderRadius: 8, padding: '8px 18px', color: '#8A55CC', fontWeight: 600, cursor: 'pointer' }}>취소</button>

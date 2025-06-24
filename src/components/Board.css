@@ -519,6 +519,7 @@ body, html {
   resize: vertical;
   transition: all 0.2s ease;
   line-height: 1.6;
+  white-space: pre-wrap;
 }
 
 .content-textarea:focus {
@@ -741,6 +742,7 @@ body, html {
   box-sizing: border-box;
   word-break: break-word;
   overflow-wrap: break-word;
+  white-space: pre-wrap;
 }
 
 .dark .post-content-preview {
@@ -1302,6 +1304,7 @@ body, html {
   color: var(--text-primary);
   resize: vertical;
   margin-bottom: 0.5rem;
+  white-space: pre-wrap;
 }
 
 .reply-form-options {
@@ -1502,6 +1505,7 @@ body, html {
   line-height: 1.7;
   min-height: 2.5em;
   word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .post-footer {
@@ -1607,6 +1611,7 @@ body, html {
   box-shadow: 0 2px 12px rgba(124,58,237,0.04);
   min-height: 120px;
   word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .post-actions {

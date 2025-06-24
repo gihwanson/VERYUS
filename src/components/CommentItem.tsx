@@ -312,12 +312,24 @@ const CommentItem: React.FC<CommentItemProps> = ({
                 onChange={(e) => setEditContent(e.target.value)}
                 className="comment-edit-input"
                 rows={3}
-                placeholder="댓글을 입력하세요..."
+                placeholder="댓글을 입력하세요... (Shift+Enter로 줄바꿈)"
                 onCompositionStart={() => setIsComposing(true)}
                 onCompositionEnd={() => setIsComposing(false)}
                 onCompositionUpdate={() => setIsComposing(true)}
                 spellCheck={false}
                 autoComplete="off"
+                style={{
+                  resize: 'none',
+                  overflow: 'hidden',
+                  minHeight: '80px',
+                  maxHeight: '200px',
+                  lineHeight: '1.4'
+                }}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  target.style.height = Math.min(Math.max(target.scrollHeight, 80), 200) + 'px';
+                }}
               />
             )}
             <div className="comment-edit-buttons">
@@ -346,13 +358,26 @@ const CommentItem: React.FC<CommentItemProps> = ({
           <textarea
             value={replyContent}
             onChange={(e) => setReplyContent(e.target.value)}
-            placeholder="답글을 입력하세요..."
+            placeholder="답글을 입력하세요... (Shift+Enter로 줄바꿈)"
             className="reply-input"
             onCompositionStart={() => setIsComposing(true)}
             onCompositionEnd={() => setIsComposing(false)}
             onCompositionUpdate={() => setIsComposing(true)}
             spellCheck={false}
             autoComplete="off"
+            rows={2}
+            style={{
+              resize: 'none',
+              overflow: 'hidden',
+              minHeight: '60px',
+              maxHeight: '120px',
+              lineHeight: '1.4'
+            }}
+            onInput={(e) => {
+              const target = e.target as HTMLTextAreaElement;
+              target.style.height = 'auto';
+              target.style.height = Math.min(Math.max(target.scrollHeight, 60), 120) + 'px';
+            }}
           />
           <div className="reply-buttons">
             <button 

@@ -29,6 +29,12 @@ interface Message {
   fileUrl?: string;
   fileType?: string;
   fileName?: string;
+  replyTo?: {
+    messageId: string;
+    content: string;
+    senderNickname: string;
+    senderUid: string;
+  };
 }
 
 // 대화방 ID 생성 함수
@@ -86,7 +92,8 @@ export const sendMessage = async (
   toNickname: string,
   fromUserRole?: string,
   postData?: { postId: string; postTitle: string },
-  fileData?: { fileUrl: string; fileType: string; fileName: string }
+  fileData?: { fileUrl: string; fileType: string; fileName: string },
+  replyTo?: { messageId: string; content: string; senderNickname: string; senderUid: string }
 ) => {
   const conversationId = generateConversationId(fromUid, toUid, postData?.postId);
   
@@ -102,6 +109,7 @@ export const sendMessage = async (
     ...(fromUserRole && { fromUserRole }),
     ...(postData && { postId: postData.postId, postTitle: postData.postTitle }),
     ...(fileData && { fileUrl: fileData.fileUrl, fileType: fileData.fileType, fileName: fileData.fileName }),
+    ...(replyTo && { replyTo }),
     // 공지방 메시지의 경우 읽음 상태 추적을 위한 초기값
     ...(toUid === 'announcement' && { readBy: {}, readCount: 0 })
   };

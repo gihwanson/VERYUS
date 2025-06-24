@@ -54,6 +54,8 @@ import ContestResults from './components/ContestResults';
 // @ts-ignore
 import ApprovedSongs from './components/ApprovedSongs';
 // @ts-ignore
+import SetList from './components/SetList';
+// @ts-ignore
 import PartnerPostList from './components/PartnerPostList';
 // @ts-ignore
 import PartnerPostWrite from './components/PartnerPostWrite';
@@ -932,6 +934,9 @@ function App() {
             
             {/* 합격곡 관리/조회 페이지 */}
             <Route path="/approved-songs" element={<ProtectedRoute><ApprovedSongs /></ProtectedRoute>} />
+            
+            {/* 셋리스트 관리 페이지 */}
+            <Route path="/setlist" element={<ProtectedRoute><SetList /></ProtectedRoute>} />
             
             {/* 파트너모집 게시판 라우트들 */}
             <Route path="/boards/partner" element={<PartnerPostList />} />

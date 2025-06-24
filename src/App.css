@@ -5,21 +5,22 @@
 body {
   margin: 0;
   padding: 0;
-  background: var(--primary-bg);
+  background: #FFFFFF;
   color: var(--text-primary);
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 .app-container {
   min-height: 100vh;
-  background: var(--primary-bg);
+  background: #FFFFFF;
 }
 
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  /* 각 컴포넌트에서 개별적으로 최대 너비와 정렬을 설정 */
 }
 
 /* Logo Animation */
@@ -53,11 +54,11 @@ body {
   }
 }
 
-/* Layout */
+/* Layout - 각 컴포넌트에서 필요에 따라 사용 */
 .content-container {
-  max-width: 1200px;
-  margin: 0 auto;
+  width: 100%;
   padding: var(--space-lg);
+  /* max-width와 margin은 필요한 컴포넌트에서 개별적으로 설정 */
 }
 
 /* Responsive Design */

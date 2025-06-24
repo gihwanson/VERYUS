@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, getDoc, updateDoc, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import { User, MessageSquare, Send, Menu, Paperclip, Image as ImageIcon, MoreVertical, Copy, Trash2, Flag, CornerUpLeft, Home, Users, BarChart3 } from 'lucide-react';
@@ -37,6 +37,12 @@ interface Message {
   fileUrl?: string;
   fileType?: string;
   fileName?: string;
+  replyTo?: {
+    messageId: string;
+    content: string;
+    senderNickname: string;
+    senderUid: string;
+  };
 }
 
 interface ChatRoom {
@@ -69,6 +75,8 @@ const Messages: React.FC = () => {
   const [fileType, setFileType] = useState<string|null>(null);
   const [fileName, setFileName] = useState<string|null>(null);
   const [contextMenu, setContextMenu] = useState<{msgId: string, x: number, y: number} | null>(null);
+  const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
+  const [mobileReactionMessageId, setMobileReactionMessageId] = useState<string | null>(null);
 
   // 컨텍스트 메뉴 및 리액션 피커 외부 클릭 시 닫기
   useEffect(() => {
@@ -83,13 +91,31 @@ const Messages: React.FC = () => {
         setShowReactionPicker(false);
         setReactionTarget(null);
       }
+      
+      // 모바일 리액션 패널 외부 클릭 시 닫기
+      if (mobileReactionMessageId && !target.closest('.message-hover-buttons')) {
+        setMobileReactionMessageId(null);
+      }
     };
 
-    if (contextMenu || showReactionPicker) {
+    const handleEscapeKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setContextMenu(null);
+        setShowReactionPicker(false);
+        setReactionTarget(null);
+        setMobileReactionMessageId(null);
+      }
+    };
+
+    if (contextMenu || showReactionPicker || mobileReactionMessageId) {
       document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
+      document.addEventListener('keydown', handleEscapeKey);
+      return () => {
+        document.removeEventListener('click', handleClickOutside);
+        document.removeEventListener('keydown', handleEscapeKey);
+      };
     }
-  }, [contextMenu, showReactionPicker]);
+  }, [contextMenu, showReactionPicker, mobileReactionMessageId]);
   const [reportTarget, setReportTarget] = useState<Message|null>(null);
   const [reportReason, setReportReason] = useState('');
   const [analysisTarget, setAnalysisTarget] = useState<Message|null>(null);
@@ -106,6 +132,7 @@ const Messages: React.FC = () => {
   const [showParticipants, setShowParticipants] = useState(false);
   const [announcementParticipants, setAnnouncementParticipants] = useState<any[]>([]);
   const [bannedUsers, setBannedUsers] = useState<string[]>([]);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   
   // 읽음 상태 관련 state
   const [readStatusModal, setReadStatusModal] = useState<{
@@ -124,11 +151,38 @@ const Messages: React.FC = () => {
   // 안읽은 메시지 알림 관련 state
   const [announcementUnreadCount, setAnnouncementUnreadCount] = useState(0);
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
+  
+  // 로딩 및 UI 상태
+  const [isSending, setIsSending] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+
+  // 타이핑 인디케이터 상태
+  const [typingUsers, setTypingUsers] = useState<Record<string, { nickname: string; timestamp: number }>>({});
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 브라우저 알림 상태
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const lastNotificationRef = useRef<number>(0);
 
   // Load current user
   useEffect(() => {
     const userString = localStorage.getItem('veryus_user');
     if (userString) setUser(JSON.parse(userString));
+  }, []);
+
+  // 초기 알림 권한 확인
+  useEffect(() => {
+    if ('Notification' in window) {
+      setNotificationPermission(Notification.permission);
+      
+      // 저장된 알림 설정 로드
+      const savedSoundSetting = localStorage.getItem('veryus_notification_sound');
+      if (savedSoundSetting !== null) {
+        setSoundEnabled(JSON.parse(savedSoundSetting));
+      }
+    }
   }, []);
 
   // 모바일 화면 감지
@@ -227,83 +281,221 @@ const Messages: React.FC = () => {
     }
   }, [user]);
 
+  // 답장 체인 분석 함수
+  const analyzeReplyChain = useCallback((messages: Message[]) => {
+    const replyChains = new Map<string, Message[]>();
+    const replyDepth = new Map<string, number>();
+    const maxDepth = 10; // 최대 답장 깊이 제한
+    
+    // 메시지 ID to 메시지 매핑 (성능 최적화)
+    const messageMap = new Map<string, Message>();
+    messages.forEach(msg => {
+      messageMap.set(msg.id, msg);
+      if (!msg.replyTo) {
+        replyDepth.set(msg.id, 0);
+      }
+    });
+    
+    // 깊이 계산 함수 (메모이제이션)
+    const calculateDepth = (messageId: string, visited = new Set<string>()): number => {
+      if (replyDepth.has(messageId)) {
+        return replyDepth.get(messageId)!;
+      }
+      
+      if (visited.has(messageId)) {
+        // 순환 참조 감지
+        console.warn('순환 참조가 감지된 답장 체인:', messageId);
+        return 0;
+      }
+      
+      const msg = messageMap.get(messageId);
+      if (!msg || !msg.replyTo) {
+        replyDepth.set(messageId, 0);
+        return 0;
+      }
+      
+      visited.add(messageId);
+      const parentDepth = calculateDepth(msg.replyTo.messageId, visited);
+      const depth = Math.min(parentDepth + 1, maxDepth);
+      
+      replyDepth.set(messageId, depth);
+      visited.delete(messageId);
+      
+      // 답장 체인 그룹 생성
+      const rootId = findRootMessage(msg, messages);
+      if (!replyChains.has(rootId)) {
+        replyChains.set(rootId, []);
+      }
+      replyChains.get(rootId)!.push(msg);
+      
+      return depth;
+    };
+    
+    // 모든 메시지의 깊이 계산
+    messages.forEach(msg => {
+      calculateDepth(msg.id);
+    });
+    
+    return { replyChains, replyDepth };
+  }, []);
+
+  // 루트 메시지 찾기 함수
+  const findRootMessage = useCallback((msg: Message, messages: Message[]): string => {
+    if (!msg.replyTo) return msg.id;
+    
+    const parentMsg = messages.find(m => m.id === msg.replyTo!.messageId);
+    if (!parentMsg) return msg.id;
+    
+    return findRootMessage(parentMsg, messages);
+  }, []);
+
+  // 메시지 필터링 최적화
+  const filteredMessages = useMemo(() => {
+    const currentMessages = isAnnouncementMode ? announcementMessages : messages;
+    return currentMessages.filter(Boolean); // null/undefined 메시지 제거
+  }, [isAnnouncementMode, announcementMessages, messages]);
+
+  // 답장 체인 계산 최적화
+  const replyChainData = useMemo(() => {
+    return analyzeReplyChain(filteredMessages);
+  }, [filteredMessages, analyzeReplyChain]);
+
+  // 답장 개수 계산 함수 최적화
+  const getReplyCount = useCallback((messageId: string, messages: Message[]) => {
+    return messages.filter(msg => msg.replyTo?.messageId === messageId).length;
+  }, []);
+
+  // 답장 체인 데이터 추출
+  const { replyChains, replyDepth } = replyChainData;
+
   // Load chat rooms (새 구조 사용)
   useEffect(() => {
     if (!user) return;
     
-    const unsubscribe = subscribeToUserConversations(user.uid, async (conversations) => {
-      // conversations를 ChatRoom 형태로 변환
-      const rooms: ChatRoom[] = [];
-      
-      for (const conversation of conversations) {
-        // announcement 대화방은 제외 (별도 처리)
-        if (conversation.id === 'announcement') continue;
-        
-        // 대화 상대방 식별
-        const otherParticipantId = conversation.participants.find((p: string) => p !== user.uid);
-        if (!otherParticipantId) continue;
-        
-        // 프로필 정보 가져오기
-        const profile = await fetchUserProfile(otherParticipantId);
-        
-        const room: ChatRoom = {
-          userUid: otherParticipantId,
-          userNickname: conversation.lastMessage?.fromNickname || 'Unknown',
-          lastMessage: conversation.lastMessage,
-          postId: conversation.postId,
-          postTitle: conversation.postTitle,
-          profileImageUrl: profile?.profileImageUrl
-        };
-        
-        rooms.push(room);
-      }
-      
-      setChatRooms(rooms);
-    });
+    console.log('채팅방 리스너 시작:', user.uid);
     
-    return unsubscribe;
+    try {
+      const unsubscribe = subscribeToUserConversations(user.uid, async (conversations) => {
+        try {
+          // conversations를 ChatRoom 형태로 변환
+          const rooms: ChatRoom[] = [];
+          
+          for (const conversation of conversations) {
+            // announcement 대화방은 제외 (별도 처리)
+            if (conversation.id === 'announcement') continue;
+            
+            // 대화 상대방 식별
+            const otherParticipantId = conversation.participants.find((p: string) => p !== user.uid);
+            if (!otherParticipantId) continue;
+            
+            // 프로필 정보 가져오기
+            const profile = await fetchUserProfile(otherParticipantId);
+            
+            const room: ChatRoom = {
+              userUid: otherParticipantId,
+              userNickname: conversation.lastMessage?.fromNickname || 'Unknown',
+              lastMessage: conversation.lastMessage,
+              postId: conversation.postId,
+              postTitle: conversation.postTitle,
+              profileImageUrl: profile?.profileImageUrl
+            };
+            
+            rooms.push(room);
+          }
+          
+          setChatRooms(rooms);
+        } catch (error) {
+          console.error('채팅방 데이터 처리 오류:', error);
+        }
+      });
+      
+      return () => {
+        console.log('채팅방 리스너 정리');
+        unsubscribe();
+      };
+    } catch (error) {
+      console.error('채팅방 리스너 생성 실패:', error);
+    }
   }, [user, fetchUserProfile]);
-
-  // 채팅방 선택시 메시지 읽음 처리
-  useEffect(() => {
-    if (!user || !selectedRoom) return;
-    
-    // 선택된 채팅방의 메시지들을 읽음 처리
-    markMessagesAsRead(selectedRoom.userUid, selectedRoom.postId);
-  }, [user, selectedRoom, markMessagesAsRead]);
 
   // Load messages for selected room (새 구조 사용)
   useEffect(() => {
     if (!user || !selectedRoom) return;
     
-    // 대화방 ID 생성
-    const conversationId = generateConversationId(
-      user.uid, 
-      selectedRoom.userUid, 
-      selectedRoom.postId
-    );
+    console.log('메시지 리스너 시작:', selectedRoom.userUid);
     
-    // 새 구조로 메시지 구독
-    const unsubscribe = subscribeToConversationMessages(conversationId, (messages) => {
-      setMessages(messages);
+    try {
+      // 대화방 ID 생성
+      const conversationId = generateConversationId(
+        user.uid, 
+        selectedRoom.userUid, 
+        selectedRoom.postId
+      );
       
-      // 메시지 읽음 처리
-      markMessagesAsRead(conversationId, user.uid).catch(console.error);
-    });
+      // 새 구조로 메시지 구독
+      const unsubscribe = subscribeToConversationMessages(conversationId, (messages) => {
+        try {
+          setMessages(messages);
+          
+          // 메시지 읽음 처리
+          markMessagesAsRead(conversationId, user.uid).catch(console.error);
+        } catch (error) {
+          console.error('메시지 데이터 처리 오류:', error);
+        }
+      });
 
-    return unsubscribe;
+      return () => {
+        console.log('메시지 리스너 정리:', conversationId);
+        unsubscribe();
+      };
+    } catch (error) {
+      console.error('메시지 리스너 생성 실패:', error);
+    }
   }, [user, selectedRoom]);
 
   // 공지방 메시지 로드 (새 구조 사용)
   useEffect(() => {
     if (!user) return;
     
-    // 공지방 메시지 구독
-    const unsubscribe = subscribeToConversationMessages('announcement', (messages) => {
-      setAnnouncementMessages(messages);
-    });
+    console.log('공지방 리스너 시작');
     
-    return unsubscribe;
+    try {
+      // 공지방 메시지 구독
+      const unsubscribe = subscribeToConversationMessages('announcement', (messages) => {
+        try {
+          setAnnouncementMessages(messages);
+        } catch (error) {
+          console.error('공지방 메시지 처리 오류:', error);
+        }
+      });
+      
+      return () => {
+        console.log('공지방 리스너 정리');
+        unsubscribe();
+      };
+    } catch (error) {
+      console.error('공지방 리스너 생성 실패:', error);
+    }
+  }, [user]);
+
+  // 공지방 안읽은 메시지 수 구독
+  useEffect(() => {
+    if (!user) return;
+    
+    console.log('안읽은 메시지 리스너 시작');
+    
+    try {
+      const unsubscribe = subscribeToAnnouncementUnreadCount(user.uid, (count) => {
+        setAnnouncementUnreadCount(count);
+      });
+      
+      return () => {
+        console.log('안읽은 메시지 리스너 정리');
+        unsubscribe();
+      };
+    } catch (error) {
+      console.error('안읽은 메시지 리스너 생성 실패:', error);
+    }
   }, [user]);
 
   // 관리자 패널과 동일한 방식으로 모든 사용자 로드
@@ -335,6 +527,16 @@ const Messages: React.FC = () => {
         });
 
         console.log('처리된 사용자 데이터:', allUsers);
+        
+        // userProfiles 상태에 모든 사용자 정보 저장
+        const profilesMap: Record<string, any> = {};
+        allUsers.forEach(user => {
+          profilesMap[user.uid] = user;
+        });
+        setUserProfiles(prev => ({
+          ...prev,
+          ...profilesMap
+        }));
         
         // 차단된 사용자 제외하고 역할 우선 정렬
         const filteredUsers = allUsers
@@ -498,25 +700,53 @@ const Messages: React.FC = () => {
     }
   }, [canViewReadStatus, announcementMessages, loadMessageReadStatuses]);
 
-  // 공지방 안읽은 메시지 수 구독
-  useEffect(() => {
-    if (!user) return;
-    
-    const unsubscribe = subscribeToAnnouncementUnreadCount(user.uid, (count) => {
-      setAnnouncementUnreadCount(count);
-    });
-    
-    return unsubscribe;
-  }, [user]);
-
   // 전체 안읽은 메시지 수 계산
   useEffect(() => {
     const chatRoomUnreadTotal = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
     setTotalUnreadCount(chatRoomUnreadTotal + announcementUnreadCount);
   }, [unreadCounts, announcementUnreadCount]);
 
+  // 채팅방 변경 시 최신 메시지로 스크롤
+  useEffect(() => {
+    if (selectedRoom || isAnnouncementMode) {
+      const timer = setTimeout(() => {
+        const chatMessages = document.querySelector('.chat-messages');
+        if (chatMessages) {
+          chatMessages.scrollTo({
+            top: chatMessages.scrollHeight,
+            behavior: 'smooth'
+          });
+        }
+      }, 200); // 메시지 렌더링 완료 후 스크롤
+
+      return () => clearTimeout(timer);
+    }
+  }, [selectedRoom?.userUid, selectedRoom?.postId, isAnnouncementMode]);
+
+  // 새 메시지 추가 시 스크롤 (사용자가 맨 아래에 있을 때만)
+  useEffect(() => {
+    const chatMessages = document.querySelector('.chat-messages');
+    if (!chatMessages) return;
+
+    // 스크롤이 맨 아래에 있는지 확인 (100px 여유 두기)
+    const isAtBottom = chatMessages.scrollHeight - chatMessages.clientHeight <= chatMessages.scrollTop + 100;
+    
+    if (isAtBottom) {
+      const timer = setTimeout(() => {
+        chatMessages.scrollTo({
+          top: chatMessages.scrollHeight,
+          behavior: 'smooth'
+        });
+      }, 50);
+
+      return () => clearTimeout(timer);
+    }
+  }, [messages.length, announcementMessages.length]);
+
   const handleSend = useCallback(async () => {
-    if (!user || (!selectedRoom && !isAnnouncementMode) || !newMessage.trim()) return;
+    if (!user || (!selectedRoom && !isAnnouncementMode) || !newMessage.trim() || isSending) return;
+    
+    setIsSending(true);
     
     try {
       if (isAnnouncementMode) {
@@ -534,7 +764,14 @@ const Messages: React.FC = () => {
           user.nickname,
           '공지방',
           user.role,
-          { postId: 'announcement', postTitle: '공지방' }
+          { postId: 'announcement', postTitle: '공지방' },
+          undefined, // fileData
+          replyTo ? {
+            messageId: replyTo.id,
+            content: replyTo.content,
+            senderNickname: replyTo.fromNickname,
+            senderUid: replyTo.fromUid
+          } : undefined
         );
         
         // 메시지 전송 후 자동으로 읽음 처리
@@ -553,15 +790,25 @@ const Messages: React.FC = () => {
           selectedRoom!.postId ? { 
             postId: selectedRoom!.postId, 
             postTitle: selectedRoom!.postTitle || '' 
+          } : undefined,
+          undefined, // fileData
+          replyTo ? {
+            messageId: replyTo.id,
+            content: replyTo.content,
+            senderNickname: replyTo.fromNickname,
+            senderUid: replyTo.fromUid
           } : undefined
         );
       }
       setNewMessage('');
+      setReplyTo(null); // 답장 초기화
     } catch (error) {
       console.error('메시지 전송 실패:', error);
       alert('메시지 전송에 실패했습니다.');
+    } finally {
+      setIsSending(false);
     }
-  }, [user, selectedRoom, newMessage, isAnnouncementMode, bannedUsers]);
+  }, [user, selectedRoom, newMessage, isAnnouncementMode, bannedUsers, replyTo, isSending]);
 
   // 모바일 화면 여부 (기존 호환성 유지)
 const isMobile = isMobileView;
@@ -637,6 +884,17 @@ const isMobile = isMobileView;
     if (isMobileView) {
       setShowChatOnMobile(true);
     }
+    
+    // 채팅방 선택 후 스크롤을 최신 메시지로 이동
+    setTimeout(() => {
+      const chatMessages = document.querySelector('.chat-messages');
+      if (chatMessages) {
+        chatMessages.scrollTo({
+          top: chatMessages.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
+    }, 100);
   };
 
   // 공지방 선택 핸들러
@@ -647,6 +905,17 @@ const isMobile = isMobileView;
     if (isMobileView) {
       setShowChatOnMobile(true);
     }
+    
+    // 공지방 선택 후 스크롤을 최신 메시지로 이동
+    setTimeout(() => {
+      const chatMessages = document.querySelector('.chat-messages');
+      if (chatMessages) {
+        chatMessages.scrollTo({
+          top: chatMessages.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
+    }, 100);
   };
 
   // 모바일에서 채팅방 목록으로 돌아가기
@@ -680,48 +949,109 @@ const isMobile = isMobileView;
   const toggleReaction = async (msg: Message, emoji: string) => {
     if (!user) {
       console.log('사용자 정보가 없습니다.');
+      alert('로그인이 필요합니다.');
+      return;
+    }
+    
+    if (!msg.id) {
+      console.error('메시지 ID가 없습니다:', msg);
+      alert('메시지 정보가 올바르지 않습니다.');
       return;
     }
     
     console.log('리액션 토글 시작:', {msgId: msg.id, emoji, userId: user.uid});
     
     try {
-      let reactions = [...(msg.reactions || [])];
-      const idx = reactions.findIndex(r => r.emoji === emoji);
+      let messageRef;
       
-      if (idx >= 0) {
-        // 이미 해당 이모지 있음
-        const userIdx = reactions[idx].users.indexOf(user.uid);
-        if (userIdx >= 0) {
-          // 이미 리액션한 경우 제거
-          reactions[idx].users = reactions[idx].users.filter(uid => uid !== user.uid);
-          if (reactions[idx].users.length === 0) {
-            reactions.splice(idx, 1);
-          }
-        } else {
-          // 리액션 추가
-          reactions[idx].users.push(user.uid);
+      // 새로운 구조에서 메시지 경로 결정
+      if (isAnnouncementMode) {
+        // 공지방 메시지
+        messageRef = doc(db, 'conversations', 'announcement', 'messages', msg.id);
+      } else if (selectedRoom) {
+        // 일반 채팅방 메시지
+        const conversationId = generateConversationId(
+          user.uid, 
+          selectedRoom.userUid, 
+          selectedRoom.postId
+        );
+        messageRef = doc(db, 'conversations', conversationId, 'messages', msg.id);
+      } else {
+        console.error('채팅방이 선택되지 않았습니다.');
+        alert('채팅방 정보를 찾을 수 없습니다.');
+        return;
+      }
+      
+      // 메시지가 존재하는지 확인
+      const messageDoc = await getDoc(messageRef);
+      
+      if (!messageDoc.exists()) {
+        console.error('메시지가 존재하지 않습니다:', msg.id);
+        console.log('찾은 경로:', messageRef.path);
+        alert('메시지를 찾을 수 없습니다.');
+        return;
+      }
+      
+      const currentData = messageDoc.data();
+      let reactions = [...(currentData.reactions || [])];
+      
+      // 사용자가 같은 이모지를 다시 누른 경우인지 확인
+      const targetReaction = reactions.find(r => r.emoji === emoji);
+      const isAlreadyReacted = targetReaction && targetReaction.users.includes(user.uid);
+      
+      if (isAlreadyReacted) {
+        // 같은 이모지를 다시 누른 경우 - 리액션 제거 (토글)
+        const targetIndex = reactions.findIndex(r => r.emoji === emoji);
+        reactions[targetIndex].users = reactions[targetIndex].users.filter((uid: string) => uid !== user.uid);
+        if (reactions[targetIndex].users.length === 0) {
+          reactions.splice(targetIndex, 1);
         }
       } else {
-        // 새로운 리액션 추가
-        reactions.push({ emoji, users: [user.uid] });
+        // 다른 이모지를 누른 경우 - 기존 리액션 모두 제거하고 새 리액션 추가
+        
+        // 1단계: 이 사용자의 모든 기존 리액션 제거
+        reactions = reactions.map(reaction => ({
+          ...reaction,
+          users: reaction.users.filter((uid: string) => uid !== user.uid)
+        })).filter(reaction => reaction.users.length > 0);
+        
+        // 2단계: 새로운 리액션 추가
+        const existingReaction = reactions.find(r => r.emoji === emoji);
+        if (existingReaction) {
+          existingReaction.users.push(user.uid);
+        } else {
+          reactions.push({ emoji, users: [user.uid] });
+        }
       }
       
       console.log('업데이트할 리액션:', reactions);
       
       // 데이터베이스에 리액션 업데이트
-      await updateDoc(doc(db, 'messages', msg.id), {
+      await updateDoc(messageRef, {
         reactions: reactions
       });
       
       console.log('리액션 업데이트 성공');
+      
+      // 모바일에서 리액션 패널 닫기
+      if (isMobileView) {
+        setMobileReactionMessageId(null);
+      }
       
       setShowReactionPicker(false);
       setReactionTarget(null);
     } catch (error) {
       console.error('리액션 업데이트 실패:', error);
       const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
-      alert(`리액션 추가에 실패했습니다: ${errorMessage}`);
+      
+      // Firebase 권한 오류인 경우 특별 처리
+      if (errorMessage.includes('permission-denied') || errorMessage.includes('unauthorized')) {
+        alert('리액션을 추가할 권한이 없습니다. 로그인 상태를 확인해주세요.');
+      } else if (errorMessage.includes('not-found')) {
+        alert('메시지를 찾을 수 없습니다. 새로고침 후 다시 시도해주세요.');
+      } else {
+        alert(`리액션 추가에 실패했습니다: ${errorMessage}`);
+      }
     }
   };
   // 모바일 롱탭/PC 우클릭/호버 리액션 선택
@@ -748,23 +1078,46 @@ const isMobile = isMobileView;
     }
   };
   // 파일 업로드 및 메시지 전송
-  const handleSendWithFile = async () => {
-    if (!user || (!newMessage.trim() && !filePreview && !fileName)) return;
+  const handleSendWithFile = useCallback(async () => {
+    if (!user || (!newMessage.trim() && !filePreview && !fileName) || isUploading || isSending) return;
     
     if (isAnnouncementMode && bannedUsers.includes(user.uid)) {
       alert('공지방에서 내보내진 사용자는 파일을 보낼 수 없습니다.');
       return;
     }
     
+    setIsUploading(true);
+    
+    // 백업용 데이터 저장
+    const originalMessage = newMessage;
+    const originalFilePreview = filePreview;
+    const originalFileType = fileType;
+    const originalFileName = fileName;
+    
+    // 즉시 상태 초기화 (UX 개선)
+    setNewMessage('');
+    setFilePreview(null);
+    setFileType(null);
+    setFileName(null);
+    
     try {
       let fileUrl = '';
-      if (filePreview && fileName) {
-        const file = (document.getElementById('chat-file-input') as HTMLInputElement)?.files?.[0];
-        if (file) {
+      if (originalFilePreview && originalFileName) {
+        const fileInput = document.getElementById('chat-file-input') as HTMLInputElement;
+        const file = fileInput?.files?.[0];
+        
+        if (!file) {
+          throw new Error('파일을 찾을 수 없습니다.');
+        }
+        
+        // 파일 크기 검증 (10MB 제한)
+        if (file.size > 10 * 1024 * 1024) {
+          throw new Error('파일 크기는 10MB 이하여야 합니다.');
+        }
+        
           const fileRef = storageRef(storage, `chat/${user.uid}/${Date.now()}_${file.name}`);
           await uploadBytes(fileRef, file);
           fileUrl = await getDownloadURL(fileRef);
-        }
       }
       
       if (isAnnouncementMode) {
@@ -772,45 +1125,78 @@ const isMobile = isMobileView;
         const messageId = await sendMessage(
           user.uid,
           'announcement',
-          newMessage.trim(),
+          originalMessage.trim(),
           user.nickname,
           '공지방',
           user.role,
           { postId: 'announcement', postTitle: '공지방' },
-          fileUrl ? { fileUrl, fileType: fileType || '', fileName: fileName || '' } : undefined
+          fileUrl ? { fileUrl, fileType: originalFileType || '', fileName: originalFileName || '' } : undefined,
+          replyTo ? {
+            messageId: replyTo.id,
+            content: replyTo.content,
+            senderNickname: replyTo.fromNickname,
+            senderUid: replyTo.fromUid
+          } : undefined
         );
         
         // 메시지 전송 후 자동으로 읽음 처리
         if (messageId) {
           await markAnnouncementMessageAsRead(messageId, user.uid);
         }
-      } else {
+      } else if (selectedRoom) {
         // 일반 채팅 파일 메시지 전송 (새 구조 사용)
         await sendMessage(
           user.uid,
-          selectedRoom!.userUid,
-          newMessage.trim(),
+          selectedRoom.userUid,
+          originalMessage.trim(),
           user.nickname,
-          selectedRoom!.userNickname,
+          selectedRoom.userNickname,
           user.role,
-          selectedRoom!.postId ? { 
-            postId: selectedRoom!.postId, 
-            postTitle: selectedRoom!.postTitle || '' 
+          selectedRoom.postId ? { 
+            postId: selectedRoom.postId, 
+            postTitle: selectedRoom.postTitle || '' 
           } : undefined,
-          fileUrl ? { fileUrl, fileType: fileType || '', fileName: fileName || '' } : undefined
+          fileUrl ? { fileUrl, fileType: originalFileType || '', fileName: originalFileName || '' } : undefined,
+          replyTo ? {
+            messageId: replyTo.id,
+            content: replyTo.content,
+            senderNickname: replyTo.fromNickname,
+            senderUid: replyTo.fromUid
+          } : undefined
         );
       }
       
-      setNewMessage('');
-      setFilePreview(null);
-      setFileType(null);
-      setFileName(null);
-      (document.getElementById('chat-file-input') as HTMLInputElement).value = '';
+      setReplyTo(null); // 답장 초기화
+      const fileInput = document.getElementById('chat-file-input') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+      
     } catch (error) {
       console.error('파일 메시지 전송 실패:', error);
-      alert('파일 전송에 실패했습니다.');
+      
+      // 전송 실패 시 상태 복구
+      setNewMessage(originalMessage);
+      setFilePreview(originalFilePreview);
+      setFileType(originalFileType);
+      setFileName(originalFileName);
+      
+      // 구체적인 에러 메시지
+      if (error instanceof Error) {
+        if (error.message.includes('파일 크기')) {
+          alert(error.message);
+        } else if (error.message.includes('storage')) {
+          alert('파일 업로드에 실패했습니다. 네트워크 연결을 확인해주세요.');
+        } else if (error.message.includes('permission')) {
+          alert('파일 업로드 권한이 없습니다.');
+        } else {
+          alert('파일 전송에 실패했습니다. 다시 시도해주세요.');
+        }
+      } else {
+        alert('파일 전송에 실패했습니다. 다시 시도해주세요.');
+      }
+    } finally {
+      setIsUploading(false);
     }
-  };
+  }, [user, newMessage, filePreview, fileType, fileName, isAnnouncementMode, bannedUsers, selectedRoom, replyTo, isUploading, isSending]);
 
   // 메시지 복사
   const handleCopy = (msg: Message) => {
@@ -823,7 +1209,32 @@ const isMobile = isMobileView;
     
     if (confirm('메시지를 삭제하시겠습니까?')) {
       try {
-        await deleteDoc(doc(db, 'messages', msg.id));
+        let messageRef;
+        
+        // 새로운 구조에서 메시지 경로 결정
+        if (isAnnouncementMode) {
+          // 공지방 메시지
+          messageRef = doc(db, 'conversations', 'announcement', 'messages', msg.id);
+        } else if (selectedRoom) {
+          // 일반 채팅방 메시지
+          const conversationId = generateConversationId(
+            user.uid, 
+            selectedRoom.userUid, 
+            selectedRoom.postId
+          );
+          messageRef = doc(db, 'conversations', conversationId, 'messages', msg.id);
+        } else {
+          console.error('채팅방이 선택되지 않았습니다.');
+          alert('채팅방 정보를 찾을 수 없습니다.');
+          return;
+        }
+        
+        await updateDoc(messageRef, {
+          content: '(삭제된 내용입니다)',
+          isDeleted: true,
+          deletedBy: user.uid,
+          deletedAt: serverTimestamp()
+        });
         setContextMenu(null);
       } catch (error) {
         console.error('메시지 삭제 실패:', error);
@@ -832,14 +1243,34 @@ const isMobile = isMobileView;
     }
   };
 
-  // 운영진/리더용 메시지 삭제 (내용을 "삭제된 내용입니다."로 변경)
+  // 운영진/리더용 메시지 삭제 (내용을 "(삭제된 내용입니다)"로 변경)
   const handleMessageDelete = async (msg: Message) => {
     if (!user || (user.role !== '리더' && user.role !== '운영진')) return;
     
-    if (confirm('이 메시지를 삭제하시겠습니까? (내용이 "삭제된 내용입니다."로 변경됩니다)')) {
+    if (confirm('이 메시지를 삭제하시겠습니까? (내용이 "(삭제된 내용입니다)"로 변경됩니다)')) {
       try {
-        await updateDoc(doc(db, 'messages', msg.id), {
-          content: '삭제된 내용입니다.',
+        let messageRef;
+        
+        // 새로운 구조에서 메시지 경로 결정
+        if (isAnnouncementMode) {
+          // 공지방 메시지
+          messageRef = doc(db, 'conversations', 'announcement', 'messages', msg.id);
+        } else if (selectedRoom) {
+          // 일반 채팅방 메시지
+          const conversationId = generateConversationId(
+            user.uid, 
+            selectedRoom.userUid, 
+            selectedRoom.postId
+          );
+          messageRef = doc(db, 'conversations', conversationId, 'messages', msg.id);
+        } else {
+          console.error('채팅방이 선택되지 않았습니다.');
+          alert('채팅방 정보를 찾을 수 없습니다.');
+          return;
+        }
+        
+        await updateDoc(messageRef, {
+          content: '(삭제된 내용입니다)',
           isDeleted: true,
           deletedBy: user.uid,
           deletedAt: serverTimestamp()
@@ -887,6 +1318,16 @@ const isMobile = isMobileView;
         detailedReadStatus = await getMessageReadStatus(msg.id);
       }
       
+      // 읽음 상태 데이터 구조 변환
+      let processedReadStatus = null;
+      if (detailedReadStatus) {
+        processedReadStatus = {
+          ...detailedReadStatus,
+          readUsers: detailedReadStatus.readByUsers || [], // readByUsers를 readUsers로 매핑
+          unreadUsers: detailedReadStatus.unreadUsers || []
+        };
+      }
+      
       // 해당 메시지와 관련된 채팅 분석 데이터 생성
       const analysis = {
         messageInfo: {
@@ -897,7 +1338,7 @@ const isMobile = isMobileView;
           fileType: msg.fileType
         },
         contextAnalysis: await analyzeMessageContext(msg),
-        readStatus: detailedReadStatus,
+        readStatus: processedReadStatus,
         reactions: msg.reactions || [],
         relatedMessages: await getRelatedMessages(msg)
       };
@@ -1050,19 +1491,352 @@ const isMobile = isMobileView;
   };
 
   // 리액션 상세 보기
-  const handleReactionDetailClick = (msg: Message) => {
+  const handleReactionDetailClick = async (msg: Message) => {
     if (msg.reactions && msg.reactions.length > 0) {
+      // 리액션한 사용자들의 프로필 정보 미리 로드
+      const allUserIds = new Set<string>();
+      msg.reactions.forEach(reaction => {
+        reaction.users.forEach(userId => allUserIds.add(userId));
+      });
+      
+      // 캐시되지 않은 사용자들의 프로필 정보 가져오기
+      const uncachedUserIds = Array.from(allUserIds).filter(userId => 
+        !userProfiles[userId] && !announcementParticipants.find(p => p.uid === userId)
+      );
+      
+      if (uncachedUserIds.length > 0) {
+        try {
+          const newProfiles: Record<string, any> = {};
+          
+          await Promise.all(uncachedUserIds.map(async (userId) => {
+            try {
+              const userDoc = await getDoc(doc(db, 'users', userId));
+              if (userDoc.exists()) {
+                newProfiles[userId] = userDoc.data();
+              }
+            } catch (error) {
+              console.error(`사용자 ${userId} 프로필 로드 실패:`, error);
+            }
+          }));
+          
+          if (Object.keys(newProfiles).length > 0) {
+            setUserProfiles(prev => ({
+              ...prev,
+              ...newProfiles
+            }));
+          }
+        } catch (error) {
+          console.error('사용자 프로필 로드 실패:', error);
+        }
+      }
+      
       setReactionModal({msgId: msg.id, reactions: msg.reactions});
     }
   };
 
+  // 원본 메시지로 스크롤 이동
+  const scrollToMessage = (messageId: string) => {
+    const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
+    if (messageElement) {
+      // 스크롤 애니메이션
+      messageElement.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center' 
+      });
+      
+      // 하이라이트 효과
+      setHighlightedMessageId(messageId);
+      
+      // 3초 후 하이라이트 제거
+      setTimeout(() => {
+        setHighlightedMessageId(null);
+      }, 3000);
+    } else {
+      // 원본 메시지를 찾을 수 없는 경우
+      alert('원본 메시지를 찾을 수 없습니다. 메시지가 삭제되었거나 이전 대화에 있을 수 있습니다.');
+    }
+  };
+
+  // 답장 원본 클릭 핸들러
+  const handleReplySourceClick = (replyToMessageId: string) => {
+    scrollToMessage(replyToMessageId);
+  };
+
+  // 키보드 단축키 및 이벤트 핸들러
+  useEffect(() => {
+    const handleKeyboardEvents = (e: KeyboardEvent) => {
+      // ESC로 패널들 닫기
+      if (e.key === 'Escape') {
+        setShowReactionPicker(false);
+        setReactionTarget(null);
+        setContextMenu(null);
+        setMobileReactionMessageId(null);
+        setReplyTo(null);
+        return;
+      }
+
+      // Ctrl+K: 채팅방 검색 포커스
+      if (e.ctrlKey && e.key === 'k') {
+        e.preventDefault();
+        const searchInput = document.querySelector('.chat-room-search-input') as HTMLInputElement;
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.select();
+        }
+        return;
+      }
+      
+      // Ctrl+F: 메시지 검색 (향후 구현 예정)
+      if (e.ctrlKey && e.key === 'f') {
+        e.preventDefault();
+        console.log('메시지 검색 기능 (향후 구현)');
+        return;
+      }
+      
+      // 방향키로 채팅방 이동 (채팅방 목록에 포커스가 있을 때)
+      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && 
+          document.activeElement?.closest('.chat-room-list')) {
+        e.preventDefault();
+        const currentSelected = document.querySelector('.chat-room-item.selected');
+        const allRooms = Array.from(document.querySelectorAll('.chat-room-item'));
+        
+        if (currentSelected && allRooms.length > 0) {
+          const currentIndex = allRooms.indexOf(currentSelected);
+          let nextIndex;
+          
+          if (e.key === 'ArrowUp') {
+            nextIndex = currentIndex > 0 ? currentIndex - 1 : allRooms.length - 1;
+          } else {
+            nextIndex = currentIndex < allRooms.length - 1 ? currentIndex + 1 : 0;
+          }
+          
+          const nextRoom = allRooms[nextIndex] as HTMLElement;
+          nextRoom.click();
+          nextRoom.focus();
+        }
+        return;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyboardEvents);
+    return () => document.removeEventListener('keydown', handleKeyboardEvents);
+  }, []);
+
+  // 메시지 입력 키 핸들러
+  const handleMessageKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Enter로 전송, Shift+Enter로 줄바꿈
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (filePreview || fileName) {
+        handleSendWithFile();
+      } else {
+        handleSend();
+      }
+    }
+    
+    // Ctrl+Enter로도 전송 가능
+    if (e.key === 'Enter' && e.ctrlKey) {
+      e.preventDefault();
+      if (filePreview || fileName) {
+        handleSendWithFile();
+      } else {
+        handleSend();
+      }
+    }
+  };
+
+  // 채팅방 아이템 키보드 핸들러
+  const handleRoomKeyDown = (e: React.KeyboardEvent, room: ChatRoom) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleRoomSelect(room);
+    }
+  };
+
+  // 브라우저 알림 관련 함수들
+  const requestNotificationPermission = useCallback(async () => {
+    if (!('Notification' in window)) {
+      console.log('이 브라우저는 알림을 지원하지 않습니다.');
+      return;
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+      
+      if (permission === 'granted') {
+        // 테스트 알림 발송
+        new Notification('VERYUS 알림이 활성화되었습니다!', {
+          body: '새로운 메시지를 받을 때 알림을 보내드립니다.',
+          icon: '/veryus_logo.png',
+          badge: '/cherry-favicon.svg'
+        });
+      }
+    } catch (error) {
+      console.error('알림 권한 요청 실패:', error);
+    }
+  }, []);
+
+  const playNotificationSound = useCallback(() => {
+    if (!soundEnabled) return;
+    
+    try {
+      // 간단한 알림음 (Web Audio API 사용)
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.value = 800;
+      oscillator.type = 'sine';
+      
+      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+      gainNode.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.1);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.3);
+    } catch (error) {
+      console.error('알림음 재생 실패:', error);
+    }
+  }, [soundEnabled]);
+
+  const showNotification = useCallback((title: string, body: string, onClick?: () => void) => {
+    // 알림 빈도 제한 (5초 간격)
+    const now = Date.now();
+    if (now - lastNotificationRef.current < 5000) {
+      return;
+    }
+    lastNotificationRef.current = now;
+
+    if (notificationPermission === 'granted' && document.hidden) {
+      try {
+        const notification = new Notification(title, {
+          body,
+          icon: '/veryus_logo.png',
+          badge: '/cherry-favicon.svg',
+          requireInteraction: false,
+          silent: false
+        });
+
+        if (onClick) {
+          notification.onclick = () => {
+            window.focus();
+            onClick();
+            notification.close();
+          };
+        }
+
+        // 5초 후 자동 닫기
+        setTimeout(() => {
+          notification.close();
+        }, 5000);
+
+        // 알림음 재생
+        playNotificationSound();
+      } catch (error) {
+        console.error('알림 표시 실패:', error);
+      }
+    }
+  }, [notificationPermission, playNotificationSound]);
+
+  // 메시지 변경 시 알림 발송
+  useEffect(() => {
+    if (!user || messages.length === 0) return;
+    
+    const latestMessage = messages[messages.length - 1];
+    
+    // 본인 메시지가 아니고, 새로 추가된 메시지인 경우 알림
+    if (latestMessage.fromUid !== user.uid && 
+        latestMessage.createdAt && 
+        typeof latestMessage.createdAt.seconds === 'number') {
+      
+      const messageTime = latestMessage.createdAt.seconds * 1000;
+      const now = Date.now();
+      
+      // 5초 이내에 생성된 메시지만 알림 (실시간 메시지)
+      if (now - messageTime < 5000) {
+        showNotification(
+          `${latestMessage.fromNickname}님의 새 메시지`,
+          latestMessage.content.length > 50 
+            ? latestMessage.content.substring(0, 50) + '...' 
+            : latestMessage.content,
+          () => {
+            // 알림 클릭 시 해당 채팅방으로 이동
+            if (selectedRoom && selectedRoom.userUid === latestMessage.fromUid) {
+              // 이미 해당 채팅방이 선택된 경우 스크롤만
+              document.querySelector('.chat-messages')?.scrollTo({
+                top: document.querySelector('.chat-messages')?.scrollHeight,
+                behavior: 'smooth'
+              });
+            }
+          }
+        );
+      }
+    }
+  }, [messages, user, showNotification, selectedRoom]);
+
+  // 공지방 메시지 알림
+  useEffect(() => {
+    if (!user || announcementMessages.length === 0) return;
+    
+    const latestMessage = announcementMessages[announcementMessages.length - 1];
+    
+    // 본인 메시지가 아니고, 새로 추가된 메시지인 경우 알림
+    if (latestMessage.fromUid !== user.uid && latestMessage.fromUid !== 'system' &&
+        latestMessage.createdAt && 
+        typeof latestMessage.createdAt.seconds === 'number') {
+      
+      const messageTime = latestMessage.createdAt.seconds * 1000;
+      const now = Date.now();
+      
+      // 5초 이내에 생성된 메시지만 알림 (실시간 메시지)
+      if (now - messageTime < 5000) {
+        showNotification(
+          `📢 공지방: ${latestMessage.fromNickname}님`,
+          latestMessage.content.length > 50 
+            ? latestMessage.content.substring(0, 50) + '...' 
+            : latestMessage.content,
+          () => {
+            // 알림 클릭 시 공지방으로 이동
+            if (!isAnnouncementMode) {
+              setIsAnnouncementMode(true);
+              setSelectedRoom(null);
+            }
+          }
+        );
+      }
+    }
+  }, [announcementMessages, user, showNotification, isAnnouncementMode]);
+
   return (
+    <div className="messages-page">
     <div className="messages-container">
       <div className={`chat-room-list always-show${isMobileView && showChatOnMobile ? ' hide-on-mobile' : ''}`}>
         <div style={{display:'flex',alignItems:'center',gap:8,margin:'0 0 24px 16px'}}>
           <button className="exit-home-btn" onClick={()=>window.location.href='/'} style={{background:'none',border:'none',padding:0,cursor:'pointer'}} title="홈으로">
             <Home size={22} color="#8A55CC" />
           </button>
+          {isMobileView && (
+            <button 
+              className="chat-room-list-toggle" 
+              onClick={handleBackToRoomList} 
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              title="채팅방으로 돌아가기"
+            >
+              <Menu size={22} color="#8A55CC" />
+            </button>
+          )}
           <h2 style={{margin:0}}>채팅</h2>
         </div>
 
@@ -1071,8 +1845,10 @@ const isMobile = isMobileView;
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="닉네임, 메시지 검색"
+            placeholder="닉네임, 메시지 검색 (Ctrl+K)"
             className="chat-room-search-input"
+            aria-label="채팅방 및 메시지 검색"
+            role="searchbox"
           />
         </div>
         
@@ -1080,7 +1856,17 @@ const isMobile = isMobileView;
         <div
           className={`chat-room-item${isAnnouncementMode ? ' selected' : ''}`}
           onClick={handleAnnouncementSelect}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleAnnouncementSelect();
+            }
+          }}
           style={{backgroundColor: isAnnouncementMode ? '#F8F4FF' : '', position: 'relative'}}
+          tabIndex={0}
+          role="button"
+          aria-label={`공지방 채팅 ${isAnnouncementMode ? '(현재 선택됨)' : ''} ${announcementUnreadCount > 0 ? `안읽은 메시지 ${announcementUnreadCount}개` : ''}`}
+          aria-pressed={isAnnouncementMode}
         >
           <div className="chat-room-profile">
             <div style={{
@@ -1102,12 +1888,12 @@ const isMobile = isMobileView;
             <div className="chat-room-title-row">
               <span className="chat-room-nickname" style={{fontWeight: 'bold', color: '#FF6B35'}}>공지방</span>
               <span className="chat-room-time">
-                {announcementMessages.length > 0 ? formatTime(announcementMessages[0].createdAt) : ''}
+                {announcementMessages.length > 0 ? formatTime(announcementMessages[announcementMessages.length - 1].createdAt) : ''}
               </span>
             </div>
             <div className="chat-room-last-message-row">
               <span className="chat-room-last-message">
-                {announcementMessages.length > 0 ? announcementMessages[0].content : '공지방에 오신 것을 환영합니다!'}
+                {announcementMessages.length > 0 ? announcementMessages[announcementMessages.length - 1].content : '공지방에 오신 것을 환영합니다!'}
               </span>
               {announcementUnreadCount > 0 && (
                 <span className="chat-room-unread-badge" style={{
@@ -1139,6 +1925,11 @@ const isMobile = isMobileView;
               key={room.userUid + (room.postId || '')}
               className={`chat-room-item${selectedRoom && selectedRoom.userUid === room.userUid && selectedRoom.postId === room.postId ? ' selected' : ''}`}
               onClick={() => handleRoomSelect(room)}
+              onKeyDown={(e) => handleRoomKeyDown(e, room)}
+              tabIndex={0}
+              role="button"
+              aria-label={`${room.userNickname}님과의 채팅 ${selectedRoom && selectedRoom.userUid === room.userUid && selectedRoom.postId === room.postId ? '(현재 선택됨)' : ''} ${getUnreadCount(room) > 0 ? `안읽은 메시지 ${getUnreadCount(room)}개` : ''} 마지막 메시지: ${room.lastMessage.content}`}
+              aria-pressed={!!(selectedRoom && selectedRoom.userUid === room.userUid && selectedRoom.postId === room.postId)}
           >
             <div className="chat-room-profile">
               {getProfileDisplay(room)}
@@ -1165,14 +1956,7 @@ const isMobile = isMobileView;
               width: '100%',
               overflow: 'hidden'
             }}>
-              {isMobileView && (
-                <button className="chat-room-list-toggle" onClick={handleBackToRoomList} style={{
-                  marginRight: 24,
-                  flexShrink: 0
-                }}>
-                  <Menu size={20} />
-                </button>
-              )}
+
               <div style={{ 
                 display: 'flex', 
                 alignItems: 'center', 
@@ -1208,28 +1992,92 @@ const isMobile = isMobileView;
                       minWidth: 0,
                       flexShrink: 1
                     }}>공지방</span>
-                    <div style={{ marginLeft: 'auto', flexShrink: 0 }}>
+                    <div style={{ 
+                      marginLeft: 'auto', 
+                      flexShrink: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
                       <button 
                         onClick={() => setShowParticipants(!showParticipants)}
                         style={{
-                          background: showParticipants ? '#FF6B35' : 'none',
-                          border: '1px solid #FF6B35',
-                          borderRadius: '6px',
-                          padding: isMobileView ? '4px 8px' : '6px 12px',
-                          color: showParticipants ? 'white' : '#FF6B35',
+                          background: showParticipants ? 'rgba(255, 107, 53, 0.1)' : 'rgba(107, 114, 128, 0.1)',
+                          border: 'none',
+                          borderRadius: '8px',
+                          padding: '8px',
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '4px',
-                          fontSize: isMobileView ? '12px' : '14px',
-                          whiteSpace: 'nowrap',
-                          flexShrink: 0
+                          justifyContent: 'center',
+                          width: '36px',
+                          height: '36px',
+                          flexShrink: 0,
+                          transition: 'all 0.2s ease',
+                          fontSize: '16px'
                         }}
-                        title="참여자 목록"
+                        title={`참여자 목록 (${announcementParticipants.length}명)`}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 107, 53, 0.2)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = showParticipants ? 'rgba(255, 107, 53, 0.1)' : 'rgba(107, 114, 128, 0.1)'}
                       >
-                        <Users size={14} />
-                        {isMobileView ? `참여자` : `참여자 (${announcementParticipants.length})`}
+                        👥
                       </button>
+                      
+                      {/* 알림 설정 버튼 */}
+                      {notificationPermission === 'default' && (
+                        <button 
+                          onClick={requestNotificationPermission}
+                          style={{
+                            background: 'rgba(107, 114, 128, 0.1)',
+                            border: 'none',
+                            borderRadius: '8px',
+                            padding: '8px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '36px',
+                            height: '36px',
+                            flexShrink: 0,
+                            transition: 'all 0.2s ease',
+                            fontSize: '16px'
+                          }}
+                          title="브라우저 알림 활성화"
+                          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.2)'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(107, 114, 128, 0.1)'}
+                        >
+                          🔔
+                        </button>
+                      )}
+                      
+                      {notificationPermission === 'granted' && (
+                        <button 
+                          onClick={() => {
+                            setSoundEnabled(!soundEnabled);
+                            localStorage.setItem('veryus_notification_sound', JSON.stringify(!soundEnabled));
+                          }}
+                          style={{
+                            background: soundEnabled ? 'rgba(16, 185, 129, 0.1)' : 'rgba(107, 114, 128, 0.1)',
+                            border: 'none',
+                            borderRadius: '8px',
+                            padding: '8px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '36px',
+                            height: '36px',
+                            flexShrink: 0,
+                            transition: 'all 0.2s ease',
+                            fontSize: '16px'
+                          }}
+                          title={soundEnabled ? '알림음 끄기' : '알림음 켜기'}
+                          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(16, 185, 129, 0.2)'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = soundEnabled ? 'rgba(16, 185, 129, 0.1)' : 'rgba(107, 114, 128, 0.1)'}
+                        >
+                          {soundEnabled ? '🔊' : '🔇'}
+                        </button>
+                      )}
                     </div>
                   </>
                 ) : selectedRoom?.profileImageUrl ? (
@@ -1293,13 +2141,17 @@ const isMobile = isMobileView;
                     )}
                     
                     {/* 메시지 전체 컨테이너 */}
-                    <div style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: msg.fromUid === 'system' ? 'center' : msg.fromUid === user.uid ? 'flex-end' : 'flex-start',
-                      marginBottom: '8px',
-                      maxWidth: '100%'
-                    }}>
+                    <div 
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: msg.fromUid === 'system' ? 'center' : msg.fromUid === user.uid ? 'flex-end' : 'flex-start',
+                        marginBottom: '8px',
+                        maxWidth: '100%'
+                      }}
+                      onMouseEnter={() => !isMobileView && msg.fromUid !== 'system' && setHoveredMessageId(msg.id)}
+                      onMouseLeave={() => setHoveredMessageId(null)}
+                    >
                       {/* 닉네임과 역할 표시 (시스템 메시지 제외) */}
                       {msg.fromUid !== 'system' && (
                         <div style={{
@@ -1338,6 +2190,7 @@ const isMobile = isMobileView;
                       {msg.fromUid === 'system' ? (
                         // 시스템 메시지는 기존 방식 유지
                         <div
+                          data-message-id={msg.id}
                           className="chat-message system"
                           style={{
                             backgroundColor: '#FFF3CD',
@@ -1351,22 +2204,104 @@ const isMobile = isMobileView;
                             fontSize: isMobileView ? '13px' : '14px',
                             wordBreak: 'keep-all',
                             lineHeight: '1.4',
-                            boxSizing: 'border-box'
+                            boxSizing: 'border-box',
+                            transition: 'all 0.3s ease',
+                            ...(highlightedMessageId === msg.id && {
+                              animation: 'highlightPulse 1.5s ease-in-out infinite',
+                              zIndex: 10
+                            })
                           }}
                         >
-                          <div className="chat-message-content">{msg.content}</div>
+                          <div 
+                            className="chat-message-content"
+                            style={{
+                              wordBreak: 'break-word',
+                              overflowWrap: 'anywhere',
+                              whiteSpace: 'pre-wrap',
+                              hyphens: 'auto',
+                              width: '100%',
+                              maxWidth: '100%'
+                            }}
+                          >
+                            <span style={{
+                              fontFamily: msg.content === '(삭제된 내용입니다)' ? 'monospace, "Courier New", Courier' : 'inherit',
+                              fontStyle: msg.content === '(삭제된 내용입니다)' ? 'italic' : 'normal',
+                              fontWeight: msg.content === '(삭제된 내용입니다)' ? '500' : 'normal'
+                            }}>
+                            {msg.content}
+                            </span>
+                          </div>
                         </div>
                       ) : (
                         // 일반 메시지는 말풍선과 시간을 같은 줄에
-                        <div style={{
-                          display: 'inline-flex',
-                          alignItems: 'flex-end',
-                          gap: '8px',
-                          flexDirection: msg.fromUid === user.uid ? 'row-reverse' : 'row',
-                          maxWidth: '85%',
-                          width: 'auto',
-                          position: 'relative'
-                        }}>
+                        <div 
+                          data-message-id={msg.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            flexDirection: msg.fromUid === user.uid ? 'row-reverse' : 'row',
+                            maxWidth: `${Math.max(50, 85 - Math.min((replyDepth.get(msg.id) || 0), 5) * 5)}%`,
+                            width: 'auto',
+                            position: 'relative',
+                            marginBottom: '8px',
+                            marginLeft: msg.fromUid !== user.uid ? `${(replyDepth.get(msg.id) || 0) * (isMobileView ? 12 : 20)}px` : '0',
+                            marginRight: msg.fromUid === user.uid ? `${(replyDepth.get(msg.id) || 0) * (isMobileView ? 12 : 20)}px` : '0',
+                            alignSelf: msg.fromUid === user.uid ? 'flex-end' : 'flex-start',
+                            transition: 'all 0.3s ease',
+                            ...(highlightedMessageId === msg.id && {
+                              animation: 'highlightPulse 1.5s ease-in-out infinite',
+                              zIndex: 10
+                            })
+                          }}>
+                          
+                          {/* 답장 연결선 */}
+                          {msg.replyTo && (replyDepth.get(msg.id) || 0) > 0 && (() => {
+                            const depth = Math.min(replyDepth.get(msg.id) || 0, 5);
+                            const intensity = 0.3 + (depth * 0.15);
+                            const hue = 260 + (depth * 10); // 보라색에서 파란색으로 변화
+                            
+                            return (
+                              <div style={{
+                                position: 'absolute',
+                                left: msg.fromUid === user.uid ? 'auto' : '-15px',
+                                right: msg.fromUid === user.uid ? '-15px' : 'auto',
+                                top: '-8px',
+                                bottom: '-8px',
+                                width: '3px',
+                                background: `linear-gradient(to bottom, 
+                                  hsla(${hue}, 55%, 65%, ${intensity * 0.7}) 0%, 
+                                  hsla(${hue}, 55%, 65%, ${intensity}) 50%, 
+                                  hsla(${hue}, 55%, 65%, ${intensity * 0.7}) 100%)`,
+                                borderRadius: '2px',
+                                zIndex: 1,
+                                boxShadow: `0 0 ${depth * 2}px hsla(${hue}, 55%, 65%, 0.3)`
+                              }} />
+                            );
+                          })()}
+                          
+                          {/* 연결 곡선 */}
+                          {msg.replyTo && (replyDepth.get(msg.id) || 0) > 0 && (() => {
+                            const depth = Math.min(replyDepth.get(msg.id) || 0, 5);
+                            const hue = 260 + (depth * 10);
+                            const intensity = 0.4 + (depth * 0.1);
+                            
+                            return (
+                              <div style={{
+                                position: 'absolute',
+                                left: msg.fromUid === user.uid ? 'auto' : '-15px',
+                                right: msg.fromUid === user.uid ? '-15px' : 'auto',
+                                top: '50%',
+                                width: '15px',
+                                height: '3px',
+                                background: `hsla(${hue}, 55%, 65%, ${intensity})`,
+                                borderRadius: msg.fromUid === user.uid ? '2px 0 0 2px' : '0 2px 2px 0',
+                                transform: 'translateY(-50%)',
+                                zIndex: 2
+                              }} />
+                            );
+                          })()}
+                          
                           <div
                             className={`chat-message${msg.fromUid === user.uid ? ' sent' : ' received'}`}
                             onDoubleClick={(e) => {
@@ -1376,7 +2311,14 @@ const isMobile = isMobileView;
                             onClick={(e) => {
                               if (isMobileView) {
                                 e.stopPropagation();
-                                handleMobileTap(msg, e);
+                                // 리액션 패널이 열려있으면 닫고, 닫혀있으면 열기
+                                if (mobileReactionMessageId === msg.id) {
+                                  setMobileReactionMessageId(null);
+                                } else {
+                                  setMobileReactionMessageId(msg.id);
+                                  // 3초 후 자동으로 닫기
+                                  setTimeout(() => setMobileReactionMessageId(null), 3000);
+                                }
                               }
                             }}
                                                   onContextMenu={e => {
@@ -1400,6 +2342,8 @@ const isMobile = isMobileView;
                       }}
                       onTouchStart={e => {
                         let timeout = setTimeout(() => {
+                          if (!e.currentTarget) return; // null 체크 추가
+                          
                           const rect = e.currentTarget.getBoundingClientRect();
                           const menuWidth = 160;
                           const menuHeight = 200;
@@ -1418,26 +2362,276 @@ const isMobile = isMobileView;
                           
                           setContextMenu({msgId: msg.id, x, y});
                         }, 500);
-                              const clear = () => { clearTimeout(timeout); };
-                              e.currentTarget.addEventListener('touchend', clear, { once: true });
-                              e.currentTarget.addEventListener('touchmove', clear, { once: true });
-                            }}
+                        
+                        const clear = () => { clearTimeout(timeout); };
+                        if (e.currentTarget) { // null 체크 추가
+                          e.currentTarget.addEventListener('touchend', clear, { once: true });
+                          e.currentTarget.addEventListener('touchmove', clear, { once: true });
+                        }
+                      }}
 
                             style={{ 
-                              maxWidth: isMobileView ? '75%' : '65%',
+                              maxWidth: '75%',
                               minWidth: '0',
                               width: 'auto',
-                              display: 'inline-block',
-                              verticalAlign: 'top',
-                              position: 'relative'
+                              display: 'block',
+                              position: 'relative',
+                              margin: '0',
+                              alignSelf: 'auto',
+                              flex: '0 0 auto',
+                              wordBreak: 'break-word',
+                              overflowWrap: 'anywhere'
                             }}
                           >
                             {/* 답장 인용 표시 */}
-                            {replyTo && replyTo.id === msg.id && (
-                              <div className="chat-reply-quote">{replyTo.content}</div>
+                            {msg.replyTo && (
+                              <div 
+                                onClick={() => handleReplySourceClick(msg.replyTo!.messageId)}
+                                onTouchStart={() => {}} // 모바일 터치 지원
+                                style={{
+                                  background: `linear-gradient(135deg, #F8F4FF 0%, #F3E8FF 100%)`,
+                                  border: `3px solid #8A55CC`,
+                                  borderRadius: '16px',
+                                  padding: '16px 20px',
+                                  marginBottom: '12px',
+                                  fontSize: '13px',
+                                  color: '#555',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.25s ease',
+                                  userSelect: 'none',
+                                  boxShadow: '0 4px 16px rgba(138, 85, 204, 0.15)',
+                                  position: 'relative',
+                                  overflow: 'visible'
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (!isMobileView) {
+                                    e.currentTarget.style.background = `linear-gradient(135deg, #F3E8FF 0%, #E5DAF5 100%)`;
+                                    e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
+                                    e.currentTarget.style.boxShadow = '0 8px 24px rgba(138, 85, 204, 0.25)';
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (!isMobileView) {
+                                    e.currentTarget.style.background = `linear-gradient(135deg, #F8F4FF 0%, #F3E8FF 100%)`;
+                                    e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                                    e.currentTarget.style.boxShadow = '0 4px 16px rgba(138, 85, 204, 0.15)';
+                                  }
+                                }}
+                                onTouchEnd={(e) => {
+                                  // 모바일에서 터치 피드백
+                                  e.currentTarget.style.background = `linear-gradient(135deg, #E5DAF5 0%, #D6C7E8 100%)`;
+                                  setTimeout(() => {
+                                    e.currentTarget.style.background = `linear-gradient(135deg, #F8F4FF 0%, #F3E8FF 100%)`;
+                                  }, 150);
+                                }}
+                              >
+                                {/* 답장 깊이 인디케이터 */}
+                                {(replyDepth.get(msg.id) || 0) > 1 && (() => {
+                                  const depth = replyDepth.get(msg.id) || 0;
+                                  const isMaxDepth = depth >= 10;
+                                  
+                                  return (
+                                    <div style={{
+                                      position: 'absolute',
+                                      top: '8px',
+                                      right: '8px',
+                                      background: isMaxDepth ? 'rgba(245, 158, 11, 0.2)' : 'rgba(138, 85, 204, 0.2)',
+                                      borderRadius: '12px',
+                                      padding: '2px 6px',
+                                      fontSize: '10px',
+                                      fontWeight: '600',
+                                      color: isMaxDepth ? '#F59E0B' : '#8A55CC',
+                                      border: isMaxDepth ? '1px solid rgba(245, 158, 11, 0.3)' : 'none'
+                                    }}>
+                                      {isMaxDepth ? 'MAX' : `L${depth}`}
+                                    </div>
+                                  );
+                                })()}
+                                
+                                <div style={{
+                                  fontSize: '13px',
+                                  fontWeight: '800',
+                                  color: 'white',
+                                  marginBottom: '8px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                  background: '#8A55CC',
+                                  padding: '6px 12px',
+                                  borderRadius: '8px',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.5px',
+                                  boxShadow: '0 2px 6px rgba(138, 85, 204, 0.3)'
+                                }}>
+                                  <CornerUpLeft size={14} strokeWidth={3} color="white" />
+                                  <span>💬 {msg.replyTo.senderNickname}에게 답장</span>
+                                  {(replyDepth.get(msg.id) || 0) > 0 && (
+                                    <div style={{
+                                      width: '5px',
+                                      height: '5px',
+                                      borderRadius: '50%',
+                                      background: 'white',
+                                      opacity: 0.8
+                                    }} />
+                                  )}
+                                </div>
+                                <div style={{
+                                  background: 'linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%)',
+                                  border: '2px solid #E5DAF5',
+                                  borderRadius: '8px',
+                                  padding: '12px 14px',
+                                  fontSize: '14px',
+                                  lineHeight: '1.4',
+                                  color: '#374151',
+                                  fontWeight: '500',
+                                  position: 'relative',
+                                  marginTop: '4px',
+                                  boxShadow: '0 1px 4px rgba(138, 85, 204, 0.1)'
+                                }}>
+                                  <div style={{
+                                    position: 'absolute',
+                                    top: '-6px',
+                                    left: '12px',
+                                    background: '#8A55CC',
+                                    color: 'white',
+                                    fontSize: '10px',
+                                    fontWeight: '700',
+                                    padding: '2px 6px',
+                                    borderRadius: '6px',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.5px'
+                                  }}>
+                                    📝 원본
+                                  </div>
+                                  <div style={{ marginTop: '4px' }}>
+                                    "{msg.replyTo.content.length > 50 
+                                      ? msg.replyTo.content.substring(0, 50) + '...' 
+                                      : msg.replyTo.content}"
+                                  </div>
+                                </div>
+                              </div>
                             )}
                             
-                            <div className="chat-message-content">{msg.content}</div>
+                            <div 
+                              className="chat-message-content"
+                              style={{
+                                wordBreak: 'break-word',
+                                overflowWrap: 'anywhere',
+                                whiteSpace: 'pre-wrap',
+                                hyphens: 'auto',
+                                width: '100%',
+                                maxWidth: '100%'
+                              }}
+                            >
+                              <span style={{
+                                fontFamily: msg.content === '(삭제된 내용입니다)' ? 'monospace, "Courier New", Courier' : 'inherit',
+                                fontStyle: msg.content === '(삭제된 내용입니다)' ? 'italic' : 'normal',
+                                fontWeight: msg.content === '(삭제된 내용입니다)' ? '500' : 'normal'
+                              }}>
+                              {msg.content}
+                              </span>
+                            </div>
+                            
+                            {/* 답장 카운트 표시 */}
+                            {getReplyCount(msg.id, currentMessages) > 0 && (
+                              <div style={{
+                                marginTop: '8px',
+                                fontSize: '11px',
+                                color: '#8A55CC',
+                                fontWeight: '500',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                opacity: 0.8
+                              }}>
+                                <MessageSquare size={12} strokeWidth={2} />
+                                <span>답장 {getReplyCount(msg.id, currentMessages)}개</span>
+                              </div>
+                            )}
+                            
+                            {/* 호버/터치 시 나타나는 버튼들 */}
+                            {((isMobileView && mobileReactionMessageId === msg.id) || (!isMobileView && hoveredMessageId === msg.id)) && (
+                              <div 
+                                className="message-hover-buttons"
+                                style={{
+                                  position: 'absolute',
+                                  top: '-45px',
+                                  [msg.fromUid === user.uid ? 'right' : 'left']: '-10px',
+                                  display: 'flex',
+                                  gap: '4px',
+                                  background: 'rgba(255, 255, 255, 0.98)',
+                                  backdropFilter: 'blur(15px)',
+                                  borderRadius: '25px',
+                                  padding: '8px 12px',
+                                  boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15), 0 2px 10px rgba(0, 0, 0, 0.1)',
+                                  border: '1px solid rgba(232, 221, 208, 0.4)',
+                                  zIndex: 9999
+                                }}
+                              >
+                                {/* 답장 버튼 */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleReply(msg);
+                                  }}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    borderRadius: '50%',
+                                    width: '36px',
+                                    height: '36px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                    fontSize: '14px',
+                                    transition: 'background 0.2s ease'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = 'rgba(139, 69, 19, 0.1)';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'none';
+                                  }}
+                                >
+                                  <CornerUpLeft size={18} color="#8B4513" strokeWidth={2.5} />
+                                </button>
+                                
+                                {/* 이모지 리액션 버튼들 */}
+                                {['❤️', '😂', '👍', '😮', '😢', '👏'].map((emoji) => (
+                                  <button
+                                    key={emoji}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleReaction(msg, emoji);
+                                    }}
+                                    style={{
+                                      background: 'none',
+                                      border: 'none',
+                                      borderRadius: '50%',
+                                      width: '36px',
+                                      height: '36px',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      cursor: 'pointer',
+                                      fontSize: '16px',
+                                      transition: 'transform 0.2s ease, background 0.2s ease'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.transform = 'scale(1.2)';
+                                      e.currentTarget.style.background = 'rgba(139, 69, 19, 0.1)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.transform = 'scale(1)';
+                                      e.currentTarget.style.background = 'none';
+                                    }}
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
                             
                             {/* 리액션 선택창을 fixed 위치로 배치 */}
                             {showReactionPicker && reactionTarget === msg.id && (
@@ -1473,29 +2667,22 @@ const isMobile = isMobileView;
                             )}
                           </div>
                           
-                          {/* 시간 표시 및 읽음 상태 버튼 */}
+
+                        </div>
+                      )}
+                      
+                      {/* 시간 표시 - 말풍선 하단 좌측에 위치 */}
+                      {msg.fromUid !== 'system' && (
                           <div style={{
-                            display: 'flex',
-                            flexDirection: msg.fromUid === user.uid ? 'row' : 'row-reverse',
-                            alignItems: 'center',
-                            gap: '4px',
+                          alignSelf: msg.fromUid === user.uid ? 'flex-end' : 'flex-start',
                             fontSize: '11px',
                             color: '#999',
-                            whiteSpace: 'nowrap',
-                            marginBottom: '0px',
-                            flexShrink: 0,
-                            minWidth: '45px',
-                            paddingLeft: msg.fromUid === user.uid ? '8px' : '0',
-                            paddingRight: msg.fromUid === user.uid ? '0' : '8px'
-                          }}>
-                            <span style={{
-                              textAlign: msg.fromUid === user.uid ? 'left' : 'right'
+                          marginTop: '2px',
+                          marginBottom: '4px',
+                          paddingLeft: msg.fromUid === user.uid ? '0' : '4px',
+                          paddingRight: msg.fromUid === user.uid ? '4px' : '0'
                             }}>
                               {currDate.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                            </span>
-                            
-
-                          </div>
                         </div>
                       )}
                       
@@ -1581,25 +2768,68 @@ const isMobile = isMobileView;
                 />
                 <Paperclip size={isMobileView ? 18 : 20} />
               </label>
-              <input
-                type="text"
+              <textarea
                 value={newMessage}
-                onChange={e => setNewMessage(e.target.value)}
-                placeholder="메시지를 입력하세요..."
-                onKeyDown={e => { if (e.key === 'Enter') filePreview || fileName ? handleSendWithFile() : handleSend(); }}
+                onChange={e => {
+                  setNewMessage(e.target.value);
+                  // 타이핑 인디케이터 (단순화된 버전)
+                  if (e.target.value.length > 0) {
+                    console.log('사용자가 타이핑 중...');
+                  }
+                }}
+                placeholder="메시지를 입력하세요"
+                onKeyDown={handleMessageKeyDown}
                 onCompositionStart={() => {}}
                 onCompositionEnd={() => {}}
                 onCompositionUpdate={() => {}}
                 spellCheck={false}
                 autoComplete="off"
+                rows={1}
+                aria-label={isAnnouncementMode ? "공지사항 입력창" : "메시지 입력창"}
+                aria-describedby="message-input-help"
+                disabled={!user || (isAnnouncementMode && bannedUsers.includes(user.uid))}
                 style={{ 
                   flex: 1, 
                   minWidth: 0,
-                  boxSizing: 'border-box'
+                  boxSizing: 'border-box',
+                  resize: 'none',
+                  overflow: 'auto',
+                  minHeight: '38px',
+                  maxHeight: '120px',
+                  lineHeight: '1.4'
+                }}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  target.style.height = Math.min(target.scrollHeight, 120) + 'px';
                 }}
               />
-              <button onClick={filePreview || fileName ? handleSendWithFile : handleSend} className="send-btn">
+              <div id="message-input-help" style={{ display: 'none' }}>
+                Enter로 메시지 전송, Shift+Enter로 줄바꿈, Ctrl+K로 채팅방 검색
+              </div>
+              <button 
+                onClick={filePreview || fileName ? handleSendWithFile : handleSend} 
+                className="send-btn"
+                disabled={isSending || isUploading}
+                aria-label={`메시지 전송 ${isSending || isUploading ? '(전송 중...)' : ''}`}
+                title="메시지 전송 (Enter 또는 Ctrl+Enter)"
+                style={{
+                  opacity: (isSending || isUploading) ? 0.6 : 1,
+                  cursor: (isSending || isUploading) ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {(isSending || isUploading) ? (
+                  <div style={{
+                    width: isMobileView ? 18 : 20,
+                    height: isMobileView ? 18 : 20,
+                    border: '2px solid transparent',
+                    borderTop: '2px solid currentColor',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                  }} />
+                ) : (
                 <Send size={isMobileView ? 18 : 20} />
+                )}
               </button>
             </div>
             {/* 파일 미리보기 */}
@@ -1617,7 +2847,62 @@ const isMobile = isMobileView;
             {/* 답장 인용 입력창 */}
             {replyTo && (
               <div className="chat-reply-bar">
-                <span className="chat-reply-label">답장:</span> {replyTo.content}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {/* 답장 대상자 - 매우 눈에 띄게 */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 12px',
+                    background: '#8A55CC',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontWeight: '800',
+                    fontSize: '16px',
+                    boxShadow: '0 2px 8px rgba(138, 85, 204, 0.3)'
+                  }}>
+                    <CornerUpLeft size={18} strokeWidth={3} color="white" />
+                    <span>💬 {replyTo.fromNickname || '사용자'}에게 답장</span>
+                  </div>
+                  
+                  {/* 원본 메시지 - 완전히 다른 색상으로 명확하게 구분 */}
+                  <div style={{
+                    padding: '16px 20px',
+                    background: 'linear-gradient(135deg, #374151 0%, #4B5563 100%)',
+                    borderRadius: '12px',
+                    border: '3px solid #374151',
+                    position: 'relative',
+                    boxShadow: '0 4px 12px rgba(55, 65, 81, 0.3)'
+                  }}>
+                    <div style={{
+                      position: 'absolute',
+                      top: '-8px',
+                      left: '16px',
+                      background: '#374151',
+                      color: 'white',
+                      padding: '4px 12px',
+                      borderRadius: '12px',
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      textTransform: 'uppercase',
+                      letterSpacing: '1px'
+                    }}>
+                      📝 원본 메시지
+                    </div>
+                    <div style={{
+                      color: '#F9FAFB',
+                      fontSize: '16px',
+                      lineHeight: '1.5',
+                      fontWeight: '500',
+                      marginTop: '8px',
+                      fontStyle: 'italic'
+                    }}>
+                      "{replyTo.content.length > 60 
+                        ? replyTo.content.substring(0, 60) + '...' 
+                        : replyTo.content}"
+                    </div>
+                  </div>
+                </div>
                 <button className="chat-reply-cancel" onClick={()=>setReplyTo(null)}>×</button>
               </div>
             )}
@@ -1627,7 +2912,25 @@ const isMobile = isMobileView;
                 <div className="chat-report-content">
                   <h3>메시지 신고</h3>
                   <div className="chat-report-quote">{reportTarget.content}</div>
-                  <textarea value={reportReason} onChange={e=>setReportReason(e.target.value)} placeholder="신고 사유를 입력하세요..."/>
+                  <textarea 
+                    value={reportReason} 
+                    onChange={e=>setReportReason(e.target.value)} 
+                    placeholder="신고 사유를 입력하세요... (Shift+Enter로 줄바꿈)"
+                    rows={3}
+                    style={{
+                      resize: 'none',
+                      overflow: 'hidden',
+                      minHeight: '80px',
+                      maxHeight: '200px',
+                      lineHeight: '1.4',
+                      fontFamily: 'inherit'
+                    }}
+                    onInput={(e) => {
+                      const target = e.target as HTMLTextAreaElement;
+                      target.style.height = 'auto';
+                      target.style.height = Math.min(Math.max(target.scrollHeight, 80), 200) + 'px';
+                    }}
+                  />
                   <div className="chat-report-actions">
                     <button onClick={()=>setReportTarget(null)}>취소</button>
                     <button onClick={handleReportSubmit} disabled={!reportReason.trim()}>신고</button>
@@ -1658,37 +2961,54 @@ const isMobile = isMobileView;
                           <span className="reaction-detail-count">{reaction.users.length}명</span>
                         </div>
                         <div className="reaction-detail-users">
-                          {reaction.users.map((userId: string, userIndex: number) => (
-                            <div key={userIndex} className="reaction-detail-user">
-                              <div className="reaction-user-profile">
-                                {userProfiles[userId]?.profileImageUrl ? (
-                                  <img 
-                                    src={userProfiles[userId].profileImageUrl} 
-                                    alt="profile"
-                                    style={{width: '24px', height: '24px', borderRadius: '50%'}}
-                                  />
-                                ) : (
-                                  <div style={{
-                                    width: '24px',
-                                    height: '24px',
-                                    borderRadius: '50%',
-                                    backgroundColor: '#8A55CC',
-                                    color: 'white',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: '12px',
-                                    fontWeight: '600'
-                                  }}>
-                                    {userProfiles[userId]?.nickname?.charAt(0) || '?'}
-                                  </div>
-                                )}
+                          {reaction.users.map((userId: string, userIndex: number) => {
+                            // 사용자 정보 안전하게 가져오기
+                            const userProfile = userProfiles[userId] || 
+                              announcementParticipants.find(p => p.uid === userId) ||
+                              {};
+                            
+                            const nickname = userProfile.nickname || 
+                              (userId === user?.uid ? user.nickname : null) ||
+                              `사용자${userId.slice(-4)}`;
+                            
+                            const profileImageUrl = userProfile.profileImageUrl || 
+                              (userId === user?.uid ? user.profileImageUrl : null);
+                              
+                            return (
+                              <div key={userIndex} className="reaction-detail-user">
+                                <div className="reaction-user-profile">
+                                  {profileImageUrl ? (
+                                    <img 
+                                      src={profileImageUrl} 
+                                      alt="profile"
+                                      style={{width: '24px', height: '24px', borderRadius: '50%'}}
+                                    />
+                                  ) : (
+                                    <div style={{
+                                      width: '24px',
+                                      height: '24px',
+                                      borderRadius: '50%',
+                                      backgroundColor: '#8A55CC',
+                                      color: 'white',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: '12px',
+                                      fontWeight: '600'
+                                    }}>
+                                      {nickname?.charAt(0) || '?'}
+                                    </div>
+                                  )}
+                                </div>
+                                <span className="reaction-user-nickname">
+                                  {nickname}
+                                  {userId === user?.uid && (
+                                    <span style={{color: '#8A55CC', fontSize: '11px', marginLeft: '4px'}}>(나)</span>
+                                  )}
+                                </span>
                               </div>
-                              <span className="reaction-user-nickname">
-                                {userProfiles[userId]?.nickname || '알 수 없음'}
-                              </span>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     ))}
@@ -1758,25 +3078,88 @@ const isMobile = isMobileView;
                     {/* 읽음 상태 */}
                     {analysisData.readStatus && (
                       <div className="analysis-section">
-                        <h4>👀 읽음 상태</h4>
+                        <h4 style={{
+                          color: '#374151',
+                          fontSize: '16px',
+                          fontWeight: '700',
+                          marginBottom: '12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}>
+                          👀 읽음 상태 분석
+                        </h4>
                         <div className="analysis-read-status">
                           <div 
                             className="read-status-summary clickable" 
                             onClick={() => setShowReadUsers(!showReadUsers)}
                             title="클릭하여 상세 목록 보기"
+                            style={{
+                              cursor: 'pointer',
+                              background: 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)',
+                              border: '1px solid #E2E8F0',
+                              borderRadius: '10px',
+                              padding: '16px',
+                              transition: 'all 0.2s ease',
+                              marginBottom: '16px'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = 'linear-gradient(135deg, #F1F5F9 0%, #E2E8F0 100%)';
+                              e.currentTarget.style.transform = 'translateY(-1px)';
+                              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)';
+                              e.currentTarget.style.transform = 'translateY(0)';
+                              e.currentTarget.style.boxShadow = 'none';
+                            }}
                           >
-                            <div className="read-status-bar">
+                            <div className="read-status-bar" style={{
+                              width: '100%',
+                              height: '8px',
+                              backgroundColor: '#E5E7EB',
+                              borderRadius: '4px',
+                              overflow: 'hidden',
+                              marginBottom: '12px'
+                            }}>
                               <div 
                                 className="read-status-fill" 
-                                style={{width: `${analysisData.readStatus.readPercentage}%`}}
+                                style={{
+                                  width: `${analysisData.readStatus.readPercentage}%`,
+                                  height: '100%',
+                                  background: 'linear-gradient(90deg, #10B981 0%, #059669 100%)',
+                                  borderRadius: '4px',
+                                  transition: 'width 0.3s ease'
+                                }}
                               ></div>
                             </div>
-                            <div className="read-status-info">
-                              <span className="read-status-text">
-                                {analysisData.readStatus.readCount}/{analysisData.readStatus.totalCount}명 읽음 
+                            <div className="read-status-info" style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center'
+                            }}>
+                              <span className="read-status-text" style={{
+                                fontSize: '14px',
+                                fontWeight: '600',
+                                color: '#374151'
+                              }}>
+                                📊 읽음: {analysisData.readStatus.readCount}명 | 미읽음: {analysisData.readStatus.totalCount - analysisData.readStatus.readCount}명
+                                <span style={{
+                                  color: '#10B981',
+                                  marginLeft: '8px',
+                                  fontSize: '13px'
+                                }}>
                                 ({analysisData.readStatus.readPercentage}%)
                               </span>
-                              <span className="read-status-toggle">
+                              </span>
+                              <span className="read-status-toggle" style={{
+                                fontSize: '12px',
+                                color: '#6B7280',
+                                fontWeight: '500',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}>
                                 {showReadUsers ? '▼ 숨기기' : '▶ 상세보기'}
                               </span>
                             </div>
@@ -1784,20 +3167,189 @@ const isMobile = isMobileView;
                           
                           {/* 사용자 목록 (토글 가능) */}
                           {showReadUsers && (
-                            <>
+                            <div style={{
+                              background: '#FAFBFC',
+                              borderRadius: '12px',
+                              padding: '16px',
+                              border: '1px solid #E5E7EB'
+                            }}>
+                              {/* 전체 상태 요약 */}
+                              <div style={{
+                                background: 'white',
+                                borderRadius: '8px',
+                                padding: '12px',
+                                marginBottom: '16px',
+                                border: '1px solid #E5E7EB',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center'
+                              }}>
+                                <div style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '16px'
+                                }}>
+                                  <div style={{ textAlign: 'center' }}>
+                                    <div style={{ fontSize: '20px', fontWeight: '700', color: '#10B981' }}>
+                                      {analysisData.readStatus.readUsers?.length || 0}
+                                    </div>
+                                    <div style={{ fontSize: '11px', color: '#6B7280', fontWeight: '500' }}>
+                                      읽음
+                                    </div>
+                                  </div>
+                                  <div style={{
+                                    width: '1px',
+                                    height: '30px',
+                                    background: '#E5E7EB'
+                                  }} />
+                                  <div style={{ textAlign: 'center' }}>
+                                    <div style={{ fontSize: '20px', fontWeight: '700', color: '#EF4444' }}>
+                                      {analysisData.readStatus.unreadUsers?.length || 0}
+                                    </div>
+                                    <div style={{ fontSize: '11px', color: '#6B7280', fontWeight: '500' }}>
+                                      미읽음
+                                    </div>
+                                  </div>
+                                </div>
+                                <div style={{
+                                  fontSize: '24px',
+                                  color: analysisData.readStatus.readPercentage >= 80 ? '#10B981' : 
+                                         analysisData.readStatus.readPercentage >= 50 ? '#F59E0B' : '#EF4444'
+                                }}>
+                                  {analysisData.readStatus.readPercentage >= 80 ? '✅' : 
+                                   analysisData.readStatus.readPercentage >= 50 ? '⚠️' : '❌'}
+                                </div>
+                              </div>
+
                               {/* 읽은 사용자 목록 */}
-                              {analysisData.readStatus.readUsers && analysisData.readStatus.readUsers.length > 0 && (
                                 <div className="read-users-section">
-                                  <h5>✅ 읽은 사용자 ({analysisData.readStatus.readUsers.length}명)</h5>
-                                  <div className="read-users-list">
-                                    {analysisData.readStatus.readUsers.map((user: any, index: number) => (
-                                      <div key={index} className="read-user-item read">
-                                        <div className="user-info">
-                                          <span className="user-nickname">{user.nickname}</span>
-                                          <span className="user-role">{user.role || '일반'}</span>
+                                <h5 style={{
+                                  color: '#10B981',
+                                  margin: '16px 0 12px 0',
+                                  fontSize: '14px',
+                                  fontWeight: '700',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px'
+                                }}>
+                                  ✅ 읽은 사용자 ({analysisData.readStatus.readUsers?.length || 0}명)
+                                </h5>
+                                
+                                {analysisData.readStatus.readUsers && analysisData.readStatus.readUsers.length > 0 ? (
+                                  <div className="read-users-list" style={{
+                                    maxHeight: '200px',
+                                    overflowY: 'auto',
+                                    background: '#F0FDF4',
+                                    borderRadius: '8px',
+                                    padding: '8px',
+                                    border: '1px solid #BBF7D0'
+                                  }}>
+                                    {analysisData.readStatus.readUsers.map((readUser: any, index: number) => {
+                                      // 사용자 정보 안전하게 가져오기
+                                      const userProfile = userProfiles[readUser.uid] || 
+                                        announcementParticipants.find(p => p.uid === readUser.uid) ||
+                                        {};
+                                      
+                                      const nickname = readUser.nickname || userProfile.nickname || 
+                                        (readUser.uid === user?.uid ? user.nickname : null) ||
+                                        `사용자${readUser.uid?.slice(-4) || ''}`;
+                                      
+                                      const role = readUser.role || userProfile.role || '일반';
+                                      const profileImageUrl = readUser.profileImageUrl || userProfile.profileImageUrl || 
+                                        (readUser.uid === user?.uid ? user.profileImageUrl : null);
+                                      
+                                      return (
+                                        <div key={index} className="read-user-item read" style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'space-between',
+                                          padding: '10px 12px',
+                                          margin: '4px 0',
+                                          background: 'white',
+                                          borderRadius: '6px',
+                                          border: '1px solid #D1FAE5',
+                                          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
+                                        }}>
+                                          <div className="user-info" style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '10px',
+                                            flex: 1
+                                          }}>
+                                            {/* 프로필 이미지 또는 아바타 */}
+                                            <div style={{
+                                              width: '32px',
+                                              height: '32px',
+                                              borderRadius: '50%',
+                                              overflow: 'hidden',
+                                              backgroundColor: '#10B981',
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              justifyContent: 'center',
+                                              flexShrink: 0
+                                            }}>
+                                              {profileImageUrl ? (
+                                                <img 
+                                                  src={profileImageUrl} 
+                                                  alt="프로필" 
+                                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                />
+                                              ) : (
+                                                <span style={{ 
+                                                  color: 'white', 
+                                                  fontWeight: 'bold',
+                                                  fontSize: '14px'
+                                                }}>
+                                                  {nickname?.charAt(0) || '?'}
+                                                </span>
+                                              )}
                                         </div>
-                                        <span className="read-time">
-                                          {user.readAt ? new Date(user.readAt.seconds * 1000).toLocaleString('ko-KR', {
+                                            
+                                            <div style={{ flex: 1 }}>
+                                              <div style={{
+                                                display: 'flex',
+                                                alignItems: 'center', 
+                                                gap: '6px',
+                                                marginBottom: '2px'
+                                              }}>
+                                                <span className="user-nickname" style={{
+                                                  fontWeight: '600',
+                                                  color: '#374151',
+                                                  fontSize: '13px'
+                                                }}>
+                                                  {nickname}
+                                                  {readUser.uid === user?.uid && (
+                                                    <span style={{color: '#10B981', fontSize: '11px', marginLeft: '4px'}}>(나)</span>
+                                                  )}
+                                                </span>
+                                                {role && role !== '일반' && (
+                                                  <span className="user-role" style={{
+                                                    fontSize: '10px',
+                                                    padding: '2px 6px',
+                                                    borderRadius: '8px',
+                                                    backgroundColor: role === '리더' ? '#FFD700' : 
+                                                                  role === '운영진' ? '#FF6B35' : 
+                                                                  role === '부운영진' ? '#8A55CC' : '#E5E7EB',
+                                                    color: role === '리더' ? '#8B5A00' :
+                                                          role === '운영진' ? 'white' :
+                                                          role === '부운영진' ? 'white' : '#6B7280',
+                                                    fontWeight: '600'
+                                                  }}>
+                                                    {role}
+                                                  </span>
+                                                )}
+                                              </div>
+                                            </div>
+                                          </div>
+                                          
+                                          <span className="read-time" style={{
+                                            fontSize: '11px',
+                                            color: '#10B981',
+                                            fontWeight: '500',
+                                            whiteSpace: 'nowrap',
+                                            marginLeft: '8px'
+                                          }}>
+                                            {readUser.readAt ? new Date(readUser.readAt.seconds * 1000).toLocaleString('ko-KR', {
                                             month: 'short',
                                             day: 'numeric',
                                             hour: '2-digit',
@@ -1805,29 +3357,165 @@ const isMobile = isMobileView;
                                           }) : '시간 미상'}
                                         </span>
                                       </div>
-                                    ))}
+                                      );
+                                    })}
+                                  </div>
+                                ) : (
+                                  <div style={{
+                                    background: '#F9FAFB',
+                                    borderRadius: '8px',
+                                    padding: '16px',
+                                    textAlign: 'center',
+                                    color: '#6B7280',
+                                    border: '1px solid #E5E7EB'
+                                  }}>
+                                    <div style={{ fontSize: '24px', marginBottom: '8px' }}>📭</div>
+                                    <div style={{ fontSize: '13px', fontWeight: '500' }}>
+                                      아직 아무도 이 메시지를 읽지 않았습니다.
                                   </div>
                                 </div>
                               )}
+                              </div>
                               
                               {/* 안 읽은 사용자 목록 */}
                               {analysisData.readStatus.unreadUsers && analysisData.readStatus.unreadUsers.length > 0 && (
                                 <div className="read-users-section">
-                                  <h5>❌ 안 읽은 사용자 ({analysisData.readStatus.unreadUsers.length}명)</h5>
-                                  <div className="read-users-list">
-                                    {analysisData.readStatus.unreadUsers.map((user: any, index: number) => (
-                                      <div key={index} className="read-user-item unread">
-                                        <div className="user-info">
-                                          <span className="user-nickname">{user.nickname}</span>
-                                          <span className="user-role">{user.role || '일반'}</span>
+                                  <h5 style={{
+                                    color: '#EF4444',
+                                    margin: '16px 0 12px 0',
+                                    fontSize: '14px',
+                                    fontWeight: '700',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                  }}>
+                                    ❌ 안 읽은 사용자 ({analysisData.readStatus.unreadUsers.length}명)
+                                  </h5>
+                                  <div className="read-users-list" style={{
+                                    maxHeight: '200px',
+                                    overflowY: 'auto',
+                                    background: '#FEF2F2',
+                                    borderRadius: '8px',
+                                    padding: '8px',
+                                    border: '1px solid #FECACA'
+                                  }}>
+                                    {analysisData.readStatus.unreadUsers.map((unreadUser: any, index: number) => {
+                                      // 사용자 정보 안전하게 가져오기
+                                      const userProfile = userProfiles[unreadUser.uid] || 
+                                        announcementParticipants.find(p => p.uid === unreadUser.uid) ||
+                                        {};
+                                      
+                                      const nickname = unreadUser.nickname || userProfile.nickname || 
+                                        (unreadUser.uid === user?.uid ? user.nickname : null) ||
+                                        `사용자${unreadUser.uid?.slice(-4) || ''}`;
+                                      
+                                      const role = unreadUser.role || userProfile.role || '일반';
+                                      const profileImageUrl = unreadUser.profileImageUrl || userProfile.profileImageUrl || 
+                                        (unreadUser.uid === user?.uid ? user.profileImageUrl : null);
+                                      
+                                      return (
+                                        <div key={index} className="read-user-item unread" style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'space-between',
+                                          padding: '10px 12px',
+                                          margin: '4px 0',
+                                          background: 'white',
+                                          borderRadius: '6px',
+                                          border: '1px solid #FCA5A5',
+                                          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
+                                        }}>
+                                          <div className="user-info" style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '10px',
+                                            flex: 1
+                                          }}>
+                                            {/* 프로필 이미지 또는 아바타 */}
+                                            <div style={{
+                                              width: '32px',
+                                              height: '32px',
+                                              borderRadius: '50%',
+                                              overflow: 'hidden',
+                                              backgroundColor: '#EF4444',
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              justifyContent: 'center',
+                                              flexShrink: 0
+                                            }}>
+                                              {profileImageUrl ? (
+                                                <img 
+                                                  src={profileImageUrl} 
+                                                  alt="프로필" 
+                                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                />
+                                              ) : (
+                                                <span style={{ 
+                                                  color: 'white', 
+                                                  fontWeight: 'bold',
+                                                  fontSize: '14px'
+                                                }}>
+                                                  {nickname?.charAt(0) || '?'}
+                                                </span>
+                                              )}
                                         </div>
-                                        <span className="unread-status">미읽음</span>
+                                            
+                                            <div style={{ flex: 1 }}>
+                                              <div style={{
+                                                display: 'flex',
+                                                alignItems: 'center', 
+                                                gap: '6px',
+                                                marginBottom: '2px'
+                                              }}>
+                                                <span className="user-nickname" style={{
+                                                  fontWeight: '600',
+                                                  color: '#374151',
+                                                  fontSize: '13px'
+                                                }}>
+                                                  {nickname}
+                                                  {unreadUser.uid === user?.uid && (
+                                                    <span style={{color: '#EF4444', fontSize: '11px', marginLeft: '4px'}}>(나)</span>
+                                                  )}
+                                                </span>
+                                                {role && role !== '일반' && (
+                                                  <span className="user-role" style={{
+                                                    fontSize: '10px',
+                                                    padding: '2px 6px',
+                                                    borderRadius: '8px',
+                                                    backgroundColor: role === '리더' ? '#FFD700' : 
+                                                                  role === '운영진' ? '#FF6B35' : 
+                                                                  role === '부운영진' ? '#8A55CC' : '#E5E7EB',
+                                                    color: role === '리더' ? '#8B5A00' :
+                                                          role === '운영진' ? 'white' :
+                                                          role === '부운영진' ? 'white' : '#6B7280',
+                                                    fontWeight: '600'
+                                                  }}>
+                                                    {role}
+                                                  </span>
+                                                )}
                                       </div>
-                                    ))}
+                                            </div>
+                                          </div>
+                                          
+                                          <span className="unread-status" style={{
+                                            fontSize: '11px',
+                                            color: '#EF4444',
+                                            fontWeight: '600',
+                                            background: '#FEE2E2',
+                                            padding: '4px 8px',
+                                            borderRadius: '12px',
+                                            whiteSpace: 'nowrap',
+                                            marginLeft: '8px'
+                                          }}>
+                                            미읽음
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 </div>
                               )}
-                            </>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -1964,6 +3652,7 @@ const isMobile = isMobileView;
                         }}
                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'}
                         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        onKeyDown={(e) => handleRoomKeyDown(e, participant)}
                         >
                           <div style={{
                             width: '40px',
@@ -2079,6 +3768,7 @@ const isMobile = isMobileView;
         readStatus={readStatusModal.readStatus}
         messageContent={readStatusModal.messageContent}
       />
+      </div>
     </div>
   );
 };

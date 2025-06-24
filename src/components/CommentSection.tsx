@@ -499,12 +499,34 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
               <MentionsInput
                 ref={mentionsInputRef}
                 value={newComment}
-                onChange={(event, newValue) => setNewComment(newValue)}
-                placeholder="댓글을 입력하세요... (@닉네임으로 태그 가능)"
-                style={mentionsStyle}
+                onChange={(event, newValue) => {
+                  setNewComment(newValue);
+                  // 자동 높이 조절
+                  setTimeout(() => {
+                    const textarea = mentionsInputRef.current?.querySelector('textarea');
+                    if (textarea) {
+                      textarea.style.height = 'auto';
+                      textarea.style.height = Math.min(Math.max(textarea.scrollHeight, 80), 200) + 'px';
+                    }
+                  }, 0);
+                }}
+                placeholder="댓글을 입력하세요... (@닉네임으로 태그 가능, Shift+Enter로 줄바꿈)"
+                style={{
+                  ...mentionsStyle,
+                  control: {
+                    ...mentionsStyle.control,
+                    minHeight: '80px',
+                    maxHeight: '200px'
+                  },
+                  input: {
+                    ...mentionsStyle.input,
+                    minHeight: '80px',
+                    maxHeight: '200px',
+                    overflow: 'auto'
+                  }
+                }}
                 allowSuggestionsAboveCursor
                 singleLine={false}
-                rows={3}
                 onBlur={e => setTimeout(() => {}, 200)}
                 onCompositionStart={() => setIsComposing(true)}
                 onCompositionEnd={() => setIsComposing(false)}
@@ -633,13 +655,26 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
               <textarea
                 value={messageContent}
                 onChange={(e) => setMessageContent(e.target.value)}
-                placeholder="쪽지 내용을 입력하세요..."
+                placeholder="쪽지 내용을 입력하세요... (Shift+Enter로 줄바꿈)"
                 className="message-textarea"
                 onCompositionStart={() => setIsComposing(true)}
                 onCompositionEnd={() => setIsComposing(false)}
                 onCompositionUpdate={() => setIsComposing(true)}
                 spellCheck={false}
                 autoComplete="off"
+                rows={4}
+                style={{
+                  resize: 'none',
+                  overflow: 'hidden',
+                  minHeight: '100px',
+                  maxHeight: '300px',
+                  lineHeight: '1.4'
+                }}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  target.style.height = Math.min(Math.max(target.scrollHeight, 100), 300) + 'px';
+                }}
               />
               <div className="message-form-actions">
                 <button

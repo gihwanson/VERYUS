@@ -416,7 +416,7 @@ const EvaluationPostList: React.FC = () => {
                   </span>
                 </div>
               </div>
-              <div className="post-content-preview" style={{ fontSize: '1.05rem', color: '#6b46c1', margin: '0.7rem 0 1.2rem 0', lineHeight: 1.7, minHeight: '2.5em', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+              <div className="post-content-preview" style={{ fontSize: '1.05rem', color: '#6b46c1', margin: '0.7rem 0 1.2rem 0', lineHeight: 1.7, minHeight: '2.5em', wordBreak: 'break-word', overflowWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
                 {post.description}
               </div>
               <div className="post-footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '1.2rem', marginTop: 'auto' }}>

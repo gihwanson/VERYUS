@@ -230,9 +230,21 @@ const RecordingPostEdit: React.FC = () => {
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="녹음에 대한 설명을 입력하세요"
+            placeholder="녹음에 대한 설명을 입력하세요 (Shift+Enter로 줄바꿈)"
             className="content-input"
             rows={4}
+            style={{
+              resize: 'none',
+              overflow: 'hidden',
+              minHeight: '100px',
+              maxHeight: '400px',
+              lineHeight: '1.4'
+            }}
+            onInput={(e) => {
+              const target = e.target as HTMLTextAreaElement;
+              target.style.height = 'auto';
+              target.style.height = Math.min(Math.max(target.scrollHeight, 100), 400) + 'px';
+            }}
           />
         </div>
 

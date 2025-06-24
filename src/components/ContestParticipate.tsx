@@ -377,9 +377,27 @@ const ContestParticipate: React.FC = () => {
                 <textarea
                   value={comment}
                   onChange={e => setComment(e.target.value)}
-                  placeholder="심사 코멘트를 입력하세요 (선택)"
-                  style={{ width: '100%', padding: 14, fontSize: 18, borderRadius: 8, border: '1px solid #E5DAF5', marginTop: 6, minHeight: 120, resize: 'vertical' }}
+                  placeholder="심사 코멘트를 입력하세요 (선택, Shift+Enter로 줄바꿈)"
+                  style={{ 
+                    width: '100%', 
+                    padding: 14, 
+                    fontSize: 18, 
+                    borderRadius: 8, 
+                    border: '1px solid #E5DAF5', 
+                    marginTop: 6, 
+                    minHeight: 120,
+                    maxHeight: 300,
+                    resize: 'none',
+                    overflow: 'hidden',
+                    lineHeight: '1.4',
+                    fontFamily: 'inherit'
+                  }}
                   disabled={!hasEvaluatableTargets}
+                  onInput={(e) => {
+                    const target = e.target as HTMLTextAreaElement;
+                    target.style.height = 'auto';
+                    target.style.height = Math.min(Math.max(target.scrollHeight, 120), 300) + 'px';
+                  }}
                 />
               </div>
               <div style={{ display: 'flex', gap: 16, justifyContent: 'center', width: '100%', flexDirection: 'row' }}>
