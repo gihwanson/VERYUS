@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import SetListManager from './SetList/SetListManager';
-import SetListCards from './SetList/SetListCards';
-import { useSetListData } from './SetList/hooks/useSetListData';
+import { useSetListData } from './hooks/useSetListData';
+import './styles.css';
 
 const SetList: React.FC = () => {
   const navigate = useNavigate();
@@ -67,11 +66,16 @@ const SetList: React.FC = () => {
         </div>
       </div>
 
-      {viewMode === 'cards' ? (
-        <SetListCards />
-      ) : (
-        <SetListManager />
-      )}
+      {/* 임시로 기본 텍스트 표시 */}
+      <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', textAlign: 'center' }}>
+        <h2 style={{ color: '#8A55CC' }}>SetList 컴포넌트 리팩토링 진행 중</h2>
+        <p>현재 {viewMode} 모드입니다.</p>
+        {activeSetList ? (
+          <p>활성 셋리스트: {activeSetList.name}</p>
+        ) : (
+          <p>활성 셋리스트가 없습니다.</p>
+        )}
+      </div>
     </div>
   );
 };

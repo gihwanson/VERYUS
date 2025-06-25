@@ -1,0 +1,263 @@
+@keyframes shimmer {
+  0% { box-shadow: 0 20px 40px rgba(138, 85, 204, 0.3); }
+  50% { box-shadow: 0 25px 50px rgba(138, 85, 204, 0.5); }
+  100% { box-shadow: 0 20px 40px rgba(138, 85, 204, 0.3); }
+}
+
+@keyframes shine {
+  0% { 
+    box-shadow: 0 20px 40px rgba(138, 85, 204, 0.4), 0 0 0 3px #8A55CC;
+  }
+  25% {
+    box-shadow: 0 20px 40px rgba(138, 85, 204, 0.6), 0 0 0 3px #8A55CC, 0 0 20px rgba(138, 85, 204, 0.7);
+  }
+  50% { 
+    box-shadow: 0 20px 40px rgba(138, 85, 204, 0.8), 0 0 0 3px #8A55CC, 0 0 30px rgba(138, 85, 204, 0.8);
+  }
+  75% {
+    box-shadow: 0 20px 40px rgba(138, 85, 204, 0.6), 0 0 0 3px #8A55CC, 0 0 20px rgba(138, 85, 204, 0.7);
+  }
+  100% { 
+    box-shadow: 0 20px 40px rgba(138, 85, 204, 0.4), 0 0 0 3px #8A55CC;
+  }
+}
+
+@keyframes sparkle {
+  0% {
+    transform: translateX(-100%) translateY(-100%) rotate(45deg);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%) translateY(100%) rotate(45deg);
+    opacity: 0;
+  }
+}
+
+@keyframes pulse {
+  0% { 
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  100% { 
+    transform: translate(-50%, -50%) scale(1.05);
+    opacity: 0.9;
+  }
+}
+
+@keyframes readyToComplete {
+  0% { 
+    transform: scale(1) rotate(0deg);
+    box-shadow: 0 25px 50px rgba(16, 185, 129, 0.6), 0 0 0 4px #10B981, 0 0 30px rgba(16, 185, 129, 0.3);
+  }
+  100% { 
+    transform: scale(1.02) rotate(1deg);
+    box-shadow: 0 30px 60px rgba(16, 185, 129, 0.8), 0 0 0 5px #10B981, 0 0 40px rgba(16, 185, 129, 0.4);
+  }
+}
+
+@keyframes nextCardGlow {
+  0% { 
+    box-shadow: 0 16px 32px rgba(6, 182, 212, 0.3), 0 0 0 3px #06B6D4;
+  }
+  25% {
+    box-shadow: 0 16px 32px rgba(6, 182, 212, 0.5), 0 0 0 3px #06B6D4, 0 0 20px rgba(6, 182, 212, 0.6);
+  }
+  50% { 
+    box-shadow: 0 16px 32px rgba(6, 182, 212, 0.7), 0 0 0 3px #06B6D4, 0 0 30px rgba(6, 182, 212, 0.7);
+  }
+  75% {
+    box-shadow: 0 16px 32px rgba(6, 182, 212, 0.5), 0 0 0 3px #06B6D4, 0 0 20px rgba(6, 182, 212, 0.6);
+  }
+  100% { 
+    box-shadow: 0 16px 32px rgba(6, 182, 212, 0.3), 0 0 0 3px #06B6D4;
+  }
+}
+
+@keyframes nextCardWave {
+  0% {
+    transform: translateX(-120%) translateY(-120%) rotate(45deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
+  90% {
+    opacity: 0.3;
+  }
+  100% {
+    transform: translateX(120%) translateY(120%) rotate(45deg);
+    opacity: 0;
+  }
+}
+
+.main-card-area {
+  position: relative;
+  height: 350px;
+  overflow: hidden;
+  touch-action: pan-y;
+  transition: all 0.2s ease;
+}
+
+.available-songs-container {
+  display: flex;
+  overflow-x: auto;
+  gap: 12px;
+  padding: 10px 0;
+  scrollbar-width: thin;
+  scrollbar-color: #E5DAF5 transparent;
+}
+
+.available-song-card {
+  min-width: 200px;
+  height: 120px;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.available-song-card.dragging {
+  transform: scale(1.1) rotate(5deg);
+  opacity: 0.3;
+  z-index: 1000;
+  pointer-events: none;
+  touch-action: none;
+}
+
+.available-song-card.already-added {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.setlist-form-container {
+  background: #F6F2FF;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 30px;
+}
+
+.setlist-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 4px 16px rgba(138, 85, 204, 0.1);
+}
+
+.setlist-card.active {
+  border: 2px solid #8A55CC;
+}
+
+.setlist-card:not(.active) {
+  border: 1px solid #E5DAF5;
+}
+
+.active-badge {
+  background: #10B981;
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.btn-primary {
+  background: #8A55CC;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.btn-secondary {
+  background: #E5DAF5;
+  color: #7C4DBC;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-success {
+  background: #10B981;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn-danger {
+  background: #EF4444;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #E5DAF5;
+  box-sizing: border-box;
+}
+
+.song-item {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  background-color: #FFFFFF;
+  transition: all 0.2s ease;
+}
+
+.song-number {
+  width: 30px;
+  height: 30px;
+  background: #8A55CC;
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  margin-right: 12px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 200px;
+}
+
+.grid-layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+} 

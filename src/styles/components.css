@@ -236,7 +236,7 @@
 
 /* 콘테스트 공통 카드 */
 .contest-card {
-  max-width: 800px;
+  max-width: 90vw; /* 화면의 90%를 사용하도록 수정 */
   margin: 40px auto;
   background: #fff;
   border-radius: 20px;

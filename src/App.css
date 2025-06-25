@@ -20,7 +20,7 @@ body {
   min-height: 100vh;
   margin: 0;
   padding: 0;
-  /* 각 컴포넌트에서 개별적으로 최대 너비와 정렬을 설정 */
+  /* 화면을 최대한 넓게 사용 */
 }
 
 /* Logo Animation */
@@ -54,21 +54,21 @@ body {
   }
 }
 
-/* Layout - 각 컴포넌트에서 필요에 따라 사용 */
+/* Layout - 화면을 넓게 사용 */
 .content-container {
   width: 100%;
-  padding: var(--space-lg);
-  /* max-width와 margin은 필요한 컴포넌트에서 개별적으로 설정 */
+  padding: var(--space-md);
+  /* 화면을 최대한 넓게 사용하도록 수정 */
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
   #root {
-    padding: var(--space-md);
+    padding: var(--space-sm);
   }
   
   .content-container {
-    padding: var(--space-md);
+    padding: var(--space-sm);
   }
 }
 
