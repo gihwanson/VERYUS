@@ -1,12 +1,33 @@
+/* FORCE FULL WIDTH - 강제 전체 화면 사용 */
+html, body {
+  width: 100vw !important;
+  max-width: 100vw !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.board-container {
+  width: 100vw !important;
+  max-width: 100vw !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  background: var(--primary-bg) !important;
+}
+
 /* Post Detail Layout */
 .post-detail-container {
-  width: 100%;
-  max-width: 1400px;
-  margin: 2.5rem auto 2.5rem auto;
-  padding: 0;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  margin: 0 !important;
+  padding: 8px !important;
   display: flex;
   flex-direction: column;
   gap: 2.5rem;
+  box-sizing: border-box !important;
+  background: var(--primary-bg) !important;
 }
 
 /* Navigation */
@@ -290,53 +311,60 @@
   cursor: not-allowed;
 }
 
-/* Responsive Design */
+/* 강제 전체 화면 스타일 - 모든 화면 크기에 적용 */
 @media (max-width: 900px) {
   .post-detail-container {
-    padding: 1rem;
-    margin: 1.5rem auto;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    margin: 0 !important;
+    padding: 8px !important;
+    box-sizing: border-box !important;
   }
+  
   .post-detail {
-    padding: 2rem 1.5rem;
+    margin: 0 !important;
+    padding: 1.5rem !important;
   }
+  
   .post-detail-content {
-    padding: 1.5rem 1.2rem;
+    margin: 0 !important;
+    padding: 1.5rem !important;
   }
+  
   .comment-section-container, .comments-section {
-    padding: 2rem 1.5rem;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 12px !important;
+    box-sizing: border-box !important;
   }
 }
 
 @media (max-width: 768px) {
   .post-detail-container {
-    padding: 0.5rem !important;
-    margin: 1rem auto !important;
-    max-width: 95vw !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    margin: 0 !important;
+    padding: 4px !important;
+    box-sizing: border-box !important;
   }
   
   .post-detail {
-    padding: 1.5rem 1.2rem !important;
-    border-radius: 16px !important;
+    margin: 0 !important;
+    padding: 1rem !important;
   }
   
   .post-detail-content {
-    padding: 1.5rem 1.2rem !important;
-    font-size: 1.05rem !important;
-    line-height: 1.8 !important;
-    border-radius: 12px !important;
+    margin: 0 !important;
+    padding: 1rem !important;
   }
   
   .comment-section-container, .comments-section {
-    padding: 1.5rem 1.2rem !important;
-    border-radius: 16px !important;
-  }
-  
-  .comment-form {
-    padding: 1rem 0.8rem !important;
-  }
-  
-  .comment-item {
-    padding: 1rem !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 8px !important;
+    box-sizing: border-box !important;
   }
 }
 

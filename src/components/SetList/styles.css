@@ -101,7 +101,7 @@
 
 .main-card-area {
   position: relative;
-  height: 350px;
+  height: 500px;
   overflow: hidden;
   touch-action: pan-y;
   transition: all 0.2s ease;
@@ -114,6 +114,7 @@
   padding: 10px 0;
   scrollbar-width: thin;
   scrollbar-color: #E5DAF5 transparent;
+  touch-action: pan-x; /* 가로 스크롤만 허용 */
 }
 
 .available-song-card {
@@ -129,6 +130,7 @@
   cursor: pointer;
   transition: all 0.2s ease;
   user-select: none;
+  touch-action: manipulation; /* 터치 동작 최적화 */
 }
 
 .available-song-card.dragging {

@@ -28,8 +28,8 @@ const SetList: React.FC = () => {
   }
 
   return (
-    <div style={{ maxWidth: '800px', margin: '40px auto', padding: '20px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+    <div style={{ maxWidth: '100%', width: '100%', minHeight: '100vh', margin: 0, background: '#fff', borderRadius: 0, boxShadow: 'none', padding: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <h1 style={{ color: '#8A55CC', fontWeight: 700, fontSize: '28px', margin: 0 }}>
           🎵 {isLeader ? (viewMode === 'manage' ? '셋리스트 관리' : '셋리스트 카드') : '셋리스트 카드'}
         </h1>

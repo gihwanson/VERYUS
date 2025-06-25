@@ -365,11 +365,13 @@ const PracticeRoom: React.FC = () => {
 
   return (
     <div style={{ 
-      maxWidth: isMobile ? '95vw' : 480, 
-      margin: isMobile ? '20px auto' : '40px auto', 
+      maxWidth: '100%',
+      width: '100%',
+      minHeight: '100vh',
+      margin: 0, 
       background: '#fff', 
-      borderRadius: isMobile ? 12 : 16, 
-      boxShadow: '0 4px 24px #E5DAF5', 
+      borderRadius: 0, 
+      boxShadow: 'none', 
       padding: isMobile ? 20 : 32
     }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16, flexWrap: isMobile ? 'wrap' : 'nowrap', gap: isMobile ? 8 : 0 }}>

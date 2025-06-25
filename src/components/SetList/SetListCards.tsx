@@ -731,31 +731,34 @@ const SetListCards: React.FC = () => {
       
       {activeSetList ? (
         <div style={{ 
-          background: '#fff', 
-          borderRadius: '12px', 
-          padding: '20px', 
+          background: 'transparent', 
+          borderRadius: '0', 
+          padding: '0', 
           marginBottom: '30px',
-          boxShadow: '0 4px 16px rgba(138, 85, 204, 0.1)',
+          boxShadow: 'none',
           minHeight: '400px'
         }}>
-          <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-            <h2 style={{ color: '#8A55CC', fontSize: '22px', marginBottom: '8px' }}>
-              🎭 {activeSetList.name}
-            </h2>
-            <p style={{ color: '#666', fontSize: '14px', margin: 0 }}>
-              현재 보는 항목: {currentCardIndex + 1} / {allItems.length} | 
-              <span style={{ color: '#8A55CC', fontWeight: 600, marginLeft: '8px' }}>
-                진행 중: {(activeSetList.currentSongIndex ?? 0) + 1}번째 항목
-              </span>
-            </p>
-          </div>
+          {/* 리더만 헤더 정보 표시 */}
+          {isLeader && (
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <h2 style={{ color: '#8A55CC', fontSize: '22px', marginBottom: '8px' }}>
+                🎭 {activeSetList.name}
+              </h2>
+              <p style={{ color: '#666', fontSize: '14px', margin: 0 }}>
+                현재 보는 항목: {currentCardIndex + 1} / {allItems.length} | 
+                <span style={{ color: '#8A55CC', fontWeight: 600, marginLeft: '8px' }}>
+                  진행 중: {(activeSetList.currentSongIndex ?? 0) + 1}번째 항목
+                </span>
+              </p>
+            </div>
+          )}
 
           {/* 메인 카드 영역 */}
           {allItems.length === 0 ? (
             <div 
               style={{ 
                 position: 'relative', 
-                height: '350px', 
+                height: '500px', 
                 overflow: 'hidden',
                 border: availableCardDrag ? '3px dashed #8A55CC' : '2px dashed #E5DAF5',
                 borderRadius: '16px',
@@ -775,11 +778,15 @@ const SetListCards: React.FC = () => {
             >
               <div style={{ fontSize: '48px', marginBottom: '20px', color: '#E5DAF5' }}>🎵</div>
               <div style={{ color: '#666', fontSize: '18px', marginBottom: '12px' }}>
-                아직 곡이 추가되지 않았습니다.
+                {isLeader ? '아직 곡이 추가되지 않았습니다.' : '셋리스트가 준비 중입니다.'}
               </div>
-              {isLeader && (
+              {isLeader ? (
                 <div style={{ color: '#8A55CC', fontSize: '14px', fontWeight: 600 }}>
                   💡 아래 사용 가능한 곡을 여기로 드래그하여 추가하세요
+                </div>
+              ) : (
+                <div style={{ color: '#8A55CC', fontSize: '14px', fontWeight: 600 }}>
+                  리더가 곡을 추가하면 여기에 표시됩니다 😊
                 </div>
               )}
             </div>
@@ -787,7 +794,7 @@ const SetListCards: React.FC = () => {
             <div 
               style={{ 
                 position: 'relative', 
-                height: '350px', 
+                height: '500px', 
                 overflow: 'hidden',
                 border: availableCardDrag ? '3px dashed #8A55CC' : 'none',
                 borderRadius: availableCardDrag ? '16px' : '0',
@@ -1437,17 +1444,31 @@ const SetListCards: React.FC = () => {
 
           {/* 하단 도트 인디케이터 */}
           {allItems.length > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '2px', marginTop: '20px' }}>
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              gap: allItems.length > 20 ? '2px' : '3px',
+              marginTop: '20px',
+              padding: '0 10px',
+              flexWrap: 'wrap',
+              maxWidth: '100%',
+              overflow: 'hidden',
+              maxHeight: '60px',
+              overflowY: 'auto'
+            }}>
               {allItems.map((_, index) => {
                 const isCurrentlyPlaying = index === (activeSetList.currentSongIndex ?? 0);
                 const isCurrentlyViewing = index === currentCardIndex;
+                const dotSize = allItems.length > 30 ? '4px' : allItems.length > 20 ? '5px' : '6px';
+                const activeDotSize = allItems.length > 30 ? '6px' : allItems.length > 20 ? '7px' : '8px';
+                
                 return (
                   <button
                     key={index}
                     onClick={() => goToCard(index)}
                     style={{
-                      width: isCurrentlyPlaying ? '3px' : '2px',
-                      height: isCurrentlyPlaying ? '3px' : '2px',
+                      width: isCurrentlyPlaying ? activeDotSize : dotSize,
+                      height: isCurrentlyPlaying ? activeDotSize : dotSize,
                       borderRadius: '50%',
                       border: 'none',
                       background: isCurrentlyPlaying ? '#8A55CC' : isCurrentlyViewing ? '#A855F7' : '#D1D5DB',
@@ -1455,11 +1476,33 @@ const SetListCards: React.FC = () => {
                       transition: 'all 0.1s ease',
                       boxShadow: 'none',
                       opacity: isCurrentlyPlaying ? 1 : isCurrentlyViewing ? 0.8 : 0.5,
-                      padding: '6px',
+                      padding: '0',
+                      flexShrink: 0,
+                      minWidth: dotSize,
+                      minHeight: dotSize,
+                      margin: '1px'
                     }}
                   />
                 );
               })}
+            </div>
+          )}
+
+          {/* 일반 사용자용 안내 메시지 */}
+          {!isLeader && (
+            <div style={{ 
+              marginTop: '30px',
+              padding: '20px',
+              background: 'linear-gradient(135deg, #F3E8FF 0%, #E5DAF5 100%)',
+              borderRadius: '12px',
+              textAlign: 'center',
+              border: '2px solid #E5DAF5'
+            }}>
+              <div style={{ fontSize: '24px', marginBottom: '12px' }}>🎵</div>
+              <p style={{ color: '#666', fontSize: '14px', margin: 0, lineHeight: 1.4 }}>
+                현재 진행 중인 셋리스트를 카드 형태로 확인할 수 있습니다.<br/>
+                리더가 곡을 관리하고 있으니 편안히 감상해주세요! 😊
+              </p>
             </div>
           )}
 
@@ -1591,13 +1634,11 @@ const SetListCards: React.FC = () => {
               </p>
               
               <div style={{ 
-                display: 'flex', 
-                overflowX: 'auto', 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
                 gap: '12px', 
                 padding: '10px 0',
-                scrollbarWidth: 'thin',
-                scrollbarColor: '#E5DAF5 transparent',
-                touchAction: availableCardDrag ? 'none' : 'pan-x pan-y'
+                touchAction: availableCardDrag ? 'none' : 'auto'
               }}>
                 {filteredAvailableSongs.length === 0 ? (
                   <div style={{ 
@@ -1635,7 +1676,7 @@ const SetListCards: React.FC = () => {
                           }
                         }}
                         style={{
-                          minWidth: '200px',
+                          width: '100%',
                           height: '120px',
                           background: isAlreadyAdded ? 
                             'linear-gradient(135deg, #E5E7EB 0%, #F3F4F6 100%)' :
@@ -1731,12 +1772,10 @@ const SetListCards: React.FC = () => {
                   </h4>
                   
                   <div style={{ 
-                    display: 'flex', 
-                    overflowX: 'auto', 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
                     gap: '12px', 
-                    padding: '10px 0',
-                    scrollbarWidth: 'thin',
-                    scrollbarColor: '#F59E0B transparent'
+                    padding: '10px 0'
                   }}>
                     {(activeSetList.flexibleCards || []).filter(card => card.order < 0).map((flexCard) => {
                       const isDragging = availableCardDrag?.type === 'flexible' && availableCardDrag?.id === flexCard.id;
@@ -1759,7 +1798,7 @@ const SetListCards: React.FC = () => {
                           onMouseMove={handleAvailableCardMouseMove}
                           onMouseUp={handleAvailableCardMouseUp}
                           style={{
-                            minWidth: '200px',
+                            width: '100%',
                             height: '120px',
                             background: 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
                             borderRadius: '12px',

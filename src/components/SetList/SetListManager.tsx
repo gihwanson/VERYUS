@@ -811,14 +811,14 @@ const SetListManager: React.FC = () => {
   };
 
   return (
-    <div>
+    <div style={{ width: '100%', maxWidth: 'none' }}>
       {/* 셋리스트 생성 영역 */}
       {isLeader && (
         <div style={{ 
           background: '#F6F2FF', 
           borderRadius: '12px', 
-          padding: '20px', 
-          marginBottom: '30px' 
+          padding: '24px', 
+          marginBottom: '24px' 
         }}>
           <h2 style={{ color: '#8A55CC', fontSize: '20px', marginBottom: '16px' }}>
             새 셋리스트 만들기
@@ -922,8 +922,8 @@ const SetListManager: React.FC = () => {
         <div style={{ 
           background: '#fff', 
           borderRadius: '12px', 
-          padding: '20px', 
-          marginBottom: '30px',
+          padding: '24px', 
+          marginBottom: '24px',
           boxShadow: '0 4px 16px rgba(138, 85, 204, 0.1)'
         }}>
           <h2 style={{ color: '#8A55CC', fontSize: '22px', marginBottom: '12px' }}>
@@ -1298,8 +1298,8 @@ const SetListManager: React.FC = () => {
 
           {/* 셋리스트에 추가되지 않은 닉네임 카드 목록 */}
           {getAvailableFlexibleCards().length > 0 && (
-            <div style={{ marginTop: '30px' }}>
-              <h3 style={{ color: '#8A55CC', fontSize: '18px', marginBottom: '12px' }}>
+            <div style={{ marginTop: '20px' }}>
+              <h3 style={{ color: '#8A55CC', fontSize: '18px', marginBottom: '16px' }}>
                 🎤 생성된 닉네임 카드 ({getAvailableFlexibleCards().length}개)
                 <span style={{ fontSize: '14px', fontWeight: 400, color: '#666', marginLeft: '8px' }}>
                   - 셋리스트에 추가되지 않음
@@ -1308,7 +1308,7 @@ const SetListManager: React.FC = () => {
               
               <div style={{ 
                 display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
+                gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', 
                 gap: '16px',
                 marginBottom: '20px'
               }}>
@@ -1421,8 +1421,8 @@ const SetListManager: React.FC = () => {
 
           {/* 닉네임 카드 생성 섹션 (리더만) */}
           {isLeader && (
-            <div style={{ marginTop: '30px' }}>
-              <h3 style={{ color: '#8A55CC', fontSize: '18px', marginBottom: '12px' }}>
+            <div style={{ marginTop: '20px' }}>
+              <h3 style={{ color: '#8A55CC', fontSize: '18px', marginBottom: '16px' }}>
                 🎤 닉네임 카드 만들기
               </h3>
               
@@ -1532,8 +1532,8 @@ const SetListManager: React.FC = () => {
 
           {/* 곡 추가 섹션 (리더만) */}
           {isLeader && (
-            <div style={{ marginTop: '30px' }}>
-              <h3 style={{ color: '#8A55CC', fontSize: '18px', marginBottom: '12px' }}>
+            <div style={{ marginTop: '20px' }}>
+              <h3 style={{ color: '#8A55CC', fontSize: '18px', marginBottom: '16px' }}>
                 ➕ 곡 추가하기
               </h3>
               
@@ -1580,11 +1580,11 @@ const SetListManager: React.FC = () => {
                 return (
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                    gap: '12px',
-                    maxHeight: '400px',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                    gap: '10px',
+                    maxHeight: '75vh',
                     overflow: 'auto',
-                    padding: '4px'
+                    padding: '6px'
                   }}>
                     {filteredSongs.map((song) => {
                       const isAlreadyAdded = activeSetList.songs.some(s => s.songId === song.id);

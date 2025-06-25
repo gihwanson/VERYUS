@@ -139,10 +139,11 @@
 
 /* Utility Classes */
 .container {
-  width: 100%;
-  max-width: 95vw; /* 화면의 95%를 사용하도록 수정 */
-  margin: 0 auto;
-  padding: 0 var(--space-sm); /* 패딩도 줄여서 더 넓게 사용 */
+  width: 100vw;
+  max-width: 100vw; /* 화면의 100%를 사용하도록 수정 */
+  margin: 0;
+  padding: 0; /* 패딩 제거로 전체 화면 사용 */
+  box-sizing: border-box;
 }
 
 .card {

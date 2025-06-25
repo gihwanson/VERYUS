@@ -1,26 +1,46 @@
 @import './styles/variables.css';
 @import './styles/components.css';
 
+/* FORCE FULL SCREEN - 최우선 순위 전체 화면 규칙 */
+html, body, #root, .App {
+  width: 100vw !important;
+  max-width: 100vw !important;
+  height: 100vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
+}
+
 /* Base Styles */
 body {
   margin: 0;
   padding: 0;
+  width: 100vw !important;
   background: #FFFFFF;
   color: var(--text-primary);
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
 }
 
 .app-container {
-  min-height: 100vh;
+  width: 100vw !important;
+  min-height: 100vh !important;
   background: #FFFFFF;
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
 }
 
 #root {
-  width: 100%;
-  min-height: 100vh;
-  margin: 0;
-  padding: 0;
+  width: 100vw !important;
+  min-height: 100vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
   /* 화면을 최대한 넓게 사용 */
+  overflow-x: hidden !important;
 }
 
 /* Logo Animation */

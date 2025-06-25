@@ -135,7 +135,7 @@ const ApprovedSongs: React.FC = () => {
   // TODO: 등록/수정/삭제/조회/버스킹 필터 기능 구현
 
   return (
-    <div style={{ maxWidth: 700, margin: '40px auto', background: '#fff', borderRadius: 20, boxShadow: '0 8px 32px #E5DAF5', padding: 32 }}>
+    <div style={{ maxWidth: '100%', width: '100%', minHeight: '100vh', margin: 0, background: '#fff', borderRadius: 0, boxShadow: 'none', padding: 32 }}>
       <h2 style={{ color: '#8A55CC', fontWeight: 700, fontSize: 24, marginBottom: 24 }}>합격곡 관리 및 조회</h2>
       <div style={{ marginBottom: 16, display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'center' }}>
         {isAdmin && <button onClick={() => { setShowForm(true); setShowList(false); setEditId(null); setForm({ title: '', members: [''] }); }} style={{ background: '#10B981', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 16px', fontWeight: 600, cursor: 'pointer' }}>합격곡 등록</button>}
