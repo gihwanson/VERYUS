@@ -217,6 +217,9 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({ unreadNotifica
 
   // 스크롤 기반 네비게이션바 자동 숨김/표시
   useEffect(() => {
+    let lastTouchY = 0;
+    let touchScrolling = false;
+
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
       const scrollThreshold = 50;
@@ -238,12 +241,9 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({ unreadNotifica
               setIsHiddenByScroll(false);
             }
           }
-          
-          // 페이지 상단 근처에서는 항상 보이기
           if (currentScrollY < 50) {
             setIsHiddenByScroll(false);
           }
-          
           setLastScrollY(currentScrollY);
         }
       }
@@ -254,22 +254,55 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({ unreadNotifica
       const isMobile = window.innerWidth <= 768;
       if (isMobile && !isCollapsed && !isDragging) {
         if (e.deltaY > 0) {
-          // 아래로 스크롤 - 숨기기
           setIsHiddenByScroll(true);
           setShowBoardsMenu(false);
         } else if (e.deltaY < 0) {
-          // 위로 스크롤 - 보이기
           setIsHiddenByScroll(false);
         }
       }
     };
 
+    // 모바일 터치 스크롤 방향 감지
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        lastTouchY = e.touches[0].clientY;
+        touchScrolling = true;
+      }
+    };
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!touchScrolling || e.touches.length !== 1) return;
+      const currentY = e.touches[0].clientY;
+      const isMobile = window.innerWidth <= 768;
+      if (isMobile && !isCollapsed && !isDragging) {
+        if (Math.abs(currentY - lastTouchY) > 3) {
+          if (currentY < lastTouchY) {
+            // 아래로 스크롤(손가락 위로) - 숨기기
+            setIsHiddenByScroll(true);
+            setShowBoardsMenu(false);
+          } else if (currentY > lastTouchY) {
+            // 위로 스크롤(손가락 아래로) - 보이기
+            setIsHiddenByScroll(false);
+          }
+          lastTouchY = currentY;
+        }
+      }
+    };
+    const handleTouchEnd = () => {
+      touchScrolling = false;
+    };
+
     window.addEventListener('scroll', handleScroll, { passive: true });
     window.addEventListener('wheel', handleWheel, { passive: true });
-    
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+
     return () => {
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
     };
   }, [lastScrollY, scrollDirection, isCollapsed, isDragging]);
 
