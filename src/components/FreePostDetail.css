@@ -1,0 +1,459 @@
+/* FORCE FULL WIDTH - 강제 전체 화면 사용 */
+html, body {
+  width: 100vw !important;
+  max-width: 100vw !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.board-container {
+  width: 100vw !important;
+  max-width: 100vw !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  min-height: 100vh;
+}
+
+/* Post Detail Layout */
+.post-detail-container {
+  width: 100vw !important;
+  max-width: 100vw !important;
+  margin: 0 !important;
+  padding: 8px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+  box-sizing: border-box !important;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  min-height: 100vh;
+}
+
+/* Navigation */
+.post-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin-bottom: var(--space-lg);
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-lg);
+  color: #1a1a2e;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  transition: all var(--transition-base);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.8) 0%, 
+    rgba(255, 255, 255, 0.6) 100%);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin-left: 0;
+}
+
+.back-button:hover {
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.35) 0%, 
+    rgba(255, 255, 255, 0.25) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* Post Content */
+.post-detail {
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.25) 0%, 
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0.1) 100%);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  border-radius: 20px;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.1),
+    0 4px 16px rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 2.5rem 2.5rem 2.5rem 2.5rem;
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.post-detail-header {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 2rem;
+  border-bottom: 2px solid #f8fafc;
+  padding-bottom: 1.5rem;
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, #fafbff 0%, #f8fafc 100%);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin: -0.5rem -0.5rem 1.5rem -0.5rem;
+}
+
+/* Post Meta */
+.post-detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+}
+
+.post-detail-author {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.author-info {
+  font-weight: 600;
+  color: #2d2d44;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.author-grade-emoji {
+  font-size: 1.2em;
+}
+
+.author-role, .author-position {
+  background: var(--primary-bg);
+  color: var(--primary-color);
+  border-radius: 999px;
+  font-size: 0.85em;
+  font-weight: 500;
+  padding: 0.1em 0.7em;
+}
+
+/* Post Info */
+.post-detail-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #4a4a68;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.3);
+  font-size: 1.05rem;
+  flex-wrap: wrap;
+}
+
+.post-detail-date,
+.post-detail-views {
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  white-space: nowrap;
+}
+
+/* 작성일자와 조회수 사이에 구분점 추가 */
+.post-detail-info .post-detail-date::after {
+  content: '·';
+  margin: 0 0.4em;
+  color: var(--text-tertiary);
+  font-weight: 700;
+}
+
+/* 마지막 구분점은 표시하지 않음 */
+.post-detail-info .post-detail-views::after {
+  content: '';
+}
+
+/* Title */
+.title-container {
+  margin-bottom: var(--space-xl);
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  justify-content: flex-start;
+}
+
+.post-detail-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #1a1a2e;
+  text-shadow: 0 2px 4px rgba(255, 255, 255, 0.5);
+  margin: 0;
+  line-height: 1.3;
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+.post-detail-title::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, #8b5cf6 0%, #a78bfa 100%);
+  border-radius: 2px;
+}
+
+.category-tag {
+  padding: var(--space-xs) var(--space-md);
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.8) 0%, 
+    rgba(255, 255, 255, 0.6) 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  color: #1a1a2e;
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-right: var(--space-md);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Content */
+.post-detail-content {
+  font-size: 1.1rem;
+  line-height: 1.8;
+  color: #2d2d44;
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.7) 0%, 
+    rgba(255, 255, 255, 0.5) 100%);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border-radius: 16px;
+  padding: 2rem 1.8rem;
+  margin: 1rem 0;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  min-height: 120px;
+  word-break: break-word;
+  position: relative;
+}
+
+.post-detail-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(180deg, #8b5cf6 0%, #a78bfa 100%);
+  border-radius: 0 0 0 16px;
+}
+
+/* Footer */
+.post-detail-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-left: -0.5rem;
+  margin-right: -0.5rem;
+}
+
+.post-stats {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  font-size: 1.05rem;
+  color: var(--text-tertiary);
+}
+
+/* Action Buttons */
+.post-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.action-button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-lg);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--button-bg);
+  color: var(--text-secondary);
+  transition: all var(--transition-base);
+}
+
+.action-button:hover {
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+  background: var(--primary-bg);
+  transform: translateY(-1px);
+}
+
+/* Like Button */
+.stat-button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-lg);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-full);
+  background: var(--button-bg);
+  color: var(--text-secondary);
+  font-weight: 500;
+  transition: all var(--transition-base);
+}
+
+.stat-button:hover:not(:disabled) {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  transform: translateY(-1px);
+}
+
+.stat-button.liked {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: var(--text-white);
+}
+
+.stat-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 강제 전체 화면 스타일 - 모든 화면 크기에 적용 */
+@media (max-width: 900px) {
+  .post-detail-container {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    margin: 0 !important;
+    padding: 8px !important;
+    box-sizing: border-box !important;
+  }
+  
+  .post-detail {
+    margin: 0 !important;
+    padding: 1.5rem !important;
+  }
+  
+  .post-detail-content {
+    margin: 0 !important;
+    padding: 1.5rem !important;
+  }
+  
+
+}
+
+@media (max-width: 768px) {
+  .post-detail-container {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    margin: 0 !important;
+    padding: 4px !important;
+    box-sizing: border-box !important;
+  }
+  
+  .post-detail {
+    margin: 0 !important;
+    padding: 1rem !important;
+  }
+  
+  .post-detail-content {
+    margin: 0 !important;
+    padding: 1rem !important;
+  }
+  
+
+}
+
+/* Dark Mode */
+.dark .post-detail {
+  background: #2e1065;
+  border: 2px solid #3b2170;
+  box-shadow: 0 8px 32px rgba(124,58,237,0.18);
+}
+
+.dark .post-detail-content {
+  background: #2e1065;
+  color: #e0d7ff;
+  box-shadow: 0 2px 12px rgba(124,58,237,0.10);
+}
+
+.dark .stat-button {
+  background: var(--button-bg);
+  border-color: var(--border-color);
+}
+
+.dark .stat-button:hover:not(:disabled) {
+  border-color: var(--primary-light);
+  color: var(--primary-light);
+  background: var(--primary-alpha-10);
+}
+
+.dark .stat-button.liked {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: var(--text-white);
+}
+
+.dark .action-button {
+  background: var(--button-bg);
+  border-color: var(--border-color);
+}
+
+.dark .action-button:hover {
+  border-color: var(--primary-light);
+  color: var(--primary-light);
+  background: var(--primary-alpha-10);
+}
+
+/* Dark Mode Support */
+.dark .post-navigation {
+  background: transparent;
+}
+
+.dark .back-button {
+  background: var(--button-bg);
+  border-color: var(--border-color);
+  color: var(--text-secondary);
+}
+
+.dark .back-button:hover {
+  color: var(--primary-light);
+  border-color: var(--primary-light);
+  background: rgba(124, 58, 237, 0.1);
+}
+
+.dark .category-tag {
+  background: var(--primary-light);
+  color: var(--card-bg);
+}
+
+
+
+.post-detail-info-inline {
+  margin-top: 0.2rem;
+} 

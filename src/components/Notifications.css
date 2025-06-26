@@ -1,0 +1,221 @@
+/* 알림(Notifications) UI 스타일 */
+.notifications-container {
+  max-width: 600px;
+  margin: 40px auto;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 8px 32px #E5DAF5;
+  padding: 32px 24px;
+}
+
+.notifications-container h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #8A55CC;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+}
+
+.notification-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.notification-item {
+  background: #FFFFFF;
+  border: 1px solid #E5DAF5;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.notification-item:last-child {
+  margin-bottom: 0;
+}
+
+.notification-item.unread {
+  background: #F6F2FF;
+  border-color: #8A55CC;
+  box-shadow: 0 2px 8px rgba(138, 85, 204, 0.1);
+}
+
+.notification-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(138, 85, 204, 0.15);
+}
+
+.notification-content {
+  padding: 16px;
+}
+
+.notification-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.notification-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  background: #F6F2FF;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notification-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.notification-message {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1F2937;
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.post-type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-right: 8px;
+}
+
+.unread-indicator {
+  color: #FF4757;
+  font-size: 14px;
+  margin-left: 4px;
+}
+
+.notification-delete {
+  background: none;
+  border: none;
+  color: #9CA3AF;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.notification-delete:hover {
+  background: #FEE2E2;
+  color: #DC2626;
+}
+
+.notification-post-title {
+  background: #F8F9FA;
+  border: 1px solid #E9ECEF;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 8px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #495057;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notification-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #F1F3F4;
+}
+
+.notification-author {
+  font-size: 13px;
+  color: #8A55CC;
+  font-weight: 500;
+}
+
+.notification-date {
+  font-size: 12px;
+  color: #9CA3AF;
+}
+
+/* 모바일 최적화 */
+@media (max-width: 768px) {
+  .notifications-container {
+    margin: 20px 16px;
+    padding: 20px 16px;
+    border-radius: 16px;
+  }
+  
+  .notifications-container h2 {
+    font-size: 20px;
+    margin-bottom: 20px;
+  }
+  
+  .notification-item {
+    margin-bottom: 16px;
+    border-radius: 16px;
+  }
+  
+  .notification-content {
+    padding: 20px;
+  }
+  
+  .notification-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+  }
+  
+  .notification-message {
+    font-size: 16px;
+    margin-bottom: 8px;
+  }
+  
+  .notification-post-title {
+    padding: 12px;
+    font-size: 15px;
+    border-radius: 10px;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    line-height: 1.5;
+  }
+  
+  .notification-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  .notification-author {
+    font-size: 14px;
+  }
+  
+  .notification-date {
+    font-size: 13px;
+  }
+  
+  .post-type-badge {
+    padding: 4px 10px;
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
+}
+
+.empty {
+  color: #B497D6;
+  text-align: center;
+  padding: 40px 0;
+  font-size: 18px;
+} 
