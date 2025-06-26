@@ -239,6 +239,41 @@
   flex-shrink: 0;
 }
 
+/* Role Badges */
+.role-badge {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  margin-left: 0.5rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.role-badge.리더 {
+  background: linear-gradient(135deg, #EF4444 0%, #F87171 100%);
+  color: white;
+}
+
+.role-badge.운영진 {
+  background: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%);
+  color: white;
+}
+
+.role-badge.부운영진 {
+  background: linear-gradient(135deg, #10B981 0%, #34D399 100%);
+  color: white;
+}
+
+.role-badge.회원,
+.role-badge.일반,
+.role-badge {
+  background: linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%);
+  color: white;
+}
+
 /* Post Date */
 .post-date {
   color: #000000;

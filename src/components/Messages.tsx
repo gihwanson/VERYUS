@@ -843,7 +843,8 @@ const isMobile = isMobileView;
             height: '40px', 
             borderRadius: '50%', 
             objectFit: 'cover',
-            border: '2px solid #E5E7EB'
+            border: '2px solid rgba(255, 255, 255, 0.3)',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
           }} 
         />
       );
@@ -851,7 +852,23 @@ const isMobile = isMobileView;
     
     // 프로필 이미지가 없으면 기본 이모지 또는 닉네임 첫 글자
     if (room.profileEmoji) {
-      return <span style={{fontSize:28}}>{room.profileEmoji}</span>;
+      return (
+        <div style={{
+          width: '40px',
+          height: '40px',
+          borderRadius: '50%',
+          background: 'rgba(255, 255, 255, 0.2)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.3)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '20px',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+        }}>
+          {room.profileEmoji}
+        </div>
+      );
     }
     
     // 닉네임 첫 글자를 기본 프로필로 사용
@@ -861,13 +878,16 @@ const isMobile = isMobileView;
         width: '40px',
         height: '40px',
         borderRadius: '50%',
-        backgroundColor: '#8A55CC',
+        background: 'linear-gradient(135deg, rgba(138, 85, 204, 0.8) 0%, rgba(157, 109, 216, 0.8) 100%)',
+        backdropFilter: 'blur(10px)',
         color: 'white',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         fontSize: '18px',
-        fontWeight: 'bold'
+        fontWeight: 'bold',
+        border: '1px solid rgba(255, 255, 255, 0.3)',
+        boxShadow: '0 4px 12px rgba(138, 85, 204, 0.3)'
       }}>
         {firstChar}
       </div>
@@ -1812,41 +1832,151 @@ const isMobile = isMobileView;
   }, [announcementMessages, user, showNotification, isAnnouncementMode]);
 
   return (
-    <div className="messages-page">
-    <div className="messages-container">
-      <div className={`chat-room-list always-show${isMobileView && showChatOnMobile ? ' hide-on-mobile' : ''}`}>
-        <div style={{display:'flex',alignItems:'center',gap:8,margin:'0 0 24px 16px'}}>
-          <button className="exit-home-btn" onClick={()=>window.location.href='/'} style={{background:'none',border:'none',padding:0,cursor:'pointer'}} title="홈으로">
-            <Home size={22} color="#8A55CC" />
-          </button>
-          {isMobileView && (
-            <button 
-              className="chat-room-list-toggle" 
-              onClick={handleBackToRoomList} 
-              style={{
-                background: 'none',
-                border: 'none',
-                padding: 0,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-              title="채팅방으로 돌아가기"
-            >
-              <Menu size={22} color="#8A55CC" />
-            </button>
-          )}
-          <h2 style={{margin:0}}>채팅</h2>
-        </div>
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      backgroundAttachment: 'fixed',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      {/* 배경 패턴 */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: `
+          radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+          radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+          radial-gradient(circle at 40% 80%, rgba(120, 119, 198, 0.2) 0%, transparent 50%)
+        `,
+        pointerEvents: 'none'
+      }} />
+      
+      <div style={{
+        position: 'relative',
+        zIndex: 1,
+        padding: isMobileView ? '0' : '20px',
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: isMobileView ? 'stretch' : 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{
+          display: 'flex',
+          height: isMobileView ? '100vh' : '80vh',
+          maxWidth: '1200px',
+          width: '100%',
+          background: 'rgba(255, 255, 255, 0.1)',
+          backdropFilter: 'blur(15px)',
+          borderRadius: isMobileView ? '0' : '24px',
+          overflow: 'hidden',
+          border: isMobileView ? 'none' : '1px solid rgba(255, 255, 255, 0.2)',
+          boxShadow: isMobileView ? 'none' : '0 8px 32px rgba(0, 0, 0, 0.1)'
+        }}>
+          <div className={`chat-room-list always-show${isMobileView && showChatOnMobile ? ' hide-on-mobile' : ''}`} style={{
+            width: isMobileView ? '100%' : '300px',
+            background: 'rgba(255, 255, 255, 0.05)',
+            backdropFilter: 'blur(10px)',
+            borderRight: isMobileView ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
+            padding: '24px 0 0 0',
+            display: isMobileView && showChatOnMobile ? 'none' : 'flex',
+            flexDirection: 'column',
+            gap: 0,
+            position: 'relative'
+          }}>
+            <div style={{display:'flex',alignItems:'center',gap:12,margin:'0 0 24px 20px'}}>
+              <button 
+                onClick={()=>window.location.href='/'} 
+                style={{
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: '12px',
+                  padding: '10px',
+                  cursor: 'pointer',
+                  color: 'white',
+                  transition: 'all 0.3s ease'
+                }} 
+                title="홈으로"
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                <Home size={20} />
+              </button>
+              {isMobileView && (
+                <button 
+                  onClick={handleBackToRoomList} 
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    borderRadius: '12px',
+                    padding: '10px',
+                    cursor: 'pointer',
+                    color: 'white',
+                    transition: 'all 0.3s ease'
+                  }}
+                  title="채팅방으로 돌아가기"
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  <Menu size={20} />
+                </button>
+              )}
+              <h2 style={{
+                margin: 0,
+                color: 'white',
+                fontWeight: 700,
+                fontSize: '24px',
+                textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
+              }}>💬 채팅</h2>
+            </div>
 
-        <div className="chat-room-search-bar">
+        <div style={{
+          padding: '0 20px',
+          marginBottom: '20px'
+        }}>
           <input
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="닉네임, 메시지 검색 (Ctrl+K)"
-            className="chat-room-search-input"
+            placeholder="🔍 닉네임, 메시지 검색 (Ctrl+K)"
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              borderRadius: '16px',
+              background: 'rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(10px)',
+              color: 'white',
+              fontSize: '14px',
+              fontWeight: 500,
+              outline: 'none',
+              transition: 'all 0.3s ease',
+              boxSizing: 'border-box'
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.4)';
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+            }}
             aria-label="채팅방 및 메시지 검색"
             role="searchbox"
           />
@@ -1854,7 +1984,6 @@ const isMobile = isMobileView;
         
         {/* 공지방 */}
         <div
-          className={`chat-room-item${isAnnouncementMode ? ' selected' : ''}`}
           onClick={handleAnnouncementSelect}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -1862,55 +1991,97 @@ const isMobile = isMobileView;
               handleAnnouncementSelect();
             }
           }}
-          style={{backgroundColor: isAnnouncementMode ? '#F8F4FF' : '', position: 'relative'}}
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '12px',
+            padding: '16px 20px',
+            margin: '0 16px 8px 16px',
+            cursor: 'pointer',
+            borderRadius: '16px',
+            background: isAnnouncementMode ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.1)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            transition: 'all 0.3s ease',
+            position: 'relative'
+          }}
           tabIndex={0}
           role="button"
           aria-label={`공지방 채팅 ${isAnnouncementMode ? '(현재 선택됨)' : ''} ${announcementUnreadCount > 0 ? `안읽은 메시지 ${announcementUnreadCount}개` : ''}`}
           aria-pressed={isAnnouncementMode}
+          onMouseEnter={(e) => {
+            if (!isAnnouncementMode) {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isAnnouncementMode) {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }
+          }}
         >
-          <div className="chat-room-profile">
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              backgroundColor: '#FF6B35',
-              color: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '20px',
-              fontWeight: 'bold'
-            }}>
-              📢
-            </div>
+          <div style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #FF6B35 0%, #FF8A65 100%)',
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '20px',
+            fontWeight: 'bold',
+            boxShadow: '0 4px 12px rgba(255, 107, 53, 0.3)',
+            flexShrink: 0
+          }}>
+            📢
           </div>
-          <div className="chat-room-info">
-            <div className="chat-room-title-row">
-              <span className="chat-room-nickname" style={{fontWeight: 'bold', color: '#FF6B35'}}>공지방</span>
-              <span className="chat-room-time">
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <span style={{
+                fontWeight: 'bold', 
+                color: 'white',
+                fontSize: '16px',
+                textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
+              }}>📢 공지방</span>
+              <span style={{
+                fontSize: '12px',
+                color: 'rgba(255, 255, 255, 0.7)',
+                fontWeight: 500
+              }}>
                 {announcementMessages.length > 0 ? formatTime(announcementMessages[announcementMessages.length - 1].createdAt) : ''}
               </span>
             </div>
-            <div className="chat-room-last-message-row">
-              <span className="chat-room-last-message">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{
+                fontSize: '14px',
+                color: 'rgba(255, 255, 255, 0.8)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                flex: 1
+              }}>
                 {announcementMessages.length > 0 ? announcementMessages[announcementMessages.length - 1].content : '공지방에 오신 것을 환영합니다!'}
               </span>
               {announcementUnreadCount > 0 && (
-                <span className="chat-room-unread-badge" style={{
+                <span style={{
                   backgroundColor: '#ef4444',
                   color: 'white',
-                  borderRadius: '10px',
+                  borderRadius: '12px',
                   minWidth: '20px',
                   height: '20px',
-                  fontSize: '12px',
+                  fontSize: '11px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontWeight: '700',
-                  marginLeft: '8px',
                   boxSizing: 'border-box',
                   lineHeight: '1',
-                  padding: announcementUnreadCount > 9 ? '2px 4px' : '2px'
+                  padding: announcementUnreadCount > 9 ? '2px 6px' : '2px',
+                  flexShrink: 0,
+                  boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)'
                 }}>
                   {announcementUnreadCount > 99 ? '99+' : announcementUnreadCount}
                 </span>
@@ -1919,42 +2090,130 @@ const isMobile = isMobileView;
           </div>
         </div>
         
-        {filteredRooms.length === 0 && <div className="empty">쪽지 내역이 없습니다.</div>}
-        {filteredRooms.map((room: ChatRoom) => (
-                      <div
+        {filteredRooms.length === 0 && (
+          <div style={{
+            textAlign: 'center',
+            color: 'rgba(255, 255, 255, 0.6)',
+            padding: '40px 20px',
+            fontSize: '16px',
+            fontWeight: 500
+          }}>
+            💬 쪽지 내역이 없습니다
+          </div>
+        )}
+        {filteredRooms.map((room: ChatRoom) => {
+          const isSelected = selectedRoom && selectedRoom.userUid === room.userUid && selectedRoom.postId === room.postId;
+          return (
+            <div
               key={room.userUid + (room.postId || '')}
-              className={`chat-room-item${selectedRoom && selectedRoom.userUid === room.userUid && selectedRoom.postId === room.postId ? ' selected' : ''}`}
               onClick={() => handleRoomSelect(room)}
               onKeyDown={(e) => handleRoomKeyDown(e, room)}
               tabIndex={0}
               role="button"
-              aria-label={`${room.userNickname}님과의 채팅 ${selectedRoom && selectedRoom.userUid === room.userUid && selectedRoom.postId === room.postId ? '(현재 선택됨)' : ''} ${getUnreadCount(room) > 0 ? `안읽은 메시지 ${getUnreadCount(room)}개` : ''} 마지막 메시지: ${room.lastMessage.content}`}
-              aria-pressed={!!(selectedRoom && selectedRoom.userUid === room.userUid && selectedRoom.postId === room.postId)}
-          >
-            <div className="chat-room-profile">
-              {getProfileDisplay(room)}
-            </div>
-            <div className="chat-room-info">
-              <div className="chat-room-title-row">
-                <span className="chat-room-nickname">{room.userNickname}</span>
-                <span className="chat-room-time">{formatTime(room.lastMessage.createdAt)}</span>
-
+              aria-label={`${room.userNickname}님과의 채팅 ${isSelected ? '(현재 선택됨)' : ''} ${getUnreadCount(room) > 0 ? `안읽은 메시지 ${getUnreadCount(room)}개` : ''} 마지막 메시지: ${room.lastMessage.content}`}
+              aria-pressed={!!isSelected}
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '12px',
+                padding: '16px 20px',
+                margin: '0 16px 8px 16px',
+                cursor: 'pointer',
+                borderRadius: '16px',
+                background: isSelected ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.1)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                transition: 'all 0.3s ease',
+                position: 'relative'
+              }}
+              onMouseEnter={(e) => {
+                if (!isSelected) {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isSelected) {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }
+              }}
+            >
+              <div style={{ flexShrink: 0 }}>
+                {getProfileDisplay(room)}
               </div>
-              <div className="chat-room-last-message-row">
-                <span className="chat-room-last-message">{room.lastMessage.content}</span>
-                {getUnreadCount(room) > 0 && <span className="chat-room-unread-badge">{getUnreadCount(room)}</span>}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <span style={{
+                    fontWeight: 'bold',
+                    color: 'white',
+                    fontSize: '16px',
+                    textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
+                  }}>{room.userNickname}</span>
+                  <span style={{
+                    fontSize: '12px',
+                    color: 'rgba(255, 255, 255, 0.7)',
+                    fontWeight: 500
+                  }}>{formatTime(room.lastMessage.createdAt)}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{
+                    fontSize: '14px',
+                    color: 'rgba(255, 255, 255, 0.8)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    flex: 1
+                  }}>{room.lastMessage.content}</span>
+                  {getUnreadCount(room) > 0 && (
+                    <span style={{
+                      backgroundColor: '#ef4444',
+                      color: 'white',
+                      borderRadius: '12px',
+                      minWidth: '20px',
+                      height: '20px',
+                      fontSize: '11px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: '700',
+                      boxSizing: 'border-box',
+                      lineHeight: '1',
+                      padding: getUnreadCount(room) > 9 ? '2px 6px' : '2px',
+                      flexShrink: 0,
+                      boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)'
+                    }}>
+                      {getUnreadCount(room) > 99 ? '99+' : getUnreadCount(room)}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
-      <div className={`chat-view${isMobileView && showChatOnMobile ? ' show-on-mobile' : ''}`}>
+      <div 
+        className={`chat-view${isMobileView && showChatOnMobile ? ' show-on-mobile' : ''}`}
+        style={{
+          flex: 1,
+          display: isMobileView && !showChatOnMobile ? 'none' : 'flex',
+          flexDirection: 'column',
+          background: 'rgba(255, 255, 255, 0.05)',
+          backdropFilter: 'blur(10px)',
+          position: 'relative',
+          width: isMobileView && showChatOnMobile ? '100%' : 'auto'
+        }}
+      >
         {(selectedRoom || isAnnouncementMode) ? (
           <>
-            <div className="chat-header" style={{ 
+            <div style={{ 
               boxSizing: 'border-box', 
               width: '100%',
-              overflow: 'hidden'
+              overflow: 'hidden',
+              background: 'rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(15px)',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+              padding: '16px 20px'
             }}>
 
               <div style={{ 
@@ -1965,33 +2224,66 @@ const isMobile = isMobileView;
                 minWidth: 0,
                 overflow: 'hidden'
               }}>
+                {/* 모바일 뒤로가기 버튼 */}
+                {isMobileView && (
+                  <button
+                    onClick={handleBackToRoomList}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.2)',
+                      backdropFilter: 'blur(10px)',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      borderRadius: '12px',
+                      padding: '8px',
+                      cursor: 'pointer',
+                      color: 'white',
+                      transition: 'all 0.3s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    ← 목록
+                  </button>
+                )}
                                   {isAnnouncementMode ? (
                   <>
                     <div style={{
                       width: '32px',
                       height: '32px',
                       borderRadius: '50%',
-                      backgroundColor: '#FF6B35',
+                      background: 'linear-gradient(135deg, #FF6B35 0%, #FF8A65 100%)',
                       color: 'white',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       fontSize: '16px',
                       fontWeight: 'bold',
-                      marginRight: '4px'
+                      marginRight: '8px',
+                      boxShadow: '0 4px 12px rgba(255, 107, 53, 0.3)',
+                      border: '1px solid rgba(255, 255, 255, 0.3)'
                     }}>
                       📢
                     </div>
                     <span style={{ 
                       fontWeight: 700, 
-                      color: '#FF6B35',
+                      color: '#333',
                       fontSize: isMobileView ? '16px' : '18px',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
                       minWidth: 0,
-                      flexShrink: 1
-                    }}>공지방</span>
+                      flexShrink: 1,
+                      textShadow: '0 1px 2px rgba(255, 255, 255, 0.8)'
+                    }}>📢 공지방</span>
                     <div style={{ 
                       marginLeft: 'auto', 
                       flexShrink: 0,
@@ -2089,8 +2381,9 @@ const isMobile = isMobileView;
                       height: '32px', 
                       borderRadius: '50%', 
                       objectFit: 'cover',
-                      border: '2px solid #E5E7EB',
-                      marginRight: '4px'
+                      border: '2px solid rgba(255, 255, 255, 0.3)',
+                      marginRight: '8px',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
                     }} 
                   />
                 ) : (
@@ -2098,14 +2391,17 @@ const isMobile = isMobileView;
                     width: '32px',
                     height: '32px',
                     borderRadius: '50%',
-                    backgroundColor: '#8A55CC',
+                    background: 'linear-gradient(135deg, rgba(138, 85, 204, 0.8) 0%, rgba(157, 109, 216, 0.8) 100%)',
+                    backdropFilter: 'blur(10px)',
                     color: 'white',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontSize: '14px',
                     fontWeight: 'bold',
-                    marginRight: '4px'
+                    marginRight: '8px',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    boxShadow: '0 4px 12px rgba(138, 85, 204, 0.3)'
                   }}>
                     {selectedRoom?.userNickname ? selectedRoom.userNickname.charAt(0) : 'U'}
                   </div>
@@ -2113,12 +2409,14 @@ const isMobile = isMobileView;
                 {!isAnnouncementMode && (
                   <span style={{ 
                     fontWeight: 700,
+                    color: 'white',
                     fontSize: isMobileView ? '16px' : '18px',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
                     minWidth: 0,
-                    flexShrink: 1
+                    flexShrink: 1,
+                    textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
                   }}>
                     {selectedRoom?.userNickname}
                   </span>
@@ -3757,17 +4055,29 @@ const isMobile = isMobileView;
             )}
           </>
         ) : (
-          <div className="chat-placeholder">채팅방을 선택하세요.</div>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100%',
+            color: 'rgba(255, 255, 255, 0.7)',
+            fontSize: '18px',
+            fontWeight: 600,
+            textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
+          }}>
+            💬 채팅방을 선택하세요
+          </div>
         )}
-      </div>
-      
-      {/* 읽음 상태 모달 */}
-      <ReadStatusModal
-        isOpen={readStatusModal.isOpen}
-        onClose={handleCloseReadStatusModal}
-        readStatus={readStatusModal.readStatus}
-        messageContent={readStatusModal.messageContent}
-      />
+          </div>
+          
+          {/* 읽음 상태 모달 */}
+          <ReadStatusModal
+            isOpen={readStatusModal.isOpen}
+            onClose={handleCloseReadStatusModal}
+            readStatus={readStatusModal.readStatus}
+            messageContent={readStatusModal.messageContent}
+          />
+        </div>
       </div>
     </div>
   );

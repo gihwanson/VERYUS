@@ -48,17 +48,26 @@ export class NotificationService {
       const now = new Date();
       const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000); // 5분 전
 
+      // 단순화된 쿼리 - 인덱스 오류 방지
       const q = query(
         collection(db, 'notifications'),
         where('toUid', '==', data.toUid),
         where('fromNickname', '==', data.fromNickname),
-        where('type', '==', data.type),
-        where('postId', '==', data.postId || ''),
-        where('createdAt', '>', fiveMinutesAgo)
+        where('type', '==', data.type)
       );
 
       const snapshot = await getDocs(q);
-      return snapshot.size > 0; // 중복이면 true
+      
+      // 클라이언트 사이드에서 시간 및 postId 필터링
+      const recentNotifications = snapshot.docs.filter(doc => {
+        const notificationData = doc.data();
+        const createdAt = notificationData.createdAt?.toDate();
+        const isRecent = createdAt && createdAt > fiveMinutesAgo;
+        const isSamePost = notificationData.postId === (data.postId || '');
+        return isRecent && isSamePost;
+      });
+
+      return recentNotifications.length > 0; // 중복이면 true
     } catch (error) {
       console.error('중복 알림 체크 실패:', error);
       return false; // 체크 실패 시 알림 생성 허용

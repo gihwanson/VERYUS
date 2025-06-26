@@ -148,37 +148,265 @@ const ContestDetail: React.FC = () => {
   // 참가자 목록 중복 제거 유틸
   const uniqueParticipants = participants.filter((p, idx, arr) => arr.findIndex(pp => (pp.nickname && p.nickname && pp.nickname.toLowerCase().trim() === p.nickname.toLowerCase().trim())) === idx);
 
-  if (!contest) return <div style={{ padding: 40, textAlign: 'center', color: '#B497D6' }}>콘테스트 정보를 불러오는 중...</div>;
+  if (!contest) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        backgroundAttachment: 'fixed',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.15)',
+          backdropFilter: 'blur(15px)',
+          borderRadius: '20px',
+          padding: '40px',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
+          <div style={{ color: 'white', fontSize: '18px', fontWeight: 600 }}>콘테스트 정보를 불러오는 중...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="contest-card">
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-        <button
-          style={{ background: '#F6F2FF', color: '#8A55CC', borderRadius: 8, padding: '8px 20px', fontWeight: 600, fontSize: 16, border: 'none', cursor: 'pointer', marginRight: 16 }}
-          onClick={() => navigate('/contests')}
-        >
-          ← 이전
-        </button>
-        <h2 style={{ color: '#8A55CC', fontWeight: 700, fontSize: 24, margin: 0 }}>{contest.title}</h2>
-      </div>
-      <div style={{ color: '#6B7280', fontWeight: 500, marginBottom: 12 }}>{contest.type}</div>
-      <div style={{ color: '#B497D6', fontSize: 14, marginBottom: 24 }}>마감: {contest.deadline && (contest.deadline.seconds ? new Date(contest.deadline.seconds * 1000).toLocaleDateString('ko-KR') : '')}</div>
-      <button style={{ background: '#fff', color: '#8A55CC', borderRadius: 8, padding: '10px 24px', fontWeight: 600, border: '1px solid #E5DAF5', cursor: 'pointer', marginRight: 12 }} onClick={() => navigate(`/contests/${contest.id}/results`)}>결과</button>
-      {isLeader && (
-        <>
-          <button style={{ background: '#F43F5E', color: '#fff', borderRadius: 8, padding: '10px 24px', fontWeight: 600, border: 'none', cursor: 'pointer', marginRight: 12 }} onClick={handleEndContest}>종료</button>
-          <button style={{ background: '#B91C1C', color: '#fff', borderRadius: 8, padding: '10px 24px', fontWeight: 600, border: 'none', cursor: 'pointer' }} onClick={handleDeleteContest}>삭제</button>
-        </>
-      )}
-      {contest.type === '경연' && isAdmin && (
-        <button
-          style={{ background: '#8A55CC', color: '#fff', borderRadius: 8, padding: '10px 24px', fontWeight: 600, border: 'none', cursor: 'pointer', marginTop: 16, marginBottom: 8 }}
-          onClick={() => setShowTeamModal(true)}
-        >
-          참가자/팀 관리
-        </button>
-      )}
-      {showTeamModal && (
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      backgroundAttachment: 'fixed',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      {/* 배경 패턴 */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: `
+          radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+          radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+          radial-gradient(circle at 40% 80%, rgba(120, 119, 198, 0.2) 0%, transparent 50%)
+        `,
+        pointerEvents: 'none'
+      }} />
+      
+      <div style={{
+        position: 'relative',
+        zIndex: 1,
+        padding: '20px',
+        maxWidth: '1200px',
+        margin: '0 auto'
+      }}>
+        {/* 뒤로가기 버튼 */}
+        <div style={{ marginBottom: '20px' }}>
+          <button
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.2)',
+              backdropFilter: 'blur(10px)',
+              color: 'white', 
+              borderRadius: '12px', 
+              padding: '12px 24px', 
+              fontWeight: 600, 
+              fontSize: 16, 
+              border: '1px solid rgba(255, 255, 255, 0.3)', 
+              cursor: 'pointer',
+              transition: 'all 0.3s ease'
+            }}
+            onClick={() => navigate('/contests')}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            ← 이전
+          </button>
+        </div>
+
+        {/* 제목과 정보 */}
+        <div style={{ marginBottom: '24px', textAlign: 'center' }}>
+          <h2 style={{ 
+            color: 'white', 
+            fontWeight: 700, 
+            fontSize: 32, 
+            margin: '0 0 16px 0',
+            textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
+          }}>
+            {contest.title}
+          </h2>
+          
+          <div style={{ marginBottom: 16 }}>
+            <span style={{
+              background: 'rgba(255, 255, 255, 0.2)',
+              backdropFilter: 'blur(5px)',
+              color: 'white',
+              padding: '8px 20px',
+              borderRadius: '25px',
+              fontSize: '18px',
+              fontWeight: 600,
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              marginRight: '16px',
+              display: 'inline-block'
+            }}>
+              {contest.type}
+            </span>
+            <span style={{ 
+              color: 'rgba(255, 255, 255, 0.9)', 
+              fontSize: 18,
+              fontWeight: 500,
+              textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+            }}>
+              📅 마감: {contest.deadline && (contest.deadline.seconds ? new Date(contest.deadline.seconds * 1000).toLocaleDateString('ko-KR') : '')}
+            </span>
+          </div>
+        </div>
+
+        {/* 액션 버튼들 */}
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.15)',
+          backdropFilter: 'blur(15px)',
+          borderRadius: '20px',
+          padding: '24px',
+          marginBottom: '20px',
+          border: '1px solid rgba(255, 255, 255, 0.2)'
+        }}>
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', 
+            gap: '12px',
+            justifyItems: 'center',
+            alignItems: 'center'
+          }}>
+            <button 
+              style={{ 
+                background: 'rgba(59, 130, 246, 0.8)',
+                backdropFilter: 'blur(10px)',
+                color: 'white', 
+                borderRadius: '12px', 
+                padding: '12px 20px', 
+                fontWeight: 600, 
+                border: '1px solid rgba(255, 255, 255, 0.3)', 
+                cursor: 'pointer',
+                fontSize: '15px',
+                transition: 'all 0.3s ease',
+                minWidth: '120px',
+                textAlign: 'center'
+              }} 
+              onClick={() => navigate(`/contests/${contest.id}/results`)}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(59, 130, 246, 0.9)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(59, 130, 246, 0.8)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              📊 결과
+            </button>
+            
+            {contest.type === '경연' && isAdmin && (
+              <button
+                style={{ 
+                  background: 'rgba(168, 85, 247, 0.8)',
+                  backdropFilter: 'blur(10px)',
+                  color: 'white', 
+                  borderRadius: '12px', 
+                  padding: '12px 20px', 
+                  fontWeight: 600, 
+                  border: '1px solid rgba(255, 255, 255, 0.3)', 
+                  cursor: 'pointer',
+                  fontSize: '15px',
+                  transition: 'all 0.3s ease',
+                  minWidth: '120px',
+                  textAlign: 'center'
+                }}
+                onClick={() => setShowTeamModal(true)}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(168, 85, 247, 0.9)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(168, 85, 247, 0.8)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                👥 팀 관리
+              </button>
+            )}
+            
+            {isLeader && (
+              <>
+                <button 
+                  style={{ 
+                    background: 'rgba(239, 68, 68, 0.8)',
+                    backdropFilter: 'blur(10px)',
+                    color: 'white', 
+                    borderRadius: '12px', 
+                    padding: '12px 20px', 
+                    fontWeight: 600, 
+                    border: '1px solid rgba(255, 255, 255, 0.3)', 
+                    cursor: 'pointer',
+                    fontSize: '15px',
+                    transition: 'all 0.3s ease',
+                    minWidth: '120px',
+                    textAlign: 'center'
+                  }} 
+                  onClick={handleEndContest}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(239, 68, 68, 0.9)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(239, 68, 68, 0.8)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  🛑 종료
+                </button>
+                <button 
+                  style={{ 
+                    background: 'rgba(185, 28, 28, 0.8)',
+                    backdropFilter: 'blur(10px)',
+                    color: 'white', 
+                    borderRadius: '12px', 
+                    padding: '12px 20px', 
+                    fontWeight: 600, 
+                    border: '1px solid rgba(255, 255, 255, 0.3)', 
+                    cursor: 'pointer',
+                    fontSize: '15px',
+                    transition: 'all 0.3s ease',
+                    minWidth: '120px',
+                    textAlign: 'center'
+                  }} 
+                  onClick={handleDeleteContest}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(185, 28, 28, 0.9)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(185, 28, 28, 0.8)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  🗑️ 삭제
+                </button>
+              </>
+            )}
+          </div>
+         </div>
+
+        {/* 팀 관리 모달 */}
+        {showTeamModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.5)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowTeamModal(false)}>
           <div style={{ background: '#fff', borderRadius: 16, padding: 24, minWidth: 340, minHeight: 200, position: 'relative' }} onClick={e => e.stopPropagation()}>
             <button onClick={() => setShowTeamModal(false)} style={{ position: 'absolute', top: 10, right: 10, background: 'none', border: 'none', fontSize: 22, color: '#8A55CC', cursor: 'pointer' }}>×</button>
@@ -289,21 +517,76 @@ const ContestDetail: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
-      {isAdmin && <div style={{ marginTop: 24, color: '#8A55CC', fontWeight: 600 }}>관리자: 참가자/평가자 관리 및 전체 평가내역 확인 기능 예정</div>}
-      {ended && <div style={{ color: '#F43F5E', fontWeight: 700, marginTop: 24 }}>이 콘테스트는 종료되어 더 이상 참여할 수 없습니다.</div>}
-      {uniqueParticipants.length > 0 && (
-        <div style={{ margin: '32px 0 0 0' }}>
-          <h3 style={{ color: '#7C4DBC', fontWeight: 700, fontSize: 18, marginBottom: 12 }}>참가자 목록</h3>
-          <ul style={{ display: 'flex', flexWrap: 'wrap', gap: 16, listStyle: 'none', padding: 0 }}>
-            {uniqueParticipants.map((p, i) => (
-              <li key={i} style={{ background: '#F6F2FF', color: '#8A55CC', borderRadius: 8, padding: '8px 20px', fontWeight: 600 }}>
-                {p.nickname}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+        )}
+
+
+
+        {/* 종료 알림 */}
+        {ended && (
+          <div style={{
+            background: 'rgba(239, 68, 68, 0.8)',
+            backdropFilter: 'blur(15px)',
+            borderRadius: '16px',
+            padding: '20px',
+            marginBottom: '20px',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            textAlign: 'center'
+          }}>
+            <div style={{ 
+              color: 'white', 
+              fontWeight: 700,
+              fontSize: '18px',
+              textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+            }}>
+              ❌ 이 콘테스트는 종료되어 더 이상 참여할 수 없습니다.
+            </div>
+          </div>
+        )}
+
+        {/* 참가자 목록 */}
+        {uniqueParticipants.length > 0 && (
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.15)',
+            backdropFilter: 'blur(15px)',
+            borderRadius: '20px',
+            padding: '20px',
+            border: '1px solid rgba(255, 255, 255, 0.2)'
+          }}>
+            <h3 style={{ 
+              color: 'white', 
+              fontWeight: 700, 
+              fontSize: 22, 
+              marginBottom: 16,
+              textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+            }}>
+              👥 참가자 목록
+            </h3>
+            <div style={{ 
+              display: 'flex', 
+              flexWrap: 'wrap', 
+              gap: 12
+            }}>
+              {uniqueParticipants.map((p, i) => (
+                <div 
+                  key={i} 
+                  style={{ 
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    backdropFilter: 'blur(10px)',
+                    color: 'white', 
+                    borderRadius: '20px', 
+                    padding: '8px 16px', 
+                    fontWeight: 600,
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    fontSize: '14px'
+                  }}
+                >
+                  {p.nickname}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

@@ -510,7 +510,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
                     }
                   }, 0);
                 }}
-                placeholder="댓글을 입력하세요... (@닉네임으로 태그 가능, Shift+Enter로 줄바꿈)"
+                placeholder="댓글을 입력하세요...."
                 style={{
                   ...mentionsStyle,
                   control: {
@@ -565,34 +565,36 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
               </MentionsInput>
             )}
             
-            <div className="comment-form-options">
-              <label className="secret-comment-toggle">
-                <input
-                  type="checkbox"
-                  checked={isSecret}
-                  onChange={(e) => setIsSecret(e.target.checked)}
-                />
-                비밀댓글
-              </label>
+            <div className="comment-form-footer">
+              <div className="comment-form-options">
+                <label className="secret-comment-toggle">
+                  <input
+                    type="checkbox"
+                    checked={isSecret}
+                    onChange={(e) => setIsSecret(e.target.checked)}
+                  />
+                  비밀댓글
+                </label>
+              </div>
+              
+              <button 
+                type="submit" 
+                className="comment-submit-btn"
+                disabled={isSubmitting || !newComment.trim()}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader size={16} className="animate-spin" />
+                    작성 중...
+                  </>
+                ) : (
+                  <>
+                    <Send size={16} />
+                    댓글 작성
+                  </>
+                )}
+              </button>
             </div>
-            
-            <button 
-              type="submit" 
-              className="comment-submit-btn"
-              disabled={isSubmitting || !newComment.trim()}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader size={16} className="animate-spin" />
-                  작성 중...
-                </>
-              ) : (
-                <>
-                  <Send size={16} />
-                  댓글 작성
-                </>
-              )}
-            </button>
           </div>
         </form>
       ) : (

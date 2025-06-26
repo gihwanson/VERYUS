@@ -751,9 +751,44 @@ const MyPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="mypage-container">
-        <div className="loading-container">
-          <h2>마이페이지 로딩 중...</h2>
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        backgroundAttachment: 'fixed',
+        position: 'relative',
+        overflow: 'hidden',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        {/* 배경 패턴 */}
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: `
+            radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+            radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 40% 80%, rgba(120, 119, 198, 0.2) 0%, transparent 50%)
+          `,
+          pointerEvents: 'none'
+        }} />
+        
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.1)',
+          backdropFilter: 'blur(15px)',
+          borderRadius: '24px',
+          padding: '40px',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+          color: 'white',
+          textAlign: 'center',
+          fontSize: '20px',
+          fontWeight: 600
+        }}>
+          🔄 마이페이지 로딩 중...
         </div>
       </div>
     );
@@ -761,54 +796,229 @@ const MyPage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="mypage-container">
-        <div className="error-container">
-          <h2>오류가 발생했습니다</h2>
-          <p>{error}</p>
-          <button onClick={() => setError(null)}>다시 시도</button>
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        backgroundAttachment: 'fixed',
+        position: 'relative',
+        overflow: 'hidden',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        {/* 배경 패턴 */}
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: `
+            radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+            radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 40% 80%, rgba(120, 119, 198, 0.2) 0%, transparent 50%)
+          `,
+          pointerEvents: 'none'
+        }} />
+        
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.1)',
+          backdropFilter: 'blur(15px)',
+          borderRadius: '24px',
+          padding: '40px',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+          color: 'white',
+          textAlign: 'center'
+        }}>
+          <h2 style={{ color: 'white', marginBottom: '16px' }}>⚠️ 오류가 발생했습니다</h2>
+          <p style={{ color: 'rgba(255, 255, 255, 0.8)', marginBottom: '20px' }}>{error}</p>
+          <button 
+            onClick={() => setError(null)}
+            style={{
+              background: 'rgba(255, 255, 255, 0.2)',
+              backdropFilter: 'blur(10px)',
+              color: 'white',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              borderRadius: '12px',
+              padding: '10px 20px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontSize: 16,
+              transition: 'all 0.3s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            🔄 다시 시도
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="mypage-container">
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      backgroundAttachment: 'fixed',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      {/* 배경 패턴 */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: `
+          radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+          radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+          radial-gradient(circle at 40% 80%, rgba(120, 119, 198, 0.2) 0%, transparent 50%)
+        `,
+        pointerEvents: 'none'
+      }} />
+      
+      <div style={{
+        position: 'relative',
+        zIndex: 1,
+        padding: '20px',
+        minHeight: '100vh'
+      }}>
       {/* 헤더 */}
-      <div className="mypage-header">
-        <button className="back-button" onClick={() => navigate('/')}>
-          <ArrowLeft size={20} />
-          홈으로
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '24px'
+        }}>
+          <button 
+            onClick={() => navigate('/')}
+            style={{
+              background: 'rgba(255, 255, 255, 0.2)',
+              backdropFilter: 'blur(10px)',
+              color: 'white',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              borderRadius: '12px',
+              padding: '10px 16px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontSize: 14,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'all 0.3s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            <ArrowLeft size={16} />
+            🏠 홈으로
         </button>
         {isOwner && (
-          <button className="settings-button" onClick={() => navigate('/settings')}>
-            <Settings size={20} />
-            설정
+            <button 
+              onClick={() => navigate('/settings')}
+              style={{
+                background: 'rgba(255, 255, 255, 0.2)',
+                backdropFilter: 'blur(10px)',
+                color: 'white',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                borderRadius: '12px',
+                padding: '10px 16px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontSize: 14,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              <Settings size={16} />
+              ⚙️ 설정
           </button>
         )}
       </div>
 
       {/* 프로필 히어로 섹션 */}
-      <div className="profile-hero" style={{
-        background: 'linear-gradient(135deg, #E5DAF5 0%, #D4C2F0 100%)',
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.1)',
+          backdropFilter: 'blur(15px)',
         borderRadius: '24px',
-        padding: '40px 32px 32px 32px',
+          padding: '40px 32px',
         marginBottom: '32px',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         gap: '24px',
-        boxShadow: '0 8px 30px rgba(138, 85, 204, 0.10)'
-      }}>
-        <div className="profile-image-section" style={{ minWidth: 120, minHeight: 120, marginBottom: 16, display: 'flex', justifyContent: 'center' }} onClick={isOwner ? handleProfileImageClick : undefined}>
-          <div className="profile-image" style={{ width: 120, height: 120, border: '4px solid #B497D6', boxShadow: '0 4px 16px #E5DAF5', cursor: isOwner ? 'pointer' : 'default', position: 'relative' }}>
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+        }}>
+          <div style={{ 
+            minWidth: 120, 
+            minHeight: 120, 
+            marginBottom: 16, 
+            display: 'flex', 
+            justifyContent: 'center' 
+          }} onClick={isOwner ? handleProfileImageClick : undefined}>
+            <div style={{ 
+              width: 120, 
+              height: 120, 
+              border: '4px solid rgba(255, 255, 255, 0.3)', 
+              borderRadius: '50%',
+              overflow: 'hidden',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)', 
+              cursor: isOwner ? 'pointer' : 'default', 
+              position: 'relative',
+              background: 'rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(10px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
             {user?.profileImageUrl ? (
-              <img src={user.profileImageUrl} alt="프로필" />
+                <img src={user.profileImageUrl} alt="프로필" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             ) : (
-              <User size={64} color="#B497D6" />
+                <User size={64} color="rgba(255, 255, 255, 0.8)" />
             )}
             {isOwner && (
               <>
-                <div className="upload-overlay" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.3)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.3s' }}>
+                  <div style={{ 
+                    position: 'absolute', 
+                    top: 0, 
+                    left: 0, 
+                    width: '100%', 
+                    height: '100%', 
+                    background: 'rgba(0,0,0,0.3)', 
+                    color: '#fff', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    opacity: 0, 
+                    transition: 'opacity 0.3s',
+                    borderRadius: '50%'
+                  }}>
                   <Camera size={28} />
                 </div>
                 <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleProfileImageUpload} />
@@ -816,21 +1026,29 @@ const MyPage: React.FC = () => {
             )}
           </div>
         </div>
-        <div className="profile-hero-info" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: 0 }}>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, justifyContent: 'center' }}>
-            <span className="profile-hero-nickname" style={{ fontSize: 24, fontWeight: 700, color: '#8A55CC', textAlign: 'center' }}>{user?.nickname}</span>
-            <span className="profile-hero-grade-emoji" style={{ fontSize: 30 }}>{user?.grade}</span>
+              <span style={{ 
+                fontSize: 24, 
+                fontWeight: 700, 
+                color: 'white', 
+                textAlign: 'center',
+                textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
+              }}>{user?.nickname}</span>
+              <span style={{ fontSize: 30 }}>{user?.grade}</span>
             {user?.role && user.role !== '일반' && (
-              <span className="profile-hero-role-emph" style={{
+                <span style={{
                 fontSize: 16,
                 color: '#fff',
-                background: 'linear-gradient(90deg, #8A55CC 60%, #B497D6 100%)',
-                borderRadius: 8,
-                padding: '2px 14px',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: 12,
+                  padding: '4px 16px',
                 fontWeight: 700,
                 marginLeft: 8,
                 letterSpacing: '0.02em',
-                boxShadow: '0 2px 8px #E5DAF5',
+                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)',
                 display: 'inline-block',
                 verticalAlign: 'middle'
               }}>{user.role}</span>
@@ -852,9 +1070,21 @@ const MyPage: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div style={{ marginTop: 8, fontSize: 16, color: '#6B7280', textAlign: 'center' }}>{user?.intro || '한 줄 소개를 입력해보세요!'}</div>
+            <div style={{ 
+              marginTop: 8, 
+              fontSize: 16, 
+              color: 'rgba(255, 255, 255, 0.8)', 
+              textAlign: 'center',
+              textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+            }}>{user?.intro || '한 줄 소개를 입력해보세요!'}</div>
           )}
-          <div style={{ marginTop: 8, fontSize: 14, color: '#B497D6', textAlign: 'center' }}>
+          <div style={{ 
+            marginTop: 8, 
+            fontSize: 14, 
+            color: 'rgba(255, 255, 255, 0.7)', 
+            textAlign: 'center',
+            textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+          }}>
             가입일: {editingJoinDate ? (
               <>
                 <input
@@ -881,67 +1111,174 @@ const MyPage: React.FC = () => {
             )}
           </div>
           {isOwner && !editingProfile && (
-            <button className="edit-profile-btn" style={{ marginTop: 16, padding: '8px 20px', borderRadius: 8, background: '#8A55CC', color: '#fff', fontWeight: 600, border: 'none', cursor: 'pointer', fontSize: 16 }} onClick={() => { setEditingProfile(true); setEditIntro(user?.intro || ''); }}>
-              <Edit3 size={18} style={{ marginRight: 6 }} /> 프로필 수정
+            <button 
+              onClick={() => { setEditingProfile(true); setEditIntro(user?.intro || ''); }}
+              style={{ 
+                marginTop: 16, 
+                padding: '10px 24px', 
+                borderRadius: 12, 
+                background: 'rgba(255, 255, 255, 0.2)', 
+                backdropFilter: 'blur(10px)',
+                color: 'white', 
+                fontWeight: 600, 
+                border: '1px solid rgba(255, 255, 255, 0.3)', 
+                cursor: 'pointer', 
+                fontSize: 16,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              <Edit3 size={18} /> ✏️ 프로필 수정
             </button>
           )}
         </div>
       </div>
 
       {/* 등급 카드 */}
-      <div className="grade-section">
-        <h3>현재 등급</h3>
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.1)',
+          backdropFilter: 'blur(15px)',
+          borderRadius: '20px',
+          padding: '24px',
+          marginBottom: '24px',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+        }}>
+          <h3 style={{ 
+            color: 'white', 
+            fontSize: '20px', 
+            fontWeight: 700, 
+            marginBottom: '16px', 
+            textAlign: 'center',
+            textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
+          }}>🏆 현재 등급</h3>
         {editingGrade ? (
-          <div className="grade-edit">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
             <select
               value={selectedGrade || (user?.grade ? getGradeDisplay(user.grade) : '🍒')}
               onChange={(e) => setSelectedGrade(e.target.value)}
-              className="grade-select"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: '12px',
+                  padding: '10px 16px',
+                  color: 'white',
+                  fontSize: '16px',
+                  fontWeight: 600
+                }}
             >
               {GRADE_OPTIONS.filter(g => g !== '🌌').map(grade => (
-                <option key={grade} value={grade}>
+                  <option key={grade} value={grade} style={{ background: '#333', color: 'white' }}>
                   {grade} {getGradeName(grade)}
                 </option>
               ))}
             </select>
-            <div className="grade-actions">
+              <div style={{ display: 'flex', gap: '12px' }}>
               <button
-                className="save-btn"
                 onClick={() => handleGradeChange(selectedGrade)}
+                  style={{
+                    background: 'rgba(16, 185, 129, 0.8)',
+                    backdropFilter: 'blur(10px)',
+                    color: 'white',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    borderRadius: '12px',
+                    padding: '8px 16px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontSize: 14,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'all 0.3s ease'
+                  }}
               >
                 <Save size={16} />
-                저장
+                  💾 저장
               </button>
               <button
-                className="cancel-btn"
                 onClick={() => {
                   setEditingGrade(false);
                   setSelectedGrade('');
                 }}
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.8)',
+                    backdropFilter: 'blur(10px)',
+                    color: 'white',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    borderRadius: '12px',
+                    padding: '8px 16px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontSize: 14,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'all 0.3s ease'
+                  }}
               >
                 <X size={16} />
-                취소
+                  ❌ 취소
               </button>
             </div>
           </div>
         ) : (
-          <div className="grade-display">
-            <span className="grade-emoji">
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <span style={{ fontSize: '48px' }}>
               {user?.grade ? getGradeDisplay(user.grade) : '🍒'}
             </span>
-            <span className="grade-name">
+                <span style={{ 
+                  fontSize: '24px', 
+                  fontWeight: 700, 
+                  color: 'white',
+                  textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
+                }}>
               {user?.grade ? getGradeName(getGradeDisplay(user.grade)) : '체리'}
             </span>
+              </div>
             {isOwner && (
               <button
-                className="edit-btn"
                 onClick={() => {
                   setEditingGrade(true);
                   setSelectedGrade(user?.grade ? getGradeDisplay(user.grade) : '🍒');
                 }}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    backdropFilter: 'blur(10px)',
+                    color: 'white',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    borderRadius: '12px',
+                    padding: '8px 16px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontSize: 14,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
               >
                 <Edit3 size={16} />
-                수정
+                  ✏️ 수정
               </button>
             )}
           </div>
@@ -949,51 +1286,176 @@ const MyPage: React.FC = () => {
       </div>
 
       {/* 활동/통계 카드 */}
-      <div className="stats-card">
-        <h3>활동 통계</h3>
-        <div className="stats-grid" style={{ marginBottom: 32 }}>
-          <div className="stat-item">
-            <FileText className="stat-icon" />
-            <div className="stat-info">
-              <div className="stat-number">{activityStats.postsCount}</div>
-              <div className="stat-label">내가 쓴 글</div>
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.1)',
+          backdropFilter: 'blur(15px)',
+          borderRadius: '20px',
+          padding: '24px',
+          marginBottom: '24px',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+        }}>
+          <h3 style={{ 
+            color: 'white', 
+            fontSize: '20px', 
+            fontWeight: 700, 
+            marginBottom: '20px', 
+            textAlign: 'center',
+            textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
+          }}>📊 활동 통계</h3>
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(2, 1fr)', 
+            gap: '16px',
+            marginBottom: '16px'
+          }}>
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              padding: '16px',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              <span style={{ fontSize: '24px' }}>📝</span>
+              <div>
+                <div style={{ 
+                  fontSize: '24px', 
+                  fontWeight: 700, 
+                  color: 'white',
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                }}>{activityStats.postsCount}</div>
+                <div style={{ 
+                  fontSize: '14px', 
+                  color: 'rgba(255, 255, 255, 0.8)',
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                }}>내가 쓴 글</div>
             </div>
           </div>
-          <div className="stat-item">
-            <MessageCircle className="stat-icon" />
-            <div className="stat-info">
-              <div className="stat-number">{activityStats.commentsCount}</div>
-              <div className="stat-label">내가 쓴 댓글</div>
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              padding: '16px',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              <span style={{ fontSize: '24px' }}>💬</span>
+              <div>
+                <div style={{ 
+                  fontSize: '24px', 
+                  fontWeight: 700, 
+                  color: 'white',
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                }}>{activityStats.commentsCount}</div>
+                <div style={{ 
+                  fontSize: '14px', 
+                  color: 'rgba(255, 255, 255, 0.8)',
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                }}>내가 쓴 댓글</div>
             </div>
           </div>
-          <div className="stat-item">
-            <Heart className="stat-icon" />
-            <div className="stat-info">
-              <div className="stat-number">{activityStats.totalLikes}</div>
-              <div className="stat-label">받은 좋아요</div>
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              padding: '16px',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              <span style={{ fontSize: '24px' }}>❤️</span>
+              <div>
+                <div style={{ 
+                  fontSize: '24px', 
+                  fontWeight: 700, 
+                  color: 'white',
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                }}>{activityStats.totalLikes}</div>
+                <div style={{ 
+                  fontSize: '14px', 
+                  color: 'rgba(255, 255, 255, 0.8)',
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                }}>받은 좋아요</div>
             </div>
           </div>
-          <div className="stat-item">
-            <Star className="stat-icon" />
-            <div className="stat-info">
-              <div className="stat-number">{activityStats.averageScore || '-'} </div>
-              <div className="stat-label">평균 평가점수</div>
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              padding: '16px',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              <span style={{ fontSize: '24px' }}>⭐</span>
+              <div>
+                <div style={{ 
+                  fontSize: '24px', 
+                  fontWeight: 700, 
+                  color: 'white',
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                }}>{activityStats.averageScore || '-'}</div>
+                <div style={{ 
+                  fontSize: '14px', 
+                  color: 'rgba(255, 255, 255, 0.8)',
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                }}>평균 평가점수</div>
             </div>
           </div>
         </div>
       </div>
 
       {/* 등급/뱃지 컬렉션 */}
-      <div className="badge-collection" style={{ marginBottom: 32, background: '#F6F2FF', borderRadius: 16, padding: 24, boxShadow: '0 2px 8px #E5DAF5', textAlign: 'center' }}>
-        <h3 style={{ fontSize: 20, fontWeight: 700, color: '#8A55CC', marginBottom: 16, textAlign: 'center' }}>내 등급/뱃지</h3>
+        <div style={{ 
+          marginBottom: 32, 
+          background: 'rgba(255, 255, 255, 0.1)', 
+          backdropFilter: 'blur(15px)',
+          borderRadius: 20, 
+          padding: 24, 
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)', 
+          textAlign: 'center' 
+        }}>
+          <h3 style={{ 
+            fontSize: 20, 
+            fontWeight: 700, 
+            color: 'white', 
+            marginBottom: 16, 
+            textAlign: 'center',
+            textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
+          }}>🏅 내 등급/뱃지</h3>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 12 }}>
             {/* 1줄: 🍒, 🫐, 🥝, 🍎, 🍈, 🍉, 🌍, 🪐, ☀️, 🌌 */}
             {GRADE_OPTIONS.filter(e => !['🍺','⚡','⭐','🌙'].includes(e)).map((emoji) => (
               <div key={emoji} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 60 }}>
                 <span style={{ fontSize: 32 }}>{emoji}</span>
-                <span style={{ fontSize: 14, color: '#7C4DBC', fontWeight: 600 }}>{GRADE_NAMES[emoji]}</span>
-                {user?.grade === emoji && <span style={{ color: '#fff', background: '#8A55CC', borderRadius: 8, padding: '2px 8px', fontSize: 12, marginTop: 4 }}>내 등급</span>}
+                <span style={{ 
+                  fontSize: 14, 
+                  color: 'rgba(255, 255, 255, 0.8)', 
+                  fontWeight: 600,
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                }}>{GRADE_NAMES[emoji]}</span>
+                {user?.grade === emoji && (
+                  <span style={{ 
+                    color: '#fff', 
+                    background: 'rgba(255, 255, 255, 0.2)', 
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    borderRadius: 8, 
+                    padding: '2px 8px', 
+                    fontSize: 12, 
+                    marginTop: 4,
+                    fontWeight: 600
+                  }}>✨ 내 등급</span>
+                )}
               </div>
             ))}
           </div>
@@ -1002,8 +1464,25 @@ const MyPage: React.FC = () => {
             {GRADE_OPTIONS.filter(e => ['🍺','⚡','⭐','🌙'].includes(e)).map((emoji) => (
               <div key={emoji} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 60 }}>
                 <span style={{ fontSize: 32 }}>{emoji}</span>
-                <span style={{ fontSize: 14, color: '#7C4DBC', fontWeight: 600 }}>{GRADE_NAMES[emoji]}</span>
-                {user?.grade === emoji && <span style={{ color: '#fff', background: '#8A55CC', borderRadius: 8, padding: '2px 8px', fontSize: 12, marginTop: 4 }}>내 등급</span>}
+                <span style={{ 
+                  fontSize: 14, 
+                  color: 'rgba(255, 255, 255, 0.8)', 
+                  fontWeight: 600,
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                }}>{GRADE_NAMES[emoji]}</span>
+                {user?.grade === emoji && (
+                  <span style={{ 
+                    color: '#fff', 
+                    background: 'rgba(255, 255, 255, 0.2)', 
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    borderRadius: 8, 
+                    padding: '2px 8px', 
+                    fontSize: 12, 
+                    marginTop: 4,
+                    fontWeight: 600
+                  }}>✨ 내 등급</span>
+                )}
               </div>
             ))}
           </div>
@@ -1011,40 +1490,159 @@ const MyPage: React.FC = () => {
       </div>
 
       {/* 최근 활동 섹션 */}
-      <div className="recent-activity" style={{ marginBottom: 32, background: '#F9FAFB', borderRadius: 16, padding: 24, boxShadow: '0 2px 8px #E5DAF5' }}>
-        <h3 style={{ fontSize: 20, fontWeight: 700, color: '#8A55CC', marginBottom: 16 }}>최근 활동</h3>
+        <div style={{ 
+          marginBottom: 32, 
+          background: 'rgba(255, 255, 255, 0.1)', 
+          backdropFilter: 'blur(15px)',
+          borderRadius: 20, 
+          padding: 24, 
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+        }}>
+          <h3 style={{ 
+            fontSize: 20, 
+            fontWeight: 700, 
+            color: 'white', 
+            marginBottom: 16,
+            textAlign: 'center',
+            textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
+          }}>📋 최근 활동</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {myPosts.slice(0, 5).map(post => (
-            <div key={post.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid #E5DAF5' }}>
-              <span style={{ color: '#8A55CC', fontWeight: 700 }}>[{post.type === 'free' ? '자유게시판' : post.type === 'recording' ? '녹음게시판' : post.type === 'evaluation' ? '평가게시판' : post.type === 'partner' ? '파트너모집' : post.type}]</span>
-              <span style={{ fontWeight: 600 }}>{post.title}</span>
-              <span style={{ color: '#9CA3AF', fontSize: 12 }}>{formatDate(post.createdAt)}</span>
+              <div key={post.id} style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 12, 
+                padding: '12px 16px', 
+                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                background: 'rgba(255, 255, 255, 0.05)',
+                borderRadius: '12px',
+                marginBottom: '8px'
+              }}>
+                <span style={{ 
+                  color: 'rgba(255, 255, 255, 0.9)', 
+                  fontWeight: 700,
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  padding: '4px 8px',
+                  borderRadius: '8px',
+                  fontSize: '12px'
+                }}>[{post.type === 'free' ? '자유게시판' : post.type === 'recording' ? '녹음게시판' : post.type === 'evaluation' ? '평가게시판' : post.type === 'partner' ? '파트너모집' : post.type}]</span>
+                <span style={{ 
+                  fontWeight: 600, 
+                  color: 'white',
+                  flex: 1,
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                }}>{post.title}</span>
+                <span style={{ 
+                  color: 'rgba(255, 255, 255, 0.6)', 
+                  fontSize: 12,
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                }}>{formatDate(post.createdAt)}</span>
             </div>
           ))}
-          {myPosts.length === 0 && <span style={{ color: '#B497D6' }}>최근 작성한 글이 없습니다.</span>}
+            {myPosts.length === 0 && (
+              <span style={{ 
+                color: 'rgba(255, 255, 255, 0.7)', 
+                textAlign: 'center',
+                fontStyle: 'italic',
+                textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+              }}>📝 최근 작성한 글이 없습니다.</span>
+            )}
         </div>
       </div>
 
       {/* 합격곡 카드 */}
-      <div className="approved-songs-card" style={{ marginBottom: 32, background: '#F6F2FF', borderRadius: 16, padding: 24, boxShadow: '0 2px 8px #E5DAF5' }}>
-        <h3 style={{ fontSize: 20, fontWeight: 700, color: '#8A55CC', marginBottom: 16 }}>합격곡</h3>
+        <div style={{ 
+          marginBottom: 32, 
+          background: 'rgba(255, 255, 255, 0.1)', 
+          backdropFilter: 'blur(15px)',
+          borderRadius: 20, 
+          padding: 24, 
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+        }}>
+          <h3 style={{ 
+            fontSize: 20, 
+            fontWeight: 700, 
+            color: 'white', 
+            marginBottom: 16,
+            textAlign: 'center',
+            textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
+          }}>🎵 합격곡</h3>
         {approvedSongs.length === 0 ? (
-          <div style={{ color: '#B497D6', textAlign: 'center', fontWeight: 500 }}>아직 합격곡이 없습니다.</div>
+            <div style={{ 
+              color: 'rgba(255, 255, 255, 0.7)', 
+              textAlign: 'center', 
+              fontWeight: 500,
+              fontStyle: 'italic',
+              textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+            }}>🎼 아직 합격곡이 없습니다.</div>
         ) : (
           <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {(showAllSongs ? approvedSongs : approvedSongs.slice(0,5)).map(song => (
-                <div key={song.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid #E5DAF5' }}>
+                  <div key={song.id} style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 12, 
+                    padding: '12px 16px', 
+                    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    borderRadius: '12px',
+                    marginBottom: '8px'
+                  }}>
                   <span style={{ fontSize: 22 }}>{getSongGrade(song)}</span>
-                  <span style={{ fontWeight: 700, color: '#8A55CC', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => navigate('/approved-songs')}>{song.title}</span>
-                  <span style={{ color: '#7C4DBC', fontWeight: 500, fontSize: 14 }}>멤버: {Array.isArray(song.members) ? song.members.join(', ') : ''}</span>
-                  <span style={{ color: '#9CA3AF', fontSize: 12 }}>{song.createdAt && song.createdAt.seconds ? (new Date(song.createdAt.seconds * 1000)).toLocaleDateString('ko-KR') : ''}</span>
+                    <span style={{ 
+                      fontWeight: 700, 
+                      color: 'white', 
+                      cursor: 'pointer', 
+                      textDecoration: 'underline',
+                      flex: 1,
+                      textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                    }} onClick={() => navigate('/approved-songs')}>{song.title}</span>
+                    <span style={{ 
+                      color: 'rgba(255, 255, 255, 0.8)', 
+                      fontWeight: 500, 
+                      fontSize: 14,
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      padding: '4px 8px',
+                      borderRadius: '8px'
+                    }}>👥 {Array.isArray(song.members) ? song.members.join(', ') : ''}</span>
+                    <span style={{ 
+                      color: 'rgba(255, 255, 255, 0.6)', 
+                      fontSize: 12,
+                      textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                    }}>{song.createdAt && song.createdAt.seconds ? (new Date(song.createdAt.seconds * 1000)).toLocaleDateString('ko-KR') : ''}</span>
                 </div>
               ))}
             </div>
             {approvedSongs.length > 5 && (
-              <button style={{ marginTop: 12, background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 18px', fontWeight: 600, cursor: 'pointer' }} onClick={() => setShowAllSongs(v => !v)}>
-                {showAllSongs ? '접기' : `더보기 (${approvedSongs.length - 5}곡)`}
+                <button 
+                  style={{ 
+                    marginTop: 12, 
+                    background: 'rgba(255, 255, 255, 0.2)', 
+                    backdropFilter: 'blur(10px)',
+                    color: 'white', 
+                    border: '1px solid rgba(255, 255, 255, 0.3)', 
+                    borderRadius: 12, 
+                    padding: '8px 20px', 
+                    fontWeight: 600, 
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    display: 'block',
+                    margin: '16px auto 0'
+                  }} 
+                  onClick={() => setShowAllSongs(v => !v)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  {showAllSongs ? '📁 접기' : `📂 더보기 (${approvedSongs.length - 5}곡)`}
               </button>
             )}
           </>
@@ -1053,64 +1651,312 @@ const MyPage: React.FC = () => {
 
       {/* 설정/계정 카드 */}
       {isOwner && (
-        <div className="settings-section" style={{ display: 'flex', gap: 24, marginBottom: 32 }}>
-          <button className="settings-card" style={{ flex: 1, background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px #E5DAF5', border: 'none', fontWeight: 600, color: '#8A55CC', fontSize: 16, cursor: 'pointer' }} onClick={() => navigate('/settings')}>프로필/계정 설정</button>
-          <button className="settings-card" style={{ flex: 1, background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px #E5DAF5', border: 'none', fontWeight: 600, color: '#8A55CC', fontSize: 16, cursor: 'pointer' }} onClick={() => auth.signOut()}>로그아웃</button>
+          <div style={{ display: 'flex', gap: 16, marginBottom: 32 }}>
+            <button 
+              style={{ 
+                flex: 1, 
+                background: 'rgba(255, 255, 255, 0.1)', 
+                backdropFilter: 'blur(15px)',
+                borderRadius: 16, 
+                padding: 20, 
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)', 
+                fontWeight: 600, 
+                color: 'white', 
+                fontSize: 16, 
+                cursor: 'pointer',
+                textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
+                transition: 'all 0.3s ease'
+              }} 
+              onClick={() => navigate('/settings')}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >⚙️ 프로필/계정 설정</button>
+            <button 
+              style={{ 
+                flex: 1, 
+                background: 'rgba(255, 255, 255, 0.1)', 
+                backdropFilter: 'blur(15px)',
+                borderRadius: 16, 
+                padding: 20, 
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)', 
+                fontWeight: 600, 
+                color: 'white', 
+                fontSize: 16, 
+                cursor: 'pointer',
+                textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
+                transition: 'all 0.3s ease'
+              }} 
+              onClick={() => auth.signOut()}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >🚪 로그아웃</button>
         </div>
       )}
 
       {/* 탭 네비게이션 */}
-      <div className="tab-navigation">
+        <div style={{
+          display: 'flex',
+          gap: '8px',
+          marginBottom: '24px',
+          background: 'rgba(255, 255, 255, 0.1)',
+          backdropFilter: 'blur(15px)',
+          borderRadius: '16px',
+          padding: '8px',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+        }}>
         <button 
-          className={`tab-button ${activeTab === 'posts' ? 'active' : ''}`}
           onClick={() => setActiveTab('posts')}
+            style={{
+              flex: 1,
+              padding: '12px 16px',
+              borderRadius: '12px',
+              border: 'none',
+              background: activeTab === 'posts' 
+                ? 'rgba(255, 255, 255, 0.3)' 
+                : 'transparent',
+              color: 'white',
+              fontWeight: 600,
+              fontSize: '14px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              transition: 'all 0.3s ease',
+              textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+            }}
+            onMouseEnter={(e) => {
+              if (activeTab !== 'posts') {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (activeTab !== 'posts') {
+                e.currentTarget.style.background = 'transparent';
+              }
+            }}
         >
           <FileText size={16} />
-          내 글
+            📝 내 글
         </button>
         <button 
-          className={`tab-button ${activeTab === 'evaluations' ? 'active' : ''}`}
           onClick={() => setActiveTab('evaluations')}
+            style={{
+              flex: 1,
+              padding: '12px 16px',
+              borderRadius: '12px',
+              border: 'none',
+              background: activeTab === 'evaluations' 
+                ? 'rgba(255, 255, 255, 0.3)' 
+                : 'transparent',
+              color: 'white',
+              fontWeight: 600,
+              fontSize: '14px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              transition: 'all 0.3s ease',
+              textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+            }}
+            onMouseEnter={(e) => {
+              if (activeTab !== 'evaluations') {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (activeTab !== 'evaluations') {
+                e.currentTarget.style.background = 'transparent';
+              }
+            }}
         >
           <Star size={16} />
-          평가 이력
+            ⭐ 평가 이력
         </button>
         <button 
-          className={`tab-button ${activeTab === 'recordings' ? 'active' : ''}`}
           onClick={() => setActiveTab('recordings')}
+            style={{
+              flex: 1,
+              padding: '12px 16px',
+              borderRadius: '12px',
+              border: 'none',
+              background: activeTab === 'recordings' 
+                ? 'rgba(255, 255, 255, 0.3)' 
+                : 'transparent',
+              color: 'white',
+              fontWeight: 600,
+              fontSize: '14px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              transition: 'all 0.3s ease',
+              textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+            }}
+            onMouseEnter={(e) => {
+              if (activeTab !== 'recordings') {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (activeTab !== 'recordings') {
+                e.currentTarget.style.background = 'transparent';
+              }
+            }}
         >
           <Mic size={16} />
-          내 녹음
+            🎤 내 녹음
         </button>
         <button 
-          className={`tab-button ${activeTab === 'guestbook' ? 'active' : ''}`}
           onClick={() => setActiveTab('guestbook')}
+            style={{
+              flex: 1,
+              padding: '12px 16px',
+              borderRadius: '12px',
+              border: 'none',
+              background: activeTab === 'guestbook' 
+                ? 'rgba(255, 255, 255, 0.3)' 
+                : 'transparent',
+              color: 'white',
+              fontWeight: 600,
+              fontSize: '14px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              transition: 'all 0.3s ease',
+              textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+            }}
+            onMouseEnter={(e) => {
+              if (activeTab !== 'guestbook') {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (activeTab !== 'guestbook') {
+                e.currentTarget.style.background = 'transparent';
+              }
+            }}
         >
           <Users size={16} />
-          방명록
+            👥 방명록
         </button>
       </div>
 
       {/* 탭 컨텐츠 */}
-      <div className="tab-content">
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.1)',
+          backdropFilter: 'blur(15px)',
+          borderRadius: '20px',
+          padding: '24px',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+          marginBottom: '24px'
+        }}>
         {activeTab === 'posts' && (
-          <div className="posts-list">
+            <div>
             {myPosts.length === 0 ? (
-              <div className="empty-state">
-                <FileText size={48} />
-                <h3>작성한 글이 없습니다</h3>
-                <p>첫 번째 글을 작성해보세요!</p>
+                <div style={{
+                  textAlign: 'center',
+                  padding: '40px 20px',
+                  color: 'rgba(255, 255, 255, 0.7)'
+                }}>
+                  <FileText size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
+                  <h3 style={{ 
+                    fontSize: '20px', 
+                    fontWeight: 600, 
+                    marginBottom: '8px',
+                    color: 'white',
+                    textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                  }}>📝 작성한 글이 없습니다</h3>
+                  <p style={{ 
+                    fontSize: '14px',
+                    textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                  }}>첫 번째 글을 작성해보세요!</p>
               </div>
             ) : (
               myPosts.map((post) => (
-                <div key={post.id} className="post-item">
-                  <h4 className="post-title">{post.title}</h4>
-                  <div className="post-meta">
-                    <span className="post-type">{post.type}</span>
-                    <span className="post-date">{formatDate(post.createdAt)}</span>
-                    <div className="post-stats">
-                      <span><Heart size={12} /> {post.likesCount}</span>
-                      <span><MessageCircle size={12} /> {post.commentCount}</span>
+                  <div key={post.id} style={{
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    backdropFilter: 'blur(10px)',
+                    borderRadius: '16px',
+                    padding: '16px',
+                    marginBottom: '12px',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                  >
+                    <h4 style={{ 
+                      fontSize: '16px', 
+                      fontWeight: 600, 
+                      marginBottom: '8px',
+                      color: 'white',
+                      textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                    }}>{post.title}</h4>
+                    <div style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '12px',
+                      fontSize: '12px'
+                    }}>
+                      <span style={{ 
+                        background: 'rgba(255, 255, 255, 0.2)',
+                        padding: '4px 8px',
+                        borderRadius: '8px',
+                        color: 'white',
+                        fontWeight: 600
+                      }}>{post.type}</span>
+                      <span style={{ 
+                        color: 'rgba(255, 255, 255, 0.7)',
+                        textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                      }}>{formatDate(post.createdAt)}</span>
+                      <div style={{ 
+                        display: 'flex', 
+                        gap: '8px',
+                        marginLeft: 'auto'
+                      }}>
+                        <span style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '4px',
+                          color: 'rgba(255, 255, 255, 0.8)'
+                        }}>
+                          <Heart size={12} /> {post.likesCount}
+                        </span>
+                        <span style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '4px',
+                          color: 'rgba(255, 255, 255, 0.8)'
+                        }}>
+                          <MessageCircle size={12} /> {post.commentCount}
+                        </span>
                     </div>
                   </div>
                 </div>
@@ -1302,6 +2148,7 @@ const MyPage: React.FC = () => {
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

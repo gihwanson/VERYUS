@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import '../styles/PostList.css';
 import '../styles/BoardLayout.css';
+import { markBoardAsVisited } from '../utils/simpleBoardNotification';
 
 interface RecordingPost {
   id: string;
@@ -188,7 +189,13 @@ const RecordingPostList: React.FC = () => {
     const userString = localStorage.getItem('veryus_user');
     if (userString) {
       try {
-        setUser(JSON.parse(userString));
+        const userData = JSON.parse(userString);
+        setUser(userData);
+        
+        // 게시판 방문 기록 저장
+        if (userData.uid) {
+          markBoardAsVisited(userData.uid, 'recording');
+        }
       } catch (error) {
         console.error('사용자 정보 파싱 에러:', error);
       }
@@ -258,17 +265,24 @@ const RecordingPostList: React.FC = () => {
   const formatDate = (date: Date) => {
     const now = new Date();
     const diffTime = now.getTime() - date.getTime();
+    const diffMinutes = Math.floor(diffTime / (1000 * 60));
     const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    const diffMonths = Math.floor(diffDays / 30);
+    const diffYears = Math.floor(diffDays / 365);
 
-    if (diffHours < 1) {
+    if (diffMinutes < 1) {
       return '방금 전';
+    } else if (diffMinutes < 60) {
+      return `${diffMinutes}분 전`;
     } else if (diffHours < 24) {
       return `${diffHours}시간 전`;
-    } else if (diffDays < 7) {
+    } else if (diffDays < 30) {
       return `${diffDays}일 전`;
+    } else if (diffMonths < 12) {
+      return `${diffMonths}달 전`;
     } else {
-      return date.toLocaleDateString('ko-KR');
+      return `${diffYears}년 전`;
     }
   };
 
@@ -391,33 +405,24 @@ const RecordingPostList: React.FC = () => {
                 <div className="post-main-info">
                   <div className="post-category-title">
                     <span className="post-category category-badge">녹음</span>
-                    <h2 className="post-title">{post.title}</h2>
+                    <h2 className="post-title" style={{ fontSize: '1.3rem' }}>{post.title}</h2>
                   </div>
                 </div>
                 <div className="post-meta">
                   <div className="post-author">
-                    <User size={16} />
-                    <span className="author-name">
-                      {post.writerNickname}
-                      <span className="author-grade" title={getGradeName(post.writerGrade || '🍒')}>
-                        {getGradeEmoji(post.writerGrade || '🍒')}
-                      </span>
+                    <span className="author-grade" title={getGradeName(post.writerGrade || '🍒')} style={{ fontSize: '1.1rem', marginRight: '0.3rem' }}>
+                      {getGradeEmoji(post.writerGrade || '🍒')}
                     </span>
-                    {post.writerRole && post.writerRole !== '일반' && (
-                      <span className="author-role">{post.writerRole}</span>
-                    )}
+                    <span className="author-name" style={{ fontSize: '1.1rem', color: '#FFFFFF', fontWeight: 600, textDecoration: 'none' }}>
+                      {post.writerNickname}
+                    </span>
+                    <span className={`role-badge ${post.writerRole || '일반'}`}>
+                      {post.writerRole || '일반'}
+                    </span>
                     {post.writerPosition && (
                       <span className="author-position">{post.writerPosition}</span>
                     )}
                   </div>
-                  <span className="post-date">
-                    <Clock size={16} />
-                    {formatDate(post.createdAt)}
-                  </span>
-                  <span className="post-views">
-                    <Eye size={16} />
-                    조회 {post.views || 0}
-                  </span>
                 </div>
               </div>
               <div className="post-content-preview">
@@ -429,17 +434,23 @@ const RecordingPostList: React.FC = () => {
                   <span className="audio-duration">{formatDuration(post.duration)}</span>
                 </div>
               </div>
-              <div className="post-footer">
-                <div className="post-stats">
-                  <span className="post-stat">
-                    <Heart size={16} />
-                    {post.likesCount || 0}
-                  </span>
-                  <span className="post-stat">
-                    <MessageCircle size={16} />
-                    {post.commentCount || 0}
-                  </span>
-                </div>
+              <div className="post-footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(139, 92, 246, 0.1)', color: '#FFFFFF', fontSize: '0.85rem', fontWeight: 500 }}>
+                <span className="post-stat" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#FFFFFF' }}>
+                  <Heart size={16} style={{ color: '#FFFFFF' }} />
+                  {post.likesCount || 0}
+                </span>
+                <span className="post-stat" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#FFFFFF' }}>
+                  <MessageCircle size={16} style={{ color: '#FFFFFF' }} />
+                  {post.commentCount || 0}
+                </span>
+                <span className="post-date" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#FFFFFF' }}>
+                  <Clock size={16} style={{ color: '#FFFFFF' }} />
+                  {formatDate(post.createdAt)}
+                </span>
+                <span className="post-views" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#FFFFFF' }}>
+                  <Eye size={16} style={{ color: '#FFFFFF' }} />
+                  조회 {post.views || 0}
+                </span>
               </div>
             </article>
           ))

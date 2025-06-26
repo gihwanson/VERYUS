@@ -272,60 +272,165 @@ const ContestParticipate: React.FC = () => {
   };
 
   if (ended) {
-    return <div style={{ padding: 40, textAlign: 'center', color: '#F43F5E', fontWeight: 700 }}>이 콘테스트는 종료되어 더 이상 참여할 수 없습니다.</div>;
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        backgroundAttachment: 'fixed',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{
+          background: 'rgba(239, 68, 68, 0.8)',
+          backdropFilter: 'blur(15px)',
+          borderRadius: '20px',
+          padding: '40px',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>❌</div>
+          <div style={{ color: 'white', fontSize: '18px', fontWeight: 700 }}>이 콘테스트는 종료되어 더 이상 참여할 수 없습니다.</div>
+        </div>
+      </div>
+    );
   }
 
-  if (!contest) return <div style={{ padding: 40, textAlign: 'center', color: '#B497D6' }}>콘테스트 정보를 불러오는 중...</div>;
+  if (!contest) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        backgroundAttachment: 'fixed',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.15)',
+          backdropFilter: 'blur(15px)',
+          borderRadius: '20px',
+          padding: '40px',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
+          <div style={{ color: 'white', fontSize: '18px', fontWeight: 600 }}>콘테스트 정보를 불러오는 중...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        padding: '16px',
-        display: 'flex',
-        flexDirection: 'column',
-        width: '100%',
-        boxSizing: 'border-box',
-        background: 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)',
-      }}
-    >
-      <button
-        style={{ 
-          background: '#F6F2FF', 
-          color: '#8A55CC', 
-          borderRadius: 12, 
-          padding: '12px 24px', 
-          fontWeight: 600, 
-          fontSize: 16, 
-          border: 'none', 
-          cursor: 'pointer', 
-          marginBottom: 20, 
-          alignSelf: 'flex-start',
-          boxShadow: '0 2px 8px rgba(138, 85, 204, 0.1)'
-        }}
-        onClick={() => navigate(`/contests/${id}`)}
-      >
-        ← 콘테스트 메인으로
-      </button>
-      <div
-        className="contest-card"
-        style={{
-          width: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          background: '#FFFFFF',
-          borderRadius: 20,
-          padding: '24px',
-          boxSizing: 'border-box',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
-          border: '1px solid rgba(138, 85, 204, 0.1)',
-        }}
-      >
-        <h2 style={{ color: '#8A55CC', fontWeight: 700, fontSize: 28, marginBottom: 8, textAlign: 'center' }}>{contest.title}</h2>
-        <div style={{ color: '#6B7280', fontWeight: 500, marginBottom: 8, textAlign: 'center' }}>{contest.type}</div>
-        <div style={{ color: '#B497D6', fontSize: 15, marginBottom: 24, textAlign: 'center' }}>마감: {contest.deadline && (contest.deadline.seconds ? new Date(contest.deadline.seconds * 1000).toLocaleDateString('ko-KR') : '')}</div>
-        {submitted ? (
-          <div style={{ color: '#10B981', fontWeight: 700, fontSize: 20, margin: '32px 0', textAlign: 'center' }}>제출이 완료되었습니다.</div>
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      backgroundAttachment: 'fixed',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      {/* 배경 패턴 */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: `
+          radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+          radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+          radial-gradient(circle at 40% 80%, rgba(120, 119, 198, 0.2) 0%, transparent 50%)
+        `,
+        pointerEvents: 'none'
+      }} />
+      
+      <div style={{
+        position: 'relative',
+        zIndex: 1,
+        padding: '20px',
+        maxWidth: '800px',
+        margin: '0 auto'
+      }}>
+        {/* 뒤로가기 버튼 */}
+        <div style={{ marginBottom: '20px' }}>
+          <button
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.2)',
+              backdropFilter: 'blur(10px)',
+              color: 'white', 
+              borderRadius: '12px', 
+              padding: '12px 24px', 
+              fontWeight: 600, 
+              fontSize: 16, 
+              border: '1px solid rgba(255, 255, 255, 0.3)', 
+              cursor: 'pointer',
+              transition: 'all 0.3s ease'
+            }}
+            onClick={() => navigate(`/contests/${id}`)}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            ← 콘테스트 메인으로
+          </button>
+        </div>
+
+        {/* 메인 콘텐츠 */}
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.15)',
+          backdropFilter: 'blur(15px)',
+          borderRadius: '20px',
+          padding: '30px',
+          border: '1px solid rgba(255, 255, 255, 0.2)'
+        }}>
+          <h2 style={{ 
+            color: 'white', 
+            fontWeight: 700, 
+            fontSize: 28, 
+            marginBottom: 8, 
+            textAlign: 'center',
+            textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
+          }}>
+            {contest.title}
+          </h2>
+          <div style={{ 
+            color: 'rgba(255, 255, 255, 0.9)', 
+            fontWeight: 500, 
+            marginBottom: 8, 
+            textAlign: 'center',
+            fontSize: '16px'
+          }}>
+            {contest.type}
+          </div>
+          <div style={{ 
+            color: 'rgba(255, 255, 255, 0.8)', 
+            fontSize: 15, 
+            marginBottom: 24, 
+            textAlign: 'center' 
+          }}>
+                         📅 마감: {contest.deadline && (contest.deadline.seconds ? new Date(contest.deadline.seconds * 1000).toLocaleDateString('ko-KR') : '')}
+           </div>
+           
+           {submitted ? (
+             <div style={{ 
+               color: '#10B981', 
+               fontWeight: 700, 
+               fontSize: 20, 
+               margin: '32px 0', 
+               textAlign: 'center',
+               background: 'rgba(16, 185, 129, 0.1)',
+               backdropFilter: 'blur(5px)',
+               padding: '16px',
+               borderRadius: '12px',
+               border: '1px solid rgba(16, 185, 129, 0.3)'
+             }}>
+               ✅ 제출이 완료되었습니다.
+             </div>
         ) : (
           (contest.type === '정규등급전' || contest.type === '세미등급전') ? (
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 24, alignItems: 'center', width: '100%' }}>
@@ -730,7 +835,8 @@ const ContestParticipate: React.FC = () => {
               )}
             </>
           ) : null
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

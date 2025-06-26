@@ -1,16 +1,14 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { onSnapshot, doc } from 'firebase/firestore';
-import { signOut } from 'firebase/auth';
-import { auth, db } from '../firebase';
-import { 
-  ChevronDown,
-  User,
-  Bell
-} from 'lucide-react';
+import { User } from 'lucide-react';
 import './Home.css';
-import { subscribeToAnnouncementUnreadCount } from '../utils/readStatusService';
-import { subscribeToTotalUnreadCount } from '../utils/chatService';
+import DailyFortune from './DailyFortune';
+import { db } from '../firebase';
+import { 
+  markBoardAsVisited,
+  getAllBoardNotificationStatus
+} from '../utils/simpleBoardNotification';
 
 // Types
 interface User {
@@ -23,12 +21,7 @@ interface User {
   isLoggedIn: boolean;
 }
 
-interface DropdownItem {
-  name: string;
-  icon: React.FC<{ size?: number }>;
-  action: () => void;
-  badge?: string;
-}
+// DropdownItem interface removed - no longer needed
 
 interface BoardItem {
   name: string;
@@ -53,61 +46,45 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
   // State
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
-  const [totalChatUnreadCount, setTotalChatUnreadCount] = useState(0);
+  const [dailyFortuneOpen, setDailyFortuneOpen] = useState(false);
+  const [boardNotifications, setBoardNotifications] = useState<any[]>([]);
 
   const navigate = useNavigate();
 
-  // handleLogout 함수
-  const handleLogout = useCallback(async (): Promise<void> => {
-    try {
-      await signOut(auth);
-      localStorage.removeItem('veryus_user');
-      navigate('/login');
-    } catch (error) {
-      console.error('로그아웃 에러:', error);
-    }
-  }, [navigate]);
+  // 프로필 클릭 핸들러
+  const handleProfileClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDailyFortuneOpen(!dailyFortuneOpen);
+  };
 
-  // 관리자 확인
-  const isAdmin = useCallback((user: User | null): boolean => {
-    if (user) {
-      return user.nickname === '너래' || user.role === '리더' || user.role === '운영진';
-    }
-    
-    const userString = localStorage.getItem('veryus_user');
-    if (userString) {
-      try {
-        const userData = JSON.parse(userString);
-        return userData.nickname === '너래' || userData.role === '리더' || userData.role === '운영진';
-      } catch (error) {
-        console.error('localStorage 파싱 에러:', error);
-        return false;
+  // 게시판 네비게이션 - 방문 기록 저장
+  const navigateToBoard = (path: string) => {
+    if (user?.uid) {
+      // 경로에 따라 게시판 타입 결정
+      let boardType: string | null = null;
+      
+      if (path === '/free') boardType = 'free';
+      else if (path === '/recording') boardType = 'recording';
+      else if (path === '/evaluation') boardType = 'evaluation';
+      else if (path === '/boards/partner') boardType = 'partner';
+      
+      // 게시판 방문 기록 저장
+      if (boardType) {
+        markBoardAsVisited(user.uid, boardType);
+        
+        // 즉시 알림 상태 업데이트
+        const notifications = getAllBoardNotificationStatus(user.uid);
+        setBoardNotifications(notifications);
       }
     }
-    return false;
-  }, []);
-
-  // 드롭다운 메뉴 아이템
-  const dropdownItems: DropdownItem[] = useMemo(() => [
-    { name: '연습장', icon: () => <span style={{fontSize:18}}>🎹</span>, action: () => navigate('/practice-room') },
-    { name: '합격곡', icon: () => <span style={{fontSize:18}}>🏆</span>, action: () => navigate('/approved-songs') },
-    { name: '셋리스트', icon: () => <span style={{fontSize:18}}>🎵</span>, action: () => navigate('/setlist') },
-    { name: '마이페이지', icon: () => <span style={{fontSize:18}}>👤</span>, action: () => navigate('/mypage') },
-    { name: '채팅방', icon: () => <span style={{fontSize:18}}>💬</span>, action: () => navigate('/messages'), badge: totalChatUnreadCount > 0 ? '●' : undefined },
-    { name: '알림', icon: () => <span style={{fontSize:18}}>🔔</span>, action: () => navigate('/notifications'), badge: unreadNotificationCount > 0 ? '●' : undefined },
-    { name: '콘테스트', icon: () => <span style={{fontSize:18}}>🎤</span>, action: () => navigate('/contests') },
-    { name: '설정', icon: () => <span style={{fontSize:18}}>⚙️</span>, action: () => navigate('/settings') },
-    ...(isAdmin(user) ? [
-      { name: '관리자 패널', icon: () => <span style={{fontSize:18}}>🛠️</span>, action: () => navigate('/admin-user') }
-    ] : []),
-    { name: '로그아웃', icon: () => <span style={{fontSize:18}}>🚪</span>, action: handleLogout }
-  ], [user, navigate, isAdmin, handleLogout, totalChatUnreadCount, unreadNotificationCount]);
-
-  // 게시판 네비게이션
-  const navigateToBoard = (path: string) => {
+    
     navigate(path);
+  };
+
+  // 특정 게시판의 새 게시글 알림 상태 가져오기
+  const getBoardNotification = (boardType: string): boolean => {
+    const notification = boardNotifications.find(n => n.boardType === boardType);
+    return notification?.hasNewPosts || false;
   };
 
   // Effects
@@ -144,35 +121,33 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
     }
   }, []);
 
+  // useEffect for dropdown click outside and notifications removed - no longer needed
+
+  // 게시판 알림 상태 로드
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const dropdown = document.querySelector('.profile-dropdown');
-      if (dropdown && !dropdown.contains(event.target as Node)) {
-        setDropdownOpen(false);
+    if (!user?.uid) {
+      setBoardNotifications([]);
+      return;
+    }
+
+    // 초기 알림 상태 로드
+    const notifications = getAllBoardNotificationStatus(user.uid);
+    setBoardNotifications(notifications);
+  }, [user?.uid]);
+
+  // 페이지 포커스 시 알림 상태 새로고침
+  useEffect(() => {
+    const handleFocus = () => {
+      if (user?.uid) {
+        const notifications = getAllBoardNotificationStatus(user.uid);
+        setBoardNotifications(notifications);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // 알림 및 채팅 읽지 않음 수 구독
-  useEffect(() => {
-    if (!user?.uid) return;
-
-    const unsubscribeAnnouncement = subscribeToAnnouncementUnreadCount(
-      user.uid, 
-      setUnreadNotificationCount
-    );
-
-    const unsubscribeChat = subscribeToTotalUnreadCount(
-      user.uid, 
-      setTotalChatUnreadCount
-    );
-
+    window.addEventListener('focus', handleFocus);
+    
     return () => {
-      unsubscribeAnnouncement();
-      unsubscribeChat();
+      window.removeEventListener('focus', handleFocus);
     };
   }, [user?.uid]);
 
@@ -191,62 +166,23 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
     <div className="home-container">
       {/* 우측 상단 고정 헤더 */}
       <div className="fixed-header">
-        {/* 알림 버튼 */}
-        <button 
-          className="notification-icon-button"
-          onClick={() => navigate('/notifications')}
-          aria-label="알림"
-        >
-          <Bell size={20} />
-          {unreadNotificationCount > 0 && (
-            <span className="notification-badge-dot"></span>
-          )}
-        </button>
-
-        {/* 프로필 드롭다운 */}
-        <div className="profile-dropdown">
+        {/* 프로필 버튼 - 오늘의 운세 */}
+        <div className="profile-section">
           <button
             className="profile-button"
-            onClick={() => setDropdownOpen(!dropdownOpen)}
+            onClick={handleProfileClick}
+            title="오늘의 운세와 추천곡 보기"
           >
             <div className="profile-info">
               <div className="profile-avatar">
                 {user?.profileImageUrl ? (
                   <img src={user.profileImageUrl} alt="프로필" />
                 ) : (
-                  <User size={20} />
+                  <User size={16} />
                 )}
-              </div>
-              <span className="profile-name">
-                {user?.nickname || user?.email?.split('@')[0] || '사용자'}
-                <span className="profile-grade">{user?.grade || '🌙'}</span>
-              </span>
-              <div className="profile-chevron">
-                <ChevronDown 
-                  size={16} 
-                  className={`dropdown-arrow ${dropdownOpen ? 'open' : ''}`}
-                />
               </div>
             </div>
           </button>
-          {dropdownOpen && (
-            <div className="dropdown-menu">
-              {dropdownItems.map((item, index) => (
-                <button
-                  key={index}
-                  className="dropdown-item"
-                  onClick={() => {
-                    item.action();
-                    setDropdownOpen(false);
-                  }}
-                >
-                  <item.icon size={16} />
-                  <span>{item.name}</span>
-                  {item.badge && <span className="dropdown-notification-dot"></span>}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
@@ -272,22 +208,60 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
         {/* 게시판 바로가기 */}
         <div className="boards-section">
           <div className="boards-grid">
-            {BOARDS.map((board, index) => (
-              <div 
-                key={index} 
-                className={`bubble-button bubble-${board.path.replace('/', '').replace('boards/', '')}`}
-                onClick={() => navigateToBoard(board.path)}
-                style={{ '--board-color': board.color } as React.CSSProperties}
-              >
-                <div className="bubble-icon">
-                  <board.icon />
+            {BOARDS.map((board, index) => {
+              // 경로에 따라 게시판 타입 결정
+              let boardType: 'free' | 'recording' | 'evaluation' | 'partner' | null = null;
+              if (board.path === '/free') boardType = 'free';
+              else if (board.path === '/recording') boardType = 'recording';
+              else if (board.path === '/evaluation') boardType = 'evaluation';
+              else if (board.path === '/boards/partner') boardType = 'partner';
+
+              const hasNewPosts = boardType ? getBoardNotification(boardType) : false;
+
+              return (
+                <div 
+                  key={index} 
+                  className={`bubble-button bubble-${board.path.replace('/', '').replace('boards/', '')}`}
+                  onClick={() => navigateToBoard(board.path)}
+                  style={{ '--board-color': board.color } as React.CSSProperties}
+                >
+                  <div className="bubble-icon" style={{ position: 'relative' }}>
+                    <board.icon />
+                    {hasNewPosts && (
+                      <span 
+                        className="board-notification-dot"
+                        style={{
+                          position: 'absolute',
+                          top: '-2px',
+                          right: '-8px',
+                          width: '10px',
+                          height: '10px',
+                          backgroundColor: '#ff4757',
+                          borderRadius: '50%',
+                          border: '2px solid white',
+                          zIndex: 1,
+                          animation: 'pulse 2s infinite'
+                        }}
+                      />
+                    )}
+                  </div>
+                  <span className="bubble-name">{board.name}</span>
                 </div>
-                <span className="bubble-name">{board.name}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
+
       </div>
+
+      {/* 오늘의 운세 모달 */}
+      {user && (
+        <DailyFortune
+          user={user}
+          isOpen={dailyFortuneOpen}
+          onClose={() => setDailyFortuneOpen(false)}
+        />
+      )}
     </div>
   );
 };

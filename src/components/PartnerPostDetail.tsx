@@ -240,7 +240,25 @@ const PartnerPostDetail: React.FC = () => {
   const formatDate = (date: Date | any) => {
     if (!date) return '';
     const d = date.toDate ? date.toDate() : new Date(date);
-    return d.toLocaleString('ko-KR', { year: '2-digit', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const now = new Date();
+    const diffTime = now.getTime() - d.getTime();
+    const diffMinutes = Math.floor(diffTime / (1000 * 60));
+    const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    const diffMonths = Math.floor(diffDays / 30);
+    const diffYears = Math.floor(diffDays / 365);
+
+    if (diffMinutes < 60) {
+      return `${diffMinutes}분 전`;
+    } else if (diffHours < 24) {
+      return `${diffHours}시간 전`;
+    } else if (diffDays < 30) {
+      return `${diffDays}일 전`;
+    } else if (diffMonths < 12) {
+      return `${diffMonths}달 전`;
+    } else {
+      return `${diffYears}년 전`;
+    }
   };
 
   if (loading) {
@@ -412,34 +430,32 @@ const PartnerPostDetail: React.FC = () => {
         </button>
       </div>
       <article className="post-detail">
-        <div className="post-detail-header" style={{ width: '100%', maxWidth: '100%', marginLeft: 0, paddingLeft: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginBottom: '2rem' }}>
-          <div className="title-container" style={{ width: '100%', maxWidth: '100%', marginLeft: 0, paddingLeft: 0, display: 'flex', flexDirection: window.innerWidth <= 768 ? 'column' : 'row', alignItems: window.innerWidth <= 768 ? 'flex-start' : 'center', gap: window.innerWidth <= 768 ? '0.2rem' : '1.5rem', justifyContent: 'flex-start' }}>
-            {post.category && <span className="category-tag">{categories.find(c => c.id === post.category)?.name || '일반'}</span>}
-            <h1 className="post-detail-title" style={{ textAlign: 'left', flex: 1, fontWeight: 800, fontSize: window.innerWidth <= 768 ? '1.5rem' : '1.25rem', marginBottom: window.innerWidth <= 768 ? '0.1rem' : 0 }}>
-              {post.title}
-            </h1>
+        <div className="post-detail-header">
+          <div className="title-container">
+            <div className="title-section">
+              {post.category && <span className="category-tag">{categories.find(c => c.id === post.category)?.name || '일반'}</span>}
+              <h1 className="post-detail-title">
+                {post.title}
+              </h1>
+            </div>
           </div>
-          {window.innerWidth <= 768 ? (
-            <>
-              <div className="post-detail-author" style={{display:'flex',alignItems:'center',gap:'0.4rem',margin:'0 0 0.05rem 0',padding:0}}>
-                <User size={20} />
-                <span className="author-info" style={{cursor:'pointer',color:'#8A55CC',textDecoration:'underline'}} onClick={() => navigate(`/mypage/${post.writerUid}`)}>
-                  {post.writerNickname}
+          <div className="post-detail-meta">
+            <div className="post-detail-author">
+              <div className="author-section">
+                <span className="author-info" onClick={() => navigate(`/mypage/${post.writerUid}`)}>
                   <span className="author-grade-emoji" title={getGradeName(post.writerGrade || '🍒')}>
                     {getGradeEmoji(post.writerGrade || '🍒')}
                   </span>
+                  {post.writerNickname}
                 </span>
-                {post.writerRole && post.writerRole !== '일반' && (
-                  <span className="author-role">{post.writerRole}</span>
-                )}
+                <span className={`role-badge ${post.writerRole || '일반'}`}>
+                  {post.writerRole || '일반'}
+                </span>
                 {post.writerPosition && (
                   <span className="author-position">{post.writerPosition}</span>
                 )}
-                <button className="message-btn" style={{ background: '#F6F2FF', border: 'none', borderRadius: 8, padding: '6px 14px', color: '#8A55CC', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }} onClick={() => setShowMessageModal(true)}>
-                  <MessageSquare size={18} /> 쪽지
-                </button>
               </div>
-              <div className="post-detail-info" style={{margin:'0 0 0.05rem 0',padding:0}}>
+              <div className="post-detail-info">
                 <span className="post-detail-date">
                   <Clock size={16} />
                   {formatDate(post.createdAt)}
@@ -449,39 +465,8 @@ const PartnerPostDetail: React.FC = () => {
                   조회 {post.views || 0}
                 </span>
               </div>
-            </>
-          ) : (
-            <>
-              <div className="post-detail-author" style={{display:'flex',alignItems:'center',gap:'0.7rem',marginLeft:'auto'}}>
-                <User size={20} />
-                <span className="author-info" style={{cursor:'pointer',color:'#8A55CC',textDecoration:'underline'}} onClick={() => navigate(`/mypage/${post.writerUid}`)}>
-                  {post.writerNickname}
-                  <span className="author-grade-emoji" title={getGradeName(post.writerGrade || '🍒')}>
-                    {getGradeEmoji(post.writerGrade || '🍒')}
-                  </span>
-                </span>
-                {post.writerRole && post.writerRole !== '일반' && (
-                  <span className="author-role">{post.writerRole}</span>
-                )}
-                {post.writerPosition && (
-                  <span className="author-position">{post.writerPosition}</span>
-                )}
-                <button className="message-btn" style={{ background: '#F6F2FF', border: 'none', borderRadius: 8, padding: '6px 14px', color: '#8A55CC', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }} onClick={() => setShowMessageModal(true)}>
-                  <MessageSquare size={18} /> 쪽지
-                </button>
-              </div>
-              <div className="post-detail-info" style={{marginTop:'0.7rem'}}>
-                <span className="post-detail-date">
-                  <Clock size={16} />
-                  {formatDate(post.createdAt)}
-                </span>
-                <span className="post-detail-views">
-                  <Eye size={16} />
-                  조회 {post.views || 0}
-                </span>
-              </div>
-            </>
-          )}
+            </div>
+          </div>
         </div>
         <div className="post-detail-content">
           {post.content.split('\n').map((line, index) => (
@@ -490,6 +475,29 @@ const PartnerPostDetail: React.FC = () => {
           {isClosed && (
             <div style={{marginTop:'1.5rem',padding:'1rem',background:'#F6F2FF',color:'#8A55CC',fontWeight:600,borderRadius:8,fontSize:'1.05rem',textAlign:'center'}}>
               (해당 게시글은 모집이 완료된 게시글입니다)
+            </div>
+          )}
+          
+          {/* 지원하기 버튼을 본문 바로 밑으로 이동 */}
+          {!isClosed && user && post.writerUid !== user.uid && (
+            <div style={{marginTop:'1.5rem',textAlign:'center'}}>
+              <button 
+                className="apply-btn"
+                style={{background: applicants.includes(user.uid) ? '#eee' : '#8A55CC', color: applicants.includes(user.uid) ? '#aaa' : '#fff', fontWeight:700, fontSize:'1.1rem', borderRadius:12, padding:'1rem 2rem', border:'none', boxShadow:'0 4px 16px rgba(124,58,237,0.2)', cursor:'pointer', transition:'all 0.3s ease'}}
+                onClick={handleApply}
+                onMouseEnter={(e) => {
+                  if (!applicants.includes(user.uid)) {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(124,58,237,0.3)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 16px rgba(124,58,237,0.2)';
+                }}
+              >
+                {applicants.includes(user.uid) ? '지원 완료 (취소)' : '지원하기'}
+              </button>
             </div>
           )}
         </div>
@@ -507,6 +515,20 @@ const PartnerPostDetail: React.FC = () => {
               />
               <span>{post.likesCount || 0}</span>
             </button>
+            
+            <button className="message-btn" onClick={() => setShowMessageModal(true)}>
+              <MessageSquare size={18} /> 쪽지
+            </button>
+            
+            {canDelete && (
+              <button 
+                onClick={handleDelete}
+                className="action-button"
+              >
+                <Trash2 size={20} />
+                삭제
+              </button>
+            )}
             {/* 모집완료/지원자보기 버튼: 작성자만, 모집중일 때만 노출 */}
             {user && post.writerUid === user.uid && !isClosed && (
               <>
@@ -531,16 +553,6 @@ const PartnerPostDetail: React.FC = () => {
             {user && post.writerUid === user.uid && isClosed && (
               <span className="closed-badge" style={{marginLeft:24, color:'#8A55CC', fontWeight:600}}>모집완료</span>
             )}
-            {/* 작성자가 아닌 사용자: 지원하기/지원완료 버튼 */}
-            {!isClosed && user && post.writerUid !== user.uid && (
-              <button 
-                className="apply-btn"
-                style={{marginLeft:24, background: applicants.includes(user.uid) ? '#eee' : '#fff', color: applicants.includes(user.uid) ? '#aaa' : '#8A55CC', fontWeight:700, fontSize:'1.05rem', borderRadius:8, padding:'0.7rem 1.5rem', border: applicants.includes(user.uid) ? '2px solid #ccc' : '2px solid #8A55CC', cursor: applicants.includes(user.uid) ? 'pointer' : 'pointer'}}
-                onClick={handleApply}
-              >
-                {applicants.includes(user.uid) ? '지원 완료 (취소)' : '지원하기'}
-              </button>
-            )}
           </div>
           <div className="post-actions">
             {canEdit && (
@@ -550,15 +562,6 @@ const PartnerPostDetail: React.FC = () => {
               >
                 <Edit size={20} />
                 수정
-              </button>
-            )}
-            {canDelete && (
-              <button 
-                onClick={handleDelete}
-                className="action-button"
-              >
-                <Trash2 size={20} />
-                삭제
               </button>
             )}
           </div>

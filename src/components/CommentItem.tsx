@@ -71,6 +71,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
   const [editContent, setEditContent] = useState(comment.content);
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(comment.likesCount || 0);
+  const [isLiking, setIsLiking] = useState(false);
   const [writerRole, setWriterRole] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [isComposing, setIsComposing] = useState(false);
@@ -119,10 +120,19 @@ const CommentItem: React.FC<CommentItemProps> = ({
       return;
     }
 
+    // 중복 클릭 방지
+    if (isLiking) return;
+    setIsLiking(true);
+
     try {
       const commentRef = doc(db, 'comments', comment.id);
       const newIsLiked = !isLiked;
 
+      // 먼저 UI 상태 업데이트 (낙관적 업데이트)
+      setIsLiked(newIsLiked);
+      setLikesCount(prev => prev + (newIsLiked ? 1 : -1));
+
+      // Firebase 업데이트
       await updateDoc(commentRef, {
         likedBy: newIsLiked ? arrayUnion(user.uid) : arrayRemove(user.uid),
         likesCount: increment(newIsLiked ? 1 : -1)
@@ -144,12 +154,14 @@ const CommentItem: React.FC<CommentItemProps> = ({
           console.error('좋아요 알림 생성 실패:', err);
         }
       }
-
-      setIsLiked(newIsLiked);
-      setLikesCount(prev => prev + (newIsLiked ? 1 : -1));
     } catch (error) {
       console.error('좋아요 처리 에러:', error);
+      // 실패 시 상태 롤백
+      setIsLiked(!isLiked);
+      setLikesCount(prev => prev + (isLiked ? 1 : -1));
       alert('좋아요 처리 중 오류가 발생했습니다.');
+    } finally {
+      setIsLiking(false);
     }
   };
 
@@ -219,64 +231,21 @@ const CommentItem: React.FC<CommentItemProps> = ({
     <div className={cardClass}>
       <div className="comment-header">
         <div className="comment-info">
-          <span className="comment-author">{comment.writerNickname}
+          <div className="author-info">
             {comment.writerGrade && (
-              <span className="comment-grade-emoji" title={comment.writerGrade} style={{ marginLeft: '4px' }}>
+              <span className="comment-grade-emoji" title={comment.writerGrade}>
                 {comment.writerGrade}
               </span>
             )}
-          </span>
-          {writerRole && (
-            <span className={`role-badge ${writerRole}`}>
-              {writerRole}
+            <span className="comment-author">{comment.writerNickname}</span>
+            <span className={`role-badge ${writerRole || 'general'}`}>
+              {writerRole || '일반'}
             </span>
-          )}
+          </div>
           <span className="comment-date">
             <Clock size={14} />
             {formatDate(comment.createdAt)}
           </span>
-        </div>
-        <div className="comment-actions">
-          <button 
-            onClick={handleLike}
-            className={`like-button ${isLiked ? 'liked' : ''}`}
-            disabled={!user}
-            title={user ? '좋아요' : '로그인이 필요합니다'}
-          >
-            <Heart 
-              size={16} 
-              fill={isLiked ? 'currentColor' : 'none'} 
-            />
-            <span>{likesCount}</span>
-          </button>
-          {user && (
-            <button 
-              onClick={() => onReply(comment.id)}
-              className="reply-button"
-              title="답글 작성"
-            >
-              <MessageCircle size={16} />
-              답글
-            </button>
-          )}
-          {canEdit && (
-            <button 
-              onClick={() => setIsEditing(true)}
-              className="edit-button"
-              title="댓글 수정"
-            >
-              <Edit size={16} />
-            </button>
-          )}
-          {canDelete && (
-            <button 
-              onClick={handleDelete}
-              className="delete-button"
-              title="댓글 삭제"
-            >
-              <Trash2 size={16} />
-            </button>
-          )}
         </div>
       </div>
 
@@ -350,6 +319,49 @@ const CommentItem: React.FC<CommentItemProps> = ({
           <div className="comment-text">
             <TagParser content={comment.content} />
           </div>
+        )}
+      </div>
+
+      <div className="comment-actions">
+        <button 
+          onClick={handleLike}
+          className={`like-button ${isLiked ? 'liked' : ''}`}
+          disabled={!user || isLiking}
+          title={user ? '좋아요' : '로그인이 필요합니다'}
+        >
+          <Heart 
+            size={16} 
+            fill={isLiked ? 'currentColor' : 'none'} 
+          />
+          <span>{likesCount}</span>
+        </button>
+        {user && (
+          <button 
+            onClick={() => onReply(comment.id)}
+            className="reply-button"
+            title="답글 작성"
+          >
+            <MessageCircle size={16} />
+            답글
+          </button>
+        )}
+        {canEdit && (
+          <button 
+            onClick={() => setIsEditing(true)}
+            className="edit-button"
+            title="댓글 수정"
+          >
+            <Edit size={16} />
+          </button>
+        )}
+        {canDelete && (
+          <button 
+            onClick={handleDelete}
+            className="delete-button"
+            title="댓글 삭제"
+          >
+            <Trash2 size={16} />
+          </button>
         )}
       </div>
 

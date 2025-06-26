@@ -5,19 +5,35 @@
   left: 0;
   right: 0;
   z-index: 1000;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(30, 30, 40, 0.95);
   backdrop-filter: blur(20px);
-  border-top: 1px solid #E5DAF5;
-  box-shadow: 0 -4px 20px rgba(138, 85, 204, 0.1);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
   padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
   display: none; /* 기본적으로 숨김 */
   transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+/* 모바일에서 표시 */
+@media (max-width: 768px) {
+  .bottom-navigation {
+    display: block;
+  }
 }
 
 .bottom-navigation.collapsed {
   transform: translateY(100%);
   opacity: 0;
   pointer-events: none;
+}
+
+.bottom-navigation.hidden-by-scroll {
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bottom-navigation:not(.collapsed):not(.hidden-by-scroll) {
+  transform: translateY(0);
 }
 
 .bottom-nav-container {
@@ -45,17 +61,17 @@
 }
 
 .bottom-nav-item:hover {
-  background: #F6F2FF;
+  background: rgba(255, 255, 255, 0.1);
   transform: translateY(-2px);
 }
 
 .bottom-nav-item.active {
-  background: #F6F2FF;
-  color: #8A55CC;
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
 }
 
 .bottom-nav-item.active .bottom-nav-icon {
-  color: #8A55CC;
+  color: #ffffff;
   transform: scale(1.1);
 }
 
@@ -65,21 +81,21 @@
 }
 
 .bottom-nav-icon {
-  color: #6B7280;
+  color: rgba(255, 255, 255, 0.7);
   transition: all 0.2s ease;
 }
 
 .bottom-nav-label {
   font-size: 11px;
   font-weight: 500;
-  color: #6B7280;
+  color: rgba(255, 255, 255, 0.7);
   transition: color 0.2s ease;
   text-align: center;
   line-height: 1.2;
 }
 
 .bottom-nav-item.active .bottom-nav-label {
-  color: #8A55CC;
+  color: #ffffff;
   font-weight: 600;
 }
 
@@ -142,9 +158,9 @@
 .bottom-nav-toggle-collapsed {
   position: fixed;
   z-index: 1001;
-  background: #8A55CC;
+  background: rgba(30, 30, 40, 0.95);
   color: white;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 50%;
   width: 48px;
   height: 48px;
@@ -152,7 +168,8 @@
   align-items: center;
   justify-content: center;
   cursor: grab;
-  box-shadow: 0 4px 16px rgba(138, 85, 204, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(20px);
   transition: all 0.3s ease;
   animation: slideInUp 0.3s ease-out;
   user-select: none;
@@ -160,9 +177,9 @@
 }
 
 .bottom-nav-toggle-collapsed:hover {
-  background: #7A47BC;
+  background: rgba(40, 40, 50, 0.95);
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(138, 85, 204, 0.4);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
 }
 
 .collapse-button {
@@ -201,10 +218,10 @@
   left: 0;
   right: 0;
   z-index: 999;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(30, 30, 40, 0.95);
   backdrop-filter: blur(20px);
-  border-top: 1px solid #E5DAF5;
-  box-shadow: 0 -4px 20px rgba(138, 85, 204, 0.1);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
   animation: slideUp 0.2s ease-out;
 }
 
@@ -219,7 +236,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: thin;
-  scrollbar-color: #8A55CC #E5DAF5;
+  scrollbar-color: rgba(255, 255, 255, 0.5) rgba(255, 255, 255, 0.1);
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
 }
@@ -230,18 +247,18 @@
 }
 
 .boards-submenu-content::-webkit-scrollbar-track {
-  background: #E5DAF5;
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
 }
 
 .boards-submenu-content::-webkit-scrollbar-thumb {
-  background: #8A55CC;
+  background: rgba(255, 255, 255, 0.5);
   border-radius: 4px;
-  border: 1px solid #E5DAF5;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .boards-submenu-content::-webkit-scrollbar-thumb:hover {
-  background: #7A47BC;
+  background: rgba(255, 255, 255, 0.7);
 }
 
 .board-submenu-item {
@@ -255,34 +272,34 @@
   padding: 10px 6px;
   border-radius: 12px;
   transition: all 0.2s ease;
-  background: white;
-  border: 1px solid #E5DAF5;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   min-height: 60px;
 }
 
 .board-submenu-item:hover {
-  background: #F6F2FF;
-  border-color: #8A55CC;
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(138, 85, 204, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .board-submenu-item svg {
-  color: #8A55CC;
+  color: #ffffff;
   margin-bottom: 4px;
 }
 
 .board-submenu-item span {
   font-size: 10px;
   font-weight: 500;
-  color: #6B7280;
+  color: rgba(255, 255, 255, 0.8);
   text-align: center;
   line-height: 1.2;
   margin-top: 2px;
 }
 
 .board-submenu-item:hover span {
-  color: #8A55CC;
+  color: #ffffff;
 }
 
 /* 통합 검색 아이템 스타일 */
@@ -312,6 +329,49 @@
   color: white;
 }
 
+/* 관리자 패널 아이템 스타일 */
+.board-submenu-item.admin-item {
+  background: linear-gradient(135deg, #8A55CC 0%, #9F6ADB 100%);
+  border: 2px solid rgba(138, 85, 204, 0.6);
+  position: relative;
+  overflow: hidden;
+}
+
+.board-submenu-item.admin-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: shimmer 2s infinite;
+}
+
+.board-submenu-item.admin-item:hover {
+  background: linear-gradient(135deg, #7A47BC 0%, #8F5ACB 100%);
+  border-color: rgba(138, 85, 204, 0.8);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(138, 85, 204, 0.4);
+}
+
+.board-submenu-item.admin-item svg,
+.board-submenu-item.admin-item span {
+  color: white;
+  font-weight: 600;
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
 @keyframes slideUp {
   from {
     transform: translateY(100%);
@@ -335,10 +395,10 @@
   }
 }
 
-/* 모바일에서만 표시 */
+/* 모바일 스타일 추가 */
 @media (max-width: 768px) {
-  .bottom-navigation {
-    display: block;
+  .bottom-navigation:not(.hidden-by-scroll) {
+    transform: translateY(0);
   }
   
   .bottom-nav-item {

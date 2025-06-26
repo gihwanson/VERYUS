@@ -1,24 +1,24 @@
 @keyframes shimmer {
-  0% { box-shadow: 0 20px 40px rgba(138, 85, 204, 0.3); }
-  50% { box-shadow: 0 25px 50px rgba(138, 85, 204, 0.5); }
-  100% { box-shadow: 0 20px 40px rgba(138, 85, 204, 0.3); }
+  0% { box-shadow: 0 20px 40px rgba(255, 255, 255, 0.1); }
+  50% { box-shadow: 0 25px 50px rgba(255, 255, 255, 0.2); }
+  100% { box-shadow: 0 20px 40px rgba(255, 255, 255, 0.1); }
 }
 
 @keyframes shine {
   0% { 
-    box-shadow: 0 20px 40px rgba(138, 85, 204, 0.4), 0 0 0 3px #8A55CC;
+    box-shadow: 0 20px 40px rgba(255, 255, 255, 0.2), 0 0 0 3px rgba(255, 255, 255, 0.3);
   }
   25% {
-    box-shadow: 0 20px 40px rgba(138, 85, 204, 0.6), 0 0 0 3px #8A55CC, 0 0 20px rgba(138, 85, 204, 0.7);
+    box-shadow: 0 20px 40px rgba(255, 255, 255, 0.3), 0 0 0 3px rgba(255, 255, 255, 0.4), 0 0 20px rgba(255, 255, 255, 0.2);
   }
   50% { 
-    box-shadow: 0 20px 40px rgba(138, 85, 204, 0.8), 0 0 0 3px #8A55CC, 0 0 30px rgba(138, 85, 204, 0.8);
+    box-shadow: 0 20px 40px rgba(255, 255, 255, 0.4), 0 0 0 3px rgba(255, 255, 255, 0.5), 0 0 30px rgba(255, 255, 255, 0.3);
   }
   75% {
-    box-shadow: 0 20px 40px rgba(138, 85, 204, 0.6), 0 0 0 3px #8A55CC, 0 0 20px rgba(138, 85, 204, 0.7);
+    box-shadow: 0 20px 40px rgba(255, 255, 255, 0.3), 0 0 0 3px rgba(255, 255, 255, 0.4), 0 0 20px rgba(255, 255, 255, 0.2);
   }
   100% { 
-    box-shadow: 0 20px 40px rgba(138, 85, 204, 0.4), 0 0 0 3px #8A55CC;
+    box-shadow: 0 20px 40px rgba(255, 255, 255, 0.2), 0 0 0 3px rgba(255, 255, 255, 0.3);
   }
 }
 
@@ -53,29 +53,29 @@
 @keyframes readyToComplete {
   0% { 
     transform: scale(1) rotate(0deg);
-    box-shadow: 0 25px 50px rgba(16, 185, 129, 0.6), 0 0 0 4px #10B981, 0 0 30px rgba(16, 185, 129, 0.3);
+    box-shadow: 0 25px 50px rgba(34, 197, 94, 0.3), 0 0 0 4px rgba(34, 197, 94, 0.5), 0 0 30px rgba(34, 197, 94, 0.2);
   }
   100% { 
     transform: scale(1.02) rotate(1deg);
-    box-shadow: 0 30px 60px rgba(16, 185, 129, 0.8), 0 0 0 5px #10B981, 0 0 40px rgba(16, 185, 129, 0.4);
+    box-shadow: 0 30px 60px rgba(34, 197, 94, 0.4), 0 0 0 5px rgba(34, 197, 94, 0.6), 0 0 40px rgba(34, 197, 94, 0.3);
   }
 }
 
 @keyframes nextCardGlow {
   0% { 
-    box-shadow: 0 16px 32px rgba(6, 182, 212, 0.3), 0 0 0 3px #06B6D4;
+    box-shadow: 0 16px 32px rgba(6, 182, 212, 0.2), 0 0 0 3px rgba(6, 182, 212, 0.3);
   }
   25% {
-    box-shadow: 0 16px 32px rgba(6, 182, 212, 0.5), 0 0 0 3px #06B6D4, 0 0 20px rgba(6, 182, 212, 0.6);
+    box-shadow: 0 16px 32px rgba(6, 182, 212, 0.3), 0 0 0 3px rgba(6, 182, 212, 0.4), 0 0 20px rgba(6, 182, 212, 0.2);
   }
   50% { 
-    box-shadow: 0 16px 32px rgba(6, 182, 212, 0.7), 0 0 0 3px #06B6D4, 0 0 30px rgba(6, 182, 212, 0.7);
+    box-shadow: 0 16px 32px rgba(6, 182, 212, 0.4), 0 0 0 3px rgba(6, 182, 212, 0.5), 0 0 30px rgba(6, 182, 212, 0.3);
   }
   75% {
-    box-shadow: 0 16px 32px rgba(6, 182, 212, 0.5), 0 0 0 3px #06B6D4, 0 0 20px rgba(6, 182, 212, 0.6);
+    box-shadow: 0 16px 32px rgba(6, 182, 212, 0.3), 0 0 0 3px rgba(6, 182, 212, 0.4), 0 0 20px rgba(6, 182, 212, 0.2);
   }
   100% { 
-    box-shadow: 0 16px 32px rgba(6, 182, 212, 0.3), 0 0 0 3px #06B6D4;
+    box-shadow: 0 16px 32px rgba(6, 182, 212, 0.2), 0 0 0 3px rgba(6, 182, 212, 0.3);
   }
 }
 
@@ -113,14 +113,14 @@
   gap: 12px;
   padding: 10px 0;
   scrollbar-width: thin;
-  scrollbar-color: #E5DAF5 transparent;
-  touch-action: pan-x; /* 가로 스크롤만 허용 */
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+  touch-action: pan-x;
 }
 
 .available-song-card {
   min-width: 200px;
   height: 120px;
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -130,7 +130,16 @@
   cursor: pointer;
   transition: all 0.2s ease;
   user-select: none;
-  touch-action: manipulation; /* 터치 동작 최적화 */
+  touch-action: manipulation;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.available-song-card:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
 }
 
 .available-song-card.dragging {
@@ -147,119 +156,144 @@
 }
 
 .setlist-form-container {
-  background: #F6F2FF;
-  border-radius: 12px;
-  padding: 20px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(15px);
+  border-radius: 20px;
+  padding: 24px;
   margin-bottom: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .setlist-card {
-  background: #fff;
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 4px 16px rgba(138, 85, 204, 0.1);
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(15px);
+  border-radius: 20px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
 }
 
 .setlist-card.active {
-  border: 2px solid #8A55CC;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .setlist-card:not(.active) {
-  border: 1px solid #E5DAF5;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .active-badge {
-  background: #10B981;
-  color: #fff;
-  padding: 4px 8px;
+  background: rgba(34, 197, 94, 0.8);
+  backdrop-filter: blur(10px);
+  color: white;
+  padding: 6px 12px;
   border-radius: 12px;
   font-size: 12px;
   font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .btn-primary {
-  background: #8A55CC;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
   padding: 12px 24px;
   font-weight: 600;
   cursor: pointer;
   font-size: 16px;
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
 }
 
 .btn-secondary {
-  background: #E5DAF5;
-  color: #7C4DBC;
-  border: none;
-  border-radius: 8px;
-  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 10px 16px;
   font-weight: 600;
   cursor: pointer;
+  transition: all 0.3s ease;
 }
 
-.btn-success {
-  background: #10B981;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 6px 12px;
-  font-weight: 600;
-  cursor: pointer;
-  font-size: 14px;
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .btn-danger {
-  background: #EF4444;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 6px 12px;
+  background: rgba(220, 38, 38, 0.8);
+  backdrop-filter: blur(10px);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
+  padding: 8px 16px;
   font-weight: 600;
   cursor: pointer;
-  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.btn-danger:hover {
+  background: rgba(220, 38, 38, 0.9);
 }
 
 .form-input {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
+  padding: 12px;
+  color: white;
   width: 100%;
-  padding: 8px;
-  border-radius: 8px;
-  border: 1px solid #E5DAF5;
   box-sizing: border-box;
 }
 
+.form-input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
 .song-item {
-  display: flex;
-  align-items: center;
-  padding: 12px;
-  background-color: #FFFFFF;
-  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 8px;
+  color: white;
 }
 
 .song-number {
-  width: 30px;
-  height: 30px;
-  background: #8A55CC;
-  color: #fff;
+  background: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+  color: white;
   border-radius: 50%;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
-  margin-right: 12px;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.4);
 }
 
 .empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(15px);
+  border: 2px dashed rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  padding: 40px;
   text-align: center;
-  min-height: 200px;
+  color: white;
 }
 
 .grid-layout {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 } 

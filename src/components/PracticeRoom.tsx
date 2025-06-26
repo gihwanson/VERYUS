@@ -199,73 +199,79 @@ const PracticeRoom: React.FC = () => {
     const q = query(collection(db, 'practiceSongs'), where('uid', '==', user.uid), where('suggestionId', '==', id));
     const snap = await getDocs(q);
     if (snap.empty) {
-      // 제안곡 정보 가져오기
-      const suggestionSnap = await getDocs(query(collection(db, 'practiceSuggestions'), where('__name__', '==', id)));
-      const suggestion = suggestionSnap.docs[0]?.data();
+      const suggestion = suggestions.find(s => s.id === id);
       if (suggestion) {
         await addDoc(collection(db, 'practiceSongs'), {
           uid: user.uid,
           title: suggestion.songTitle,
           isSuggestion: true,
           fromNickname: suggestion.fromNickname,
-          toNickname: suggestion.toNickname,
           suggestionId: id,
-          fromDone: suggestion.fromDone ?? false,
-          toDone: suggestion.toDone ?? false,
+          fromDone: false,
+          toDone: false,
           createdAt: new Date()
         });
       }
     }
     fetchSuggestions();
   };
+
   const handleRejectSuggestion = async (id: string) => {
     await updateDoc(doc(db, 'practiceSuggestions', id), { status: 'rejected' });
     fetchSuggestions();
   };
-  // 내가 보낸 제안 삭제: deleteDoc 후 fetchSuggestions
+
   const handleDeleteSentSuggestion = async (id: string) => {
-    await deleteDoc(doc(db, 'practiceSuggestions', id));
+    await updateDoc(doc(db, 'practiceSuggestions', id), { deleted: true });
     fetchSuggestions();
   };
 
-  // 일정 제안 핸들러
   const handleProposeSchedule = (suggestion: any) => {
-    setScheduleForm({ suggestionId: suggestion.id, songTitle: suggestion.songTitle, toUid: suggestion.fromUid === user.uid ? suggestion.toUid : suggestion.fromUid, date: '', time: '', place: '' });
+    setScheduleForm({ suggestionId: suggestion.id, songTitle: suggestion.songTitle, toUid: suggestion.toUid, date: '', time: '', place: '' });
   };
+
   const handleSubmitSchedule = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!scheduleForm) return;
-    if (!scheduleForm.date || !scheduleForm.time || !scheduleForm.place) {
-      alert('날짜, 시간, 장소를 모두 입력해주세요.');
-      return;
-    }
-    // Firestore에 일정 제안 저장
-    const docRef = await addDoc(collection(db, 'practiceSchedules'), {
+    await addDoc(collection(db, 'practiceSchedules'), {
+      fromUid: user.uid,
+      fromNickname: user.nickname,
+      toUid: scheduleForm.toUid,
       suggestionId: scheduleForm.suggestionId,
       songTitle: scheduleForm.songTitle,
-      fromUid: user.uid,
-      toUid: scheduleForm.toUid,
       date: scheduleForm.date,
       time: scheduleForm.time,
       place: scheduleForm.place,
       status: 'pending',
       createdAt: new Date()
     });
-    setSchedules([...schedules, { id: docRef.id, ...scheduleForm, status: 'pending' }]);
+    alert('일정이 제안되었습니다.');
     setScheduleForm(null);
+    // 스케쥴 목록 새로고침
+    const q = query(collection(db, 'practiceSchedules'), where('fromUid', '==', user.uid));
+    const snap = await getDocs(q);
+    const q2 = query(collection(db, 'practiceSchedules'), where('toUid', '==', user.uid));
+    const snap2 = await getDocs(q2);
+    const allSchedules = [...snap.docs.map(doc => ({ id: doc.id, ...doc.data() })), ...snap2.docs.map(doc => ({ id: doc.id, ...doc.data() }))];
+    setSchedules(allSchedules);
   };
-  // 일정 수락/거절 핸들러
+
   const handleAcceptSchedule = async (id: string) => {
     await updateDoc(doc(db, 'practiceSchedules', id), { status: 'accepted' });
-    setSchedules(schedules.map(s => s.id === id ? { ...s, status: 'accepted' } : s));
-    const sch = schedules.find(s=>s.id===id);
-    if (sch) await sendNotification(sch.fromUid, `${user.nickname}님이 연습 일정(${sch.songTitle})을 수락했습니다.`);
+    const q = query(collection(db, 'practiceSchedules'), where('fromUid', '==', user.uid));
+    const snap = await getDocs(q);
+    const q2 = query(collection(db, 'practiceSchedules'), where('toUid', '==', user.uid));
+    const snap2 = await getDocs(q2);
+    const allSchedules = [...snap.docs.map(doc => ({ id: doc.id, ...doc.data() })), ...snap2.docs.map(doc => ({ id: doc.id, ...doc.data() }))];
+    setSchedules(allSchedules);
   };
+
   const handleRejectSchedule = async (id: string) => {
     await updateDoc(doc(db, 'practiceSchedules', id), { status: 'rejected' });
-    setSchedules(schedules.map(s => s.id === id ? { ...s, status: 'rejected' } : s));
   };
+
   const handleEditSchedule = (sch: any) => setEditingSchedule(sch);
+
   const handleUpdateSchedule = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingSchedule) return;
@@ -274,221 +280,419 @@ const PracticeRoom: React.FC = () => {
       time: editingSchedule.time,
       place: editingSchedule.place
     });
-    setSchedules(schedules.map(s => s.id === editingSchedule.id ? { ...s, ...editingSchedule } : s));
     setEditingSchedule(null);
+    alert('일정이 수정되었습니다.');
   };
+
   const handleCancelSchedule = async (id: string) => {
     await updateDoc(doc(db, 'practiceSchedules', id), { status: 'cancelled' });
-    setSchedules(schedules.map(s => s.id === id ? { ...s, status: 'cancelled' } : s));
   };
+
   const handleSaveScheduleNote = async (id: string) => {
-    await updateDoc(doc(db, 'practiceSchedules', id), { notes: scheduleNotes[id] || '' });
-    alert('메모/준비물이 저장되었습니다.');
+    await updateDoc(doc(db, 'practiceSchedules', id), { note: scheduleNotes[id] });
   };
+
   const handleSearchUser = async () => {
-    if (!userSearchInput || typeof userSearchInput !== 'string' || !userSearchInput.trim()) {
-      alert('닉네임을 입력하세요.');
-      return;
-    }
-    const other = allUsers.find(u => u.nickname === userSearchInput.trim());
-    if (!other) {
-      setOtherUser(null);
-      setOtherPractice([]);
+    if (!userSearchInput.trim()) return;
+    const userCollection = collection(db, 'users');
+    const q = query(userCollection, where('nickname', '==', userSearchInput.trim()));
+    const snap = await getDocs(q);
+    if (snap.empty) {
       alert('해당 닉네임의 유저를 찾을 수 없습니다.');
       return;
     }
-    setOtherUser(other);
-    // 2. 해당 유저의 연습곡 불러오기 (제한 없이 전체)
-    let songsSnap;
-    try {
-      songsSnap = await getDocs(query(collection(db, 'practiceSongs'), where('uid', '==', other.uid), orderBy('createdAt', 'desc')));
-      setOtherPractice(songsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as PracticeSong)));
-    } catch (e) {
-      songsSnap = await getDocs(query(collection(db, 'practiceSongs'), where('uid', '==', other.uid)));
-      setOtherPractice(songsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as PracticeSong)));
-    }
+    const foundUser = snap.docs[0].data();
+    setOtherUser(foundUser);
+    // 해당 유저의 연습곡 가져오기
+    const practiceQuery = query(collection(db, 'practiceSongs'), where('uid', '==', foundUser.uid));
+    const practiceSnap = await getDocs(practiceQuery);
+    setOtherPractice(practiceSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as PracticeSong)));
   };
+
   const handleUserSearchInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setUserSearchInput(e.target.value);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (e.target.value.trim().length === 0) {
-      setUserSearchResults([]);
+    const value = e.target.value;
+    setUserSearchInput(value);
+    
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    
+    if (value.trim() === '') {
       setShowUserSearch(false);
+      setUserSearchResults([]);
       return;
     }
-    debounceRef.current = setTimeout(() => {
-      const results = allUsers.filter(u => u.nickname && u.nickname.startsWith(e.target.value)).slice(0, 10);
-      setUserSearchResults(results);
-      setShowUserSearch(true);
-    }, 400);
+    
+    debounceRef.current = setTimeout(async () => {
+      const userCollection = collection(db, 'users');
+      const q = query(userCollection, limit(5));
+      const snap = await getDocs(q);
+      const filtered = snap.docs.map(doc => doc.data()).filter(u => u.nickname.toLowerCase().includes(value.toLowerCase()));
+      setUserSearchResults(filtered);
+      setShowUserSearch(filtered.length > 0);
+    }, 300);
   };
+
   const handleUserSearchSelect = async (userObj: any) => {
-    setOtherUser(userObj);
-    let songsSnap;
-    try {
-      songsSnap = await getDocs(query(collection(db, 'practiceSongs'), where('uid', '==', userObj.uid), orderBy('createdAt', 'desc')));
-      setOtherPractice(songsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as PracticeSong)));
-    } catch (e) {
-      songsSnap = await getDocs(query(collection(db, 'practiceSongs'), where('uid', '==', userObj.uid)));
-      setOtherPractice(songsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as PracticeSong)));
-    }
     setUserSearchInput(userObj.nickname);
     setShowUserSearch(false);
+    setOtherUser(userObj);
+    
+    // 해당 유저의 연습곡 가져오기
+    const practiceQuery = query(collection(db, 'practiceSongs'), where('uid', '==', userObj.uid));
+    const practiceSnap = await getDocs(practiceQuery);
+    setOtherPractice(practiceSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as PracticeSong)));
   };
 
-  // 연습스케쥴 탭에서 user가 없으면 practice로 강제 전환
+  // 스케쥴 불러오기
   useEffect(() => {
-    if (!user && tab === 'done') setTab('practice');
-  }, [user, tab]);
+    if (!user) return;
+    const fetchSchedules = async () => {
+      const q = query(collection(db, 'practiceSchedules'), where('fromUid', '==', user.uid));
+      const snap = await getDocs(q);
+      const q2 = query(collection(db, 'practiceSchedules'), where('toUid', '==', user.uid));
+      const snap2 = await getDocs(q2);
+      const allSchedules = [...snap.docs.map(doc => ({ id: doc.id, ...doc.data() })), ...snap2.docs.map(doc => ({ id: doc.id, ...doc.data() }))];
+      setSchedules(allSchedules);
+    };
+    fetchSchedules();
+  }, [user]);
 
-  // 탭 변경 시 연습 일정 제안 폼 닫기
-  useEffect(() => {
-    setScheduleForm(null);
-  }, [tab]);
-
-  // 컴포넌트 마운트 시 users 컬렉션 전체 fetch
+  // 전체 유저 목록 불러오기
   useEffect(() => {
     const fetchUsers = async () => {
-      const snap = await getDocs(collection(db, 'users'));
-      setAllUsers(snap.docs.map(doc => ({ uid: doc.id, ...doc.data() })));
+      const q = query(collection(db, 'users'));
+      const snap = await getDocs(q);
+      setAllUsers(snap.docs.map(doc => doc.data()));
     };
     fetchUsers();
   }, []);
 
-  // 쪽지/알림 발송용 함수 (더미)
   const sendNotification = async (toUid: string, message: string) => {
     await addDoc(collection(db, 'notifications'), { toUid, message, createdAt: new Date() });
   };
 
-  if (!user) return <div style={{ padding: 40, textAlign: 'center', color: '#8A55CC' }}>로그인이 필요합니다.</div>;
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#B497D6' }}>불러오는 중...</div>;
+  if (!user) return (
+    <div style={{ 
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: 'white',
+      fontSize: '18px',
+      fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+    }}>
+      로그인이 필요합니다.
+    </div>
+  );
+
+  if (loading) return (
+    <div style={{ 
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: 'white',
+      fontSize: '18px',
+      fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+    }}>
+      불러오는 중...
+    </div>
+  );
 
   return (
     <div style={{ 
-      maxWidth: '100%',
-      width: '100%',
       minHeight: '100vh',
+      width: '100%',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       margin: 0, 
-      background: '#fff', 
-      borderRadius: 0, 
-      boxShadow: 'none', 
-      padding: isMobile ? 20 : 32
+      padding: isMobile ? 16 : 24,
+      fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      position: 'relative'
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16, flexWrap: isMobile ? 'wrap' : 'nowrap', gap: isMobile ? 8 : 0 }}>
-        <button onClick={()=>{window.location.href = '/'}} style={{ 
-          background: '#E5DAF5', 
-          color: '#8A55CC', 
-          border: 'none', 
-          borderRadius: 8, 
-          padding: isMobile ? '6px 12px' : '8px 20px', 
-          fontWeight: 700, 
-          fontSize: isMobile ? 14 : 16, 
-          marginRight: isMobile ? 0 : 16, 
-          cursor: 'pointer',
-          width: isMobile ? '100%' : 'auto',
-          marginBottom: isMobile ? 8 : 0
-        }}>← 메인보드로</button>
+      {/* 배경 패턴 */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: `
+          radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+          radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%)
+        `,
+        pointerEvents: 'none',
+        zIndex: 0
+      }} />
+
+      {/* 헤더 */}
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        marginBottom: 24, 
+        position: 'relative',
+        zIndex: 1
+      }}>
         <span style={{ 
-          fontWeight: 700, 
-          fontSize: isMobile ? 18 : 22, 
-          color: '#8A55CC',
-          width: isMobile ? '100%' : 'auto',
-          textAlign: isMobile ? 'center' : 'left'
-        }}>🎹 연습장</span>
-      </div>
-      <div style={{ display: 'flex', gap: isMobile ? 4 : 8, marginBottom: 24, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
-        <button onClick={() => setTab('practice')} style={{ 
-          flex: 1, 
-          background: tab==='practice'?'#8A55CC':'#F6F2FF', 
-          color: tab==='practice'?'#fff':'#8A55CC', 
-          border: 'none', 
-          borderRadius: 8, 
-          padding: isMobile ? 8 : 10, 
-          fontWeight: 600,
-          fontSize: isMobile ? 14 : 16,
-          minWidth: isMobile ? '45%' : 'auto'
-        }}>내 연습곡</button>
-        <button onClick={() => setTab('suggestion')} style={{ 
-          flex: 1, 
-          background: tab==='suggestion'?'#8A55CC':'#F6F2FF', 
-          color: tab==='suggestion'?'#fff':'#8A55CC', 
-          border: 'none', 
-          borderRadius: 8, 
-          padding: isMobile ? 8 : 10, 
-          fontWeight: 600,
-          fontSize: isMobile ? 14 : 16,
-          minWidth: isMobile ? '45%' : 'auto'
-        }}>제안</button>
-        <button onClick={() => setTab('done')} style={{ 
-          flex: 1, 
-          background: tab==='done'?'#8A55CC':'#F6F2FF', 
-          color: tab==='done'?'#fff':'#8A55CC', 
-          border: 'none', 
-          borderRadius: 8, 
-          padding: isMobile ? 8 : 10, 
-          fontWeight: 600,
-          fontSize: isMobile ? 14 : 16,
-          minWidth: isMobile ? '45%' : 'auto'
-        }}>연습완료곡</button>
-        <button onClick={() => setTab('other')} style={{ 
-          flex: 1, 
-          background: tab==='other'?'#8A55CC':'#F6F2FF', 
-          color: tab==='other'?'#fff':'#8A55CC', 
-          border: 'none', 
-          borderRadius: 8, 
-          padding: isMobile ? 8 : 10, 
-          fontWeight: 700, 
-          fontFamily: 'inherit',
-          fontSize: isMobile ? 12 : 16,
-          minWidth: isMobile ? '45%' : 'auto'
+          fontWeight: 800, 
+          fontSize: isMobile ? 24 : 28, 
+          color: 'white',
+          textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
+          textAlign: 'center'
         }}>
-          <div style={{ fontWeight: 700, fontFamily: 'inherit', fontSize: isMobile ? 12 : 14 }}>연습장</div>
-          <div style={{ fontWeight: 700, fontFamily: 'inherit', fontSize: isMobile ? 10 : 13, color: tab==='other'?'#E5DAF5':'#B497D6', marginTop: 2 }}>훔쳐보기</div>
-        </button>
+          🎹 연습장
+        </span>
       </div>
-      {tab==='practice' && (
-        <>
-          <form onSubmit={handleAddSong} style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+
+      {/* 탭 네비게이션 */}
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
+        gap: isMobile ? 8 : 12, 
+        marginBottom: 32,
+        position: 'relative',
+        zIndex: 1
+      }}>
+        {[
+          { key: 'practice', label: '내 연습곡', icon: '🎵' },
+          { key: 'suggestion', label: '제안', icon: '💡' },
+          { key: 'done', label: '연습완료곡', icon: '✅' },
+          { key: 'other', label: '연습장 훔쳐보기', icon: '👀' }
+        ].map(({ key, label, icon }) => (
+          <div 
+            key={key}
+            onClick={() => setTab(key as any)} 
+            style={{ 
+              background: 'none',
+              color: 'white', 
+          border: 'none', 
+              padding: 0,
+              margin: 0,
+              fontWeight: tab === key ? 700 : 600,
+              fontSize: isMobile ? 13 : 15,
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+          fontFamily: 'inherit',
+              textAlign: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 6,
+              opacity: tab === key ? 1 : 0.7,
+              transform: tab === key ? 'scale(1.1)' : 'scale(1)',
+              outline: 'none',
+              boxShadow: 'none'
+            }}
+            onMouseEnter={(e) => {
+              if (tab !== key) {
+                (e.target as HTMLElement).style.opacity = '0.9';
+                (e.target as HTMLElement).style.transform = 'scale(1.05)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (tab !== key) {
+                (e.target as HTMLElement).style.opacity = '0.7';
+                (e.target as HTMLElement).style.transform = 'scale(1)';
+              }
+            }}
+          >
+            <span style={{ fontSize: isMobile ? 24 : 32 }}>{icon}</span>
+            <span style={{ fontSize: isMobile ? 12 : 14, textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>{label}</span>
+      </div>
+        ))}
+      </div>
+
+      {/* 메인 콘텐츠 */}
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        {tab === 'practice' && (
+          <>
+            {/* 곡 추가 폼 */}
+            <form onSubmit={handleAddSong} style={{ 
+              display: 'flex', 
+              gap: 12, 
+              marginBottom: 32 
+            }}>
             <input
               type="text"
               value={newSong}
               onChange={e => setNewSong(e.target.value)}
               placeholder="연습할 곡을 입력하세요"
-              style={{ flex: 1, padding: 10, borderRadius: 8, border: '1px solid #E5DAF5', fontSize: 16 }}
-            />
-            <button type="submit" style={{ background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 8, padding: '0 18px', fontWeight: 600, fontSize: 16 }}>추가</button>
+                style={{ 
+                  flex: 1, 
+                  padding: '12px 16px', 
+                  borderRadius: 12, 
+                  border: '1px solid rgba(255, 255, 255, 0.3)', 
+                  fontSize: 16,
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  backdropFilter: 'blur(15px)',
+                  WebkitBackdropFilter: 'blur(15px)',
+                  color: 'white',
+                  fontFamily: 'inherit'
+                }}
+              />
+              <button 
+                type="submit" 
+                style={{ 
+                  background: 'rgba(255, 255, 255, 0.25)', 
+                  backdropFilter: 'blur(15px)',
+                  WebkitBackdropFilter: 'blur(15px)',
+                  color: 'white', 
+                  border: '1px solid rgba(255, 255, 255, 0.3)', 
+                  borderRadius: 12, 
+                  padding: '12px 24px', 
+                  fontWeight: 600, 
+                  fontSize: 16,
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  fontFamily: 'inherit'
+                }}
+                onMouseEnter={(e) => {
+                  (e.target as HTMLElement).style.background = 'rgba(255, 255, 255, 0.35)';
+                }}
+                onMouseLeave={(e) => {
+                  (e.target as HTMLElement).style.background = 'rgba(255, 255, 255, 0.25)';
+                }}
+              >
+                추가
+              </button>
           </form>
-          <div style={{ background: '#F6F2FF', borderRadius: 12, padding: 16, marginBottom: 24 }}>
-            <h4 style={{ color: '#8A55CC', fontWeight: 700, fontSize: 17, marginBottom: 8 }}>개인연습곡</h4>
-            <ul style={{ listStyle: 'none', padding: 0, marginBottom: 0 }}>
+
+            {/* 개인연습곡 카드 */}
+            <div style={{ 
+              background: 'rgba(255, 255, 255, 0.15)', 
+              backdropFilter: 'blur(15px)',
+              WebkitBackdropFilter: 'blur(15px)',
+              borderRadius: 16, 
+              padding: 24, 
+              marginBottom: 24,
+              border: '1px solid rgba(255, 255, 255, 0.2)'
+            }}>
+              <h4 style={{ 
+                color: 'white', 
+                fontWeight: 700, 
+                fontSize: 18, 
+                marginBottom: 16,
+                textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
+              }}>
+                개인연습곡
+              </h4>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
               {songs.filter(song => !song.isSuggestion && !song.done).map(song => (
-                <li key={song.id} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, background: '#fff', borderRadius: 8, padding: 8 }}>
+                  <li key={song.id} style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 12, 
+                    marginBottom: 12, 
+                    background: 'rgba(255, 255, 255, 0.1)', 
+                    backdropFilter: 'blur(10px)',
+                    WebkitBackdropFilter: 'blur(10px)',
+                    borderRadius: 12, 
+                    padding: 16,
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    transition: 'all 0.3s ease'
+                  }}>
                   <input
                     type="checkbox"
                     checked={song.done}
                     onChange={() => handleToggleDoneOnlyMine(song.id, song.done ?? false)}
-                  />
-                  <span style={{ textDecoration: 'none', color: '#222', flex: 1 }}>
+                      style={{ 
+                        width: 16, 
+                        height: 16,
+                        accentColor: 'rgba(255, 255, 255, 0.8)'
+                      }}
+                    />
+                    <span style={{ 
+                      textDecoration: 'none', 
+                      color: 'white', 
+                      flex: 1,
+                      fontSize: 15,
+                      fontWeight: 500
+                    }}>
                     {song.title}
                   </span>
-                  <button onClick={() => handleDeleteSong(song.id)} style={{ background: '#B497D6', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 12px', fontWeight: 600 }}>삭제</button>
+                                          <button 
+                        onClick={() => handleDeleteSong(song.id)} 
+                        style={{ 
+                          background: 'rgba(220, 38, 38, 0.6)', 
+                          backdropFilter: 'blur(10px)',
+                          WebkitBackdropFilter: 'blur(10px)',
+                          color: 'white', 
+                          border: '1px solid rgba(220, 38, 38, 0.8)', 
+                          borderRadius: 8, 
+                          padding: '6px 12px', 
+                          fontWeight: 600,
+                          fontSize: 13,
+                          cursor: 'pointer',
+                          transition: 'all 0.3s ease',
+                          fontFamily: 'inherit'
+                        }}
+                        onMouseEnter={(e) => {
+                          (e.target as HTMLElement).style.background = 'rgba(220, 38, 38, 0.8)';
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.target as HTMLElement).style.background = 'rgba(220, 38, 38, 0.6)';
+                        }}
+                      >
+                      삭제
+                    </button>
                 </li>
               ))}
-              {songs.filter(song => !song.isSuggestion && !song.done).length === 0 && <li style={{ color: '#B497D6', textAlign: 'center', padding: 16 }}>아직 개인연습곡이 없습니다.</li>}
+                {songs.filter(song => !song.isSuggestion && !song.done).length === 0 && 
+                  <li style={{ 
+                    color: 'rgba(255, 255, 255, 0.7)', 
+                    textAlign: 'center', 
+                    padding: 20,
+                    fontSize: 15
+                  }}>
+                    아직 개인연습곡이 없습니다.
+                  </li>
+                }
             </ul>
           </div>
+
+            {/* 제안곡 카드 */}
           {songs.filter(song => song.isSuggestion && !(song.fromDone || song.toDone)).length > 0 && (
-            <div style={{ background: '#F6F2FF', borderRadius: 12, padding: 16, marginBottom: 24 }}>
-              <h4 style={{ color: '#8A55CC', fontWeight: 700, fontSize: 17, marginBottom: 8 }}>제안곡</h4>
-              <ul style={{ listStyle: 'none', padding: 0 }}>
+              <div style={{ 
+                background: 'rgba(255, 255, 255, 0.15)', 
+                backdropFilter: 'blur(15px)',
+                WebkitBackdropFilter: 'blur(15px)',
+                borderRadius: 16, 
+                padding: 24, 
+                marginBottom: 24,
+                border: '1px solid rgba(255, 255, 255, 0.2)'
+              }}>
+                <h4 style={{ 
+                  color: 'white', 
+                  fontWeight: 700, 
+                  fontSize: 18, 
+                  marginBottom: 16,
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
+                }}>
+                  제안곡
+                </h4>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                 {songs.filter(song => song.isSuggestion && !(song.fromDone || song.toDone)).map(song => {
                   const isFrom = user.nickname === song.fromNickname;
                   const myDone = isFrom ? song.fromDone : song.toDone;
-                  // 상대방이 삭제한 경우 표시
                   const suggestion = suggestions.find(s => s.id === song.suggestionId);
                   const deletedByOther = suggestion && suggestion.deleted;
+                    
                   return (
-                    <li key={song.id} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, background: '#fff', borderRadius: 8, padding: 8 }}>
+                      <li key={song.id} style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 12, 
+                        marginBottom: 12, 
+                        background: 'rgba(255, 255, 255, 0.1)', 
+                        backdropFilter: 'blur(10px)',
+                        WebkitBackdropFilter: 'blur(10px)',
+                        borderRadius: 12, 
+                        padding: 16,
+                        border: '1px solid rgba(255, 255, 255, 0.15)'
+                      }}>
                       <input
                         type="checkbox"
                         checked={!!myDone}
@@ -496,18 +700,68 @@ const PracticeRoom: React.FC = () => {
                           if (!window.confirm('연습완료 하시겠습니까?')) return;
                           await handleToggleSuggestionDone(song.id, !!myDone, song);
                         }}
-                      />
-                      <span style={{ flex: 1, textDecoration: 'none', color: '#222' }}>
-                        {song.title} <span style={{ color: '#B497D6', fontSize: 13 }}>(from {song.fromNickname})</span>
-                        {deletedByOther && <span style={{ color: '#F43F5E', fontSize: 13, marginLeft: 8 }}>상대방이 삭제함</span>}
+                          style={{ 
+                            width: 16, 
+                            height: 16,
+                            accentColor: 'rgba(255, 255, 255, 0.8)'
+                          }}
+                        />
+                        <span style={{ 
+                          flex: 1, 
+                          textDecoration: 'none', 
+                          color: 'white',
+                          fontSize: 15,
+                          fontWeight: 500
+                        }}>
+                          {song.title} 
+                          <span style={{ 
+                            color: 'rgba(255, 255, 255, 0.6)', 
+                            fontSize: 13, 
+                            marginLeft: 8 
+                          }}>
+                            (from {song.fromNickname})
                       </span>
-                      <button onClick={async () => {
+                          {deletedByOther && 
+                            <span style={{ 
+                              color: '#ff6b6b', 
+                              fontSize: 13, 
+                              marginLeft: 8 
+                            }}>
+                              상대방이 삭제함
+                            </span>
+                          }
+                        </span>
+                                                  <button 
+                            onClick={async () => {
                         if (!window.confirm('정말 삭제하시겠습니까?')) return;
                         if (song.suggestionId) {
                           await updateDoc(doc(db, 'practiceSuggestions', song.suggestionId), { deleted: true });
                         }
                         await handleDeleteSong(song.id);
-                      }} style={{ background: '#B497D6', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 12px', fontWeight: 600 }}>삭제</button>
+                            }} 
+                            style={{ 
+                              background: 'rgba(220, 38, 38, 0.6)', 
+                              backdropFilter: 'blur(10px)',
+                              WebkitBackdropFilter: 'blur(10px)',
+                              color: 'white', 
+                              border: '1px solid rgba(220, 38, 38, 0.8)', 
+                              borderRadius: 8, 
+                              padding: '6px 12px', 
+                              fontWeight: 600,
+                              fontSize: 13,
+                              cursor: 'pointer',
+                              transition: 'all 0.3s ease',
+                              fontFamily: 'inherit'
+                            }}
+                            onMouseEnter={(e) => {
+                              (e.target as HTMLElement).style.background = 'rgba(220, 38, 38, 0.8)';
+                            }}
+                            onMouseLeave={(e) => {
+                              (e.target as HTMLElement).style.background = 'rgba(220, 38, 38, 0.6)';
+                            }}
+                          >
+                          삭제
+                        </button>
                     </li>
                   );
                 })}
@@ -516,158 +770,701 @@ const PracticeRoom: React.FC = () => {
           )}
         </>
       )}
-      {tab==='suggestion' && (
+
+        {tab === 'suggestion' && (
         <div style={{ marginBottom: 24 }}>
-          <button onClick={()=>setShowSuggestForm(v=>!v)} style={{ background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 24px', fontWeight: 600, fontSize: 16, marginRight: 8 }}>{showSuggestForm ? '닫기' : '곡 제안하기'}</button>
+            <button 
+              onClick={()=>setShowSuggestForm(v=>!v)} 
+              style={{ 
+                background: 'rgba(255, 255, 255, 0.25)', 
+                backdropFilter: 'blur(15px)',
+                WebkitBackdropFilter: 'blur(15px)',
+                color: 'white', 
+                border: '1px solid rgba(255, 255, 255, 0.3)', 
+                borderRadius: 12, 
+                padding: '12px 24px', 
+                fontWeight: 600, 
+                fontSize: 16, 
+                marginRight: 12,
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                fontFamily: 'inherit'
+              }}
+              onMouseEnter={(e) => {
+                (e.target as HTMLElement).style.background = 'rgba(255, 255, 255, 0.35)';
+              }}
+              onMouseLeave={(e) => {
+                (e.target as HTMLElement).style.background = 'rgba(255, 255, 255, 0.25)';
+              }}
+            >
+              {showSuggestForm ? '닫기' : '곡 제안하기'}
+            </button>
+            
           {showSuggestForm && (
-            <form onSubmit={e=>{e.preventDefault();handleSendSuggest();setShowSuggestForm(false);}} style={{ background: '#F6F2FF', borderRadius: 12, padding: 20, marginTop: 16 }}>
-              <h4 style={{ color: '#8A55CC', fontWeight: 700, fontSize: 18, marginBottom: 12 }}>곡 제안</h4>
+              <form 
+                onSubmit={e=>{e.preventDefault();handleSendSuggest();setShowSuggestForm(false);}} 
+                style={{ 
+                  background: 'rgba(255, 255, 255, 0.15)', 
+                  backdropFilter: 'blur(15px)',
+                  WebkitBackdropFilter: 'blur(15px)',
+                  borderRadius: 16, 
+                  padding: 24, 
+                  marginTop: 20,
+                  border: '1px solid rgba(255, 255, 255, 0.2)'
+                }}
+              >
+                <h4 style={{ 
+                  color: 'white', 
+                  fontWeight: 700, 
+                  fontSize: 18, 
+                  marginBottom: 16,
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
+                }}>
+                  곡 제안
+                </h4>
               {suggestForm.nicknames.map((nickname, idx) => (
-                <div key={idx} style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-                  <input type="text" value={nickname} onChange={e=>setSuggestForm(f=>({...f, nicknames: f.nicknames.map((n,i)=>i===idx?e.target.value:n)}))} placeholder="상대 닉네임" style={{ flex: 1, marginRight: 8, padding: 8, borderRadius: 8, border: '1px solid #E5DAF5' }} required />
-                  {suggestForm.nicknames.length > 1 && <button type="button" onClick={()=>setSuggestForm(f=>({...f, nicknames: f.nicknames.filter((_,i)=>i!==idx)}))} style={{ background: '#F43F5E', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 12px', fontWeight: 600, fontSize: 16 }}>-</button>}
-                  {idx === suggestForm.nicknames.length-1 && <button type="button" onClick={()=>setSuggestForm(f=>({...f, nicknames: [...f.nicknames,'']}))} style={{ background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 12px', fontWeight: 600, fontSize: 16, marginLeft: 4 }}>+</button>}
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+                    <input 
+                      type="text" 
+                      value={nickname} 
+                      onChange={e=>setSuggestForm(f=>({...f, nicknames: f.nicknames.map((n,i)=>i===idx?e.target.value:n)}))} 
+                      placeholder="상대 닉네임" 
+                      style={{ 
+                        flex: 1, 
+                        marginRight: 12, 
+                        padding: '10px 14px', 
+                        borderRadius: 10, 
+                        border: '1px solid rgba(255, 255, 255, 0.3)',
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        backdropFilter: 'blur(10px)',
+                        WebkitBackdropFilter: 'blur(10px)',
+                        color: 'white',
+                        fontSize: 14,
+                        fontFamily: 'inherit'
+                      }} 
+                      required 
+                    />
+                    {suggestForm.nicknames.length > 1 && 
+                                              <button 
+                          type="button" 
+                          onClick={()=>setSuggestForm(f=>({...f, nicknames: f.nicknames.filter((_,i)=>i!==idx)}))} 
+                          style={{ 
+                            background: 'rgba(220, 38, 38, 0.6)', 
+                            backdropFilter: 'blur(10px)',
+                            WebkitBackdropFilter: 'blur(10px)',
+                            color: 'white', 
+                            border: '1px solid rgba(220, 38, 38, 0.8)', 
+                            borderRadius: 8, 
+                            padding: '6px 12px', 
+                            fontWeight: 600, 
+                            fontSize: 14,
+                            cursor: 'pointer',
+                            fontFamily: 'inherit'
+                          }}
+                        >
+                        -
+                      </button>
+                    }
+                    {idx === suggestForm.nicknames.length-1 && 
+                      <button 
+                        type="button" 
+                        onClick={()=>setSuggestForm(f=>({...f, nicknames: [...f.nicknames,'']}))} 
+                        style={{ 
+                          background: 'rgba(255, 255, 255, 0.2)', 
+                          backdropFilter: 'blur(10px)',
+                          WebkitBackdropFilter: 'blur(10px)',
+                          color: 'white', 
+                          border: '1px solid rgba(255, 255, 255, 0.3)', 
+                          borderRadius: 8, 
+                          padding: '6px 12px', 
+                          fontWeight: 600, 
+                          fontSize: 14, 
+                          marginLeft: 6,
+                          cursor: 'pointer',
+                          fontFamily: 'inherit'
+                        }}
+                      >
+                        +
+                      </button>
+                    }
                 </div>
               ))}
-              <input type="text" value={suggestForm.songTitle} onChange={e=>setSuggestForm(f=>({...f, songTitle:e.target.value}))} placeholder="제안 곡명" style={{ width: '100%', marginBottom: 8, padding: 8, borderRadius: 8, border: '1px solid #E5DAF5' }} required />
-              <button type="submit" style={{ background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 24px', fontWeight: 600, fontSize: 16 }}>제안 보내기</button>
-              <button type="button" onClick={()=>setShowSuggestForm(false)} style={{ marginLeft: 12, background: '#F43F5E', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 24px', fontWeight: 600, fontSize: 16 }}>취소</button>
+                <input 
+                  type="text" 
+                  value={suggestForm.songTitle} 
+                  onChange={e=>setSuggestForm(f=>({...f, songTitle:e.target.value}))} 
+                  placeholder="제안 곡명" 
+                  style={{ 
+                    width: '100%', 
+                    marginBottom: 16, 
+                    padding: '10px 14px', 
+                    borderRadius: 10, 
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    backdropFilter: 'blur(10px)',
+                    WebkitBackdropFilter: 'blur(10px)',
+                    color: 'white',
+                    fontSize: 15,
+                    fontFamily: 'inherit'
+                  }} 
+                  required 
+                />
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <button 
+                    type="submit" 
+                    style={{ 
+                      background: 'rgba(34, 197, 94, 0.25)', 
+                      backdropFilter: 'blur(10px)',
+                      WebkitBackdropFilter: 'blur(10px)',
+                      color: 'white', 
+                      border: '1px solid rgba(34, 197, 94, 0.3)', 
+                      borderRadius: 10, 
+                      padding: '10px 20px', 
+                      fontWeight: 600, 
+                      fontSize: 15,
+                      cursor: 'pointer',
+                      fontFamily: 'inherit'
+                    }}
+                  >
+                    제안 보내기
+                  </button>
+                                      <button 
+                      type="button" 
+                      onClick={()=>setShowSuggestForm(false)} 
+                      style={{ 
+                        background: 'rgba(220, 38, 38, 0.6)', 
+                        backdropFilter: 'blur(10px)',
+                        WebkitBackdropFilter: 'blur(10px)',
+                        color: 'white', 
+                        border: '1px solid rgba(220, 38, 38, 0.8)', 
+                        borderRadius: 10, 
+                        padding: '10px 20px', 
+                        fontWeight: 600, 
+                        fontSize: 15,
+                        cursor: 'pointer',
+                        fontFamily: 'inherit'
+                      }}
+                    >
+                    취소
+                  </button>
+                </div>
             </form>
           )}
 
-          {/* 내가 받은 제안 */}
-          <div style={{ marginTop: 32, marginBottom: 24, background: '#F6F2FF', borderRadius: 12, padding: 16 }}>
-            <h4 style={{ color: '#8A55CC', fontWeight: 700, fontSize: 17, marginBottom: 8 }}>받은제안곡</h4>
-            <ul style={{ listStyle: 'none', padding: 0 }}>
+            {/* 받은 제안 */}
+            <div style={{ 
+              marginTop: 32, 
+              marginBottom: 24, 
+              background: 'rgba(255, 255, 255, 0.15)', 
+              backdropFilter: 'blur(15px)',
+              WebkitBackdropFilter: 'blur(15px)',
+              borderRadius: 16, 
+              padding: 24,
+              border: '1px solid rgba(255, 255, 255, 0.2)'
+            }}>
+              <h4 style={{ 
+                color: 'white', 
+                fontWeight: 700, 
+                fontSize: 18, 
+                marginBottom: 16,
+                textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
+              }}>
+                받은제안곡
+              </h4>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
               {suggestions.filter(s => s.toUid === user.uid).length === 0 && (
-                <li style={{ color: '#B497D6', textAlign: 'center', padding: 12 }}>받은 제안이 없습니다.</li>
+                  <li style={{ 
+                    color: 'rgba(255, 255, 255, 0.7)', 
+                    textAlign: 'center', 
+                    padding: 20,
+                    fontSize: 15
+                  }}>
+                    받은 제안이 없습니다.
+                  </li>
               )}
               {suggestions.filter(s => s.toUid === user.uid).map(s => (
-                <li key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, background: '#fff', borderRadius: 8, padding: 8 }}>
-                  <span style={{ flex: 1 }}>{s.songTitle} <span style={{ color: '#B497D6', fontSize: 13 }}>(from {s.fromNickname})</span></span>
-                  <span style={{ color: s.status==='pending'?'#B497D6':s.status==='accepted'?'#22C55E':'#F43F5E', fontWeight: 600, marginRight: 8 }}>
+                  <li key={s.id} style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 12, 
+                    marginBottom: 12, 
+                    background: 'rgba(255, 255, 255, 0.1)', 
+                    backdropFilter: 'blur(10px)',
+                    WebkitBackdropFilter: 'blur(10px)',
+                    borderRadius: 12, 
+                    padding: 16,
+                    border: '1px solid rgba(255, 255, 255, 0.15)'
+                  }}>
+                    <span style={{ flex: 1, color: 'white', fontSize: 15, fontWeight: 500 }}>
+                      {s.songTitle} 
+                      <span style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: 13, marginLeft: 8 }}>
+                        (from {s.fromNickname})
+                      </span>
+                    </span>
+                    <span style={{ 
+                      color: s.status==='pending'?'rgba(255, 255, 255, 0.7)':s.status==='accepted'?'#22C55E':'#ff6b6b', 
+                      fontWeight: 600, 
+                      marginRight: 8,
+                      fontSize: 13
+                    }}>
                     {s.status==='pending'?'대기중':s.status==='accepted'?'수락됨':'거절됨'}
                   </span>
                   {s.status==='pending' && (
                     <>
-                      <button onClick={()=>handleAcceptSuggestion(s.id)} style={{ background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 12px', fontWeight: 600 }}>수락</button>
-                      <button onClick={()=>handleRejectSuggestion(s.id)} style={{ background: '#F43F5E', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 12px', fontWeight: 600, marginLeft: 6 }}>거절</button>
+                        <button 
+                          onClick={()=>handleAcceptSuggestion(s.id)} 
+                          style={{ 
+                            background: 'rgba(34, 197, 94, 0.25)', 
+                            backdropFilter: 'blur(10px)',
+                            WebkitBackdropFilter: 'blur(10px)',
+                            color: 'white', 
+                            border: '1px solid rgba(34, 197, 94, 0.3)', 
+                            borderRadius: 8, 
+                            padding: '6px 12px', 
+                            fontWeight: 600,
+                            fontSize: 13,
+                            cursor: 'pointer',
+                            fontFamily: 'inherit'
+                          }}
+                        >
+                          수락
+                        </button>
+                        <button 
+                          onClick={()=>handleRejectSuggestion(s.id)} 
+                          style={{ 
+                            background: 'rgba(220, 38, 38, 0.6)', 
+                            backdropFilter: 'blur(10px)',
+                            WebkitBackdropFilter: 'blur(10px)',
+                            color: 'white', 
+                            border: '1px solid rgba(220, 38, 38, 0.8)', 
+                            borderRadius: 8, 
+                            padding: '6px 12px', 
+                            fontWeight: 600, 
+                            marginLeft: 8,
+                            fontSize: 13,
+                            cursor: 'pointer',
+                            fontFamily: 'inherit'
+                          }}
+                        >
+                          거절
+                        </button>
                     </>
                   )}
-                  {/* 삭제 버튼: pending이 아닐 때만 노출 */}
                   {s.status!=='pending' && (
-                    <button onClick={()=>handleDeleteSentSuggestion(s.id)} style={{ background: '#B497D6', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 12px', fontWeight: 600, marginLeft: 6 }}>삭제</button>
+                      <button 
+                        onClick={()=>handleDeleteSentSuggestion(s.id)} 
+                        style={{ 
+                          background: 'rgba(107, 114, 128, 0.2)', 
+                          backdropFilter: 'blur(10px)',
+                          WebkitBackdropFilter: 'blur(10px)',
+                          color: 'white', 
+                          border: '1px solid rgba(107, 114, 128, 0.3)', 
+                          borderRadius: 8, 
+                          padding: '6px 12px', 
+                          fontWeight: 600, 
+                          marginLeft: 8,
+                          fontSize: 13,
+                          cursor: 'pointer',
+                          fontFamily: 'inherit'
+                        }}
+                      >
+                        삭제
+                      </button>
                   )}
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* 내가 보낸 제안 */}
-          <div style={{ marginBottom: 24, background: '#F6F2FF', borderRadius: 12, padding: 16 }}>
-            <h4 style={{ color: '#8A55CC', fontWeight: 700, fontSize: 17, marginBottom: 8 }}>보낸제안곡</h4>
-            <ul style={{ listStyle: 'none', padding: 0 }}>
+            {/* 보낸 제안 */}
+            <div style={{ 
+              marginBottom: 24, 
+              background: 'rgba(255, 255, 255, 0.15)', 
+              backdropFilter: 'blur(15px)',
+              WebkitBackdropFilter: 'blur(15px)',
+              borderRadius: 16, 
+              padding: 24,
+              border: '1px solid rgba(255, 255, 255, 0.2)'
+            }}>
+              <h4 style={{ 
+                color: 'white', 
+                fontWeight: 700, 
+                fontSize: 18, 
+                marginBottom: 16,
+                textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
+              }}>
+                보낸제안곡
+              </h4>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
               {suggestions.filter(s => s.fromUid === user.uid).length === 0 && (
-                <li style={{ color: '#B497D6', textAlign: 'center', padding: 12 }}>보낸 제안이 없습니다.</li>
+                  <li style={{ 
+                    color: 'rgba(255, 255, 255, 0.7)', 
+                    textAlign: 'center', 
+                    padding: 20,
+                    fontSize: 15
+                  }}>
+                    보낸 제안이 없습니다.
+                  </li>
               )}
               {suggestions.filter(s => s.fromUid === user.uid).map(s => (
-                <li key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, background: '#fff', borderRadius: 8, padding: 8 }}>
-                  <span style={{ flex: 1 }}>{s.songTitle} <span style={{ color: '#B497D6', fontSize: 13 }}>(to {s.toNickname})</span></span>
-                  <span style={{ color: s.status==='pending'?'#B497D6':s.status==='accepted'?'#22C55E':'#F43F5E', fontWeight: 600, marginRight: 8 }}>
+                  <li key={s.id} style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 12, 
+                    marginBottom: 12, 
+                    background: 'rgba(255, 255, 255, 0.1)', 
+                    backdropFilter: 'blur(10px)',
+                    WebkitBackdropFilter: 'blur(10px)',
+                    borderRadius: 12, 
+                    padding: 16,
+                    border: '1px solid rgba(255, 255, 255, 0.15)'
+                  }}>
+                    <span style={{ flex: 1, color: 'white', fontSize: 15, fontWeight: 500 }}>
+                      {s.songTitle} 
+                      <span style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: 13, marginLeft: 8 }}>
+                        (to {s.toNickname})
+                      </span>
+                    </span>
+                    <span style={{ 
+                      color: s.status==='pending'?'rgba(255, 255, 255, 0.7)':s.status==='accepted'?'#22C55E':'#ff6b6b', 
+                      fontWeight: 600, 
+                      marginRight: 8,
+                      fontSize: 13
+                    }}>
                     {s.status==='pending'?'대기중':s.status==='accepted'?'수락됨':'거절됨'}
                   </span>
-                  <button onClick={()=>handleDeleteSentSuggestion(s.id)} style={{ background: '#F43F5E', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 12px', fontWeight: 600 }}>삭제</button>
+                    <button 
+                      onClick={()=>handleDeleteSentSuggestion(s.id)} 
+                      style={{ 
+                        background: 'rgba(220, 38, 38, 0.6)', 
+                        backdropFilter: 'blur(10px)',
+                        WebkitBackdropFilter: 'blur(10px)',
+                        color: 'white', 
+                        border: '1px solid rgba(220, 38, 38, 0.8)', 
+                        borderRadius: 8, 
+                        padding: '6px 12px', 
+                        fontWeight: 600,
+                        fontSize: 13,
+                        cursor: 'pointer',
+                        fontFamily: 'inherit'
+                      }}
+                    >
+                      삭제
+                    </button>
                 </li>
               ))}
             </ul>
           </div>
         </div>
       )}
-      {tab==='done' && (
+
+        {tab === 'done' && (
         <div style={{ marginBottom: 32 }}>
-          <h3 style={{ color: '#8A55CC', fontWeight: 700, fontSize: 20, marginBottom: 8 }}>연습완료곡</h3>
-          <ul style={{ listStyle: 'none', padding: 0 }}>
+            <div style={{ 
+              background: 'rgba(255, 255, 255, 0.15)', 
+              backdropFilter: 'blur(15px)',
+              WebkitBackdropFilter: 'blur(15px)',
+              borderRadius: 16, 
+              padding: 24,
+              border: '1px solid rgba(255, 255, 255, 0.2)'
+            }}>
+              <h3 style={{ 
+                color: 'white', 
+                fontWeight: 700, 
+                fontSize: 20, 
+                marginBottom: 16,
+                textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
+              }}>
+                연습완료곡
+              </h3>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
             {songs.filter(song => (song.done || song.fromDone || song.toDone)).length === 0 && (
-              <li style={{ color: '#B497D6', textAlign: 'center', padding: 16 }}>아직 연습완료곡이 없습니다.</li>
+                  <li style={{ 
+                    color: 'rgba(255, 255, 255, 0.7)', 
+                    textAlign: 'center', 
+                    padding: 20,
+                    fontSize: 15
+                  }}>
+                    아직 연습완료곡이 없습니다.
+                  </li>
             )}
             {songs.filter(song => (song.done || song.fromDone || song.toDone)).map(song => {
               let display = song.title;
               return (
-                <li key={song.id} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, background: '#F6F2FF', borderRadius: 8, padding: 8 }}>
-                  <span style={{ color: '#8A55CC', flex: 1 }}>
+                    <li key={song.id} style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 12, 
+                      marginBottom: 12, 
+                      background: 'rgba(255, 255, 255, 0.1)', 
+                      backdropFilter: 'blur(10px)',
+                      WebkitBackdropFilter: 'blur(10px)',
+                      borderRadius: 12, 
+                      padding: 16,
+                      border: '1px solid rgba(255, 255, 255, 0.15)'
+                    }}>
+                      <span style={{ color: 'white', flex: 1, fontSize: 15, fontWeight: 500 }}>
                     {display}
                   </span>
-                  <button onClick={() => handleDeleteSong(song.id)} style={{ background: '#B497D6', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 12px', fontWeight: 600 }}>삭제</button>
+                                              <button 
+                          onClick={() => handleDeleteSong(song.id)} 
+                          style={{ 
+                            background: 'rgba(220, 38, 38, 0.6)', 
+                            backdropFilter: 'blur(10px)',
+                            WebkitBackdropFilter: 'blur(10px)',
+                            color: 'white', 
+                            border: '1px solid rgba(220, 38, 38, 0.8)', 
+                            borderRadius: 8, 
+                            padding: '6px 12px', 
+                            fontWeight: 600,
+                            fontSize: 13,
+                            cursor: 'pointer',
+                            fontFamily: 'inherit'
+                          }}
+                          onMouseEnter={(e) => {
+                            (e.target as HTMLElement).style.background = 'rgba(220, 38, 38, 0.8)';
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.target as HTMLElement).style.background = 'rgba(220, 38, 38, 0.6)';
+                          }}
+                        >
+                        삭제
+                      </button>
                 </li>
               );
             })}
           </ul>
+            </div>
         </div>
       )}
-      {tab==='other' && (
-        <>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 16 }}>
-            <div style={{ position: 'relative', width: 200 }}>
-              <input type="text" value={userSearchInput} onChange={e => {
+
+        {tab === 'other' && (
+          <>
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'flex-end', 
+              alignItems: 'center', 
+              marginBottom: 24,
+              gap: 12,
+              flexWrap: isMobile ? 'wrap' : 'nowrap'
+            }}>
+              <div style={{ position: 'relative', width: isMobile ? '100%' : 300 }}>
+                <input 
+                  type="text" 
+                  value={userSearchInput} 
+                  onChange={e => {
                 handleUserSearchInput(e);
                 if (e.target.value.trim() === '') {
                   setOtherUser(null);
                   setOtherPractice([]);
                 }
-              }} placeholder="타인 닉네임으로 연습장 조회" style={{ width: '100%', padding: 8, borderRadius: 8, border: '1px solid #E5DAF5' }} />
+                  }} 
+                  placeholder="타인 닉네임으로 연습장 조회" 
+                  style={{ 
+                    width: '100%', 
+                    padding: '10px 14px', 
+                    borderRadius: 12, 
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    background: 'rgba(255, 255, 255, 0.15)',
+                    backdropFilter: 'blur(15px)',
+                    WebkitBackdropFilter: 'blur(15px)',
+                    color: 'white',
+                    fontSize: 15,
+                    fontFamily: 'inherit'
+                  }} 
+                />
               {showUserSearch && userSearchResults.length > 0 && (
-                <div style={{ position: 'absolute', background: '#fff', border: '1px solid #E5DAF5', borderRadius: 8, zIndex: 10, width: '100%', left: 0, top: 40, boxShadow: '0 2px 8px #E5DAF5' }}>
+                  <div style={{ 
+                    position: 'absolute', 
+                    background: 'rgba(255, 255, 255, 0.95)', 
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    border: '1px solid rgba(255, 255, 255, 0.3)', 
+                    borderRadius: 12, 
+                    zIndex: 10, 
+                    width: '100%', 
+                    left: 0, 
+                    top: 48, 
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)' 
+                  }}>
                   {userSearchResults.map(u => (
-                    <div key={u.uid} style={{ padding: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }} onClick={()=>handleUserSearchSelect(u)}>
-                      <span>{u.nickname}</span>
-                      {u.grade && <span style={{ color: '#8A55CC', fontSize: 13, marginLeft: 4 }}>{u.grade}</span>}
+                      <div 
+                        key={u.uid} 
+                        style={{ 
+                          padding: 12, 
+                          cursor: 'pointer', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: 8,
+                          color: '#1f2937',
+                          borderBottom: '1px solid rgba(255, 255, 255, 0.2)',
+                          transition: 'all 0.2s ease'
+                        }} 
+                        onClick={()=>handleUserSearchSelect(u)}
+                        onMouseEnter={(e) => {
+                          (e.target as HTMLElement).style.background = 'rgba(255, 255, 255, 0.5)';
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.target as HTMLElement).style.background = 'transparent';
+                        }}
+                      >
+                        <span style={{ fontWeight: 500 }}>{u.nickname}</span>
+                        {u.grade && 
+                          <span style={{ color: '#667eea', fontSize: 13, fontWeight: 600 }}>
+                            {u.grade}
+                          </span>
+                        }
                     </div>
                   ))}
                 </div>
               )}
             </div>
-            <button onClick={handleSearchUser} style={{ background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontWeight: 600, fontSize: 16, marginLeft: 8 }}>조회</button>
+              <button 
+                onClick={handleSearchUser} 
+                style={{ 
+                  background: 'rgba(255, 255, 255, 0.25)', 
+                  backdropFilter: 'blur(15px)',
+                  WebkitBackdropFilter: 'blur(15px)',
+                  color: 'white', 
+                  border: '1px solid rgba(255, 255, 255, 0.3)', 
+                  borderRadius: 12, 
+                  padding: '10px 20px', 
+                  fontWeight: 600, 
+                  fontSize: 15,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  width: isMobile ? '100%' : 'auto'
+                }}
+              >
+                조회
+              </button>
           </div>
+            
           {otherUser && (
-            <div style={{ background: '#F6F2FF', borderRadius: 12, padding: 20, marginBottom: 24 }}>
-              <h4 style={{ color: '#8A55CC', fontWeight: 700, fontSize: 18, marginBottom: 12 }}>{otherUser.nickname}님의 연습장</h4>
+              <div style={{ 
+                background: 'rgba(255, 255, 255, 0.15)', 
+                backdropFilter: 'blur(15px)',
+                WebkitBackdropFilter: 'blur(15px)',
+                borderRadius: 16, 
+                padding: 24, 
+                marginBottom: 24,
+                border: '1px solid rgba(255, 255, 255, 0.2)'
+              }}>
+                <h4 style={{ 
+                  color: 'white', 
+                  fontWeight: 700, 
+                  fontSize: 20, 
+                  marginBottom: 20,
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
+                }}>
+                  {otherUser.nickname}님의 연습장
+                </h4>
+                
               {/* 개인연습곡 */}
-              <div style={{ marginBottom: 20 }}>
-                <h4 style={{ color: '#8A55CC', fontWeight: 700, fontSize: 16, marginBottom: 8 }}>개인연습곡</h4>
-                <ul style={{ listStyle: 'none', padding: 0 }}>
-                  {otherPractice.filter(song => !song.isSuggestion && !song.done).length === 0 && <li style={{ color: '#B497D6', textAlign: 'center', padding: 12 }}>아직 개인연습곡이 없습니다.</li>}
+                <div style={{ marginBottom: 24 }}>
+                  <h4 style={{ 
+                    color: 'white', 
+                    fontWeight: 600, 
+                    fontSize: 16, 
+                    marginBottom: 12,
+                    opacity: 0.9
+                  }}>
+                    개인연습곡
+                  </h4>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                    {otherPractice.filter(song => !song.isSuggestion && !song.done).length === 0 && 
+                      <li style={{ 
+                        color: 'rgba(255, 255, 255, 0.6)', 
+                        textAlign: 'center', 
+                        padding: 16,
+                        fontSize: 14
+                      }}>
+                        아직 개인연습곡이 없습니다.
+                      </li>
+                    }
                   {otherPractice.filter(song => !song.isSuggestion && !song.done).map(song => (
-                    <li key={song.id} style={{ marginBottom: 8 }}>
-                      {song.title}
+                      <li key={song.id} style={{ 
+                        marginBottom: 8,
+                        color: 'rgba(255, 255, 255, 0.8)',
+                        fontSize: 14,
+                        padding: '6px 0'
+                      }}>
+                        • {song.title}
                     </li>
                   ))}
                 </ul>
               </div>
+                
               {/* 연습완료곡 */}
-              <div style={{ marginBottom: 20 }}>
-                <h4 style={{ color: '#8A55CC', fontWeight: 700, fontSize: 16, marginBottom: 8 }}>연습완료곡</h4>
-                <ul style={{ listStyle: 'none', padding: 0 }}>
-                  {otherPractice.filter(song => (!song.isSuggestion && song.done) || (song.isSuggestion && (song.fromDone || song.toDone))).length === 0 && <li style={{ color: '#B497D6', textAlign: 'center', padding: 12 }}>아직 연습완료곡이 없습니다.</li>}
+                <div style={{ marginBottom: 24 }}>
+                  <h4 style={{ 
+                    color: 'white', 
+                    fontWeight: 600, 
+                    fontSize: 16, 
+                    marginBottom: 12,
+                    opacity: 0.9
+                  }}>
+                    연습완료곡
+                  </h4>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                    {otherPractice.filter(song => (!song.isSuggestion && song.done) || (song.isSuggestion && (song.fromDone || song.toDone))).length === 0 && 
+                      <li style={{ 
+                        color: 'rgba(255, 255, 255, 0.6)', 
+                        textAlign: 'center', 
+                        padding: 16,
+                        fontSize: 14
+                      }}>
+                        아직 연습완료곡이 없습니다.
+                      </li>
+                    }
                   {otherPractice.filter(song => (!song.isSuggestion && song.done) || (song.isSuggestion && (song.fromDone || song.toDone))).map(song => {
                     let display = song.title;
                     return (
-                      <li key={song.id} style={{ marginBottom: 8 }}>
-                        {display}
+                        <li key={song.id} style={{ 
+                          marginBottom: 8,
+                          color: 'rgba(255, 255, 255, 0.8)',
+                          fontSize: 14,
+                          padding: '6px 0'
+                        }}>
+                          ✅ {display}
                       </li>
                     );
                   })}
                 </ul>
               </div>
+                
               {/* 제안곡 */}
               <div>
-                <h4 style={{ color: '#8A55CC', fontWeight: 700, fontSize: 16, marginBottom: 8 }}>제안곡</h4>
-                <ul style={{ listStyle: 'none', padding: 0 }}>
-                  {otherPractice.filter(song => song.isSuggestion && !(song.fromDone || song.toDone)).length === 0 && <li style={{ color: '#B497D6', textAlign: 'center', padding: 12 }}>아직 제안곡이 없습니다.</li>}
+                  <h4 style={{ 
+                    color: 'white', 
+                    fontWeight: 600, 
+                    fontSize: 16, 
+                    marginBottom: 12,
+                    opacity: 0.9
+                  }}>
+                    제안곡
+                  </h4>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                    {otherPractice.filter(song => song.isSuggestion && !(song.fromDone || song.toDone)).length === 0 && 
+                      <li style={{ 
+                        color: 'rgba(255, 255, 255, 0.6)', 
+                        textAlign: 'center', 
+                        padding: 16,
+                        fontSize: 14
+                      }}>
+                        아직 제안곡이 없습니다.
+                      </li>
+                    }
                   {otherPractice.filter(song => song.isSuggestion && !(song.fromDone || song.toDone)).map(song => {
                     let display = song.title;
                     return (
-                      <li key={song.id} style={{ marginBottom: 8 }}>
-                        {display}
+                        <li key={song.id} style={{ 
+                          marginBottom: 8,
+                          color: 'rgba(255, 255, 255, 0.8)',
+                          fontSize: 14,
+                          padding: '6px 0'
+                        }}>
+                          💡 {display}
                       </li>
                     );
                   })}
@@ -677,25 +1474,7 @@ const PracticeRoom: React.FC = () => {
           )}
         </>
       )}
-      {calendarView && (
-        <div style={{ background: '#F6F2FF', borderRadius: 12, padding: 20, marginBottom: 24 }}>
-          <h4 style={{ color: '#8A55CC', fontWeight: 700, fontSize: 18, marginBottom: 12 }}>연습 스케쥴 캘린더</h4>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {(() => {
-              const today = new Date();
-              const days = eachDayOfInterval({ start: startOfMonth(today), end: endOfMonth(today) });
-              return days.map((day: Date) => (
-                <div key={format(day, 'yyyy-MM-dd')} style={{ width: 60, height: 60, background: '#fff', borderRadius: 8, border: '1px solid #E5DAF5', margin: 2, padding: 4, fontSize: 13, position: 'relative' }}>
-                  <div style={{ color: '#8A55CC', fontWeight: 600 }}>{format(day, 'd')}</div>
-                  {schedules.filter(s => s.date === format(day, 'yyyy-MM-dd')).map(s => (
-                    <div key={s.id} style={{ fontSize: 11, color: '#B497D6', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.songTitle}</div>
-                  ))}
                 </div>
-              ));
-            })()}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

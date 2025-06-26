@@ -4,7 +4,6 @@ import { db } from '../firebase';
 import { Bell, MessageCircle, X, Heart, CheckCircle, XCircle, Users, AtSign, UserPlus, CheckCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { NotificationService } from '../utils/notificationService';
-import './Notifications.css';
 
 interface Notification {
   id: string;
@@ -161,124 +160,276 @@ const Notifications: React.FC = () => {
   const unreadCount = notifications.filter(noti => !noti.isRead).length;
 
   return (
-    <div className="notifications-container">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <h2 style={{ display: 'flex', alignItems: 'center' }}>
-          <Bell size={24} style={{ color: '#8A55CC', marginRight: 8 }} />
-          알림
-          {unreadCount > 0 && (
-            <span style={{ 
-              backgroundColor: '#ef4444', 
-              color: 'white', 
-              borderRadius: '12px', 
-              fontSize: '12px', 
-              fontWeight: '700', 
-              padding: '2px 8px', 
-              marginLeft: '8px',
-              minWidth: '20px',
-              textAlign: 'center'
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      backgroundAttachment: 'fixed',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      {/* 배경 패턴 */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: `
+          radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+          radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+          radial-gradient(circle at 40% 80%, rgba(120, 119, 198, 0.2) 0%, transparent 50%)
+        `,
+        pointerEvents: 'none'
+      }} />
+      
+      <div style={{
+        position: 'relative',
+        zIndex: 1,
+        padding: '20px',
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{
+          maxWidth: '800px',
+          width: '100%',
+          background: 'rgba(255, 255, 255, 0.1)',
+          backdropFilter: 'blur(15px)',
+          borderRadius: '24px',
+          padding: '32px',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+        }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 24, gap: '16px' }}>
+            <h2 style={{ 
+              display: 'flex', 
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              fontWeight: 700,
+              fontSize: '28px',
+              margin: 0,
+              textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
             }}>
-              {unreadCount}
-            </span>
+              🔔 알림
+              {unreadCount > 0 && (
+                <span style={{ 
+                  backgroundColor: '#ef4444', 
+                  color: 'white', 
+                  borderRadius: '12px', 
+                  fontSize: '14px', 
+                  fontWeight: '700', 
+                  padding: '4px 10px', 
+                  marginLeft: '12px',
+                  minWidth: '24px',
+                  textAlign: 'center',
+                  boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)'
+                }}>
+                  {unreadCount}
+                </span>
+              )}
+            </h2>
+            {unreadCount > 0 && (
+              <button 
+                onClick={handleMarkAllAsRead}
+                style={{ 
+                  background: 'rgba(16, 185, 129, 0.8)', 
+                  backdropFilter: 'blur(10px)',
+                  color: 'white', 
+                  border: '1px solid rgba(255, 255, 255, 0.3)', 
+                  borderRadius: '12px', 
+                  padding: '10px 18px', 
+                  fontWeight: 600, 
+                  cursor: 'pointer', 
+                  fontSize: 14,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'all 0.3s ease'
+                }}
+                title="모든 알림 읽음 처리"
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(16, 185, 129, 0.9)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(16, 185, 129, 0.8)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                <CheckCheck size={16} />
+                모두 읽음
+              </button>
+            )}
+          </div>
+          {notifications.filter(noti => !noti.isRead).length === 0 ? (
+            <div style={{
+              textAlign: 'center',
+              color: 'rgba(255, 255, 255, 0.7)',
+              padding: '60px 20px',
+              fontSize: '18px',
+              fontWeight: 500
+            }}>
+              🔕 새 알림이 없습니다
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {notifications.filter(noti => !noti.isRead).map(noti => {
+                const postBadge = getPostTypeBadge(noti.postType);
+                return (
+                  <div
+                    key={noti.id}
+                    onClick={() => handleNotificationClick(noti)}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.15)',
+                      backdropFilter: 'blur(10px)',
+                      borderRadius: '16px',
+                      padding: '20px',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '12px' }}>
+                      <div style={{
+                        width: '40px',
+                        height: '40px',
+                        background: 'rgba(255, 255, 255, 0.2)',
+                        backdropFilter: 'blur(5px)',
+                        borderRadius: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: '1px solid rgba(255, 255, 255, 0.3)',
+                        flexShrink: 0
+                      }}>
+                        {getNotificationIcon(noti.type)}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          fontSize: '16px',
+                          fontWeight: 600,
+                          color: 'white',
+                          marginBottom: '8px',
+                          lineHeight: 1.4,
+                          textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                        }}>
+                          {getNotificationMessage(noti)}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          {noti.postType && (
+                            <span style={{ 
+                              background: 'rgba(255, 255, 255, 0.2)',
+                              color: 'white',
+                              border: '1px solid rgba(255, 255, 255, 0.3)',
+                              padding: '4px 10px',
+                              borderRadius: '12px',
+                              fontSize: '12px',
+                              fontWeight: 600
+                            }}>
+                              {postBadge.label}
+                            </span>
+                          )}
+                          {!noti.isRead && (
+                            <span style={{
+                              color: '#FF4757',
+                              fontSize: '16px',
+                              fontWeight: 'bold'
+                            }}>●</span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={e => { e.stopPropagation(); handleDeleteNotification(noti.id); }}
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.1)',
+                          border: '1px solid rgba(255, 255, 255, 0.2)',
+                          borderRadius: '8px',
+                          padding: '6px',
+                          cursor: 'pointer',
+                          color: 'rgba(255, 255, 255, 0.7)',
+                          transition: 'all 0.2s ease',
+                          flexShrink: 0
+                        }}
+                        title="알림 삭제"
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'rgba(239, 68, 68, 0.8)';
+                          e.currentTarget.style.color = 'white';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                          e.currentTarget.style.color = 'rgba(255, 255, 255, 0.7)';
+                        }}
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                    
+                    {/* 게시글 제목 */}
+                    {noti.postTitle && (
+                      <div style={{
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        borderRadius: '12px',
+                        padding: '12px 16px',
+                        margin: '12px 0',
+                        fontSize: '14px',
+                        fontWeight: 500,
+                        color: 'rgba(255, 255, 255, 0.9)',
+                        lineHeight: 1.4,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        📝 {noti.postTitle}
+                      </div>
+                    )}
+                    
+                    {/* 메타 정보 */}
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginTop: '12px',
+                      paddingTop: '12px',
+                      borderTop: '1px solid rgba(255, 255, 255, 0.1)'
+                    }}>
+                      <span style={{
+                        fontSize: '14px',
+                        color: 'rgba(255, 255, 255, 0.8)',
+                        fontWeight: 500
+                      }}>
+                        👤 {noti.fromNickname}
+                      </span>
+                      <span style={{
+                        fontSize: '13px',
+                        color: 'rgba(255, 255, 255, 0.6)'
+                      }}>
+                        🕐 {noti.createdAt && (noti.createdAt.seconds ? 
+                          new Date(noti.createdAt.seconds * 1000).toLocaleDateString('ko-KR', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          }) : '')}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
-        </h2>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {unreadCount > 0 && (
-            <button 
-              onClick={handleMarkAllAsRead}
-              style={{ 
-                background: '#10B981', 
-                color: 'white', 
-                border: 'none', 
-                borderRadius: 8, 
-                padding: '8px 16px', 
-                fontWeight: 600, 
-                cursor: 'pointer', 
-                fontSize: 14,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-              title="모든 알림 읽음 처리"
-            >
-              <CheckCheck size={16} />
-              모두 읽음
-            </button>
-          )}
-          <button onClick={handleGoHome} style={{ background: '#F6F2FF', color: '#8A55CC', border: 'none', borderRadius: 8, padding: '8px 18px', fontWeight: 600, cursor: 'pointer', fontSize: 15 }}>메인보드로</button>
         </div>
       </div>
-      {notifications.filter(noti => !noti.isRead).length === 0 ? (
-        <div className="empty">새 알림이 없습니다.</div>
-      ) : (
-        <ul className="notification-list">
-          {notifications.filter(noti => !noti.isRead).map(noti => {
-            const postBadge = getPostTypeBadge(noti.postType);
-            return (
-              <li
-                key={noti.id}
-                className={`notification-item${!noti.isRead ? ' unread' : ''}`}
-                onClick={() => handleNotificationClick(noti)}
-              >
-                <div className="notification-content">
-                  {/* 상단: 아이콘, 메시지, 배지 */}
-                  <div className="notification-header">
-                    <div className="notification-icon">
-                      {getNotificationIcon(noti.type)}
-                    </div>
-                    <div className="notification-main">
-                      <div className="notification-message">
-                        {getNotificationMessage(noti)}
-                      </div>
-                      {noti.postType && (
-                        <span 
-                          className="post-type-badge"
-                          style={{ 
-                            background: postBadge.bg, 
-                            color: postBadge.color,
-                            border: `1px solid ${postBadge.color}20`
-                          }}
-                        >
-                          {postBadge.label}
-                        </span>
-                      )}
-                      {!noti.isRead && <span className="unread-indicator">●</span>}
-                    </div>
-                    <button
-                      className="notification-delete"
-                      onClick={e => { e.stopPropagation(); handleDeleteNotification(noti.id); }}
-                      title="알림 삭제"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                  
-                  {/* 하단: 게시글 제목 */}
-                  {noti.postTitle && (
-                    <div className="notification-post-title">
-                      📝 {noti.postTitle}
-                    </div>
-                  )}
-                  
-                  {/* 하단: 메타 정보 */}
-                  <div className="notification-meta">
-                    <span className="notification-author">👤 {noti.fromNickname}</span>
-                    <span className="notification-date">
-                      🕐 {noti.createdAt && (noti.createdAt.seconds ? 
-                        new Date(noti.createdAt.seconds * 1000).toLocaleDateString('ko-KR', {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        }) : '')}
-                    </span>
-                  </div>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
     </div>
   );
 };

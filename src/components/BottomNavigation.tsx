@@ -1,6 +1,6 @@
 import React, { useState, useEffect, memo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, Bell, User, ChevronUp, Search, Grid3x3, ChevronDown, Menu } from 'lucide-react';
+import { Home, Bell, User, ChevronUp, Search, Grid3x3, ChevronDown, Menu, Settings } from 'lucide-react';
 import './BottomNavigation.css';
 
 interface BottomNavigationProps {
@@ -8,6 +8,12 @@ interface BottomNavigationProps {
   unreadChatCount?: number;
   onSearchOpen?: () => void;
 }
+
+// 관리자 권한 체크 함수
+const checkAdminAccess = (user: any): boolean => {
+  if (!user) return false;
+  return user.nickname === '너래' || user.role === '리더' || user.role === '운영진';
+};
 
 const BottomNavigation: React.FC<BottomNavigationProps> = memo(({ unreadNotificationCount, unreadChatCount = 0, onSearchOpen }) => {
   const navigate = useNavigate();
@@ -17,6 +23,30 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({ unreadNotifica
     const saved = localStorage.getItem('bottomNavCollapsed');
     return saved ? JSON.parse(saved) : false;
   });
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  // 현재 사용자 정보 가져오기
+  useEffect(() => {
+    const userString = localStorage.getItem('veryus_user');
+    if (userString) {
+      try {
+        const user = JSON.parse(userString);
+        setCurrentUser(user);
+      } catch (error) {
+        console.error('사용자 정보 파싱 에러:', error);
+      }
+    }
+  }, []);
+
+  // 스크롤 기반 자동 숨김/표시 상태
+  const [isHiddenByScroll, setIsHiddenByScroll] = useState(false);
+  const [lastScrollY, setLastScrollY] = useState(0);
+  const [scrollDirection, setScrollDirection] = useState<'up' | 'down' | null>(null);
+  
+  // 초기 스크롤 위치 설정
+  useEffect(() => {
+    setLastScrollY(window.scrollY);
+  }, []);
 
   // 드래그 관련 상태
   const [isDragging, setIsDragging] = useState(false);
@@ -32,7 +62,11 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({ unreadNotifica
     { name: '합격곡', path: '/approved-songs', icon: () => <span style={{fontSize:16}}>🏆</span>, emoji: '🏆' },
     { name: '셋리스트', path: '/setlist', icon: () => <span style={{fontSize:16}}>🎵</span>, emoji: '🎵' },
     { name: '콘테스트', path: '/contests', icon: () => <span style={{fontSize:16}}>🎤</span>, emoji: '🎤' },
-    { name: '채팅방', path: '/messages', icon: () => <span style={{fontSize:16}}>💬</span>, emoji: '💬' }
+    { name: '채팅방', path: '/messages', icon: () => <span style={{fontSize:16}}>💬</span>, emoji: '💬' },
+    // 관리자 패널 추가 (권한이 있는 사용자만)
+    ...(checkAdminAccess(currentUser) ? [
+      { name: '관리자 패널', path: '/admin', icon: Settings, emoji: '⚙️', isAdmin: true }
+    ] : [])
   ];
 
   const navItems = [
@@ -181,6 +215,64 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({ unreadNotifica
     }
   }, [isDragging, dragOffset, position]);
 
+  // 스크롤 기반 네비게이션바 자동 숨김/표시
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      const scrollThreshold = 50;
+      const isMobile = window.innerWidth <= 768;
+      
+      if (isMobile && !isCollapsed && !isDragging) {
+        if (Math.abs(currentScrollY - lastScrollY) > 3) {
+          if (currentScrollY > lastScrollY && currentScrollY > scrollThreshold) {
+            // 아래로 스크롤 & 임계값 넘음 - 숨기기
+            if (scrollDirection !== 'down') {
+              setScrollDirection('down');
+              setIsHiddenByScroll(true);
+              setShowBoardsMenu(false);
+            }
+          } else if (currentScrollY < lastScrollY) {
+            // 위로 스크롤 - 보이기
+            if (scrollDirection !== 'up') {
+              setScrollDirection('up');
+              setIsHiddenByScroll(false);
+            }
+          }
+          
+          // 페이지 상단 근처에서는 항상 보이기
+          if (currentScrollY < 50) {
+            setIsHiddenByScroll(false);
+          }
+          
+          setLastScrollY(currentScrollY);
+        }
+      }
+    };
+
+    // wheel 이벤트로 스크롤 방향 감지 (touchmove, 마우스휠 포함)
+    const handleWheel = (e: WheelEvent) => {
+      const isMobile = window.innerWidth <= 768;
+      if (isMobile && !isCollapsed && !isDragging) {
+        if (e.deltaY > 0) {
+          // 아래로 스크롤 - 숨기기
+          setIsHiddenByScroll(true);
+          setShowBoardsMenu(false);
+        } else if (e.deltaY < 0) {
+          // 위로 스크롤 - 보이기
+          setIsHiddenByScroll(false);
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('wheel', handleWheel, { passive: true });
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('wheel', handleWheel);
+    };
+  }, [lastScrollY, scrollDirection, isCollapsed, isDragging]);
+
   // 화면 크기 변경 시 위치 조정
   useEffect(() => {
     const handleResize = () => {
@@ -197,13 +289,13 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({ unreadNotifica
   return (
     <>
       {/* 기능 서브메뉴 */}
-      {showBoardsMenu && !isCollapsed && (
+      {showBoardsMenu && !isCollapsed && !isHiddenByScroll && (
         <div className="boards-submenu">
           <div className="boards-submenu-content">
             {boardItems.map((board) => (
               <button
                 key={board.path}
-                className={`board-submenu-item ${(board as any).isSearch ? 'search-item' : ''}`}
+                className={`board-submenu-item ${(board as any).isSearch ? 'search-item' : ''} ${(board as any).isAdmin ? 'admin-item' : ''}`}
                 onClick={() => handleBoardClick(board.path, (board as any).isSearch)}
                 style={{ position: 'relative' }}
               >
@@ -265,7 +357,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({ unreadNotifica
         </button>
       )}
       
-      <nav className={`bottom-navigation ${isCollapsed ? 'collapsed' : ''}`}>
+      <nav className={`bottom-navigation ${isCollapsed ? 'collapsed' : ''} ${isHiddenByScroll ? 'hidden-by-scroll' : ''}`}>
         {!isCollapsed && (
           <div className="bottom-nav-container">
             {navItems.map((item) => (

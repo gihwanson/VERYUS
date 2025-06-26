@@ -48,6 +48,10 @@ const SetListManager: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [slotSearchTerm, setSlotSearchTerm] = useState(''); // 슬롯 편집용 검색어
   
+  // 터치 시 버튼 표시 관련 상태
+  const [touchedCardId, setTouchedCardId] = useState<string | null>(null);
+  const [touchTimer, setTouchTimer] = useState<NodeJS.Timeout | null>(null);
+  
   // 유연한 카드 생성 관련 상태
   const [showFlexibleCardForm, setShowFlexibleCardForm] = useState(false);
   const [flexibleCardNickname, setFlexibleCardNickname] = useState('');
@@ -125,6 +129,15 @@ const SetListManager: React.FC = () => {
     }
   }, [draggedItem]);
 
+  // 컴포넌트 언마운트 시 타이머 정리
+  useEffect(() => {
+    return () => {
+      if (touchTimer) {
+        clearTimeout(touchTimer);
+      }
+    };
+  }, [touchTimer]);
+
   // 사용자 정보 가져오기
   useEffect(() => {
     fetchUsers();
@@ -156,6 +169,35 @@ const SetListManager: React.FC = () => {
   const canEditFlexibleCard = useCallback((card: FlexibleCard) => {
     return isLeader || card.nickname === currentUserNickname;
   }, [isLeader, currentUserNickname]);
+
+  // 터치 버튼 표시 핸들러
+  const handleCardTouch = useCallback((cardId: string, event: React.TouchEvent | React.MouseEvent) => {
+    // 드래그 중이면 무시
+    if (draggedItem) return;
+    
+    // 기존 타이머 정리
+    if (touchTimer) {
+      clearTimeout(touchTimer);
+    }
+    
+    setTouchedCardId(cardId);
+    
+    // 3초 후 자동으로 버튼 숨기기
+    const timer = setTimeout(() => {
+      setTouchedCardId(null);
+    }, 3000);
+    
+    setTouchTimer(timer);
+  }, [draggedItem, touchTimer]);
+
+  // 터치 버튼 숨기기
+  const hideCardButtons = useCallback(() => {
+    if (touchTimer) {
+      clearTimeout(touchTimer);
+    }
+    setTouchedCardId(null);
+    setTouchTimer(null);
+  }, [touchTimer]);
 
   // 전체 항목들 (곡 + 유연한 카드) 가져오기 및 정렬 (셋리스트에 추가된 것만)
   const getAllItems = useCallback(() => {
@@ -598,7 +640,6 @@ const SetListManager: React.FC = () => {
 
     const isAlreadyAdded = activeSetList.songs.some(s => s.songId === song.id);
     if (isAlreadyAdded) {
-      alert('이미 셋리스트에 추가된 곡입니다.');
       return;
     }
 
@@ -617,7 +658,7 @@ const SetListManager: React.FC = () => {
         updatedAt: Timestamp.now()
       });
       
-      alert(`"${song.title}" 곡이 셋리스트에 추가되었습니다! 🎵`);
+
     } catch (error) {
       console.error('곡 추가 실패:', error);
       alert('곡 추가에 실패했습니다.');
@@ -815,17 +856,19 @@ const SetListManager: React.FC = () => {
       {/* 셋리스트 생성 영역 */}
       {isLeader && (
         <div style={{ 
-          background: '#F6F2FF', 
-          borderRadius: '12px', 
-          padding: '24px', 
-          marginBottom: '24px' 
+          background: 'rgba(255, 255, 255, 0.15)',
+          backdropFilter: 'blur(15px)',
+          borderRadius: 20, 
+          padding: 24, 
+          marginBottom: 24,
+          border: '1px solid rgba(255, 255, 255, 0.2)'
         }}>
-          <h2 style={{ color: '#8A55CC', fontSize: '20px', marginBottom: '16px' }}>
-            새 셋리스트 만들기
+          <h2 style={{ color: 'white', fontSize: 20, marginBottom: 16, fontWeight: 700 }}>
+            ➕ 새 셋리스트 만들기
           </h2>
           
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, color: 'white' }}>
               셋리스트 이름
             </label>
             <input
@@ -835,20 +878,23 @@ const SetListManager: React.FC = () => {
               placeholder="예: 2024년 12월 버스킹"
               style={{ 
                 width: '100%', 
-                padding: '8px', 
-                borderRadius: '8px', 
-                border: '1px solid #E5DAF5',
+                padding: 12, 
+                borderRadius: 12, 
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                background: 'rgba(255, 255, 255, 0.1)',
+                backdropFilter: 'blur(10px)',
+                color: 'white',
                 boxSizing: 'border-box'
               }}
             />
           </div>
 
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, color: 'white' }}>
               참가자
             </label>
             {participants.map((participant, index) => (
-              <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+              <div key={index} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 <input
                   type="text"
                   value={participant}
@@ -856,9 +902,12 @@ const SetListManager: React.FC = () => {
                   placeholder={`참가자 ${index + 1}`}
                   style={{ 
                     flex: 1, 
-                    padding: '8px', 
-                    borderRadius: '8px', 
-                    border: '1px solid #E5DAF5' 
+                    padding: 12, 
+                    borderRadius: 12, 
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    backdropFilter: 'blur(10px)',
+                    color: 'white'
                   }}
                 />
                 {participants.length > 1 && (
@@ -866,16 +915,17 @@ const SetListManager: React.FC = () => {
                     type="button"
                     onClick={() => removeParticipant(index)}
                     style={{ 
-                      background: '#F43F5E', 
-                      color: '#fff', 
+                      background: 'rgba(220, 38, 38, 0.8)',
+                      backdropFilter: 'blur(10px)',
+                      color: 'white', 
                       border: 'none', 
-                      borderRadius: '8px', 
+                      borderRadius: 12, 
                       padding: '8px 12px', 
                       fontWeight: 600, 
                       cursor: 'pointer' 
                     }}
                   >
-                    삭제
+                    🗑️ 삭제
                   </button>
                 )}
                 {index === participants.length - 1 && (
@@ -883,111 +933,94 @@ const SetListManager: React.FC = () => {
                     type="button"
                     onClick={addParticipant}
                     style={{ 
-                      background: '#8A55CC', 
-                      color: '#fff', 
+                      background: 'rgba(255, 255, 255, 0.2)',
+                      backdropFilter: 'blur(10px)',
+                      color: 'white', 
                       border: 'none', 
-                      borderRadius: '8px', 
+                      borderRadius: 12, 
                       padding: '8px 12px', 
                       fontWeight: 600, 
                       cursor: 'pointer' 
                     }}
                   >
-                    추가
+                    ➕ 추가
                   </button>
                 )}
               </div>
             ))}
           </div>
 
-          <button
-            onClick={createSetList}
-            style={{ 
-              background: '#8A55CC', 
-              color: '#fff', 
-              border: 'none', 
-              borderRadius: '8px', 
-              padding: '12px 24px', 
-              fontWeight: 600, 
-              cursor: 'pointer',
-              fontSize: '16px'
-            }}
-          >
-            저장
-          </button>
+          <div style={{ textAlign: 'center' }}>
+            <button
+              onClick={createSetList}
+              style={{ 
+                background: 'rgba(34, 197, 94, 0.8)',
+                backdropFilter: 'blur(10px)',
+                color: 'white', 
+                border: 'none', 
+                borderRadius: 12, 
+                padding: '12px 24px', 
+                fontWeight: 600, 
+                cursor: 'pointer',
+                fontSize: 16
+              }}
+            >
+              ➕ 생성
+            </button>
+          </div>
         </div>
       )}
 
       {/* 활성 셋리스트 표시 */}
       {activeSetList && (
         <div style={{ 
-          background: '#fff', 
-          borderRadius: '12px', 
-          padding: '24px', 
-          marginBottom: '24px',
-          boxShadow: '0 4px 16px rgba(138, 85, 204, 0.1)'
+          background: 'rgba(255, 255, 255, 0.15)',
+          backdropFilter: 'blur(15px)',
+          borderRadius: 20, 
+          padding: 24, 
+          marginBottom: 24,
+          border: '1px solid rgba(255, 255, 255, 0.2)'
         }}>
-          <h2 style={{ color: '#8A55CC', fontSize: '22px', marginBottom: '12px' }}>
+          <h2 style={{ color: 'white', fontSize: 22, marginBottom: 20, fontWeight: 700 }}>
             🎭 현재 활성 셋리스트: {activeSetList.name}
           </h2>
-          <div style={{ marginBottom: '8px' }}>
-            <strong>참가자:</strong> {activeSetList.participants.join(', ')}
-          </div>
-          <div style={{ marginBottom: '8px' }}>
-            <strong>곡 수:</strong> {activeSetList.songs.length}곡
-            {activeSetList.completedSongs && activeSetList.completedSongs.length > 0 && (
-              <span style={{ color: '#10B981', marginLeft: '8px' }}>
-                (완료: {activeSetList.completedSongs.length}곡)
-              </span>
-            )}
-          </div>
-          <div style={{ marginBottom: '8px' }}>
-            <strong>닉네임 카드:</strong> {(activeSetList.flexibleCards || []).filter(card => card.order >= 0).length}개
-            {activeSetList.completedFlexibleCards && activeSetList.completedFlexibleCards.length > 0 && (
-              <span style={{ color: '#10B981', marginLeft: '8px' }}>
-                (완료: {activeSetList.completedFlexibleCards.length}개)
-              </span>
-            )}
-          </div>
-          <div style={{ marginBottom: '16px' }}>
-            <strong>생성자:</strong> {activeSetList.createdBy}
-          </div>
 
           {/* 통계 보기 버튼 */}
           {userStats.length > 0 && (
-            <div style={{ marginBottom: '20px', textAlign: 'center' }}>
+            <div style={{ marginBottom: 20, textAlign: 'center' }}>
               <button
                 onClick={() => setShowStatsModal(true)}
                 style={{
-                  background: 'linear-gradient(135deg, #8A55CC 0%, #A855F7 100%)',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '12px',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  backdropFilter: 'blur(10px)',
+                  color: 'white',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: 12,
                   padding: '12px 24px',
-                  fontSize: '16px',
+                  fontSize: 16,
                   fontWeight: 600,
                   cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(138, 85, 204, 0.3)',
-                  transition: 'all 0.2s ease',
+                  transition: 'all 0.3s ease',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
+                  gap: 8,
                   margin: '0 auto'
                 }}
                 onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
                   e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(138, 85, 204, 0.4)';
                 }}
                 onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
                   e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(138, 85, 204, 0.3)';
                 }}
               >
                 📊 상세 통계 보기
                 <span style={{ 
                   background: 'rgba(255, 255, 255, 0.2)', 
                   padding: '4px 8px', 
-                  borderRadius: '8px', 
-                  fontSize: '14px' 
+                  borderRadius: 8, 
+                  fontSize: 14 
                 }}>
                   {(() => {
                     const totalSongs = activeSetList.songs.length + (activeSetList.completedSongs?.length || 0);
@@ -1005,14 +1038,14 @@ const SetListManager: React.FC = () => {
 
           {/* 셋리스트 전체 항목 목록 (곡 + 유연한 카드) */}
           <div>
-            <h3 style={{ color: '#8A55CC', fontSize: '18px', marginBottom: '8px' }}>
+            <h3 style={{ color: 'white', fontSize: 18, marginBottom: 16, fontWeight: 700 }}>
               🎵 셋리스트 ({getAllItems().length}개 항목)
               {isLeader && getAllItems().length > 1 && (
                 <span style={{ 
-                  fontSize: '12px', 
+                  fontSize: 12, 
                   fontWeight: 400, 
-                  color: '#666', 
-                  marginLeft: '8px' 
+                  color: 'rgba(255, 255, 255, 0.8)', 
+                  marginLeft: 8 
                 }}>
                   (곡: {activeSetList.songs.length}개, 카드: {(activeSetList.flexibleCards || []).length}개)
                 </span>
@@ -1020,11 +1053,23 @@ const SetListManager: React.FC = () => {
             </h3>
             
             {getAllItems().length === 0 ? (
-              <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
-                {isLeader ? '항목이 없습니다. 곡이나 닉네임 카드를 추가해보세요!' : '아직 항목이 추가되지 않았습니다.'}
+              <div style={{ 
+                padding: 32, 
+                textAlign: 'center', 
+                color: 'rgba(255, 255, 255, 0.8)',
+                background: 'rgba(255, 255, 255, 0.1)',
+                borderRadius: 16,
+                border: '1px solid rgba(255, 255, 255, 0.1)'
+              }}>
+                {isLeader ? '📝 항목이 없습니다. 곡이나 닉네임 카드를 추가해보세요!' : '📋 아직 항목이 추가되지 않았습니다.'}
               </div>
             ) : (
-              <div style={{ border: '1px solid #E5DAF5', borderRadius: '8px' }}>
+              <div style={{ 
+                background: 'rgba(255, 255, 255, 0.1)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255, 255, 255, 0.2)', 
+                borderRadius: 16 
+              }}>
                 {getAllItems().map((item, index) => {
                   const isDragging = draggedItem && (
                     (isSetListItem(item) && isSetListItem(draggedItem) && draggedItem.songId === item.songId) ||
@@ -1040,21 +1085,12 @@ const SetListManager: React.FC = () => {
                     return (
                       <div 
                         key={`song-${item.songId}`}
-                        draggable={isLeader}
-                        onDragStart={(e) => handleDragStart(e, item)}
-                        onDragOver={(e) => handleDragOver(e, index)}
-                        onDragLeave={handleDragLeave}
-                        onDrop={(e) => handleDrop(e, index)}
-                        onDragEnd={handleDragEnd}
-                        onTouchStart={(e) => handleTouchStart(e, item, index)}
-                        onTouchMove={handleTouchMove}
-                        onTouchEnd={handleTouchEnd}
                         style={{ 
                           display: 'flex', 
                           alignItems: 'center',
-                          padding: '12px',
-                          borderBottom: index < getAllItems().length - 1 ? '1px solid #F0F0F0' : 'none',
-                          backgroundColor: isDragging ? '#F8F6FF' : isDragOver ? '#E5DAF5' : '#FFFFFF',
+                          padding: 16,
+                          borderBottom: index < getAllItems().length - 1 ? '1px solid rgba(255, 255, 255, 0.1)' : 'none',
+                          backgroundColor: isDragging ? 'rgba(255, 255, 255, 0.3)' : isDragOver ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.1)',
                           opacity: isDragging ? 0.7 : 1,
                           transform: isDragging ? 
                             (touchStart && touchStart.itemIndex === index ? 
@@ -1062,97 +1098,162 @@ const SetListManager: React.FC = () => {
                               'scale(1.02)') : 
                             shouldShiftDown ? 'translateY(4px)' : 'scale(1)',
                           transition: isDragging && touchStart ? 'none' : 'all 0.2s ease',
-                          cursor: isLeader ? 'grab' : 'default',
-                          borderLeft: isDragOver ? '4px solid #8A55CC' : '4px solid transparent',
-                          boxShadow: isDragging ? '0 4px 8px rgba(138, 85, 204, 0.2)' : 'none',
+                          borderLeft: isDragOver ? '4px solid rgba(255, 255, 255, 0.8)' : '4px solid transparent',
+                          boxShadow: isDragging ? '0 4px 8px rgba(0, 0, 0, 0.2)' : 'none',
                           zIndex: isDragging && touchStart && touchStart.itemIndex === index ? 10 : 1,
-                          position: 'relative',
-                          touchAction: isLeader ? 'none' : 'auto' // 터치 드래그 시 스크롤 방지
+                          position: 'relative'
                         }}
                       >
-                        {/* 드래그 핸들 */}
-                        {isLeader && (
+                        {/* 드래그 영역 */}
+                        <div 
+                          draggable={isLeader}
+                          onDragStart={(e) => handleDragStart(e, item)}
+                          onDragOver={(e) => handleDragOver(e, index)}
+                          onDragLeave={handleDragLeave}
+                          onDrop={(e) => handleDrop(e, index)}
+                          onDragEnd={handleDragEnd}
+                          onTouchStart={(e) => handleTouchStart(e, item, index)}
+                          onTouchMove={handleTouchMove}
+                          onTouchEnd={handleTouchEnd}
+                          style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            flex: 1,
+                            cursor: isLeader ? 'grab' : 'default',
+                            touchAction: isLeader ? 'none' : 'auto'
+                          }}
+                        >
+                          {/* 드래그 핸들 */}
+                          {isLeader && (
+                            <div style={{ 
+                              marginRight: 12,
+                              color: isDragging ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.7)',
+                              fontSize: 16,
+                              cursor: isDragging ? 'grabbing' : 'grab',
+                              padding: 4,
+                              transition: 'color 0.2s ease',
+                              userSelect: 'none'
+                            }}>
+                              ⋮⋮
+                            </div>
+                          )}
+                          
                           <div style={{ 
-                            marginRight: '8px',
-                            color: isDragging ? '#A855F7' : '#8A55CC',
-                            fontSize: '16px',
-                            cursor: isDragging ? 'grabbing' : 'grab',
-                            padding: '4px',
-                            transition: 'color 0.2s ease',
-                            userSelect: 'none'
+                            width: 32, 
+                            height: 32, 
+                            background: 'rgba(255, 255, 255, 0.3)',
+                            backdropFilter: 'blur(10px)',
+                            color: 'white', 
+                            borderRadius: '50%', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            fontWeight: 700,
+                            marginRight: 16,
+                            border: '1px solid rgba(255, 255, 255, 0.4)'
                           }}>
-                            ⋮⋮
+                            {index + 1}
                           </div>
-                        )}
-                        
-                        <div style={{ 
-                          width: '30px', 
-                          height: '30px', 
-                          background: '#8A55CC', 
-                          color: '#fff', 
-                          borderRadius: '50%', 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'center',
-                          fontWeight: 600,
-                          marginRight: '12px'
-                        }}>
-                          {index + 1}
+                          
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 700, color: 'white' }}>{item.title}</div>
+                            <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: 14 }}>{item.members.join(', ')}</div>
+                          </div>
                         </div>
                         
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 600, color: '#7C4DBC' }}>{item.title}</div>
-                          <div style={{ color: '#666', fontSize: '14px' }}>{item.members.join(', ')}</div>
+                        {/* 버튼 영역 */}
+                        <div 
+                          style={{ 
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '8px',
+                            borderRadius: '8px',
+                            background: touchedCardId === `song-${item.songId}` ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+                            transition: 'background 0.2s ease'
+                          }}
+                        >
+                          {touchedCardId === `song-${item.songId}` && isLeader ? (
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  completeSongFromManager(item.songId);
+                                  hideCardButtons();
+                                }}
+                                style={{ 
+                                  background: 'rgba(34, 197, 94, 0.8)',
+                                  backdropFilter: 'blur(10px)',
+                                  color: 'white', 
+                                  border: '1px solid rgba(255, 255, 255, 0.3)', 
+                                  borderRadius: 8, 
+                                  padding: '6px 12px', 
+                                  cursor: 'pointer',
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  transition: 'all 0.3s ease'
+                                }}
+                              >
+                                ✅
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  removeSongFromSetList(item.songId);
+                                  hideCardButtons();
+                                }}
+                                style={{ 
+                                  background: 'rgba(220, 38, 38, 0.8)',
+                                  backdropFilter: 'blur(10px)',
+                                  color: 'white', 
+                                  border: '1px solid rgba(255, 255, 255, 0.3)', 
+                                  borderRadius: 8, 
+                                  padding: '6px 12px', 
+                                  cursor: 'pointer',
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  transition: 'all 0.3s ease'
+                                }}
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                          ) : (
+                            <div 
+                              onTouchStart={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleCardTouch(`song-${item.songId}`, e);
+                              }}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleCardTouch(`song-${item.songId}`, e);
+                              }}
+                              style={{ 
+                                width: '24px', 
+                                height: '24px', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center',
+                                color: 'rgba(255, 255, 255, 0.5)',
+                                fontSize: '16px',
+                                cursor: 'pointer',
+                                borderRadius: '4px',
+                                transition: 'background 0.2s ease'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'transparent';
+                              }}
+                            >
+                              ⋯
+                            </div>
+                          )}
                         </div>
-                        
-                        {isLeader && (
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <button
-                              onClick={() => completeSongFromManager(item.songId)}
-                              style={{ 
-                                background: '#10B981', 
-                                color: '#fff', 
-                                border: 'none', 
-                                borderRadius: '6px', 
-                                padding: '6px 10px', 
-                                cursor: 'pointer',
-                                fontSize: '14px',
-                                fontWeight: 600,
-                                transition: 'all 0.2s ease'
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.background = '#059669';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.background = '#10B981';
-                              }}
-                            >
-                              완료
-                            </button>
-                            <button
-                              onClick={() => removeSongFromSetList(item.songId)}
-                              style={{ 
-                                background: '#EF4444', 
-                                color: '#fff', 
-                                border: 'none', 
-                                borderRadius: '6px', 
-                                padding: '6px 10px', 
-                                cursor: 'pointer',
-                                fontSize: '14px',
-                                fontWeight: 600,
-                                transition: 'all 0.2s ease'
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.background = '#DC2626';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.background = '#EF4444';
-                              }}
-                            >
-                              제거
-                            </button>
-                          </div>
-                        )}
                       </div>
                     );
                   }
@@ -1162,15 +1263,6 @@ const SetListManager: React.FC = () => {
                     return (
                       <div 
                         key={`card-${item.id}`}
-                        draggable={isLeader}
-                        onDragStart={(e) => handleDragStart(e, item)}
-                        onDragOver={(e) => handleDragOver(e, index)}
-                        onDragLeave={handleDragLeave}
-                        onDrop={(e) => handleDrop(e, index)}
-                        onDragEnd={handleDragEnd}
-                        onTouchStart={(e) => handleTouchStart(e, item, index)}
-                        onTouchMove={handleTouchMove}
-                        onTouchEnd={handleTouchEnd}
                         style={{ 
                           display: 'flex', 
                           alignItems: 'center',
@@ -1184,108 +1276,172 @@ const SetListManager: React.FC = () => {
                               'scale(1.02)') : 
                             shouldShiftDown ? 'translateY(4px)' : 'scale(1)',
                           transition: isDragging && touchStart ? 'none' : 'all 0.2s ease',
-                          cursor: isLeader ? 'grab' : 'default',
                           borderLeft: isDragOver ? '4px solid #A855F7' : '4px solid #A855F7',
                           boxShadow: isDragging ? '0 4px 8px rgba(168, 85, 247, 0.2)' : 'none',
                           zIndex: isDragging && touchStart && touchStart.itemIndex === index ? 10 : 1,
-                          position: 'relative',
-                          touchAction: isLeader ? 'none' : 'auto' // 터치 드래그 시 스크롤 방지
+                          position: 'relative'
                         }}
-                                              >
-                        {/* 드래그 핸들 */}
-                        {isLeader && (
+                      >
+                        {/* 드래그 영역 */}
+                        <div 
+                          draggable={isLeader}
+                          onDragStart={(e) => handleDragStart(e, item)}
+                          onDragOver={(e) => handleDragOver(e, index)}
+                          onDragLeave={handleDragLeave}
+                          onDrop={(e) => handleDrop(e, index)}
+                          onDragEnd={handleDragEnd}
+                          onTouchStart={(e) => handleTouchStart(e, item, index)}
+                          onTouchMove={handleTouchMove}
+                          onTouchEnd={handleTouchEnd}
+                          style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            flex: 1,
+                            cursor: isLeader ? 'grab' : 'default',
+                            touchAction: isLeader ? 'none' : 'auto'
+                          }}
+                        >
+                          {/* 드래그 핸들 */}
+                          {isLeader && (
+                            <div style={{ 
+                              marginRight: '8px',
+                              color: isDragging ? '#A855F7' : '#8A55CC',
+                              fontSize: '16px',
+                              cursor: isDragging ? 'grabbing' : 'grab',
+                              padding: '4px',
+                              transition: 'color 0.2s ease',
+                              userSelect: 'none'
+                            }}>
+                              ⋮⋮
+                            </div>
+                          )}
+                          
                           <div style={{ 
-                            marginRight: '8px',
-                            color: isDragging ? '#A855F7' : '#8A55CC',
-                            fontSize: '16px',
-                            cursor: isDragging ? 'grabbing' : 'grab',
-                            padding: '4px',
-                            transition: 'color 0.2s ease',
-                            userSelect: 'none'
+                            width: '30px', 
+                            height: '30px', 
+                            background: '#A855F7', 
+                            color: '#fff', 
+                            borderRadius: '50%', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            fontWeight: 600,
+                            marginRight: '12px'
                           }}>
-                            ⋮⋮
+                            {index + 1}
                           </div>
-                        )}
-                        
-                        <div style={{ 
-                          width: '30px', 
-                          height: '30px', 
-                          background: '#A855F7', 
-                          color: '#fff', 
-                          borderRadius: '50%', 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'center',
-                          fontWeight: 600,
-                          marginRight: '12px'
-                        }}>
-                          {index + 1}
-                        </div>
-                        
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 600, color: '#A855F7', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            🎤 {item.nickname} {item.totalSlots}곡
-                          </div>
-                          <div style={{ color: '#666', fontSize: '14px' }}>
-                            {item.slots.map((slot, slotIndex) => {
-                              const slotNumber = `${slotIndex + 1}번`;
-                              const title = slot.title ? `"${slot.title}"` : '';
-                              const members = slot.members.length > 0 ? slot.members.join(', ') : '미지정';
-                              
-                              return title 
-                                ? `${slotNumber}: ${title} - ${members}`
-                                : `${slotNumber}: ${members}`;
-                            }).join(' | ')}
+                          
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 600, color: '#A855F7', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              🎤 {item.nickname} {item.totalSlots}곡
+                            </div>
+                            <div style={{ color: '#666', fontSize: '14px' }}>
+                              {item.slots.map((slot, slotIndex) => {
+                                const slotNumber = `${slotIndex + 1}번`;
+                                const title = slot.title ? `"${slot.title}"` : '';
+                                const members = slot.members.length > 0 ? slot.members.join(', ') : '미지정';
+                                
+                                return title 
+                                  ? `${slotNumber}: ${title} - ${members}`
+                                  : `${slotNumber}: ${members}`;
+                              }).join(' | ')}
+                            </div>
                           </div>
                         </div>
                         
-                        {isLeader && (
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <button
-                              onClick={() => completeFlexibleCard(item.id)}
-                              style={{ 
-                                background: '#10B981', 
-                                color: '#fff', 
-                                border: 'none', 
-                                borderRadius: '6px', 
-                                padding: '6px 10px', 
-                                cursor: 'pointer',
-                                fontSize: '14px',
-                                fontWeight: 600,
-                                transition: 'all 0.2s ease'
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.background = '#059669';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.background = '#10B981';
-                              }}
-                            >
-                              완료
-                            </button>
-                            {canEditFlexibleCard(item) && (
+                        {/* 버튼 영역 */}
+                        <div 
+                          style={{ 
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '8px',
+                            borderRadius: '8px',
+                            background: touchedCardId === `card-${item.id}` ? 'rgba(168, 85, 247, 0.1)' : 'transparent',
+                            transition: 'background 0.2s ease'
+                          }}
+                        >
+                          {touchedCardId === `card-${item.id}` && isLeader ? (
+                            <div style={{ display: 'flex', gap: '8px' }}>
                               <button
-                                                            onClick={() => {
-                              console.log('유연한 카드 편집 모달 열기:', item);
-                              setEditingFlexibleCard(item);
-                            }}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  completeFlexibleCard(item.id);
+                                  hideCardButtons();
+                                }}
                                 style={{ 
-                                  background: '#A855F7', 
+                                  background: '#10B981', 
                                   color: '#fff', 
                                   border: 'none', 
                                   borderRadius: '6px', 
                                   padding: '6px 10px', 
                                   cursor: 'pointer',
-                                  fontSize: '14px',
+                                  fontSize: '12px',
                                   fontWeight: 600,
                                   transition: 'all 0.2s ease'
                                 }}
                               >
-                                편집
+                                ✅
                               </button>
-                            )}
-                          </div>
-                        )}
+                              {canEditFlexibleCard(item) && (
+                                <button
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setEditingFlexibleCard(item);
+                                    hideCardButtons();
+                                  }}
+                                  style={{ 
+                                    background: '#A855F7', 
+                                    color: '#fff', 
+                                    border: 'none', 
+                                    borderRadius: '6px', 
+                                    padding: '6px 10px', 
+                                    cursor: 'pointer',
+                                    fontSize: '12px',
+                                    fontWeight: 600,
+                                    transition: 'all 0.2s ease'
+                                  }}
+                                >
+                                  ✏️
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <div 
+                              onTouchStart={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleCardTouch(`card-${item.id}`, e);
+                              }}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleCardTouch(`card-${item.id}`, e);
+                              }}
+                              style={{ 
+                                width: '24px', 
+                                height: '24px', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center',
+                                color: '#A855F7',
+                                fontSize: '16px',
+                                cursor: 'pointer',
+                                borderRadius: '4px',
+                                transition: 'background 0.2s ease'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'rgba(168, 85, 247, 0.1)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'transparent';
+                              }}
+                            >
+                              ⋯
+                            </div>
+                          )}
+                        </div>
                       </div>
                     );
                   }
@@ -1308,7 +1464,7 @@ const SetListManager: React.FC = () => {
               
               <div style={{ 
                 display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', 
+                gridTemplateColumns: 'repeat(2, 1fr)', 
                 gap: '16px',
                 marginBottom: '20px'
               }}>
@@ -1580,11 +1736,11 @@ const SetListManager: React.FC = () => {
                 return (
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-                    gap: '10px',
-                    maxHeight: '75vh',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gap: '8px',
+                    maxHeight: '60vh',
                     overflow: 'auto',
-                    padding: '6px'
+                    padding: '8px'
                   }}>
                     {filteredSongs.map((song) => {
                       const isAlreadyAdded = activeSetList.songs.some(s => s.songId === song.id);
@@ -1594,48 +1750,76 @@ const SetListManager: React.FC = () => {
                           key={song.id}
                           style={{
                             background: isAlreadyAdded ? 
-                              'linear-gradient(135deg, #E5E7EB 0%, #F3F4F6 100%)' :
-                              'linear-gradient(135deg, #E5DAF5 0%, #F3E8FF 100%)',
-                            borderRadius: '12px',
-                            padding: '16px',
-                            border: isAlreadyAdded ? '1px solid #D1D5DB' : '1px solid #E5DAF5',
+                              'rgba(255, 255, 255, 0.08)' :
+                              'rgba(255, 255, 255, 0.15)',
+                            backdropFilter: 'blur(15px)',
+                            borderRadius: '16px',
+                            padding: '12px',
+                            border: isAlreadyAdded ? 
+                              '1px solid rgba(255, 255, 255, 0.1)' : 
+                              '1px solid rgba(255, 255, 255, 0.2)',
                             position: 'relative',
                             opacity: isAlreadyAdded ? 0.6 : 1,
-                            transition: 'all 0.2s ease'
+                            transition: 'all 0.3s ease',
+                            cursor: isAlreadyAdded ? 'default' : 'pointer'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isAlreadyAdded) {
+                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
+                              e.currentTarget.style.transform = 'translateY(-2px)';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isAlreadyAdded) {
+                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                              e.currentTarget.style.transform = 'translateY(0)';
+                            }
                           }}
                         >
                           {/* 추가됨 표시 */}
                           {isAlreadyAdded && (
                             <div style={{
                               position: 'absolute',
-                              top: '8px',
-                              right: '8px',
-                              background: '#9CA3AF',
-                              color: '#fff',
+                              top: '12px',
+                              right: '12px',
+                              background: 'rgba(156, 163, 175, 0.8)',
+                              backdropFilter: 'blur(10px)',
+                              color: 'white',
                               padding: '4px 8px',
-                              borderRadius: '8px',
-                              fontSize: '10px',
-                              fontWeight: 600
+                              borderRadius: '12px',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              border: '1px solid rgba(255, 255, 255, 0.2)'
                             }}>
-                              추가됨
+                              ✓ 추가됨
                             </div>
                           )}
                           
-                          <div style={{ marginBottom: '8px' }}>
+                          <div style={{ marginBottom: '8px', paddingRight: isAlreadyAdded ? '50px' : '0' }}>
                             <h4 style={{
-                              fontSize: '16px',
-                              fontWeight: 600,
-                              color: isAlreadyAdded ? '#9CA3AF' : '#7C4DBC',
-                              margin: '0 0 4px 0'
+                              fontSize: '14px',
+                              fontWeight: 700,
+                              color: 'white',
+                              margin: '0 0 4px 0',
+                              lineHeight: '1.2',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden'
                             }}>
-                              {song.title}
+                              🎵 {song.title}
                             </h4>
                             <p style={{
-                              fontSize: '14px',
-                              color: isAlreadyAdded ? '#9CA3AF' : '#666',
-                              margin: 0
+                              fontSize: '11px',
+                              color: 'rgba(255, 255, 255, 0.8)',
+                              margin: 0,
+                              lineHeight: '1.3',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 1,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden'
                             }}>
-                              {song.members.join(', ')}
+                              👥 {song.members.join(', ')}
                             </p>
                           </div>
                           
@@ -1644,24 +1828,29 @@ const SetListManager: React.FC = () => {
                             disabled={isAlreadyAdded}
                             style={{
                               width: '100%',
-                              background: isAlreadyAdded ? '#D1D5DB' : '#8A55CC',
-                              color: '#fff',
-                              border: 'none',
-                              borderRadius: '8px',
+                              background: isAlreadyAdded ? 
+                                'rgba(255, 255, 255, 0.1)' : 
+                                'rgba(34, 197, 94, 0.8)',
+                              backdropFilter: 'blur(10px)',
+                              color: 'white',
+                              border: '1px solid rgba(255, 255, 255, 0.3)',
+                              borderRadius: '10px',
                               padding: '8px 12px',
-                              fontSize: '14px',
+                              fontSize: '12px',
                               fontWeight: 600,
                               cursor: isAlreadyAdded ? 'not-allowed' : 'pointer',
-                              transition: 'all 0.2s ease'
+                              transition: 'all 0.3s ease'
                             }}
                             onMouseEnter={(e) => {
                               if (!isAlreadyAdded) {
-                                e.currentTarget.style.background = '#7C4DBC';
+                                e.currentTarget.style.background = 'rgba(34, 197, 94, 0.9)';
+                                e.currentTarget.style.transform = 'scale(1.02)';
                               }
                             }}
                             onMouseLeave={(e) => {
                               if (!isAlreadyAdded) {
-                                e.currentTarget.style.background = '#8A55CC';
+                                e.currentTarget.style.background = 'rgba(34, 197, 94, 0.8)';
+                                e.currentTarget.style.transform = 'scale(1)';
                               }
                             }}
                           >
@@ -1678,101 +1867,7 @@ const SetListManager: React.FC = () => {
         </div>
       )}
 
-      {/* 모든 셋리스트 목록 */}
-      <div>
-        <h2 style={{ color: '#8A55CC', fontSize: '22px', marginBottom: '16px' }}>
-          전체 셋리스트
-        </h2>
-        {setLists.length === 0 ? (
-          <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
-            생성된 셋리스트가 없습니다.
-          </div>
-        ) : (
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
-            gap: '16px' 
-          }}>
-            {setLists.map((setList) => (
-              <div
-                key={setList.id}
-                style={{ 
-                  background: '#fff', 
-                  borderRadius: '12px', 
-                  padding: '16px',
-                  boxShadow: '0 4px 16px rgba(138, 85, 204, 0.1)',
-                  border: setList.isActive ? '2px solid #8A55CC' : '1px solid #E5DAF5'
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <h3 style={{ color: '#8A55CC', fontSize: '18px', margin: 0 }}>
-                    {setList.name}
-                  </h3>
-                  {setList.isActive && (
-                    <span style={{ 
-                      background: '#10B981', 
-                      color: '#fff', 
-                      padding: '4px 8px', 
-                      borderRadius: '12px', 
-                      fontSize: '12px',
-                      fontWeight: 600
-                    }}>
-                      활성
-                    </span>
-                  )}
-                </div>
-                
-                <div style={{ marginBottom: '8px' }}>
-                  <strong>참가자:</strong> {setList.participants.join(', ')}
-                </div>
-                <div style={{ marginBottom: '8px' }}>
-                  <strong>곡 수:</strong> {setList.songs.length}곡
-                </div>
-                <div style={{ marginBottom: '16px' }}>
-                  <strong>생성자:</strong> {setList.createdBy}
-                </div>
-                
-                                 {isLeader && (
-                   <div style={{ display: 'flex', gap: '8px' }}>
-                     {!setList.isActive && (
-                       <button
-                         onClick={() => activateSetList(setList)}
-                         style={{ 
-                           background: '#10B981', 
-                           color: '#fff', 
-                           border: 'none', 
-                           borderRadius: '8px', 
-                           padding: '6px 12px', 
-                           fontWeight: 600, 
-                           cursor: 'pointer',
-                           fontSize: '14px'
-                         }}
-                       >
-                         활성화
-                       </button>
-                     )}
-                     <button
-                       onClick={() => deleteSetList(setList.id!)}
-                       style={{ 
-                         background: '#EF4444', 
-                         color: '#fff', 
-                         border: 'none', 
-                         borderRadius: '8px', 
-                         padding: '6px 12px', 
-                         fontWeight: 600, 
-                         cursor: 'pointer',
-                         fontSize: '14px'
-                       }}
-                     >
-                       삭제
-                     </button>
-                   </div>
-                 )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+
 
       {/* 통계 모달 */}
       {activeSetList && (

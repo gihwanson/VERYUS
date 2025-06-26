@@ -269,58 +269,121 @@ const EvaluationPostDetail: React.FC = () => {
     );
   }
 
-  return (
-    <div className="board-container">
-      <div className="board-header">
-        <button className="back-button" onClick={() => navigate('/evaluation')}>
-          <ArrowLeft size={20} /> 목록으로
-        </button>
-      </div>
-      <div className="post-detail">
-        <h1 className="post-detail-title">{post.title}</h1>
-        <div className="post-meta" style={{ display: 'flex', alignItems: 'center', gap: '1.2rem', fontSize: '1rem', color: '#444', marginBottom: 8 }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '0.18rem' }}>
-            <User size={14} />
-            <span style={{cursor:'pointer',color:'#8A55CC',textDecoration:'underline'}} onClick={() => navigate(`/mypage/${post.writerUid}`)}>{post.writerNickname}</span>
-          </span>
-          <span style={{ color: '#bbb' }}>|</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '0.18rem' }}>
-            <Clock size={14} />
-            <span>{post.createdAt && (post.createdAt instanceof Date ? post.createdAt.toLocaleString() : new Date(post.createdAt.seconds * 1000).toLocaleString())}</span>
-          </span>
+      return (
+      <div className="post-detail-container">
+        <div className="post-navigation">
+          <button className="back-button" onClick={() => navigate('/evaluation')}>
+            <ArrowLeft size={20} />
+            목록으로
+          </button>
         </div>
-        {/* 상태별 안내문구 */}
-        {post.status === '불합격' && (
-          <div style={{marginBottom: 12, color: '#F43F5E', fontWeight: 700, fontSize: '1.08rem', background:'#FFF1F2', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
-            해당 곡은 불합격처리 되었습니다
-          </div>
-        )}
-        {post.status === '합격' && (
-          <div style={{marginBottom: 12, color: '#8A55CC', fontWeight: 700, fontSize: '1.08rem', background:'#F6F2FF', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
-            해당 곡은 합격처리 되었습니다
-          </div>
-        )}
-        {(!post.status || post.status === '대기') && (
-          post.category === 'feedback' ? (
-            <div style={{marginBottom: 12, color: '#8A55CC', fontWeight: 700, fontSize: '1.08rem', background:'#F6F2FF', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
-              피드백을 남겨주세요!
+      <article className="post-detail">
+        <div className="post-detail-header">
+          <div className="title-container">
+            <div className="title-section">
+              <h1 className="post-detail-title">
+                {post.title}
+              </h1>
             </div>
-          ) : (
-            <div style={{marginBottom: 12, color: '#888', fontWeight: 600, fontSize: '1.05rem', background:'#F3F4F6', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
-              아직 대기중 입니다
-            </div>
-          )
-        )}
-        {/* 함께한 멤버 노출 */}
-        {Array.isArray(post.members) && post.members.length > 0 && (
-          <div style={{marginBottom: 10, color: '#8A55CC', fontWeight: 600, fontSize: '1.04rem', background:'#F6F2FF', borderRadius:12, padding:'8px 16px', textAlign:'center'}}>
-            함께한 멤버: {post.members.join(', ')}
           </div>
-        )}
+          <div className="post-detail-meta">
+            <div className="post-detail-author">
+              <div className="author-section">
+                <span className="author-info" onClick={() => navigate(`/mypage/${post.writerUid}`)}>
+                  <span className="author-grade-emoji" title={getGradeName(post.writerGrade || '🍒')}>
+                    {getGradeEmoji(post.writerGrade || '🍒')}
+                  </span>
+                  {post.writerNickname}
+                </span>
+                <span className={`role-badge ${post.writerRole || '일반'}`}>
+                  {post.writerRole || '일반'}
+                </span>
+                {post.writerPosition && (
+                  <span className="author-position">{post.writerPosition}</span>
+                )}
+              </div>
+              <div className="post-detail-info">
+                <span className="post-detail-date">
+                  <Clock size={16} />
+                  {post.createdAt && (post.createdAt instanceof Date ? 
+                    (() => {
+                      const now = new Date();
+                      const diffTime = now.getTime() - post.createdAt.getTime();
+                      const diffMinutes = Math.floor(diffTime / (1000 * 60));
+                      const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+                      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                      const diffMonths = Math.floor(diffDays / 30);
+                      const diffYears = Math.floor(diffDays / 365);
+                      
+                      if (diffMinutes < 1) return '방금 전';
+                      else if (diffMinutes < 60) return `${diffMinutes}분 전`;
+                      else if (diffHours < 24) return `${diffHours}시간 전`;
+                      else if (diffDays < 30) return `${diffDays}일 전`;
+                      else if (diffMonths < 12) return `${diffMonths}달 전`;
+                      else return `${diffYears}년 전`;
+                    })() : 
+                    (() => {
+                      const date = new Date(post.createdAt.seconds * 1000);
+                      const now = new Date();
+                      const diffTime = now.getTime() - date.getTime();
+                      const diffMinutes = Math.floor(diffTime / (1000 * 60));
+                      const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+                      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                      const diffMonths = Math.floor(diffDays / 30);
+                      const diffYears = Math.floor(diffDays / 365);
+                      
+                      if (diffMinutes < 1) return '방금 전';
+                      else if (diffMinutes < 60) return `${diffMinutes}분 전`;
+                      else if (diffHours < 24) return `${diffHours}시간 전`;
+                      else if (diffDays < 30) return `${diffDays}일 전`;
+                      else if (diffMonths < 12) return `${diffMonths}달 전`;
+                      else return `${diffYears}년 전`;
+                    })()
+                  )}
+                </span>
+                <span className="post-detail-views">
+                  <Eye size={16} />
+                  조회 {post.views || 0}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="post-detail-content">
-          {post.description && post.description.split('\n').map((line, idx) => (
-            <p key={idx} style={{margin:0, padding:0}}>{line}</p>
-          ))}
+          {/* 상태별 안내문구 */}
+          {post.status === '불합격' && (
+            <div style={{marginBottom: 12, color: '#F43F5E', fontWeight: 700, fontSize: '1.08rem', background:'#FFF1F2', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
+              해당 곡은 불합격처리 되었습니다
+            </div>
+          )}
+          {post.status === '합격' && (
+            <div style={{marginBottom: 12, color: '#8A55CC', fontWeight: 700, fontSize: '1.08rem', background:'#F6F2FF', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
+              해당 곡은 합격처리 되었습니다
+            </div>
+          )}
+          {(!post.status || post.status === '대기') && (
+            post.category === 'feedback' ? (
+              <div style={{marginBottom: 12, color: '#8A55CC', fontWeight: 700, fontSize: '1.08rem', background:'#F6F2FF', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
+                피드백을 남겨주세요!
+              </div>
+            ) : (
+              <div style={{marginBottom: 12, color: '#888', fontWeight: 600, fontSize: '1.05rem', background:'#F3F4F6', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
+                아직 대기중 입니다
+              </div>
+            )
+          )}
+          {/* 함께한 멤버 노출 */}
+          {Array.isArray(post.members) && post.members.length > 0 && (
+            <div style={{marginBottom: 10, color: '#8A55CC', fontWeight: 600, fontSize: '1.04rem', background:'#F6F2FF', borderRadius:12, padding:'8px 16px', textAlign:'center'}}>
+              함께한 멤버: {post.members.join(', ')}
+            </div>
+          )}
+          <div>
+            {post.description && post.description.split('\n').map((line, idx) => (
+              <p key={idx} style={{margin:0, padding:0}}>{line}</p>
+            ))}
+          </div>
         </div>
         {/* 오디오 플레이어 (녹음게시판과 동일) */}
         {post.audioUrl && (
@@ -441,14 +504,13 @@ const EvaluationPostDetail: React.FC = () => {
             )}
           </div>
         )}
-        <div className="post-detail-footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.5rem', paddingTop: '1.2rem', borderTop: '1.5px solid #F3F4F6' }}>
-          <div className="post-stats" style={{ display: 'flex', alignItems: 'center', gap: '1.2rem', fontSize: '1.05rem', color: 'var(--text-tertiary)' }}>
+        <div className="post-detail-footer">
+          <div className="post-stats">
             <button 
               onClick={handleLike}
-              className={`stat-button${user && post.likes && post.likes.includes(user.uid) ? ' liked' : ''}`}
+              className={`stat-button ${user && post.likes && post.likes.includes(user.uid) ? ' liked' : ''}`}
               disabled={!user}
               title={user ? '좋아요' : '로그인이 필요합니다'}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.3rem 0.7rem', border: 'none', background: 'transparent', color: 'var(--primary-color)', fontWeight: 600, fontSize: '1.08rem', cursor: 'pointer', transition: 'color 0.18s cubic-bezier(0.4,0,0.2,1)', boxShadow: 'none', position: 'relative', verticalAlign: 'middle' }}
             >
               <Heart 
                 size={20} 
@@ -456,35 +518,68 @@ const EvaluationPostDetail: React.FC = () => {
               />
               <span>{post.likesCount || 0}</span>
             </button>
-            <span className="post-stat" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <MessageCircle size={16} />
-              {post.commentCount || 0}
-            </span>
-            <span className="post-stat" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <Eye size={16} />
-              {post.views || 0}
-            </span>
+            
+            <button className="message-btn" onClick={() => setShowMessageModal(true)}>
+              <MessageSquare size={18} /> 쪽지
+            </button>
+            
+            <button 
+              onClick={handleDelete} 
+              className="action-button"
+            >
+              <Trash size={20} />
+              삭제
+            </button>
           </div>
-          <div className="post-actions" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <button className="action-button" onClick={handleEdit} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--button-bg)', color: 'var(--text-secondary)', cursor: 'pointer', transition: 'all 0.2s ease' }}><Edit size={20} /> 수정</button>
-            <button className="action-button" onClick={handleDelete} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--button-bg)', color: 'var(--text-secondary)', cursor: 'pointer', transition: 'all 0.2s ease' }}><Trash size={20} /> 삭제</button>
+          
+          <div className="post-actions">
+            <button 
+              onClick={handleEdit} 
+              className="action-button"
+            >
+              <Edit size={20} />
+              수정
+            </button>
           </div>
         </div>
-        {/* 댓글 영역 */}
-        {post && (
-          <CommentSection
-            postId={post.id}
-            user={user}
-            post={post}
-            {...(post.category === 'feedback'
-              ? {}
-              : {
-                  noCommentAuthMessage: '해당 게시판은 리더와, 부운영진만 댓글을 달 수 있습니다',
-                  emptyCommentMessageVisibleToRoles: ['리더', '부운영진'],
-                })}
-          />
-        )}
-      </div>
+      </article>
+
+      {/* 댓글 영역 */}
+      {post && (
+        <CommentSection
+          postId={post.id}
+          user={user}
+          post={post}
+          {...(post.category === 'feedback'
+            ? {}
+            : {
+                noCommentAuthMessage: '해당 게시판은 리더와, 부운영진만 댓글을 달 수 있습니다',
+                emptyCommentMessageVisibleToRoles: ['리더', '부운영진'],
+              })}
+        />
+      )}
+
+      {/* 쪽지 모달 */}
+      {showMessageModal && (
+        <div className="modal-overlay" onClick={() => setShowMessageModal(false)}>
+          <div className="message-modal" onClick={e => e.stopPropagation()}>
+            <h3>{post.writerNickname}님에게 쪽지 보내기</h3>
+            <textarea
+              value={messageContent}
+              onChange={e => setMessageContent(e.target.value)}
+              placeholder="쪽지 내용을 입력하세요..."
+            />
+            <div className="modal-buttons">
+              <button onClick={() => setShowMessageModal(false)}>취소</button>
+              <button onClick={() => {
+                // 쪽지 전송 로직
+                setShowMessageModal(false);
+                setMessageContent('');
+              }}>전송</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -24,7 +24,7 @@ import FreePostWrite from './components/FreePostWrite';
 // @ts-ignore
 import FreePostDetail from './components/FreePostDetail';
 // @ts-ignore
-import AdminUserPanel from './components/AdminUserPanel';
+import AdminPanel from './components/AdminPanel';
 // @ts-ignore
 import MyPage from './components/MyPage';
 // @ts-ignore
@@ -550,11 +550,13 @@ const AudioPlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }
           top: position.y,
           transform: collapsed ? 'translate(-50%, -50%)' : 'translate(0, 0)',
           zIndex: 9999,
-          background: 'rgba(255,255,255,0.98)',
+          background: 'rgba(30, 30, 40, 0.95)',
+          backdropFilter: 'blur(20px)',
           borderRadius: 16,
           boxShadow: isDragging 
-            ? '0 8px 24px rgba(138, 85, 204, 0.4)' 
-            : collapsed ? '0 2px 8px rgba(138, 85, 204, 0.3)' : '0 2px 8px #E5DAF5',
+            ? '0 8px 24px rgba(0, 0, 0, 0.4)' 
+            : collapsed ? '0 2px 8px rgba(0, 0, 0, 0.3)' : '0 2px 8px rgba(0, 0, 0, 0.2)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
           padding: collapsed ? 0 : '10px 14px',
           minWidth: collapsed ? 0 : 280,
           maxWidth: collapsed ? 50 : 350,
@@ -588,10 +590,10 @@ const AudioPlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }
             cursor: 'pointer'
           }}
           aria-label={collapsed ? '펼치기' : '접기'}
-          onMouseOver={e => e.currentTarget.style.background = '#ede9fe'}
+          onMouseOver={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
           onMouseOut={e => e.currentTarget.style.background = 'none'}
         >
-          {collapsed ? <MusicNoteIcon /> : <CollapseIcon />}
+          {collapsed ? <MusicNoteIcon color="#ffffff" /> : <CollapseIcon color="#ffffff" />}
         </button>
         {!collapsed && (
           <>
@@ -603,14 +605,14 @@ const AudioPlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }
             </div>
             <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3, maxWidth: 190 }}>
               <div style={{ width: '100%', marginBottom: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginLeft: '-28px', maxWidth: 160 }}>
-                <div style={{ fontWeight: 700, color: '#222', fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>{playlist[currentIdx]?.title || '플레이리스트 없음'}</div>
-                <div style={{ color: '#8A55CC', fontWeight: 500, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>{playlist[currentIdx]?.artist || ''}</div>
+                <div style={{ fontWeight: 700, color: '#ffffff', fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>{playlist[currentIdx]?.title || '플레이리스트 없음'}</div>
+                <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontWeight: 500, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>{playlist[currentIdx]?.artist || ''}</div>
               </div>
               {/* 타임라인+햄버거 버튼 한 줄 */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', maxWidth: 190, marginBottom: 6 }}>
-                <span style={{ color: '#00C853', fontSize: 11, minWidth: 30 }}>{formatTime(currentTime)}</span>
+                <span style={{ color: '#ffffff', fontSize: 11, minWidth: 30 }}>{formatTime(currentTime)}</span>
                 <div 
-                  style={{ flex: 1, height: 3, background: '#eee', borderRadius: 2, overflow: 'hidden', position: 'relative', cursor: 'pointer', maxWidth: 100 }} 
+                  style={{ flex: 1, height: 3, background: 'rgba(255, 255, 255, 0.2)', borderRadius: 2, overflow: 'hidden', position: 'relative', cursor: 'pointer', maxWidth: 100 }} 
                   onClick={e => {
                     const rect = (e.target as HTMLDivElement).getBoundingClientRect();
                     const percent = (e.clientX - rect.left) / rect.width;
@@ -619,16 +621,16 @@ const AudioPlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }
                     }
                   }}
                 >
-                  <div style={{ width: `${progress}%`, height: '100%', background: '#8A55CC', borderRadius: 2, position: 'absolute', left: 0, top: 0 }} />
+                  <div style={{ width: `${progress}%`, height: '100%', background: '#ffffff', borderRadius: 2, position: 'absolute', left: 0, top: 0 }} />
                 </div>
-                <span style={{ color: '#888', fontSize: 11, minWidth: 30, textAlign: 'right' }}>{formatTime(duration)}</span>
-                <button onClick={() => setShowPlaylistModal(true)} tabIndex={-1} style={{ ...buttonBase, width: 32, height: 32, color: '#8A55CC', cursor: 'pointer' }} title="플레이리스트 전체 보기" onMouseOver={e => e.currentTarget.style.background = '#ede9fe'} onMouseOut={e => e.currentTarget.style.background = 'none'}><ListIcon /></button>
+                <span style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: 11, minWidth: 30, textAlign: 'right' }}>{formatTime(duration)}</span>
+                <button onClick={() => setShowPlaylistModal(true)} tabIndex={-1} style={{ ...buttonBase, width: 32, height: 32, color: '#ffffff', cursor: 'pointer' }} title="플레이리스트 전체 보기" onMouseOver={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'} onMouseOut={e => e.currentTarget.style.background = 'none'}><ListIcon color="#ffffff" /></button>
               </div>
               {/* 컨트롤 버튼 */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', maxWidth: 190 }}>
-                <button onClick={playPrev} tabIndex={-1} style={{ ...buttonBase, width: 36, height: 36, cursor: 'pointer' }} onMouseOver={e => e.currentTarget.style.background = '#ede9fe'} onMouseOut={e => e.currentTarget.style.background = 'none'} aria-label="이전 곡"><PrevIcon /></button>
-                <button onClick={() => setIsPlaying((p) => !p)} tabIndex={-1} style={{ ...buttonBase, width: 44, height: 44, cursor: 'pointer' }} onMouseOver={e => e.currentTarget.style.background = '#ede9fe'} onMouseOut={e => e.currentTarget.style.background = 'none'} aria-label={isPlaying ? '일시정지' : '재생'}>{isPlaying ? <PauseIcon /> : <PlayIcon />}</button>
-                <button onClick={playNext} tabIndex={-1} style={{ ...buttonBase, width: 36, height: 36, cursor: 'pointer' }} onMouseOver={e => e.currentTarget.style.background = '#ede9fe'} onMouseOut={e => e.currentTarget.style.background = 'none'} aria-label="다음 곡"><NextIcon /></button>
+                <button onClick={playPrev} tabIndex={-1} style={{ ...buttonBase, width: 36, height: 36, cursor: 'pointer' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'} onMouseOut={e => e.currentTarget.style.background = 'none'} aria-label="이전 곡"><PrevIcon color="#ffffff" /></button>
+                <button onClick={() => setIsPlaying((p) => !p)} tabIndex={-1} style={{ ...buttonBase, width: 44, height: 44, cursor: 'pointer' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'} onMouseOut={e => e.currentTarget.style.background = 'none'} aria-label={isPlaying ? '일시정지' : '재생'}>{isPlaying ? <PauseIcon color="#ffffff" /> : <PlayIcon color="#ffffff" />}</button>
+                <button onClick={playNext} tabIndex={-1} style={{ ...buttonBase, width: 36, height: 36, cursor: 'pointer' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'} onMouseOut={e => e.currentTarget.style.background = 'none'} aria-label="다음 곡"><NextIcon color="#ffffff" /></button>
               </div>
             </div>
           </>
@@ -782,6 +784,8 @@ function App() {
     initializeTheme();
   }, []);
 
+
+
   // 로딩 중일 때 표시할 화면
   if (loading) {
     return (
@@ -927,10 +931,10 @@ function App() {
             
             {/* 관리자 패널 - 리더/운영진만 접근 가능 */}
             <Route 
-              path="/admin-user" 
+              path="/admin" 
               element={
                 <AdminRoute>
-                  <AdminUserPanel />
+                  <AdminPanel />
                 </AdminRoute>
               } 
             />

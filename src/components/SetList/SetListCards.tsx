@@ -34,6 +34,12 @@ const SetListCards: React.FC = () => {
   
   // 모달 완료 상태 관리
   const [isModalCompleting, setIsModalCompleting] = useState<boolean>(false);
+  
+  // 더블 터치 관련 상태
+  const [lastTouchTime, setLastTouchTime] = useState<number>(0);
+  const [lastTouchedSongId, setLastTouchedSongId] = useState<string>('');
+  
+
 
   // 타입 가드 함수들
   const isSetListItem = (entry: SetListEntry): entry is SetListItem => {
@@ -589,6 +595,38 @@ const SetListCards: React.FC = () => {
     }
   }, [activeSetList, isLeader]);
 
+  // 더블 터치 핸들러
+  const handleDoubleTap = useCallback((song: Song) => {
+    const currentTime = Date.now();
+    const timeDiff = currentTime - lastTouchTime;
+    
+    // 500ms 이내에 같은 카드를 터치하면 더블 터치로 인식
+    if (timeDiff < 500 && lastTouchedSongId === song.id) {
+      // 이미 추가된 곡이 아닌 경우에만 추가
+      const isAlreadyAdded = activeSetList?.songs.some(s => s.songId === song.id);
+      
+      if (!isAlreadyAdded && isLeader) {
+        addSongToSetList(song);
+        // 피드백 제공
+        const cardElement = document.querySelector(`[data-song-id="${song.id}"]`) as HTMLElement;
+        if (cardElement) {
+          cardElement.style.transform = 'scale(1.1)';
+          cardElement.style.transition = 'transform 0.2s ease';
+          setTimeout(() => {
+            cardElement.style.transform = 'scale(1)';
+          }, 200);
+        }
+      }
+      // 더블 터치 후 상태 초기화
+      setLastTouchTime(0);
+      setLastTouchedSongId('');
+    } else {
+      // 첫 번째 터치 기록
+      setLastTouchTime(currentTime);
+      setLastTouchedSongId(song.id);
+    }
+  }, [lastTouchTime, lastTouchedSongId, activeSetList, isLeader, addSongToSetList]);
+
   // 유연한 카드를 셋리스트에 추가
   const addFlexibleCardToSetList = useCallback(async (card: FlexibleCard, insertAtIndex?: number) => {
     if (!activeSetList || !isLeader) return;
@@ -732,21 +770,29 @@ const SetListCards: React.FC = () => {
       {activeSetList ? (
         <div style={{ 
           background: 'transparent', 
-          borderRadius: '0', 
-          padding: '0', 
-          marginBottom: '30px',
+          borderRadius: 0, 
+          padding: 0, 
+          marginBottom: 30,
           boxShadow: 'none',
-          minHeight: '400px'
+          minHeight: 400
         }}>
           {/* 리더만 헤더 정보 표시 */}
           {isLeader && (
-            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-              <h2 style={{ color: '#8A55CC', fontSize: '22px', marginBottom: '8px' }}>
+            <div style={{ 
+              textAlign: 'center', 
+              marginBottom: 24,
+              background: 'rgba(255, 255, 255, 0.15)',
+              backdropFilter: 'blur(15px)',
+              borderRadius: 20,
+              padding: 20,
+              border: '1px solid rgba(255, 255, 255, 0.2)'
+            }}>
+              <h2 style={{ color: 'white', fontSize: 22, marginBottom: 12, fontWeight: 700 }}>
                 🎭 {activeSetList.name}
               </h2>
-              <p style={{ color: '#666', fontSize: '14px', margin: 0 }}>
+              <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: 14, margin: 0 }}>
                 현재 보는 항목: {currentCardIndex + 1} / {allItems.length} | 
-                <span style={{ color: '#8A55CC', fontWeight: 600, marginLeft: '8px' }}>
+                <span style={{ color: 'white', fontWeight: 600, marginLeft: 8 }}>
                   진행 중: {(activeSetList.currentSongIndex ?? 0) + 1}번째 항목
                 </span>
               </p>
@@ -758,11 +804,12 @@ const SetListCards: React.FC = () => {
             <div 
               style={{ 
                 position: 'relative', 
-                height: '500px', 
+                height: 500, 
                 overflow: 'hidden',
-                border: availableCardDrag ? '3px dashed #8A55CC' : '2px dashed #E5DAF5',
-                borderRadius: '16px',
-                background: availableCardDrag ? 'rgba(138, 85, 204, 0.05)' : 'rgba(138, 85, 204, 0.02)',
+                border: availableCardDrag ? '3px dashed rgba(255, 255, 255, 0.8)' : '2px dashed rgba(255, 255, 255, 0.3)',
+                borderRadius: 20,
+                background: availableCardDrag ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.15)',
+                backdropFilter: 'blur(15px)',
                 transition: 'all 0.2s ease',
                 touchAction: 'pan-y',
                 display: 'flex',
@@ -776,16 +823,16 @@ const SetListCards: React.FC = () => {
               onTouchEnd={handleTouchEnd}
               className="main-card-area"
             >
-              <div style={{ fontSize: '48px', marginBottom: '20px', color: '#E5DAF5' }}>🎵</div>
-              <div style={{ color: '#666', fontSize: '18px', marginBottom: '12px' }}>
+              <div style={{ fontSize: 48, marginBottom: 20, color: 'rgba(255, 255, 255, 0.7)' }}>🎵</div>
+              <div style={{ color: 'white', fontSize: 18, marginBottom: 12, fontWeight: 600 }}>
                 {isLeader ? '아직 곡이 추가되지 않았습니다.' : '셋리스트가 준비 중입니다.'}
               </div>
               {isLeader ? (
-                <div style={{ color: '#8A55CC', fontSize: '14px', fontWeight: 600 }}>
+                <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: 14, fontWeight: 600 }}>
                   💡 아래 사용 가능한 곡을 여기로 드래그하여 추가하세요
                 </div>
               ) : (
-                <div style={{ color: '#8A55CC', fontSize: '14px', fontWeight: 600 }}>
+                <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: 14, fontWeight: 600 }}>
                   리더가 곡을 추가하면 여기에 표시됩니다 😊
                 </div>
               )}
@@ -1491,15 +1538,16 @@ const SetListCards: React.FC = () => {
           {/* 일반 사용자용 안내 메시지 */}
           {!isLeader && (
             <div style={{ 
-              marginTop: '30px',
-              padding: '20px',
-              background: 'linear-gradient(135deg, #F3E8FF 0%, #E5DAF5 100%)',
-              borderRadius: '12px',
+              marginTop: 30,
+              padding: 24,
+              background: 'rgba(255, 255, 255, 0.15)',
+              backdropFilter: 'blur(15px)',
+              borderRadius: 20,
               textAlign: 'center',
-              border: '2px solid #E5DAF5'
+              border: '1px solid rgba(255, 255, 255, 0.2)'
             }}>
-              <div style={{ fontSize: '24px', marginBottom: '12px' }}>🎵</div>
-              <p style={{ color: '#666', fontSize: '14px', margin: 0, lineHeight: 1.4 }}>
+              <div style={{ fontSize: 24, marginBottom: 16, color: 'rgba(255, 255, 255, 0.8)' }}>🎵</div>
+              <p style={{ color: 'white', fontSize: 14, margin: 0, lineHeight: 1.6 }}>
                 현재 진행 중인 셋리스트를 카드 형태로 확인할 수 있습니다.<br/>
                 리더가 곡을 관리하고 있으니 편안히 감상해주세요! 😊
               </p>
@@ -1508,25 +1556,34 @@ const SetListCards: React.FC = () => {
 
           {/* 리더만 사용 가능한 곡 카드들 */}
           {isLeader && (
-            <div style={{ marginTop: '30px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <h3 style={{ color: '#8A55CC', fontSize: '18px', margin: 0 }}>
-                  사용 가능한 곡
+            <div style={{ 
+              marginTop: 30,
+              background: 'rgba(255, 255, 255, 0.15)',
+              backdropFilter: 'blur(15px)',
+              borderRadius: 20,
+              padding: 24,
+              border: '1px solid rgba(255, 255, 255, 0.2)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <h3 style={{ color: 'white', fontSize: 18, margin: 0, fontWeight: 700 }}>
+                  🎵 사용 가능한 곡
                 </h3>
                 <button
                   onClick={() => setShowFlexibleCardForm(!showFlexibleCardForm)}
                   style={{
-                    background: '#F59E0B',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '8px',
-                    padding: '8px 16px',
-                    fontSize: '14px',
+                    background: 'rgba(245, 158, 11, 0.8)',
+                    backdropFilter: 'blur(10px)',
+                    color: 'white',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    borderRadius: 12,
+                    padding: '10px 16px',
+                    fontSize: 14,
                     fontWeight: 600,
                     cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    boxShadow: '0 2px 8px rgba(245, 158, 11, 0.3)'
+                    transition: 'all 0.3s ease'
                   }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.9)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.8)'}
                 >
                   {showFlexibleCardForm ? '❌ 취소' : '➕ 닉네임 카드 추가'}
                 </button>
@@ -1535,19 +1592,20 @@ const SetListCards: React.FC = () => {
               {/* 유연한 카드 생성 폼 */}
               {showFlexibleCardForm && (
                 <div style={{
-                  background: '#FEF3C7',
-                  borderRadius: '12px',
-                  padding: '20px',
-                  marginBottom: '16px',
-                  border: '2px solid #F59E0B'
+                  background: 'rgba(245, 158, 11, 0.15)',
+                  backdropFilter: 'blur(10px)',
+                  borderRadius: 16,
+                  padding: 20,
+                  marginBottom: 20,
+                  border: '1px solid rgba(245, 158, 11, 0.3)'
                 }}>
-                  <h4 style={{ color: '#92400E', fontSize: '16px', marginBottom: '16px', margin: '0 0 16px 0' }}>
+                  <h4 style={{ color: 'white', fontSize: 16, marginBottom: 16, margin: '0 0 16px 0', fontWeight: 700 }}>
                     🎤 닉네임 카드 생성
                   </h4>
                   
-                  <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
-                    <div style={{ flex: '1', minWidth: '150px' }}>
-                      <label style={{ color: '#92400E', fontSize: '14px', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                  <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+                    <div style={{ flex: '1', minWidth: 150 }}>
+                      <label style={{ color: 'white', fontSize: 14, fontWeight: 600, display: 'block', marginBottom: 6 }}>
                         닉네임
                       </label>
                       <input
@@ -1557,17 +1615,20 @@ const SetListCards: React.FC = () => {
                         placeholder="예: 민주"
                         style={{
                           width: '100%',
-                          padding: '8px 12px',
-                          border: '2px solid #F59E0B',
-                          borderRadius: '8px',
-                          fontSize: '14px',
+                          padding: '10px 12px',
+                          border: '1px solid rgba(255, 255, 255, 0.3)',
+                          background: 'rgba(255, 255, 255, 0.1)',
+                          backdropFilter: 'blur(10px)',
+                          borderRadius: 10,
+                          fontSize: 14,
+                          color: 'white',
                           boxSizing: 'border-box'
                         }}
                       />
                     </div>
                     
                     <div style={{ flex: '0 0 100px' }}>
-                      <label style={{ color: '#92400E', fontSize: '14px', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                      <label style={{ color: 'white', fontSize: 14, fontWeight: 600, display: 'block', marginBottom: 6 }}>
                         곡수
                       </label>
                       <input
@@ -1578,17 +1639,20 @@ const SetListCards: React.FC = () => {
                         onChange={(e) => setFlexibleCardCount(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
                         style={{
                           width: '100%',
-                          padding: '8px 12px',
-                          border: '2px solid #F59E0B',
-                          borderRadius: '8px',
-                          fontSize: '14px',
+                          padding: '10px 12px',
+                          border: '1px solid rgba(255, 255, 255, 0.3)',
+                          background: 'rgba(255, 255, 255, 0.1)',
+                          backdropFilter: 'blur(10px)',
+                          borderRadius: 10,
+                          fontSize: 14,
+                          color: 'white',
                           boxSizing: 'border-box'
                         }}
                       />
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                     <button
                       onClick={() => {
                         setShowFlexibleCardForm(false);
@@ -1596,60 +1660,64 @@ const SetListCards: React.FC = () => {
                         setFlexibleCardCount(3);
                       }}
                       style={{
-                        background: '#E5E7EB',
-                        color: '#6B7280',
-                        border: 'none',
-                        borderRadius: '8px',
+                        background: 'rgba(255, 255, 255, 0.15)',
+                        backdropFilter: 'blur(10px)',
+                        color: 'white',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        borderRadius: 10,
                         padding: '10px 16px',
-                        fontSize: '14px',
+                        fontSize: 14,
                         fontWeight: 600,
                         cursor: 'pointer'
                       }}
                     >
-                      취소
+                      ❌ 취소
                     </button>
                     <button
                       onClick={createFlexibleCard}
                       disabled={!flexibleCardNickname.trim()}
                       style={{
-                        background: !flexibleCardNickname.trim() ? '#D1D5DB' : '#F59E0B',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '8px',
+                        background: !flexibleCardNickname.trim() ? 'rgba(255, 255, 255, 0.1)' : 'rgba(34, 197, 94, 0.8)',
+                        backdropFilter: 'blur(10px)',
+                        color: 'white',
+                        border: '1px solid rgba(255, 255, 255, 0.3)',
+                        borderRadius: 10,
                         padding: '10px 16px',
-                        fontSize: '14px',
+                        fontSize: 14,
                         fontWeight: 600,
-                        cursor: !flexibleCardNickname.trim() ? 'not-allowed' : 'pointer',
-                        boxShadow: !flexibleCardNickname.trim() ? 'none' : '0 2px 8px rgba(245, 158, 11, 0.3)'
+                        cursor: !flexibleCardNickname.trim() ? 'not-allowed' : 'pointer'
                       }}
                     >
-                      카드 생성
+                      💾 카드 생성
                     </button>
                   </div>
                 </div>
               )}
 
-              <p style={{ color: '#666', fontSize: '14px', marginBottom: '16px', textAlign: 'center', margin: '0 0 16px 0' }}>
-                💡 카드를 위쪽 메인 카드로 드래그하여 셋리스트에 추가하세요
+              <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: 14, marginBottom: 20, textAlign: 'center', margin: '0 0 20px 0' }}>
+                💡 카드를 두 번 연속 터치하거나 드래그하여 셋리스트에 추가하세요
               </p>
               
               <div style={{ 
                 display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-                gap: '12px', 
-                padding: '10px 0',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: 8, 
+                padding: '8px 0',
                 touchAction: availableCardDrag ? 'none' : 'auto'
               }}>
                 {filteredAvailableSongs.length === 0 ? (
                   <div style={{ 
-                    width: '100%', 
+                    gridColumn: '1 / -1',
                     padding: '40px 20px', 
                     textAlign: 'center', 
-                    color: '#666',
-                    background: '#F8F9FA',
-                    borderRadius: '12px'
+                    color: 'rgba(255, 255, 255, 0.8)',
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    backdropFilter: 'blur(10px)',
+                    borderRadius: 20,
+                    border: '1px solid rgba(255, 255, 255, 0.2)'
                   }}>
-                    사용 가능한 곡이 없습니다.
+                    <div style={{ fontSize: 48, marginBottom: 16 }}>📭</div>
+                    <p style={{ fontSize: 16, margin: 0 }}>사용 가능한 곡이 없습니다.</p>
                   </div>
                 ) : (
                   filteredAvailableSongs.map((song) => {
@@ -1659,43 +1727,76 @@ const SetListCards: React.FC = () => {
                     return (
                       <div
                         key={song.id}
-                        onTouchStart={(e) => handleAvailableCardTouchStart(e, song)}
+                        onTouchStart={(e) => {
+                          // 터치 시작 시 더블터치 처리
+                          const currentTime = Date.now();
+                          const timeDiff = currentTime - lastTouchTime;
+                          
+                          if (timeDiff < 500 && lastTouchedSongId === song.id) {
+                            // 더블터치 감지
+                            e.preventDefault();
+                            e.stopPropagation();
+                            
+                            const isAlreadyAdded = activeSetList?.songs.some(s => s.songId === song.id);
+                            if (!isAlreadyAdded && isLeader) {
+                              addSongToSetList(song);
+                              // 피드백 제공
+                              const cardElement = e.currentTarget;
+                              cardElement.style.transform = 'scale(1.1)';
+                              cardElement.style.transition = 'transform 0.2s ease';
+                              setTimeout(() => {
+                                cardElement.style.transform = 'scale(1)';
+                              }, 200);
+                            }
+                            setLastTouchTime(0);
+                            setLastTouchedSongId('');
+                            return;
+                          }
+                          
+                          // 첫 번째 터치 또는 드래그 시작
+                          setLastTouchTime(currentTime);
+                          setLastTouchedSongId(song.id);
+                          
+                          // 드래그 핸들러도 호출
+                          handleAvailableCardTouchStart(e, song);
+                        }}
                         onTouchMove={handleAvailableCardTouchMove}
                         onTouchEnd={handleAvailableCardTouchEnd}
                         onMouseDown={(e) => handleAvailableCardMouseDown(e, song)}
                         onMouseMove={handleAvailableCardMouseMove}
                         onMouseUp={handleAvailableCardMouseUp}
                         onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          
                           // 드래그 중이었다면 클릭 이벤트 무시
-                          if (e.currentTarget.getAttribute('data-dragging') === 'true') {
+                          if (availableCardDrag?.type === 'song' && availableCardDrag?.id === song.id) {
                             return;
                           }
                           
-                          if (!isAlreadyAdded) {
-                            addSongToSetList(song);
-                          }
+                          // 더블 터치 핸들러 호출
+                          handleDoubleTap(song);
                         }}
+                        data-song-id={song.id}
                         style={{
                           width: '100%',
-                          height: '120px',
+                          minHeight: 90,
                           background: isAlreadyAdded ? 
-                            'linear-gradient(135deg, #E5E7EB 0%, #F3F4F6 100%)' :
-                            'linear-gradient(135deg, #E5DAF5 0%, #F3E8FF 100%)',
-                          borderRadius: '12px',
-                          padding: '16px',
+                            'rgba(255, 255, 255, 0.08)' :
+                            'rgba(255, 255, 255, 0.15)',
+                          backdropFilter: 'blur(15px)',
+                          borderRadius: 12,
+                          padding: 8,
                           display: 'flex',
                           flexDirection: 'column',
-                          justifyContent: 'center',
-                          alignItems: 'center',
+                          justifyContent: 'space-between',
                           position: 'relative',
                           cursor: isAlreadyAdded ? 'not-allowed' : 'pointer',
                           transition: isDragging ? 'none' : 'all 0.2s ease',
                           transform: isDragging ? 'scale(1.1) rotate(5deg)' : 'scale(1)',
-                          boxShadow: isDragging ? 
-                            '0 20px 40px rgba(138, 85, 204, 0.4)' :
-                            isAlreadyAdded ? 
-                              '0 4px 12px rgba(0,0,0,0.1)' : 
-                              '0 4px 12px rgba(138, 85, 204, 0.2)',
+                          border: isAlreadyAdded ? 
+                            '1px solid rgba(255, 255, 255, 0.1)' : 
+                            '1px solid rgba(255, 255, 255, 0.3)',
                           opacity: isAlreadyAdded ? 0.6 : isDragging ? 0.3 : 1,
                           zIndex: isDragging ? 1000 : 1,
                           pointerEvents: isDragging ? 'none' : 'auto',
@@ -1703,59 +1804,70 @@ const SetListCards: React.FC = () => {
                           userSelect: 'none'
                         }}
                       >
-                        {/* 곡 번호 또는 상태 아이콘 */}
-                        <div style={{ 
-                          fontSize: '20px', 
-                          marginBottom: '8px',
-                          color: isAlreadyAdded ? '#9CA3AF' : '#8A55CC'
-                        }}>
-                          {isAlreadyAdded ? '✓' : '♪'}
+                        {/* 상단 정보 */}
+                        <div style={{ textAlign: 'center', flex: 1 }}>
+                          {/* 곡 번호 또는 상태 아이콘 */}
+                          <div style={{ 
+                            fontSize: 18, 
+                            marginBottom: 4,
+                            color: isAlreadyAdded ? 'rgba(255, 255, 255, 0.5)' : 'white'
+                          }}>
+                            {isAlreadyAdded ? '✓' : '🎵'}
+                          </div>
+                          
+                          {/* 곡 제목 */}
+                          <h4 style={{ 
+                            fontSize: 11, 
+                            fontWeight: 700, 
+                            marginBottom: 4,
+                            textAlign: 'center',
+                            color: 'white',
+                            margin: '0 0 4px 0',
+                            lineHeight: '1.2',
+                            wordBreak: 'break-word',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden'
+                          }}>
+                            {song.title}
+                          </h4>
+                          
+                          {/* 참가자 */}
+                          <p style={{ 
+                            fontSize: 9, 
+                            textAlign: 'center',
+                            color: 'rgba(255, 255, 255, 0.8)',
+                            margin: 0,
+                            lineHeight: '1.2',
+                            wordBreak: 'break-word',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 1,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden'
+                          }}>
+                            👥 {song.members.join(', ')}
+                          </p>
                         </div>
-                        
-                        {/* 곡 제목 */}
-                        <h4 style={{ 
-                          fontSize: '14px', 
-                          fontWeight: 600, 
-                          marginBottom: '6px',
-                          textAlign: 'center',
-                          color: isAlreadyAdded ? '#9CA3AF' : '#7C4DBC',
-                          margin: '0 0 6px 0',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          maxWidth: '100%'
-                        }}>
-                          {song.title}
-                        </h4>
-                        
-                        {/* 참가자 */}
-                        <p style={{ 
-                          fontSize: '12px', 
-                          textAlign: 'center',
-                          color: isAlreadyAdded ? '#9CA3AF' : '#666',
-                          margin: 0,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          maxWidth: '100%'
-                        }}>
-                          {song.members.join(', ')}
-                        </p>
+
+
 
                         {/* 추가됨 표시 */}
                         {isAlreadyAdded && (
                           <div style={{
                             position: 'absolute',
-                            top: '6px',
-                            right: '6px',
-                            background: '#9CA3AF',
-                            color: '#fff',
-                            padding: '2px 6px',
-                            borderRadius: '8px',
-                            fontSize: '10px',
-                            fontWeight: 600
+                            top: 12,
+                            right: 12,
+                            background: 'rgba(156, 163, 175, 0.8)',
+                            backdropFilter: 'blur(10px)',
+                            color: 'white',
+                            padding: '4px 8px',
+                            borderRadius: 12,
+                            fontSize: 10,
+                            fontWeight: 600,
+                            border: '1px solid rgba(255, 255, 255, 0.2)'
                           }}>
-                            추가됨
+                            ✓
                           </div>
                         )}
                       </div>
@@ -1766,19 +1878,21 @@ const SetListCards: React.FC = () => {
 
               {/* 생성된 유연한 카드들 (셋리스트에 추가되지 않은 것들) */}
               {(activeSetList.flexibleCards || []).filter(card => card.order < 0).length > 0 && (
-                <div style={{ marginTop: '20px' }}>
-                  <h4 style={{ color: '#F59E0B', fontSize: '16px', marginBottom: '12px', textAlign: 'center' }}>
+                <div style={{ marginTop: 24 }}>
+                  <h4 style={{ color: 'white', fontSize: 16, marginBottom: 16, textAlign: 'center', fontWeight: 700 }}>
                     🎤 생성된 닉네임 카드들
                   </h4>
                   
                   <div style={{ 
                     display: 'grid', 
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-                    gap: '12px', 
-                    padding: '10px 0'
+                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gap: 8, 
+                    padding: '8px 0'
                   }}>
                     {(activeSetList.flexibleCards || []).filter(card => card.order < 0).map((flexCard) => {
                       const isDragging = availableCardDrag?.type === 'flexible' && availableCardDrag?.id === flexCard.id;
+                      const completedSlots = flexCard.slots.filter(slot => slot.isCompleted).length;
+                      const progressPercent = (completedSlots / flexCard.totalSlots) * 100;
                       
                       return (
                         <div
@@ -1799,22 +1913,33 @@ const SetListCards: React.FC = () => {
                           onMouseUp={handleAvailableCardMouseUp}
                           style={{
                             width: '100%',
-                            height: '120px',
-                            background: 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
-                            borderRadius: '12px',
-                            padding: '16px',
+                            minHeight: 90,
+                            background: 'rgba(245, 158, 11, 0.15)',
+                            backdropFilter: 'blur(15px)',
+                            borderRadius: 12,
+                            padding: 8,
                             display: 'flex',
                             flexDirection: 'column',
-                            justifyContent: 'center',
-                            alignItems: 'center',
+                            justifyContent: 'space-between',
                             position: 'relative',
                             cursor: canEditFlexibleCard(flexCard) ? 'pointer' : 'not-allowed',
-                            transition: 'all 0.2s ease',
-                            boxShadow: '0 4px 12px rgba(245, 158, 11, 0.2)',
-                            border: '2px solid #F59E0B',
+                            transition: 'all 0.3s ease',
+                            border: '1px solid rgba(245, 158, 11, 0.3)',
                             opacity: canEditFlexibleCard(flexCard) ? (isDragging ? 0.3 : 1) : 0.6,
                             userSelect: 'none',
                             transform: isDragging ? 'scale(0.95)' : 'none'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (canEditFlexibleCard(flexCard) && !isDragging) {
+                              e.currentTarget.style.background = 'rgba(245, 158, 11, 0.25)';
+                              e.currentTarget.style.transform = 'translateY(-2px)';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (canEditFlexibleCard(flexCard) && !isDragging) {
+                              e.currentTarget.style.background = 'rgba(245, 158, 11, 0.15)';
+                              e.currentTarget.style.transform = 'translateY(0)';
+                            }
                           }}
                           onClick={(e) => {
                             // 드래그 중이었다면 클릭 이벤트 무시
@@ -1828,79 +1953,82 @@ const SetListCards: React.FC = () => {
                             }
                           }}
                         >
-                        {/* 닉네임 아이콘 */}
-                        <div style={{ 
-                          fontSize: '24px', 
-                          marginBottom: '8px',
-                          color: '#92400E'
-                        }}>
-                          🎤
+                        {/* 상단 정보 */}
+                        <div style={{ textAlign: 'center', flex: 1 }}>
+                          {/* 닉네임 아이콘 */}
+                          <div style={{ 
+                            fontSize: 18, 
+                            marginBottom: 4,
+                            color: 'white'
+                          }}>
+                            🎤
+                          </div>
+                          
+                          {/* 닉네임 */}
+                          <h4 style={{ 
+                            fontSize: 11, 
+                            fontWeight: 700, 
+                            marginBottom: 4,
+                            textAlign: 'center',
+                            color: 'white',
+                            margin: '0 0 4px 0'
+                          }}>
+                            {flexCard.nickname}
+                          </h4>
+                          
+                          {/* 진행 상황 */}
+                          <div style={{ marginBottom: 4 }}>
+                            <p style={{ 
+                              fontSize: 9, 
+                              textAlign: 'center',
+                              color: 'rgba(255, 255, 255, 0.9)',
+                              margin: '0 0 2px 0',
+                              fontWeight: 600
+                            }}>
+                              {completedSlots} / {flexCard.totalSlots} 곡 완료
+                            </p>
+                            
+                            {/* 진행률 바 */}
+                            <div style={{
+                              width: '100%',
+                              height: 3,
+                              background: 'rgba(255, 255, 255, 0.2)',
+                              borderRadius: 2,
+                              overflow: 'hidden'
+                            }}>
+                              <div style={{
+                                width: `${progressPercent}%`,
+                                height: '100%',
+                                background: progressPercent === 100 ? 
+                                  'linear-gradient(90deg, #10B981, #059669)' : 
+                                  'linear-gradient(90deg, #F59E0B, #D97706)',
+                                borderRadius: 2,
+                                transition: 'width 0.3s ease'
+                              }} />
+                            </div>
+                          </div>
                         </div>
-                        
-                        {/* 닉네임과 곡수 */}
-                        <h4 style={{ 
-                          fontSize: '16px', 
-                          fontWeight: 700, 
-                          marginBottom: '6px',
-                          textAlign: 'center',
-                          color: '#92400E',
-                          margin: '0 0 6px 0'
-                        }}>
-                          {flexCard.nickname}
-                        </h4>
-                        
-                        {/* 진행 상황 */}
-                        <p style={{ 
-                          fontSize: '12px', 
-                          textAlign: 'center',
-                          color: '#A16207',
-                          margin: 0
-                        }}>
-                          {flexCard.slots.filter(slot => slot.isCompleted).length} / {flexCard.totalSlots} 곡
-                        </p>
 
-                        {/* 편집 안내 */}
+
+
+                        {/* 편집 상태 표시 */}
                         <div style={{
                           position: 'absolute',
-                          top: '6px',
-                          right: '6px',
-                          background: canEditFlexibleCard(flexCard) ? '#F59E0B' : '#9CA3AF',
-                          color: '#fff',
-                          padding: '2px 6px',
-                          borderRadius: '8px',
-                          fontSize: '10px',
-                          fontWeight: 600
+                          top: 12,
+                          right: 12,
+                          background: canEditFlexibleCard(flexCard) ? 
+                            'rgba(245, 158, 11, 0.8)' : 
+                            'rgba(156, 163, 175, 0.8)',
+                          backdropFilter: 'blur(10px)',
+                          color: 'white',
+                          padding: '4px 8px',
+                          borderRadius: 12,
+                          fontSize: 10,
+                          fontWeight: 600,
+                          border: '1px solid rgba(255, 255, 255, 0.2)'
                         }}>
-                          {canEditFlexibleCard(flexCard) ? '편집' : '읽기전용'}
+                          {canEditFlexibleCard(flexCard) ? '✏️' : '👁️'}
                         </div>
-
-                        {/* 셋리스트에 추가 버튼 */}
-                        {isLeader && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              addFlexibleCardToSetList(flexCard);
-                            }}
-                            style={{
-                              position: 'absolute',
-                              bottom: '6px',
-                              left: '50%',
-                              transform: 'translateX(-50%)',
-                              background: '#10B981',
-                              color: '#fff',
-                              border: 'none',
-                              borderRadius: '6px',
-                              padding: '4px 8px',
-                              fontSize: '10px',
-                              fontWeight: 600,
-                              cursor: 'pointer',
-                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                              zIndex: 10
-                            }}
-                          >
-                            셋리스트에 추가
-                          </button>
-                        )}
                       </div>
                       );
                     })}
@@ -1912,22 +2040,23 @@ const SetListCards: React.FC = () => {
         </div>
       ) : (
         <div style={{ 
-          background: '#fff', 
-          borderRadius: '12px', 
-          padding: '40px', 
-          marginBottom: '30px',
-          boxShadow: '0 4px 16px rgba(138, 85, 204, 0.1)',
+          background: 'rgba(255, 255, 255, 0.15)', 
+          backdropFilter: 'blur(15px)',
+          borderRadius: 20, 
+          padding: 40, 
+          marginBottom: 30,
+          border: '1px solid rgba(255, 255, 255, 0.2)',
           textAlign: 'center'
         }}>
-          <div style={{ fontSize: '48px', marginBottom: '20px' }}>🎵</div>
-          <h2 style={{ color: '#8A55CC', fontSize: '22px', marginBottom: '12px' }}>
+          <div style={{ fontSize: 48, marginBottom: 20, color: 'rgba(255, 255, 255, 0.8)' }}>🎵</div>
+          <h2 style={{ color: 'white', fontSize: 22, marginBottom: 16, fontWeight: 700 }}>
             활성 셋리스트가 없습니다
           </h2>
-          <p style={{ color: '#666', fontSize: '16px', marginBottom: '20px' }}>
+          <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: 16, marginBottom: 20 }}>
             리더가 셋리스트를 활성화하면 카드를 확인할 수 있습니다.
           </p>
           {isLeader && (
-            <p style={{ color: '#8A55CC', fontSize: '14px' }}>
+            <p style={{ color: 'white', fontSize: 14 }}>
               💡 관리 모드에서 셋리스트를 생성하고 활성화해보세요!
             </p>
           )}

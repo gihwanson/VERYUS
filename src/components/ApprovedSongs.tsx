@@ -25,7 +25,7 @@ const ApprovedSongs: React.FC = () => {
   const user = userString ? JSON.parse(userString) : null;
   const isAdmin = user && (user.role === '리더' || user.role === '운영진');
   const isLeader = user && user.role === '리더';
-  const [showList, setShowList] = useState(false);
+  const [showList, setShowList] = useState(true);
   const navigate = useNavigate();
   const [songType, setSongType] = useState<'all' | 'solo' | 'duet'>('all');
   const [resultSongType, setResultSongType] = useState<'all' | 'solo' | 'duet'>('all');
@@ -135,176 +135,625 @@ const ApprovedSongs: React.FC = () => {
   // TODO: 등록/수정/삭제/조회/버스킹 필터 기능 구현
 
   return (
-    <div style={{ maxWidth: '100%', width: '100%', minHeight: '100vh', margin: 0, background: '#fff', borderRadius: 0, boxShadow: 'none', padding: 32 }}>
-      <h2 style={{ color: '#8A55CC', fontWeight: 700, fontSize: 24, marginBottom: 24 }}>합격곡 관리 및 조회</h2>
-      <div style={{ marginBottom: 16, display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'center' }}>
-        {isAdmin && <button onClick={() => { setShowForm(true); setShowList(false); setEditId(null); setForm({ title: '', members: [''] }); }} style={{ background: '#10B981', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 16px', fontWeight: 600, cursor: 'pointer' }}>합격곡 등록</button>}
-        <button onClick={() => { setShowList(l => { setShowForm(false); return !l; }); }} style={{ background: '#7C4DBC', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 16px', fontWeight: 600, cursor: 'pointer' }}>{showList ? '합격곡 리스트 닫기' : '합격곡 리스트 보기'}</button>
-      </div>
-      {/* 합격곡 등록/수정 폼 */}
-      {showForm && isAdmin && (
-        <div style={{ marginBottom: 24, background: '#F6F2FF', borderRadius: 12, padding: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 12 }}>
-            <button onClick={() => { setShowForm(false); setEditId(null); }} style={{ background: '#E5DAF5', color: '#7C4DBC', border: 'none', borderRadius: 8, padding: '6px 16px', fontWeight: 600, cursor: 'pointer' }}>이전</button>
-          </div>
-          <div style={{ marginBottom: 8 }}>
-            <label>곡 제목</label>
-            <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} style={{ width: '100%', padding: 8, borderRadius: 8, border: '1px solid #E5DAF5', marginTop: 4 }} />
-          </div>
-          <div style={{ marginBottom: 8 }}>
-            <label>참여 닉네임</label>
-            {form.members.map((member, idx) => (
-              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                <input
-                  value={member}
-                  onChange={e => setForm(f => ({ ...f, members: f.members.map((m, i) => i === idx ? e.target.value : m) }))}
-                  style={{ flex: 1, padding: 8, borderRadius: 8, border: '1px solid #E5DAF5' }}
-                  placeholder={`닉네임 ${idx + 1}`}
-                />
-                {form.members.length > 1 && (
-                  <button type="button" onClick={() => setForm(f => ({ ...f, members: f.members.filter((_, i) => i !== idx) }))} style={{ background: '#F43F5E', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontWeight: 600, cursor: 'pointer' }}>삭제</button>
-                )}
-                {idx === form.members.length - 1 && (
-                  <button type="button" onClick={() => setForm(f => ({ ...f, members: [...f.members, ''] }))} style={{ background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontWeight: 600, cursor: 'pointer' }}>추가</button>
-                )}
-              </div>
-            ))}
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button style={{ background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 16px', fontWeight: 600, cursor: 'pointer' }} onClick={handleSave}>저장</button>
-            <button style={{ background: '#EF4444', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 16px', fontWeight: 600, cursor: 'pointer' }} onClick={() => setShowForm(false)}>취소</button>
-          </div>
+    <div style={{ 
+      maxWidth: '100%', 
+      width: '100%', 
+      minHeight: '100vh', 
+      margin: 0, 
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      borderRadius: 0, 
+      boxShadow: 'none', 
+      padding: '20px',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      {/* 배경 패턴 */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.1) 0%, transparent 50%), radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.08) 0%, transparent 50%)',
+        pointerEvents: 'none'
+      }} />
+      
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <h2 style={{ 
+          color: 'white', 
+          fontWeight: 700, 
+          fontSize: 28, 
+          marginBottom: 32,
+          textAlign: 'center',
+          textShadow: '0 2px 4px rgba(0,0,0,0.2)'
+        }}>🎵 합격곡 관리 및 조회</h2>
+        
+                {/* 메인 탭 네비게이션 */}
+        <div style={{ 
+          display: 'grid',
+          gridTemplateColumns: isAdmin ? 'repeat(2, 1fr)' : '1fr',
+          gap: '16px',
+          marginBottom: 32,
+          maxWidth: isAdmin ? '400px' : '200px',
+          margin: '0 auto 32px auto'
+        }}>
+          {isAdmin && (
+            <button 
+              onClick={() => { 
+                setShowForm(true); 
+                setShowList(false); 
+                setEditId(null); 
+                setForm({ title: '', members: [''] }); 
+              }} 
+              style={{ 
+                background: showForm ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.15)',
+                backdropFilter: 'blur(15px)',
+                color: 'white',
+                border: 'none',
+                borderRadius: 16,
+                padding: '16px 12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontSize: 14,
+                textAlign: 'center',
+                transition: 'all 0.3s ease',
+                minHeight: '70px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = showForm ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.15)'}
+            >
+              <span style={{ fontSize: '24px' }}>➕</span>
+              <span>합격곡 등록</span>
+            </button>
+          )}
+          <button 
+            onClick={() => { 
+              setShowList(l => { 
+                setShowForm(false); 
+                return !l; 
+              }); 
+            }} 
+            style={{ 
+              background: showList ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.15)',
+              backdropFilter: 'blur(15px)',
+              color: 'white',
+              border: 'none',
+              borderRadius: 16,
+              padding: '16px 12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontSize: 14,
+              textAlign: 'center',
+              transition: 'all 0.3s ease',
+              minHeight: '70px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '4px'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)'}
+            onMouseLeave={(e) => e.currentTarget.style.background = showList ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.15)'}
+          >
+            <span style={{ fontSize: '24px' }}>📋</span>
+            <span>{showList ? '리스트 닫기' : '리스트 보기'}</span>
+          </button>
         </div>
-      )}
-      {/* 합격곡 리스트 */}
-      {showList && (
-        <div>
-          {/* 검색창 */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              placeholder="곡 제목 또는 닉네임 검색"
-              style={{ width: 260, padding: '8px 14px', borderRadius: 8, border: '1px solid #E5DAF5', fontSize: 15 }}
-            />
-          </div>
+
+              {/* 합격곡 등록/수정 폼 */}
+        {showForm && isAdmin && (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 16 }}>
+              <button 
+                onClick={() => { setShowForm(false); setEditId(null); }} 
+                style={{ 
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  backdropFilter: 'blur(10px)',
+                  color: 'white', 
+                  border: 'none', 
+                  borderRadius: 12, 
+                  padding: '8px 16px', 
+                  fontWeight: 600, 
+                  cursor: 'pointer' 
+                }}
+              >← 이전</button>
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ color: 'white', fontWeight: 600, marginBottom: 8, display: 'block' }}>곡 제목</label>
+              <input 
+                value={form.title} 
+                onChange={e => setForm(f => ({ ...f, title: e.target.value }))} 
+                style={{ 
+                  width: '100%', 
+                  padding: 12, 
+                  borderRadius: 12, 
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  backdropFilter: 'blur(10px)',
+                  color: 'white',
+                  marginTop: 4
+                }} 
+                placeholder="곡 제목을 입력하세요"
+              />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ color: 'white', fontWeight: 600, marginBottom: 8, display: 'block' }}>참여 닉네임</label>
+              {form.members.map((member, idx) => (
+                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <input
+                    value={member}
+                    onChange={e => setForm(f => ({ ...f, members: f.members.map((m, i) => i === idx ? e.target.value : m) }))}
+                    style={{ 
+                      flex: 1, 
+                      padding: 12, 
+                      borderRadius: 12, 
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      backdropFilter: 'blur(10px)',
+                      color: 'white'
+                    }}
+                    placeholder={`닉네임 ${idx + 1}`}
+                  />
+                  {form.members.length > 1 && (
+                    <button 
+                      type="button" 
+                      onClick={() => setForm(f => ({ ...f, members: f.members.filter((_, i) => i !== idx) }))} 
+                      style={{ 
+                        background: 'rgba(220, 38, 38, 0.8)',
+                        backdropFilter: 'blur(10px)',
+                        color: 'white', 
+                        border: 'none', 
+                        borderRadius: 12, 
+                        padding: '8px 12px', 
+                        fontWeight: 600, 
+                        cursor: 'pointer' 
+                      }}
+                    >삭제</button>
+                  )}
+                  {idx === form.members.length - 1 && (
+                    <button 
+                      type="button" 
+                      onClick={() => setForm(f => ({ ...f, members: [...f.members, ''] }))} 
+                      style={{ 
+                        background: 'rgba(255, 255, 255, 0.2)',
+                        backdropFilter: 'blur(10px)',
+                        color: 'white', 
+                        border: 'none', 
+                        borderRadius: 12, 
+                        padding: '8px 12px', 
+                        fontWeight: 600, 
+                        cursor: 'pointer' 
+                      }}
+                    >추가</button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginBottom: 24 }}>
+              <button 
+                style={{ 
+                  background: 'rgba(34, 197, 94, 0.8)',
+                  backdropFilter: 'blur(10px)',
+                  color: 'white', 
+                  border: 'none', 
+                  borderRadius: 12, 
+                  padding: '12px 24px', 
+                  fontWeight: 600, 
+                  cursor: 'pointer' 
+                }} 
+                onClick={handleSave}
+              >💾 저장</button>
+              <button 
+                style={{ 
+                  background: 'rgba(239, 68, 68, 0.8)',
+                  backdropFilter: 'blur(10px)',
+                  color: 'white', 
+                  border: 'none', 
+                  borderRadius: 12, 
+                  padding: '12px 24px', 
+                  fontWeight: 600, 
+                  cursor: 'pointer' 
+                }} 
+                onClick={() => setShowForm(false)}
+              >❌ 취소</button>
+            </div>
+          </>
+        )}
+
+              {/* 합격곡 리스트 */}
+        {showList && (
+          <>
+            {/* 검색창 */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                placeholder="🔍 곡 제목 또는 닉네임 검색"
+                style={{ 
+                  width: '100%',
+                  maxWidth: 400,
+                  padding: '12px 16px', 
+                  borderRadius: 12, 
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  backdropFilter: 'blur(10px)',
+                  color: 'white',
+                  fontSize: 15,
+                  textAlign: 'center'
+                }}
+              />
+            </div>
+            
           {/* 필터 탭 */}
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16, justifyContent: 'center' }}>
-            <button onClick={() => { setSongType('all'); setManageTab('all'); }} style={{ background: manageTab === 'all' ? '#8A55CC' : '#F6F2FF', color: manageTab === 'all' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '6px 18px', fontWeight: 700, cursor: 'pointer' }}>전체</button>
-            <button onClick={() => { setSongType('solo'); setManageTab('solo'); }} style={{ background: manageTab === 'solo' ? '#8A55CC' : '#F6F2FF', color: manageTab === 'solo' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '6px 18px', fontWeight: 700, cursor: 'pointer' }}>솔로곡</button>
-            <button onClick={() => { setSongType('duet'); setManageTab('duet'); }} style={{ background: manageTab === 'duet' ? '#8A55CC' : '#F6F2FF', color: manageTab === 'duet' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '6px 18px', fontWeight: 700, cursor: 'pointer' }}>듀엣/합창곡</button>
+            <div style={{ 
+              display: 'flex', 
+              gap: 12, 
+              marginBottom: 24, 
+              justifyContent: 'center',
+              flexWrap: 'wrap'
+            }}>
+              <button 
+                onClick={() => { setSongType('all'); setManageTab('all'); }} 
+                style={{ 
+                  background: manageTab === 'all' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.15)',
+                  backdropFilter: 'blur(10px)',
+                  color: 'white', 
+                  border: 'none', 
+                  borderRadius: 12, 
+                  padding: '8px 16px', 
+                  fontWeight: 700, 
+                  cursor: 'pointer' 
+                }}
+              >🎵 전체</button>
+              <button 
+                onClick={() => { setSongType('solo'); setManageTab('solo'); }} 
+                style={{ 
+                  background: manageTab === 'solo' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.15)',
+                  backdropFilter: 'blur(10px)',
+                  color: 'white', 
+                  border: 'none', 
+                  borderRadius: 12, 
+                  padding: '8px 16px', 
+                  fontWeight: 700, 
+                  cursor: 'pointer' 
+                }}
+              >🎤 솔로곡</button>
+              <button 
+                onClick={() => { setSongType('duet'); setManageTab('duet'); }} 
+                style={{ 
+                  background: manageTab === 'duet' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.15)',
+                  backdropFilter: 'blur(10px)',
+                  color: 'white', 
+                  border: 'none', 
+                  borderRadius: 12, 
+                  padding: '8px 16px', 
+                  fontWeight: 700, 
+                  cursor: 'pointer' 
+                }}
+              >👥 듀엣/합창곡</button>
             {isAdmin && (
-              <button onClick={() => setManageTab('manage')} style={{ background: manageTab === 'manage' ? '#8A55CC' : '#F6F2FF', color: manageTab === 'manage' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '6px 18px', fontWeight: 700, cursor: 'pointer' }}>관리</button>
+                <button 
+                  onClick={() => setManageTab('manage')} 
+                  style={{ 
+                    background: manageTab === 'manage' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.15)',
+                    backdropFilter: 'blur(10px)',
+                    color: 'white', 
+                    border: 'none', 
+                    borderRadius: 12, 
+                    padding: '8px 16px', 
+                    fontWeight: 700, 
+                    cursor: 'pointer' 
+                  }}
+                >⚙️ 관리</button>
             )}
           </div>
-          {/* 관리 탭: 닉네임별 합격곡 관리 */}
-          {manageTab === 'manage' && isAdmin && (
-            <div style={{ margin: '24px 0' }}>
-              <h4 style={{ color: '#8A55CC', fontWeight: 700, marginBottom: 12 }}>합격곡에 등재된 닉네임 목록</h4>
-              <ul style={{ listStyle: 'none', padding: 0 }}>
-                {uniqueMembers.map(nickname => (
-                  <li key={nickname} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                    <span style={{ fontWeight: 600, color: '#7C4DBC' }}>{nickname}</span>
-                    {isLeader && (
-                      <button
-                        style={{ background: '#EF4444', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontWeight: 600, cursor: 'pointer' }}
-                        onClick={() => handleDeleteMember(nickname)}
-                      >삭제</button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {/* 기존 곡 리스트는 관리 탭이 아닐 때만 노출 */}
-          {manageTab !== 'manage' && (
-            <ul style={{ listStyle: 'none', padding: 0 }}>
-              {displayedSongs
-                .filter(song => {
-                  const term = searchTerm.trim().toLowerCase();
-                  if (!term) return true;
-                  const titleMatch = song.title?.toLowerCase().includes(term);
-                  const memberMatch = Array.isArray(song.members) && song.members.some((m: string) => m.toLowerCase().includes(term));
-                  return titleMatch || memberMatch;
-                })
-                .map(song => (
-                  <li key={song.id} style={{ padding: '8px 0', borderBottom: '1px solid #E5DAF5', display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span style={{ fontWeight: 700, color: '#7C4DBC' }}>{song.title}</span>
-                    <span style={{ color: '#6B7280', fontWeight: 500 }}>{song.members?.join(', ')}</span>
-                    {isAdmin && (
-                      <>
-                        <button
-                          style={{ background: '#FBBF24', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontWeight: 600, cursor: 'pointer' }}
-                          onClick={() => {
-                            setForm({ title: song.title, members: Array.isArray(song.members) ? song.members : [''] });
-                            setEditId(song.id);
-                            setShowForm(true);
-                            setShowList(false);
-                          }}
-                        >수정</button>
-                        <button
-                          style={{ background: '#EF4444', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontWeight: 600, cursor: 'pointer' }}
-                          onClick={async () => {
-                            if (window.confirm('정말 삭제하시겠습니까?')) {
-                              await deleteDoc(doc(db, 'approvedSongs', song.id));
-                              setSongs(songs => songs.filter(s => s.id !== song.id));
-                            }
-                          }}
-                        >삭제</button>
-                      </>
-                    )}
-                  </li>
-                ))}
-            </ul>
-          )}
-        </div>
-      )}
+            
+                      {/* 관리 탭: 닉네임별 합격곡 관리 */}
+            {manageTab === 'manage' && isAdmin && (
+              <div style={{ margin: '24px 0' }}>
+                <h4 style={{ color: 'white', fontWeight: 700, marginBottom: 16, textAlign: 'center' }}>
+                  👥 합격곡에 등재된 닉네임 목록
+                </h4>
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  backdropFilter: 'blur(10px)',
+                  borderRadius: 16,
+                  padding: 20,
+                  border: '1px solid rgba(255, 255, 255, 0.2)'
+                }}>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                    {uniqueMembers.map(nickname => (
+                      <li key={nickname} style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'space-between',
+                        gap: 12, 
+                        marginBottom: 12,
+                        padding: '8px 16px',
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        borderRadius: 12,
+                        border: '1px solid rgba(255, 255, 255, 0.1)'
+                      }}>
+                        <span style={{ fontWeight: 600, color: 'white' }}>{nickname}</span>
+                        {isLeader && (
+                          <button
+                            style={{ 
+                              background: 'rgba(220, 38, 38, 0.8)',
+                              backdropFilter: 'blur(10px)',
+                              color: 'white', 
+                              border: 'none', 
+                              borderRadius: 8, 
+                              padding: '6px 12px', 
+                              fontWeight: 600, 
+                              cursor: 'pointer',
+                              fontSize: 12
+                            }}
+                            onClick={() => handleDeleteMember(nickname)}
+                          >🗑️ 삭제</button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+            
+            {/* 기존 곡 리스트는 관리 탭이 아닐 때만 노출 */}
+            {manageTab !== 'manage' && (
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.1)',
+                backdropFilter: 'blur(10px)',
+                borderRadius: 16,
+                padding: 20,
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                maxHeight: '500px',
+                overflowY: 'auto',
+                marginBottom: 24
+              }}>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                  {displayedSongs
+                    .filter(song => {
+                      const term = searchTerm.trim().toLowerCase();
+                      if (!term) return true;
+                      const titleMatch = song.title?.toLowerCase().includes(term);
+                      const memberMatch = Array.isArray(song.members) && song.members.some((m: string) => m.toLowerCase().includes(term));
+                      return titleMatch || memberMatch;
+                    })
+                    .map(song => (
+                      <li key={song.id} style={{ 
+                        padding: '12px 16px', 
+                        borderBottom: '1px solid rgba(255, 255, 255, 0.1)', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 12,
+                        flexWrap: 'wrap'
+                      }}>
+                        <span style={{ fontWeight: 700, color: 'white', flex: '1 1 200px' }}>{song.title}</span>
+                        <span style={{ color: 'rgba(255, 255, 255, 0.8)', fontWeight: 500, flex: '1 1 150px' }}>
+                          {song.members?.join(', ')}
+                        </span>
+                        {isAdmin && (
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button
+                              style={{ 
+                                background: 'rgba(251, 191, 36, 0.8)',
+                                backdropFilter: 'blur(10px)',
+                                color: 'white', 
+                                border: 'none', 
+                                borderRadius: 8, 
+                                padding: '6px 12px', 
+                                fontWeight: 600, 
+                                cursor: 'pointer',
+                                fontSize: 12
+                              }}
+                              onClick={() => {
+                                setForm({ title: song.title, members: Array.isArray(song.members) ? song.members : [''] });
+                                setEditId(song.id);
+                                setShowForm(true);
+                                setShowList(false);
+                              }}
+                            >✏️ 수정</button>
+                            <button
+                              style={{ 
+                                background: 'rgba(220, 38, 38, 0.8)',
+                                backdropFilter: 'blur(10px)',
+                                color: 'white', 
+                                border: 'none', 
+                                borderRadius: 8, 
+                                padding: '6px 12px', 
+                                fontWeight: 600, 
+                                cursor: 'pointer',
+                                fontSize: 12
+                              }}
+                              onClick={async () => {
+                                if (window.confirm('정말 삭제하시겠습니까?')) {
+                                  await deleteDoc(doc(db, 'approvedSongs', song.id));
+                                  setSongs(songs => songs.filter(s => s.id !== song.id));
+                                }
+                              }}
+                            >🗑️ 삭제</button>
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            )}
+          </>
+        )}
+
       {/* 버스킹용 합격곡 조회 폼 */}
       {!showForm && !showList && (
-        <div style={{ marginTop: 32, background: '#F9FAFB', borderRadius: 12, padding: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-            <button onClick={() => navigate('/')} style={{ background: '#E5DAF5', color: '#7C4DBC', border: 'none', borderRadius: 8, padding: '6px 16px', fontWeight: 600, cursor: 'pointer' }}>메인보드로</button>
-          </div>
-          <h3 style={{ color: '#8A55CC', fontWeight: 700, fontSize: 18, marginBottom: 12 }}>버스킹용 합격곡 조회</h3>
-          <div style={{ marginBottom: 8 }}>
-            <label>참석자 닉네임</label>
+          <div style={{ 
+            marginTop: 0,
+            background: 'rgba(255, 255, 255, 0.15)',
+            backdropFilter: 'blur(15px)',
+            borderRadius: 20, 
+            padding: 24,
+            border: '1px solid rgba(255, 255, 255, 0.2)'
+          }}>
+            <h3 style={{ 
+              color: 'white', 
+              fontWeight: 700, 
+              fontSize: 20, 
+              marginBottom: 20,
+              textAlign: 'center'
+            }}>🎤 버스킹용 합격곡 조회</h3>
+            
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ color: 'white', fontWeight: 600, marginBottom: 8, display: 'block' }}>참석자 닉네임</label>
             {buskingMembers.map((member, idx) => (
-              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 <input
                   value={member}
                   onChange={e => setBuskingMembers(members => members.map((m, i) => i === idx ? e.target.value : m))}
-                  style={{ flex: 1, padding: 8, borderRadius: 8, border: '1px solid #E5DAF5' }}
+                    style={{ 
+                      flex: 1, 
+                      padding: 12, 
+                      borderRadius: 12, 
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      backdropFilter: 'blur(10px)',
+                      color: 'white'
+                    }}
                   placeholder={`참석자 ${idx + 1}`}
                 />
                 {buskingMembers.length > 1 && (
-                  <button type="button" onClick={() => setBuskingMembers(members => members.filter((_, i) => i !== idx))} style={{ background: '#F43F5E', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontWeight: 600, cursor: 'pointer' }}>삭제</button>
+                    <button 
+                      type="button" 
+                      onClick={() => setBuskingMembers(members => members.filter((_, i) => i !== idx))} 
+                      style={{ 
+                        background: 'rgba(220, 38, 38, 0.8)',
+                        backdropFilter: 'blur(10px)',
+                        color: 'white', 
+                        border: 'none', 
+                        borderRadius: 12, 
+                        padding: '8px 12px', 
+                        fontWeight: 600, 
+                        cursor: 'pointer' 
+                      }}
+                    >삭제</button>
                 )}
                 {idx === buskingMembers.length - 1 && (
-                  <button type="button" onClick={() => setBuskingMembers(members => [...members, ''])} style={{ background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontWeight: 600, cursor: 'pointer' }}>추가</button>
+                    <button 
+                      type="button" 
+                      onClick={() => setBuskingMembers(members => [...members, ''])} 
+                      style={{ 
+                        background: 'rgba(255, 255, 255, 0.2)',
+                        backdropFilter: 'blur(10px)',
+                        color: 'white', 
+                        border: 'none', 
+                        borderRadius: 12, 
+                        padding: '8px 12px', 
+                        fontWeight: 600, 
+                        cursor: 'pointer' 
+                      }}
+                    >추가</button>
                 )}
               </div>
             ))}
           </div>
+            
           {/* 합격곡 조회 버튼 별도 배치 */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 20, marginBottom: 20 }}>
             <button
-              style={{ background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 16px', fontWeight: 600, cursor: 'pointer' }}
+                style={{ 
+                  background: 'rgba(34, 197, 94, 0.8)',
+                  backdropFilter: 'blur(10px)',
+                  color: 'white', 
+                  border: 'none', 
+                  borderRadius: 12, 
+                  padding: '12px 24px', 
+                  fontWeight: 600, 
+                  cursor: 'pointer',
+                  fontSize: 16
+                }}
               onClick={handleBuskingSearch}
-            >합격곡 조회</button>
+              >🔍 합격곡 조회</button>
           </div>
+            
           {/* 조회 결과 리스트 */}
           {filteredSongs.length > 0 && (
-            <div style={{ marginTop: 16 }}>
+              <div style={{ marginTop: 24 }}>
               {/* 결과 탭 */}
-              <div style={{ display: 'flex', gap: 8, marginBottom: 12, justifyContent: 'center' }}>
-                <button onClick={() => setBuskingTab('all')} style={{ background: buskingTab === 'all' ? '#8A55CC' : '#F6F2FF', color: buskingTab === 'all' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '5px 16px', fontWeight: 700, cursor: 'pointer' }}>전체</button>
-                <button onClick={() => setBuskingTab('solo')} style={{ background: buskingTab === 'solo' ? '#8A55CC' : '#F6F2FF', color: buskingTab === 'solo' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '5px 16px', fontWeight: 700, cursor: 'pointer' }}>솔로곡</button>
-                <button onClick={() => setBuskingTab('duet')} style={{ background: buskingTab === 'duet' ? '#8A55CC' : '#F6F2FF', color: buskingTab === 'duet' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '5px 16px', fontWeight: 700, cursor: 'pointer' }}>듀엣/합창곡</button>
-                <button onClick={() => setBuskingTab('grade')} style={{ background: buskingTab === 'grade' ? '#8A55CC' : '#F6F2FF', color: buskingTab === 'grade' ? '#fff' : '#8A55CC', border: 'none', borderRadius: 8, padding: '5px 16px', fontWeight: 700, cursor: 'pointer' }}>등급순</button>
+                <div style={{ 
+                  display: 'flex', 
+                  gap: 8, 
+                  marginBottom: 16, 
+                  justifyContent: 'center',
+                  flexWrap: 'wrap'
+                }}>
+                  <button 
+                    onClick={() => setBuskingTab('all')} 
+                    style={{ 
+                      background: buskingTab === 'all' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.15)',
+                      backdropFilter: 'blur(10px)',
+                      color: 'white', 
+                      border: 'none', 
+                      borderRadius: 12, 
+                      padding: '8px 16px', 
+                      fontWeight: 700, 
+                      cursor: 'pointer' 
+                    }}
+                  >🎵 전체</button>
+                  <button 
+                    onClick={() => setBuskingTab('solo')} 
+                    style={{ 
+                      background: buskingTab === 'solo' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.15)',
+                      backdropFilter: 'blur(10px)',
+                      color: 'white', 
+                      border: 'none', 
+                      borderRadius: 12, 
+                      padding: '8px 16px', 
+                      fontWeight: 700, 
+                      cursor: 'pointer' 
+                    }}
+                  >🎤 솔로곡</button>
+                  <button 
+                    onClick={() => setBuskingTab('duet')} 
+                    style={{ 
+                      background: buskingTab === 'duet' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.15)',
+                      backdropFilter: 'blur(10px)',
+                      color: 'white', 
+                      border: 'none', 
+                      borderRadius: 12, 
+                      padding: '8px 16px', 
+                      fontWeight: 700, 
+                      cursor: 'pointer' 
+                    }}
+                  >👥 듀엣/합창곡</button>
+                  <button 
+                    onClick={() => setBuskingTab('grade')} 
+                    style={{ 
+                      background: buskingTab === 'grade' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.15)',
+                      backdropFilter: 'blur(10px)',
+                      color: 'white', 
+                      border: 'none', 
+                      borderRadius: 12, 
+                      padding: '8px 16px', 
+                      fontWeight: 700, 
+                      cursor: 'pointer' 
+                    }}
+                  >🏆 등급순</button>
               </div>
+                
               {/* 곡 리스트 */}
-              <ul style={{ listStyle: 'none', padding: 0 }}>
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  backdropFilter: 'blur(10px)',
+                  borderRadius: 16,
+                  padding: 20,
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  maxHeight: '400px',
+                  overflowY: 'auto'
+                }}>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                 {filteredSongs
                   .filter(song => {
                     if (buskingTab === 'solo') return Array.isArray(song.members) && song.members.length === 1;
@@ -329,19 +778,32 @@ const ApprovedSongs: React.FC = () => {
                       maxGrade = GRADE_ORDER[minIdx] || '🍒';
                     }
                     return (
-                      <li key={song.id} style={{ padding: '8px 0', borderBottom: '1px solid #E5DAF5', display: 'flex', alignItems: 'center', gap: 12 }}>
-                        {buskingTab === 'grade' && <span style={{ fontWeight: 700, color: '#FBBF24', fontSize: 18 }}>{maxGrade}</span>}
-                        <span style={{ fontWeight: 700, color: '#7C4DBC' }}>{song.title}</span>
-                        <span style={{ color: '#6B7280', fontWeight: 500 }}>{song.members?.join(', ')}</span>
+                          <li key={song.id} style={{ 
+                            padding: '12px 16px', 
+                            borderBottom: '1px solid rgba(255, 255, 255, 0.1)', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 12,
+                            flexWrap: 'wrap'
+                          }}>
+                            {buskingTab === 'grade' && (
+                              <span style={{ fontWeight: 700, fontSize: 20 }}>{maxGrade}</span>
+                            )}
+                            <span style={{ fontWeight: 700, color: 'white', flex: '1 1 200px' }}>{song.title}</span>
+                            <span style={{ color: 'rgba(255, 255, 255, 0.8)', fontWeight: 500, flex: '1 1 150px' }}>
+                              {song.members?.join(', ')}
+                            </span>
                       </li>
                     );
                   })
                   .filter(Boolean)}
               </ul>
+                </div>
             </div>
           )}
         </div>
       )}
+      </div>
     </div>
   );
 };
