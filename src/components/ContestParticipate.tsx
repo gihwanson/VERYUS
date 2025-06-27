@@ -321,8 +321,8 @@ const ContestParticipate: React.FC = () => {
     );
   }
 
-  // 콘테스트가 개최되지 않은 경우
-  if (!contest.isStarted) {
+  // 콘테스트가 개최되지 않은 경우 (리더 제외)
+  if (!contest.isStarted && !(user && user.role === '리더')) {
     return (
       <div style={{
         minHeight: '100vh',
@@ -467,428 +467,496 @@ const ContestParticipate: React.FC = () => {
             marginBottom: 24, 
             textAlign: 'center' 
           }}>
-                         📅 마감: {contest.deadline && (contest.deadline.seconds ? new Date(contest.deadline.seconds * 1000).toLocaleDateString('ko-KR') : '')}
-           </div>
-           
-           {submitted ? (
-             <div style={{ 
-               color: '#10B981', 
-               fontWeight: 700, 
-               fontSize: 20, 
-               margin: '32px 0', 
-               textAlign: 'center',
-               background: 'rgba(16, 185, 129, 0.1)',
-               backdropFilter: 'blur(5px)',
-               padding: '16px',
-               borderRadius: '12px',
-               border: '1px solid rgba(16, 185, 129, 0.3)'
-             }}>
-               ✅ 제출이 완료되었습니다.
-             </div>
-        ) : (
-          (contest.type === '정규등급전' || contest.type === '세미등급전') ? (
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 24, alignItems: 'center', width: '100%' }}>
-              <div style={{ width: '100%' }}>
-                <label style={{ fontWeight: 600 }}>피평가자 닉네임{contest.type === '정규등급전' ? '' : ' (직접 입력)'}</label>
-                {contest.type === '정규등급전' ? (
-                  <select
-                    value={nickname}
-                    onChange={e => setNickname(e.target.value)}
-                    style={{ width: '100%', padding: 14, fontSize: 18, borderRadius: 8, border: '1px solid #E5DAF5', marginTop: 6 }}
-                    disabled={!hasEvaluatableTargets}
-                  >
-                    <option value="">선택</option>
-                    {ungradedTargets.map((p: any) => (
-                      <option key={p.nickname} value={p.nickname}>{p.nickname}</option>
-                    ))}
-                    {!hasEvaluatableTargets && (
-                      <option value="" disabled>평가할 대상이 없습니다</option>
-                    )}
-                  </select>
-                ) : (
+            📅 마감: {contest.deadline && (contest.deadline.seconds ? new Date(contest.deadline.seconds * 1000).toLocaleDateString('ko-KR') : '')}
+          </div>
+          
+          {/* 리더 전용 개최 전 안내 */}
+          {!contest.isStarted && user && user.role === '리더' && (
+            <div style={{ 
+              background: 'rgba(251, 191, 36, 0.2)',
+              backdropFilter: 'blur(10px)',
+              borderRadius: '12px',
+              padding: '16px',
+              marginBottom: '24px',
+              border: '1px solid rgba(251, 191, 36, 0.3)',
+              textAlign: 'center'
+            }}>
+              <div style={{ 
+                color: 'white', 
+                fontWeight: 600, 
+                fontSize: '16px',
+                marginBottom: '4px'
+              }}>
+                ⚠️ 콘테스트가 아직 개최되지 않았습니다
+              </div>
+              <div style={{ 
+                color: 'rgba(255, 255, 255, 0.8)', 
+                fontSize: '14px'
+              }}>
+                리더님은 개최 전에도 미리보기할 수 있습니다. 다른 참가자들은 개최 후에만 입장 가능합니다.
+              </div>
+            </div>
+          )}
+          
+          {submitted ? (
+            <div style={{ 
+              color: '#10B981', 
+              fontWeight: 700, 
+              fontSize: 20, 
+              margin: '32px 0', 
+              textAlign: 'center',
+              background: 'rgba(16, 185, 129, 0.1)',
+              backdropFilter: 'blur(5px)',
+              padding: '16px',
+              borderRadius: '12px',
+              border: '1px solid rgba(16, 185, 129, 0.3)'
+            }}>
+              ✅ 제출이 완료되었습니다.
+            </div>
+          ) : (
+            (contest.type === '정규등급전' || contest.type === '세미등급전') ? (
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 24, alignItems: 'center', width: '100%' }}>
+                <div style={{ width: '100%' }}>
+                  <label style={{ fontWeight: 600 }}>피평가자 닉네임{contest.type === '정규등급전' ? '' : ' (직접 입력)'}</label>
+                  {contest.type === '정규등급전' ? (
+                    <select
+                      value={nickname}
+                      onChange={e => setNickname(e.target.value)}
+                      style={{ width: '100%', padding: 14, fontSize: 18, borderRadius: 8, border: '1px solid #E5DAF5', marginTop: 6 }}
+                      disabled={!hasEvaluatableTargets}
+                    >
+                      <option value="">선택</option>
+                      {ungradedTargets.map((p: any) => (
+                        <option key={p.nickname} value={p.nickname}>{p.nickname}</option>
+                      ))}
+                      {!hasEvaluatableTargets && (
+                        <option value="" disabled>평가할 대상이 없습니다</option>
+                      )}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={nickname}
+                      onChange={e => setNickname(e.target.value)}
+                      placeholder="피평가자 닉네임을 입력하세요"
+                      style={{ width: '100%', padding: 14, fontSize: 18, borderRadius: 8, border: '1px solid #E5DAF5', marginTop: 6 }}
+                    />
+                  )}
+                </div>
+                <div style={{ width: '100%' }}>
+                  <label style={{ fontWeight: 600, marginBottom: 4, display: 'block' }}>점수 (0~100점 입력)</label>
                   <input
-                    type="text"
-                    value={nickname}
-                    onChange={e => setNickname(e.target.value)}
-                    placeholder="피평가자 닉네임을 입력하세요"
-                    style={{ width: '100%', padding: 14, fontSize: 18, borderRadius: 8, border: '1px solid #E5DAF5', marginTop: 6 }}
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={score}
+                    onChange={e => handleScoreChange(e.target.value)}
+                    style={{ width: '100%', padding: 14, fontSize: 18, borderRadius: 8, border: '1px solid #E5DAF5', marginTop: 2, marginBottom: 2, boxSizing: 'border-box' }}
+                    placeholder="0~100 사이의 점수를 입력하세요"
+                    disabled={!hasEvaluatableTargets}
                   />
-                )}
-              </div>
-              <div style={{ width: '100%' }}>
-                <label style={{ fontWeight: 600, marginBottom: 4, display: 'block' }}>점수 (0~100점 입력)</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={score}
-                  onChange={e => handleScoreChange(e.target.value)}
-                  style={{ width: '100%', padding: 14, fontSize: 18, borderRadius: 8, border: '1px solid #E5DAF5', marginTop: 2, marginBottom: 2, boxSizing: 'border-box' }}
-                  placeholder="0~100 사이의 점수를 입력하세요"
-                  disabled={!hasEvaluatableTargets}
-                />
-                {suggestedGrade && (
-                  <div style={{ marginTop: 8, color: '#8A55CC', fontWeight: 700, fontSize: 18 }}>추천등급: {suggestedGrade}</div>
-                )}
-              </div>
-              <div style={{ width: '100%' }}>
-                <label style={{ fontWeight: 600 }}>심사내용(선택)</label>
-                <textarea
-                  value={comment}
-                  onChange={e => setComment(e.target.value)}
-                  placeholder="심사 코멘트를 입력하세요 (선택, Shift+Enter로 줄바꿈)"
-                  style={{ 
-                    width: '100%', 
-                    padding: 14, 
-                    fontSize: 18, 
-                    borderRadius: 8, 
-                    border: '1px solid #E5DAF5', 
-                    marginTop: 6, 
-                    minHeight: 120,
-                    maxHeight: 300,
-                    resize: 'none',
-                    overflow: 'hidden',
-                    lineHeight: '1.4',
-                    fontFamily: 'inherit'
-                  }}
-                  disabled={!hasEvaluatableTargets}
-                  onInput={(e) => {
-                    const target = e.target as HTMLTextAreaElement;
-                    target.style.height = 'auto';
-                    target.style.height = Math.min(Math.max(target.scrollHeight, 120), 300) + 'px';
-                  }}
-                />
-              </div>
-              <div style={{ display: 'flex', gap: 16, justifyContent: 'center', width: '100%', flexDirection: 'row' }}>
-                <button type="submit" style={{ background: '#8A55CC', color: '#fff', borderRadius: 8, padding: '10px 24px', fontWeight: 600, fontSize: 16, border: 'none', cursor: 'pointer' }} disabled={!hasEvaluatableTargets}>제출</button>
-                <button type="button" style={{ background: '#F43F5E', color: '#fff', borderRadius: 8, padding: '10px 24px', fontWeight: 600, fontSize: 16, border: 'none', cursor: 'pointer' }} onClick={handleComplete}>완료</button>
-              </div>
-              <div style={{ color: '#F43F5E', fontWeight: 600, marginTop: 8, textAlign: 'center' }}>본인 평가 불가, 제출 후 수정 불가</div>
-              {isParticipant && (
-                <div style={{ marginTop: 16, padding: 16, background: '#FEF2F2', borderRadius: 8, border: '1px solid #FECACA' }}>
-                  <div style={{ color: '#DC2626', fontWeight: 600, marginBottom: 4, textAlign: 'center' }}>📢 참가자 안내</div>
-                  <div style={{ color: '#7F1D1D', fontSize: 14, textAlign: 'center' }}>
-                    본인({user?.nickname})은 이 콘테스트의 참가자로 등록되어 있어 자기 평가는 불가능합니다.
-                  </div>
+                  {suggestedGrade && (
+                    <div style={{ marginTop: 8, color: '#8A55CC', fontWeight: 700, fontSize: 18 }}>추천등급: {suggestedGrade}</div>
+                  )}
                 </div>
-              )}
-              {gradedTargets.length > 0 && (
-                <div style={{ marginTop: 16, padding: 16, background: '#F0F9FF', borderRadius: 8, border: '1px solid #BAE6FD' }}>
-                  <div style={{ color: '#0369A1', fontWeight: 600, marginBottom: 8, textAlign: 'center' }}>이미 평가를 완료한 대상</div>
-                  <div style={{ color: '#0F172A', fontSize: 14, textAlign: 'center' }}>
-                    {gradedTargets.join(', ')}
-                  </div>
+                <div style={{ width: '100%' }}>
+                  <label style={{ fontWeight: 600 }}>심사내용(선택)</label>
+                  <textarea
+                    value={comment}
+                    onChange={e => setComment(e.target.value)}
+                    placeholder="심사 코멘트를 입력하세요 (선택, Shift+Enter로 줄바꿈)"
+                    style={{ 
+                      width: '100%', 
+                      padding: 14, 
+                      fontSize: 18, 
+                      borderRadius: 8, 
+                      border: '1px solid #E5DAF5', 
+                      marginTop: 6, 
+                      minHeight: 120,
+                      maxHeight: 300,
+                      resize: 'none',
+                      overflow: 'hidden',
+                      lineHeight: '1.4',
+                      fontFamily: 'inherit'
+                    }}
+                    disabled={!hasEvaluatableTargets}
+                    onInput={(e) => {
+                      const target = e.target as HTMLTextAreaElement;
+                      target.style.height = 'auto';
+                      target.style.height = Math.min(Math.max(target.scrollHeight, 120), 300) + 'px';
+                    }}
+                  />
                 </div>
-              )}
-              <div style={{ color: '#B497D6', fontSize: 13, marginTop: 8, textAlign: 'center' }}>* 실제 평가/참가/제출 로직은 추후 구현</div>
-            </form>
-          ) : contest.type === '경연' ? (
-            <>
-              <div style={{ color: '#8A55CC', fontWeight: 700, fontSize: 20, marginBottom: 24, textAlign: 'center' }}>경연 참가자/팀 평가</div>
-              {/* 듀엣 팀 */}
-              {teams.length > 0 && (
-                <div style={{ marginBottom: 32, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <div style={{ fontWeight: 600, color: '#7C4DBC', marginBottom: 8, textAlign: 'center' }}>듀엣 팀</div>
-                  {teams.map(team => {
-                    const isMyTeam = user && Array.isArray(team.members) && team.members.includes(user.uid);
-                    // 본인 닉네임이 팀원에 포함되어 있는지도 확인
-                    const isMyTeamByNickname = user && Array.isArray(team.members) && team.members.some((uid: string) => {
-                      const p = uniqueParticipants.find(pp => pp.uid === uid);
-                      return p && p.nickname && user.nickname && p.nickname.toLowerCase().trim() === user.nickname.toLowerCase().trim();
-                    });
-                    const isMine = isMyTeam || isMyTeamByNickname;
-                    const alreadyGraded = gradedTargets.includes(team.id);
-                    return (
-                      <div key={team.id} style={{ 
-                        background: 'linear-gradient(135deg, #F6F2FF 0%, #F0F4FF 100%)', 
-                        borderRadius: 16, 
-                        padding: '20px', 
-                        marginBottom: 16, 
-                        display: 'flex', 
-                        flexDirection: 'column', 
-                        gap: 12, 
-                        width: '100%',
-                        boxShadow: '0 4px 16px rgba(138, 85, 204, 0.1)',
-                        border: '1px solid rgba(138, 85, 204, 0.1)'
-                      }}>
-                        <div style={{ fontWeight: 700, color: '#8A55CC', textAlign: 'center', fontSize: 18 }}>팀명: {team.teamName}</div>
-                        <div style={{ color: '#6B7280', fontSize: 15, textAlign: 'center', fontWeight: 500 }}>팀원: {Array.isArray(team.members) ? team.members.map((uid: string) => {
-                          // 먼저 uniqueParticipants에서 찾기
+                <div style={{ display: 'flex', gap: 16, justifyContent: 'center', width: '100%', flexDirection: 'row' }}>
+                  <button type="submit" style={{ background: '#8A55CC', color: '#fff', borderRadius: 8, padding: '10px 24px', fontWeight: 600, fontSize: 16, border: 'none', cursor: 'pointer' }} disabled={!hasEvaluatableTargets}>제출</button>
+                  <button type="button" style={{ background: '#F43F5E', color: '#fff', borderRadius: 8, padding: '10px 24px', fontWeight: 600, fontSize: 16, border: 'none', cursor: 'pointer' }} onClick={handleComplete}>완료</button>
+                </div>
+                <div style={{ color: '#F43F5E', fontWeight: 600, marginTop: 8, textAlign: 'center' }}>본인 평가 불가, 제출 후 수정 불가</div>
+                {isParticipant && (
+                  <div style={{ marginTop: 16, padding: 16, background: '#FEF2F2', borderRadius: 8, border: '1px solid #FECACA' }}>
+                    <div style={{ color: '#DC2626', fontWeight: 600, marginBottom: 4, textAlign: 'center' }}>📢 참가자 안내</div>
+                    <div style={{ color: '#7F1D1D', fontSize: 14, textAlign: 'center' }}>
+                      본인({user?.nickname})은 이 콘테스트의 참가자로 등록되어 있어 자기 평가는 불가능합니다.
+                    </div>
+                  </div>
+                )}
+                {gradedTargets.length > 0 && (
+                  <div style={{ marginTop: 16, padding: 16, background: '#F0F9FF', borderRadius: 8, border: '1px solid #BAE6FD' }}>
+                    <div style={{ color: '#0369A1', fontWeight: 600, marginBottom: 8, textAlign: 'center' }}>이미 평가를 완료한 대상</div>
+                    <div style={{ color: '#0F172A', fontSize: 14, textAlign: 'center' }}>
+                      {gradedTargets.join(', ')}
+                    </div>
+                  </div>
+                )}
+                <div style={{ color: '#B497D6', fontSize: 13, marginTop: 8, textAlign: 'center' }}>* 실제 평가/참가/제출 로직은 추후 구현</div>
+              </form>
+            ) : contest.type === '경연' ? (
+              <>
+                <div style={{ color: '#8A55CC', fontWeight: 700, fontSize: 20, marginBottom: 24, textAlign: 'center' }}>경연 참가자/팀 평가</div>
+                {/* 듀엣 팀 */}
+                {teams.length > 0 && (
+                  <div style={{ marginBottom: 32, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div style={{ fontWeight: 600, color: '#7C4DBC', marginBottom: 8, textAlign: 'center' }}>듀엣 팀</div>
+                    {teams
+                      .sort((a, b) => {
+                        // createdAt 기준으로 정렬 (오래된 순)
+                        const aTime = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+                        const bTime = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+                        return aTime - bTime;
+                      })
+                      .map(team => {
+                        const isMyTeam = user && Array.isArray(team.members) && team.members.includes(user.uid);
+                        // 본인 닉네임이 팀원에 포함되어 있는지도 확인
+                        const isMyTeamByNickname = user && Array.isArray(team.members) && team.members.some((uid: string) => {
                           const p = uniqueParticipants.find(pp => pp.uid === uid);
-                          if (p && p.nickname) {
-                            return p.nickname;
-                          }
-                          
-                          // uniqueParticipants에서 찾지 못하면 전체 participants에서 찾기
-                          const allP = participants.find(pp => pp.uid === uid);
-                          if (allP && allP.nickname) {
-                            return allP.nickname;
-                          }
-                          
-                          // 그래도 찾지 못하면 uid에서 닉네임 추출 시도
-                          if (uid.startsWith('custom_')) {
-                            const parts = uid.split('_');
-                            if (parts.length >= 2) {
-                              return parts[1]; // custom_닉네임_timestamp_random에서 닉네임 부분
-                            }
-                          }
-                          
-                          // 최후의 수단으로 uid 표시 (하지만 더 읽기 쉽게)
-                          return `참가자_${uid.slice(-4)}`;
-                        }).join(', ') : ''}</div>
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
-                          {isMine ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                              <span style={{ color: '#F43F5E', fontWeight: 600, fontSize: 16 }}>본인이 속한 팀은 평가할 수 없습니다.</span>
-                              <span style={{ color: '#9CA3AF', fontSize: 14 }}>자기 평가는 금지되어 있습니다.</span>
+                          return p && p.nickname && user.nickname && p.nickname.toLowerCase().trim() === user.nickname.toLowerCase().trim();
+                        });
+                        const isMine = isMyTeam || isMyTeamByNickname;
+                        const alreadyGraded = gradedTargets.includes(team.id);
+                        return (
+                          <div key={team.id} style={{ 
+                            background: 'linear-gradient(135deg, #F6F2FF 0%, #F0F4FF 100%)', 
+                            borderRadius: 16, 
+                            padding: '20px', 
+                            marginBottom: 16, 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            gap: 12, 
+                            width: '100%',
+                            boxShadow: '0 4px 16px rgba(138, 85, 204, 0.1)',
+                            border: '1px solid rgba(138, 85, 204, 0.1)'
+                          }}>
+                            <div style={{ fontWeight: 700, color: '#8A55CC', textAlign: 'center', fontSize: 18 }}>팀명: {team.teamName}</div>
+                            <div style={{ color: '#6B7280', fontSize: 15, textAlign: 'center', fontWeight: 500 }}>팀원: {Array.isArray(team.members) ? team.members.map((uid: string) => {
+                              // 먼저 uniqueParticipants에서 찾기
+                              const p = uniqueParticipants.find(pp => pp.uid === uid);
+                              if (p && p.nickname) {
+                                return p.nickname;
+                              }
+                              
+                              // uniqueParticipants에서 찾지 못하면 전체 participants에서 찾기
+                              const allP = participants.find(pp => pp.uid === uid);
+                              if (allP && allP.nickname) {
+                                return allP.nickname;
+                              }
+                              
+                              // 그래도 찾지 못하면 uid에서 닉네임 추출 시도
+                              if (uid.startsWith('custom_')) {
+                                const parts = uid.split('_');
+                                if (parts.length >= 2) {
+                                  return parts[1]; // custom_닉네임_timestamp_random에서 닉네임 부분
+                                }
+                              }
+                              
+                              // 최후의 수단으로 uid 표시 (하지만 더 읽기 쉽게)
+                              return `참가자_${uid.slice(-4)}`;
+                            }).join(', ') : ''}</div>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
+                              {isMine ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                                  <span style={{ color: '#F43F5E', fontWeight: 600, fontSize: 16 }}>본인이 속한 팀은 평가할 수 없습니다.</span>
+                                  <span style={{ color: '#9CA3AF', fontSize: 14 }}>자기 평가는 금지되어 있습니다.</span>
+                                </div>
+                              ) : alreadyGraded ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                                  <button
+                                    style={{
+                                      background: '#BDBDBD',
+                                      color: '#fff',
+                                      borderRadius: 8,
+                                      padding: '10px 24px',
+                                      fontWeight: 600,
+                                      fontSize: 16,
+                                      border: 'none',
+                                      cursor: 'not-allowed',
+                                      transition: 'background 0.2s',
+                                    }}
+                                    disabled
+                                  >
+                                    제출완료
+                                  </button>
+                                  <div style={{ color: '#10B981', fontWeight: 600, fontSize: 14, textAlign: 'center' }}>
+                                    이미 평가를 완료하셨습니다.
+                                  </div>
+                                </div>
+                              ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
+                                  <div>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={100}
+                                      placeholder="0~100 사이의 점수 입력"
+                                      value={gradeInputs[team.id]?.score || ''}
+                                      onChange={e => setGradeInputs(inputs => ({ ...inputs, [team.id]: { ...inputs[team.id], score: e.target.value } }))}
+                                      disabled={grading[team.id]}
+                                      style={{ 
+                                        width: '100%', 
+                                        padding: '12px 16px', 
+                                        borderRadius: 8, 
+                                        border: '1px solid #E5DAF5', 
+                                        fontSize: 16,
+                                        boxSizing: 'border-box',
+                                        background: '#FAFAFA'
+                                      }}
+                                    />
+                                    {gradeInputs[team.id]?.score && !isNaN(Number(gradeInputs[team.id]?.score)) && Number(gradeInputs[team.id]?.score) >= 1 && Number(gradeInputs[team.id]?.score) <= 100 && (
+                                      <div style={{ marginTop: 6, color: '#8A55CC', fontWeight: 600, fontSize: 14, textAlign: 'center' }}>
+                                        추천등급: {getGradeFromScore(Number(gradeInputs[team.id]?.score))}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <input
+                                    type="text"
+                                    placeholder="코멘트(선택)"
+                                    value={gradeInputs[team.id]?.comment || ''}
+                                    onChange={e => setGradeInputs(inputs => ({ ...inputs, [team.id]: { ...inputs[team.id], comment: e.target.value } }))}
+                                    disabled={grading[team.id]}
+                                    style={{ 
+                                      width: '100%', 
+                                      padding: '12px 16px', 
+                                      borderRadius: 8, 
+                                      border: '1px solid #E5DAF5',
+                                      fontSize: 16,
+                                      boxSizing: 'border-box',
+                                      background: '#FAFAFA'
+                                    }}
+                                  />
+                                  <button
+                                    style={{
+                                      background: '#8A55CC',
+                                      color: '#fff',
+                                      borderRadius: 12,
+                                      padding: '14px 24px',
+                                      fontWeight: 600,
+                                      fontSize: 16,
+                                      border: 'none',
+                                      cursor: grading[team.id] ? 'not-allowed' : 'pointer',
+                                      transition: 'all 0.2s',
+                                      boxShadow: '0 4px 12px rgba(138, 85, 204, 0.3)',
+                                      width: '100%'
+                                    }}
+                                    onClick={() => handleSubmitGrade(team.id)}
+                                    disabled={grading[team.id]}
+                                  >
+                                    제출
+                                  </button>
+                                </div>
+                              )}
                             </div>
-                          ) : alreadyGraded ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                              <button
-                                style={{
-                                  background: '#BDBDBD',
-                                  color: '#fff',
-                                  borderRadius: 8,
-                                  padding: '10px 24px',
-                                  fontWeight: 600,
-                                  fontSize: 16,
-                                  border: 'none',
-                                  cursor: 'not-allowed',
-                                  transition: 'background 0.2s',
-                                }}
-                                disabled
-                              >
-                                제출완료
-                              </button>
-                              <div style={{ color: '#10B981', fontWeight: 600, fontSize: 14, textAlign: 'center' }}>
-                                이미 평가를 완료하셨습니다.
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+                {/* 솔로 참가자 */}
+                <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div style={{ fontWeight: 600, color: '#7C4DBC', marginBottom: 8, textAlign: 'center' }}>솔로 참가자</div>
+                  {uniqueParticipants
+                    .filter(p => !teams.some(t => Array.isArray(t.members) && t.members.includes(p.uid)))
+                    .sort((a, b) => {
+                      // joinedAt 기준으로 정렬 (오래된 순)
+                      const aTime = a.joinedAt?.toDate ? a.joinedAt.toDate().getTime() : 0;
+                      const bTime = b.joinedAt?.toDate ? b.joinedAt.toDate().getTime() : 0;
+                      return aTime - bTime;
+                    })
+                    .map(p => {
+                      const isMe = user && p.uid === user.uid;
+                      // 닉네임 기반으로도 본인인지 확인
+                      const isMeByNickname = user && p.nickname && user.nickname && p.nickname.toLowerCase().trim() === user.nickname.toLowerCase().trim();
+                      const isMine = isMe || isMeByNickname;
+                      const alreadyGraded = gradedTargets.includes(p.uid);
+                      return (
+                        <div
+                          key={p.uid}
+                          style={{
+                            background: alreadyGraded 
+                              ? 'linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%)' 
+                              : 'linear-gradient(135deg, #F6F2FF 0%, #F0F4FF 100%)',
+                            borderRadius: 16,
+                            padding: '20px',
+                            marginBottom: 16,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 12,
+                            width: '100%',
+                            filter: alreadyGraded ? 'grayscale(1) opacity(0.7)' : 'none',
+                            border: alreadyGraded ? '2px dashed #B497D6' : '1px solid rgba(138, 85, 204, 0.1)',
+                            boxShadow: '0 4px 16px rgba(138, 85, 204, 0.1)',
+                            position: 'relative',
+                          }}
+                        >
+                          <div style={{ fontWeight: 700, color: '#8A55CC', textAlign: 'center', fontSize: 18, textDecoration: alreadyGraded ? 'line-through' : 'none' }}>{p.nickname}</div>
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
+                            {isMine ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                                <span style={{ color: '#F43F5E', fontWeight: 600, fontSize: 16 }}>본인은 평가할 수 없습니다.</span>
+                                <span style={{ color: '#9CA3AF', fontSize: 14 }}>자기 평가는 금지되어 있습니다.</span>
                               </div>
-                            </div>
-                          ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
-                              <div>
+                            ) : alreadyGraded ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                                <button
+                                  style={{
+                                    background: '#BDBDBD',
+                                    color: '#fff',
+                                    borderRadius: 8,
+                                    padding: '10px 24px',
+                                    fontWeight: 600,
+                                    fontSize: 16,
+                                    border: 'none',
+                                    cursor: 'not-allowed',
+                                    transition: 'background 0.2s',
+                                  }}
+                                  disabled
+                                >
+                                  제출완료
+                                </button>
+                                <div style={{ color: '#10B981', fontWeight: 600, fontSize: 14, textAlign: 'center' }}>
+                                  이미 평가를 완료하셨습니다.
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
+                                <div>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    placeholder="0~100 사이의 점수 입력"
+                                    value={gradeInputs[p.uid]?.score || ''}
+                                    onChange={e => setGradeInputs(inputs => ({ ...inputs, [p.uid]: { ...inputs[p.uid], score: e.target.value } }))}
+                                    disabled={grading[p.uid]}
+                                    style={{ 
+                                      width: '100%', 
+                                      padding: '12px 16px', 
+                                      borderRadius: 8, 
+                                      border: '1px solid #E5DAF5', 
+                                      fontSize: 16,
+                                      boxSizing: 'border-box',
+                                      background: '#FAFAFA'
+                                    }}
+                                  />
+                                  {gradeInputs[p.uid]?.score && !isNaN(Number(gradeInputs[p.uid]?.score)) && Number(gradeInputs[p.uid]?.score) >= 1 && Number(gradeInputs[p.uid]?.score) <= 100 && (
+                                    <div style={{ marginTop: 6, color: '#8A55CC', fontWeight: 600, fontSize: 14, textAlign: 'center' }}>
+                                      추천등급: {getGradeFromScore(Number(gradeInputs[p.uid]?.score))}
+                                    </div>
+                                  )}
+                                </div>
                                 <input
-                                  type="number"
-                                  min={0}
-                                  max={100}
-                                  placeholder="0~100 사이의 점수 입력"
-                                  value={gradeInputs[team.id]?.score || ''}
-                                  onChange={e => setGradeInputs(inputs => ({ ...inputs, [team.id]: { ...inputs[team.id], score: e.target.value } }))}
-                                  disabled={grading[team.id]}
+                                  type="text"
+                                  placeholder="코멘트(선택)"
+                                  value={gradeInputs[p.uid]?.comment || ''}
+                                  onChange={e => setGradeInputs(inputs => ({ ...inputs, [p.uid]: { ...inputs[p.uid], comment: e.target.value } }))}
+                                  disabled={grading[p.uid]}
                                   style={{ 
                                     width: '100%', 
                                     padding: '12px 16px', 
                                     borderRadius: 8, 
-                                    border: '1px solid #E5DAF5', 
+                                    border: '1px solid #E5DAF5',
                                     fontSize: 16,
                                     boxSizing: 'border-box',
                                     background: '#FAFAFA'
                                   }}
                                 />
-                                {gradeInputs[team.id]?.score && !isNaN(Number(gradeInputs[team.id]?.score)) && Number(gradeInputs[team.id]?.score) >= 1 && Number(gradeInputs[team.id]?.score) <= 100 && (
-                                  <div style={{ marginTop: 6, color: '#8A55CC', fontWeight: 600, fontSize: 14, textAlign: 'center' }}>
-                                    추천등급: {getGradeFromScore(Number(gradeInputs[team.id]?.score))}
-                                  </div>
-                                )}
+                                <button
+                                  style={{
+                                    background: '#8A55CC',
+                                    color: '#fff',
+                                    borderRadius: 12,
+                                    padding: '14px 24px',
+                                    fontWeight: 600,
+                                    fontSize: 16,
+                                    border: 'none',
+                                    cursor: grading[p.uid] ? 'not-allowed' : 'pointer',
+                                    transition: 'all 0.2s',
+                                    boxShadow: '0 4px 12px rgba(138, 85, 204, 0.3)',
+                                    width: '100%'
+                                  }}
+                                  onClick={() => handleSubmitGrade(p.uid)}
+                                  disabled={grading[p.uid]}
+                                >
+                                  제출
+                                </button>
                               </div>
-                              <input
-                                type="text"
-                                placeholder="코멘트(선택)"
-                                value={gradeInputs[team.id]?.comment || ''}
-                                onChange={e => setGradeInputs(inputs => ({ ...inputs, [team.id]: { ...inputs[team.id], comment: e.target.value } }))}
-                                disabled={grading[team.id]}
-                                style={{ 
-                                  width: '100%', 
-                                  padding: '12px 16px', 
-                                  borderRadius: 8, 
-                                  border: '1px solid #E5DAF5',
-                                  fontSize: 16,
-                                  boxSizing: 'border-box',
-                                  background: '#FAFAFA'
-                                }}
-                              />
-                              <button
-                                style={{
-                                  background: '#8A55CC',
-                                  color: '#fff',
-                                  borderRadius: 12,
-                                  padding: '14px 24px',
-                                  fontWeight: 600,
-                                  fontSize: 16,
-                                  border: 'none',
-                                  cursor: grading[team.id] ? 'not-allowed' : 'pointer',
-                                  transition: 'all 0.2s',
-                                  boxShadow: '0 4px 12px rgba(138, 85, 204, 0.3)',
-                                  width: '100%'
-                                }}
-                                onClick={() => handleSubmitGrade(team.id)}
-                                disabled={grading[team.id]}
-                              >
-                                제출
-                              </button>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </div>
+                      );
+                    })}
+                </div>
+                {/* 평가 전체 제출완료 안내문구 */}
+                {(() => {
+                  // 평가가 남아있는 팀/참가자가 있는지 확인
+                  const ungradedTeams = teams.filter(team => !gradedTargets.includes(team.id));
+                  const ungradedSolo = uniqueParticipants.filter(p => !teams.some(t => Array.isArray(t.members) && t.members.includes(p.uid)) && !gradedTargets.includes(p.uid));
+                  if (ungradedTeams.length > 0 || ungradedSolo.length > 0) {
+                    return (
+                      <div style={{
+                        color: '#F59E42',
+                        background: 'rgba(251, 191, 36, 0.15)',
+                        border: '1px solid #FBBF24',
+                        borderRadius: 12,
+                        padding: '12px 0',
+                        marginBottom: 16,
+                        textAlign: 'center',
+                        fontWeight: 600,
+                        fontSize: 16
+                      }}>
+                        아직 모든 인원에 대해 평가가 완료되지 않았습니다.<br />
+                        제출 시 미평가 인원은 평가 없이 넘어갑니다.
                       </div>
                     );
-                  })}
-                </div>
-              )}
-              {/* 솔로 참가자 */}
-              <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ fontWeight: 600, color: '#7C4DBC', marginBottom: 8, textAlign: 'center' }}>솔로 참가자</div>
-                {uniqueParticipants.filter(p => !teams.some(t => Array.isArray(t.members) && t.members.includes(p.uid))).map(p => {
-                  const isMe = user && p.uid === user.uid;
-                  // 닉네임 기반으로도 본인인지 확인
-                  const isMeByNickname = user && p.nickname && user.nickname && p.nickname.toLowerCase().trim() === user.nickname.toLowerCase().trim();
-                  const isMine = isMe || isMeByNickname;
-                  const alreadyGraded = gradedTargets.includes(p.uid);
-                  return (
-                    <div
-                      key={p.uid}
-                      style={{
-                        background: alreadyGraded 
-                          ? 'linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%)' 
-                          : 'linear-gradient(135deg, #F6F2FF 0%, #F0F4FF 100%)',
-                        borderRadius: 16,
-                        padding: '20px',
-                        marginBottom: 16,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 12,
-                        width: '100%',
-                        filter: alreadyGraded ? 'grayscale(1) opacity(0.7)' : 'none',
-                        border: alreadyGraded ? '2px dashed #B497D6' : '1px solid rgba(138, 85, 204, 0.1)',
-                        boxShadow: '0 4px 16px rgba(138, 85, 204, 0.1)',
-                        position: 'relative',
-                      }}
-                    >
-                      <div style={{ fontWeight: 700, color: '#8A55CC', textAlign: 'center', fontSize: 18, textDecoration: alreadyGraded ? 'line-through' : 'none' }}>{p.nickname}</div>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
-                        {isMine ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                            <span style={{ color: '#F43F5E', fontWeight: 600, fontSize: 16 }}>본인은 평가할 수 없습니다.</span>
-                            <span style={{ color: '#9CA3AF', fontSize: 14 }}>자기 평가는 금지되어 있습니다.</span>
-                          </div>
-                        ) : alreadyGraded ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                            <button
-                              style={{
-                                background: '#BDBDBD',
-                                color: '#fff',
-                                borderRadius: 8,
-                                padding: '10px 24px',
-                                fontWeight: 600,
-                                fontSize: 16,
-                                border: 'none',
-                                cursor: 'not-allowed',
-                                transition: 'background 0.2s',
-                              }}
-                              disabled
-                            >
-                              제출완료
-                            </button>
-                            <div style={{ color: '#10B981', fontWeight: 600, fontSize: 14, textAlign: 'center' }}>
-                              이미 평가를 완료하셨습니다.
-                            </div>
-                          </div>
-                        ) : (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
-                            <div>
-                              <input
-                                type="number"
-                                min={0}
-                                max={100}
-                                placeholder="0~100 사이의 점수 입력"
-                                value={gradeInputs[p.uid]?.score || ''}
-                                onChange={e => setGradeInputs(inputs => ({ ...inputs, [p.uid]: { ...inputs[p.uid], score: e.target.value } }))}
-                                disabled={grading[p.uid]}
-                                style={{ 
-                                  width: '100%', 
-                                  padding: '12px 16px', 
-                                  borderRadius: 8, 
-                                  border: '1px solid #E5DAF5', 
-                                  fontSize: 16,
-                                  boxSizing: 'border-box',
-                                  background: '#FAFAFA'
-                                }}
-                              />
-                              {gradeInputs[p.uid]?.score && !isNaN(Number(gradeInputs[p.uid]?.score)) && Number(gradeInputs[p.uid]?.score) >= 1 && Number(gradeInputs[p.uid]?.score) <= 100 && (
-                                <div style={{ marginTop: 6, color: '#8A55CC', fontWeight: 600, fontSize: 14, textAlign: 'center' }}>
-                                  추천등급: {getGradeFromScore(Number(gradeInputs[p.uid]?.score))}
-                                </div>
-                              )}
-                            </div>
-                            <input
-                              type="text"
-                              placeholder="코멘트(선택)"
-                              value={gradeInputs[p.uid]?.comment || ''}
-                              onChange={e => setGradeInputs(inputs => ({ ...inputs, [p.uid]: { ...inputs[p.uid], comment: e.target.value } }))}
-                              disabled={grading[p.uid]}
-                              style={{ 
-                                width: '100%', 
-                                padding: '12px 16px', 
-                                borderRadius: 8, 
-                                border: '1px solid #E5DAF5',
-                                fontSize: 16,
-                                boxSizing: 'border-box',
-                                background: '#FAFAFA'
-                              }}
-                            />
-                            <button
-                              style={{
-                                background: '#8A55CC',
-                                color: '#fff',
-                                borderRadius: 12,
-                                padding: '14px 24px',
-                                fontWeight: 600,
-                                fontSize: 16,
-                                border: 'none',
-                                cursor: grading[p.uid] ? 'not-allowed' : 'pointer',
-                                transition: 'all 0.2s',
-                                boxShadow: '0 4px 12px rgba(138, 85, 204, 0.3)',
-                                width: '100%'
-                              }}
-                              onClick={() => handleSubmitGrade(p.uid)}
-                              disabled={grading[p.uid]}
-                            >
-                              제출
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              {/* 평가 전체 제출완료 버튼 */}
-              <button
-                style={{
-                  marginTop: 32,
-                  background: 'linear-gradient(135deg, #8A55CC 0%, #7C4DBC 100%)',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 16,
-                  padding: '18px 24px',
-                  fontWeight: 700,
-                  fontSize: 18,
-                  cursor: 'pointer',
-                  width: '100%',
-                  boxShadow: '0 8px 24px rgba(138, 85, 204, 0.3)',
-                  transition: 'all 0.3s ease',
-                }}
-                onClick={handleAllSubmit}
-                disabled={showSubmitMsg}
-              >
-                🎯 제출완료
-              </button>
-              {showSubmitMsg && (
-                <div style={{ color: '#10B981', fontWeight: 700, fontSize: 20, margin: '32px 0', textAlign: 'center' }}>
-                  제출이 완료되었습니다.
-                </div>
-              )}
-            </>
-          ) : null
+                  }
+                  return null;
+                })()}
+                {/* 평가 전체 제출완료 버튼 */}
+                <button
+                  style={{
+                    marginTop: 32,
+                    background: 'linear-gradient(135deg, #8A55CC 0%, #7C4DBC 100%)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 16,
+                    padding: '18px 24px',
+                    fontWeight: 700,
+                    fontSize: 18,
+                    cursor: 'pointer',
+                    width: '100%',
+                    boxShadow: '0 8px 24px rgba(138, 85, 204, 0.3)',
+                    transition: 'all 0.3s ease',
+                  }}
+                  onClick={handleAllSubmit}
+                  disabled={showSubmitMsg}
+                >
+                  🎯 제출완료
+                </button>
+                {showSubmitMsg && (
+                  <div style={{ color: '#10B981', fontWeight: 700, fontSize: 20, margin: '32px 0', textAlign: 'center' }}>
+                    제출이 완료되었습니다.
+                  </div>
+                )}
+              </>
+            ) : null
           )}
         </div>
       </div>

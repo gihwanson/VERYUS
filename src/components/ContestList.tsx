@@ -52,35 +52,33 @@ const ContestList: React.FC = () => {
 
   const handleParticipate = async (contest: any) => {
     if (!user) return navigate('/login');
-    
+
+    // 리더는 개최 전에도 입장 허용
+    const isLeader = user.role === '리더';
+
     // 콘테스트가 종료되었는지 확인
     if (isContestEnded(contest)) {
       alert('이미 종료된 콘테스트입니다.');
       return;
     }
-    
-    // 해당 콘테스트의 참가자 목록을 확인
+
     try {
       const participantsSnap = await getDocs(collection(db, 'contests', contest.id, 'participants'));
       const participants = participantsSnap.docs.map(doc => doc.data());
-      
-      // 현재 로그인한 사용자의 닉네임이 참가자 목록에 있는지 확인
-      const isParticipant = participants.some(p => 
-        p.nickname && user.nickname && 
+
+      const isParticipant = participants.some(p =>
+        p.nickname && user.nickname &&
         p.nickname.toLowerCase().trim() === user.nickname.toLowerCase().trim()
       );
-      
+
       if (isParticipant) {
-        // 참가자 목록에 있으면 개최 상태 확인
-        if (contest.isStarted) {
-          // 개최된 경우 참여 페이지로 이동
+        // 개최 전이라도 리더는 입장 허용
+        if (contest.isStarted || isLeader) {
           navigate(`/contests/${contest.id}/participate`);
         } else {
-          // 아직 개최되지 않은 경우
           alert('콘테스트가 아직 개최되지 않았습니다. 리더가 개최할 때까지 기다려주세요.');
         }
       } else {
-        // 참가자 목록에 없으면 안내문구 표시
         alert('현재는 직접 참가가 불가능합니다. 운영진에게 문의해 주세요.');
       }
     } catch (error) {

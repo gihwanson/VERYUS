@@ -22,6 +22,7 @@ const ContestDetail: React.FC = () => {
   const [newParticipantNickname, setNewParticipantNickname] = useState('');
   const [addingParticipant, setAddingParticipant] = useState(false);
   const [isStarted, setIsStarted] = useState(false);
+  const [submittedUids, setSubmittedUids] = useState<string[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -58,6 +59,12 @@ const ContestDetail: React.FC = () => {
     // 팀 목록 실시간 구독
     const unsubTeams = onSnapshot(collection(db, 'contests', id, 'teams'), snap => {
       setTeams(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    // 참가자별 제출완료 여부 확인 (grades 컬렉션에서 evaluator == 참가자 닉네임)
+    getDocs(collection(db, 'contests', id, 'grades')).then(snap => {
+      // evaluator(닉네임) 기준으로 제출완료자 목록 추출
+      const evaluators = snap.docs.map(doc => doc.data().evaluator);
+      setSubmittedUids(Array.from(new Set(evaluators)));
     });
     return () => { unsub(); unsubTeams(); };
   }, [id]);
@@ -473,107 +480,164 @@ const ContestDetail: React.FC = () => {
         {/* 팀 관리 모달 */}
         {showTeamModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.5)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowTeamModal(false)}>
-          <div style={{ background: '#fff', borderRadius: 16, padding: 24, minWidth: 340, minHeight: 200, position: 'relative' }} onClick={e => e.stopPropagation()}>
+          <div style={{ 
+            background: '#fff', 
+            borderRadius: 16, 
+            padding: 24, 
+            minWidth: 400, 
+            maxWidth: '90vw',
+            maxHeight: '80vh',
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column'
+          }} onClick={e => e.stopPropagation()}>
             <button onClick={() => setShowTeamModal(false)} style={{ position: 'absolute', top: 10, right: 10, background: 'none', border: 'none', fontSize: 22, color: '#8A55CC', cursor: 'pointer' }}>×</button>
             <h3 style={{ color: '#8A55CC', fontWeight: 700, fontSize: 20, marginBottom: 16 }}>참가자/팀 관리 (경연)</h3>
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ fontWeight: 600, color: '#7C4DBC', marginBottom: 8 }}>듀엣 팀 목록</div>
-              {teams.length === 0 && <div style={{ color: '#B497D6', marginBottom: 12 }}>아직 듀엣 팀이 없습니다.</div>}
-              <div style={{ maxHeight: 200, overflowY: 'auto', marginBottom: 12 }}>
-                {teams.map(team => {
-                  const canEditTeamName = user && (team.members.includes(user.uid) || isAdmin);
-                  return (
-                    <div key={team.id} style={{ background: '#F6F2FF', borderRadius: 8, padding: '8px 16px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <span style={{ fontWeight: 600, color: '#8A55CC', minWidth: 60 }}>
-                        팀명: {editingTeamId === team.id ? (
-                          <>
-                            <input
-                              value={editingTeamName}
-                              onChange={e => setEditingTeamName(e.target.value)}
-                              style={{ width: 90, padding: '2px 6px', borderRadius: 6, border: '1px solid #E5DAF5', marginRight: 4 }}
-                            />
-                            <button style={{ background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 6, padding: '2px 8px', fontWeight: 600, marginRight: 2, cursor: 'pointer' }} onClick={() => handleSaveTeamName(team)}>저장</button>
-                            <button style={{ background: '#E5E7EB', color: '#8A55CC', border: 'none', borderRadius: 6, padding: '2px 8px', fontWeight: 600, cursor: 'pointer' }} onClick={() => setEditingTeamId(null)}>취소</button>
-                          </>
-                        ) : (
-                          <>
-                            {team.teamName}
-                            {canEditTeamName && (
-                              <button style={{ background: 'none', color: '#8A55CC', border: 'none', marginLeft: 6, cursor: 'pointer', fontWeight: 600 }} onClick={() => handleEditTeamName(team)}>수정</button>
-                            )}
-                          </>
-                        )}
-                      </span>
-                      <span style={{ color: '#6B7280' }}>팀원: {Array.isArray(team.members) ? team.members.map((uid: string) => {
-                        // 먼저 전체 participants에서 찾기
+            
+            <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontWeight: 600, color: '#7C4DBC', marginBottom: 8 }}>듀엣 팀 목록</div>
+                {teams.length === 0 && <div style={{ color: '#B497D6', marginBottom: 12 }}>아직 듀엣 팀이 없습니다.</div>}
+                <div style={{ maxHeight: 150, overflowY: 'auto', marginBottom: 12 }}>
+                  {teams
+                    .sort((a, b) => {
+                      // createdAt 기준으로 정렬 (오래된 순)
+                      const aTime = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+                      const bTime = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+                      return aTime - bTime;
+                    })
+                    .map(team => {
+                      const canEditTeamName = user && (team.members.includes(user.uid) || isAdmin);
+                      // 팀원 중 한 명이라도 제출완료했는지 확인
+                      const teamSubmitted = Array.isArray(team.members) && team.members.some((uid: string) => {
                         const p = participants.find(pp => pp.uid === uid);
-                        if (p && p.nickname) {
-                          return p.nickname;
-                        }
-                        
-                        // 그래도 찾지 못하면 uid에서 닉네임 추출 시도
-                        if (uid.startsWith('custom_')) {
-                          const parts = uid.split('_');
-                          if (parts.length >= 2) {
-                            return parts[1]; // custom_닉네임_timestamp_random에서 닉네임 부분
-                          }
-                        }
-                        
-                        // 최후의 수단으로 uid 표시 (하지만 더 읽기 쉽게)
-                        return `참가자_${uid.slice(-4)}`;
-                      }).join(', ') : ''}</span>
-                      <button style={{ marginLeft: 8, background: '#F43F5E', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontWeight: 600, cursor: 'pointer' }} onClick={() => handleBreakDuet(team.id)}>솔로로 전환</button>
-                    </div>
-                  );
-                })}
+                        return p && submittedUids.includes(p.nickname);
+                      });
+                      return (
+                        <div key={team.id} style={{ background: '#F6F2FF', borderRadius: 8, padding: '8px 16px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12, position: 'relative' }}>
+                          {teamSubmitted && (
+                            <div style={{ position: 'absolute', top: -18, left: 0, color: '#10B981', fontWeight: 700, fontSize: 13, background: '#E0F7EF', borderRadius: 6, padding: '2px 8px', zIndex: 2 }}>
+                              제출완료
+                            </div>
+                          )}
+                          <span style={{ fontWeight: 600, color: '#8A55CC', minWidth: 60 }}>
+                            팀명: {editingTeamId === team.id ? (
+                              <>
+                                <input
+                                  value={editingTeamName}
+                                  onChange={e => setEditingTeamName(e.target.value)}
+                                  style={{ width: 90, padding: '2px 6px', borderRadius: 6, border: '1px solid #E5DAF5', marginRight: 4 }}
+                                />
+                                <button style={{ background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 6, padding: '2px 8px', fontWeight: 600, marginRight: 2, cursor: 'pointer' }} onClick={() => handleSaveTeamName(team)}>저장</button>
+                                <button style={{ background: '#E5E7EB', color: '#8A55CC', border: 'none', borderRadius: 6, padding: '2px 8px', fontWeight: 600, cursor: 'pointer' }} onClick={() => setEditingTeamId(null)}>취소</button>
+                              </>
+                            ) : (
+                              <>
+                                {team.teamName}
+                                {canEditTeamName && (
+                                  <button style={{ background: 'none', color: '#8A55CC', border: 'none', marginLeft: 6, cursor: 'pointer', fontWeight: 600 }} onClick={() => handleEditTeamName(team)}>수정</button>
+                                )}
+                              </>
+                            )}
+                          </span>
+                          <span style={{ color: '#6B7280' }}>팀원: {Array.isArray(team.members) ? team.members.map((uid: string) => {
+                            const p = participants.find(pp => pp.uid === uid);
+                            if (p && p.nickname) {
+                              return p.nickname;
+                            }
+                            if (uid.startsWith('custom_')) {
+                              const parts = uid.split('_');
+                              if (parts.length >= 2) {
+                                return parts[1];
+                              }
+                            }
+                            return `참가자_${uid.slice(-4)}`;
+                          }).join(', ') : ''}</span>
+                          <button style={{ marginLeft: 8, background: '#F43F5E', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontWeight: 600, cursor: 'pointer' }} onClick={() => handleBreakDuet(team.id)}>솔로로 전환</button>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+              
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <div style={{ fontWeight: 600, color: '#7C4DBC', marginBottom: 8 }}>솔로 참가자</div>
+                {isAdmin && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <input
+                      type="text"
+                      value={newParticipantNickname}
+                      onChange={e => setNewParticipantNickname(e.target.value)}
+                      placeholder="닉네임 입력"
+                      style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #E5DAF5', fontSize: 15 }}
+                    />
+                    <button
+                      style={{ background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 16px', fontWeight: 600, fontSize: 15, cursor: addingParticipant ? 'not-allowed' : 'pointer' }}
+                      onClick={handleAddParticipant}
+                      disabled={addingParticipant || !newParticipantNickname.trim()}
+                    >
+                      추가
+                    </button>
+                  </div>
+                )}
+                {participants.filter(p => !teams.some(t => Array.isArray(t.members) && t.members.includes(p.uid))).length === 0 && <div style={{ color: '#B497D6' }}>솔로 참가자가 없습니다.</div>}
+                <div style={{ flex: 1, maxHeight: 200, overflowY: 'auto', marginBottom: 12 }}>
+                  {participants
+                    .filter(p => !teams.some(t => Array.isArray(t.members) && t.members.includes(p.uid)))
+                    .sort((a, b) => {
+                      // joinedAt 기준으로 정렬 (오래된 순)
+                      const aTime = a.joinedAt?.toDate ? a.joinedAt.toDate().getTime() : 0;
+                      const bTime = b.joinedAt?.toDate ? b.joinedAt.toDate().getTime() : 0;
+                      return aTime - bTime;
+                    })
+                    .map(p => {
+                      const isSubmitted = submittedUids.includes(p.nickname);
+                      return (
+                        <div key={p.uid} style={{ background: '#F9FAFB', borderRadius: 8, padding: '8px 16px', marginBottom: 8, color: '#8A55CC', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, position: 'relative' }}>
+                          {isSubmitted && (
+                            <div style={{ position: 'absolute', top: -18, left: 0, color: '#10B981', fontWeight: 700, fontSize: 13, background: '#E0F7EF', borderRadius: 6, padding: '2px 8px', zIndex: 2 }}>
+                              제출완료
+                            </div>
+                          )}
+                          <input
+                            type="checkbox"
+                            checked={selectedSolo.includes(p.uid)}
+                            onChange={e => {
+                              if (e.target.checked) {
+                                setSelectedSolo(prev => prev.length < 2 ? [...prev, p.uid] : prev);
+                              } else {
+                                setSelectedSolo(prev => prev.filter(uid => uid !== p.uid));
+                              }
+                            }}
+                            disabled={selectedSolo.length === 2 && !selectedSolo.includes(p.uid)}
+                            style={{ marginRight: 8 }}
+                          />
+                          {p.nickname}
+                          {isAdmin && (
+                            <button style={{ marginLeft: 8, background: '#F43F5E', color: '#fff', border: 'none', borderRadius: 8, padding: '2px 10px', fontWeight: 600, cursor: 'pointer', fontSize: 14 }} onClick={() => handleDeleteParticipant(p.uid)}>삭제</button>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
               </div>
             </div>
-            <div>
-              <div style={{ fontWeight: 600, color: '#7C4DBC', marginBottom: 8 }}>솔로 참가자</div>
-              {isAdmin && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                  <input
-                    type="text"
-                    value={newParticipantNickname}
-                    onChange={e => setNewParticipantNickname(e.target.value)}
-                    placeholder="닉네임 입력"
-                    style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #E5DAF5', fontSize: 15 }}
-                  />
-                  <button
-                    style={{ background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 16px', fontWeight: 600, fontSize: 15, cursor: addingParticipant ? 'not-allowed' : 'pointer' }}
-                    onClick={handleAddParticipant}
-                    disabled={addingParticipant || !newParticipantNickname.trim()}
-                  >
-                    추가
-                  </button>
-                </div>
-              )}
-              {participants.filter(p => !teams.some(t => Array.isArray(t.members) && t.members.includes(p.uid))).length === 0 && <div style={{ color: '#B497D6' }}>솔로 참가자가 없습니다.</div>}
-              <div style={{ maxHeight: 320, overflowY: 'auto', marginBottom: 8 }}>
-                {participants.filter(p => !teams.some(t => Array.isArray(t.members) && t.members.includes(p.uid))).map(p => (
-                  <div key={p.uid} style={{ background: '#F9FAFB', borderRadius: 8, padding: '8px 16px', marginBottom: 8, color: '#8A55CC', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <input
-                      type="checkbox"
-                      checked={selectedSolo.includes(p.uid)}
-                      onChange={e => {
-                        if (e.target.checked) {
-                          setSelectedSolo(prev => prev.length < 2 ? [...prev, p.uid] : prev);
-                        } else {
-                          setSelectedSolo(prev => prev.filter(uid => uid !== p.uid));
-                        }
-                      }}
-                      disabled={selectedSolo.length === 2 && !selectedSolo.includes(p.uid)}
-                      style={{ marginRight: 8 }}
-                    />
-                    {p.nickname}
-                    {isAdmin && (
-                      <button style={{ marginLeft: 8, background: '#F43F5E', color: '#fff', border: 'none', borderRadius: 8, padding: '2px 10px', fontWeight: 600, cursor: 'pointer', fontSize: 14 }} onClick={() => handleDeleteParticipant(p.uid)}>삭제</button>
-                    )}
-                  </div>
-                ))}
-              </div>
+            
+            {/* 듀엣으로 묶기 버튼을 항상 하단에 고정 */}
+            <div style={{ borderTop: '1px solid #E5DAF5', paddingTop: 12, marginTop: 12 }}>
               <button
-                style={{ marginTop: 8, background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 0', fontWeight: 600, fontSize: 15, cursor: selectedSolo.length === 2 ? 'pointer' : 'not-allowed', width: '100%' }}
+                style={{ 
+                  background: '#8A55CC', 
+                  color: '#fff', 
+                  border: 'none', 
+                  borderRadius: 8, 
+                  padding: '10px 0', 
+                  fontWeight: 600, 
+                  fontSize: 15, 
+                  cursor: selectedSolo.length === 2 ? 'pointer' : 'not-allowed', 
+                  width: '100%',
+                  opacity: selectedSolo.length === 2 ? 1 : 0.6
+                }}
                 onClick={handleMakeDuet}
                 disabled={selectedSolo.length !== 2}
               >
