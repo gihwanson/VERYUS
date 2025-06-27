@@ -10,7 +10,7 @@
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
   padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
-  display: none; /* 기본적으로 숨김 */
+  display: block; /* PC 버전에서도 표시되도록 변경 */
   transition: transform 0.3s ease, opacity 0.3s ease;
 }
 

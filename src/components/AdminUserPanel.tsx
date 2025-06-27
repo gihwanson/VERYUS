@@ -109,6 +109,14 @@ const AdminUserPanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'users' | 'activity' | 'grades'>('users');
   const [isMigrating, setIsMigrating] = useState(false);
   const [migrationStatus, setMigrationStatus] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // 등급 옵션 (이모지로 표시)
   const gradeOptions = [
@@ -1094,68 +1102,128 @@ const AdminUserPanel: React.FC = () => {
                     <h2>등급 관리</h2>
                     <p>멤버들의 활동 기간과 현재 등급을 확인하고 관리할 수 있습니다.</p>
                   </div>
-                  
                   <div className="grades-list">
-                    <div className="grades-table-container">
-                      <table className="grades-table">
-                        <thead>
-                          <tr>
-                            <th>닉네임</th>
-                            <th>현재 등급</th>
-                            <th>입장일</th>
-                            <th>활동 기간</th>
-                            <th>예상 등급</th>
-                            <th>관리</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredUsers.map(user => {
-                            const activityDays = calculateActivityDays(user.createdAt);
-                            const expectedGrade = getExpectedGrade(user);
-                            const canPromoteUser = canPromote(user);
-                            
-                            return (
-                              <tr key={user.uid}>
-                                <td>
-                                  <div className="user-cell">
-                                    <div className="profile-avatar small">
-                                      {user.profileImageUrl ? (
-                                        <img src={user.profileImageUrl} alt="프로필" />
-                                      ) : (
-                                        <User size={16} />
-                                      )}
-                                    </div>
-                                    {user.nickname}
-                                  </div>
-                                </td>
-                                <td>
-                                  <span className="grade-badge">
-                                    {user.grade} {gradeNames[user.grade]}
-                                  </span>
-                                </td>
-                                <td>{formatDate(user.createdAt)}</td>
-                                <td>{activityDays}일</td>
-                                <td>
-                                  <span className="grade-badge expected">
-                                    {expectedGrade !== '-' ? `${expectedGrade} ${gradeNames[expectedGrade]}` : '-'}
-                                  </span>
-                                </td>
-                                <td>
-                                  {canPromoteUser && (
-                                    <button
-                                      className="promote-button"
-                                      onClick={() => handleGradePromotion(user)}
-                                    >
-                                      승급
-                                    </button>
+                    {isMobile ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {filteredUsers.map(user => {
+                          const activityDays = calculateActivityDays(user.createdAt);
+                          const expectedGrade = getExpectedGrade(user);
+                          const canPromoteUser = canPromote(user);
+                          const currentGradeIndex = GRADE_ORDER.indexOf(user.grade);
+                          const nextGradeIndex = currentGradeIndex + 1;
+                          const nextGradeDay = (nextGradeIndex) * 90;
+                          const daysToPromote = nextGradeDay - activityDays;
+                          return (
+                            <div key={user.uid} style={{
+                              background: '#fff',
+                              border: '1px solid #E5DAF5',
+                              borderRadius: 14,
+                              padding: 14,
+                              marginBottom: 8,
+                              boxShadow: '0 2px 8px #E5DAF533',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 8
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                                <div className="profile-avatar small">
+                                  {user.profileImageUrl ? (
+                                    <img src={user.profileImageUrl} alt="프로필" />
+                                  ) : (
+                                    <User size={18} />
                                   )}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
+                                </div>
+                                <span style={{ fontWeight: 700, color: '#1F2937', fontSize: 15 }}>{user.nickname}</span>
+                                <span className="grade-badge" style={{ fontSize: 15, fontWeight: 600, marginLeft: 6 }}>{user.grade} {gradeNames[user.grade]}</span>
+                              </div>
+                              <div style={{ borderTop: '1px solid #F3F4F6', margin: '4px 0 6px 0' }} />
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, fontSize: 13, color: '#374151' }}>
+                                <span><b>입장일</b> {formatDate(user.createdAt)}</span>
+                                <span><b>활동</b> {activityDays}일</span>
+                                <span><b>예상</b> {expectedGrade !== '-' ? `${expectedGrade} ${gradeNames[expectedGrade]}` : '-'}</span>
+                                {canPromoteUser ? (
+                                  <button
+                                    className="promote-button"
+                                    style={{ marginLeft: 'auto', fontSize: 13, padding: '3px 12px', background: '#8A55CC', color: '#fff', borderRadius: 8, border: 'none', fontWeight: 700 }}
+                                    onClick={() => handleGradePromotion(user)}
+                                  >
+                                    승급
+                                  </button>
+                                ) : (
+                                  <span className="status-badge" style={{ marginLeft: 'auto' }}>승급까지 {daysToPromote > 0 ? `${daysToPromote}일` : '0일'}</span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="grades-table-container">
+                        <table className="grades-table">
+                          <thead>
+                            <tr>
+                              <th>닉네임</th>
+                              <th>현재 등급</th>
+                              <th>입장일</th>
+                              <th>활동 기간</th>
+                              <th>예상 등급</th>
+                              <th>승급</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredUsers.map(user => {
+                              const activityDays = calculateActivityDays(user.createdAt);
+                              const expectedGrade = getExpectedGrade(user);
+                              const canPromoteUser = canPromote(user);
+                              const currentGradeIndex = GRADE_ORDER.indexOf(user.grade);
+                              const nextGradeIndex = currentGradeIndex + 1;
+                              const nextGradeDay = (nextGradeIndex) * 90;
+                              const daysToPromote = nextGradeDay - activityDays;
+                              return (
+                                <tr key={user.uid}>
+                                  <td>
+                                    <div className="user-cell">
+                                      <div className="profile-avatar small">
+                                        {user.profileImageUrl ? (
+                                          <img src={user.profileImageUrl} alt="프로필" />
+                                        ) : (
+                                          <User size={16} />
+                                        )}
+                                      </div>
+                                      {user.nickname}
+                                    </div>
+                                  </td>
+                                  <td>
+                                    <span className="grade-badge">
+                                      {user.grade} {gradeNames[user.grade]}
+                                    </span>
+                                  </td>
+                                  <td>{formatDate(user.createdAt)}</td>
+                                  <td>{activityDays}일</td>
+                                  <td>
+                                    <span className="grade-badge expected">
+                                      {expectedGrade !== '-' ? `${expectedGrade} ${gradeNames[expectedGrade]}` : '-'}
+                                    </span>
+                                  </td>
+                                  <td>
+                                    {canPromoteUser ? (
+                                      <button
+                                        className="promote-button"
+                                        onClick={() => handleGradePromotion(user)}
+                                      >
+                                        승급
+                                      </button>
+                                    ) : (
+                                      <span className="status-badge">승급까지 {daysToPromote > 0 ? `${daysToPromote}일` : '0일'}</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1719,68 +1787,128 @@ const AdminUserPanel: React.FC = () => {
                   <h2>등급 관리</h2>
                   <p>멤버들의 활동 기간과 현재 등급을 확인하고 관리할 수 있습니다.</p>
                 </div>
-                
                 <div className="grades-list">
-                  <div className="grades-table-container">
-                    <table className="grades-table">
-                      <thead>
-                        <tr>
-                          <th>닉네임</th>
-                          <th>현재 등급</th>
-                          <th>입장일</th>
-                          <th>활동 기간</th>
-                          <th>예상 등급</th>
-                          <th>관리</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredUsers.map(user => {
-                          const activityDays = calculateActivityDays(user.createdAt);
-                          const expectedGrade = getExpectedGrade(user);
-                          const canPromoteUser = canPromote(user);
-                          
-                          return (
-                            <tr key={user.uid}>
-                              <td>
-                                <div className="user-cell">
-                                  <div className="profile-avatar small">
-                                    {user.profileImageUrl ? (
-                                      <img src={user.profileImageUrl} alt="프로필" />
-                                    ) : (
-                                      <User size={16} />
-                                    )}
-                                  </div>
-                                  {user.nickname}
-                                </div>
-                              </td>
-                              <td>
-                                <span className="grade-badge">
-                                  {user.grade} {gradeNames[user.grade]}
-                                </span>
-                              </td>
-                              <td>{formatDate(user.createdAt)}</td>
-                              <td>{activityDays}일</td>
-                              <td>
-                                <span className="grade-badge expected">
-                                  {expectedGrade !== '-' ? `${expectedGrade} ${gradeNames[expectedGrade]}` : '-'}
-                                </span>
-                              </td>
-                              <td>
-                                {canPromoteUser && (
-                                  <button
-                                    className="promote-button"
-                                    onClick={() => handleGradePromotion(user)}
-                                  >
-                                    승급
-                                  </button>
+                  {isMobile ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {filteredUsers.map(user => {
+                        const activityDays = calculateActivityDays(user.createdAt);
+                        const expectedGrade = getExpectedGrade(user);
+                        const canPromoteUser = canPromote(user);
+                        const currentGradeIndex = GRADE_ORDER.indexOf(user.grade);
+                        const nextGradeIndex = currentGradeIndex + 1;
+                        const nextGradeDay = (nextGradeIndex) * 90;
+                        const daysToPromote = nextGradeDay - activityDays;
+                        return (
+                          <div key={user.uid} style={{
+                            background: '#fff',
+                            border: '1px solid #E5DAF5',
+                            borderRadius: 14,
+                            padding: 14,
+                            marginBottom: 8,
+                            boxShadow: '0 2px 8px #E5DAF533',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 8
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                              <div className="profile-avatar small">
+                                {user.profileImageUrl ? (
+                                  <img src={user.profileImageUrl} alt="프로필" />
+                                ) : (
+                                  <User size={18} />
                                 )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                              </div>
+                              <span style={{ fontWeight: 700, color: '#1F2937', fontSize: 15 }}>{user.nickname}</span>
+                              <span className="grade-badge" style={{ fontSize: 15, fontWeight: 600, marginLeft: 6 }}>{user.grade} {gradeNames[user.grade]}</span>
+                            </div>
+                            <div style={{ borderTop: '1px solid #F3F4F6', margin: '4px 0 6px 0' }} />
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, fontSize: 13, color: '#374151' }}>
+                              <span><b>입장일</b> {formatDate(user.createdAt)}</span>
+                              <span><b>활동</b> {activityDays}일</span>
+                              <span><b>예상</b> {expectedGrade !== '-' ? `${expectedGrade} ${gradeNames[expectedGrade]}` : '-'}</span>
+                              {canPromoteUser ? (
+                                <button
+                                  className="promote-button"
+                                  style={{ marginLeft: 'auto', fontSize: 13, padding: '3px 12px', background: '#8A55CC', color: '#fff', borderRadius: 8, border: 'none', fontWeight: 700 }}
+                                  onClick={() => handleGradePromotion(user)}
+                                >
+                                  승급
+                                </button>
+                              ) : (
+                                <span className="status-badge" style={{ marginLeft: 'auto' }}>승급까지 {daysToPromote > 0 ? `${daysToPromote}일` : '0일'}</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="grades-table-container">
+                      <table className="grades-table">
+                        <thead>
+                          <tr>
+                            <th>닉네임</th>
+                            <th>현재 등급</th>
+                            <th>입장일</th>
+                            <th>활동 기간</th>
+                            <th>예상 등급</th>
+                            <th>승급</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredUsers.map(user => {
+                            const activityDays = calculateActivityDays(user.createdAt);
+                            const expectedGrade = getExpectedGrade(user);
+                            const canPromoteUser = canPromote(user);
+                            const currentGradeIndex = GRADE_ORDER.indexOf(user.grade);
+                            const nextGradeIndex = currentGradeIndex + 1;
+                            const nextGradeDay = (nextGradeIndex) * 90;
+                            const daysToPromote = nextGradeDay - activityDays;
+                            return (
+                              <tr key={user.uid}>
+                                <td>
+                                  <div className="user-cell">
+                                    <div className="profile-avatar small">
+                                      {user.profileImageUrl ? (
+                                        <img src={user.profileImageUrl} alt="프로필" />
+                                      ) : (
+                                        <User size={16} />
+                                      )}
+                                    </div>
+                                    {user.nickname}
+                                  </div>
+                                </td>
+                                <td>
+                                  <span className="grade-badge">
+                                    {user.grade} {gradeNames[user.grade]}
+                                  </span>
+                                </td>
+                                <td>{formatDate(user.createdAt)}</td>
+                                <td>{activityDays}일</td>
+                                <td>
+                                  <span className="grade-badge expected">
+                                    {expectedGrade !== '-' ? `${expectedGrade} ${gradeNames[expectedGrade]}` : '-'}
+                                  </span>
+                                </td>
+                                <td>
+                                  {canPromoteUser ? (
+                                    <button
+                                      className="promote-button"
+                                      onClick={() => handleGradePromotion(user)}
+                                    >
+                                      승급
+                                    </button>
+                                  ) : (
+                                    <span className="status-badge">승급까지 {daysToPromote > 0 ? `${daysToPromote}일` : '0일'}</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

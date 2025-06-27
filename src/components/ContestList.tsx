@@ -11,6 +11,7 @@ interface Contest {
   deadline: any;
   createdBy: string;
   ended?: boolean;
+  isStarted: boolean;
 }
 
 const ContestList: React.FC = () => {
@@ -19,6 +20,27 @@ const ContestList: React.FC = () => {
   const userString = localStorage.getItem('veryus_user');
   const user = userString ? JSON.parse(userString) : null;
   const isAdmin = user && ['리더', '운영진', '부운영진'].includes(user.role);
+
+  // 마감일을 확인하여 종료 상태 계산
+  const isContestEnded = (contest: any) => {
+    // 이미 수동으로 종료된 경우
+    if (contest.ended) return true;
+    
+    // 마감일이 지났는지 확인
+    if (contest.deadline && contest.deadline.seconds) {
+      const deadlineDate = new Date(contest.deadline.seconds * 1000);
+      const now = new Date();
+      
+      // 날짜만 비교 (시간 제거)
+      const deadlineDateOnly = new Date(deadlineDate.getFullYear(), deadlineDate.getMonth(), deadlineDate.getDate());
+      const nowDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      // 마감일 다음날부터 종료 (마감일 당일까지는 참가 가능)
+      return nowDateOnly > deadlineDateOnly;
+    }
+    
+    return false;
+  };
 
   useEffect(() => {
     const q = query(collection(db, 'contests'), orderBy('deadline', 'desc'));
@@ -30,6 +52,12 @@ const ContestList: React.FC = () => {
 
   const handleParticipate = async (contest: any) => {
     if (!user) return navigate('/login');
+    
+    // 콘테스트가 종료되었는지 확인
+    if (isContestEnded(contest)) {
+      alert('이미 종료된 콘테스트입니다.');
+      return;
+    }
     
     // 해당 콘테스트의 참가자 목록을 확인
     try {
@@ -43,8 +71,14 @@ const ContestList: React.FC = () => {
       );
       
       if (isParticipant) {
-        // 참가자 목록에 있으면 바로 참여 페이지로 이동
-        navigate(`/contests/${contest.id}/participate`);
+        // 참가자 목록에 있으면 개최 상태 확인
+        if (contest.isStarted) {
+          // 개최된 경우 참여 페이지로 이동
+          navigate(`/contests/${contest.id}/participate`);
+        } else {
+          // 아직 개최되지 않은 경우
+          alert('콘테스트가 아직 개최되지 않았습니다. 리더가 개최할 때까지 기다려주세요.');
+        }
       } else {
         // 참가자 목록에 없으면 안내문구 표시
         alert('현재는 직접 참가가 불가능합니다. 운영진에게 문의해 주세요.');
@@ -101,7 +135,7 @@ const ContestList: React.FC = () => {
           border: '1px solid rgba(255, 255, 255, 0.2)',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between'
+          justifyContent: 'center'
         }}>
           <h2 style={{ 
             display: 'flex', 
@@ -115,32 +149,6 @@ const ContestList: React.FC = () => {
           }}>
             🏆 콘테스트
           </h2>
-          <button
-            style={{ 
-              background: 'rgba(255, 255, 255, 0.2)',
-              backdropFilter: 'blur(10px)',
-              color: 'white', 
-              borderRadius: '12px', 
-              padding: '12px 24px', 
-              fontWeight: 600, 
-              fontSize: 16, 
-              border: '1px solid rgba(255, 255, 255, 0.3)', 
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-            }}
-            onClick={() => navigate('/')}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-              e.currentTarget.style.transform = 'translateY(-2px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            🏠 메인보드로
-          </button>
         </div>
 
         {/* 콘테스트 생성 버튼 */}
@@ -207,13 +215,13 @@ const ContestList: React.FC = () => {
                 <div
                   key={contest.id}
                   style={{
-                    background: contest.ended ? 
+                    background: isContestEnded(contest) ? 
                       'rgba(255, 255, 255, 0.08)' : 
                       'rgba(255, 255, 255, 0.15)',
                     backdropFilter: 'blur(10px)',
                     borderRadius: '16px',
                     padding: '20px',
-                    border: contest.ended ? 
+                    border: isContestEnded(contest) ? 
                       '1px solid rgba(255, 255, 255, 0.1)' : 
                       '1px solid rgba(255, 255, 255, 0.2)',
                     display: 'flex',
@@ -221,16 +229,16 @@ const ContestList: React.FC = () => {
                     gap: '16px',
                     flexWrap: 'wrap',
                     transition: 'all 0.3s ease',
-                    opacity: contest.ended ? 0.7 : 1
+                    opacity: isContestEnded(contest) ? 0.7 : 1
                   }}
                   onMouseEnter={(e) => {
-                    if (!contest.ended) {
+                    if (!isContestEnded(contest)) {
                       e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
                       e.currentTarget.style.transform = 'translateY(-2px)';
                     }
                   }}
                   onMouseLeave={(e) => {
-                    if (!contest.ended) {
+                    if (!isContestEnded(contest)) {
                       e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
                       e.currentTarget.style.transform = 'translateY(0)';
                     }
@@ -264,6 +272,34 @@ const ContestList: React.FC = () => {
                       }}>
                         {contest.type}
                       </span>
+                      {contest.isStarted && (
+                        <span style={{
+                          background: 'rgba(34, 197, 94, 0.3)',
+                          backdropFilter: 'blur(5px)',
+                          color: 'white',
+                          padding: '4px 12px',
+                          borderRadius: '20px',
+                          fontSize: '14px',
+                          fontWeight: 600,
+                          border: '1px solid rgba(34, 197, 94, 0.5)'
+                        }}>
+                          ✅ 개최됨
+                        </span>
+                      )}
+                      {!contest.isStarted && !isContestEnded(contest) && (
+                        <span style={{
+                          background: 'rgba(251, 191, 36, 0.3)',
+                          backdropFilter: 'blur(5px)',
+                          color: 'white',
+                          padding: '4px 12px',
+                          borderRadius: '20px',
+                          fontSize: '14px',
+                          fontWeight: 600,
+                          border: '1px solid rgba(251, 191, 36, 0.5)'
+                        }}>
+                          ⏸️ 대기중
+                        </span>
+                      )}
                       <span style={{ 
                         color: 'rgba(255, 255, 255, 0.8)', 
                         fontSize: 14,
@@ -304,7 +340,7 @@ const ContestList: React.FC = () => {
                       📋 상세
                     </button>
                     
-                    {!contest.ended && (
+                    {!isContestEnded(contest) && (
                       <button 
                         style={{ 
                           background: 'rgba(34, 197, 94, 0.8)',
@@ -330,7 +366,7 @@ const ContestList: React.FC = () => {
                       </button>
                     )}
                     
-                    {contest.ended ? (
+                    {isContestEnded(contest) ? (
                       <span style={{ 
                         background: 'rgba(239, 68, 68, 0.8)',
                         backdropFilter: 'blur(10px)',
@@ -382,4 +418,4 @@ const ContestList: React.FC = () => {
   );
 };
 
-export default ContestList; 
+export default ContestList;

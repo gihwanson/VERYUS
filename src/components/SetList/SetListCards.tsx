@@ -35,11 +35,16 @@ const SetListCards: React.FC = () => {
   // 모달 완료 상태 관리
   const [isModalCompleting, setIsModalCompleting] = useState<boolean>(false);
   
-  // 더블 터치 관련 상태
-  const [lastTouchTime, setLastTouchTime] = useState<number>(0);
-  const [lastTouchedSongId, setLastTouchedSongId] = useState<string>('');
+  // 드래그 활성화 상태 관리
+  const [dragEnabled, setDragEnabled] = useState<boolean>(false);
   
-
+  // 컴포넌트 언마운트 시 cleanup
+  useEffect(() => {
+    return () => {
+      console.log('SetListCards 컴포넌트 언마운트 - 드래그 상태 정리');
+      // 드래그 관련 상태 초기화
+    };
+  }, []);
 
   // 타입 가드 함수들
   const isSetListItem = (entry: SetListEntry): entry is SetListItem => {
@@ -554,7 +559,7 @@ const SetListCards: React.FC = () => {
   }, [activeSetList, currentCardIndex, allItems.length]);
 
   // 곡을 셋리스트에 추가
-  const addSongToSetList = useCallback(async (song: Song, insertAtIndex?: number) => {
+  const addSongToSetList = useCallback(async (song: Song) => {
     if (!activeSetList || !isLeader) return;
 
     const isAlreadyAdded = activeSetList.songs.some(s => s.songId === song.id);
@@ -570,22 +575,27 @@ const SetListCards: React.FC = () => {
       order: 0 // 임시값, 아래에서 재설정
     };
 
-    // 드래그앤드롭으로 추가할 때는 항상 마지막에 추가
-    const insertIndex = allItems.length;
-    
-    // 기존 곡들 순서 정렬
-    const sortedSongs = [...activeSetList.songs].sort((a, b) => a.order - b.order);
-    
-    // 새 곡을 삽입하고 순서 재배치
-    const updatedSongs = [
-      ...sortedSongs.slice(0, insertIndex),
-      newSong,
-      ...sortedSongs.slice(insertIndex)
-    ].map((song, index) => ({ ...song, order: index }));
+    // 기존 곡/닉네임카드 모두 합쳐서 마지막에 곡 추가
+    const allCurrentItems = [
+      ...activeSetList.songs.map(s => ({ ...s, type: 'song' as const })),
+      ...((activeSetList.flexibleCards || []).filter(c => c.order >= 0).map(c => ({ ...c, type: 'flexible' as const })))
+    ];
+    allCurrentItems.sort((a, b) => a.order - b.order);
+    const newAllItems = [...allCurrentItems, { ...newSong, type: 'song' as const }];
+
+    // order 재정렬
+    const updatedAllItems = newAllItems.map((item, idx) => ({ ...item, order: idx }));
+    const updatedSongs = updatedAllItems.filter(item => item.type === 'song').map(({ type, ...rest }) => rest as SetListItem);
+    const updatedFlexibleCards = [
+      ...updatedAllItems.filter(item => item.type === 'flexible').map(({ type, ...rest }) => rest as FlexibleCard),
+      // 셋리스트에 추가되지 않은 기존 카드들도 유지
+      ...((activeSetList.flexibleCards || []).filter(c => c.order < 0))
+    ];
 
     try {
       await updateDoc(doc(db, 'setlists', activeSetList.id!), {
         songs: updatedSongs,
+        flexibleCards: updatedFlexibleCards,
         updatedAt: Timestamp.now()
       });
       
@@ -594,38 +604,6 @@ const SetListCards: React.FC = () => {
       console.error('곡 추가 실패:', error);
     }
   }, [activeSetList, isLeader]);
-
-  // 더블 터치 핸들러
-  const handleDoubleTap = useCallback((song: Song) => {
-    const currentTime = Date.now();
-    const timeDiff = currentTime - lastTouchTime;
-    
-    // 500ms 이내에 같은 카드를 터치하면 더블 터치로 인식
-    if (timeDiff < 500 && lastTouchedSongId === song.id) {
-      // 이미 추가된 곡이 아닌 경우에만 추가
-      const isAlreadyAdded = activeSetList?.songs.some(s => s.songId === song.id);
-      
-      if (!isAlreadyAdded && isLeader) {
-        addSongToSetList(song);
-        // 피드백 제공
-        const cardElement = document.querySelector(`[data-song-id="${song.id}"]`) as HTMLElement;
-        if (cardElement) {
-          cardElement.style.transform = 'scale(1.1)';
-          cardElement.style.transition = 'transform 0.2s ease';
-          setTimeout(() => {
-            cardElement.style.transform = 'scale(1)';
-          }, 200);
-        }
-      }
-      // 더블 터치 후 상태 초기화
-      setLastTouchTime(0);
-      setLastTouchedSongId('');
-    } else {
-      // 첫 번째 터치 기록
-      setLastTouchTime(currentTime);
-      setLastTouchedSongId(song.id);
-    }
-  }, [lastTouchTime, lastTouchedSongId, activeSetList, isLeader, addSongToSetList]);
 
   // 유연한 카드를 셋리스트에 추가
   const addFlexibleCardToSetList = useCallback(async (card: FlexibleCard, insertAtIndex?: number) => {
@@ -847,11 +825,8 @@ const SetListCards: React.FC = () => {
                 borderRadius: availableCardDrag ? '16px' : '0',
                 background: availableCardDrag ? 'rgba(138, 85, 204, 0.05)' : 'transparent',
                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                touchAction: 'pan-y'
+                touchAction: 'auto'
               }}
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
               className="main-card-area"
             >
               {/* 드래그 중일 때 드롭 안내 */}
@@ -960,6 +935,7 @@ const SetListCards: React.FC = () => {
                         left: `${offset}%`,
                         width: '100%',
                         height: '100%',
+                        zIndex: isCurrentCard ? 100 : isNextCard ? 50 : 1,
                         transition: (isDragging && isCurrentCard) 
                           ? 'none' 
                           : availableCardDrag 
@@ -974,7 +950,18 @@ const SetListCards: React.FC = () => {
                         onClick={() => {
                           if (item.type === 'flexible' && canEditFlexibleCard(item)) {
                             setEditingFlexibleCard(item);
+                          } else if (isCurrentCard && isLeader) {
+                            setDragEnabled((prev) => !prev);
                           }
+                        }}
+                        onTouchStart={e => {
+                          if (dragEnabled) handleTouchStart(e);
+                        }}
+                        onTouchMove={e => {
+                          if (dragEnabled) handleTouchMove(e);
+                        }}
+                        onTouchEnd={e => {
+                          if (dragEnabled) handleTouchEnd();
                         }}
                         style={{
                           background: isCurrentCard ? 
@@ -1022,9 +1009,36 @@ const SetListCards: React.FC = () => {
                             item.type === 'flexible' ?
                             '2px solid #F59E0B' :
                             '2px solid #E5E7EB',
-                          cursor: item.type === 'flexible' && canEditFlexibleCard(item) ? 'pointer' : 'default',
+                          cursor: item.type === 'flexible' && canEditFlexibleCard(item) ? 'pointer' : 
+                                  isCurrentCard && isLeader ? 'grab' : 'default',
+                          outline: dragEnabled && isCurrentCard && isLeader && item.type !== 'flexible' ? '3px solid #8A55CC' : 'none',
                         }}
                       >
+                        {/* 편집 가능 문구: 닉네임카드 & 편집권한이 있을 때만, 상단 중앙에 1개만 표시 */}
+                        {item.type === 'flexible' && canEditFlexibleCard(item) && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: '18px',
+                              left: '50%',
+                              transform: 'translateX(-50%)',
+                              background: 'rgba(245, 158, 11, 0.9)',
+                              color: '#fff',
+                              padding: '6px 16px',
+                              borderRadius: '20px',
+                              fontSize: '13px',
+                              fontWeight: 700,
+                              zIndex: 10,
+                              border: '2px solid rgba(255, 255, 255, 0.3)',
+                              boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)',
+                              animation: 'pulse 2s ease-in-out infinite',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            ✏️ 편집 가능
+                          </div>
+                        )}
+
                         {/* 반짝반짝 효과를 위한 오버레이 */}
                         {isCurrentCard && (
                           <div
@@ -1431,6 +1445,39 @@ const SetListCards: React.FC = () => {
                             편집
                           </div>
                         )}
+
+                        {/* 카드 상태 애니메이션 외곽선 */}
+                        {isCurrentCard && isLeader && item.type !== 'flexible' && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              width: '100%',
+                              height: '100%',
+                              borderRadius: '16px',
+                              pointerEvents: 'none',
+                              zIndex: 20,
+                              boxSizing: 'border-box',
+                              border: dragEnabled ? '3px solid #8A55CC' : '2px solid #E5E7EB',
+                              animation: dragEnabled ? 'dragGlow 1.2s infinite alternate' : 'none',
+                              boxShadow: dragEnabled ? '0 0 16px 4px #8A55CC, 0 0 32px 8px #10B981' : 'none',
+                              transition: 'border 0.3s, box-shadow 0.3s'
+                            }}
+                          />
+                        )}
+                        <style>{`
+                          @keyframes dragGlow {
+                            0% {
+                              box-shadow: 0 0 16px 4px #8A55CC, 0 0 32px 8px #10B981;
+                              border-color: #8A55CC;
+                            }
+                            100% {
+                              box-shadow: 0 0 32px 8px #10B981, 0 0 16px 4px #8A55CC;
+                              border-color: #10B981;
+                            }
+                          }
+                        `}</style>
                       </div>
                     </div>
                   );
@@ -1635,8 +1682,14 @@ const SetListCards: React.FC = () => {
                         type="number"
                         min="1"
                         max="10"
-                        value={flexibleCardCount}
-                        onChange={(e) => setFlexibleCardCount(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                        defaultValue={flexibleCardCount}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          const numValue = parseInt(value);
+                          if (!isNaN(numValue) && numValue >= 1 && numValue <= 10) {
+                            setFlexibleCardCount(numValue);
+                          }
+                        }}
                         style={{
                           width: '100%',
                           padding: '10px 12px',
@@ -1695,7 +1748,7 @@ const SetListCards: React.FC = () => {
               )}
 
               <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: 14, marginBottom: 20, textAlign: 'center', margin: '0 0 20px 0' }}>
-                💡 카드를 두 번 연속 터치하거나 드래그하여 셋리스트에 추가하세요
+                💡 카드를 클릭하면 셋리스트 끝에 추가되고, 길게 누르면 드래그할 수 있습니다
               </p>
               
               <div style={{ 
@@ -1728,16 +1781,37 @@ const SetListCards: React.FC = () => {
                       <div
                         key={song.id}
                         onTouchStart={(e) => {
-                          // 터치 시작 시 더블터치 처리
-                          const currentTime = Date.now();
-                          const timeDiff = currentTime - lastTouchTime;
+                          // 길게 누르기 타이머 설정 (드래그 시작)
+                          const timer = setTimeout(() => {
+                            if (!isAlreadyAdded && isLeader) {
+                              handleAvailableCardTouchStart(e, song);
+                            }
+                          }, 300); // 300ms 길게 누르면 드래그 시작
                           
-                          if (timeDiff < 500 && lastTouchedSongId === song.id) {
-                            // 더블터치 감지
-                            e.preventDefault();
-                            e.stopPropagation();
+                          // 타이머를 저장하여 나중에 정리할 수 있도록 함
+                          (e.currentTarget as any)._longPressTimer = timer;
+                        }}
+                        onTouchMove={(e) => {
+                          // 길게 누르기 타이머가 있다면 드래그 모드로 전환
+                          const timer = (e.currentTarget as any)._longPressTimer;
+                          if (timer) {
+                            clearTimeout(timer);
+                            (e.currentTarget as any)._longPressTimer = null;
+                            if (!isAlreadyAdded && isLeader) {
+                              handleAvailableCardTouchStart(e, song);
+                            }
+                          }
+                          
+                          handleAvailableCardTouchMove(e);
+                        }}
+                        onTouchEnd={(e) => {
+                          // 길게 누르기 타이머 정리
+                          const timer = (e.currentTarget as any)._longPressTimer;
+                          if (timer) {
+                            clearTimeout(timer);
+                            (e.currentTarget as any)._longPressTimer = null;
                             
-                            const isAlreadyAdded = activeSetList?.songs.some(s => s.songId === song.id);
+                            // 타이머가 정리되었다면 단일 클릭으로 처리
                             if (!isAlreadyAdded && isLeader) {
                               addSongToSetList(song);
                               // 피드백 제공
@@ -1748,23 +1822,52 @@ const SetListCards: React.FC = () => {
                                 cardElement.style.transform = 'scale(1)';
                               }, 200);
                             }
-                            setLastTouchTime(0);
-                            setLastTouchedSongId('');
-                            return;
                           }
                           
-                          // 첫 번째 터치 또는 드래그 시작
-                          setLastTouchTime(currentTime);
-                          setLastTouchedSongId(song.id);
-                          
-                          // 드래그 핸들러도 호출
-                          handleAvailableCardTouchStart(e, song);
+                          handleAvailableCardTouchEnd(e);
                         }}
-                        onTouchMove={handleAvailableCardTouchMove}
-                        onTouchEnd={handleAvailableCardTouchEnd}
-                        onMouseDown={(e) => handleAvailableCardMouseDown(e, song)}
-                        onMouseMove={handleAvailableCardMouseMove}
-                        onMouseUp={handleAvailableCardMouseUp}
+                        onMouseDown={(e) => {
+                          // 마우스에서도 길게 누르기 타이머 설정
+                          const timer = setTimeout(() => {
+                            if (!isAlreadyAdded && isLeader) {
+                              handleAvailableCardMouseDown(e, song);
+                            }
+                          }, 300);
+                          
+                          (e.currentTarget as any)._longPressTimer = timer;
+                        }}
+                        onMouseMove={(e) => {
+                          const timer = (e.currentTarget as any)._longPressTimer;
+                          if (timer) {
+                            clearTimeout(timer);
+                            (e.currentTarget as any)._longPressTimer = null;
+                            if (!isAlreadyAdded && isLeader) {
+                              handleAvailableCardMouseDown(e, song);
+                            }
+                          }
+                          
+                          handleAvailableCardMouseMove(e);
+                        }}
+                        onMouseUp={(e) => {
+                          const timer = (e.currentTarget as any)._longPressTimer;
+                          if (timer) {
+                            clearTimeout(timer);
+                            (e.currentTarget as any)._longPressTimer = null;
+                            
+                            if (!isAlreadyAdded && isLeader) {
+                              addSongToSetList(song);
+                              // 피드백 제공
+                              const cardElement = e.currentTarget;
+                              cardElement.style.transform = 'scale(1.1)';
+                              cardElement.style.transition = 'transform 0.2s ease';
+                              setTimeout(() => {
+                                cardElement.style.transform = 'scale(1)';
+                              }, 200);
+                            }
+                          }
+                          
+                          handleAvailableCardMouseUp(e);
+                        }}
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
@@ -1774,8 +1877,23 @@ const SetListCards: React.FC = () => {
                             return;
                           }
                           
-                          // 더블 터치 핸들러 호출
-                          handleDoubleTap(song);
+                          // 길게 누르기 타이머가 있다면 클릭 이벤트 무시 (이미 처리됨)
+                          const timer = (e.currentTarget as any)._longPressTimer;
+                          if (timer) {
+                            return;
+                          }
+                          
+                          // 단일 클릭으로 셋리스트에 추가
+                          if (!isAlreadyAdded && isLeader) {
+                            addSongToSetList(song);
+                            // 피드백 제공
+                            const cardElement = e.currentTarget;
+                            cardElement.style.transform = 'scale(1.1)';
+                            cardElement.style.transition = 'transform 0.2s ease';
+                            setTimeout(() => {
+                              cardElement.style.transform = 'scale(1)';
+                            }, 200);
+                          }
                         }}
                         data-song-id={song.id}
                         style={{
@@ -1800,7 +1918,7 @@ const SetListCards: React.FC = () => {
                           opacity: isAlreadyAdded ? 0.6 : isDragging ? 0.3 : 1,
                           zIndex: isDragging ? 1000 : 1,
                           pointerEvents: isDragging ? 'none' : 'auto',
-                          touchAction: isDragging ? 'none' : 'auto',
+                          touchAction: 'auto',
                           userSelect: 'none'
                         }}
                       >
@@ -2413,8 +2531,9 @@ const SetListCards: React.FC = () => {
                           ...editingFlexibleCard.slots[emptySlotIndex],
                           songId: song.id,
                           title: song.title,
-                          type: 'chorus', // 기본값으로 합창 설정
-                          members: [editingFlexibleCard.nickname] // 카드 주인만 기본 포함
+                          type: song.members.length === 1 ? 'solo' : 
+                                song.members.length === 2 ? 'duet' : 'chorus',
+                          members: song.members // 곡의 모든 참가자 포함
                         };
                         
                         try {

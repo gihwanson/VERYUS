@@ -515,90 +515,100 @@ const AdminPanel: React.FC = () => {
                 </div>
               ) : (
                 <div className="users-grid">
-                  {filteredUsers.map(user => (
-                    <div key={user.uid} className={`user-card ${editingUser?.uid === user.uid ? 'edit-mode' : ''}`}>
-                      <div className="user-profile">
-                        <div className="profile-avatar">
-                          {user.profileImageUrl ? (
-                            <img src={user.profileImageUrl} alt="프로필" />
-                          ) : (
-                            <User size={24} />
-                          )}
-                        </div>
-                        <div className="user-info">
-                          <div className="user-name">
-                            <span className="nickname-text">{user.nickname}</span>
-                            <span className="user-grade">{user.grade}</span>
+                  {filteredUsers.map(user => {
+                    const activityDays = calculateActivityDays(user.createdAt);
+                    const canPromoteUser = canPromote(user);
+                    const currentGradeIndex = GRADE_OPTIONS.indexOf(user.grade);
+                    const nextGradeIndex = currentGradeIndex + 1;
+                    const nextGradeDay = (nextGradeIndex) * 90;
+                    const daysToPromote = nextGradeDay - activityDays;
+                    return (
+                      <div key={user.uid} className={`user-card ${editingUser?.uid === user.uid ? 'edit-mode' : ''}`}>
+                        <div className="user-profile">
+                          <div className="profile-avatar">
+                            {user.profileImageUrl ? (
+                              <img src={user.profileImageUrl} alt="프로필" />
+                            ) : (
+                              <User size={24} />
+                            )}
                           </div>
-                          <div className="user-role">
-                            <span className={`role-badge ${user.role}`}>
-                              {user.role}
-                            </span>
+                          <div className="user-info">
+                            <div className="user-name">
+                              <span className="nickname-text">{user.nickname}</span>
+                            </div>
+                            <div className="user-grade">
+                              <span style={{ marginLeft: 6, fontSize: '1.2em' }}>{user.grade}</span>
+                            </div>
+                            <div className="user-role">
+                              <span className={`role-badge ${user.role}`}>
+                                {user.role}
+                              </span>
+                            </div>
+                            <div className="user-date">
+                              가입: {formatDate(user.createdAt)} ({calculateActivityDays(user.createdAt)}일)
+                            </div>
                           </div>
-                          <div className="user-date">
-                            가입: {formatDate(user.createdAt)} ({calculateActivityDays(user.createdAt)}일)
+                          <div className="user-actions">
+                            {editingUser?.uid !== user.uid ? (
+                              <>
+                                <button className="action-btn view-btn" onClick={() => setSelectedUser(user)}>
+                                  <CheckCircle size={14} />
+                                  상세
+                                </button>
+                                <button className="action-btn edit-btn" onClick={() => setEditingUser(user)}>
+                                  <Edit3 size={14} />
+                                  수정
+                                </button>
+                                <button className="action-btn delete-btn" onClick={() => handleDeleteUser(user)}>
+                                  <Trash2 size={14} />
+                                  삭제
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button className="action-btn save-btn" onClick={() => handleUpdateUser(user)}>
+                                  저장
+                                </button>
+                                <button className="action-btn cancel-btn" onClick={() => setEditingUser(null)}>
+                                  취소
+                                </button>
+                              </>
+                            )}
                           </div>
                         </div>
-                        <div className="user-actions">
-                          {editingUser?.uid !== user.uid ? (
-                            <>
-                              <button className="action-btn view-btn" onClick={() => setSelectedUser(user)}>
-                                <CheckCircle size={14} />
-                                상세
-                              </button>
-                              <button className="action-btn edit-btn" onClick={() => setEditingUser(user)}>
-                                <Edit3 size={14} />
-                                수정
-                              </button>
-                              <button className="action-btn delete-btn" onClick={() => handleDeleteUser(user)}>
-                                <Trash2 size={14} />
-                                삭제
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button className="action-btn save-btn" onClick={() => handleUpdateUser(user)}>
-                                저장
-                              </button>
-                              <button className="action-btn cancel-btn" onClick={() => setEditingUser(null)}>
-                                취소
-                              </button>
-                            </>
-                          )}
-                        </div>
+                        
+                        {editingUser?.uid === user.uid && (
+                          <div className="edit-controls">
+                            <input
+                              type="text"
+                              className="edit-input"
+                              value={editingUser.nickname}
+                              onChange={(e) => setEditingUser({...editingUser, nickname: e.target.value})}
+                              placeholder="닉네임"
+                            />
+                            <select
+                              className="edit-select"
+                              value={editingUser.role}
+                              onChange={(e) => setEditingUser({...editingUser, role: e.target.value})}
+                            >
+                              {ROLE_OPTIONS.map(role => (
+                                <option key={role} value={role}>{role}</option>
+                              ))}
+                            </select>
+                            <select
+                              className="edit-select"
+                              value={editingUser.grade}
+                              onChange={(e) => setEditingUser({...editingUser, grade: e.target.value})}
+                            >
+                              {GRADE_OPTIONS.map(grade => (
+                                <option key={grade} value={grade}>{grade} {GRADE_NAMES[grade as keyof typeof GRADE_NAMES]}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
                       </div>
-                      
-                      {editingUser?.uid === user.uid && (
-                        <div className="edit-controls">
-                          <input
-                            type="text"
-                            className="edit-input"
-                            value={editingUser.nickname}
-                            onChange={(e) => setEditingUser({...editingUser, nickname: e.target.value})}
-                            placeholder="닉네임"
-                          />
-                          <select
-                            className="edit-select"
-                            value={editingUser.role}
-                            onChange={(e) => setEditingUser({...editingUser, role: e.target.value})}
-                          >
-                            {ROLE_OPTIONS.map(role => (
-                              <option key={role} value={role}>{role}</option>
-                            ))}
-                          </select>
-                          <select
-                            className="edit-select"
-                            value={editingUser.grade}
-                            onChange={(e) => setEditingUser({...editingUser, grade: e.target.value})}
-                          >
-                            {GRADE_OPTIONS.map(grade => (
-                              <option key={grade} value={grade}>{grade} {GRADE_NAMES[grade as keyof typeof GRADE_NAMES]}</option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -624,19 +634,22 @@ const AdminPanel: React.FC = () => {
                   <thead>
                     <tr>
                       <th>닉네임</th>
-                      <th>현재 등급</th>
                       <th>입장일</th>
                       <th>활동 기간</th>
-                      <th>상태</th>
+                      <th>승급</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredUsers.map(user => {
                       const activityDays = calculateActivityDays(user.createdAt);
-                      
+                      const canPromoteUser = canPromote(user);
+                      const currentGradeIndex = GRADE_OPTIONS.indexOf(user.grade);
+                      const nextGradeIndex = currentGradeIndex + 1;
+                      const nextGradeDay = (nextGradeIndex) * 90;
+                      const daysToPromote = nextGradeDay - activityDays;
                       return (
                         <tr key={user.uid}>
-                          <td>
+                          <td style={{ width: 'auto', maxWidth: 120, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             <div className="user-cell">
                               <div className="profile-avatar small">
                                 {user.profileImageUrl ? (
@@ -645,18 +658,39 @@ const AdminPanel: React.FC = () => {
                                   <User size={16} />
                                 )}
                               </div>
-                              {user.nickname}
+                              <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                {user.nickname}
+                                <span style={{ marginLeft: 2, fontSize: '1em', verticalAlign: 'middle' }}>{user.grade}</span>
+                              </span>
                             </div>
-                          </td>
-                          <td>
-                            <span className="grade-badge">
-                              {user.grade} {GRADE_NAMES[user.grade as keyof typeof GRADE_NAMES]}
-                            </span>
                           </td>
                           <td>{formatDate(user.createdAt)}</td>
                           <td>{activityDays}일</td>
                           <td>
-                            <span className="status-badge active">활동중</span>
+                            {(user.grade === '🌙' || user.grade === '☀️') ? (
+                              <span className="status-badge">최고등급</span>
+                            ) : canPromoteUser ? (
+                              <button
+                                className="promote-button"
+                                onClick={async () => {
+                                  const nextGrade = getNextGrade(user.grade);
+                                  if (!window.confirm(`${user.nickname}님의 등급을 ${GRADE_NAMES[nextGrade as keyof typeof GRADE_NAMES]}로 승급하시겠습니까?`)) return;
+                                  try {
+                                    const userRef = doc(db, 'users', user.uid);
+                                    await updateDoc(userRef, { grade: nextGrade });
+                                    await fetchUsers();
+                                    alert('등급이 성공적으로 변경되었습니다.');
+                                  } catch (error) {
+                                    console.error('등급 변경 중 오류:', error);
+                                    alert('등급 변경 중 오류가 발생했습니다.');
+                                  }
+                                }}
+                              >
+                                승급
+                              </button>
+                            ) : (
+                              <span className="status-badge">승급까지 {daysToPromote > 0 ? `${daysToPromote}일` : '0일'}</span>
+                            )}
                           </td>
                         </tr>
                       );
@@ -691,7 +725,7 @@ const AdminPanel: React.FC = () => {
                 <div className="user-detail-info">
                   <h3>{selectedUser.nickname}</h3>
                   <div className="detail-badges">
-                    <span className="user-grade">{selectedUser.grade} {GRADE_NAMES[selectedUser.grade as keyof typeof GRADE_NAMES]}</span>
+                    <span style={{ marginLeft: 6, fontSize: '1.2em' }}>{selectedUser.grade}</span>
                     <span className={`role-badge ${selectedUser.role}`}>{selectedUser.role}</span>
                   </div>
                 </div>

@@ -138,6 +138,28 @@ const SetListManager: React.FC = () => {
     };
   }, [touchTimer]);
 
+  // 컴포넌트 언마운트 시 전체 cleanup
+  useEffect(() => {
+    return () => {
+      console.log('SetListManager 컴포넌트 언마운트 - 모든 상태 정리');
+      // 드래그 상태 초기화
+      setDraggedItem(null);
+      setDragOverIndex(-1);
+      setTouchStart(null);
+      setTouchDragOffset(0);
+      setTouchedCardId(null);
+      
+      // 타이머 정리
+      if (touchTimer) {
+        clearTimeout(touchTimer);
+      }
+      
+      // body 스타일 복원
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    };
+  }, [touchTimer]);
+
   // 사용자 정보 가져오기
   useEffect(() => {
     fetchUsers();

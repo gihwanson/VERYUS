@@ -219,13 +219,14 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({ unreadNotifica
   useEffect(() => {
     let lastTouchY = 0;
     let touchScrolling = false;
+    let touchStartTime = 0;
+    let lastScrollY = window.scrollY;
 
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
       const scrollThreshold = 50;
-      const isMobile = window.innerWidth <= 768;
       
-      if (isMobile && !isCollapsed && !isDragging) {
+      if (!isCollapsed && !isDragging) {
         if (Math.abs(currentScrollY - lastScrollY) > 3) {
           if (currentScrollY > lastScrollY && currentScrollY > scrollThreshold) {
             // 아래로 스크롤 & 임계값 넘음 - 숨기기
@@ -251,8 +252,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({ unreadNotifica
 
     // wheel 이벤트로 스크롤 방향 감지 (touchmove, 마우스휠 포함)
     const handleWheel = (e: WheelEvent) => {
-      const isMobile = window.innerWidth <= 768;
-      if (isMobile && !isCollapsed && !isDragging) {
+      if (!isCollapsed && !isDragging) {
         if (e.deltaY > 0) {
           setIsHiddenByScroll(true);
           setShowBoardsMenu(false);
@@ -262,32 +262,43 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({ unreadNotifica
       }
     };
 
-    // 모바일 터치 스크롤 방향 감지
+    // 모바일 터치 스크롤 방향 감지 (스크롤 시작/끝만 감지)
     const handleTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 1) {
         lastTouchY = e.touches[0].clientY;
+        touchStartTime = Date.now();
         touchScrolling = true;
       }
     };
+    
     const handleTouchMove = (e: TouchEvent) => {
-      if (!touchScrolling || e.touches.length !== 1) return;
-      const currentY = e.touches[0].clientY;
-      const isMobile = window.innerWidth <= 768;
-      if (isMobile && !isCollapsed && !isDragging) {
-        if (Math.abs(currentY - lastTouchY) > 3) {
-          if (currentY < lastTouchY) {
-            // 아래로 스크롤(손가락 위로) - 숨기기
+      // 터치 스크롤 중에는 네비게이션바 상태 변경을 하지 않음
+      // 실제 스크롤이 방해받지 않도록 함
+    };
+    
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (!touchScrolling) return;
+      
+      const touchEndTime = Date.now();
+      const touchDuration = touchEndTime - touchStartTime;
+      
+      // 짧은 터치 제스처만 감지 (스와이프)
+      if (touchDuration < 300 && e.changedTouches.length === 1) {
+        const currentY = e.changedTouches[0].clientY;
+        const deltaY = currentY - lastTouchY;
+        
+        if (!isCollapsed && !isDragging && Math.abs(deltaY) > 50) {
+          if (deltaY < 0) {
+            // 위로 스와이프 - 숨기기
             setIsHiddenByScroll(true);
             setShowBoardsMenu(false);
-          } else if (currentY > lastTouchY) {
-            // 위로 스크롤(손가락 아래로) - 보이기
+          } else {
+            // 아래로 스와이프 - 보이기
             setIsHiddenByScroll(false);
           }
-          lastTouchY = currentY;
         }
       }
-    };
-    const handleTouchEnd = () => {
+      
       touchScrolling = false;
     };
 

@@ -321,6 +321,60 @@ const ContestParticipate: React.FC = () => {
     );
   }
 
+  // 콘테스트가 개최되지 않은 경우
+  if (!contest.isStarted) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        backgroundAttachment: 'fixed',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.15)',
+          backdropFilter: 'blur(15px)',
+          borderRadius: '20px',
+          padding: '40px',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏸️</div>
+          <div style={{ color: 'white', fontSize: '20px', fontWeight: 600, marginBottom: '12px' }}>콘테스트가 아직 개최되지 않았습니다</div>
+          <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '16px', marginBottom: '24px' }}>
+            리더가 개최할 때까지 기다려주세요.
+          </div>
+          <button
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.2)',
+              backdropFilter: 'blur(10px)',
+              color: 'white', 
+              borderRadius: '12px', 
+              padding: '12px 24px', 
+              fontWeight: 600, 
+              fontSize: 16, 
+              border: '1px solid rgba(255, 255, 255, 0.3)', 
+              cursor: 'pointer',
+              transition: 'all 0.3s ease'
+            }}
+            onClick={() => navigate(`/contests/${id}`)}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            ← 콘테스트 상세로
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{
       minHeight: '100vh',

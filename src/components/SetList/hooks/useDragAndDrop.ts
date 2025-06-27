@@ -160,138 +160,82 @@ export const useDragAndDrop = (
     }
   }, [autoScrollInterval]);
 
-  // 전역 마우스 이벤트 리스너 (드래그 중일 때)
-  useEffect(() => {
-    if (!availableCardDrag) return;
-
-    const handleGlobalMouseMove = (e: MouseEvent) => {
-      setAvailableCardDrag(prev => prev ? {
-        ...prev,
-        x: e.clientX,
-        y: e.clientY
-      } : null);
-      
-      // 삽입 인덱스 업데이트
-      const newInsertIndex = calculateInsertIndex(e.clientX, e.clientY);
-      updateInsertIndex(newInsertIndex);
-      
-      // 자동 스크롤 처리
-      handleAutoScroll(e.clientY);
-    };
-
-    const handleGlobalMouseUp = (e: MouseEvent) => {
-      // 자동 스크롤 정리
-      clearAutoScroll();
-      
-      // 전역 드롭 처리
-      if (availableCardDrag) {
-        const finalInsertIndex = calculateInsertIndex(e.clientX, e.clientY);
-
-        if (finalInsertIndex >= 0) {
-          if (availableCardDrag.type === 'song' && onDropSong && availableSongs) {
-            const draggedSong = availableSongs.find(s => s.id === availableCardDrag.id);
-            if (draggedSong) {
-              onDropSong(draggedSong, finalInsertIndex);
-            }
-          } else if (availableCardDrag.type === 'flexible' && onDropFlexibleCard && availableFlexibleCards) {
-            const draggedCard = availableFlexibleCards.find(c => c.id === availableCardDrag.id);
-            if (draggedCard) {
-              onDropFlexibleCard(draggedCard, finalInsertIndex);
-            }
-          }
-        }
-      }
-      
-      setAvailableCardDrag(null);
-      setInsertIndex(-1);
-    };
-
-    document.addEventListener('mousemove', handleGlobalMouseMove);
-    document.addEventListener('mouseup', handleGlobalMouseUp);
-
-    return () => {
-      document.removeEventListener('mousemove', handleGlobalMouseMove);
-      document.removeEventListener('mouseup', handleGlobalMouseUp);
-    };
-  }, [availableCardDrag, calculateInsertIndex, updateInsertIndex, onDropSong, availableSongs]);
-
   // 드래그 중일 때 전체 페이지 스크롤 방지 및 전역 터치 이벤트
   useEffect(() => {
     if (availableCardDrag) {
       console.log('드래그 시작됨 - 전역 이벤트 리스너 등록');
       
-      // 스크롤 제한을 최소화하여 자동 스크롤 허용
-      
-      // 전역 터치 이벤트 핸들러
-      const handleGlobalTouchMove = (e: TouchEvent) => {
-        // 드래그 중이 아니면 이벤트를 처리하지 않음
-        if (!availableCardDrag) return;
-        
-        const touch = e.touches[0];
-        setAvailableCardDrag(prev => prev ? {
-          ...prev,
-          x: touch.clientX,
-          y: touch.clientY
-        } : null);
-        
-        // 삽입 인덱스 업데이트
-        const newInsertIndex = calculateInsertIndex(touch.clientX, touch.clientY);
-        updateInsertIndex(newInsertIndex);
-        
-        // 자동 스크롤 처리 (디버깅 로그 추가)
-        console.log('터치 Y 위치:', touch.clientY, '화면 높이:', window.innerHeight);
-        handleAutoScroll(touch.clientY);
-        
-        // 드래그 중일 때 자동 스크롤 영역에서는 preventDefault 하지 않음
-        const scrollZone = 80;
-        const isInScrollZone = touch.clientY < scrollZone || touch.clientY > window.innerHeight - scrollZone;
-        
-        if (e.cancelable && !isInScrollZone) {
-          // 스크롤 영역이 아닐 때만 preventDefault
-          e.preventDefault();
-        }
-      };
-
-      const handleGlobalTouchEnd = (e: TouchEvent) => {
-        // 자동 스크롤 정리
-        clearAutoScroll();
-        
-        // 전역 터치 드롭 처리
-        if (availableCardDrag) {
-          const touch = e.changedTouches[0];
-          const finalInsertIndex = calculateInsertIndex(touch.clientX, touch.clientY);
-
-          if (finalInsertIndex >= 0) {
-            if (availableCardDrag.type === 'song' && onDropSong && availableSongs) {
-              const draggedSong = availableSongs.find(s => s.id === availableCardDrag.id);
-              if (draggedSong) {
-                onDropSong(draggedSong, finalInsertIndex);
-              }
-            } else if (availableCardDrag.type === 'flexible' && onDropFlexibleCard && availableFlexibleCards) {
-              const draggedCard = availableFlexibleCards.find(c => c.id === availableCardDrag.id);
-              if (draggedCard) {
-                onDropFlexibleCard(draggedCard, finalInsertIndex);
-              }
-            }
-          }
-        }
-        
-        setAvailableCardDrag(null);
-        setInsertIndex(-1);
-      };
-
-      document.addEventListener('touchmove', handleGlobalTouchMove, { passive: false, capture: true });
-      document.addEventListener('touchend', handleGlobalTouchEnd, { passive: true });
+      // 전역 터치 이벤트 리스너 제거 - React 이벤트만 사용
+      // 전역 리스너가 스크롤을 방해하는 문제 해결
       
       return () => {
         console.log('드래그 종료됨 - 전역 이벤트 리스너 제거');
-        document.removeEventListener('touchmove', handleGlobalTouchMove);
-        document.removeEventListener('touchend', handleGlobalTouchEnd);
         // 자동 스크롤 정리
         clearAutoScroll();
       };
     }
   }, [availableCardDrag, calculateInsertIndex, updateInsertIndex, onDropSong, availableSongs]);
+
+  // 컴포넌트 언마운트 시 cleanup
+  useEffect(() => {
+    return () => {
+      // 컴포넌트가 언마운트될 때 모든 상태 초기화
+      console.log('SetList 컴포넌트 언마운트 - 모든 드래그 상태 정리');
+      setAvailableCardDrag(null);
+      setInsertIndex(-1);
+      setTouchStartPos(null);
+      if (dragStartTimer) {
+        clearTimeout(dragStartTimer);
+        setDragStartTimer(null);
+      }
+      clearAutoScroll();
+      
+      // 전역 이벤트 리스너 강제 제거 (혹시 남아있을 경우)
+      const handleGlobalTouchMove = (e: TouchEvent) => {};
+      const handleGlobalTouchEnd = (e: TouchEvent) => {};
+      document.removeEventListener('touchmove', handleGlobalTouchMove);
+      document.removeEventListener('touchend', handleGlobalTouchEnd);
+    };
+  }, [dragStartTimer]);
+
+  // 강력한 cleanup - 모든 터치 이벤트 리스너 제거
+  useEffect(() => {
+    return () => {
+      console.log('강력한 cleanup 실행 - 모든 터치 이벤트 리스너 제거');
+      
+      // 모든 가능한 터치 이벤트 리스너 제거
+      const removeAllTouchListeners = () => {
+        // 빈 함수로 모든 터치 이벤트 리스너 제거 시도
+        const emptyHandler = () => {};
+        
+        // capture와 non-capture 모두 제거
+        document.removeEventListener('touchstart', emptyHandler, true);
+        document.removeEventListener('touchstart', emptyHandler, false);
+        document.removeEventListener('touchmove', emptyHandler, true);
+        document.removeEventListener('touchmove', emptyHandler, false);
+        document.removeEventListener('touchend', emptyHandler, true);
+        document.removeEventListener('touchend', emptyHandler, false);
+        
+        // window에도 적용
+        window.removeEventListener('touchstart', emptyHandler, true);
+        window.removeEventListener('touchstart', emptyHandler, false);
+        window.removeEventListener('touchmove', emptyHandler, true);
+        window.removeEventListener('touchmove', emptyHandler, false);
+        window.removeEventListener('touchend', emptyHandler, true);
+        window.removeEventListener('touchend', emptyHandler, false);
+      };
+      
+      removeAllTouchListeners();
+      
+      // body 스타일 복원
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+      document.body.style.pointerEvents = '';
+      
+      // 잠시 후 한 번 더 실행 (비동기적으로 남아있을 수 있는 리스너들 제거)
+      setTimeout(removeAllTouchListeners, 100);
+    };
+  }, []);
 
   // 터치 드래그 핸들러들
   const handleAvailableCardTouchStart = (e: React.TouchEvent, song: Song) => {
