@@ -49,7 +49,7 @@ export const useSwipeGestures = (
     
     setDragDistance({ x: deltaX, y: deltaY });
 
-    // 최소 이동 거리 이상이면 드래그 시작
+    // 최소 이동 거리 이상이면 드래그 시작 (모든 사용자에게 적용)
     if (!isDragging && (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10)) {
       setIsDragging(true);
     }
@@ -80,6 +80,7 @@ export const useSwipeGestures = (
       }
     } 
     else {
+      // 일반 사용자나 위아래 드래그가 아닌 경우 완료/삭제 준비 상태 해제
       setIsReadyToComplete(false);
       setIsReadyToDelete(false);
     }
@@ -131,14 +132,12 @@ export const useSwipeGestures = (
   const goToNextCard = () => {
     if (currentCardIndex < totalItemsCount - 1) {
       setCurrentCardIndex(currentCardIndex + 1);
-      console.log(`카드 스와이프: ${currentCardIndex} → ${currentCardIndex + 1} (총 ${totalItemsCount}개)`);
     }
   };
 
   const goToPrevCard = () => {
     if (currentCardIndex > 0) {
       setCurrentCardIndex(currentCardIndex - 1);
-      console.log(`카드 스와이프: ${currentCardIndex} → ${currentCardIndex - 1} (총 ${totalItemsCount}개)`);
     }
   };
 

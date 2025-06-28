@@ -874,249 +874,251 @@ function App() {
   }
 
   return (
-    <AudioPlayerProvider>
-      <Router>
-        <div className="App">
-          <Routes>
-            {/* 로그인 페이지 - 이미 로그인되어 있으면 메인으로 */}
-            <Route 
-              path="/login" 
-              element={user ? <Navigate to="/" replace /> : <Login />} 
-            />
-            
-            {/* 회원가입 페이지 - 이미 로그인되어 있으면 메인으로 */}
-            <Route 
-              path="/signup" 
-              element={user ? <Navigate to="/" replace /> : <Signup />} 
-            />
-            
-            {/* 보호된 라우트들 - 로그인 필요 */}
-            <Route 
-              path="/" 
-              element={
-                <ProtectedRoute>
-                  <Home onSearchOpen={() => setShowSearchSystem(true)} />
-                </ProtectedRoute>
-              } 
-            />
-            
-            {/* 자유게시판 라우트들 */}
-            <Route 
-              path="/free" 
-              element={<FreePostList />}
-            />
-            
-            <Route 
-              path="/free/write" 
-              element={
-                <ProtectedRoute>
-                  <FreePostWrite />
-                </ProtectedRoute>
-              } 
-            />
-            
-            <Route 
-              path="/free/:id" 
-              element={<FreePostDetail />}
-            />
-            
-            <Route 
-              path="/free/edit/:id" 
-              element={
-                <ProtectedRoute>
-                  <FreePostWrite />
-                </ProtectedRoute>
-              }
-            />
-            
-            {/* 관리자 패널 - 리더/운영진만 접근 가능 */}
-            <Route 
-              path="/admin" 
-              element={
-                <AdminRoute>
-                  <AdminPanel />
-                </AdminRoute>
-              } 
-            />
-            
-            {/* 마이페이지 - 로그인한 사용자만 접근 가능 */}
-            <Route 
-              path="/mypage" 
-              element={
-                <ProtectedRoute>
-                  <MyPage />
-                </ProtectedRoute>
-              } 
-            />
-            
-            <Route 
-              path="/mypage/:uid" 
-              element={
-                <ProtectedRoute>
-                  <MyPage />
-                </ProtectedRoute>
-              } 
-            />
-            
-            {/* 설정 페이지 - 로그인한 사용자만 접근 가능 */}
-            <Route 
-              path="/settings" 
-              element={
-                <ProtectedRoute>
-                  <Settings />
-                </ProtectedRoute>
-              } 
-            />
-            
-            {/* 추후 추가할 보호된 라우트들 */}
-            <Route 
-              path="/menu" 
-              element={
-                <ProtectedRoute>
-                  <div style={{ padding: '20px', textAlign: 'center' }}>메뉴 페이지 (추후 구현)</div>
-                </ProtectedRoute>
-              } 
-            />
-            
-            <Route 
-              path="/stores" 
-              element={
-                <ProtectedRoute>
-                  <div style={{ padding: '20px', textAlign: 'center' }}>매장 찾기 페이지 (추후 구현)</div>
-                </ProtectedRoute>
-              } 
-            />
-            
-            <Route 
-              path="/events" 
-              element={
-                <ProtectedRoute>
-                  <div style={{ padding: '20px', textAlign: 'center' }}>이벤트 페이지 (추후 구현)</div>
-                </ProtectedRoute>
-              } 
-            />
-            
-            <Route 
-              path="/reviews" 
-              element={
-                <ProtectedRoute>
-                  <div style={{ padding: '20px', textAlign: 'center' }}>리뷰 페이지 (추후 구현)</div>
-                </ProtectedRoute>
-              } 
-            />
-            
-            {/* 비밀번호 찾기는 로그인이 필요 없음 */}
-            <Route 
-              path="/forgot-password" 
-              element={
-                user ? <Navigate to="/" replace /> : <ForgotPassword />
-              } 
-            />
-            
-            {/* 녹음게시판 라우트들 */}
-            <Route path="/recording" element={<RecordingPostList />} />
-            <Route path="/recording/write" element={<RecordingPostWrite />} />
-            <Route path="/recording/:id" element={<RecordingPostDetail />} />
-            <Route path="/recording/edit/:id" element={<RecordingPostEdit />} />
-            
-            {/* 쪽지함 라우트 */}
-            <Route 
-              path="/messages" 
-              element={
-                <ProtectedRoute>
-                  <Messages />
-                </ProtectedRoute>
-              }
-            />
-            
-            {/* 알림 라우트 */}
-            <Route 
-              path="/notifications" 
-              element={
-                <ProtectedRoute>
-                  <Notifications />
-                </ProtectedRoute>
-              }
-            />
-            
-            {/* 대회 라우트들 */}
-            <Route path="/contests" element={<ProtectedRoute><ContestList /></ProtectedRoute>} />
-            <Route path="/contests/create" element={<ProtectedRoute><ContestCreate /></ProtectedRoute>} />
-            <Route path="/contests/:id" element={<ProtectedRoute><ContestDetail /></ProtectedRoute>} />
-            <Route path="/contests/:id/participate" element={<ProtectedRoute><ContestParticipate /></ProtectedRoute>} />
-            <Route path="/contests/:id/results" element={<ProtectedRoute><ContestResults /></ProtectedRoute>} />
-            
-            {/* 합격곡 관리/조회 페이지 */}
-            <Route path="/approved-songs" element={<ProtectedRoute><ApprovedSongs /></ProtectedRoute>} />
-            
-            {/* 셋리스트 관리 페이지 */}
-            <Route path="/setlist" element={<ProtectedRoute><SetList /></ProtectedRoute>} />
-            
-            {/* 파트너모집 게시판 라우트들 */}
-            <Route path="/boards/partner" element={<PartnerPostList />} />
-            <Route path="/boards/partner/write" element={<PartnerPostWrite />} />
-            <Route path="/boards/partner/:id" element={<PartnerPostDetail />} />
-            <Route path="/boards/partner/edit/:id" element={<PartnerPostWrite />} />
-            
-            {/* 평가게시판 라우트들 */}
-            <Route path="/evaluation" element={<EvaluationPostList />} />
-            <Route path="/evaluation/write" element={<EvaluationPostWrite />} />
-            <Route path="/evaluation/:id" element={<EvaluationPostDetail />} />
-            <Route path="/evaluation/edit/:id" element={<EvaluationPostEdit />} />
-            
-            {/* 연습장 라우트 */}
-            <Route path="/practice-room" element={<PracticeRoom />} />
-            
-            {/* 기타 모든 경로 - 404 대신 로그인으로 리다이렉트 */}
-            <Route 
-              path="*" 
-              element={<Navigate to={user ? "/" : "/login"} replace />} 
-            />
-          </Routes>
-          {/* 모바일 하단 네비게이션 바 */}
-          {user && (
-            <BottomNavigation 
-              unreadNotificationCount={unreadNotificationCount}
-              unreadChatCount={unreadChatCount}
-              onSearchOpen={() => setShowSearchSystem(true)}
-            />
-          )}
-        </div>
-        
-        {/* 통합 검색 시스템 */}
-        <SearchSystem 
-          isOpen={showSearchSystem}
-          onClose={() => setShowSearchSystem(false)}
-          initialQuery=""
-        />
-        
-        {/* 토스트 알림 컨테이너 */}
-        <ToastContainer
-          position="top-right"
-          autoClose={4000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
-          style={{
-            fontSize: '14px',
-            fontFamily: 'Pretendard, sans-serif'
-          }}
-          toastStyle={{
-            borderRadius: '12px',
-            boxShadow: resolvedTheme === 'dark' 
-              ? '0 4px 12px rgba(0, 0, 0, 0.3)' 
-              : '0 4px 12px rgba(138, 85, 204, 0.15)',
-            background: resolvedTheme === 'dark' ? '#2A2A2A' : '#FFFFFF',
-            color: resolvedTheme === 'dark' ? '#FFFFFF' : '#1F2937'
-          }}
-        />
-      </Router>
-    </AudioPlayerProvider>
+    <>
+      <AudioPlayerProvider>
+        <Router>
+          <div className="App">
+            <Routes>
+              {/* 로그인 페이지 - 이미 로그인되어 있으면 메인으로 */}
+              <Route 
+                path="/login" 
+                element={user ? <Navigate to="/" replace /> : <Login />} 
+              />
+              
+              {/* 회원가입 페이지 - 이미 로그인되어 있으면 메인으로 */}
+              <Route 
+                path="/signup" 
+                element={user ? <Navigate to="/" replace /> : <Signup />} 
+              />
+              
+              {/* 보호된 라우트들 - 로그인 필요 */}
+              <Route 
+                path="/" 
+                element={
+                  <ProtectedRoute>
+                    <Home onSearchOpen={() => setShowSearchSystem(true)} />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              {/* 자유게시판 라우트들 */}
+              <Route 
+                path="/free" 
+                element={<FreePostList />}
+              />
+              
+              <Route 
+                path="/free/write" 
+                element={
+                  <ProtectedRoute>
+                    <FreePostWrite />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/free/:id" 
+                element={<FreePostDetail />}
+              />
+              
+              <Route 
+                path="/free/edit/:id" 
+                element={
+                  <ProtectedRoute>
+                    <FreePostWrite />
+                  </ProtectedRoute>
+                }
+              />
+              
+              {/* 관리자 패널 - 리더/운영진만 접근 가능 */}
+              <Route 
+                path="/admin" 
+                element={
+                  <AdminRoute>
+                    <AdminPanel />
+                  </AdminRoute>
+                } 
+              />
+              
+              {/* 마이페이지 - 로그인한 사용자만 접근 가능 */}
+              <Route 
+                path="/mypage" 
+                element={
+                  <ProtectedRoute>
+                    <MyPage />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/mypage/:uid" 
+                element={
+                  <ProtectedRoute>
+                    <MyPage />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              {/* 설정 페이지 - 로그인한 사용자만 접근 가능 */}
+              <Route 
+                path="/settings" 
+                element={
+                  <ProtectedRoute>
+                    <Settings />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              {/* 추후 추가할 보호된 라우트들 */}
+              <Route 
+                path="/menu" 
+                element={
+                  <ProtectedRoute>
+                    <div style={{ padding: '20px', textAlign: 'center' }}>메뉴 페이지 (추후 구현)</div>
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/stores" 
+                element={
+                  <ProtectedRoute>
+                    <div style={{ padding: '20px', textAlign: 'center' }}>매장 찾기 페이지 (추후 구현)</div>
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/events" 
+                element={
+                  <ProtectedRoute>
+                    <div style={{ padding: '20px', textAlign: 'center' }}>이벤트 페이지 (추후 구현)</div>
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/reviews" 
+                element={
+                  <ProtectedRoute>
+                    <div style={{ padding: '20px', textAlign: 'center' }}>리뷰 페이지 (추후 구현)</div>
+                  </ProtectedRoute>
+                } 
+              />
+              
+              {/* 비밀번호 찾기는 로그인이 필요 없음 */}
+              <Route 
+                path="/forgot-password" 
+                element={
+                  user ? <Navigate to="/" replace /> : <ForgotPassword />
+                } 
+              />
+              
+              {/* 녹음게시판 라우트들 */}
+              <Route path="/recording" element={<RecordingPostList />} />
+              <Route path="/recording/write" element={<RecordingPostWrite />} />
+              <Route path="/recording/:id" element={<RecordingPostDetail />} />
+              <Route path="/recording/edit/:id" element={<RecordingPostEdit />} />
+              
+              {/* 쪽지함 라우트 */}
+              <Route 
+                path="/messages" 
+                element={
+                  <ProtectedRoute>
+                    <Messages />
+                  </ProtectedRoute>
+                }
+              />
+              
+              {/* 알림 라우트 */}
+              <Route 
+                path="/notifications" 
+                element={
+                  <ProtectedRoute>
+                    <Notifications />
+                  </ProtectedRoute>
+                }
+              />
+              
+              {/* 대회 라우트들 */}
+              <Route path="/contests" element={<ProtectedRoute><ContestList /></ProtectedRoute>} />
+              <Route path="/contests/create" element={<ProtectedRoute><ContestCreate /></ProtectedRoute>} />
+              <Route path="/contests/:id" element={<ProtectedRoute><ContestDetail /></ProtectedRoute>} />
+              <Route path="/contests/:id/participate" element={<ProtectedRoute><ContestParticipate /></ProtectedRoute>} />
+              <Route path="/contests/:id/results" element={<ProtectedRoute><ContestResults /></ProtectedRoute>} />
+              
+              {/* 합격곡 관리/조회 페이지 */}
+              <Route path="/approved-songs" element={<ProtectedRoute><ApprovedSongs /></ProtectedRoute>} />
+              
+              {/* 셋리스트 관리 페이지 */}
+              <Route path="/setlist" element={<ProtectedRoute><SetList /></ProtectedRoute>} />
+              
+              {/* 파트너모집 게시판 라우트들 */}
+              <Route path="/boards/partner" element={<PartnerPostList />} />
+              <Route path="/boards/partner/write" element={<PartnerPostWrite />} />
+              <Route path="/boards/partner/:id" element={<PartnerPostDetail />} />
+              <Route path="/boards/partner/edit/:id" element={<PartnerPostWrite />} />
+              
+              {/* 평가게시판 라우트들 */}
+              <Route path="/evaluation" element={<EvaluationPostList />} />
+              <Route path="/evaluation/write" element={<EvaluationPostWrite />} />
+              <Route path="/evaluation/:id" element={<EvaluationPostDetail />} />
+              <Route path="/evaluation/edit/:id" element={<EvaluationPostEdit />} />
+              
+              {/* 연습장 라우트 */}
+              <Route path="/practice-room" element={<PracticeRoom />} />
+              
+              {/* 기타 모든 경로 - 404 대신 로그인으로 리다이렉트 */}
+              <Route 
+                path="*" 
+                element={<Navigate to={user ? "/" : "/login"} replace />} 
+              />
+            </Routes>
+            {/* 모바일 하단 네비게이션 바 */}
+            {user && (
+              <BottomNavigation 
+                unreadNotificationCount={unreadNotificationCount}
+                unreadChatCount={unreadChatCount}
+                onSearchOpen={() => setShowSearchSystem(true)}
+              />
+            )}
+          </div>
+          
+          {/* 통합 검색 시스템 */}
+          <SearchSystem 
+            isOpen={showSearchSystem}
+            onClose={() => setShowSearchSystem(false)}
+            initialQuery=""
+          />
+          
+          {/* 토스트 알림 컨테이너 */}
+          <ToastContainer
+            position="top-right"
+            autoClose={4000}
+            hideProgressBar={false}
+            newestOnTop={false}
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+            theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
+            style={{
+              fontSize: '14px',
+              fontFamily: 'Pretendard, sans-serif'
+            }}
+            toastStyle={{
+              borderRadius: '12px',
+              boxShadow: resolvedTheme === 'dark' 
+                ? '0 4px 12px rgba(0, 0, 0, 0.3)' 
+                : '0 4px 12px rgba(138, 85, 204, 0.15)',
+              background: resolvedTheme === 'dark' ? '#2A2A2A' : '#FFFFFF',
+              color: resolvedTheme === 'dark' ? '#FFFFFF' : '#1F2937'
+            }}
+          />
+        </Router>
+      </AudioPlayerProvider>
+    </>
   );
 }
 

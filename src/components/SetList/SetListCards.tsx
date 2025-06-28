@@ -9,6 +9,8 @@ import type { Song, SetListItem, FlexibleCard, FlexibleSlot, SetListEntry } from
 import './styles.css';
 
 const SetListCards: React.FC = () => {
+  console.log('🎬 SetListCards 컴포넌트 렌더링 시작');
+  
   const userString = localStorage.getItem('veryus_user');
   const user = userString ? JSON.parse(userString) : null;
   const isLeader = user && user.role === '리더';
@@ -825,9 +827,12 @@ const SetListCards: React.FC = () => {
                 borderRadius: availableCardDrag ? '16px' : '0',
                 background: availableCardDrag ? 'rgba(138, 85, 204, 0.05)' : 'transparent',
                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                touchAction: 'auto'
+                touchAction: 'none'
               }}
               className="main-card-area"
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
             >
               {/* 드래그 중일 때 드롭 안내 */}
               {availableCardDrag && (
@@ -894,7 +899,7 @@ const SetListCards: React.FC = () => {
                   let offset = (index - currentCardIndex) * 100;
                   
                   // 현재 카드에 드래그 효과 적용
-                  if (isCurrentCard && isDragging && isLeader) {
+                  if (isCurrentCard && isDragging) {
                     // 위로 드래그하는 경우 카드를 위로 이동
                     if (dragDistance.y > 0 && Math.abs(dragDistance.x) < Math.abs(dragDistance.y)) {
                       offset -= Math.min(dragDistance.y, 100); // 최대 100픽셀까지만 이동
@@ -906,22 +911,22 @@ const SetListCards: React.FC = () => {
                   }
 
                   // 현재 카드의 드래그 상태에 따른 시각적 효과 계산
-                  const dragProgress = isCurrentCard && isDragging && isLeader && dragDistance.y > 0 
+                  const dragProgress = isCurrentCard && isDragging && dragDistance.y > 0 
                     ? Math.min(dragDistance.y / completionThreshold, 1) 
                     : 0;
                   
-                  const deleteDragProgress = isCurrentCard && isDragging && isLeader && dragDistance.y < 0 
+                  const deleteDragProgress = isCurrentCard && isDragging && dragDistance.y < 0 
                     ? Math.min(Math.abs(dragDistance.y) / deletionThreshold, 1) 
                     : 0;
                   
                   const cardScale = isCurrentCard 
-                    ? (isDragging && isLeader ? 1.05 + (Math.max(dragProgress, deleteDragProgress) * 0.1) : 1)
+                    ? (isDragging ? 1.05 + (Math.max(dragProgress, deleteDragProgress) * 0.1) : 1)
                     : isNextCard 
                     ? 0.95 
                     : 0.9;
                   
                   const cardOpacity = isCurrentCard 
-                    ? (isDragging && isLeader ? Math.max(0.7, 1 - Math.max(dragProgress, deleteDragProgress) * 0.3) : 1)
+                    ? (isDragging ? Math.max(0.7, 1 - Math.max(dragProgress, deleteDragProgress) * 0.3) : 1)
                     : isNextCard 
                     ? 0.8 
                     : 0.6;
@@ -941,27 +946,22 @@ const SetListCards: React.FC = () => {
                           : availableCardDrag 
                           ? 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)' 
                           : 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                        transform: `scale(${cardScale}) ${isDragging && isCurrentCard && isLeader ? `rotateZ(${dragProgress * 3}deg)` : ''}`,
+                        transform: `scale(${cardScale}) ${isDragging && isCurrentCard ? `rotateZ(${dragProgress * 3}deg)` : ''}`,
                         opacity: cardOpacity,
                         filter: isCurrentCard && isReadyToComplete ? 'brightness(1.2) saturate(1.3)' : 'none'
                       }}
                     >
                       <div
                         onClick={() => {
+                          console.log('🖱️ Card clicked - isLeader:', isLeader, 'isCurrentCard:', isCurrentCard, 'dragEnabled:', dragEnabled);
                           if (item.type === 'flexible' && canEditFlexibleCard(item)) {
                             setEditingFlexibleCard(item);
-                          } else if (isCurrentCard && isLeader) {
-                            setDragEnabled((prev) => !prev);
+                          } else if (isCurrentCard) {
+                            // 모든 사용자가 현재 카드를 클릭하면 드래그 모드를 토글할 수 있음
+                            const newDragEnabled = !dragEnabled;
+                            console.log('🔄 Toggling dragEnabled:', dragEnabled, '→', newDragEnabled);
+                            setDragEnabled(newDragEnabled);
                           }
-                        }}
-                        onTouchStart={e => {
-                          if (dragEnabled) handleTouchStart(e);
-                        }}
-                        onTouchMove={e => {
-                          if (dragEnabled) handleTouchMove(e);
-                        }}
-                        onTouchEnd={e => {
-                          if (dragEnabled) handleTouchEnd();
                         }}
                         style={{
                           background: isCurrentCard ? 
@@ -987,7 +987,7 @@ const SetListCards: React.FC = () => {
                           boxShadow: isCurrentCard ? 
                             isReadyToComplete 
                               ? '0 25px 50px rgba(16, 185, 129, 0.6), 0 0 0 4px #10B981, 0 0 30px rgba(16, 185, 129, 0.3)' 
-                              : isDragging && isLeader
+                              : isDragging
                               ? '0 25px 50px rgba(138, 85, 204, 0.5), 0 0 0 3px #8A55CC'
                               : '0 20px 40px rgba(138, 85, 204, 0.4), 0 0 0 3px #8A55CC' : 
                             isNextCard ?
@@ -1010,8 +1010,8 @@ const SetListCards: React.FC = () => {
                             '2px solid #F59E0B' :
                             '2px solid #E5E7EB',
                           cursor: item.type === 'flexible' && canEditFlexibleCard(item) ? 'pointer' : 
-                                  isCurrentCard && isLeader ? 'grab' : 'default',
-                          outline: dragEnabled && isCurrentCard && isLeader && item.type !== 'flexible' ? '3px solid #8A55CC' : 'none',
+                                  isCurrentCard ? 'grab' : 'default',
+                          outline: dragEnabled && isCurrentCard && item.type !== 'flexible' ? '3px solid #8A55CC' : 'none',
                         }}
                       >
                         {/* 편집 가능 문구: 닉네임카드 & 편집권한이 있을 때만, 상단 중앙에 1개만 표시 */}
@@ -1128,7 +1128,7 @@ const SetListCards: React.FC = () => {
                         )}
 
                         {/* 위로 드래그 진행도 표시 */}
-                        {isCurrentCard && isDragging && isLeader && dragDistance.y > 0 && !isReadyToComplete && (
+                        {isCurrentCard && isDragging && dragDistance.y > 0 && !isReadyToComplete && (
                           <div
                             style={{
                               position: 'absolute',
@@ -1156,7 +1156,7 @@ const SetListCards: React.FC = () => {
                         )}
 
                         {/* 아래로 드래그 진행도 표시 */}
-                        {isCurrentCard && isDragging && isLeader && dragDistance.y < 0 && !isReadyToDelete && (
+                        {isCurrentCard && isDragging && dragDistance.y < 0 && !isReadyToDelete && (
                           <div
                             style={{
                               position: 'absolute',
@@ -1184,7 +1184,7 @@ const SetListCards: React.FC = () => {
                         )}
 
                         {/* 위로 드래그 안내 텍스트 */}
-                        {isCurrentCard && isDragging && isLeader && dragDistance.y > 0 && !isReadyToComplete && (
+                        {isCurrentCard && isDragging && dragDistance.y > 0 && !isReadyToComplete && (
                           <div
                             style={{
                               position: 'absolute',
@@ -1204,7 +1204,7 @@ const SetListCards: React.FC = () => {
                         )}
 
                         {/* 아래로 드래그 안내 텍스트 */}
-                        {isCurrentCard && isDragging && isLeader && dragDistance.y < 0 && !isReadyToDelete && (
+                        {isCurrentCard && isDragging && dragDistance.y < 0 && !isReadyToDelete && (
                           <div
                             style={{
                               position: 'absolute',
@@ -1447,7 +1447,7 @@ const SetListCards: React.FC = () => {
                         )}
 
                         {/* 카드 상태 애니메이션 외곽선 */}
-                        {isCurrentCard && isLeader && item.type !== 'flexible' && (
+                        {isCurrentCard && item.type !== 'flexible' && (
                           <div
                             style={{
                               position: 'absolute',
