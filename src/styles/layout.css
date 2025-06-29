@@ -1,0 +1,296 @@
+/* 레이아웃 관련 스타일 */
+
+/* 전체 화면 강제 적용 */
+html, body {
+  width: 100vw !important;
+  max-width: 100vw !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
+}
+
+/* 기본 박스 사이징 설정 */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* 하단 네비게이션 레이아웃 */
+.bottom-navigation {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--z-nav);
+  background: var(--nav-bg);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid var(--nav-border);
+  box-shadow: 0 -4px 20px var(--nav-shadow);
+  padding: var(--space-xs) 0 calc(var(--space-xs) + env(safe-area-inset-bottom));
+  display: block;
+  transition: transform var(--transition-base), opacity var(--transition-base);
+}
+
+.bottom-nav-container {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 0 var(--space-md);
+}
+
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  min-width: 60px;
+  position: relative;
+}
+
+/* 접기/펼치기 버튼 레이아웃 */
+.bottom-nav-toggle-collapsed {
+  position: fixed;
+  z-index: var(--z-nav-toggle);
+  background: var(--nav-toggle-bg);
+  color: white;
+  border: 1px solid var(--nav-border);
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  box-shadow: 0 4px 16px var(--nav-toggle-shadow);
+  backdrop-filter: blur(20px);
+  transition: all var(--transition-base);
+  animation: slideInUp var(--transition-base) ease-out;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* 서브메뉴 레이아웃 */
+.boards-submenu {
+  position: fixed;
+  bottom: 80px;
+  left: 0;
+  right: 0;
+  z-index: var(--z-submenu);
+  background: var(--nav-bg);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid var(--nav-border);
+  box-shadow: 0 -4px 20px var(--nav-shadow);
+  animation: slideUp var(--transition-fast) ease-out;
+}
+
+.boards-submenu-content {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-xs);
+  max-width: 500px;
+  margin: 0 auto;
+  padding: var(--space-md) var(--space-sm) var(--space-md) var(--space-md);
+  max-height: 70vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.5) rgba(255, 255, 255, 0.1);
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.board-submenu-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 10px 6px;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  min-height: 60px;
+}
+
+/* 반응형 레이아웃 */
+@media (max-width: 768px) {
+  .bottom-navigation:not(.hidden-by-scroll) {
+    transform: translateY(0);
+  }
+  
+  .bottom-nav-item {
+    padding: 6px 8px;
+  }
+  
+  .boards-submenu-content {
+    padding: var(--space-sm);
+    gap: 6px;
+    max-height: 75vh;
+  }
+  
+  .board-submenu-item {
+    padding: 8px 4px;
+    min-height: 56px;
+  }
+
+  .bottom-nav-toggle-collapsed {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* 아이폰 X 이상 안전 영역 고려 */
+@supports (padding: max(0px)) {
+  .bottom-navigation {
+    padding-bottom: max(var(--space-xs), env(safe-area-inset-bottom));
+  }
+}
+
+/* 게시판 컨테이너 */
+.board-container {
+  min-height: 100vh;
+  background: var(--gradient-primary);
+  padding: 8px;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: white;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  position: static;
+  z-index: auto;
+}
+
+body, html {
+  background: var(--gradient-primary) !important;
+}
+
+/* 게시판 헤더 */
+.board-header {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--spacing-md);
+  padding: 0;
+  background: none;
+  box-shadow: none;
+  margin-bottom: 0;
+  flex-wrap: wrap;
+}
+
+.board-left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xl);
+}
+
+/* 게시판 제목 섹션 */
+.board-title-section {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.board-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.board-title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #1a1a2e;
+  text-shadow: 0 2px 4px rgba(255, 255, 255, 0.5);
+  margin-bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* 검색 섹션 */
+.search-section {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  box-sizing: border-box;
+}
+
+.search-input-wrapper {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 게시글 목록 레이아웃 */
+.posts-container {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-md);
+  box-sizing: border-box;
+}
+
+.post-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: var(--spacing-xl);
+  margin: var(--spacing-xl) 0;
+  padding: 0;
+}
+
+/* 게시글 상세 페이지 레이아웃 */
+.post-detail-container {
+  width: 100%;
+  padding: var(--spacing-md);
+  margin: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* 글쓰기 페이지 레이아웃 */
+.write-page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: var(--spacing-xl);
+  min-height: 100vh;
+  background: var(--gradient-primary) !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* 스크롤바 스타일링 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--primary-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: var(--radius-sm);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-dark);
+} 

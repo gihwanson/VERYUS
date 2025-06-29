@@ -115,6 +115,24 @@ const ContestParticipate: React.FC = () => {
     p.nickname && user.nickname && p.nickname.toLowerCase().trim() === user.nickname.toLowerCase().trim()
   );
 
+  // 닉네임 추출 함수 (custom_닉네임_... 형태 지원)
+  function extractNickname(uidOrNickname: string): string {
+    if (uidOrNickname.startsWith('custom_')) {
+      const parts = uidOrNickname.split('_');
+      if (parts.length >= 2) return parts[1];
+    }
+    return uidOrNickname;
+  }
+
+  // 팀 멤버 닉네임 추출 함수
+  const getMemberNicknames = (team: any) => {
+    return (Array.isArray(team.members) ? team.members : []).map((uidOrNickname: string) => {
+      const p = uniqueParticipants.find(pp => pp.uid === uidOrNickname);
+      const nickname = p && p.nickname ? p.nickname : uidOrNickname;
+      return extractNickname(nickname);
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -197,14 +215,13 @@ const ContestParticipate: React.FC = () => {
       if (input && input.score && !gradedTargets.includes(team.id)) {
         const numScore = Number(input.score);
         if (!isNaN(numScore) && numScore >= 0 && numScore <= 100) {
-          // 본인 팀인지 확인
-          const isMyTeam = user && Array.isArray(team.members) && team.members.includes(user.uid);
-          const isMyTeamByNickname = user && Array.isArray(team.members) && team.members.some((uid: string) => {
-            const p = uniqueParticipants.find(pp => pp.uid === uid);
-            return p && p.nickname && user.nickname && p.nickname.toLowerCase().trim() === user.nickname.toLowerCase().trim();
-          });
-          
-          if (!isMyTeam && !isMyTeamByNickname) {
+          const isMyTeam = user && (
+            team.members.includes(user.uid) ||
+            getMemberNicknames(team).some((nick: string) =>
+              extractNickname(nick).toLowerCase().replace(/\s/g, '') === user.nickname.toLowerCase().replace(/\s/g, '')
+            )
+          );
+          if (!isMyTeam) {
             submissionsToProcess.push({
               target: team.id,
               score: numScore,
@@ -625,13 +642,12 @@ const ContestParticipate: React.FC = () => {
                         return aTime - bTime;
                       })
                       .map(team => {
-                        const isMyTeam = user && Array.isArray(team.members) && team.members.includes(user.uid);
-                        // 본인 닉네임이 팀원에 포함되어 있는지도 확인
-                        const isMyTeamByNickname = user && Array.isArray(team.members) && team.members.some((uid: string) => {
-                          const p = uniqueParticipants.find(pp => pp.uid === uid);
-                          return p && p.nickname && user.nickname && p.nickname.toLowerCase().trim() === user.nickname.toLowerCase().trim();
-                        });
-                        const isMine = isMyTeam || isMyTeamByNickname;
+                        const isMyTeam = user && (
+                          team.members.includes(user.uid) ||
+                          getMemberNicknames(team).some((nick: string) =>
+                            extractNickname(nick).toLowerCase().replace(/\s/g, '') === user.nickname.toLowerCase().replace(/\s/g, '')
+                          )
+                        );
                         const alreadyGraded = gradedTargets.includes(team.id);
                         return (
                           <div key={team.id} style={{ 
@@ -647,32 +663,9 @@ const ContestParticipate: React.FC = () => {
                             border: '1px solid rgba(138, 85, 204, 0.1)'
                           }}>
                             <div style={{ fontWeight: 700, color: '#8A55CC', textAlign: 'center', fontSize: 18 }}>팀명: {team.teamName}</div>
-                            <div style={{ color: '#6B7280', fontSize: 15, textAlign: 'center', fontWeight: 500 }}>팀원: {Array.isArray(team.members) ? team.members.map((uid: string) => {
-                              // 먼저 uniqueParticipants에서 찾기
-                              const p = uniqueParticipants.find(pp => pp.uid === uid);
-                              if (p && p.nickname) {
-                                return p.nickname;
-                              }
-                              
-                              // uniqueParticipants에서 찾지 못하면 전체 participants에서 찾기
-                              const allP = participants.find(pp => pp.uid === uid);
-                              if (allP && allP.nickname) {
-                                return allP.nickname;
-                              }
-                              
-                              // 그래도 찾지 못하면 uid에서 닉네임 추출 시도
-                              if (uid.startsWith('custom_')) {
-                                const parts = uid.split('_');
-                                if (parts.length >= 2) {
-                                  return parts[1]; // custom_닉네임_timestamp_random에서 닉네임 부분
-                                }
-                              }
-                              
-                              // 최후의 수단으로 uid 표시 (하지만 더 읽기 쉽게)
-                              return `참가자_${uid.slice(-4)}`;
-                            }).join(', ') : ''}</div>
+                            <div style={{ color: '#6B7280', fontSize: 15, textAlign: 'center', fontWeight: 500 }}>팀원: {getMemberNicknames(team).join(', ')}</div>
                             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
-                              {isMine ? (
+                              {isMyTeam ? (
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                                   <span style={{ color: '#F43F5E', fontWeight: 600, fontSize: 16 }}>본인이 속한 팀은 평가할 수 없습니다.</span>
                                   <span style={{ color: '#9CA3AF', fontSize: 14 }}>자기 평가는 금지되어 있습니다.</span>
@@ -770,7 +763,7 @@ const ContestParticipate: React.FC = () => {
                   </div>
                 )}
                 {/* 솔로 참가자 */}
-                <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', maxHeight: 600, minHeight: 180, overflowY: 'auto', marginBottom: 24, paddingRight: 4 }}>
                   <div style={{ fontWeight: 600, color: '#7C4DBC', marginBottom: 8, textAlign: 'center' }}>솔로 참가자</div>
                   {uniqueParticipants
                     .filter(p => !teams.some(t => Array.isArray(t.members) && t.members.includes(p.uid)))
@@ -784,7 +777,6 @@ const ContestParticipate: React.FC = () => {
                       const isMe = user && p.uid === user.uid;
                       // 닉네임 기반으로도 본인인지 확인
                       const isMeByNickname = user && p.nickname && user.nickname && p.nickname.toLowerCase().trim() === user.nickname.toLowerCase().trim();
-                      const isMine = isMe || isMeByNickname;
                       const alreadyGraded = gradedTargets.includes(p.uid);
                       return (
                         <div
@@ -808,7 +800,7 @@ const ContestParticipate: React.FC = () => {
                         >
                           <div style={{ fontWeight: 700, color: '#8A55CC', textAlign: 'center', fontSize: 18, textDecoration: alreadyGraded ? 'line-through' : 'none' }}>{p.nickname}</div>
                           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
-                            {isMine ? (
+                            {isMe ? (
                               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                                 <span style={{ color: '#F43F5E', fontWeight: 600, fontSize: 16 }}>본인은 평가할 수 없습니다.</span>
                                 <span style={{ color: '#9CA3AF', fontSize: 14 }}>자기 평가는 금지되어 있습니다.</span>

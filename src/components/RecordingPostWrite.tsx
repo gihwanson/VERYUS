@@ -264,16 +264,6 @@ const RecordingPostWrite: React.FC = () => {
     <div className="board-container">
 
       <div className="board-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '1rem', width: '100%' }}>
-        <button 
-          className="back-button" 
-          onClick={() => navigate('/recording')}
-          style={{ position: 'static' }}
-
-        >
-          <ArrowLeft size={20} />
-          목록으로
-        </button>
-
         <h1 className="board-title" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0 }}>
 
           <Mic size={28} />

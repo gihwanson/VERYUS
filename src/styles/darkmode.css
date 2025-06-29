@@ -451,4 +451,25 @@
     --border-color: #606060;
     --primary-color: #B485E6;
   }
+}
+
+/* 콘테스트 결과 테이블 다크모드 스타일 */
+.dark .contest-table {
+  background: var(--card-bg, #2A2A2A);
+  color: var(--text-primary, #FFFFFF);
+}
+
+.dark .contest-table th {
+  background: var(--secondary-bg, #1E1E1E);
+  border-color: var(--border-color, #404040);
+  color: var(--text-primary, #FFFFFF);
+}
+
+.dark .contest-table td {
+  border-color: var(--border-color, #404040);
+  color: var(--text-primary, #FFFFFF);
+}
+
+.dark .contest-table tr:hover {
+  background: var(--hover-bg, #383838);
 } 

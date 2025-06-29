@@ -179,71 +179,43 @@ const FreePostDetail: React.FC = () => {
       return;
     }
 
-    // 조회수 증가 - 세션당 한 번만
+    // 조회수 증가 - 항상 1씩 증가
     const incrementViews = async () => {
-      const viewedPosts = sessionStorage.getItem('viewedPosts');
-      const viewedPostsArray = viewedPosts ? JSON.parse(viewedPosts) : [];
-      
-      if (!viewedPostsArray.includes(id)) {
-        try {
-          await updateDoc(doc(db, 'posts', id), {
-            views: increment(1)
-          });
-          sessionStorage.setItem('viewedPosts', JSON.stringify([...viewedPostsArray, id]));
-        } catch (error) {
-          console.error('조회수 업데이트 에러:', error);
-        }
+      try {
+        await updateDoc(doc(db, 'posts', id), {
+          views: increment(1)
+        });
+      } catch (error) {
+        console.error('조회수 업데이트 에러:', error);
       }
     };
+    incrementViews();
 
     // 실시간 게시글 데이터 구독
     const unsubscribe = onSnapshot(
       doc(db, 'posts', id),
-      async (docSnapshot) => {
-        if (docSnapshot.exists()) {
-          const postData = {
-            id: docSnapshot.id,
-            ...docSnapshot.data()
-          } as Post;
-          
-          // 작성자 정보가 없으면 가져오기
-          if (!postData.writerGrade || !postData.writerRole) {
-            try {
-              const userDocRef = doc(db, 'users', postData.writerUid);
-              const userDoc = await getDoc(userDocRef);
-              if (userDoc.exists()) {
-                const userData = userDoc.data() as {
-                  grade?: string;
-                  role?: string;
-                  position?: string;
-                };
-                postData.writerGrade = userData.grade || '🍒';
-                postData.writerRole = userData.role || '일반';
-                postData.writerPosition = userData.position || '';
-              }
-            } catch (error) {
-              console.error('작성자 정보 로드 에러:', error);
-              // 기본값 설정
-              postData.writerGrade = '🍒';
-              postData.writerRole = '일반';
-              postData.writerPosition = '';
-            }
-          }
-          
-          setPost(postData);
-        } else {
-          navigate('/free');
+      (docSnapshot) => {
+        if (!docSnapshot.exists()) {
+          setPost(null);
+          setLoading(false);
+          return;
         }
+        const data = docSnapshot.data();
+        setPost(prev => {
+          return {
+            ...(prev || {}),
+            ...data,
+            id: docSnapshot.id,
+            likes: Array.isArray(data.likes) ? data.likes : [],
+          } as Post;
+        });
         setLoading(false);
       },
       (error) => {
-        console.error('게시글 구독 에러:', error);
         setLoading(false);
-        navigate('/free');
+        setPost(null);
       }
     );
-
-    incrementViews();
     return () => unsubscribe();
   }, [id, navigate]);
 
@@ -468,13 +440,12 @@ const FreePostDetail: React.FC = () => {
 
   return (
     <div className="post-detail-container">
-      <div className="post-navigation">
-        <button className="back-button" onClick={() => navigate('/free')}>
+      <div className="post-navigation glassmorphism">
+        <button className="back-button glassmorphism" onClick={() => navigate('/free')}>
           <ArrowLeft size={20} />
           목록으로
         </button>
       </div>
-
       <article className="post-detail">
         <div className="post-detail-header">
           <div className="title-container">

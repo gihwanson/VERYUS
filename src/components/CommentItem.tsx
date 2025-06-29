@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   doc, 
   updateDoc, 
@@ -14,6 +14,7 @@ import { Heart, MessageCircle, Edit, Trash2, Send, Clock } from 'lucide-react';
 import './CommentItem.css';
 import { NotificationService } from '../utils/notificationService';
 
+// Types
 interface Comment {
   id: string;
   postId: string;
@@ -52,6 +53,40 @@ interface CommentItemProps {
   depth?: number;
 }
 
+// Constants
+const ADMIN_ROLES = ['운영진', '리더'];
+const ADMIN_USERS = ['너래'];
+
+// Utility functions
+const formatDate = (timestamp: any): string => {
+  if (!timestamp) return '';
+  
+  const date = timestamp.seconds ? new Date(timestamp.seconds * 1000) : new Date(timestamp);
+  const now = new Date();
+  const diffTime = now.getTime() - date.getTime();
+  const diffMinutes = Math.floor(diffTime / (1000 * 60));
+  const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffMinutes < 1) {
+    return '방금 전';
+  } else if (diffMinutes < 60) {
+    return `${diffMinutes}분 전`;
+  } else if (diffHours < 24) {
+    return `${diffHours}시간 전`;
+  } else if (diffDays < 7) {
+    return `${diffDays}일 전`;
+  } else {
+    return date.toLocaleDateString('ko-KR');
+  }
+};
+
+const checkAdminAccess = (user: User | null): boolean => {
+  if (!user) return false;
+  return ADMIN_USERS.includes(user.nickname || '') || 
+         Boolean(user.role && ADMIN_ROLES.includes(user.role));
+};
+
 const CommentItem: React.FC<CommentItemProps> = ({
   comment,
   user,
@@ -67,6 +102,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
   parentAuthor,
   depth = 0
 }) => {
+  // State
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(comment.content);
   const [isLiked, setIsLiked] = useState(false);
@@ -76,9 +112,30 @@ const CommentItem: React.FC<CommentItemProps> = ({
   const [showPreview, setShowPreview] = useState(false);
   const [isComposing, setIsComposing] = useState(false);
 
-  // 모바일 환경 감지
-  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 640;
+  // Memoized values
+  const isMobile = useMemo(() => 
+    typeof window !== 'undefined' && window.innerWidth <= 640, 
+    []
+  );
 
+  const canEdit = useMemo(() => 
+    user && user.uid === comment.writerUid, 
+    [user, comment.writerUid]
+  );
+
+  const canDelete = useMemo(() => 
+    user && (user.uid === comment.writerUid || checkAdminAccess(user)), 
+    [user, comment.writerUid]
+  );
+
+  const cardClass = useMemo(() => {
+    let className = 'comment-item';
+    if (depth === 0) className += ' comment-root';
+    else className += ' comment-reply';
+    return className;
+  }, [depth]);
+
+  // Effects
   useEffect(() => {
     if (user) {
       setIsLiked(comment.likedBy?.includes(user.uid) || false);
@@ -114,13 +171,13 @@ const CommentItem: React.FC<CommentItemProps> = ({
     setLikesCount(comment.likesCount || 0);
   }, [comment.likesCount]);
 
-  const handleLike = async () => {
+  // Event handlers
+  const handleLike = useCallback(async () => {
     if (!user) {
       alert('로그인이 필요합니다.');
       return;
     }
 
-    // 중복 클릭 방지
     if (isLiking) return;
     setIsLiking(true);
 
@@ -128,7 +185,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
       const commentRef = doc(db, 'comments', comment.id);
       const newIsLiked = !isLiked;
 
-      // 먼저 UI 상태 업데이트 (낙관적 업데이트)
+      // 낙관적 업데이트
       setIsLiked(newIsLiked);
       setLikesCount(prev => prev + (newIsLiked ? 1 : -1));
 
@@ -138,7 +195,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
         likesCount: increment(newIsLiked ? 1 : -1)
       });
 
-      // 좋아요 알림: 댓글 작성자에게(본인이면 생략, 좋아요 취소시에는 알림 보내지 않음)
+      // 좋아요 알림
       if (newIsLiked && user.uid !== comment.writerUid && postTitle && postType) {
         try {
           await NotificationService.createNotification({
@@ -156,16 +213,16 @@ const CommentItem: React.FC<CommentItemProps> = ({
       }
     } catch (error) {
       console.error('좋아요 처리 에러:', error);
-      // 실패 시 상태 롤백
+      // 상태 롤백
       setIsLiked(!isLiked);
       setLikesCount(prev => prev + (isLiked ? 1 : -1));
       alert('좋아요 처리 중 오류가 발생했습니다.');
     } finally {
       setIsLiking(false);
     }
-  };
+  }, [user, comment.id, comment.writerUid, isLiked, isLiking, postId, postTitle, postType]);
 
-  const handleEdit = async () => {
+  const handleEdit = useCallback(async () => {
     if (!editContent.trim()) {
       alert('댓글 내용을 입력해주세요.');
       return;
@@ -180,9 +237,9 @@ const CommentItem: React.FC<CommentItemProps> = ({
       console.error('댓글 수정 에러:', error);
       alert('댓글 수정 중 오류가 발생했습니다.');
     }
-  };
+  }, [comment.id, editContent]);
 
-  const handleDelete = async () => {
+  const handleDelete = useCallback(async () => {
     if (!window.confirm('댓글을 삭제하시겠습니까?')) return;
 
     try {
@@ -194,38 +251,121 @@ const CommentItem: React.FC<CommentItemProps> = ({
       console.error('댓글 삭제 에러:', error);
       alert('댓글 삭제 중 오류가 발생했습니다.');
     }
-  };
+  }, [comment.id, postId]);
 
-  const canEdit = user && (user.uid === comment.writerUid);
-  const canDelete = user && (user.uid === comment.writerUid || user.role === '운영진' || user.role === '리더' || user.nickname === '너래');
+  const handleTextareaResize = useCallback((e: React.FormEvent<HTMLTextAreaElement>) => {
+    const target = e.target as HTMLTextAreaElement;
+    target.style.height = 'auto';
+    const newHeight = Math.min(Math.max(target.scrollHeight, 80), 200);
+    target.style.height = newHeight + 'px';
+  }, []);
 
-  const formatDate = (timestamp: any) => {
-    if (!timestamp) return '';
-    
-    const date = timestamp.seconds ? new Date(timestamp.seconds * 1000) : new Date(timestamp);
-    const now = new Date();
-    const diffTime = now.getTime() - date.getTime();
-    const diffMinutes = Math.floor(diffTime / (1000 * 60));
-    const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  const handleReplyTextareaResize = useCallback((e: React.FormEvent<HTMLTextAreaElement>) => {
+    const target = e.target as HTMLTextAreaElement;
+    target.style.height = 'auto';
+    const newHeight = Math.min(Math.max(target.scrollHeight, 60), 120);
+    target.style.height = newHeight + 'px';
+  }, []);
 
-    if (diffMinutes < 1) {
-      return '방금 전';
-    } else if (diffMinutes < 60) {
-      return `${diffMinutes}분 전`;
-    } else if (diffHours < 24) {
-      return `${diffHours}시간 전`;
-    } else if (diffDays < 7) {
-      return `${diffDays}일 전`;
-    } else {
-      return date.toLocaleDateString('ko-KR');
-    }
-  };
+  // Render functions
+  const renderEditForm = () => (
+    <div className="comment-edit">
+      <div className="edit-tabs">
+        <button 
+          className={`tab-button ${!showPreview ? 'active' : ''}`}
+          onClick={() => setShowPreview(false)}
+        >
+          작성
+        </button>
+        <button 
+          className={`tab-button ${showPreview ? 'active' : ''}`}
+          onClick={() => setShowPreview(true)}
+        >
+          미리보기
+        </button>
+      </div>
+      {showPreview ? (
+        <div className="preview-content">
+          <TagParser content={editContent} />
+        </div>
+      ) : (
+        <textarea
+          value={editContent}
+          onChange={(e) => setEditContent(e.target.value)}
+          className="comment-edit-input"
+          rows={3}
+          placeholder="댓글을 입력하세요... (Shift+Enter로 줄바꿈)"
+          onCompositionStart={() => setIsComposing(true)}
+          onCompositionEnd={() => setIsComposing(false)}
+          onCompositionUpdate={() => setIsComposing(true)}
+          spellCheck={false}
+          autoComplete="off"
+          style={{
+            resize: 'none',
+            overflow: 'hidden',
+            minHeight: '80px',
+            maxHeight: '200px',
+            lineHeight: '1.4'
+          }}
+          onInput={handleTextareaResize}
+        />
+      )}
+      <div className="comment-edit-buttons">
+        <button 
+          onClick={handleEdit} 
+          className="save-btn"
+          disabled={!editContent.trim()}
+        >
+          <Send size={16} />
+          저장
+        </button>
+        <button onClick={() => setIsEditing(false)} className="cancel-btn">
+          취소
+        </button>
+      </div>
+    </div>
+  );
 
-  // 카드 색상 클래스 결정
-  let cardClass = 'comment-item';
-  if (depth === 0) cardClass += ' comment-root';
-  else cardClass += ' comment-reply';
+  const renderReplyForm = () => (
+    <div className="reply-form">
+      <textarea
+        value={replyContent}
+        onChange={(e) => setReplyContent(e.target.value)}
+        placeholder="답글을 입력하세요... (Shift+Enter로 줄바꿈)"
+        className="reply-input"
+        onCompositionStart={() => setIsComposing(true)}
+        onCompositionEnd={() => setIsComposing(false)}
+        onCompositionUpdate={() => setIsComposing(true)}
+        spellCheck={false}
+        autoComplete="off"
+        rows={2}
+        style={{
+          resize: 'none',
+          overflow: 'hidden',
+          minHeight: '60px',
+          maxHeight: '120px',
+          lineHeight: '1.4'
+        }}
+        onInput={handleReplyTextareaResize}
+      />
+      <div className="reply-buttons">
+        <button 
+          onClick={() => onSubmitReply(comment.id)}
+          className="submit-reply-btn"
+          disabled={!replyContent.trim()}
+        >
+          <Send size={16} />
+          답글 작성
+        </button>
+        <button 
+          onClick={onCancelReply}
+          className="cancel-reply-btn"
+        >
+          취소
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className={cardClass}>
@@ -249,73 +389,12 @@ const CommentItem: React.FC<CommentItemProps> = ({
         </div>
       </div>
 
-      {/* 부모 닉네임이 있으면 답글임을 표시 */}
       {parentAuthor && (
         <div className="reply-to-info">@{parentAuthor} 님에게 답글</div>
       )}
 
       <div className="comment-content">
-        {isEditing ? (
-          <div className="comment-edit">
-            <div className="edit-tabs">
-              <button 
-                className={`tab-button ${!showPreview ? 'active' : ''}`}
-                onClick={() => setShowPreview(false)}
-              >
-                작성
-              </button>
-              <button 
-                className={`tab-button ${showPreview ? 'active' : ''}`}
-                onClick={() => setShowPreview(true)}
-              >
-                미리보기
-              </button>
-            </div>
-            {showPreview ? (
-              <div className="preview-content">
-                <TagParser content={editContent} />
-              </div>
-            ) : (
-              <textarea
-                value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-                className="comment-edit-input"
-                rows={3}
-                placeholder="댓글을 입력하세요... (Shift+Enter로 줄바꿈)"
-                onCompositionStart={() => setIsComposing(true)}
-                onCompositionEnd={() => setIsComposing(false)}
-                onCompositionUpdate={() => setIsComposing(true)}
-                spellCheck={false}
-                autoComplete="off"
-                style={{
-                  resize: 'none',
-                  overflow: 'hidden',
-                  minHeight: '80px',
-                  maxHeight: '200px',
-                  lineHeight: '1.4'
-                }}
-                onInput={(e) => {
-                  const target = e.target as HTMLTextAreaElement;
-                  target.style.height = 'auto';
-                  target.style.height = Math.min(Math.max(target.scrollHeight, 80), 200) + 'px';
-                }}
-              />
-            )}
-            <div className="comment-edit-buttons">
-              <button 
-                onClick={handleEdit} 
-                className="save-btn"
-                disabled={!editContent.trim()}
-              >
-                <Send size={16} />
-                저장
-              </button>
-              <button onClick={() => setIsEditing(false)} className="cancel-btn">
-                취소
-              </button>
-            </div>
-          </div>
-        ) : (
+        {isEditing ? renderEditForm() : (
           <div className="comment-text">
             <TagParser content={comment.content} />
           </div>
@@ -365,52 +444,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
         )}
       </div>
 
-      {replyingTo === comment.id && (
-        <div className="reply-form">
-          <textarea
-            value={replyContent}
-            onChange={(e) => setReplyContent(e.target.value)}
-            placeholder="답글을 입력하세요... (Shift+Enter로 줄바꿈)"
-            className="reply-input"
-            onCompositionStart={() => setIsComposing(true)}
-            onCompositionEnd={() => setIsComposing(false)}
-            onCompositionUpdate={() => setIsComposing(true)}
-            spellCheck={false}
-            autoComplete="off"
-            rows={2}
-            style={{
-              resize: 'none',
-              overflow: 'hidden',
-              minHeight: '60px',
-              maxHeight: '120px',
-              lineHeight: '1.4'
-            }}
-            onInput={(e) => {
-              const target = e.target as HTMLTextAreaElement;
-              target.style.height = 'auto';
-              target.style.height = Math.min(Math.max(target.scrollHeight, 60), 120) + 'px';
-            }}
-          />
-          <div className="reply-buttons">
-            <button 
-              onClick={() => onSubmitReply(comment.id)}
-              className="submit-reply-btn"
-              disabled={!replyContent.trim()}
-            >
-              <Send size={16} />
-              답글 작성
-            </button>
-            <button 
-              onClick={onCancelReply}
-              className="cancel-reply-btn"
-            >
-              취소
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 대댓글 목록 삭제: 평면 구조에서는 replies를 렌더링하지 않음 */}
+      {replyingTo === comment.id && renderReplyForm()}
     </div>
   );
 };

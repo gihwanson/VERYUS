@@ -330,14 +330,7 @@ const RecordingPostList: React.FC = () => {
   return (
     <div className="board-container">
       <div className="board-header">
-        <button 
-          className="back-to-main-button"
-          onClick={() => navigate('/')}
-          title="메인으로 이동"
-        >
-          <ArrowLeft size={20} />
-          메인으로
-        </button>
+        {/* '메인으로' 버튼 완전히 삭제 */}
       </div>
       <div className="board-controls">
         <div className="search-container">

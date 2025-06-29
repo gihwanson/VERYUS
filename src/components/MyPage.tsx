@@ -899,36 +899,7 @@ const MyPage: React.FC = () => {
           alignItems: 'center',
           marginBottom: '24px'
         }}>
-          <button 
-            onClick={() => navigate('/')}
-            style={{
-              background: 'rgba(255, 255, 255, 0.2)',
-              backdropFilter: 'blur(10px)',
-              color: 'white',
-              border: '1px solid rgba(255, 255, 255, 0.3)',
-              borderRadius: '12px',
-              padding: '10px 16px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontSize: 14,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              transition: 'all 0.3s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-              e.currentTarget.style.transform = 'translateY(-2px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            <ArrowLeft size={16} />
-            🏠 홈으로
-        </button>
-        {isOwner && (
+          {isOwner && (
             <button 
               onClick={() => navigate('/settings')}
               style={{
@@ -959,6 +930,35 @@ const MyPage: React.FC = () => {
               ⚙️ 설정
           </button>
         )}
+        <button 
+          onClick={() => navigate(-1)}
+          style={{
+            background: 'rgba(255, 255, 255, 0.2)',
+            backdropFilter: 'blur(10px)',
+            color: 'white',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            borderRadius: '12px',
+            padding: '10px 16px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontSize: 14,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            transition: 'all 0.3s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+            e.currentTarget.style.transform = 'translateY(-2px)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
+        >
+          <ArrowLeft size={16} />
+          뒤로가기
+        </button>
       </div>
 
       {/* 프로필 히어로 섹션 */}

@@ -82,6 +82,8 @@ const ContestResults: React.FC = () => {
     participantMap[g.target].scores.push(Number(g.score));
     if (g.comment) participantMap[g.target].comments.push(g.comment);
   });
+
+  // 등급 계산 함수
   const getGrade = (avg: number) => {
     if (avg >= 1 && avg <= 30) return '🫐 블루베리';
     if (avg <= 40) return '🥝 키위';
@@ -93,17 +95,6 @@ const ContestResults: React.FC = () => {
     if (avg <= 100) return '☀️ 태양';
     return '';
   };
-
-  // 부운영진 평가만 모으기
-  const subAdmins = grades.filter((g: any) => g.evaluatorRole === '부운영진');
-
-  // 부운영진 평가 기준 참가자별 평균점수/등급/코멘트 계산
-  const subAdminParticipantMap: Record<string, { scores: number[], comments: string[] }> = {};
-  subAdmins.forEach((g: any) => {
-    if (!subAdminParticipantMap[g.target]) subAdminParticipantMap[g.target] = { scores: [], comments: [] };
-    subAdminParticipantMap[g.target].scores.push(Number(g.score));
-    if (g.comment) subAdminParticipantMap[g.target].comments.push(g.comment);
-  });
 
   // 피평가자 표시 함수
   const getTargetDisplay = (target: string) => {
@@ -147,6 +138,45 @@ const ContestResults: React.FC = () => {
     return `참가자_${target.slice(-4)}`;
   };
 
+  // 점수순으로 정렬된 참가자 목록 생성
+  const sortedParticipants = Object.entries(participantMap)
+    .map(([target, { scores, comments }]) => {
+      const avg = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+      return {
+        target,
+        display: getTargetDisplay(target),
+        avg,
+        grade: getGrade(avg),
+        comments: comments.join(', ')
+      };
+    })
+    .sort((a, b) => b.avg - a.avg); // 점수 높은 순으로 정렬
+
+  // 부운영진 평가만 모으기
+  const subAdmins = grades.filter((g: any) => g.evaluatorRole === '부운영진');
+
+  // 부운영진 평가 기준 참가자별 평균점수/등급/코멘트 계산
+  const subAdminParticipantMap: Record<string, { scores: number[], comments: string[] }> = {};
+  subAdmins.forEach((g: any) => {
+    if (!subAdminParticipantMap[g.target]) subAdminParticipantMap[g.target] = { scores: [], comments: [] };
+    subAdminParticipantMap[g.target].scores.push(Number(g.score));
+    if (g.comment) subAdminParticipantMap[g.target].comments.push(g.comment);
+  });
+
+  // 부운영진 기준 점수순으로 정렬된 참가자 목록 생성
+  const sortedSubAdminParticipants = Object.entries(subAdminParticipantMap)
+    .map(([target, { scores, comments }]) => {
+      const avg = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+      return {
+        target,
+        display: getTargetDisplay(target),
+        avg,
+        grade: getGrade(avg),
+        comments: comments.join(', ')
+      };
+    })
+    .sort((a, b) => b.avg - a.avg); // 점수 높은 순으로 정렬
+
   // 고유 평가자 목록 생성
   const uniqueEvaluators = Array.from(new Set(grades.map(g => g.evaluator))).sort();
   
@@ -166,6 +196,43 @@ const ContestResults: React.FC = () => {
   const resetFilters = () => {
     setSelectedEvaluator('');
     setSelectedTarget('');
+  };
+
+  // 불릿+줄바꿈+더보기 코멘트 컴포넌트
+  const BulletedComments: React.FC<{ comments: string[] }> = ({ comments }) => {
+    const [expanded, setExpanded] = useState(false);
+    const MAX_LINES = 3;
+    if (!comments || comments.length === 0) return null;
+    const showExpand = comments.length > MAX_LINES;
+    const shown = expanded ? comments : comments.slice(0, MAX_LINES);
+    return (
+      <div style={{ whiteSpace: 'pre-line', lineHeight: 1.6 }}>
+        {shown.map((c, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
+            <span style={{ color: '#8A55CC', fontWeight: 'bold', fontSize: 16 }}>•</span>
+            <span style={{ color: 'var(--text-primary, #333)' }}>{c}</span>
+          </div>
+        ))}
+        {showExpand && (
+          <button
+            onClick={() => setExpanded(e => !e)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#7C4DBC',
+              fontWeight: 600,
+              cursor: 'pointer',
+              padding: 0,
+              marginTop: 4,
+              fontSize: 13,
+              textDecoration: 'underline',
+            }}
+          >
+            {expanded ? '접기 ▲' : `더보기 ▼`}
+          </button>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -270,10 +337,11 @@ const ContestResults: React.FC = () => {
           </div>
         </div>
       <div style={{ marginBottom: 32 }}>
-        <h3 style={{ color: '#8A55CC', fontWeight: 700, fontSize: 20, marginBottom: 12, textAlign: 'center' }}>최종 등급 결과</h3>
+        <h3 style={{ color: '#8A55CC', fontWeight: 700, fontSize: 20, marginBottom: 12, textAlign: 'center' }}>🏆 최종 등급 결과 (점수순 순위)</h3>
         <table className="contest-table">
           <thead>
             <tr style={{ background: '#F6F2FF', color: '#8A55CC' }}>
+              <th style={{ padding: 8, border: '1px solid #E5DAF5', textAlign: 'center' }}>순위</th>
               <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>닉네임</th>
               <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>평균점수</th>
               <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>등급</th>
@@ -281,20 +349,70 @@ const ContestResults: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {Object.entries(participantMap).map(([target, { scores, comments }]) => {
-              const avg = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+            {sortedParticipants.map(({ target, display, avg, grade, comments }, index) => {
+              const rank = index + 1;
+              const isTop3 = rank <= 3;
+              const rankEmoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}`;
+              
               return (
-                <tr key={target}>
-                  <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{getTargetDisplay(target)}</td>
-                  <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{avg ? avg.toFixed(1) : '-'}</td>
-                  <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{avg ? getGrade(avg) : '-'}</td>
-                  <td style={{ padding: 8, border: '1px solid #E5DAF5', maxWidth: 320, wordBreak: 'break-all', whiteSpace: 'pre-line' }}>{comments.join(', ')}</td>
+                <tr key={target} style={{
+                  background: isTop3 ? 
+                    rank === 1 ? 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)' :
+                    rank === 2 ? 'linear-gradient(135deg, #C0C0C0 0%, #E5E5E5 100%)' :
+                    'linear-gradient(135deg, #CD7F32 0%, #D2691E 100%)' : 'transparent',
+                  fontWeight: isTop3 ? 'bold' : 'normal'
+                }}>
+                  <td style={{ 
+                    padding: 8, 
+                    border: '1px solid #E5DAF5', 
+                    textAlign: 'center',
+                    fontSize: isTop3 ? '18px' : '14px',
+                    fontWeight: 'bold',
+                    color: 'var(--text-primary, #333)'
+                  }}>
+                    {rankEmoji}
+                  </td>
+                  <td style={{ 
+                    padding: 8, 
+                    border: '1px solid #E5DAF5',
+                    fontWeight: isTop3 ? 'bold' : 'normal',
+                    color: 'var(--text-primary, #333)'
+                  }}>
+                    {display}
+                  </td>
+                  <td style={{ 
+                    padding: 8, 
+                    border: '1px solid #E5DAF5',
+                    fontWeight: isTop3 ? 'bold' : 'normal',
+                    color: isTop3 ? '#2E7D32' : 'var(--text-primary, #333)'
+                  }}>
+                    {avg ? avg.toFixed(1) : '-'}
+                  </td>
+                  <td style={{ 
+                    padding: 8, 
+                    border: '1px solid #E5DAF5',
+                    fontWeight: isTop3 ? 'bold' : 'normal',
+                    color: 'var(--text-primary, #333)'
+                  }}>
+                    {grade}
+                  </td>
+                  <td style={{ 
+                    padding: 8, 
+                    border: '1px solid #E5DAF5', 
+                    maxWidth: 320, 
+                    wordBreak: 'break-all', 
+                    whiteSpace: 'pre-line',
+                    fontWeight: isTop3 ? 'bold' : 'normal',
+                    color: 'var(--text-primary, #333)'
+                  }}>
+                    <BulletedComments comments={comments ? comments.split(',').map((s: string) => s.trim()).filter(Boolean) : []} />
+                  </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
-        {contest.type === '경연' && <div style={{ color: '#7C4DBC', fontWeight: 600 }}>※ 경연 모드: 점수순 랭킹/등급 부여 안내</div>}
+        {contest.type === '경연' && <div style={{ color: '#7C4DBC', fontWeight: 600, textAlign: 'center', marginTop: '12px' }}>※ 경연 모드: 점수순 랭킹으로 최종 순위 결정</div>}
       </div>
       {grades.length > 0 && (
         <div style={{ marginBottom: 32 }}>
@@ -373,11 +491,13 @@ const ContestResults: React.FC = () => {
             <tbody>
               {filteredGrades.map((g, i) => (
                 <tr key={i}>
-                  <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{g.evaluator}</td>
-                  <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{getTargetDisplay(g.target)}</td>
-                  <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{g.score}</td>
-                  <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{getGrade(Number(g.score))}</td>
-                  <td style={{ padding: 8, border: '1px solid #E5DAF5', maxWidth: 320, wordBreak: 'break-all', whiteSpace: 'pre-line' }}>{g.comment}</td>
+                  <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>{g.evaluator}</td>
+                  <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>{getTargetDisplay(g.target)}</td>
+                  <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>{g.score}</td>
+                  <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>{getGrade(Number(g.score))}</td>
+                  <td style={{ padding: 8, border: '1px solid #E5DAF5', maxWidth: 320, wordBreak: 'break-all', whiteSpace: 'pre-line', color: 'var(--text-primary, #333)' }}>
+                    <BulletedComments comments={g.comment ? g.comment.split(',').map((s: string) => s.trim()).filter(Boolean) : []} />
+                  </td>
                 </tr>
               ))}
               {filteredGrades.length === 0 && (
@@ -406,20 +526,23 @@ const ContestResults: React.FC = () => {
                 <tbody>
                   {subAdmins.map((g, i) => (
                     <tr key={i}>
-                      <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{g.evaluator}</td>
-                      <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{getTargetDisplay(g.target)}</td>
-                      <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{g.score}</td>
-                      <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{getGrade(Number(g.score))}</td>
-                      <td style={{ padding: 8, border: '1px solid #E5DAF5', maxWidth: 320, wordBreak: 'break-all', whiteSpace: 'pre-line' }}>{g.comment}</td>
+                      <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>{g.evaluator}</td>
+                      <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>{getTargetDisplay(g.target)}</td>
+                      <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>{g.score}</td>
+                      <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>{getGrade(Number(g.score))}</td>
+                      <td style={{ padding: 8, border: '1px solid #E5DAF5', maxWidth: 320, wordBreak: 'break-all', whiteSpace: 'pre-line', color: 'var(--text-primary, #333)' }}>
+                        <BulletedComments comments={g.comment ? g.comment.split(',').map((s: string) => s.trim()).filter(Boolean) : []} />
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
               {/* 부운영진 기준 최종 등급 결과 표 */}
-              <h3 style={{ color: '#F43F5E', fontWeight: 700, fontSize: 18, marginBottom: 12, textAlign: 'center', borderTop: '2px solid #F43F5E', paddingTop: 16 }}>부운영진 기준 최종 등급 결과</h3>
+              <h3 style={{ color: '#F43F5E', fontWeight: 700, fontSize: 18, marginBottom: 12, textAlign: 'center', borderTop: '2px solid #F43F5E', paddingTop: 16 }}>🏆 부운영진 기준 최종 등급 결과 (점수순 순위)</h3>
               <table className="contest-table">
                 <thead>
                   <tr style={{ background: '#F6F2FF', color: '#F43F5E' }}>
+                    <th style={{ padding: 8, border: '1px solid #E5DAF5', textAlign: 'center' }}>순위</th>
                     <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>닉네임</th>
                     <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>평균점수</th>
                     <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>등급</th>
@@ -427,14 +550,64 @@ const ContestResults: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {Object.entries(subAdminParticipantMap).map(([nickname, { scores, comments }]) => {
-                    const avg = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+                  {sortedSubAdminParticipants.map(({ target, display, avg, grade, comments }, index) => {
+                    const rank = index + 1;
+                    const isTop3 = rank <= 3;
+                    const rankEmoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}`;
+                    
                     return (
-                      <tr key={nickname}>
-                        <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{nickname}</td>
-                        <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{avg ? avg.toFixed(1) : '-'}</td>
-                        <td style={{ padding: 8, border: '1px solid #E5DAF5' }}>{avg ? getGrade(avg) : '-'}</td>
-                        <td style={{ padding: 8, border: '1px solid #E5DAF5', maxWidth: 320, wordBreak: 'break-all', whiteSpace: 'pre-line' }}>{comments.join(', ')}</td>
+                      <tr key={target} style={{
+                        background: isTop3 ? 
+                          rank === 1 ? 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)' :
+                          rank === 2 ? 'linear-gradient(135deg, #C0C0C0 0%, #E5E5E5 100%)' :
+                          'linear-gradient(135deg, #CD7F32 0%, #D2691E 100%)' : 'transparent',
+                        fontWeight: isTop3 ? 'bold' : 'normal'
+                      }}>
+                        <td style={{ 
+                          padding: 8, 
+                          border: '1px solid #E5DAF5', 
+                          textAlign: 'center',
+                          fontSize: isTop3 ? '18px' : '14px',
+                          fontWeight: 'bold',
+                          color: 'var(--text-primary, #333)'
+                        }}>
+                          {rankEmoji}
+                        </td>
+                        <td style={{ 
+                          padding: 8, 
+                          border: '1px solid #E5DAF5',
+                          fontWeight: isTop3 ? 'bold' : 'normal',
+                          color: 'var(--text-primary, #333)'
+                        }}>
+                          {display}
+                        </td>
+                        <td style={{ 
+                          padding: 8, 
+                          border: '1px solid #E5DAF5',
+                          fontWeight: isTop3 ? 'bold' : 'normal',
+                          color: isTop3 ? '#2E7D32' : 'var(--text-primary, #333)'
+                        }}>
+                          {avg ? avg.toFixed(1) : '-'}
+                        </td>
+                        <td style={{ 
+                          padding: 8, 
+                          border: '1px solid #E5DAF5',
+                          fontWeight: isTop3 ? 'bold' : 'normal',
+                          color: 'var(--text-primary, #333)'
+                        }}>
+                          {grade}
+                        </td>
+                        <td style={{ 
+                          padding: 8, 
+                          border: '1px solid #E5DAF5', 
+                          maxWidth: 320, 
+                          wordBreak: 'break-all', 
+                          whiteSpace: 'pre-line',
+                          fontWeight: isTop3 ? 'bold' : 'normal',
+                          color: 'var(--text-primary, #333)'
+                        }}>
+                          <BulletedComments comments={comments ? comments.split(',').map((s: string) => s.trim()).filter(Boolean) : []} />
+                        </td>
                       </tr>
                     );
                   })}

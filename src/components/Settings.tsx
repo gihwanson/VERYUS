@@ -21,10 +21,8 @@ import {
   LogOut, 
   User, 
   Save,
-  Settings as SettingsIcon,
-  Palette
+  Settings as SettingsIcon
 } from 'lucide-react';
-import ThemeToggle from './ThemeToggle';
 import './Settings.css';
 
 interface User {
@@ -61,12 +59,8 @@ const Settings: React.FC = () => {
       return;
     }
 
-    // 테마는 이제 ThemeToggle 컴포넌트에서 자동으로 관리됩니다
-
     setLoading(false);
   }, [navigate]);
-
-  // 다크모드 토글은 이제 ThemeToggle 컴포넌트에서 처리됩니다
 
   const handleNotificationToggle = async () => {
     if (!user) return;
@@ -237,8 +231,8 @@ const Settings: React.FC = () => {
   return (
     <div className="settings-container">
       {/* 헤더 */}
-      <div className="settings-header">
-        <button className="back-button" onClick={() => navigate('/')}>
+      <div className="settings-header glassmorphism">
+        <button className="back-button glassmorphism" onClick={() => navigate(-1)}>
           <ArrowLeft size={20} />
           뒤로가기
         </button>
@@ -267,17 +261,6 @@ const Settings: React.FC = () => {
             <div className="user-email">{user.email}</div>
             <div className="user-grade">{user.grade}</div>
           </div>
-        </div>
-      </div>
-
-      {/* 테마 설정 */}
-      <div className="settings-card">
-        <div className="card-header">
-          <Palette className="card-icon" />
-          <h3>테마 설정</h3>
-        </div>
-        <div className="setting-item">
-          <ThemeToggle variant="default" showLabels={true} />
         </div>
       </div>
 

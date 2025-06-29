@@ -56,39 +56,11 @@ const SetList: React.FC = () => {
                 {viewMode === 'manage' ? '🎴 카드 보기' : '⚙️ 관리'}
               </button>
             )}
-            <button 
-              onClick={() => navigate('/')}
-              style={{ 
-                background: '#E5DAF5', 
-                color: '#7C4DBC', 
-                border: 'none', 
-                borderRadius: '8px', 
-                padding: '8px 16px', 
-                fontWeight: 600, 
-                cursor: 'pointer' 
-              }}
-            >
-              홈으로
-            </button>
           </div>
         </div>
       ) : (
         /* 일반 사용자는 홈으로 버튼만 표시 */
         <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '30px' }}>
-          <button 
-            onClick={() => navigate('/')}
-            style={{ 
-              background: '#E5DAF5', 
-              color: '#7C4DBC', 
-              border: 'none', 
-              borderRadius: '8px', 
-              padding: '8px 16px', 
-              fontWeight: 600, 
-              cursor: 'pointer' 
-            }}
-          >
-            홈으로
-          </button>
         </div>
       )}
 

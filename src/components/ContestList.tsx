@@ -1,28 +1,58 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, query, orderBy, getDocs, setDoc, doc as firestoreDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Trophy, Plus } from 'lucide-react';
+import '../styles/variables.css';
+import '../styles/components.css';
+
+type ContestType = '정규등급전' | '세미등급전' | '경연';
 
 interface Contest {
   id: string;
   title: string;
-  type: '정규등급전' | '세미등급전' | '경연';
+  type: ContestType;
   deadline: any;
   createdBy: string;
   ended?: boolean;
   isStarted: boolean;
+  top3?: Array<{
+    rank: number;
+    name: string;
+    score: number;
+  }>;
+}
+
+interface User {
+  uid: string;
+  email: string;
+  nickname?: string;
+  isLoggedIn: boolean;
+  role?: string;
+}
+
+interface Top3Item {
+  rank: number;
+  name: string;
+  score: number;
 }
 
 const ContestList: React.FC = () => {
   const [contests, setContests] = useState<Contest[]>([]);
   const navigate = useNavigate();
-  const userString = localStorage.getItem('veryus_user');
-  const user = userString ? JSON.parse(userString) : null;
-  const isAdmin = user && ['리더', '운영진', '부운영진'].includes(user.role);
+  
+  // User data
+  const user = useMemo(() => {
+    const userString = localStorage.getItem('veryus_user');
+    return userString ? JSON.parse(userString) as User : null;
+  }, []);
 
-  // 마감일을 확인하여 종료 상태 계산
-  const isContestEnded = (contest: any) => {
+  const isAdmin = useMemo(() => {
+    return user && ['리더', '운영진', '부운영진'].includes(user.role || '');
+  }, [user]);
+
+  // Callbacks
+  const isContestEnded = useCallback((contest: Contest): boolean => {
     // 이미 수동으로 종료된 경우
     if (contest.ended) return true;
     
@@ -40,17 +70,9 @@ const ContestList: React.FC = () => {
     }
     
     return false;
-  };
-
-  useEffect(() => {
-    const q = query(collection(db, 'contests'), orderBy('deadline', 'desc'));
-    const unsub = onSnapshot(q, (snap) => {
-      setContests(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Contest[]);
-    });
-    return () => unsub();
   }, []);
 
-  const handleParticipate = async (contest: any) => {
+  const handleParticipate = useCallback(async (contest: Contest) => {
     if (!user) return navigate('/login');
 
     // 리더는 개최 전에도 입장 허용
@@ -85,332 +107,192 @@ const ContestList: React.FC = () => {
       console.error('참가자 목록 확인 중 오류:', error);
       alert('참가자 목록을 확인하는 중 오류가 발생했습니다.');
     }
-  };
+  }, [user, navigate, isContestEnded]);
 
-  const handleEndContest = async (contest: any) => {
+  const handleEndContest = useCallback(async (contest: Contest) => {
     if (!window.confirm('정말로 이 콘테스트를 종료하시겠습니까? 종료 후에는 누구도 참여할 수 없습니다.')) return;
-    await updateDoc(firestoreDoc(db, 'contests', contest.id), { ended: true });
-    alert('콘테스트가 종료되었습니다.');
-  };
+    
+    try {
+      // 1. grades 컬렉션에서 점수순 top3 계산
+      const gradesSnap = await getDocs(collection(db, 'contests', contest.id, 'grades'));
+      const grades = gradesSnap.docs.map(doc => doc.data());
+      
+      // 참가자별 평균점수 계산
+      const participantMap: Record<string, { scores: number[] }> = {};
+      grades.forEach(g => {
+        if (!participantMap[g.target]) participantMap[g.target] = { scores: [] };
+        participantMap[g.target].scores.push(Number(g.score));
+      });
+      
+      const sorted = Object.entries(participantMap)
+        .map(([target, { scores }]) => ({
+          target,
+          avg: scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length) : 0
+        }))
+        .sort((a, b) => b.avg - a.avg)
+        .slice(0, 3);
+      
+      // 참가자/팀명 가져오기
+      let top3: Top3Item[] = [];
+      if (sorted.length > 0) {
+        // 참가자/팀 정보 가져오기
+        const participantsSnap = await getDocs(collection(db, 'contests', contest.id, 'participants'));
+        const participants = participantsSnap.docs.map(doc => doc.data()) as any[];
+        const teamsSnap = await getDocs(collection(db, 'contests', contest.id, 'teams'));
+        const teams = teamsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+        
+        top3 = sorted.map((item, idx) => {
+          // 팀이면 팀명+팀원, 아니면 닉네임
+          const team = teams.find((t: any) => t.id === item.target);
+          if (team) {
+            const memberNames = Array.isArray(team.members) ? team.members.map((uid: string) => {
+              const p = participants.find((pp: any) => pp.uid === uid);
+              return p && p.nickname ? p.nickname : uid;
+            }).join(', ') : '';
+            return { rank: idx + 1, name: `${team.teamName} (${memberNames})`, score: item.avg };
+          }
+          const solo = participants.find((p: any) => p.uid === item.target);
+          return { rank: idx + 1, name: solo && solo.nickname ? solo.nickname : item.target, score: item.avg };
+        });
+      }
+      
+      // 2. top3를 contests/{id}에 저장
+      await updateDoc(firestoreDoc(db, 'contests', contest.id), { ended: true, top3 });
+      alert('콘테스트가 종료되었습니다.');
+    } catch (error) {
+      console.error('콘테스트 종료 중 오류:', error);
+      alert('콘테스트 종료 중 오류가 발생했습니다.');
+    }
+  }, []);
+
+  const handleCreateClick = useCallback(() => {
+    navigate('/contests/create');
+  }, [navigate]);
+
+  const handleDetailClick = useCallback((contestId: string) => {
+    navigate(`/contests/${contestId}`);
+  }, [navigate]);
+
+  const formatDeadline = useCallback((deadline: any): string => {
+    if (!deadline) return '';
+    return deadline.seconds ? new Date(deadline.seconds * 1000).toLocaleDateString('ko-KR') : '';
+  }, []);
+
+  const getRankEmoji = useCallback((rank: number): string => {
+    switch (rank) {
+      case 1: return '🥇';
+      case 2: return '🥈';
+      case 3: return '🥉';
+      default: return '';
+    }
+  }, []);
+
+  // Effects
+  useEffect(() => {
+    const q = query(collection(db, 'contests'), orderBy('deadline', 'desc'));
+    const unsub = onSnapshot(q, (snap) => {
+      setContests(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Contest[]);
+    });
+    return () => unsub();
+  }, []);
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      backgroundAttachment: 'fixed',
-      position: 'relative',
-      overflow: 'hidden'
-    }}>
-      {/* 배경 패턴 */}
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: `
-          radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-          radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-          radial-gradient(circle at 40% 80%, rgba(120, 119, 198, 0.2) 0%, transparent 50%)
-        `,
-        pointerEvents: 'none'
-      }} />
-      
-      <div style={{
-        position: 'relative',
-        zIndex: 1,
-        padding: '20px',
-        maxWidth: '1200px',
-        margin: '0 auto'
-      }}>
-        {/* 헤더 */}
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.15)',
-          backdropFilter: 'blur(15px)',
-          borderRadius: '20px',
-          padding: '20px',
-          marginBottom: '20px',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}>
-          <h2 style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 12, 
-            color: 'white', 
-            fontWeight: 700, 
-            fontSize: 28, 
-            margin: 0,
-            textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
-          }}>
-            🏆 콘테스트
-          </h2>
-        </div>
-
-        {/* 콘테스트 생성 버튼 */}
-        {isAdmin && (
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.15)',
-            backdropFilter: 'blur(15px)',
-            borderRadius: '16px',
-            padding: '16px',
-            marginBottom: '20px',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            textAlign: 'center'
-          }}>
-            <button 
-              style={{ 
-                background: 'rgba(34, 197, 94, 0.8)',
-                backdropFilter: 'blur(10px)',
-                color: 'white', 
-                borderRadius: '12px', 
-                padding: '12px 24px', 
-                fontWeight: 600, 
-                fontSize: 16, 
-                border: '1px solid rgba(255, 255, 255, 0.3)', 
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-              }} 
-              onClick={() => navigate('/contests/create')}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(34, 197, 94, 0.9)';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(34, 197, 94, 0.8)';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >
-              ➕ 콘테스트 생성
-            </button>
+    <div className="contest-list-container">
+      <div className="contest-list-pattern" />
+      <div className="contest-list-content">
+        <h2 className="contest-title">
+          🏆 콘테스트
+        </h2>
+        <button
+          className="btn btn-primary"
+          onClick={() => navigate('/contests/create')}
+        >
+          + 콘테스트 생성
+        </button>
+        {/* 카드만 바로 나열 */}
+        {contests.length === 0 ? (
+          <div className="contest-empty-state">
+            <div className="contest-empty-icon">🏆</div>
+            진행 중인 콘테스트가 없습니다.
           </div>
-        )}
-
-        {/* 콘테스트 목록 */}
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.15)',
-          backdropFilter: 'blur(15px)',
-          borderRadius: '20px',
-          padding: '20px',
-          border: '1px solid rgba(255, 255, 255, 0.2)'
-        }}>
-          {contests.length === 0 ? (
-            <div style={{ 
-              color: 'rgba(255, 255, 255, 0.8)', 
-              textAlign: 'center', 
-              padding: '60px 20px',
-              fontSize: '18px'
-            }}>
-              <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏆</div>
-              진행 중인 콘테스트가 없습니다.
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {contests.map(contest => (
-                <div
-                  key={contest.id}
-                  style={{
-                    background: isContestEnded(contest) ? 
-                      'rgba(255, 255, 255, 0.08)' : 
-                      'rgba(255, 255, 255, 0.15)',
-                    backdropFilter: 'blur(10px)',
-                    borderRadius: '16px',
-                    padding: '20px',
-                    border: isContestEnded(contest) ? 
-                      '1px solid rgba(255, 255, 255, 0.1)' : 
-                      '1px solid rgba(255, 255, 255, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '16px',
-                    flexWrap: 'wrap',
-                    transition: 'all 0.3s ease',
-                    opacity: isContestEnded(contest) ? 0.7 : 1
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isContestEnded(contest)) {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isContestEnded(contest)) {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                    }
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: '200px' }}>
-                    <div style={{ 
-                      fontWeight: 700, 
-                      color: 'white', 
-                      fontSize: 20, 
-                      marginBottom: '8px',
-                      textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-                    }}>
-                      {contest.title}
-                    </div>
-                    <div style={{ 
-                      display: 'flex', 
-                      gap: '12px', 
-                      flexWrap: 'wrap',
-                      alignItems: 'center'
-                    }}>
-                      <span style={{
-                        background: 'rgba(255, 255, 255, 0.2)',
-                        backdropFilter: 'blur(5px)',
-                        color: 'white',
-                        padding: '4px 12px',
-                        borderRadius: '20px',
-                        fontSize: '14px',
-                        fontWeight: 600,
-                        border: '1px solid rgba(255, 255, 255, 0.3)'
-                      }}>
-                        {contest.type}
-                      </span>
-                      {contest.isStarted && (
-                        <span style={{
-                          background: 'rgba(34, 197, 94, 0.3)',
-                          backdropFilter: 'blur(5px)',
-                          color: 'white',
-                          padding: '4px 12px',
-                          borderRadius: '20px',
-                          fontSize: '14px',
-                          fontWeight: 600,
-                          border: '1px solid rgba(34, 197, 94, 0.5)'
-                        }}>
-                          ✅ 개최됨
-                        </span>
-                      )}
-                      {!contest.isStarted && !isContestEnded(contest) && (
-                        <span style={{
-                          background: 'rgba(251, 191, 36, 0.3)',
-                          backdropFilter: 'blur(5px)',
-                          color: 'white',
-                          padding: '4px 12px',
-                          borderRadius: '20px',
-                          fontSize: '14px',
-                          fontWeight: 600,
-                          border: '1px solid rgba(251, 191, 36, 0.5)'
-                        }}>
-                          ⏸️ 대기중
-                        </span>
-                      )}
-                      <span style={{ 
-                        color: 'rgba(255, 255, 255, 0.8)', 
-                        fontSize: 14,
-                        fontWeight: 500
-                      }}>
-                        📅 마감: {contest.deadline && (contest.deadline.seconds ? new Date(contest.deadline.seconds * 1000).toLocaleDateString('ko-KR') : '')}
-                      </span>
-                    </div>
+        ) : (
+          contests.map(contest => {
+            const isEnded = isContestEnded(contest);
+            return (
+              <div
+                key={contest.id}
+                className={`contest-card ${isEnded ? 'ended' : ''}`}
+              >
+                <div className="contest-card-content">
+                  <div className="contest-card-title">
+                    {contest.title}
                   </div>
-                  
-                  <div style={{ 
-                    display: 'flex', 
-                    gap: '8px', 
-                    flexWrap: 'wrap',
-                    alignItems: 'center'
-                  }}>
-                    <button 
-                      style={{ 
-                        background: 'rgba(59, 130, 246, 0.8)',
-                        backdropFilter: 'blur(10px)',
-                        color: 'white', 
-                        borderRadius: '10px', 
-                        padding: '8px 16px', 
-                        fontWeight: 600, 
-                        border: '1px solid rgba(255, 255, 255, 0.3)', 
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        transition: 'all 0.3s ease'
-                      }} 
-                      onClick={() => navigate(`/contests/${contest.id}`)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'rgba(59, 130, 246, 0.9)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'rgba(59, 130, 246, 0.8)';
-                      }}
-                    >
-                      📋 상세
-                    </button>
-                    
-                    {!isContestEnded(contest) && (
-                      <button 
-                        style={{ 
-                          background: 'rgba(34, 197, 94, 0.8)',
-                          backdropFilter: 'blur(10px)',
-                          color: 'white', 
-                          borderRadius: '10px', 
-                          padding: '8px 16px', 
-                          fontWeight: 600, 
-                          border: '1px solid rgba(255, 255, 255, 0.3)', 
-                          cursor: 'pointer',
-                          fontSize: '14px',
-                          transition: 'all 0.3s ease'
-                        }} 
-                        onClick={() => handleParticipate(contest)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = 'rgba(34, 197, 94, 0.9)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'rgba(34, 197, 94, 0.8)';
-                        }}
-                      >
-                        🎯 참여
-                      </button>
-                    )}
-                    
-                    {isContestEnded(contest) ? (
-                      <span style={{ 
-                        background: 'rgba(239, 68, 68, 0.8)',
-                        backdropFilter: 'blur(10px)',
-                        color: 'white', 
-                        borderRadius: '10px', 
-                        padding: '8px 16px', 
-                        fontWeight: 600, 
-                        border: '1px solid rgba(255, 255, 255, 0.3)', 
-                        display: 'inline-block',
-                        fontSize: '14px'
-                      }}>
-                        ❌ 종료됨
-                      </span>
-                    ) : (
-                      user && user.role === '리더' && user.nickname === '너래' && (
-                        <button 
-                          style={{ 
-                            background: 'rgba(239, 68, 68, 0.8)',
-                            backdropFilter: 'blur(10px)',
-                            color: 'white', 
-                            borderRadius: '10px', 
-                            padding: '8px 16px', 
-                            fontWeight: 600, 
-                            border: '1px solid rgba(255, 255, 255, 0.3)', 
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            transition: 'all 0.3s ease'
-                          }} 
-                          onClick={() => handleEndContest(contest)}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.9)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.8)';
-                          }}
+                  {/* top3 표시 */}
+                  {isEnded && Array.isArray(contest.top3) && contest.top3.length > 0 && (
+                    <div className="contest-top3">
+                      {contest.top3.map((item) => (
+                        <span 
+                          key={item.rank} 
+                          className={`contest-top3-badge rank-${item.rank}`}
                         >
-                          🛑 종료
-                        </button>
-                      )
+                          {getRankEmoji(item.rank)} {item.name} ({item.score ? item.score.toFixed(1) : '-'})
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="contest-tags">
+                    <span className="contest-tag type">
+                      {contest.type}
+                    </span>
+                    {!isEnded && contest.isStarted && (
+                      <span className="contest-tag started">
+                        ✅ 개최됨
+                      </span>
                     )}
+                    {!contest.isStarted && !isEnded && (
+                      <span className="contest-tag waiting">
+                        ⏸️ 대기중
+                      </span>
+                    )}
+                    <span className="contest-date">
+                      📅 마감: {formatDeadline(contest.deadline)}
+                    </span>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+                <div className="contest-buttons">
+                  <button 
+                    className="contest-button detail"
+                    onClick={() => navigate(`/contests/${contest.id}`)}
+                  >
+                    📋 상세
+                  </button>
+                  {!isEnded && (
+                    <button 
+                      className="contest-button participate"
+                      onClick={() => navigate(`/contests/${contest.id}/participate`)}
+                    >
+                      🎯 참여
+                    </button>
+                  )}
+                  {isEnded ? (
+                    <span className="contest-tag ended">
+                      ❌ 종료됨
+                    </span>
+                  ) : (
+                    user && user.role === '리더' && user.nickname === '너래' && (
+                      <button 
+                        className="contest-button end"
+                        onClick={async () => await updateDoc(firestoreDoc(db, 'contests', contest.id), { ended: true })}
+                      >
+                        🛑 종료
+                      </button>
+                    )
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );

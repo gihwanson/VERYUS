@@ -20,6 +20,67 @@
   --bg-error: #FEF2F2;
   --hover-bg: #F9FAFB;
 
+  /* Bottom Navigation Colors */
+  --nav-bg: rgba(30, 30, 40, 0.95);
+  --nav-border: rgba(255, 255, 255, 0.1);
+  --nav-shadow: rgba(0, 0, 0, 0.3);
+  --nav-item-hover: rgba(255, 255, 255, 0.1);
+  --nav-item-active: rgba(255, 255, 255, 0.15);
+  --nav-text: rgba(255, 255, 255, 0.7);
+  --nav-text-active: #ffffff;
+  --nav-badge-bg: linear-gradient(135deg, #FF4757 0%, #FF3838 100%);
+  --nav-badge-shadow: rgba(255, 71, 87, 0.3);
+  --nav-admin-bg: linear-gradient(135deg, #8A55CC 0%, #9F6ADB 100%);
+  --nav-admin-hover: linear-gradient(135deg, #7A47BC 0%, #8F5ACB 100%);
+  --nav-search-bg: linear-gradient(135deg, #8A55CC 0%, #9F6ADB 100%);
+  --nav-search-hover: linear-gradient(135deg, #7A47BC 0%, #8F5ACB 100%);
+  --nav-toggle-bg: rgba(30, 30, 40, 0.95);
+  --nav-toggle-hover: rgba(40, 40, 50, 0.95);
+  --nav-toggle-shadow: rgba(138, 85, 204, 0.3);
+  --nav-toggle-shadow-hover: rgba(138, 85, 204, 0.4);
+
+  /* Comment Item Colors */
+  --comment-bg: rgba(255, 255, 255, 0.08);
+  --comment-bg-hover: rgba(255, 255, 255, 0.12);
+  --comment-border: rgba(255, 255, 255, 0.15);
+  --comment-border-hover: rgba(139, 92, 246, 0.25);
+  --comment-header-border: rgba(139, 92, 246, 0.1);
+  --comment-actions-border: rgba(139, 92, 246, 0.08);
+  --comment-text: #2d2d44;
+  --comment-date: rgba(74, 74, 104, 0.7);
+  --comment-author: #2d2d44;
+  --comment-edit-bg: rgba(255, 255, 255, 0.1);
+  --comment-edit-border: rgba(255, 255, 255, 0.2);
+  --comment-input-bg: rgba(255, 255, 255, 0.1);
+  --comment-input-border: rgba(139, 92, 246, 0.2);
+  --comment-input-focus: #8A55CC;
+  --comment-input-focus-shadow: rgba(138, 85, 204, 0.1);
+  --comment-button-bg: rgba(255, 255, 255, 0.15);
+  --comment-button-border: rgba(139, 92, 246, 0.15);
+  --comment-button-text: #6B46C1;
+  --comment-button-hover-bg: rgba(139, 92, 246, 0.1);
+  --comment-button-hover-border: rgba(139, 92, 246, 0.3);
+  --comment-button-hover-text: #8B5CF6;
+  --comment-save-bg: #8A55CC;
+  --comment-save-hover: #7C4DBC;
+  --comment-cancel-bg: rgba(255, 255, 255, 0.2);
+  --comment-cancel-text: #6B7280;
+  --comment-cancel-hover-bg: rgba(255, 255, 255, 0.3);
+  --comment-cancel-hover-text: #4B5563;
+  --comment-reply-bg: rgba(139, 92, 246, 0.08);
+  --comment-reply-border: rgba(139, 92, 246, 0.3);
+  --comment-replies-border: rgba(139, 92, 246, 0.2);
+  --comment-mention-bg: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(168, 85, 247, 0.1) 100%);
+  --comment-mention-text: #8B5CF6;
+  --comment-mention-border: rgba(139, 92, 246, 0.2);
+
+  /* Role Badge Colors */
+  --role-leader-bg: linear-gradient(135deg, #EF4444 0%, #F87171 100%);
+  --role-admin-bg: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%);
+  --role-subadmin-bg: linear-gradient(135deg, #10B981 0%, #34D399 100%);
+  --role-member-bg: linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%);
+  --role-text: white;
+
   /* Text Colors */
   --text-primary: #1F2937;
   --text-secondary: #4B5563;
@@ -88,53 +149,917 @@
   --z-dropdown: 1000;
   --z-modal: 2000;
   --z-tooltip: 3000;
-}
+  --z-nav: 1000;
+  --z-nav-toggle: 1001;
+  --z-submenu: 999;
 
-/* Dark Mode Variables */
-.dark {
-  /* Colors */
-  --primary-color: #8B5CF6;
-  --primary-light: #A78BFA;
-  --primary-dark: #7C3AED;
-  --primary-alpha-10: rgba(139, 92, 246, 0.1);
-  --primary-alpha-20: rgba(139, 92, 246, 0.2);
-  --primary-alpha-30: rgba(139, 92, 246, 0.3);
+  /* New variables from the code block */
+  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-button: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+  --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.15) 50%, rgba(255, 255, 255, 0.1) 100%);
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
 
-  /* Background Colors */
-  --primary-bg: #2E1065;
-  --card-bg: #262626;
-  --bg-gradient: linear-gradient(135deg, #2D1B4B 0%, #1F1235 100%);
-  --bg-white: #1A1A1A;
-  --bg-light: #2D3748;
-  --bg-lighter: #374151;
-  --bg-input: #2A2A2A;
-  --bg-success: #022C22;
-  --bg-error: #450A0A;
-  --hover-bg: #333333;
+  /* Comment Section Colors */
+  --comment-section-bg: transparent;
+  --comment-section-border: rgba(255, 255, 255, 0.1);
+  --comment-section-border-radius: 24px;
+  --comment-section-padding: 2rem;
+  --comment-section-margin-top: 2rem;
+  
+  /* Comment Header */
+  --comment-header-border: rgba(139, 92, 246, 0.1);
+  --comment-header-padding: 1.5rem 2rem;
+  --comment-header-title-color: #2d2d44;
+  --comment-header-title-shadow: 0 1px 2px rgba(255, 255, 255, 0.3);
+  
+  /* Comment Form */
+  --comment-form-padding: 1.5rem;
+  --comment-form-margin-bottom: 1.5rem;
+  
+  /* Tab Buttons */
+  --tab-button-bg: rgba(255, 255, 255, 0.1);
+  --tab-button-border: rgba(139, 92, 246, 0.2);
+  --tab-button-color: #2d2d44;
+  --tab-button-active-bg: linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%);
+  --tab-button-active-color: white;
+  --tab-button-active-border: rgba(255, 255, 255, 0.3);
+  
+  /* Comment Input */
+  --comment-input-bg: rgba(255, 255, 255, 0.08);
+  --comment-input-border: rgba(255, 255, 255, 0.2);
+  --comment-input-color: #2d2d44;
+  --comment-input-placeholder: rgba(45, 45, 68, 0.6);
+  --comment-input-focus-border: rgba(139, 92, 246, 0.4);
+  --comment-input-focus-bg: rgba(255, 255, 255, 0.12);
+  --comment-input-shadow: 
+    0 4px 16px rgba(139, 92, 246, 0.08),
+    0 2px 8px rgba(139, 92, 246, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  --comment-input-focus-shadow: 
+    0 8px 24px rgba(139, 92, 246, 0.15),
+    0 4px 12px rgba(139, 92, 246, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  
+  /* Preview Content */
+  --preview-content-bg: rgba(255, 255, 255, 0.08);
+  --preview-content-border: rgba(255, 255, 255, 0.2);
+  --preview-content-color: #2d2d44;
+  
+  /* Comment Form Footer */
+  --comment-form-footer-gap: 1rem;
+  --comment-form-options-gap: 1rem;
+  
+  /* Secret Comment Toggle */
+  --secret-toggle-color: #2d2d44;
+  --secret-toggle-hover-color: #8B5CF6;
+  --secret-toggle-checkbox-accent: #8B5CF6;
+  
+  /* Submit Button */
+  --comment-submit-bg: linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%);
+  --comment-submit-color: white;
+  --comment-submit-border: rgba(255, 255, 255, 0.2);
+  --comment-submit-shadow: 
+    0 4px 16px rgba(139, 92, 246, 0.25),
+    0 2px 8px rgba(139, 92, 246, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  --comment-submit-hover-bg: linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%);
+  --comment-submit-hover-shadow: 
+    0 8px 24px rgba(139, 92, 246, 0.35),
+    0 4px 12px rgba(139, 92, 246, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  --comment-submit-disabled-bg: rgba(209, 213, 219, 0.8);
+  --comment-submit-disabled-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  
+  /* Empty State */
+  --empty-comments-color: #6B7280;
+  --empty-comments-icon-color: #8A55CC;
+  
+  /* Loading State */
+  --loading-spinner-color: #6B7280;
+  --loading-min-height: 200px;
+  
+  /* Message Modal */
+  --message-modal-overlay-bg: rgba(0, 0, 0, 0.5);
+  --message-modal-bg: white;
+  --message-modal-border-radius: 16px;
+  --message-modal-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --message-modal-header-border: #E5E7EB;
+  --message-modal-title-color: #1F2937;
+  --message-textarea-bg: #F9FAFB;
+  --message-textarea-border: #D1D5DB;
+  --message-textarea-focus-border: #8B5CF6;
+  --send-message-btn-bg: #8B5CF6;
+  --send-message-btn-color: white;
+  --send-message-btn-hover-bg: #7C3AED;
 
-  /* Text Colors */
-  --text-primary: #F9FAFB;
-  --text-secondary: #D1D5DB;
-  --text-tertiary: #9CA3AF;
-  --text-muted: #71717A;
-  --text-success: #4ADE80;
-  --text-error: #EF4444;
+  /* ===== CONTEST CREATE VARIABLES ===== */
+  /* Contest Create Background */
+  --contest-create-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --contest-create-bg-attachment: fixed;
+  
+  /* Contest Create Background Pattern */
+  --contest-create-pattern: 
+    radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 40% 80%, rgba(120, 119, 198, 0.2) 0%, transparent 50%);
+  
+  /* Contest Create Container */
+  --contest-create-container-padding: 20px;
+  --contest-create-container-max-width: 600px;
+  --contest-create-container-z-index: 1;
+  
+  /* Back Button */
+  --back-button-bg: rgba(255, 255, 255, 0.2);
+  --back-button-color: white;
+  --back-button-border: rgba(255, 255, 255, 0.3);
+  --back-button-hover-bg: rgba(255, 255, 255, 0.3);
+  --back-button-padding: 12px 24px;
+  --back-button-border-radius: 12px;
+  --back-button-font-size: 16px;
+  --back-button-font-weight: 600;
+  --back-button-margin-bottom: 20px;
+  
+  /* Main Form */
+  --contest-form-bg: rgba(255, 255, 255, 0.15);
+  --contest-form-border: rgba(255, 255, 255, 0.2);
+  --contest-form-border-radius: 20px;
+  --contest-form-padding: 40px;
+  
+  /* Form Title */
+  --contest-title-color: white;
+  --contest-title-font-size: 28px;
+  --contest-title-font-weight: 700;
+  --contest-title-margin-bottom: 32px;
+  --contest-title-text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  
+  /* Form Labels */
+  --contest-label-color: white;
+  --contest-label-font-size: 16px;
+  --contest-label-font-weight: 600;
+  --contest-label-margin-bottom: 8px;
+  --contest-field-margin-bottom: 24px;
+  
+  /* Form Inputs */
+  --contest-input-bg: rgba(255, 255, 255, 0.1);
+  --contest-input-border: rgba(255, 255, 255, 0.3);
+  --contest-input-color: white;
+  --contest-input-padding: 12px 16px;
+  --contest-input-border-radius: 12px;
+  --contest-input-font-size: 16px;
+  --contest-input-focus-bg: rgba(255, 255, 255, 0.2);
+  --contest-input-focus-border: rgba(255, 255, 255, 0.5);
+  
+  /* Form Select */
+  --contest-select-bg: rgba(255, 255, 255, 0.1);
+  --contest-select-border: rgba(255, 255, 255, 0.3);
+  --contest-select-color: white;
+  --contest-select-option-bg: #667eea;
+  --contest-select-option-color: white;
+  
+  /* Submit Button */
+  --contest-submit-bg: rgba(34, 197, 94, 0.8);
+  --contest-submit-color: white;
+  --contest-submit-border: rgba(255, 255, 255, 0.3);
+  --contest-submit-hover-bg: rgba(34, 197, 94, 0.9);
+  --contest-submit-padding: 16px 24px;
+  --contest-submit-border-radius: 12px;
+  --contest-submit-font-size: 18px;
+  --contest-submit-font-weight: 600;
+  --contest-submit-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --contest-submit-margin-bottom: 32px;
+  
+  /* Access Denied */
+  --access-denied-bg: rgba(255, 255, 255, 0.15);
+  --access-denied-border: rgba(255, 255, 255, 0.2);
+  --access-denied-border-radius: 20px;
+  --access-denied-padding: 40px;
+  --access-denied-icon-size: 48px;
+  --access-denied-icon-margin-bottom: 16px;
+  --access-denied-text-color: white;
+  --access-denied-text-size: 18px;
+  --access-denied-text-weight: 600;
 
-  /* Border Colors */
-  --border-color: #404040;
-  --border-light: #2A2A2A;
-  --border-success: #065F46;
-  --border-error: #7F1D1D;
+  /* ===== CONTEST LIST VARIABLES ===== */
+  /* Contest List Background */
+  --contest-list-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --contest-list-bg-attachment: fixed;
+  
+  /* Contest List Background Pattern */
+  --contest-list-pattern: 
+    radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 40% 80%, rgba(120, 119, 198, 0.2) 0%, transparent 50%);
+  
+  /* Contest List Container */
+  --contest-list-container-padding: 32px 0 0 0;
+  --contest-list-container-max-width: 600px;
+  --contest-list-container-min-height: 400px;
+  --contest-list-content-gap: 32px;
+  
+  /* Contest Header */
+  --contest-header-bg: rgba(255, 255, 255, 0.15);
+  --contest-header-border: rgba(255, 255, 255, 0.2);
+  --contest-header-border-radius: 20px;
+  --contest-header-padding: 20px;
+  --contest-header-margin-bottom: 20px;
+  --contest-header-title-color: white;
+  --contest-header-title-font-size: 28px;
+  --contest-header-title-font-weight: 700;
+  --contest-header-title-text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  
+  /* Create Button Container */
+  --contest-create-container-bg: rgba(255, 255, 255, 0.15);
+  --contest-create-container-border: rgba(255, 255, 255, 0.2);
+  --contest-create-container-border-radius: 16px;
+  --contest-create-container-padding: 16px;
+  --contest-create-container-margin-bottom: 20px;
+  
+  /* Create Button */
+  --contest-create-btn-bg: rgba(34, 197, 94, 0.8);
+  --contest-create-btn-color: white;
+  --contest-create-btn-border: rgba(255, 255, 255, 0.3);
+  --contest-create-btn-hover-bg: rgba(34, 197, 94, 0.9);
+  --contest-create-btn-padding: 12px 24px;
+  --contest-create-btn-border-radius: 12px;
+  --contest-create-btn-font-size: 16px;
+  --contest-create-btn-font-weight: 600;
+  --contest-create-btn-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  
+  /* Contest List Container */
+  --contest-list-content-bg: rgba(255, 255, 255, 0.15);
+  --contest-list-content-border: rgba(255, 255, 255, 0.2);
+  --contest-list-content-border-radius: 20px;
+  --contest-list-content-padding: 20px;
+  
+  /* Empty State */
+  --contest-empty-color: rgba(255, 255, 255, 0.8);
+  --contest-empty-font-size: 18px;
+  --contest-empty-padding: 60px 20px;
+  --contest-empty-icon-size: 48px;
+  --contest-empty-icon-margin-bottom: 16px;
+  
+  /* Contest Card */
+  --contest-card-gap: 16px;
+  --contest-card-active-bg: rgba(255, 255, 255, 0.15);
+  --contest-card-active-border: rgba(255, 255, 255, 0.2);
+  --contest-card-ended-bg: rgba(255, 255, 255, 0.08);
+  --contest-card-ended-border: rgba(255, 255, 255, 0.1);
+  --contest-card-hover-bg: rgba(255, 255, 255, 0.25);
+  --contest-card-border-radius: 16px;
+  --contest-card-padding: 20px;
+  --contest-card-opacity-ended: 0.7;
+  
+  /* Contest Title */
+  --contest-title-color: white;
+  --contest-title-font-size: 20px;
+  --contest-title-font-weight: 700;
+  --contest-title-margin-bottom: 8px;
+  --contest-title-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  
+  /* Top 3 Badges */
+  --contest-top3-gap: 8px;
+  --contest-top3-margin-bottom: 8px;
+  --contest-top3-1st-bg: linear-gradient(90deg, #FFD700 60%, #FFA500 100%);
+  --contest-top3-2nd-bg: linear-gradient(90deg, #C0C0C0 60%, #E5E5E5 100%);
+  --contest-top3-3rd-bg: linear-gradient(90deg, #CD7F32 60%, #D2691E 100%);
+  --contest-top3-color: #fff;
+  --contest-top3-border-radius: 12px;
+  --contest-top3-padding: 4px 12px;
+  --contest-top3-font-weight: 700;
+  --contest-top3-font-size: 15px;
+  --contest-top3-border: 1px solid rgba(255,255,255,0.2);
+  --contest-top3-box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  
+  /* Contest Tags */
+  --contest-tags-gap: 12px;
+  --contest-tag-type-bg: rgba(255, 255, 255, 0.2);
+  --contest-tag-type-color: white;
+  --contest-tag-type-padding: 4px 12px;
+  --contest-tag-type-border-radius: 20px;
+  --contest-tag-type-font-size: 14px;
+  --contest-tag-type-font-weight: 600;
+  --contest-tag-type-border: 1px solid rgba(255, 255, 255, 0.3);
+  
+  --contest-tag-started-bg: rgba(34, 197, 94, 0.3);
+  --contest-tag-started-border: rgba(34, 197, 94, 0.5);
+  
+  --contest-tag-waiting-bg: rgba(251, 191, 36, 0.3);
+  --contest-tag-waiting-border: rgba(251, 191, 36, 0.5);
+  
+  --contest-tag-ended-bg: rgba(239, 68, 68, 0.8);
+  --contest-tag-ended-border: rgba(255, 255, 255, 0.3);
+  
+  /* Contest Date */
+  --contest-date-color: rgba(255, 255, 255, 0.8);
+  --contest-date-font-size: 14px;
+  --contest-date-font-weight: 500;
+  
+  /* Contest Buttons */
+  --contest-buttons-gap: 8px;
+  --contest-btn-detail-bg: rgba(59, 130, 246, 0.8);
+  --contest-btn-detail-hover-bg: rgba(59, 130, 246, 0.9);
+  --contest-btn-participate-bg: rgba(34, 197, 94, 0.8);
+  --contest-btn-participate-hover-bg: rgba(34, 197, 94, 0.9);
+  --contest-btn-end-bg: rgba(239, 68, 68, 0.8);
+  --contest-btn-end-hover-bg: rgba(239, 68, 68, 0.9);
+  --contest-btn-color: white;
+  --contest-btn-border: rgba(255, 255, 255, 0.3);
+  --contest-btn-border-radius: 10px;
+  --contest-btn-padding: 8px 16px;
+  --contest-btn-font-size: 14px;
+  --contest-btn-font-weight: 600;
 
-  /* Button Colors */
-  --button-bg: #2a2a2a;
-  --button-hover-bg: #3a3a3a;
+  /* ===== CONTEST DETAIL VARIABLES ===== */
+  /* Contest Detail Background */
+  --contest-detail-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --contest-detail-bg-attachment: fixed;
+  
+  /* Contest Detail Background Pattern */
+  --contest-detail-pattern: 
+    radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 40% 80%, rgba(120, 119, 198, 0.2) 0%, transparent 50%);
+  
+  /* Contest Detail Container */
+  --contest-detail-container-padding: 20px;
+  --contest-detail-container-max-width: 1200px;
+  --contest-detail-container-z-index: 1;
+  
+  /* Loading State */
+  --contest-loading-bg: rgba(255, 255, 255, 0.15);
+  --contest-loading-border: rgba(255, 255, 255, 0.2);
+  --contest-loading-border-radius: 20px;
+  --contest-loading-padding: 40px;
+  --contest-loading-color: white;
+  --contest-loading-font-size: 18px;
+  
+  /* Contest Header */
+  --contest-detail-header-bg: rgba(255, 255, 255, 0.15);
+  --contest-detail-header-border: rgba(255, 255, 255, 0.2);
+  --contest-detail-header-border-radius: 20px;
+  --contest-detail-header-padding: 24px;
+  --contest-detail-header-margin-bottom: 20px;
+  
+  /* Contest Title */
+  --contest-detail-title-color: white;
+  --contest-detail-title-font-size: 32px;
+  --contest-detail-title-font-weight: 700;
+  --contest-detail-title-text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  --contest-detail-title-margin-bottom: 16px;
+  
+  /* Contest Info */
+  --contest-detail-info-gap: 16px;
+  --contest-detail-info-margin-bottom: 24px;
+  
+  /* Contest Info Item */
+  --contest-detail-info-item-bg: rgba(255, 255, 255, 0.1);
+  --contest-detail-info-item-border: rgba(255, 255, 255, 0.2);
+  --contest-detail-info-item-border-radius: 12px;
+  --contest-detail-info-item-padding: 12px 16px;
+  --contest-detail-info-item-color: white;
+  --contest-detail-info-item-font-size: 14px;
+  --contest-detail-info-item-font-weight: 600;
+  
+  /* Contest Actions */
+  --contest-detail-actions-gap: 12px;
+  --contest-detail-actions-margin-bottom: 24px;
+  
+  /* Contest Action Button */
+  --contest-detail-btn-participate-bg: rgba(34, 197, 94, 0.8);
+  --contest-detail-btn-participate-hover-bg: rgba(34, 197, 94, 0.9);
+  --contest-detail-btn-start-bg: rgba(59, 130, 246, 0.8);
+  --contest-detail-btn-start-hover-bg: rgba(59, 130, 246, 0.9);
+  --contest-detail-btn-end-bg: rgba(239, 68, 68, 0.8);
+  --contest-detail-btn-end-hover-bg: rgba(239, 68, 68, 0.9);
+  --contest-detail-btn-delete-bg: rgba(156, 163, 175, 0.8);
+  --contest-detail-btn-delete-hover-bg: rgba(156, 163, 175, 0.9);
+  --contest-detail-btn-color: white;
+  --contest-detail-btn-border: rgba(255, 255, 255, 0.3);
+  --contest-detail-btn-border-radius: 10px;
+  --contest-detail-btn-padding: 10px 20px;
+  --contest-detail-btn-font-size: 14px;
+  --contest-detail-btn-font-weight: 600;
+  
+  /* Contest Sections */
+  --contest-detail-section-bg: rgba(255, 255, 255, 0.15);
+  --contest-detail-section-border: rgba(255, 255, 255, 0.2);
+  --contest-detail-section-border-radius: 16px;
+  --contest-detail-section-padding: 20px;
+  --contest-detail-section-margin-bottom: 20px;
+  
+  /* Section Title */
+  --contest-detail-section-title-color: white;
+  --contest-detail-section-title-font-size: 20px;
+  --contest-detail-section-title-font-weight: 700;
+  --contest-detail-section-title-margin-bottom: 16px;
+  --contest-detail-section-title-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  
+  /* Participant List */
+  --contest-detail-participant-list-max-height: 300px;
+  --contest-detail-participant-list-overflow: auto;
+  --contest-detail-participant-list-gap: 8px;
+  
+  /* Participant Item */
+  --contest-detail-participant-item-bg: rgba(255, 255, 255, 0.1);
+  --contest-detail-participant-item-border: rgba(255, 255, 255, 0.2);
+  --contest-detail-participant-item-border-radius: 8px;
+  --contest-detail-participant-item-padding: 12px;
+  --contest-detail-participant-item-color: white;
+  --contest-detail-participant-item-font-size: 14px;
+  --contest-detail-participant-item-font-weight: 500;
+  --contest-detail-participant-item-hover-bg: rgba(255, 255, 255, 0.15);
+  
+  /* Participant Selection */
+  --contest-detail-participant-selected-bg: rgba(34, 197, 94, 0.3);
+  --contest-detail-participant-selected-border: rgba(34, 197, 94, 0.5);
+  
+  /* Team List */
+  --contest-detail-team-list-gap: 12px;
+  
+  /* Team Item */
+  --contest-detail-team-item-bg: rgba(255, 255, 255, 0.1);
+  --contest-detail-team-item-border: rgba(255, 255, 255, 0.2);
+  --contest-detail-team-item-border-radius: 12px;
+  --contest-detail-team-item-padding: 16px;
+  --contest-detail-team-item-color: white;
+  
+  /* Team Name */
+  --contest-detail-team-name-font-size: 16px;
+  --contest-detail-team-name-font-weight: 600;
+  --contest-detail-team-name-margin-bottom: 8px;
+  
+  /* Team Members */
+  --contest-detail-team-members-font-size: 14px;
+  --contest-detail-team-members-color: rgba(255, 255, 255, 0.8);
+  
+  /* Team Actions */
+  --contest-detail-team-actions-gap: 8px;
+  --contest-detail-team-actions-margin-top: 12px;
+  
+  /* Team Action Button */
+  --contest-detail-team-btn-edit-bg: rgba(59, 130, 246, 0.6);
+  --contest-detail-team-btn-edit-hover-bg: rgba(59, 130, 246, 0.8);
+  --contest-detail-team-btn-break-bg: rgba(239, 68, 68, 0.6);
+  --contest-detail-team-btn-break-hover-bg: rgba(239, 68, 68, 0.8);
+  --contest-detail-team-btn-color: white;
+  --contest-detail-team-btn-border: rgba(255, 255, 255, 0.2);
+  --contest-detail-team-btn-border-radius: 6px;
+  --contest-detail-team-btn-padding: 6px 12px;
+  --contest-detail-team-btn-font-size: 12px;
+  --contest-detail-team-btn-font-weight: 500;
+  
+  /* Add Participant Form */
+  --contest-detail-add-form-gap: 12px;
+  --contest-detail-add-form-margin-top: 16px;
+  --contest-detail-add-form-padding: 16px;
+  --contest-detail-add-form-bg: rgba(255, 255, 255, 0.05);
+  --contest-detail-add-form-border: rgba(255, 255, 255, 0.1);
+  --contest-detail-add-form-border-radius: 8px;
+  
+  /* Add Participant Input */
+  --contest-detail-add-input-bg: rgba(255, 255, 255, 0.1);
+  --contest-detail-add-input-border: rgba(255, 255, 255, 0.2);
+  --contest-detail-add-input-border-radius: 6px;
+  --contest-detail-add-input-padding: 8px 12px;
+  --contest-detail-add-input-color: white;
+  --contest-detail-add-input-font-size: 14px;
+  --contest-detail-add-input-placeholder-color: rgba(255, 255, 255, 0.6);
+  
+  /* Add Participant Button */
+  --contest-detail-add-btn-bg: rgba(34, 197, 94, 0.6);
+  --contest-detail-add-btn-hover-bg: rgba(34, 197, 94, 0.8);
+  --contest-detail-add-btn-color: white;
+  --contest-detail-add-btn-border: rgba(255, 255, 255, 0.2);
+  --contest-detail-add-btn-border-radius: 6px;
+  --contest-detail-add-btn-padding: 8px 16px;
+  --contest-detail-add-btn-font-size: 14px;
+  --contest-detail-add-btn-font-weight: 500;
+  
+  /* Duet Actions */
+  --contest-detail-duet-actions-gap: 12px;
+  --contest-detail-duet-actions-margin-top: 16px;
+  
+  /* Duet Action Button */
+  --contest-detail-duet-btn-make-bg: rgba(168, 85, 247, 0.6);
+  --contest-detail-duet-btn-make-hover-bg: rgba(168, 85, 247, 0.8);
+  --contest-detail-duet-btn-clear-bg: rgba(156, 163, 175, 0.6);
+  --contest-detail-duet-btn-clear-hover-bg: rgba(156, 163, 175, 0.8);
+  --contest-detail-duet-btn-color: white;
+  --contest-detail-duet-btn-border: rgba(255, 255, 255, 0.2);
+  --contest-detail-duet-btn-border-radius: 8px;
+  --contest-detail-duet-btn-padding: 10px 16px;
+  --contest-detail-duet-btn-font-size: 14px;
+  --contest-detail-duet-btn-font-weight: 500;
+  
+  /* Submission Status */
+  --contest-detail-submission-submitted-bg: rgba(34, 197, 94, 0.2);
+  --contest-detail-submission-submitted-border: rgba(34, 197, 94, 0.4);
+  --contest-detail-submission-submitted-color: #22c55e;
+  
+  --contest-detail-submission-pending-bg: rgba(251, 191, 36, 0.2);
+  --contest-detail-submission-pending-border: rgba(251, 191, 36, 0.4);
+  --contest-detail-submission-pending-color: #fbbf24;
 
-  /* Shadows */
-  --shadow-sm: 0 4px 6px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 8px 25px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.4);
-  --shadow-color: rgba(124, 58, 237, 0.2);
+  /* ===== CONTEST PARTICIPATE VARIABLES ===== */
+  /* Contest Participate Background */
+  --contest-participate-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --contest-participate-bg-attachment: fixed;
+  
+  /* Contest Participate Background Pattern */
+  --contest-participate-pattern: 
+    radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 40% 80%, rgba(120, 119, 198, 0.2) 0%, transparent 50%);
+  
+  /* Contest Participate Container */
+  --contest-participate-container-padding: 20px;
+  --contest-participate-container-max-width: 1200px;
+  --contest-participate-container-z-index: 1;
+  
+  /* Contest Participate Header */
+  --contest-participate-header-bg: rgba(255, 255, 255, 0.15);
+  --contest-participate-header-border: rgba(255, 255, 255, 0.2);
+  --contest-participate-header-border-radius: 20px;
+  --contest-participate-header-padding: 24px;
+  --contest-participate-header-margin-bottom: 20px;
+  
+  /* Contest Participate Title */
+  --contest-participate-title-color: white;
+  --contest-participate-title-font-size: 32px;
+  --contest-participate-title-font-weight: 700;
+  --contest-participate-title-text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  --contest-participate-title-margin-bottom: 16px;
+  
+  /* Contest Participate Info */
+  --contest-participate-info-gap: 16px;
+  --contest-participate-info-margin-bottom: 24px;
+  
+  /* Contest Participate Info Item */
+  --contest-participate-info-item-bg: rgba(255, 255, 255, 0.1);
+  --contest-participate-info-item-border: rgba(255, 255, 255, 0.2);
+  --contest-participate-info-item-border-radius: 12px;
+  --contest-participate-info-item-padding: 12px 16px;
+  --contest-participate-info-item-color: white;
+  --contest-participate-info-item-font-size: 14px;
+  --contest-participate-info-item-font-weight: 600;
+  
+  /* Contest Participate Sections */
+  --contest-participate-section-bg: rgba(255, 255, 255, 0.15);
+  --contest-participate-section-border: rgba(255, 255, 255, 0.2);
+  --contest-participate-section-border-radius: 16px;
+  --contest-participate-section-padding: 20px;
+  --contest-participate-section-margin-bottom: 20px;
+  
+  /* Section Title */
+  --contest-participate-section-title-color: white;
+  --contest-participate-section-title-font-size: 20px;
+  --contest-participate-section-title-font-weight: 700;
+  --contest-participate-section-title-margin-bottom: 16px;
+  --contest-participate-section-title-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  
+  /* Grade Form */
+  --contest-participate-form-gap: 16px;
+  --contest-participate-form-margin-bottom: 20px;
+  
+  /* Grade Form Field */
+  --contest-participate-field-margin-bottom: 16px;
+  
+  /* Grade Form Label */
+  --contest-participate-label-color: white;
+  --contest-participate-label-font-size: 14px;
+  --contest-participate-label-font-weight: 600;
+  --contest-participate-label-margin-bottom: 8px;
+  
+  /* Grade Form Input */
+  --contest-participate-input-bg: rgba(255, 255, 255, 0.1);
+  --contest-participate-input-border: rgba(255, 255, 255, 0.2);
+  --contest-participate-input-border-radius: 8px;
+  --contest-participate-input-padding: 12px;
+  --contest-participate-input-color: white;
+  --contest-participate-input-font-size: 14px;
+  --contest-participate-input-placeholder-color: rgba(255, 255, 255, 0.6);
+  
+  /* Grade Form Select */
+  --contest-participate-select-bg: rgba(255, 255, 255, 0.1);
+  --contest-participate-select-border: rgba(255, 255, 255, 0.2);
+  
+  /* Grade Form Textarea */
+  --contest-participate-textarea-bg: rgba(255, 255, 255, 0.1);
+  --contest-participate-textarea-border: rgba(255, 255, 255, 0.2);
+  
+  /* Grade Form Buttons */
+  --contest-participate-buttons-gap: 12px;
+  --contest-participate-buttons-margin-top: 20px;
+  
+  /* Grade Form Button */
+  --contest-participate-btn-submit-bg: rgba(34, 197, 94, 0.8);
+  --contest-participate-btn-submit-hover-bg: rgba(34, 197, 94, 0.9);
+  --contest-participate-btn-complete-bg: rgba(59, 130, 246, 0.8);
+  --contest-participate-btn-complete-hover-bg: rgba(59, 130, 246, 0.9);
+  --contest-participate-btn-back-bg: rgba(156, 163, 175, 0.8);
+  --contest-participate-btn-back-hover-bg: rgba(156, 163, 175, 0.9);
+  --contest-participate-btn-color: white;
+  --contest-participate-btn-border: rgba(255, 255, 255, 0.3);
+  --contest-participate-btn-border-radius: 10px;
+  --contest-participate-btn-padding: 12px 24px;
+  --contest-participate-btn-font-size: 14px;
+  --contest-participate-btn-font-weight: 600;
+  
+  /* Suggested Grade */
+  --contest-participate-suggested-grade-bg: rgba(34, 197, 94, 0.2);
+  --contest-participate-suggested-grade-border: rgba(34, 197, 94, 0.4);
+  --contest-participate-suggested-grade-color: #22c55e;
+  --contest-participate-suggested-grade-border-radius: 8px;
+  --contest-participate-suggested-grade-padding: 8px 12px;
+  --contest-participate-suggested-grade-font-size: 14px;
+  --contest-participate-suggested-grade-font-weight: 600;
+  --contest-participate-suggested-grade-margin-top: 8px;
+  
+  /* Error Message */
+  --contest-participate-error-bg: rgba(239, 68, 68, 0.2);
+  --contest-participate-error-border: rgba(239, 68, 68, 0.4);
+  --contest-participate-error-color: #ef4444;
+  --contest-participate-error-border-radius: 8px;
+  --contest-participate-error-padding: 12px;
+  --contest-participate-error-font-size: 14px;
+  --contest-participate-error-font-weight: 500;
+  --contest-participate-error-margin-bottom: 16px;
+  
+  /* Success Message */
+  --contest-participate-success-bg: rgba(34, 197, 94, 0.2);
+  --contest-participate-success-border: rgba(34, 197, 94, 0.4);
+  --contest-participate-success-color: #22c55e;
+  --contest-participate-success-border-radius: 8px;
+  --contest-participate-success-padding: 12px;
+  --contest-participate-success-font-size: 14px;
+  --contest-participate-success-font-weight: 500;
+  --contest-participate-success-margin-bottom: 16px;
+  
+  /* Target List */
+  --contest-participate-target-list-gap: 12px;
+  
+  /* Target Item */
+  --contest-participate-target-item-bg: rgba(255, 255, 255, 0.1);
+  --contest-participate-target-item-border: rgba(255, 255, 255, 0.2);
+  --contest-participate-target-item-border-radius: 12px;
+  --contest-participate-target-item-padding: 16px;
+  --contest-participate-target-item-color: white;
+  
+  /* Target Name */
+  --contest-participate-target-name-font-size: 16px;
+  --contest-participate-target-name-font-weight: 600;
+  --contest-participate-target-name-margin-bottom: 12px;
+  
+  /* Target Grade Form */
+  --contest-participate-target-form-gap: 12px;
+  --contest-participate-target-form-margin-top: 12px;
+  
+  /* Target Grade Input */
+  --contest-participate-target-input-bg: rgba(255, 255, 255, 0.1);
+  --contest-participate-target-input-border: rgba(255, 255, 255, 0.2);
+  --contest-participate-target-input-border-radius: 6px;
+  --contest-participate-target-input-padding: 8px 12px;
+  --contest-participate-target-input-color: white;
+  --contest-participate-target-input-font-size: 14px;
+  --contest-participate-target-input-placeholder-color: rgba(255, 255, 255, 0.6);
+  
+  /* Target Grade Textarea */
+  --contest-participate-target-textarea-bg: rgba(255, 255, 255, 0.1);
+  --contest-participate-target-textarea-border: rgba(255, 255, 255, 0.2);
+  --contest-participate-target-textarea-border-radius: 6px;
+  --contest-participate-target-textarea-padding: 8px 12px;
+  --contest-participate-target-textarea-color: white;
+  --contest-participate-target-textarea-font-size: 14px;
+  --contest-participate-target-textarea-resize: vertical;
+  --contest-participate-target-textarea-min-height: 80px;
+  
+  /* Target Grade Button */
+  --contest-participate-target-btn-bg: rgba(34, 197, 94, 0.6);
+  --contest-participate-target-btn-hover-bg: rgba(34, 197, 94, 0.8);
+  --contest-participate-target-btn-color: white;
+  --contest-participate-target-btn-border: rgba(255, 255, 255, 0.2);
+  --contest-participate-target-btn-border-radius: 6px;
+  --contest-participate-target-btn-padding: 8px 16px;
+  --contest-participate-target-btn-font-size: 14px;
+  --contest-participate-target-btn-font-weight: 500;
+  
+  /* Target Status */
+  --contest-participate-target-status-font-size: 12px;
+  --contest-participate-target-status-padding: 4px 8px;
+  --contest-participate-target-status-border-radius: 12px;
+  --contest-participate-target-status-font-weight: 600;
+  
+  --contest-participate-target-status-graded-bg: rgba(34, 197, 94, 0.2);
+  --contest-participate-target-status-graded-border: rgba(34, 197, 94, 0.4);
+  --contest-participate-target-status-graded-color: #22c55e;
+  
+  --contest-participate-target-status-pending-bg: rgba(251, 191, 36, 0.2);
+  --contest-participate-target-status-pending-border: rgba(251, 191, 36, 0.4);
+  --contest-participate-target-status-pending-color: #fbbf24;
+  
+  /* Completion Message */
+  --contest-participate-completion-bg: rgba(34, 197, 94, 0.2);
+  --contest-participate-completion-border: rgba(34, 197, 94, 0.4);
+  --contest-participate-completion-color: #22c55e;
+  --contest-participate-completion-border-radius: 12px;
+  --contest-participate-completion-padding: 20px;
+  --contest-participate-completion-font-size: 16px;
+  --contest-participate-completion-font-weight: 600;
+  --contest-participate-completion-text-align: center;
+  --contest-participate-completion-margin-bottom: 20px;
+
+  /* ===== CONTEST RESULTS VARIABLES ===== */
+  /* Contest Results Background */
+  --contest-results-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --contest-results-bg-attachment: fixed;
+  
+  /* Contest Results Background Pattern */
+  --contest-results-pattern: 
+    radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 40% 80%, rgba(120, 119, 198, 0.2) 0%, transparent 50%);
+  
+  /* Contest Results Container */
+  --contest-results-container-padding: 20px;
+  --contest-results-container-max-width: 1200px;
+  --contest-results-container-z-index: 1;
+  
+  /* Contest Results Header */
+  --contest-results-header-bg: rgba(255, 255, 255, 0.15);
+  --contest-results-header-border: rgba(255, 255, 255, 0.2);
+  --contest-results-header-border-radius: 20px;
+  --contest-results-header-padding: 24px;
+  --contest-results-header-margin-bottom: 20px;
+  
+  /* Contest Results Title */
+  --contest-results-title-color: white;
+  --contest-results-title-font-size: 32px;
+  --contest-results-title-font-weight: 700;
+  --contest-results-title-text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  --contest-results-title-margin-bottom: 16px;
+  
+  /* Contest Results Info */
+  --contest-results-info-gap: 16px;
+  --contest-results-info-margin-bottom: 24px;
+  
+  /* Contest Results Info Item */
+  --contest-results-info-item-bg: rgba(255, 255, 255, 0.1);
+  --contest-results-info-item-border: rgba(255, 255, 255, 0.2);
+  --contest-results-info-item-border-radius: 12px;
+  --contest-results-info-item-padding: 12px 16px;
+  --contest-results-info-item-color: white;
+  --contest-results-info-item-font-size: 14px;
+  --contest-results-info-item-font-weight: 600;
+  
+  /* Contest Results Sections */
+  --contest-results-section-bg: rgba(255, 255, 255, 0.15);
+  --contest-results-section-border: rgba(255, 255, 255, 0.2);
+  --contest-results-section-border-radius: 16px;
+  --contest-results-section-padding: 20px;
+  --contest-results-section-margin-bottom: 20px;
+  
+  /* Section Title */
+  --contest-results-section-title-color: white;
+  --contest-results-section-title-font-size: 20px;
+  --contest-results-section-title-font-weight: 700;
+  --contest-results-section-title-margin-bottom: 16px;
+  --contest-results-section-title-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  
+  /* Filter Controls */
+  --contest-results-filters-gap: 16px;
+  --contest-results-filters-margin-bottom: 20px;
+  
+  /* Filter Select */
+  --contest-results-filter-select-bg: rgba(255, 255, 255, 0.1);
+  --contest-results-filter-select-border: rgba(255, 255, 255, 0.2);
+  --contest-results-filter-select-border-radius: 8px;
+  --contest-results-filter-select-padding: 8px 12px;
+  --contest-results-filter-select-color: white;
+  --contest-results-filter-select-font-size: 14px;
+  --contest-results-filter-select-min-width: 150px;
+  
+  /* Filter Button */
+  --contest-results-filter-btn-bg: rgba(156, 163, 175, 0.6);
+  --contest-results-filter-btn-hover-bg: rgba(156, 163, 175, 0.8);
+  --contest-results-filter-btn-color: white;
+  --contest-results-filter-btn-border: rgba(255, 255, 255, 0.2);
+  --contest-results-filter-btn-border-radius: 6px;
+  --contest-results-filter-btn-padding: 8px 16px;
+  --contest-results-filter-btn-font-size: 14px;
+  --contest-results-filter-btn-font-weight: 500;
+  
+  /* Results Table */
+  --contest-results-table-width: 100%;
+  --contest-results-table-border-collapse: collapse;
+  --contest-results-table-margin-bottom: 20px;
+  
+  /* Results Table Header */
+  --contest-results-table-header-bg: rgba(255, 255, 255, 0.1);
+  --contest-results-table-header-color: white;
+  --contest-results-table-header-font-size: 14px;
+  --contest-results-table-header-font-weight: 600;
+  --contest-results-table-header-padding: 12px 8px;
+  --contest-results-table-header-text-align: left;
+  --contest-results-table-header-border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  
+  /* Results Table Cell */
+  --contest-results-table-cell-padding: 12px 8px;
+  --contest-results-table-cell-border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  --contest-results-table-cell-font-size: 14px;
+  
+  /* Results Table Row */
+  --contest-results-table-row-hover-bg: rgba(255, 255, 255, 0.05);
+  
+  /* Rank Column */
+  --contest-results-rank-width: 60px;
+  --contest-results-rank-text-align: center;
+  --contest-results-rank-font-weight: 700;
+  
+  /* Rank Badges */
+  --contest-results-rank-1-bg: linear-gradient(90deg, #FFD700 60%, #FFA500 100%);
+  --contest-results-rank-2-bg: linear-gradient(90deg, #C0C0C0 60%, #E5E5E5 100%);
+  --contest-results-rank-3-bg: linear-gradient(90deg, #CD7F32 60%, #D2691E 100%);
+  --contest-results-rank-color: #fff;
+  --contest-results-rank-border-radius: 12px;
+  --contest-results-rank-padding: 4px 8px;
+  --contest-results-rank-font-size: 12px;
+  --contest-results-rank-font-weight: 700;
+  --contest-results-rank-border: 1px solid rgba(255,255,255,0.2);
+  --contest-results-rank-box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  
+  /* Score Column */
+  --contest-results-score-width: 80px;
+  --contest-results-score-text-align: center;
+  --contest-results-score-font-weight: 600;
+  
+  /* Grade Column */
+  --contest-results-grade-width: 120px;
+  --contest-results-grade-text-align: center;
+  --contest-results-grade-font-weight: 600;
+  
+  /* Comments Column */
+  --contest-results-comments-max-width: 300px;
+  --contest-results-comments-word-break: break-word;
+  --contest-results-comments-line-height: 1.4;
+  
+  /* Comments List */
+  --contest-results-comments-list-margin: 0;
+  --contest-results-comments-list-padding-left: 20px;
+  --contest-results-comments-list-item-margin-bottom: 4px;
+  --contest-results-comments-list-item-font-size: 13px;
+  --contest-results-comments-list-item-color: rgba(255, 255, 255, 0.8);
+  
+  /* Access Denied */
+  --contest-results-access-denied-bg: rgba(255, 255, 255, 0.15);
+  --contest-results-access-denied-border: rgba(255, 255, 255, 0.2);
+  --contest-results-access-denied-border-radius: 20px;
+  --contest-results-access-denied-padding: 40px;
+  --contest-results-access-denied-text-align: center;
+  --contest-results-access-denied-icon-size: 48px;
+  --contest-results-access-denied-icon-margin-bottom: 16px;
+  --contest-results-access-denied-text-color: white;
+  --contest-results-access-denied-text-size: 18px;
+  --contest-results-access-denied-text-weight: 600;
+  
+  /* Loading State */
+  --contest-results-loading-bg: rgba(255, 255, 255, 0.15);
+  --contest-results-loading-border: rgba(255, 255, 255, 0.2);
+  --contest-results-loading-border-radius: 20px;
+  --contest-results-loading-padding: 40px;
+  --contest-results-loading-text-align: center;
+  --contest-results-loading-icon-size: 48px;
+  --contest-results-loading-icon-margin-bottom: 16px;
+  --contest-results-loading-text-color: white;
+  --contest-results-loading-text-size: 18px;
+  --contest-results-loading-text-weight: 600;
+
+  /* ===== BUTTON COLORS ===== */
+  --btn-primary-bg: #6366f1;
+  --btn-primary-hover-bg: #4f46e5;
+  --btn-primary-color: #fff;
+  --btn-primary-border: #6366f1;
+
+  --btn-secondary-bg: #e5e7eb;
+  --btn-secondary-hover-bg: #d1d5db;
+  --btn-secondary-color: #374151;
+  --btn-secondary-border: #d1d5db;
+
+  --btn-danger-bg: #ef4444;
+  --btn-danger-hover-bg: #dc2626;
+  --btn-danger-color: #fff;
+  --btn-danger-border: #ef4444;
+
+  --btn-neutral-bg: #f3f4f6;
+  --btn-neutral-hover-bg: #e5e7eb;
+  --btn-neutral-color: #374151;
+  --btn-neutral-border: #e5e7eb;
 }
 
 /* Utility Classes */
@@ -174,6 +1099,65 @@
   to { transform: rotate(360deg); }
 }
 
+/* Bottom Navigation Animations */
+@keyframes slideInUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse-dot {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
 /* Accessibility */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -198,4 +1182,100 @@
 @custom-media --mobile (max-width: 480px);
 @custom-media --tablet (max-width: 768px);
 @custom-media --desktop (max-width: 1024px);
-@custom-media --large (max-width: 1280px); 
+@custom-media --large (max-width: 1280px);
+
+/* New utility classes from the code block */
+.glass-effect {
+  background: var(--gradient-glass);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.1),
+    0 4px 16px rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #A855F7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hover-lift {
+  transition: all var(--transition-normal);
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--hover-shadow);
+}
+
+/* New responsive breakpoints from the code block */
+@media (max-width: 480px) {
+  :root {
+    --spacing-lg: 1rem;
+    --spacing-xl: 1.5rem;
+    --spacing-2xl: 2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --radius-lg: 12px;
+    --radius-md: 6px;
+  }
+}
+
+/* ===== RESPONSIVE BREAKPOINTS ===== */
+@media (max-width: 768px) {
+  :root {
+    --comment-section-border-radius: 20px;
+    --comment-section-padding: 1.5rem;
+    --comment-section-margin-top: 1.5rem;
+    --comment-header-padding: 1rem 1.5rem;
+    --comment-form-padding: 1rem 0;
+    --comment-form-footer-gap: 0.75rem;
+  }
+}
+
+@media (max-width: 640px) {
+  :root {
+    --comment-section-border-radius: 16px;
+    --comment-section-padding: 1rem;
+    --comment-section-margin-top: 1rem;
+    --comment-header-padding: 0.75rem 1rem;
+    --comment-form-footer-gap: 0.5rem;
+  }
+}
+
+/* ===== RESPONSIVE BREAKPOINTS ===== */
+@media (max-width: 768px) {
+  :root {
+    --contest-create-container-padding: 16px;
+    --contest-form-padding: 24px;
+    --contest-title-font-size: 24px;
+    --contest-title-margin-bottom: 24px;
+    --contest-field-margin-bottom: 20px;
+    --contest-submit-margin-bottom: 24px;
+  }
+}
+
+@media (max-width: 640px) {
+  :root {
+    --contest-create-container-padding: 12px;
+    --contest-form-padding: 20px;
+    --contest-title-font-size: 20px;
+    --contest-title-margin-bottom: 20px;
+    --contest-field-margin-bottom: 16px;
+    --contest-submit-margin-bottom: 20px;
+    --back-button-padding: 10px 20px;
+    --back-button-font-size: 14px;
+    --contest-input-padding: 10px 14px;
+    --contest-input-font-size: 14px;
+    --contest-submit-padding: 14px 20px;
+    --contest-submit-font-size: 16px;
+  }
+} 

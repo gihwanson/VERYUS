@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { 
   collection, 
   query, 
@@ -20,47 +20,30 @@ import { db } from '../firebase';
 import CommentItem from './CommentItem';
 import TagParser from './TagParser';
 import { MessageCircle, Send, Loader, User, Clock, Lock, Reply, MessageSquare, X } from 'lucide-react';
-import './CommentSection.css';
 import { MentionsInput, Mention } from 'react-mentions';
 import { getUserMentions } from '../utils/getUserMentions';
 import type { UserMention } from '../utils/getUserMentions';
 import mentionsStyle from '../styles/mentionsStyle';
 import { NotificationService } from '../utils/notificationService';
-
-interface Comment {
-  id: string;
-  postId: string;
-  content: string;
-  writerNickname: string;
-  writerUid: string;
-  createdAt: any;
-  parentId?: string | null;
-  isSecret?: boolean;
-  likedBy: string[];
-  likesCount: number;
-  replies?: Comment[];
-  writerGrade?: string;
-  writerRole?: string;
-  writerPosition?: string;
-}
-
-interface User {
-  uid: string;
-  email: string;
-  nickname?: string;
-  isLoggedIn: boolean;
-  role?: string;
-}
+import {
+  type Comment,
+  type User as CommentUser,
+  type Post,
+  submitComment,
+  submitReply,
+  sendMessage,
+  toggleCommentLike,
+  deleteComment,
+  subscribeToComments,
+  getPostTypeFromPath,
+  getFlatComments,
+  isCommentVisible
+} from './CommentSectionUtils';
 
 interface CommentSectionProps {
   postId: string;
-  user: User | null;
-  post: {
-    id: string;
-    title: string;
-    writerUid: string;
-    writerNickname: string;
-  };
+  user: CommentUser | null;
+  post: Post;
   noCommentAuthMessage?: string;
   emptyCommentMessageVisibleToRoles?: string[];
 }
@@ -124,123 +107,36 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
   const mentionsInputRef = useRef<any>(null);
   const [isComposing, setIsComposing] = useState(false);
 
-  // URL 경로로부터 게시판 타입 결정
-  const getPostTypeFromPath = (): string => {
-    const path = window.location.pathname;
-    if (path.includes('/free/')) return 'free';
-    if (path.includes('/recording/')) return 'recording';
-    if (path.includes('/evaluation/')) return 'evaluation';
-    if (path.includes('/boards/partner/')) return 'partner';
-    return 'free'; // 기본값
-  };
+  // Memoized values
+  const flatComments = useMemo(() => getFlatComments(comments), [comments]);
+  const postType = useMemo(() => getPostTypeFromPath(), []);
+  const canComment = useMemo(() => {
+    if (!user) return false;
+    return !noCommentAuthMessage || (user.role === '리더' || user.role === '부운영진');
+  }, [user, noCommentAuthMessage]);
+  const shouldShowEmptyMessage = useMemo(() => {
+    if (!user || !emptyCommentMessageVisibleToRoles) return false;
+    return emptyCommentMessageVisibleToRoles.includes(user.role || '');
+  }, [user, emptyCommentMessageVisibleToRoles]);
 
-  // 등급 이모지 매핑 함수
-  const getGradeEmoji = (grade: string) => {
-    if (gradeEmojis.includes(grade)) {
-      return grade;
-    }
-    return gradeToEmoji[grade] || '🍒';
-  };
-
-  // 등급 이름 가져오기
-  const getGradeName = (emoji: string) => {
-    return emojiToGrade[emoji] || '체리';
-  };
-
-  // 댓글 실시간 구독
-  useEffect(() => {
-    if (!postId) return;
-
-    setIsLoading(true);
-      const commentsQuery = query(
-        collection(db, 'comments'),
-        where('postId', '==', postId),
-        orderBy('createdAt', 'desc')
-      );
-
-      const unsubscribe = onSnapshot(
-        commentsQuery,
-      async (snapshot) => {
-        const commentsData: Comment[] = [];
-        const userDataCache = new Map<string, UserData>();
-        
-        for (const docSnapshot of snapshot.docs) {
-          const commentData = docSnapshot.data() as DocumentData;
-          
-          // 작성자 정보 캐시 확인 또는 가져오기
-          let userData: UserData | undefined = userDataCache.get(commentData.writerUid);
-          if (!userData) {
-            const userDoc = await getDoc(doc(db, 'users', commentData.writerUid));
-            userData = userDoc.data() as UserData || {
-              grade: '🍒',
-              role: '일반',
-              position: ''
-            };
-            userDataCache.set(commentData.writerUid, userData);
-          }
-          
-          // 기존 댓글 데이터를 유지하면서 새로운 데이터 추가
-          commentsData.push({
-            id: docSnapshot.id,
-            ...commentData,
-            writerGrade: userData.grade || commentData.writerGrade || '🍒',
-            writerRole: userData.role || commentData.writerRole || '일반',
-            writerPosition: userData.position || commentData.writerPosition || '',
-            likedBy: commentData.likedBy || [],
-            likesCount: commentData.likesCount || 0
-          } as Comment);
-        }
-        
-          setComments(commentsData);
-          setIsLoading(false);
-        },
-        (error) => {
-        console.error('댓글 구독 에러:', error);
-          setIsLoading(false);
-        }
-      );
-
-    return () => unsubscribe();
-  }, [postId]);
-
-  useEffect(() => {
-    getUserMentions().then(setMentionUsers);
+  // Callbacks
+  const handleCommentsUpdate = useCallback((commentsData: Comment[]) => {
+    setComments(commentsData);
+    setIsLoading(false);
   }, []);
 
-  const handleSubmitComment = async (e: React.FormEvent) => {
+  const handleCommentsError = useCallback((error: Error) => {
+    console.error('댓글 구독 에러:', error);
+    setIsLoading(false);
+  }, []);
+
+  const handleSubmitComment = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !newComment.trim()) return;
 
     try {
       setIsSubmitting(true);
-      await addDoc(collection(db, 'comments'), {
-        postId,
-        content: newComment.trim(),
-        writerNickname: user.nickname || '익명',
-        writerUid: user.uid,
-        createdAt: serverTimestamp(),
-        isSecret,
-        parentId: null
-      });
-      // 댓글 추가 후 commentCount 증가
-      await updateDoc(doc(db, 'posts', postId), {
-        commentCount: increment(1)
-      });
-      // 댓글 알림: 게시글 작성자에게(본인이면 생략)
-      if (user.uid !== post.writerUid) {
-        try {
-          const postType = getPostTypeFromPath();
-          await NotificationService.createCommentNotification(
-            post.writerUid,
-            user.nickname || '익명',
-            post.id,
-            post.title,
-            postType
-          );
-        } catch (err) {
-          console.error('알림 생성 실패:', err);
-        }
-      }
+      await submitComment(postId, newComment, user, isSecret, post);
       setNewComment('');
       setIsSecret(false);
     } catch (error) {
@@ -249,48 +145,14 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [user, newComment, isSecret, postId, post]);
 
-  const handleSubmitReply = async (parentId: string) => {
+  const handleSubmitReply = useCallback(async (parentId: string) => {
     if (!user || !replyContent.trim()) return;
 
     try {
       setIsSubmitting(true);
-      await addDoc(collection(db, 'comments'), {
-        postId,
-        content: replyContent.trim(),
-        writerNickname: user.nickname || '익명',
-        writerUid: user.uid,
-        createdAt: serverTimestamp(),
-        isSecret: isReplySecret,
-        parentId
-      });
-      // 대댓글 추가 후 commentCount 증가
-      await updateDoc(doc(db, 'posts', postId), {
-        commentCount: increment(1)
-      });
-      // 답글 알림: 부모 댓글 작성자에게(본인이면 생략)
-      try {
-        const parentCommentDoc = await getDoc(doc(db, 'comments', parentId));
-        const parentComment = parentCommentDoc.data();
-        if (parentComment && parentComment.writerUid && parentComment.writerUid !== user.uid) {
-          try {
-            const postType = getPostTypeFromPath();
-            await NotificationService.createReplyNotification(
-              parentComment.writerUid,
-              user.nickname || '익명',
-              post.id,
-              post.title,
-              parentId,
-              postType
-            );
-          } catch (err) {
-            console.error('답글 알림 생성 실패:', err);
-          }
-        }
-      } catch (err) {
-        console.error('부모 댓글 정보 조회 실패:', err);
-      }
+      await submitReply(postId, parentId, replyContent, user, isReplySecret, post);
       setReplyContent('');
       setReplyingTo(null);
       setIsReplySecret(false);
@@ -300,23 +162,14 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [user, replyContent, isReplySecret, postId, post]);
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = useCallback(async () => {
     if (!user || !messageRecipient || !messageContent.trim()) return;
 
     try {
       setIsSubmitting(true);
-      await addDoc(collection(db, 'messages'), {
-        fromUid: user.uid,
-        fromNickname: user.nickname,
-        toUid: messageRecipient.uid,
-        toNickname: messageRecipient.nickname,
-        content: messageContent.trim(),
-        createdAt: serverTimestamp(),
-        isRead: false
-      });
-
+      await sendMessage(user, messageRecipient, messageContent);
       setMessageContent('');
       setShowMessageModal(false);
       alert('쪽지를 보냈습니다.');
@@ -326,128 +179,83 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [user, messageRecipient, messageContent]);
 
-  const handleLikeComment = async (commentId: string) => {
+  const handleLikeComment = useCallback(async (commentId: string) => {
     if (!user) return;
 
     try {
-      const commentRef = doc(db, 'comments', commentId);
-      const commentDoc = await getDoc(commentRef);
-      const commentData = commentDoc.data();
-
-      if (!commentData) return;
-
-      const likedBy = commentData.likedBy || [];
-      const isLiked = likedBy.includes(user.uid);
-
-      // 기존 댓글 데이터 유지를 위해 업데이트할 필드만 지정
-      const updateData = {
-        likedBy: isLiked 
-          ? likedBy.filter((uid: string) => uid !== user.uid)
-          : [...likedBy, user.uid],
-        likesCount: isLiked 
-          ? (commentData.likesCount || 0) - 1 
-          : (commentData.likesCount || 0) + 1
-      };
-
-      await updateDoc(commentRef, updateData);
+      await toggleCommentLike(commentId, user);
     } catch (error) {
       console.error('좋아요 처리 중 에러:', error);
       alert('좋아요 처리 중 오류가 발생했습니다.');
     }
-  };
+  }, [user]);
 
-  // 댓글/대댓글 삭제
-  const handleDeleteComment = async (commentId: string) => {
+  const handleDeleteComment = useCallback(async (commentId: string) => {
     if (!window.confirm('정말로 이 댓글을 삭제하시겠습니까?')) return;
+    
     try {
-      await updateDoc(doc(db, 'posts', postId), { commentCount: increment(-1) });
-      await updateDoc(doc(db, 'comments', commentId), { content: '[삭제된 댓글입니다.]', isSecret: false });
-      // 실제로 완전 삭제하려면 아래 주석 해제
-      // await deleteDoc(doc(db, 'comments', commentId));
+      await deleteComment(commentId, postId);
     } catch (err) {
       alert('댓글 삭제 중 오류가 발생했습니다.');
       console.error('댓글 삭제 에러:', err);
     }
-  };
+  }, [postId]);
 
-  const formatDate = (timestamp: any) => {
-    if (!timestamp) return '';
-    
-    const date = timestamp.seconds ? new Date(timestamp.seconds * 1000) : new Date(timestamp);
-    const now = new Date();
-    const diffTime = now.getTime() - date.getTime();
-    const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  const handleCancelReply = useCallback(() => {
+    setReplyingTo(null);
+    setReplyContent('');
+    setIsReplySecret(false);
+  }, []);
 
-    if (diffHours < 1) {
-      return '방금 전';
-    } else if (diffHours < 24) {
-      return `${diffHours}시간 전`;
-    } else if (diffDays < 7) {
-      return `${diffDays}일 전`;
-    } else {
-      return date.toLocaleDateString('ko-KR');
-    }
-  };
-
-  const isCommentVisible = (comment: Comment) => {
-    if (!comment.isSecret) return true;
-    if (!user) return false;
-    return user.uid === comment.writerUid || user.uid === post.writerUid;
-  };
-
-  // 댓글 평면 구조로 변환 (depth 정보 포함)
-  const getFlatComments = () => {
-    // 댓글 id로 빠른 접근을 위한 맵 생성
-    const commentMap = new Map(comments.map(c => [c.id, c]));
-    // depth 계산 함수
-    const getDepth = (comment: Comment): number => {
-      let depth = 0;
-      let current = comment;
-      while (current.parentId) {
-        const parent = commentMap.get(current.parentId);
-        if (!parent) break;
-        depth++;
-        current = parent;
+  const handleInputChange = useCallback((event: any, newValue: string) => {
+    setNewComment(newValue);
+    // 자동 높이 조절
+    setTimeout(() => {
+      let textarea: HTMLTextAreaElement | null = null;
+      if (mentionsInputRef.current) {
+        if (typeof mentionsInputRef.current.querySelector === 'function') {
+          textarea = mentionsInputRef.current.querySelector('textarea');
+        } else if (mentionsInputRef.current.tagName === 'TEXTAREA') {
+          textarea = mentionsInputRef.current as HTMLTextAreaElement;
+        }
       }
-      return depth;
-    };
-    // 원댓글만 추출
-    const rootComments = comments.filter(c => !c.parentId);
-    // 각 원댓글 아래에 해당 원댓글을 부모로 하는 모든 답글(대댓글, 대대댓글 등)을 평면구조로 나열
-    const flatList: (Comment & { depth: number })[] = [];
-    rootComments.forEach(root => {
-      flatList.push({ ...root, depth: 0 });
-      // 해당 root 아래의 모든 답글(대댓글, 대대댓글 등)
-      comments
-        .filter(c => c.parentId && isDescendantOfRoot(c, root.id, commentMap))
-        .forEach(reply => {
-          flatList.push({ ...reply, depth: getDepth(reply) });
-        });
-    });
-    // 시간순(오래된 순) 정렬
-    flatList.sort((a, b) => {
-      const aTime = a.createdAt?.seconds || a.createdAt || 0;
-      const bTime = b.createdAt?.seconds || b.createdAt || 0;
-      return aTime - bTime;
-    });
-    return flatList;
-  };
+      if (textarea) {
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.min(Math.max(textarea.scrollHeight, 80), 200) + 'px';
+      }
+    }, 0);
+  }, []);
 
-  // 특정 댓글이 rootId를 조상으로 두는지 확인
-  function isDescendantOfRoot(comment: Comment, rootId: string, commentMap: Map<string, Comment>): boolean {
-    let current = comment;
-    while (current.parentId) {
-      if (current.parentId === rootId) return true;
-      const parent = commentMap.get(current.parentId);
-      if (!parent) break;
-      current = parent;
-    }
-    return false;
-  }
+  const handleMessageTextareaInput = useCallback((e: React.FormEvent<HTMLTextAreaElement>) => {
+    const target = e.target as HTMLTextAreaElement;
+    target.style.height = 'auto';
+    target.style.height = Math.min(Math.max(target.scrollHeight, 100), 300) + 'px';
+  }, []);
 
+  const handleCloseMessageModal = useCallback(() => {
+    setShowMessageModal(false);
+  }, []);
+
+  const handleMessageModalClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+  }, []);
+
+  // Effects
+  useEffect(() => {
+    if (!postId) return;
+
+    setIsLoading(true);
+    const unsubscribe = subscribeToComments(postId, handleCommentsUpdate, handleCommentsError);
+    return () => unsubscribe();
+  }, [postId, handleCommentsUpdate, handleCommentsError]);
+
+  useEffect(() => {
+    getUserMentions().then(setMentionUsers);
+  }, []);
+
+  // Loading state
   if (isLoading) {
     return (
       <div className="comment-section loading">
@@ -469,9 +277,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
       </div>
 
       {/* 댓글 작성 폼 */}
-      {user && (
-        !noCommentAuthMessage || (user.role === '리더' || user.role === '부운영진')
-      ) ? (
+      {canComment ? (
         <form onSubmit={handleSubmitComment} className="comment-form">
           <div className="comment-input-wrapper">
             <div className="input-tabs">
@@ -499,17 +305,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
               <MentionsInput
                 ref={mentionsInputRef}
                 value={newComment}
-                onChange={(event, newValue) => {
-                  setNewComment(newValue);
-                  // 자동 높이 조절
-                  setTimeout(() => {
-                    const textarea = mentionsInputRef.current?.querySelector('textarea');
-                    if (textarea) {
-                      textarea.style.height = 'auto';
-                      textarea.style.height = Math.min(Math.max(textarea.scrollHeight, 80), 200) + 'px';
-                    }
-                  }, 0);
-                }}
+                onChange={handleInputChange}
                 placeholder="댓글을 입력하세요...."
                 style={{
                   ...mentionsStyle,
@@ -527,7 +323,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
                 }}
                 allowSuggestionsAboveCursor
                 singleLine={false}
-                onBlur={e => setTimeout(() => {}, 200)}
+                onBlur={() => setTimeout(() => {}, 200)}
                 onCompositionStart={() => setIsComposing(true)}
                 onCompositionEnd={() => setIsComposing(false)}
                 onCompositionUpdate={() => setIsComposing(true)}
@@ -546,7 +342,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
                           (e.target as HTMLElement).click();
                         }, 0);
                       }}
-                      onClick={e => {
+                      onClick={() => {
                         // react-mentions 내부적으로 하이라이트 처리됨
                       }}
                       style={{
@@ -607,48 +403,45 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
 
       {/* 댓글 목록 */}
       <div className="comments-list">
-        {getFlatComments().length === 0 ? (
-          (user && emptyCommentMessageVisibleToRoles && emptyCommentMessageVisibleToRoles.includes(user.role || '')) ? (
+        {flatComments.length === 0 ? (
+          shouldShowEmptyMessage ? (
             <div className="empty-comments">
               <MessageCircle size={48} />
               <p>아직 댓글이 없습니다. 첫 댓글을 작성해보세요!</p>
             </div>
           ) : null
         ) : (
-          getFlatComments().map((comment) => (
+          flatComments.map((comment) => (
             <CommentItem
               key={comment.id}
               comment={comment}
               user={user}
               postId={postId}
               postTitle={post.title}
-              postType={getPostTypeFromPath()}
+              postType={postType}
               onReply={setReplyingTo}
               replyingTo={replyingTo}
               replyContent={replyContent}
               setReplyContent={setReplyContent}
               onSubmitReply={handleSubmitReply}
-              onCancelReply={() => {
-                setReplyingTo(null);
-                setReplyContent('');
-                setIsReplySecret(false);
-              }}
+              onCancelReply={handleCancelReply}
               depth={comment.depth}
             />
           ))
         )}
       </div>
 
+      {/* 쪽지 모달 */}
       {showMessageModal && messageRecipient && (
-        <div className="modal-overlay" onClick={() => setShowMessageModal(false)}>
-          <div className="message-modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={handleCloseMessageModal}>
+          <div className="message-modal" onClick={handleMessageModalClick}>
             <div className="message-modal-header">
               <h3 className="message-modal-title">
                 {messageRecipient.nickname}님에게 쪽지 보내기
               </h3>
               <button
                 className="close-modal-button"
-                onClick={() => setShowMessageModal(false)}
+                onClick={handleCloseMessageModal}
               >
                 <X size={20} />
               </button>
@@ -672,11 +465,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
                   maxHeight: '300px',
                   lineHeight: '1.4'
                 }}
-                onInput={(e) => {
-                  const target = e.target as HTMLTextAreaElement;
-                  target.style.height = 'auto';
-                  target.style.height = Math.min(Math.max(target.scrollHeight, 100), 300) + 'px';
-                }}
+                onInput={handleMessageTextareaInput}
               />
               <div className="message-form-actions">
                 <button

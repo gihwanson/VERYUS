@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, Edit } from 'lucide-react';
 import '../styles/PostWrite.css';
 import '../styles/BoardLayout.css';
 
@@ -118,14 +118,14 @@ const EvaluationPostEdit: React.FC = () => {
 
   return (
     <div className="board-container">
-      <div className="board-header">
-        <h1 className="board-title">평가글 수정</h1>
-        <button 
-          className="back-button" 
-          onClick={() => navigate(`/evaluation/${post.id}`)}
-        >
+      <div className="board-header glassmorphism">
+        <button className="back-button glassmorphism" onClick={() => navigate(-1)}>
           <ArrowLeft size={20} /> 돌아가기
         </button>
+        <h1 className="board-title">
+          <Edit size={28} />
+          평가글 수정
+        </h1>
       </div>
       <div className="write-form">
         <div className="form-group">

@@ -56,25 +56,6 @@
   --z-tooltip: 3000;
 }
 
-/* Dark Mode */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg-gradient: linear-gradient(135deg, #181825 0%, #232136 100%);
-    --bg-white: #181825;
-    --bg-light: #232136;
-    --bg-lighter: #2A283E;
-    --bg-card: #232136;
-    --text-primary: #F4F4F5;
-    --text-secondary: #B5BFE2;
-    --text-muted: #6E6A86;
-    --border-light: #393552;
-    --border-primary: #A78BFA;
-    --shadow-sm: 0 4px 6px rgba(124, 58, 237, 0.18);
-    --shadow-md: 0 8px 30px rgba(124, 58, 237, 0.22);
-    --shadow-lg: 0 12px 40px rgba(124, 58, 237, 0.28);
-  }
-}
-
 /* Base Styles */
 * {
   margin: 0;

@@ -9,12 +9,6 @@
   color: #333;
 }
 
-/* 다크모드 */
-.dark .settings-container {
-  background: #181825 !important;
-  color: #F4F4F5 !important;
-}
-
 /* 헤더 */
 .settings-header {
   display: flex;
@@ -45,17 +39,6 @@
   box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);
 }
 
-.dark .back-button {
-  background: #232136 !important;
-  color: #A78BFA !important;
-  border: 1.5px solid #393552 !important;
-}
-
-.dark .back-button:hover {
-  background: #A78BFA !important;
-  color: #232136 !important;
-}
-
 .settings-title {
   display: flex;
   align-items: center;
@@ -64,10 +47,6 @@
   font-weight: 700;
   color: #7C3AED;
   margin: 0;
-}
-
-.dark .settings-title {
-  color: #bb86fc;
 }
 
 /* 카드 스타일 */
@@ -85,17 +64,6 @@
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
 }
 
-.dark .settings-card {
-  background: #232136 !important;
-  color: #F4F4F5 !important;
-  border-color: #393552 !important;
-  box-shadow: 0 4px 24px rgba(124, 58, 237, 0.22) !important;
-}
-
-.dark .settings-card:hover {
-  box-shadow: 0 6px 32px rgba(124, 58, 237, 0.28) !important;
-}
-
 .card-header {
   display: flex;
   align-items: center;
@@ -105,17 +73,9 @@
   border-bottom: 2px solid #F4F1FA;
 }
 
-.dark .card-header {
-  border-bottom-color: #404040;
-}
-
 .card-icon {
   color: #7C3AED;
   flex-shrink: 0;
-}
-
-.dark .card-icon {
-  color: #bb86fc;
 }
 
 .card-header h3 {
@@ -123,10 +83,6 @@
   font-size: 18px;
   font-weight: 600;
   color: #333;
-}
-
-.dark .card-header h3 {
-  color: #e0e0e0;
 }
 
 /* 프로필 정보 */
@@ -168,28 +124,16 @@
   margin-bottom: 4px;
 }
 
-.dark .user-name {
-  color: #F4F4F5 !important;
-}
-
 .user-email {
   font-size: 14px;
   color: #666;
   margin-bottom: 4px;
 }
 
-.dark .user-email {
-  color: #B5BFE2 !important;
-}
-
 .user-grade {
   font-size: 16px;
   color: #7C3AED;
   font-weight: 600;
-}
-
-.dark .user-grade {
-  color: #bb86fc;
 }
 
 /* 설정 아이템 */
@@ -204,10 +148,6 @@
   font-size: 16px;
   font-weight: 500;
   color: #333;
-}
-
-.dark .setting-item span {
-  color: #F4F4F5 !important;
 }
 
 /* 토글 스위치 */
@@ -225,14 +165,6 @@
 
 .toggle-switch.active {
   background: #7C3AED;
-}
-
-.dark .toggle-switch {
-  background: #393552 !important;
-}
-
-.dark .toggle-switch.active {
-  background: #A78BFA !important;
 }
 
 .toggle-slider {
@@ -282,17 +214,6 @@
   box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
 }
 
-.dark .nickname-input {
-  background: #232136 !important;
-  color: #F4F4F5 !important;
-  border-color: #393552 !important;
-}
-
-.dark .nickname-input:focus {
-  border-color: #A78BFA !important;
-  box-shadow: 0 0 0 2px #A78BFA44 !important;
-}
-
 .edit-buttons {
   display: flex;
   gap: 8px;
@@ -340,25 +261,10 @@
   transform: translateY(-1px);
 }
 
-.dark .save-btn, .dark .edit-btn, .dark .cancel-btn {
-  background: #A78BFA !important;
-  color: #fff !important;
-  border: none !important;
-}
-
-.dark .save-btn:hover, .dark .edit-btn:hover, .dark .cancel-btn:hover {
-  background: #7C3AED !important;
-}
-
 /* 위험 구역 */
 .danger-zone {
   border: 2px solid #fecaca;
   background: linear-gradient(135deg, #fef2f2, #fef7f7);
-}
-
-.dark .danger-zone {
-  border-color: #7f1d1d;
-  background: linear-gradient(135deg, #1f1212, #2d1818);
 }
 
 .danger-actions {
@@ -408,20 +314,11 @@
   border: 1px solid #fecaca;
 }
 
-.dark .delete-confirm {
-  background: rgba(239, 68, 68, 0.2);
-  border-color: #7f1d1d;
-}
-
 .delete-confirm p {
   margin: 0 0 12px 0;
   color: #dc2626;
   font-weight: 600;
   text-align: center;
-}
-
-.dark .delete-confirm p {
-  color: #fca5a5;
 }
 
 .confirm-buttons {
@@ -454,16 +351,8 @@
   color: #666;
 }
 
-.dark .loading, .dark .error {
-  color: #aaa;
-}
-
 .error {
   color: #dc2626;
-}
-
-.dark .error {
-  color: #fca5a5;
 }
 
 /* 반응형 디자인 */

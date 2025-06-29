@@ -233,6 +233,35 @@ const PartnerPostList: React.FC = () => {
     }
   };
 
+  // 무한스크롤 IntersectionObserver
+  useEffect(() => {
+    if (loading) return;
+    if (!hasMore) return;
+    const options = {
+      root: null,
+      rootMargin: '20px',
+      threshold: 1.0
+    };
+    const handleObserver = (entries: IntersectionObserverEntry[]) => {
+      const [target] = entries;
+      if (target.isIntersecting && hasMore && !isLoadingMore && !loading && !error) {
+        fetchPosts(false);
+      }
+    };
+    const currentObserver = new window.IntersectionObserver(handleObserver, options);
+    observer.current = currentObserver;
+    const lastElement = lastPostElementRef.current;
+    if (lastElement) {
+      currentObserver.observe(lastElement);
+    }
+    return () => {
+      if (lastElement) {
+        currentObserver.unobserve(lastElement);
+      }
+      currentObserver.disconnect();
+    };
+  }, [hasMore, isLoadingMore, loading, error, fetchPosts]);
+
   if (error) {
     return (
       <div className="error-container">
@@ -245,14 +274,7 @@ const PartnerPostList: React.FC = () => {
   return (
     <div className="board-container">
       <div className="board-header">
-        <button 
-          className="back-to-main-button"
-          onClick={() => navigate('/')}
-          title="메인으로 이동"
-        >
-          <ArrowLeft size={20} />
-          메인으로
-        </button>
+        {/* '메인으로' 버튼 완전히 삭제 */}
       </div>
       <div className="board-controls">
         <div className="search-container">
@@ -371,18 +393,7 @@ const PartnerPostList: React.FC = () => {
             </article>
           ))
         )}
-        {isLoadingMore && (
-          <div className="loading-more">
-            <Loader className="loading-spinner" size={24} />
-            <span>더 불러오는 중...</span>
-          </div>
-        )}
       </div>
-      {hasMore && !loading && (
-        <button className="load-more-button" onClick={() => fetchPosts(false)} disabled={isLoadingMore}>
-          {isLoadingMore ? <Loader className="loading-spinner" /> : '더 보기'}
-        </button>
-      )}
     </div>
   );
 };

@@ -6,7 +6,6 @@ import { uploadBytes, getDownloadURL, ref as storageRef } from 'firebase/storage
 import type { User } from 'firebase/auth';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { initializeTheme, useTheme, updateCSSVariables } from './utils/themeService';
 // @ts-ignore
 import { auth, db, storage } from './firebase';
 // @ts-ignore
@@ -682,9 +681,6 @@ function App() {
   const [generalChatUnreadCount, setGeneralChatUnreadCount] = useState(0);
   const [showSearchSystem, setShowSearchSystem] = useState(false);
   
-  // 테마 시스템
-  const { resolvedTheme } = useTheme();
-
   useEffect(() => {
     // Firebase Auth 상태 변화 감지
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -722,8 +718,6 @@ function App() {
 
     return () => unsubscribe();
   }, []);
-
-
 
   // 알림 개수 실시간 업데이트
   useEffect(() => {
@@ -773,18 +767,6 @@ function App() {
   useEffect(() => {
     setUnreadChatCount(announcementUnreadCount + generalChatUnreadCount);
   }, [announcementUnreadCount, generalChatUnreadCount]);
-
-  // 테마 변경 시 CSS 변수 업데이트
-  useEffect(() => {
-    updateCSSVariables(resolvedTheme);
-  }, [resolvedTheme]);
-
-  // 초기 테마 설정
-  useEffect(() => {
-    initializeTheme();
-  }, []);
-
-
 
   // 로딩 중일 때 표시할 화면
   if (loading) {
@@ -1102,18 +1084,16 @@ function App() {
             pauseOnFocusLoss
             draggable
             pauseOnHover
-            theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
+            theme="light"
             style={{
               fontSize: '14px',
               fontFamily: 'Pretendard, sans-serif'
             }}
             toastStyle={{
               borderRadius: '12px',
-              boxShadow: resolvedTheme === 'dark' 
-                ? '0 4px 12px rgba(0, 0, 0, 0.3)' 
-                : '0 4px 12px rgba(138, 85, 204, 0.15)',
-              background: resolvedTheme === 'dark' ? '#2A2A2A' : '#FFFFFF',
-              color: resolvedTheme === 'dark' ? '#FFFFFF' : '#1F2937'
+              boxShadow: '0 4px 12px rgba(138, 85, 204, 0.15)',
+              background: '#FFFFFF',
+              color: '#1F2937'
             }}
           />
         </Router>

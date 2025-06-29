@@ -2,7 +2,6 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
-import { useNavigate } from 'react-router-dom';
 import './Login.css';
 
 interface LoginFormData {
@@ -28,7 +27,6 @@ const Login: React.FC = () => {
   });
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const navigate = useNavigate();
 
   // 이미 로그인된 사용자 체크
   useEffect(() => {
@@ -36,10 +34,10 @@ const Login: React.FC = () => {
     if (userString) {
       const userData = JSON.parse(userString);
       if (userData.isLoggedIn) {
-        navigate('/');
+        window.location.replace('/');
       }
     }
-  }, [navigate]);
+  }, []);
 
   // 입력값 변경 핸들러
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -132,7 +130,7 @@ const Login: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [formData, navigate, findEmailByNickname]);
+  }, [formData, findEmailByNickname]);
 
   // 에러 메시지 변환
   const getErrorMessage = (errorCode: string): string => {
@@ -204,7 +202,7 @@ const Login: React.FC = () => {
             <button 
               type="button" 
               className="link-button"
-              onClick={() => navigate('/signup')}
+              onClick={() => window.location.replace('/signup')}
               disabled={isLoading}
             >
               회원가입
@@ -213,7 +211,7 @@ const Login: React.FC = () => {
             <button 
               type="button" 
               className="link-button"
-              onClick={() => navigate('/forgot-password')}
+              onClick={() => window.location.replace('/forgot-password')}
               disabled={isLoading}
             >
               비밀번호 찾기

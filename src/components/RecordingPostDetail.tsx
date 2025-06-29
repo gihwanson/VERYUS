@@ -131,34 +131,17 @@ const RecordingPostDetail: React.FC = () => {
     if (!id) return;
     setLoading(true);
 
-    // 조회수 증가 - 페이지 방문할 때마다 카운트 (강력한 중복 방지)
+    // 조회수 증가 - 항상 1씩 증가
     const incrementViews = async () => {
-      // 전역 Set으로 완전한 중복 방지
-      const simpleKey = id;
-      
-      if (window.recordingViewCounts.has(simpleKey)) {
-        return;
-      }
-      
-      // Set에 추가하여 중복 방지
-      window.recordingViewCounts.add(simpleKey);
-      
       try {
         await updateDoc(doc(db, 'posts', id), {
           views: increment(1)
         });
-        
-        // 3초 후 Set에서 제거 (새로고침 허용)
-        setTimeout(() => {
-          window.recordingViewCounts.delete(simpleKey);
-        }, 3000);
-        
       } catch (error) {
         console.error('조회수 업데이트 에러:', error);
-        // 에러 발생시에도 Set에서 제거
-        window.recordingViewCounts.delete(simpleKey);
       }
     };
+    incrementViews();
 
     const unsubscribe = onSnapshot(doc(db, 'posts', id), (docSnapshot) => {
       if (!docSnapshot.exists()) {
@@ -182,7 +165,6 @@ const RecordingPostDetail: React.FC = () => {
       setLoading(false);
     });
 
-    incrementViews();
     return () => unsubscribe();
   }, [id]);
 
@@ -437,8 +419,16 @@ const RecordingPostDetail: React.FC = () => {
 
   return (
     <div className="post-detail-container">
-      <div className="post-navigation">
-        <button className="back-button" onClick={() => navigate('/recording')}>
+      <div className="post-navigation glassmorphism">
+        <button
+          className="back-button glassmorphism"
+          onClick={() => {
+            if (audioRef.current && !audioRef.current.paused) {
+              audioRef.current.pause();
+            }
+            navigate('/recording');
+          }}
+        >
           <ArrowLeft size={20} />
           목록으로
         </button>

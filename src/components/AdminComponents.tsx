@@ -1,51 +1,7 @@
 import React from 'react';
-import { Crown, Shield, User, Users, Activity, CheckCircle, X } from 'lucide-react';
+import { Crown, Shield, User, Users, Activity, CheckCircle, X, Edit3 } from 'lucide-react';
 import type { AdminUser } from './AdminTypes';
-import { formatDate, getGradeDisplay, calculateActivityDays } from './AdminUtils';
-
-// 역할 표시 컴포넌트
-export const RoleDisplay: React.FC<{ role: string }> = ({ role }) => {
-  switch (role) {
-    case '리더':
-      return (
-        <span className="role-badge leader">
-          <Crown size={12} />
-          리더
-        </span>
-      );
-    case '운영진':
-      return (
-        <span className="role-badge admin">
-          <Shield size={12} />
-          운영진
-        </span>
-      );
-    case '부운영진':
-      return (
-        <span className="role-badge sub-admin">
-          <Shield size={12} />
-          부운영진
-        </span>
-      );
-    default:
-      return (
-        <span className="role-badge member">
-          <User size={12} />
-          일반
-        </span>
-      );
-  }
-};
-
-// 역할 아이콘 컴포넌트
-export const RoleIcon: React.FC<{ role: string }> = ({ role }) => {
-  switch (role) {
-    case '리더': return <Crown size={16} className="role-icon leader" />;
-    case '운영진': return <Shield size={16} className="role-icon admin" />;
-    case '부운영진': return <Shield size={16} className="role-icon sub-admin" />;
-    default: return <User size={16} className="role-icon member" />;
-  }
-};
+import { formatDate, getGradeDisplay, calculateActivityDays, createRoleDisplay, createRoleIcon } from './AdminUtils';
 
 // 로딩 컴포넌트
 export const LoadingSpinner: React.FC = () => (
@@ -112,53 +68,35 @@ export const UserCard: React.FC<UserCardProps> = ({
   onEditChange
 }) => (
   <div className={`user-card ${isEditing ? 'edit-mode' : ''}`}>
-    <div className="user-profile">
-      <div className="profile-avatar">
-        {user.profileImageUrl ? (
-          <img src={user.profileImageUrl} alt="프로필" />
-        ) : (
-          <User size={20} />
-        )}
-      </div>
-      <div className="user-info">
-        <div className="user-name">
-          <span className="nickname-text">{user.nickname}</span>
-          <span className="user-grade">{user.grade}</span>
-        </div>
-        <div className="user-role-display">
-          <RoleDisplay role={user.role} />
-        </div>
-        <div className="user-date">
-          가입: {formatDate(user.createdAt)} ({calculateActivityDays(user.createdAt)}일)
-        </div>
-      </div>
-      <div className="user-actions">
-        {!isEditing ? (
-          <>
-            <button className="action-btn view-btn" onClick={onView}>
-              <CheckCircle size={14} />
-              상세
-            </button>
-            <button className="action-btn edit-btn" onClick={onEdit}>
-              수정
-            </button>
-            <button className="action-btn delete-btn" onClick={onDelete}>
-              삭제
-            </button>
-          </>
-        ) : (
-          <>
-            <button className="action-btn save-btn" onClick={onSave}>
-              저장
-            </button>
-            <button className="action-btn cancel-btn" onClick={onCancel}>
-              취소
-            </button>
-          </>
-        )}
-      </div>
+    <div className="profile-avatar large">
+      {user.profileImageUrl ? (
+        <img src={user.profileImageUrl} alt="프로필" />
+      ) : (
+        <User size={28} />
+      )}
     </div>
-    
+    <div className="user-name-row">
+      <span className="nickname-text">{user.nickname}</span>
+      <span className="grade-badge">{user.grade}</span>
+      <span className="role-badge">{user.role}</span>
+    </div>
+    <div className="user-meta">
+      가입: {formatDate(user.createdAt)} / 활동: {calculateActivityDays(user.createdAt)}일
+    </div>
+    <div className="user-actions">
+      {!isEditing ? (
+        <>
+          <button className="action-btn view-btn" onClick={onView}><CheckCircle size={14}/>상세</button>
+          <button className="action-btn edit-btn" onClick={onEdit}><Edit3 size={14}/>수정</button>
+          <button className="action-btn delete-btn" onClick={onDelete}><X size={14}/>삭제</button>
+        </>
+      ) : (
+        <>
+          <button className="action-btn save-btn" onClick={onSave}>저장</button>
+          <button className="action-btn cancel-btn" onClick={onCancel}>취소</button>
+        </>
+      )}
+    </div>
     {isEditing && editingUser && (
       <div className="edit-controls">
         <div className="edit-controls-row">
@@ -207,4 +145,10 @@ export const EmptyState: React.FC<{ message: string }> = ({ message }) => (
     <h3>사용자가 없습니다</h3>
     <p>{message}</p>
   </div>
-); 
+);
+
+// 역할 표시 컴포넌트 (AdminUtils의 함수를 래핑)
+export const RoleDisplay: React.FC<{ role: string }> = ({ role }) => createRoleDisplay(role);
+
+// 역할 아이콘 컴포넌트 (AdminUtils의 함수를 래핑)
+export const RoleIcon: React.FC<{ role: string }> = ({ role }) => createRoleIcon(role); 

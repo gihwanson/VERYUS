@@ -267,11 +267,14 @@
   border: none;
   backdrop-filter: none;
   padding: 0;
-  overflow: visible;
+  overflow: unset;
   display: flex;
   flex-direction: column;
   gap: 24px;
-  flex: 1;
+  flex: unset;
+  height: auto;
+  min-height: unset;
+  max-height: unset;
 }
 
 /* 통계 그리드 */
@@ -394,8 +397,6 @@
 
 /* 사용자 목록 */
 .users-list {
-  flex: 1;
-  overflow-y: auto;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.95) 100%);
   border-radius: var(--border-radius-lg);
   padding: 32px;
@@ -403,23 +404,29 @@
   border: 1.5px solid rgba(255, 255, 255, 0.5);
   backdrop-filter: blur(16px);
   gap: 32px;
+  overflow-y: unset;
+  flex: unset;
+  max-height: unset;
+  height: auto;
 }
 
 .user-card {
-  background: rgba(255, 255, 255, 0.98);
-  backdrop-filter: blur(24px);
-  border-radius: 24px;
-  padding: 2.5rem;
-  border: 1.5px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.13);
-  transition: all 0.3s cubic-bezier(.4,0,.2,1);
-  position: relative;
-  margin-bottom: 32px;
+  background: rgba(255,255,255,0.85);
+  border-radius: 18px;
+  box-shadow: 0 8px 32px rgba(138,85,204,0.13);
+  border: 1.5px solid #e0d7fa;
+  backdrop-filter: blur(18px);
+  padding: 20px 18px;
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: box-shadow 0.2s, transform 0.2s;
 }
 
 .user-card:hover {
-  box-shadow: 0 20px 56px rgba(138, 85, 204, 0.22);
-  transform: translateY(-6px) scale(1.02);
+  box-shadow: 0 16px 48px rgba(138,85,204,0.18);
+  transform: translateY(-2px) scale(1.01);
 }
 
 .user-card.edit-mode {
@@ -461,13 +468,50 @@
 }
 
 .profile-avatar.large {
-  width: 80px;
-  height: 80px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #f3e8ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  margin-bottom: 6px;
 }
 
 .user-info {
   flex: 1;
-  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.user-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.nickname-text {
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.grade-badge, .role-badge {
+  background: #ede9fe;
+  color: #7C3AED;
+  border-radius: 8px;
+  padding: 2px 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.user-meta {
+  color: #aaa;
+  font-size: 13px;
+  margin-top: 2px;
 }
 
 .user-name {
@@ -475,13 +519,6 @@
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.5rem;
-}
-
-.nickname-text {
-  font-weight: 600;
-  font-size: 1.1rem;
-  color: #2d3748;
-  flex: 1;
 }
 
 .user-grade {
@@ -509,7 +546,7 @@
 
 .role-badge.리더 {
   background: linear-gradient(135deg, #ffd700, #ffed4e);
-  color: #b45309;
+  color: #fff;
   border-color: #f59e0b;
 }
 
@@ -527,7 +564,7 @@
 
 .role-badge.일반 {
   background: rgba(107, 114, 128, 0.1);
-  color: #6b7280;
+  color: #fff;
   border-color: #d1d5db;
 }
 
@@ -539,27 +576,25 @@
 /* 사용자 액션 버튼 */
 .user-actions {
   display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  margin-top: 1rem;
+  flex-direction: row;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.5rem 0.75rem;
+  background: #8A55CC;
+  color: #fff;
   border: none;
   border-radius: 8px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-decoration: none;
+  padding: 7px 16px;
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 4px;
+  transition: background 0.2s;
 }
 
 .action-btn:hover {
-  transform: translateY(-1px);
+  background: #6D28D9;
 }
 
 .view-btn {
@@ -880,37 +915,6 @@
   }
 }
 
-/* 다크모드 지원 개선 */
-[data-theme="dark"] .user-card {
-  background: rgba(45, 55, 72, 0.95);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-[data-theme="dark"] .nickname-text {
-  color: #e2e8f0;
-}
-
-[data-theme="dark"] .user-date {
-  color: #a0aec0;
-}
-
-[data-theme="dark"] .grades-table-container {
-  background: rgba(45, 55, 72, 0.95);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-[data-theme="dark"] .grades-table th {
-  color: #e2e8f0;
-}
-
-[data-theme="dark"] .grades-table tr:hover {
-  background: rgba(255, 255, 255, 0.02);
-}
-
-[data-theme="dark"] .empty-state {
-  color: #a0aec0;
-}
-
 /* 애니메이션 효과 */
 @keyframes fadeInUp {
   from {
@@ -1198,7 +1202,7 @@
 /* 사용자 그리드 레이아웃 */
 .users-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 1.5rem;
-  margin-top: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 18px;
+  margin-top: 16px;
 } 

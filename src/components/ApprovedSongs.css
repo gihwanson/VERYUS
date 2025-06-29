@@ -1,0 +1,378 @@
+.approved-songs-container {
+  max-width: 100%;
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.approved-songs-bg-pattern {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.1) 0%, transparent 50%), 
+              radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.08) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.approved-songs-content {
+  position: relative;
+  z-index: 1;
+}
+
+.approved-songs-title {
+  color: white;
+  font-weight: 700;
+  font-size: 28px;
+  margin-bottom: 32px;
+  text-align: center;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.approved-songs-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 32px;
+  max-width: 400px;
+  margin: 0 auto 32px auto;
+}
+
+.approved-songs-tabs.single {
+  grid-template-columns: 1fr;
+  max-width: 200px;
+}
+
+.approved-songs-tab {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(15px);
+  color: white;
+  border: none;
+  border-radius: 16px;
+  padding: 16px 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 14px;
+  text-align: center;
+  transition: all 0.3s ease;
+  min-height: 70px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.approved-songs-tab:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.approved-songs-tab.active {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.approved-songs-tab-icon {
+  font-size: 24px;
+}
+
+.approved-songs-back-btn {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 8px 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.approved-songs-form-group {
+  margin-bottom: 16px;
+}
+
+.approved-songs-label {
+  color: white;
+  font-weight: 600;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.approved-songs-input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  color: white;
+  margin-top: 4px;
+}
+
+.approved-songs-input::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.approved-songs-member-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.approved-songs-member-input {
+  flex: 1;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  color: white;
+}
+
+.approved-songs-btn {
+  border: none;
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.approved-songs-btn.delete {
+  background: rgba(220, 38, 38, 0.8);
+}
+
+.approved-songs-btn.add {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.approved-songs-btn.save {
+  background: rgba(34, 197, 94, 0.8);
+  padding: 12px 24px;
+}
+
+.approved-songs-btn.cancel {
+  background: rgba(239, 68, 68, 0.8);
+  padding: 12px 24px;
+}
+
+.approved-songs-btn.edit {
+  background: rgba(251, 191, 36, 0.8);
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.approved-songs-btn.remove {
+  background: rgba(220, 38, 38, 0.8);
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.approved-songs-btn.search {
+  background: rgba(34, 197, 94, 0.8);
+  padding: 12px 24px;
+  font-size: 16px;
+}
+
+.approved-songs-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.approved-songs-search {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.approved-songs-search-input {
+  width: 100%;
+  max-width: 400px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  color: white;
+  font-size: 15px;
+  text-align: center;
+}
+
+.approved-songs-search-input::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.approved-songs-filter-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.approved-songs-filter-tab {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 8px 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.approved-songs-filter-tab:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.approved-songs-filter-tab.active {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.approved-songs-card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  max-height: 500px;
+  overflow-y: auto;
+  margin-bottom: 24px;
+}
+
+.approved-songs-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.approved-songs-list-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.approved-songs-list-item:last-child {
+  border-bottom: none;
+}
+
+.approved-songs-title-text {
+  font-weight: 700;
+  color: white;
+  flex: 1 1 200px;
+}
+
+.approved-songs-members {
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+  flex: 1 1 150px;
+}
+
+.approved-songs-actions-group {
+  display: flex;
+  gap: 8px;
+}
+
+.approved-songs-grade-badge {
+  font-weight: 700;
+  font-size: 20px;
+}
+
+.approved-songs-busking-card {
+  margin-top: 0;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(15px);
+  border-radius: 20px;
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.approved-songs-busking-title {
+  color: white;
+  font-weight: 700;
+  font-size: 20px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.approved-songs-busking-search {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.approved-songs-busking-results {
+  margin-top: 24px;
+}
+
+.approved-songs-busking-card-small {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.approved-songs-manage-section {
+  margin: 24px 0;
+}
+
+.approved-songs-manage-title {
+  color: white;
+  font-weight: 700;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.approved-songs-manage-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.approved-songs-manage-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.approved-songs-manage-nickname {
+  font-weight: 600;
+  color: white;
+}
+
+.approved-songs-manage-delete {
+  background: rgba(220, 38, 38, 0.8);
+  backdrop-filter: blur(10px);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 12px;
+} 

@@ -38,28 +38,32 @@ import {
   formatDate, 
   calculateActivityDays, 
   calculateStats, 
-  getRoleDisplay, 
-  getRoleIcon,
   exportToExcel,
   canPromote,
-  getNextGrade
-} from './admin/AdminUtils';
-import type { AdminUser } from './admin/AdminTypes';
+  getNextGrade,
+  sortUsers,
+  filterUsers
+} from './AdminUtils';
+import { 
+  LoadingSpinner, 
+  StatCard, 
+  UserCard, 
+  EmptyState,
+  RoleDisplay,
+  RoleIcon
+} from './AdminComponents';
+import { 
+  checkAdminAccess, 
+  GRADE_SYSTEM, 
+  ROLE_SYSTEM, 
+  GRADE_ORDER, 
+  GRADE_NAMES, 
+  ROLE_OPTIONS,
+  type AdminUser,
+  type TabType,
+  type SortBy
+} from './AdminTypes';
 import './AdminUserPanel.css';
-
-// 관리자 권한 체크
-const checkAdminAccess = (user: any): boolean => {
-  if (!user) return false;
-  return user.nickname === '너래' || user.role === '리더' || user.role === '운영진';
-};
-
-// 등급 옵션
-const GRADE_OPTIONS = ['🍒', '🫐', '🥝', '🍎', '🍈', '🍉', '🌍', '🪐', '☀️', '🌌', '🌙'];
-const ROLE_OPTIONS = ['일반', '부운영진', '운영진', '리더'];
-const GRADE_NAMES = {
-  '🍒': '체리', '🫐': '블루베리', '🥝': '키위', '🍎': '사과', '🍈': '멜론',
-  '🍉': '수박', '🌍': '지구', '🪐': '토성', '☀️': '태양', '🌌': '은하', '🌙': '달'
-};
 
 const AdminPanel: React.FC = () => {
   const navigate = useNavigate();
@@ -67,13 +71,14 @@ const AdminPanel: React.FC = () => {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'users' | 'activity' | 'grades'>('users');
+  const [activeTab, setActiveTab] = useState<TabType>('users');
   
   // 검색 및 필터링
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState<string>('all');
   const [filterGrade, setFilterGrade] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<'nickname' | 'grade' | 'role' | 'createdAt'>('createdAt');
+  const [sortBy, setSortBy] = useState<SortBy>('createdAt');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   
   // 편집 상태
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
@@ -84,8 +89,8 @@ const AdminPanel: React.FC = () => {
   const [newUser, setNewUser] = useState({
     email: '',
     nickname: '',
-    grade: '🍒',
-    role: '일반'
+    grade: GRADE_SYSTEM.CHERRY,
+    role: ROLE_SYSTEM.MEMBER
   });
   
   // 통계
@@ -127,52 +132,21 @@ const AdminPanel: React.FC = () => {
     }
   }, [navigate]);
 
-  // 사용자 목록 필터링
+  // 사용자 목록 필터링 및 정렬
   useEffect(() => {
     if (!users) return;
     
-    let filtered = [...users];
-
-    // 검색어 필터링
-    if (searchTerm) {
-      filtered = filtered.filter(user => {
-        const nicknameLower = (user.nickname || '').toLowerCase();
-        const emailLower = (user.email || '').toLowerCase();
-        const searchTermLower = searchTerm.toLowerCase();
-        return nicknameLower.includes(searchTermLower) || emailLower.includes(searchTermLower);
-      });
-    }
-
-    // 역할 필터링
-    if (filterRole !== 'all') {
-      filtered = filtered.filter(user => user.role === filterRole);
-    }
-
-    // 등급 필터링
-    if (filterGrade !== 'all') {
-      filtered = filtered.filter(user => user.grade === filterGrade);
-    }
-
-    // 정렬
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'nickname':
-          return a.nickname.localeCompare(b.nickname);
-        case 'role':
-          const roleOrder = { '리더': 4, '운영진': 3, '부운영진': 2, '일반': 1 };
-          return (roleOrder[b.role as keyof typeof roleOrder] || 0) - (roleOrder[a.role as keyof typeof roleOrder] || 0);
-        case 'grade':
-          return GRADE_OPTIONS.indexOf(b.grade) - GRADE_OPTIONS.indexOf(a.grade);
-        case 'createdAt':
-        default:
-          const aDate = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
-          const bDate = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
-          return bDate.getTime() - aDate.getTime();
-      }
+    let filtered = filterUsers(users, {
+      search: searchTerm,
+      grade: filterGrade !== 'all' ? filterGrade : undefined,
+      role: filterRole !== 'all' ? filterRole : undefined
     });
 
+    // 정렬 적용
+    filtered = sortUsers(filtered, sortBy, sortOrder);
+
     setFilteredUsers(filtered);
-  }, [users, searchTerm, filterRole, filterGrade, sortBy]);
+  }, [users, searchTerm, filterRole, filterGrade, sortBy, sortOrder]);
 
   // 사용자 목록 가져오기
   const fetchUsers = async () => {
@@ -253,7 +227,7 @@ const AdminPanel: React.FC = () => {
 
       await fetchUsers();
       setShowAddUserModal(false);
-      setNewUser({ email: '', nickname: '', grade: '🍒', role: '일반' });
+      setNewUser({ email: '', nickname: '', grade: GRADE_SYSTEM.CHERRY, role: ROLE_SYSTEM.MEMBER });
       alert('새 사용자가 성공적으로 추가되었습니다.');
     } catch (error) {
       console.error('사용자 추가 실패:', error);
@@ -284,24 +258,15 @@ const AdminPanel: React.FC = () => {
     }
   };
 
+  // 엑셀 내보내기
+  const handleExportExcel = () => {
+    exportToExcel(filteredUsers);
+  };
+
   if (loading) {
     return (
       <div className="admin-container">
-        <div className="loading-container">
-          <div className="loading-spinner">
-            <div className="orbital-loading">
-              <div className="loading-sun">☀️</div>
-              <div className="loading-planet loading-planet-1">🍎</div>
-              <div className="loading-planet loading-planet-2">🍈</div>
-              <div className="loading-planet loading-planet-3">🍉</div>
-              <div className="loading-planet loading-planet-4">🥝</div>
-              <div className="loading-planet loading-planet-5">🫐</div>
-              <div className="loading-planet loading-planet-6">🍒</div>
-            </div>
-          </div>
-          <h2>관리자 패널 로딩 중...</h2>
-          <p>사용자 데이터를 불러오고 있습니다.</p>
-        </div>
+        <LoadingSpinner />
       </div>
     );
   }
@@ -311,10 +276,6 @@ const AdminPanel: React.FC = () => {
       {/* 헤더 */}
       <div className="admin-header">
         <div className="header-left">
-          <button className="back-button" onClick={() => navigate('/')}>
-            <ArrowLeft size={20} />
-            홈으로
-          </button>
           <h1 className="admin-title">
             <Shield size={28} />
             관리자 패널
@@ -327,7 +288,7 @@ const AdminPanel: React.FC = () => {
                 <UserPlus size={20} />
                 회원 추가
               </button>
-              <button className="export-button" onClick={() => {}}>
+              <button className="export-button" onClick={handleExportExcel}>
                 <Download size={20} />
                 엑셀 내보내기
               </button>
@@ -385,35 +346,25 @@ const AdminPanel: React.FC = () => {
           <div className="users-panel">
             {/* 통계 카드 */}
             <div className="stats-grid">
-              <div className="stat-card">
-                <div className="stat-icon">
-                  <Users size={24} />
-                </div>
-                <div className="stat-content">
-                  <h3>총 회원 수</h3>
-                  <div className="stat-number">{userStats.totalUsers}명</div>
-                  <div className="stat-subtitle">최근 한달 가입: {userStats.recentJoins}명</div>
-                </div>
-              </div>
+              <StatCard
+                icon={<Users size={24} />}
+                title="총 회원 수"
+                value={`${userStats.totalUsers}명`}
+                subtitle={`최근 한달 가입: ${userStats.recentJoins}명`}
+              />
               
-              <div className="stat-card">
-                <div className="stat-icon">
-                  <Shield size={24} />
-                </div>
-                <div className="stat-content">
-                  <h3>운영진 현황</h3>
-                  <div className="stat-number">{userStats.adminCount}명</div>
-                  <div className="stat-subtitle">전체 대비: {userStats.totalUsers > 0 ? ((userStats.adminCount / userStats.totalUsers) * 100).toFixed(1) : 0}%</div>
-                </div>
-              </div>
+              <StatCard
+                icon={<Shield size={24} />}
+                title="운영진 현황"
+                value={`${userStats.adminCount}명`}
+                subtitle={`전체 대비: ${userStats.totalUsers > 0 ? ((userStats.adminCount / userStats.totalUsers) * 100).toFixed(1) : 0}%`}
+              />
 
-              <div className="stat-card">
-                <div className="stat-icon">
-                  <Crown size={24} />
-                </div>
-                <div className="stat-content">
-                  <h3>평균 등급</h3>
-                  <div className="stat-number">{userStats.averageGrade}</div>
+              <StatCard
+                icon={<Crown size={24} />}
+                title="평균 등급"
+                value={userStats.averageGrade}
+                extra={
                   <div className="stat-distribution">
                     {Object.entries(userStats.gradeDistribution).map(([grade, count]) => (
                       <span key={grade} className="distribution-item">
@@ -421,19 +372,15 @@ const AdminPanel: React.FC = () => {
                       </span>
                     ))}
                   </div>
-                </div>
-              </div>
+                }
+              />
 
-              <div className="stat-card">
-                <div className="stat-icon">
-                  <Activity size={24} />
-                </div>
-                <div className="stat-content">
-                  <h3>활성 사용자</h3>
-                  <div className="stat-number">{userStats.activeUsers}명</div>
-                  <div className="stat-subtitle">전체 회원</div>
-                </div>
-              </div>
+              <StatCard
+                icon={<Activity size={24} />}
+                title="활성 사용자"
+                value={`${userStats.activeUsers}명`}
+                subtitle="전체 회원"
+              />
             </div>
 
             {/* 검색 및 필터 */}
@@ -476,8 +423,8 @@ const AdminPanel: React.FC = () => {
                     onChange={(e) => setFilterGrade(e.target.value)}
                   >
                     <option value="all">전체</option>
-                    {GRADE_OPTIONS.map(grade => (
-                      <option key={grade} value={grade}>{grade} {GRADE_NAMES[grade as keyof typeof GRADE_NAMES]}</option>
+                    {GRADE_ORDER.map(grade => (
+                      <option key={grade} value={grade}>{grade} {GRADE_NAMES[grade]}</option>
                     ))}
                   </select>
                 </div>
@@ -487,12 +434,24 @@ const AdminPanel: React.FC = () => {
                   <select
                     className="filter-select"
                     value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as 'nickname' | 'grade' | 'role' | 'createdAt')}
+                    onChange={(e) => setSortBy(e.target.value as SortBy)}
                   >
                     <option value="createdAt">가입일 순</option>
                     <option value="nickname">닉네임 순</option>
                     <option value="role">역할 순</option>
                     <option value="grade">등급 순</option>
+                  </select>
+                </div>
+
+                <div className="filter-group">
+                  <label>순서</label>
+                  <select
+                    className="filter-select"
+                    value={sortOrder}
+                    onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+                  >
+                    <option value="desc">내림차순</option>
+                    <option value="asc">오름차순</option>
                   </select>
                 </div>
               </div>
@@ -508,107 +467,27 @@ const AdminPanel: React.FC = () => {
               </div>
               
               {filteredUsers.length === 0 ? (
-                <div className="empty-state">
-                  <Users size={48} />
-                  <h3>사용자가 없습니다</h3>
-                  <p>검색 조건에 맞는 사용자가 없습니다.</p>
-                </div>
+                <EmptyState message="검색 조건에 맞는 사용자가 없습니다." />
               ) : (
                 <div className="users-grid">
-                  {filteredUsers.map(user => {
-                    const activityDays = calculateActivityDays(user.createdAt);
-                    const canPromoteUser = canPromote(user);
-                    const currentGradeIndex = GRADE_OPTIONS.indexOf(user.grade);
-                    const nextGradeIndex = currentGradeIndex + 1;
-                    const nextGradeDay = (nextGradeIndex) * 90;
-                    const daysToPromote = nextGradeDay - activityDays;
-                    return (
-                      <div key={user.uid} className={`user-card ${editingUser?.uid === user.uid ? 'edit-mode' : ''}`}>
-                        <div className="user-profile">
-                          <div className="profile-avatar">
-                            {user.profileImageUrl ? (
-                              <img src={user.profileImageUrl} alt="프로필" />
-                            ) : (
-                              <User size={24} />
-                            )}
-                          </div>
-                          <div className="user-info">
-                            <div className="user-name">
-                              <span className="nickname-text">{user.nickname}</span>
-                            </div>
-                            <div className="user-grade">
-                              <span style={{ marginLeft: 6, fontSize: '1.2em' }}>{user.grade}</span>
-                            </div>
-                            <div className="user-role">
-                              <span className={`role-badge ${user.role}`}>
-                                {user.role}
-                              </span>
-                            </div>
-                            <div className="user-date">
-                              가입: {formatDate(user.createdAt)} ({calculateActivityDays(user.createdAt)}일)
-                            </div>
-                          </div>
-                          <div className="user-actions">
-                            {editingUser?.uid !== user.uid ? (
-                              <>
-                                <button className="action-btn view-btn" onClick={() => setSelectedUser(user)}>
-                                  <CheckCircle size={14} />
-                                  상세
-                                </button>
-                                <button className="action-btn edit-btn" onClick={() => setEditingUser(user)}>
-                                  <Edit3 size={14} />
-                                  수정
-                                </button>
-                                <button className="action-btn delete-btn" onClick={() => handleDeleteUser(user)}>
-                                  <Trash2 size={14} />
-                                  삭제
-                                </button>
-                              </>
-                            ) : (
-                              <>
-                                <button className="action-btn save-btn" onClick={() => handleUpdateUser(user)}>
-                                  저장
-                                </button>
-                                <button className="action-btn cancel-btn" onClick={() => setEditingUser(null)}>
-                                  취소
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        
-                        {editingUser?.uid === user.uid && (
-                          <div className="edit-controls">
-                            <input
-                              type="text"
-                              className="edit-input"
-                              value={editingUser.nickname}
-                              onChange={(e) => setEditingUser({...editingUser, nickname: e.target.value})}
-                              placeholder="닉네임"
-                            />
-                            <select
-                              className="edit-select"
-                              value={editingUser.role}
-                              onChange={(e) => setEditingUser({...editingUser, role: e.target.value})}
-                            >
-                              {ROLE_OPTIONS.map(role => (
-                                <option key={role} value={role}>{role}</option>
-                              ))}
-                            </select>
-                            <select
-                              className="edit-select"
-                              value={editingUser.grade}
-                              onChange={(e) => setEditingUser({...editingUser, grade: e.target.value})}
-                            >
-                              {GRADE_OPTIONS.map(grade => (
-                                <option key={grade} value={grade}>{grade} {GRADE_NAMES[grade as keyof typeof GRADE_NAMES]}</option>
-                              ))}
-                            </select>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                  {filteredUsers.map(user => (
+                    <UserCard
+                      key={user.uid}
+                      user={user}
+                      isEditing={editingUser?.uid === user.uid}
+                      onEdit={() => setEditingUser(user)}
+                      onSave={() => handleUpdateUser(user)}
+                      onCancel={() => setEditingUser(null)}
+                      onDelete={() => handleDeleteUser(user)}
+                      onView={() => setSelectedUser(user)}
+                      editingUser={editingUser || undefined}
+                      onEditChange={(field, value) => {
+                        if (editingUser) {
+                          setEditingUser({ ...editingUser, [field]: value });
+                        }
+                      }}
+                    />
+                  ))}
                 </div>
               )}
             </div>
@@ -643,7 +522,7 @@ const AdminPanel: React.FC = () => {
                     {filteredUsers.map(user => {
                       const activityDays = calculateActivityDays(user.createdAt);
                       const canPromoteUser = canPromote(user);
-                      const currentGradeIndex = GRADE_OPTIONS.indexOf(user.grade);
+                      const currentGradeIndex = GRADE_ORDER.indexOf(user.grade as any);
                       const nextGradeIndex = currentGradeIndex + 1;
                       const nextGradeDay = (nextGradeIndex) * 90;
                       const daysToPromote = nextGradeDay - activityDays;
@@ -667,14 +546,14 @@ const AdminPanel: React.FC = () => {
                           <td>{formatDate(user.createdAt)}</td>
                           <td>{activityDays}일</td>
                           <td>
-                            {(user.grade === '🌙' || user.grade === '☀️') ? (
+                            {(user.grade === GRADE_SYSTEM.SUN) ? (
                               <span className="status-badge">최고등급</span>
                             ) : canPromoteUser ? (
                               <button
                                 className="promote-button"
                                 onClick={async () => {
                                   const nextGrade = getNextGrade(user.grade);
-                                  if (!window.confirm(`${user.nickname}님의 등급을 ${GRADE_NAMES[nextGrade as keyof typeof GRADE_NAMES]}로 승급하시겠습니까?`)) return;
+                                  if (!window.confirm(`${user.nickname}님의 등급을 ${GRADE_NAMES[nextGrade]}로 승급하시겠습니까?`)) return;
                                   try {
                                     const userRef = doc(db, 'users', user.uid);
                                     await updateDoc(userRef, { grade: nextGrade });
@@ -726,7 +605,7 @@ const AdminPanel: React.FC = () => {
                   <h3>{selectedUser.nickname}</h3>
                   <div className="detail-badges">
                     <span style={{ marginLeft: 6, fontSize: '1.2em' }}>{selectedUser.grade}</span>
-                    <span className={`role-badge ${selectedUser.role}`}>{selectedUser.role}</span>
+                    <RoleDisplay role={selectedUser.role} />
                   </div>
                 </div>
               </div>
@@ -787,11 +666,11 @@ const AdminPanel: React.FC = () => {
                 <label>등급</label>
                 <select
                   value={newUser.grade}
-                  onChange={(e) => setNewUser({...newUser, grade: e.target.value})}
+                  onChange={(e) => setNewUser({...newUser, grade: e.target.value as any})}
                 >
-                  {GRADE_OPTIONS.map(grade => (
+                  {GRADE_ORDER.map(grade => (
                     <option key={grade} value={grade}>
-                      {grade} {GRADE_NAMES[grade as keyof typeof GRADE_NAMES]}
+                      {grade} {GRADE_NAMES[grade]}
                     </option>
                   ))}
                 </select>
@@ -800,7 +679,7 @@ const AdminPanel: React.FC = () => {
                 <label>역할</label>
                 <select
                   value={newUser.role}
-                  onChange={(e) => setNewUser({...newUser, role: e.target.value})}
+                  onChange={(e) => setNewUser({...newUser, role: e.target.value as any})}
                 >
                   {ROLE_OPTIONS.map(role => (
                     <option key={role} value={role}>{role}</option>

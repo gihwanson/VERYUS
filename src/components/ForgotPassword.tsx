@@ -133,12 +133,15 @@ const ForgotPassword: React.FC = () => {
   return (
     <div className="forgot-password-container">
       <div className="forgot-password-card">
-        <div className="card-header">
-          <h1>비밀번호 찾기</h1>
-          <p className="header-description">
-            가입하신 닉네임 또는 이메일을 입력하시면<br />
-            비밀번호 재설정 링크를 보내드립니다.
-          </p>
+        <div className="forgot-password-header glassmorphism">
+          <button className="back-button glassmorphism" onClick={() => navigate(-1)}>
+            <ArrowLeft size={16} />
+            뒤로가기
+          </button>
+          <h1 className="forgot-password-title">
+            <Mail size={28} />
+            비밀번호 찾기
+          </h1>
         </div>
 
         <form onSubmit={handlePasswordReset} className="reset-form">

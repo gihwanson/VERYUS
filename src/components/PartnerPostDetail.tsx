@@ -185,7 +185,6 @@ const PartnerPostDetail: React.FC = () => {
     const incrementViews = async () => {
       const viewedPosts = sessionStorage.getItem('viewedPartnerPosts');
       const viewedPostsArray = viewedPosts ? JSON.parse(viewedPosts) : [];
-      
       if (!viewedPostsArray.includes(id)) {
         try {
           await updateDoc(doc(db, 'posts', id), {
@@ -197,6 +196,7 @@ const PartnerPostDetail: React.FC = () => {
         }
       }
     };
+    incrementViews();
 
     // 실시간 게시글 데이터 구독
     const unsubscribe = onSnapshot(doc(db, 'posts', id), async (docSnapshot) => {
@@ -423,8 +423,8 @@ const PartnerPostDetail: React.FC = () => {
 
   return (
     <div className="post-detail-container">
-      <div className="post-navigation">
-        <button className="back-button" onClick={() => navigate('/boards/partner')}>
+      <div className="post-navigation glassmorphism">
+        <button className="back-button glassmorphism" onClick={() => navigate('/boards/partner')}>
           <ArrowLeft size={20} />
           목록으로
         </button>

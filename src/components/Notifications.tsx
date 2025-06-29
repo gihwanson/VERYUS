@@ -150,10 +150,6 @@ const Notifications: React.FC = () => {
     return badges[postType as keyof typeof badges];
   };
 
-  const handleGoHome = () => {
-    navigate('/');
-  };
-
   if (!user) return <div className="notifications-container">로그인이 필요합니다.</div>;
   if (loading) return <div className="notifications-container">로딩 중...</div>;
 
