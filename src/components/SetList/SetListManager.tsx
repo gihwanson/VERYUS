@@ -547,7 +547,14 @@ const SetListManager: React.FC = () => {
 
   const removeParticipant = (index: number) => {
     if (participants.length > 1) {
-      setParticipants(participants.filter((_, i) => i !== index));
+      const updatedParticipants = participants.filter((_, i) => i !== index);
+      setParticipants(updatedParticipants);
+      
+      // activeSetList의 participants도 업데이트
+      if (activeSetList && isLeader) {
+        const validParticipants = updatedParticipants.map(p => p.trim()).filter(Boolean);
+        updateSetListParticipants(validParticipants);
+      }
     }
   };
 
@@ -555,6 +562,27 @@ const SetListManager: React.FC = () => {
     const updated = [...participants];
     updated[index] = value;
     setParticipants(updated);
+    
+    // activeSetList의 participants도 업데이트
+    if (activeSetList && isLeader) {
+      const validParticipants = updated.map(p => p.trim()).filter(Boolean);
+      updateSetListParticipants(validParticipants);
+    }
+  };
+
+  // 셋리스트 참가자 업데이트 함수
+  const updateSetListParticipants = async (newParticipants: string[]) => {
+    if (!activeSetList || !isLeader) return;
+
+    try {
+      await updateDoc(doc(db, 'setlists', activeSetList.id!), {
+        participants: newParticipants,
+        updatedAt: Timestamp.now()
+      });
+    } catch (error) {
+      console.error('참가자 업데이트 실패:', error);
+      alert('참가자 업데이트에 실패했습니다.');
+    }
   };
 
   // 새 셋리스트 생성

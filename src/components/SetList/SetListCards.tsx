@@ -99,6 +99,21 @@ const SetListCards: React.FC = () => {
     }
   }, [activeSetList, isLeader, flexibleCardNickname, flexibleCardCount]);
 
+  // 활성 셋리스트의 참가자에 맞는 사용 가능한 곡 필터링
+  useEffect(() => {
+    if (activeSetList && songs.length > 0) {
+      const attendees = activeSetList.participants;
+      
+      const filtered = songs.filter(song => {
+        if (!Array.isArray(song.members) || song.members.length === 0) return false;
+        return song.members.every(member => attendees.includes(member.trim()));
+      });
+      setAvailableSongs(filtered);
+    } else {
+      setAvailableSongs([]);
+    }
+  }, [activeSetList, songs]);
+
   // 전체 항목들 (곡 + 유연한 카드) 가져오기 및 정렬 (셋리스트에 추가된 것만)
   const getAllItems = useCallback(() => {
     if (!activeSetList) return [];
@@ -492,25 +507,7 @@ const SetListCards: React.FC = () => {
     }
   };
 
-  const {
-    handleTouchStart,
-    handleTouchMove,
-    handleTouchEnd,
-    isDragging,
-    dragDistance,
-    isReadyToComplete,
-    isReadyToDelete,
-    completionThreshold,
-    deletionThreshold
-  } = useSwipeGestures(
-    isLeader, 
-    currentCardIndex, 
-    activeSetList, 
-    setCurrentCardIndex, 
-    completeCurrentSong,
-    deleteCurrentSong,
-    allItems.length // 전체 아이템 수 (곡 + 닉네임카드) 전달
-  );
+
 
   // currentSongIndex와 로컬 currentCardIndex 동기화
   useEffect(() => {
@@ -657,18 +654,33 @@ const SetListCards: React.FC = () => {
     }
   }, [activeSetList, isLeader, allItems.length]);
 
-  // 카드 네비게이션 함수들
+  // 검색된 사용 가능한 곡들
+  const filteredAvailableSongs = availableSongs.filter(song =>
+    song.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    song.members.some(member => member.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  // 현재 진행 중인 카드인지 확인
+  const isCurrentActiveCard = activeSetList && currentCardIndex === (activeSetList.currentSongIndex || 0);
+
+  // 카드 네비게이션 함수들 (useSwipeGestures 호출 전에 정의)
   const goToNextCard = () => {
+    console.log('🔄 goToNextCard 호출됨 - currentCardIndex:', currentCardIndex, 'allItems.length:', allItems.length);
     if (currentCardIndex < allItems.length - 1) {
       setCurrentCardIndex(currentCardIndex + 1);
       console.log(`버튼 네비게이션: ${currentCardIndex} → ${currentCardIndex + 1} (총 ${allItems.length}개)`);
+    } else {
+      console.log('❌ goToNextCard - 이미 마지막 카드입니다. 이동할 수 없습니다.');
     }
   };
 
   const goToPrevCard = () => {
+    console.log('🔄 goToPrevCard 호출됨 - currentCardIndex:', currentCardIndex, 'allItems.length:', allItems.length);
     if (currentCardIndex > 0) {
       setCurrentCardIndex(currentCardIndex - 1);
       console.log(`버튼 네비게이션: ${currentCardIndex} → ${currentCardIndex - 1} (총 ${allItems.length}개)`);
+    } else {
+      console.log('❌ goToPrevCard - 이미 첫 번째 카드입니다. 이동할 수 없습니다.');
     }
   };
 
@@ -678,12 +690,6 @@ const SetListCards: React.FC = () => {
       console.log(`도트 네비게이션: ${currentCardIndex} → ${index} (총 ${allItems.length}개)`);
     }
   };
-
-  // 검색된 사용 가능한 곡들
-  const filteredAvailableSongs = availableSongs.filter(song =>
-    song.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    song.members.some(member => member.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
 
   // 드래그 앤 드롭 훅 (addSongToSetList와 filteredAvailableSongs가 정의된 후에 호출)
   const {
@@ -703,6 +709,30 @@ const SetListCards: React.FC = () => {
     filteredAvailableSongs, 
     (activeSetList?.flexibleCards || []).filter(card => card.order < 0), // 셋리스트에 추가되지 않은 카드만
     allItems.length
+  );
+
+  // 스와이프 제스처 훅 (함수 정의 이후에 호출)
+  const {
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
+    isDragging,
+    dragDistance,
+    isReadyToComplete,
+    isReadyToDelete,
+    completionThreshold,
+    deletionThreshold
+  } = useSwipeGestures(
+    isLeader, 
+    currentCardIndex, 
+    activeSetList, 
+    setCurrentCardIndex, 
+    completeCurrentSong,
+    deleteCurrentSong,
+    allItems.length, // 전체 아이템 수 (곡 + 닉네임카드) 전달
+    goToNextCard, // SetListCards의 goToNextCard 함수 전달
+    goToPrevCard,  // SetListCards의 goToPrevCard 함수 전달
+    dragEnabled // 스와이프 활성화 상태 전달
   );
 
   // 드래그 중일 때 마지막 카드로 이동 (항상 마지막에 추가되므로)

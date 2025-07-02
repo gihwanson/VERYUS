@@ -206,11 +206,24 @@ const ContestResults: React.FC = () => {
     const showExpand = comments.length > MAX_LINES;
     const shown = expanded ? comments : comments.slice(0, MAX_LINES);
     return (
-      <div style={{ whiteSpace: 'pre-line', lineHeight: 1.6 }}>
+      <div style={{ 
+        whiteSpace: 'pre-line', 
+        lineHeight: 1.6,
+        userSelect: 'text',
+        WebkitUserSelect: 'text',
+        MozUserSelect: 'text',
+        msUserSelect: 'text'
+      }}>
         {shown.map((c, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
             <span style={{ color: '#8A55CC', fontWeight: 'bold', fontSize: 16 }}>•</span>
-            <span style={{ color: 'var(--text-primary, #333)' }}>{c}</span>
+            <span style={{ 
+              color: 'var(--text-primary, #333)',
+              userSelect: 'text',
+              WebkitUserSelect: 'text',
+              MozUserSelect: 'text',
+              msUserSelect: 'text'
+            }}>{c}</span>
           </div>
         ))}
         {showExpand && (
@@ -403,7 +416,11 @@ const ContestResults: React.FC = () => {
                     wordBreak: 'break-all', 
                     whiteSpace: 'pre-line',
                     fontWeight: isTop3 ? 'bold' : 'normal',
-                    color: 'var(--text-primary, #333)'
+                    color: 'var(--text-primary, #333)',
+                    userSelect: 'text',
+                    WebkitUserSelect: 'text',
+                    MozUserSelect: 'text',
+                    msUserSelect: 'text'
                   }}>
                     <BulletedComments comments={comments ? comments.split(',').map((s: string) => s.trim()).filter(Boolean) : []} />
                   </td>
@@ -495,7 +512,7 @@ const ContestResults: React.FC = () => {
                   <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>{getTargetDisplay(g.target)}</td>
                   <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>{g.score}</td>
                   <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>{getGrade(Number(g.score))}</td>
-                  <td style={{ padding: 8, border: '1px solid #E5DAF5', maxWidth: 320, wordBreak: 'break-all', whiteSpace: 'pre-line', color: 'var(--text-primary, #333)' }}>
+                  <td style={{ padding: 8, border: '1px solid #E5DAF5', maxWidth: 320, wordBreak: 'break-all', whiteSpace: 'pre-line', color: 'var(--text-primary, #333)', userSelect: 'text', WebkitUserSelect: 'text', MozUserSelect: 'text', msUserSelect: 'text' }}>
                     <BulletedComments comments={g.comment ? g.comment.split(',').map((s: string) => s.trim()).filter(Boolean) : []} />
                   </td>
                 </tr>
@@ -530,7 +547,7 @@ const ContestResults: React.FC = () => {
                       <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>{getTargetDisplay(g.target)}</td>
                       <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>{g.score}</td>
                       <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>{getGrade(Number(g.score))}</td>
-                      <td style={{ padding: 8, border: '1px solid #E5DAF5', maxWidth: 320, wordBreak: 'break-all', whiteSpace: 'pre-line', color: 'var(--text-primary, #333)' }}>
+                      <td style={{ padding: 8, border: '1px solid #E5DAF5', maxWidth: 320, wordBreak: 'break-all', whiteSpace: 'pre-line', color: 'var(--text-primary, #333)', userSelect: 'text', WebkitUserSelect: 'text', MozUserSelect: 'text', msUserSelect: 'text' }}>
                         <BulletedComments comments={g.comment ? g.comment.split(',').map((s: string) => s.trim()).filter(Boolean) : []} />
                       </td>
                     </tr>
@@ -604,7 +621,11 @@ const ContestResults: React.FC = () => {
                           wordBreak: 'break-all', 
                           whiteSpace: 'pre-line',
                           fontWeight: isTop3 ? 'bold' : 'normal',
-                          color: 'var(--text-primary, #333)'
+                          color: 'var(--text-primary, #333)',
+                          userSelect: 'text',
+                          WebkitUserSelect: 'text',
+                          MozUserSelect: 'text',
+                          msUserSelect: 'text'
                         }}>
                           <BulletedComments comments={comments ? comments.split(',').map((s: string) => s.trim()).filter(Boolean) : []} />
                         </td>

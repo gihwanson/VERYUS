@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase';
+import { Activity, TrendingUp, Users, MessageSquare, Heart, Award } from 'lucide-react';
 
 interface User {
   uid: string;
@@ -22,23 +23,71 @@ interface ActivityRow {
   role?: string;
 }
 
-const UserActivityBoard: React.FC = () => {
+const UserActivityBoard: React.FC = React.memo(() => {
   const [rows, setRows] = useState<ActivityRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<'score' | 'posts' | 'comments' | 'likes'>('score');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
 
-  useEffect(() => {
-    const fetchData = async () => {
+  // 정렬된 데이터 메모이제이션
+  const sortedRows = useMemo(() => {
+    return [...rows].sort((a, b) => {
+      let aValue: number, bValue: number;
+      
+      switch (sortBy) {
+        case 'score':
+          aValue = a.score;
+          bValue = b.score;
+          break;
+        case 'posts':
+          aValue = a.postCount;
+          bValue = b.postCount;
+          break;
+        case 'comments':
+          aValue = a.commentCount;
+          bValue = b.commentCount;
+          break;
+        case 'likes':
+          aValue = a.likeGiven;
+          bValue = b.likeGiven;
+          break;
+        default:
+          return 0;
+      }
+      
+      return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
+    });
+  }, [rows, sortBy, sortOrder]);
+
+  // 통계 계산 메모이제이션
+  const stats = useMemo(() => {
+    if (rows.length === 0) return null;
+    
+    const totalPosts = rows.reduce((sum, row) => sum + row.postCount, 0);
+    const totalComments = rows.reduce((sum, row) => sum + row.commentCount, 0);
+    const totalLikes = rows.reduce((sum, row) => sum + row.likeGiven, 0);
+    const avgScore = Math.round(rows.reduce((sum, row) => sum + row.score, 0) / rows.length);
+    
+    return { totalPosts, totalComments, totalLikes, avgScore };
+  }, [rows]);
+
+  const fetchData = useCallback(async () => {
+    try {
       setLoading(true);
+      setError(null);
+      
       // 1. 모든 유저
       const usersSnap = await getDocs(collection(db, 'users'));
       const users: User[] = usersSnap.docs.map(doc => ({ uid: doc.id, ...doc.data() })) as User[];
+      
       // 2. 모든 게시글
       const postsSnap = await getDocs(collection(db, 'posts'));
       const postCounts: Record<string, number> = {};
-      // 좋아요 집계용
       const likeGivenCounts: Record<string, number> = {};
+      
       postsSnap.docs.forEach(doc => {
         const data = doc.data();
         if (data.writerUid) {
@@ -53,69 +102,180 @@ const UserActivityBoard: React.FC = () => {
           });
         }
       });
+      
       // 3. 모든 댓글
       const commentsSnap = await getDocs(collection(db, 'comments'));
       const commentCounts: Record<string, number> = {};
+      const commentLikeGivenCounts: Record<string, number> = {};
+      
       commentsSnap.docs.forEach(doc => {
         const data = doc.data();
         if (data.writerUid) {
           commentCounts[data.writerUid] = (commentCounts[data.writerUid] || 0) + 1;
         }
+        // 댓글 좋아요: 본인 댓글 제외, likedBy 배열에 있는 uid별로 카운트
+        if (Array.isArray(data.likedBy) && data.writerUid) {
+          data.likedBy.forEach((uid: string) => {
+            if (uid !== data.writerUid) {
+              commentLikeGivenCounts[uid] = (commentLikeGivenCounts[uid] || 0) + 1;
+            }
+          });
+        }
       });
+      
       // 4. 합산
       const activityRows: ActivityRow[] = users.map(user => {
         const postCount = postCounts[user.uid] || 0;
         const commentCount = commentCounts[user.uid] || 0;
-        const likeGiven = likeGivenCounts[user.uid] || 0;
+        const postLikeGiven = likeGivenCounts[user.uid] || 0;
+        const commentLikeGiven = commentLikeGivenCounts[user.uid] || 0;
+        const totalLikeGiven = postLikeGiven + commentLikeGiven;
         return {
           uid: user.uid,
           nickname: user.nickname,
           email: user.email,
           postCount,
           commentCount,
-          likeGiven,
-          score: postCount * 2 + commentCount + likeGiven,
+          likeGiven: totalLikeGiven,
+          score: postCount * 2 + commentCount + totalLikeGiven,
           grade: user.grade,
           role: user.role,
         };
       });
-      // 5. 점수순 정렬
-      activityRows.sort((a, b) => b.score - a.score);
+      
       setRows(activityRows);
+    } catch (error) {
+      console.error('활동 데이터 가져오기 실패:', error);
+      setError('활동 데이터를 가져오는데 실패했습니다. 다시 시도해주세요.');
+    } finally {
       setLoading(false);
-    };
-    fetchData();
+    }
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleRetry = useCallback(() => {
+    fetchData();
+  }, [fetchData]);
+
+  if (loading) {
+    return (
+      <div style={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        background: 'var(--surface)',
+        borderRadius: 'var(--border-radius-lg)',
+        boxShadow: 'var(--shadow-sm)',
+        padding: isMobile ? 'var(--spacing-4)' : 'var(--spacing-8)',
+        margin: 0,
+        overflow: 'hidden',
+        border: '1px solid var(--gray-200)'
+      }}>
+        <div style={{
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--primary-600)',
+          fontWeight: 600,
+          fontSize: isMobile ? 'var(--font-size-sm)' : 'var(--font-size-base)'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--spacing-2)'
+          }}>
+            <div style={{
+              width: 20,
+              height: 20,
+              border: '2px solid var(--gray-200)',
+              borderTop: '2px solid var(--primary-600)',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite'
+            }}></div>
+            데이터를 불러오는 중...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        background: 'var(--surface)',
+        borderRadius: 'var(--border-radius-lg)',
+        boxShadow: 'var(--shadow-sm)',
+        padding: isMobile ? 'var(--spacing-4)' : 'var(--spacing-8)',
+        margin: 0,
+        overflow: 'hidden',
+        border: '1px solid var(--gray-200)'
+      }}>
+        <div style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 'var(--spacing-4)'
+        }}>
+          <div style={{ color: '#EF4444', fontSize: 48 }}>⚠️</div>
+          <p style={{ color: 'var(--gray-600)', textAlign: 'center', margin: 0 }}>{error}</p>
+          <button 
+            onClick={handleRetry}
+            style={{
+              background: 'var(--primary-600)',
+              color: 'white',
+              border: 'none',
+              padding: 'var(--spacing-2) var(--spacing-4)',
+              borderRadius: 'var(--border-radius)',
+              cursor: 'pointer',
+              fontWeight: 600
+            }}
+          >
+            다시 시도
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
       height: '100%',
       display: 'flex',
       flexDirection: 'column',
-      background: '#fff',
-      borderRadius: 20,
-      boxShadow: '0 8px 32px rgba(229, 218, 245, 0.3)',
-      padding: isMobile ? 12 : 32,
+      background: 'var(--surface)',
+      borderRadius: 'var(--border-radius-lg)',
+      boxShadow: 'var(--shadow-sm)',
+      padding: isMobile ? 'var(--spacing-4)' : 'var(--spacing-8)',
       margin: 0,
-      overflow: 'hidden'
+      overflow: 'hidden',
+      border: '1px solid var(--gray-200)'
     }}>
       <div style={{
-        marginBottom: isMobile ? 10 : 24,
+        marginBottom: isMobile ? 'var(--spacing-4)' : 'var(--spacing-6)',
         flexShrink: 0
       }}>
         <h2 style={{
-          color: '#8A55CC',
+          color: 'var(--primary-600)',
           fontWeight: 700,
-          fontSize: isMobile ? 18 : 24,
+          fontSize: isMobile ? 'var(--font-size-lg)' : 'var(--font-size-2xl)',
           margin: 0,
           textAlign: 'center'
         }}>
           유저 활동 점수판
         </h2>
         <p style={{
-          color: '#6B7280',
-          fontSize: isMobile ? 11 : 14,
-          margin: isMobile ? '4px 0 0 0' : '8px 0 0 0',
+          color: 'var(--gray-600)',
+          fontSize: isMobile ? 'var(--font-size-sm)' : 'var(--font-size-base)',
+          margin: isMobile ? 'var(--spacing-1) 0 0 0' : 'var(--spacing-2) 0 0 0',
           textAlign: 'center'
         }}>
           게시글 2점, 댓글 1점, 좋아요 1점으로 계산된 활동 점수입니다
@@ -128,20 +288,20 @@ const UserActivityBoard: React.FC = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: '#8A55CC',
+          color: 'var(--primary-600)',
           fontWeight: 600,
-          fontSize: isMobile ? 13 : 16
+          fontSize: isMobile ? 'var(--font-size-sm)' : 'var(--font-size-base)'
         }}>
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 8
+            gap: 'var(--spacing-2)'
           }}>
             <div style={{
               width: 20,
               height: 20,
-              border: '2px solid #E5DAF5',
-              borderTop: '2px solid #8A55CC',
+              border: '2px solid var(--gray-200)',
+              borderTop: '2px solid var(--primary-600)',
               borderRadius: '50%',
               animation: 'spin 1s linear infinite'
             }}></div>
@@ -153,54 +313,55 @@ const UserActivityBoard: React.FC = () => {
           <div style={{
             display: 'flex',
             flexDirection: 'column',
-            gap: 10,
+            gap: 'var(--spacing-3)',
             width: '100%'
           }}>
-            {rows.map((row, index) => (
+            {sortedRows.map((row, index) => (
               <div key={row.uid} style={{
-                background: '#F8F6FC',
-                border: '1px solid #E5DAF5',
-                borderRadius: 12,
-                padding: 12,
-                marginBottom: 6,
-                boxShadow: index < 3 ? '0 2px 8px #FFD70033' : '0 1px 4px #E5DAF533',
+                background: 'var(--gray-50)',
+                border: '1px solid var(--gray-200)',
+                borderRadius: 'var(--border-radius-md)',
+                padding: 'var(--spacing-4)',
+                marginBottom: 'var(--spacing-2)',
+                boxShadow: index < 3 ? 'var(--shadow-md)' : 'var(--shadow-sm)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 6
+                gap: 'var(--spacing-2)',
+                transition: 'all var(--transition-normal)'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)' }}>
                   <div style={{
-                    width: 22,
-                    height: 22,
+                    width: 24,
+                    height: 24,
                     borderRadius: '50%',
                     background: index < 3 
                       ? (index === 0 ? '#FFD700' : index === 1 ? '#C0C0C0' : '#CD7F32')
-                      : '#E5E7EB',
-                    color: index < 3 ? 'white' : '#6B7280',
-                    fontSize: 10,
+                      : 'var(--gray-300)',
+                    color: index < 3 ? 'white' : 'var(--gray-600)',
+                    fontSize: 'var(--font-size-xs)',
                     fontWeight: 600,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginRight: 4
+                    marginRight: 'var(--spacing-1)'
                   }}>{index + 1}</div>
-                  <span style={{ fontWeight: 600, color: '#1F2937', fontSize: 14 }}>{row.nickname}</span>
-                  <span style={{ fontSize: 15 }}>{row.grade || '-'}</span>
+                  <span style={{ fontWeight: 600, color: 'var(--gray-900)', fontSize: 'var(--font-size-sm)' }}>{row.nickname}</span>
+                  <span style={{ fontSize: 'var(--font-size-base)' }}>{row.grade || '-'}</span>
                   <span style={{
-                    padding: '1px 5px',
-                    borderRadius: 4,
-                    fontSize: 10,
+                    padding: 'var(--spacing-1) var(--spacing-2)',
+                    borderRadius: 'var(--border-radius)',
+                    fontSize: 'var(--font-size-xs)',
                     fontWeight: 500,
-                    background: row.role === '리더' ? '#FEF3C7' : row.role === '운영진' ? '#EDE9FE' : row.role === '부운영진' ? '#DBEAFE' : '#F3F4F6',
-                    color: row.role === '리더' ? '#D97706' : row.role === '운영진' ? '#8A55CC' : row.role === '부운영진' ? '#2563EB' : '#6B7280',
-                    marginLeft: 4
+                    background: row.role === '리더' ? 'var(--warning-100)' : row.role === '운영진' ? 'var(--primary-100)' : row.role === '부운영진' ? 'var(--success-100)' : 'var(--gray-100)',
+                    color: row.role === '리더' ? 'var(--warning-700)' : row.role === '운영진' ? 'var(--primary-700)' : row.role === '부운영진' ? 'var(--success-700)' : 'var(--gray-600)',
+                    marginLeft: 'var(--spacing-1)'
                   }}>{row.role || '일반'}</span>
                 </div>
-                <div style={{ display: 'flex', gap: 8, fontSize: 12, color: '#374151', marginTop: 2 }}>
+                <div style={{ display: 'flex', gap: 'var(--spacing-2)', fontSize: 'var(--font-size-xs)', color: 'var(--gray-700)', marginTop: 'var(--spacing-1)' }}>
                   <span>게시글 <b>{row.postCount}</b></span>
                   <span>댓글 <b>{row.commentCount}</b></span>
                   <span>좋아요 <b>{row.likeGiven}</b></span>
-                  <span style={{ marginLeft: 'auto', color: '#8A55CC', fontWeight: 700 }}>점수 {row.score}</span>
+                  <span style={{ marginLeft: 'auto', color: 'var(--primary-600)', fontWeight: 700 }}>점수 {row.score}</span>
                 </div>
               </div>
             ))}
@@ -209,71 +370,71 @@ const UserActivityBoard: React.FC = () => {
         <div style={{
           flex: 1,
           overflow: 'hidden',
-          border: '1px solid #E5E7EB',
-          borderRadius: 12,
+          border: '1px solid var(--gray-200)',
+          borderRadius: 'var(--border-radius-md)',
           display: 'flex',
           flexDirection: 'column'
         }}>
           {/* 테이블 헤더 - 고정 */}
           <div style={{
-            background: '#F8F6FC',
-            borderBottom: '2px solid #E5DAF5',
+            background: 'var(--gray-50)',
+            borderBottom: '2px solid var(--gray-200)',
             flexShrink: 0
           }}>
             <table style={{
               width: '100%',
               borderCollapse: 'collapse',
-              fontSize: 15
+              fontSize: 'var(--font-size-sm)'
             }}>
               <thead>
                 <tr>
                   <th style={{
-                    padding: '14px 10px',
+                    padding: 'var(--spacing-4) var(--spacing-3)',
                     textAlign: 'left',
                     fontWeight: 700,
-                    color: '#374151',
+                    color: 'var(--gray-700)',
                     width: '20%'
                   }}>닉네임</th>
                   <th style={{
-                    padding: '14px 10px',
+                    padding: 'var(--spacing-4) var(--spacing-3)',
                     textAlign: 'center',
                     fontWeight: 700,
-                    color: '#374151',
+                    color: 'var(--gray-700)',
                     width: '10%'
                   }}>등급</th>
                   <th style={{
-                    padding: '14px 10px',
+                    padding: 'var(--spacing-4) var(--spacing-3)',
                     textAlign: 'center',
                     fontWeight: 700,
-                    color: '#374151',
+                    color: 'var(--gray-700)',
                     width: '15%'
                   }}>역할</th>
                   <th style={{
-                    padding: '14px 10px',
+                    padding: 'var(--spacing-4) var(--spacing-3)',
                     textAlign: 'center',
                     fontWeight: 700,
-                    color: '#374151',
+                    color: 'var(--gray-700)',
                     width: '10%'
                   }}>게시글</th>
                   <th style={{
-                    padding: '14px 10px',
+                    padding: 'var(--spacing-4) var(--spacing-3)',
                     textAlign: 'center',
                     fontWeight: 700,
-                    color: '#374151',
+                    color: 'var(--gray-700)',
                     width: '10%'
                   }}>댓글</th>
                   <th style={{
-                    padding: '14px 10px',
+                    padding: 'var(--spacing-4) var(--spacing-3)',
                     textAlign: 'center',
                     fontWeight: 700,
-                    color: '#374151',
+                    color: 'var(--gray-700)',
                     width: '10%'
                   }}>좋아요</th>
                   <th style={{
-                    padding: '14px 10px',
+                    padding: 'var(--spacing-4) var(--spacing-3)',
                     textAlign: 'center',
                     fontWeight: 700,
-                    color: '#374151',
+                    color: 'var(--gray-700)',
                     width: '15%'
                   }}>활동점수</th>
                 </tr>
@@ -286,42 +447,42 @@ const UserActivityBoard: React.FC = () => {
             flex: 1,
             overflow: 'auto',
             scrollbarWidth: 'thin',
-            scrollbarColor: '#8A55CC transparent'
+            scrollbarColor: 'var(--primary-600) transparent'
           }}>
             <table style={{
               width: '100%',
               borderCollapse: 'collapse',
-              fontSize: 15
+              fontSize: 'var(--font-size-sm)'
             }}>
               <tbody>
-                {rows.map((row, index) => (
+                {sortedRows.map((row, index) => (
                   <tr key={row.uid} style={{
-                    background: index % 2 === 0 ? '#FFFFFF' : '#FEFEFF',
-                    transition: 'background-color 0.2s ease',
-                    borderBottom: '1.5px solid #F3F4F6',
-                    height: 48
+                    background: index % 2 === 0 ? 'var(--surface)' : 'var(--gray-50)',
+                    transition: 'background-color var(--transition-fast)',
+                    borderBottom: '1px solid var(--gray-200)',
+                    height: 56
                   }}>
                     <td style={{
-                      padding: '14px 10px',
-                      borderBottom: '1.5px solid #F3F4F6',
+                      padding: 'var(--spacing-4) var(--spacing-3)',
+                      borderBottom: '1px solid var(--gray-200)',
                       width: '20%',
                       fontWeight: 600,
-                      color: '#1F2937'
+                      color: 'var(--gray-900)'
                     }}>
                       <div style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 8
+                        gap: 'var(--spacing-2)'
                       }}>
                         <div style={{
-                          width: 26,
-                          height: 26,
+                          width: 28,
+                          height: 28,
                           borderRadius: '50%',
                           background: index < 3 
                             ? (index === 0 ? '#FFD700' : index === 1 ? '#C0C0C0' : '#CD7F32')
-                            : '#E5E7EB',
-                          color: index < 3 ? 'white' : '#6B7280',
-                          fontSize: 12,
+                            : 'var(--gray-300)',
+                          color: index < 3 ? 'white' : 'var(--gray-600)',
+                          fontSize: 'var(--font-size-xs)',
                           fontWeight: 700,
                           display: 'flex',
                           alignItems: 'center',
@@ -331,59 +492,59 @@ const UserActivityBoard: React.FC = () => {
                       </div>
                     </td>
                     <td style={{
-                      padding: '14px 10px',
-                      borderBottom: '1.5px solid #F3F4F6',
+                      padding: 'var(--spacing-4) var(--spacing-3)',
+                      borderBottom: '1px solid var(--gray-200)',
                       textAlign: 'center',
                       width: '10%',
-                      fontSize: 17
+                      fontSize: 'var(--font-size-lg)'
                     }}>{row.grade || '-'}</td>
                     <td style={{
-                      padding: '14px 10px',
-                      borderBottom: '1.5px solid #F3F4F6',
+                      padding: 'var(--spacing-4) var(--spacing-3)',
+                      borderBottom: '1px solid var(--gray-200)',
                       textAlign: 'center',
                       width: '15%'
                     }}>
                       <span style={{
-                        padding: '2px 8px',
-                        borderRadius: 4,
-                        fontSize: 12,
+                        padding: 'var(--spacing-1) var(--spacing-2)',
+                        borderRadius: 'var(--border-radius)',
+                        fontSize: 'var(--font-size-xs)',
                         fontWeight: 600,
-                        background: row.role === '리더' ? '#FEF3C7' : row.role === '운영진' ? '#EDE9FE' : row.role === '부운영진' ? '#DBEAFE' : '#F3F4F6',
-                        color: row.role === '리더' ? '#D97706' : row.role === '운영진' ? '#8A55CC' : row.role === '부운영진' ? '#2563EB' : '#6B7280'
+                        background: row.role === '리더' ? 'var(--warning-100)' : row.role === '운영진' ? 'var(--primary-100)' : row.role === '부운영진' ? 'var(--success-100)' : 'var(--gray-100)',
+                        color: row.role === '리더' ? 'var(--warning-700)' : row.role === '운영진' ? 'var(--primary-700)' : row.role === '부운영진' ? 'var(--success-700)' : 'var(--gray-600)'
                       }}>{row.role || '일반'}</span>
                     </td>
                     <td style={{
-                      padding: '14px 10px',
-                      borderBottom: '1.5px solid #F3F4F6',
+                      padding: 'var(--spacing-4) var(--spacing-3)',
+                      borderBottom: '1px solid var(--gray-200)',
                       textAlign: 'center',
                       width: '10%',
                       fontWeight: 600,
-                      color: '#374151'
+                      color: 'var(--gray-700)'
                     }}>{row.postCount}</td>
                     <td style={{
-                      padding: '14px 10px',
-                      borderBottom: '1.5px solid #F3F4F6',
+                      padding: 'var(--spacing-4) var(--spacing-3)',
+                      borderBottom: '1px solid var(--gray-200)',
                       textAlign: 'center',
                       width: '10%',
                       fontWeight: 600,
-                      color: '#374151'
+                      color: 'var(--gray-700)'
                     }}>{row.commentCount}</td>
                     <td style={{
-                      padding: '14px 10px',
-                      borderBottom: '1.5px solid #F3F4F6',
+                      padding: 'var(--spacing-4) var(--spacing-3)',
+                      borderBottom: '1px solid var(--gray-200)',
                       textAlign: 'center',
                       width: '10%',
                       fontWeight: 600,
-                      color: '#374151'
+                      color: 'var(--gray-700)'
                     }}>{row.likeGiven}</td>
                     <td style={{
-                      padding: '14px 10px',
-                      borderBottom: '1.5px solid #F3F4F6',
+                      padding: 'var(--spacing-4) var(--spacing-3)',
+                      borderBottom: '1px solid var(--gray-200)',
                       textAlign: 'center',
                       width: '15%',
                       fontWeight: 800,
-                      color: '#8A55CC',
-                      fontSize: 18
+                      color: 'var(--primary-600)',
+                      fontSize: 'var(--font-size-lg)'
                     }}>
                       {row.score}
                     </td>
@@ -403,11 +564,11 @@ const UserActivityBoard: React.FC = () => {
                 background: transparent;
               }
               div::-webkit-scrollbar-thumb {
-                background: #8A55CC;
+                background: var(--primary-600);
                 border-radius: 3px;
               }
               div::-webkit-scrollbar-thumb:hover {
-                background: #6B46A3;
+                background: var(--primary-700);
               }
               @keyframes spin {
                 0% { transform: rotate(0deg); }
@@ -419,20 +580,20 @@ const UserActivityBoard: React.FC = () => {
         )
       )}
 
-      {!loading && rows.length === 0 && (
+      {!loading && sortedRows.length === 0 && (
         <div style={{
           flex: 1,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: '#6B7280',
-          fontSize: isMobile ? 13 : 16
+          color: 'var(--gray-500)',
+          fontSize: isMobile ? 'var(--font-size-sm)' : 'var(--font-size-base)'
         }}>
           활동 데이터가 없습니다.
         </div>
       )}
     </div>
   );
-};
+});
 
 export default UserActivityBoard; 

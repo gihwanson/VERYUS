@@ -899,6 +899,35 @@ const MyPage: React.FC = () => {
           alignItems: 'center',
           marginBottom: '24px'
         }}>
+          <button 
+            onClick={() => navigate(-1)}
+            style={{
+              background: 'rgba(255, 255, 255, 0.2)',
+              backdropFilter: 'blur(10px)',
+              color: 'white',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              borderRadius: '12px',
+              padding: '10px 16px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontSize: 14,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'all 0.3s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            <ArrowLeft size={16} />
+            뒤로가기
+          </button>
           {isOwner && (
             <button 
               onClick={() => navigate('/settings')}
@@ -927,39 +956,10 @@ const MyPage: React.FC = () => {
               }}
             >
               <Settings size={16} />
-              ⚙️ 설정
+              설정
           </button>
-        )}
-        <button 
-          onClick={() => navigate(-1)}
-          style={{
-            background: 'rgba(255, 255, 255, 0.2)',
-            backdropFilter: 'blur(10px)',
-            color: 'white',
-            border: '1px solid rgba(255, 255, 255, 0.3)',
-            borderRadius: '12px',
-            padding: '10px 16px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            fontSize: 14,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            transition: 'all 0.3s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-            e.currentTarget.style.transform = 'translateY(-2px)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-            e.currentTarget.style.transform = 'translateY(0)';
-          }}
-        >
-          <ArrowLeft size={16} />
-          뒤로가기
-        </button>
-      </div>
+          )}
+        </div>
 
       {/* 프로필 히어로 섹션 */}
         <div style={{
@@ -1600,14 +1600,15 @@ const MyPage: React.FC = () => {
                       flex: 1,
                       textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
                     }} onClick={() => navigate('/approved-songs')}>{song.title}</span>
-                    <span style={{ 
+                    {/* 👥 파트너 닉네임 표시 부분 제거 */}
+                    {/* <span style={{ 
                       color: 'rgba(255, 255, 255, 0.8)', 
                       fontWeight: 500, 
                       fontSize: 14,
                       background: 'rgba(255, 255, 255, 0.1)',
                       padding: '4px 8px',
                       borderRadius: '8px'
-                    }}>👥 {Array.isArray(song.members) ? song.members.join(', ') : ''}</span>
+                    }}>👥 {Array.isArray(song.members) ? song.members.join(', ') : ''}</span> */}
                     <span style={{ 
                       color: 'rgba(255, 255, 255, 0.6)', 
                       fontSize: 12,

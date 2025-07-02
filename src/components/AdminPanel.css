@@ -1,0 +1,45 @@
+/* Toss 스타일 카드 */
+.toss-card {
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 4px 16px rgba(50, 50, 93, 0.06);
+  padding: 32px 24px;
+  margin: 16px;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: box-shadow 0.2s;
+}
+.toss-card:hover {
+  box-shadow: 0 8px 24px rgba(50, 50, 93, 0.12);
+}
+.toss-card .icon {
+  font-size: 2.5rem;
+  color: #3182F6;
+  margin-bottom: 16px;
+}
+.toss-card .main-value {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: #222;
+  margin-bottom: 8px;
+}
+.toss-card .desc {
+  font-size: 1rem;
+  color: #888;
+  margin-bottom: 0;
+}
+.toss-card .sub-desc {
+  font-size: 0.95rem;
+  color: #b0b0b0;
+}
+.toss-card-group {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-top: 32px;
+}
+body {
+  background: #F9FAFB;
+} 

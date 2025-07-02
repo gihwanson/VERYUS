@@ -213,6 +213,22 @@ const ContestDetail: React.FC = () => {
     );
   }, [participants]);
 
+  // 팀 목록을 듀엣 순서대로 정렬하는 유틸
+  const sortedTeams = useMemo(() => {
+    return teams.sort((a, b) => {
+      // 팀 이름에서 숫자 추출
+      const getTeamNumber = (teamName: string): number => {
+        const match = teamName.match(/듀엣(\d+)/);
+        return match ? parseInt(match[1], 10) : 0;
+      };
+      
+      const aNumber = getTeamNumber(a.teamName);
+      const bNumber = getTeamNumber(b.teamName);
+      
+      return aNumber - bNumber;
+    });
+  }, [teams]);
+
   // Effects
   useEffect(() => {
     if (!id) return;
@@ -402,7 +418,7 @@ const ContestDetail: React.FC = () => {
             <h3 className="contest-detail-section-title">🎭 팀 목록</h3>
             <hr className="contest-detail-section-divider" />
             <div className="contest-detail-team-list">
-              {teams.map(team => {
+              {sortedTeams.map(team => {
                 const teamSubmitted = Array.isArray(team.members) && team.members.some((uid: string) => {
                   const p = participants.find(pp => pp.uid === uid);
                   return p && isParticipantSubmitted(p.nickname);
@@ -429,42 +445,44 @@ const ContestDetail: React.FC = () => {
                         return p ? p.nickname : uid;
                       }).join(', ') : ''}
                     </div>
-                    <div className="contest-detail-team-actions">
-                      {editingTeamId === team.id ? (
-                        <>
-                          <button 
-                            className="contest-detail-team-button edit"
-                            onClick={() => handleSaveTeamName(team)}
-                          >
-                            저장
-                          </button>
-                          <button 
-                            className="contest-detail-team-button break"
-                            onClick={() => {
-                              setEditingTeamId(null);
-                              setEditingTeamName('');
-                            }}
-                          >
-                            취소
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button 
-                            className="contest-detail-team-button edit"
-                            onClick={() => handleEditTeamName(team)}
-                          >
-                            팀명 수정
-                          </button>
-                          <button 
-                            className="contest-detail-team-button break"
-                            onClick={() => handleBreakDuet(team.id)}
-                          >
-                            팀 해제
-                          </button>
-                        </>
-                      )}
-                    </div>
+                    {isAdmin && (
+                      <div className="contest-detail-team-actions">
+                        {editingTeamId === team.id ? (
+                          <>
+                            <button 
+                              className="contest-detail-team-button edit"
+                              onClick={() => handleSaveTeamName(team)}
+                            >
+                              저장
+                            </button>
+                            <button 
+                              className="contest-detail-team-button break"
+                              onClick={() => {
+                                setEditingTeamId(null);
+                                setEditingTeamName('');
+                              }}
+                            >
+                              취소
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button 
+                              className="contest-detail-team-button edit"
+                              onClick={() => handleEditTeamName(team)}
+                            >
+                              팀명 수정
+                            </button>
+                            <button 
+                              className="contest-detail-team-button break"
+                              onClick={() => handleBreakDuet(team.id)}
+                            >
+                              팀 해제
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
                     <div style={{ marginTop: '8px' }}>
                       <span className={`contest-detail-participant-status ${teamSubmitted ? 'submitted' : 'pending'}`}>
                         {teamSubmitted ? '✅ 제출완료' : '⏳ 대기중'}

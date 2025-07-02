@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   collection, 
@@ -74,11 +74,10 @@ import {
   type SortBy
 } from './AdminTypes';
 
-const AdminUserPanel: React.FC = () => {
+const AdminUserPanel: React.FC = React.memo(() => {
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<SortBy>('createdAt');
@@ -87,15 +86,6 @@ const AdminUserPanel: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [filterRole, setFilterRole] = useState<string>('all');
   const [filterGrade, setFilterGrade] = useState<string>('all');
-  const [userStats, setUserStats] = useState({
-    totalUsers: 0,
-    adminCount: 0,
-    activeUsers: 0,
-    recentJoins: 0,
-    averageGrade: '',
-    gradeDistribution: {} as Record<string, number>,
-    roleDistribution: {} as Record<string, number>
-  });
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [newUser, setNewUser] = useState({
     email: '',
@@ -107,6 +97,8 @@ const AdminUserPanel: React.FC = () => {
   const [isMigrating, setIsMigrating] = useState(false);
   const [migrationStatus, setMigrationStatus] = useState('');
   const [isMobile, setIsMobile] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
@@ -143,9 +135,9 @@ const AdminUserPanel: React.FC = () => {
     }
   }, [navigate]);
 
-  // 사용자 목록 필터링 및 정렬
-  useEffect(() => {
-    if (!users) return;
+  // 메모이제이션된 사용자 목록 필터링
+  const filteredUsers = useMemo(() => {
+    if (!users) return [];
     
     let filtered = filterUsers(users, {
       search: searchTerm,
@@ -156,13 +148,19 @@ const AdminUserPanel: React.FC = () => {
     // 정렬 적용
     filtered = sortUsers(filtered, sortBy, sortOrder);
 
-    setFilteredUsers(filtered);
+    return filtered;
   }, [users, searchTerm, filterRole, filterGrade, sortBy, sortOrder]);
+
+  // 메모이제이션된 사용자 통계
+  const userStats = useMemo(() => {
+    return calculateStats(users);
+  }, [users]);
 
   // 사용자 목록 가져오기
   const fetchUsers = async () => {
     try {
       setLoading(true);
+      setError(null);
       const usersQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
       const snapshot = await getDocs(usersQuery);
       
@@ -172,20 +170,21 @@ const AdminUserPanel: React.FC = () => {
       })) as AdminUser[];
       
       setUsers(usersData);
-      setUserStats(calculateStats(usersData));
     } catch (error) {
       console.error('사용자 목록 가져오기 실패:', error);
-      alert('사용자 목록을 가져오는데 실패했습니다.');
+      setError('사용자 목록을 가져오는데 실패했습니다. 다시 시도해주세요.');
     } finally {
       setLoading(false);
     }
   };
 
-  // 사용자 업데이트
-  const handleUpdateUser = async (user: AdminUser) => {
+  // 콜백 함수들 메모이제이션
+  const handleUpdateUser = useCallback(async (user: AdminUser) => {
     if (!editingUser) return;
     
     try {
+      setIsUpdating(true);
+      setError(null);
       const userRef = doc(db, 'users', user.uid);
       await updateDoc(userRef, {
         nickname: editingUser.nickname,
@@ -203,9 +202,11 @@ const AdminUserPanel: React.FC = () => {
       alert('사용자 정보가 성공적으로 업데이트되었습니다.');
     } catch (error) {
       console.error('사용자 업데이트 실패:', error);
-      alert('사용자 정보 업데이트에 실패했습니다.');
+      setError('사용자 정보 업데이트에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsUpdating(false);
     }
-  };
+  }, [editingUser, fetchUsers]);
 
   // 사용자 닉네임 변경 시 관련 게시물 업데이트
   const updateUserNicknameInPosts = async (oldNickname: string, newNickname: string) => {
@@ -234,11 +235,13 @@ const AdminUserPanel: React.FC = () => {
     }
   };
 
-  // 사용자 삭제
-  const handleDeleteUser = async (user: AdminUser) => {
+  // 콜백 함수들 메모이제이션
+  const handleDeleteUser = useCallback(async (user: AdminUser) => {
     if (!window.confirm(`정말로 ${user.nickname}님을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
 
     try {
+      setIsUpdating(true);
+      setError(null);
       // Firebase Auth에서 사용자 삭제
       const auth = getAuth();
       // const userRecord = await getAuth().getUser(user.uid);
@@ -251,9 +254,11 @@ const AdminUserPanel: React.FC = () => {
       alert('사용자가 성공적으로 삭제되었습니다.');
     } catch (error) {
       console.error('사용자 삭제 실패:', error);
-      alert('사용자 삭제에 실패했습니다.');
+      setError('사용자 삭제에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsUpdating(false);
     }
-  };
+  }, [fetchUsers]);
 
   // 엑셀 내보내기
   const handleExportExcel = () => {
@@ -306,21 +311,25 @@ const AdminUserPanel: React.FC = () => {
     }
   };
 
-  // 등급 승급
-  const handleGradePromotion = async (user: AdminUser) => {
+  // 콜백 함수들 메모이제이션
+  const handleGradePromotion = useCallback(async (user: AdminUser) => {
     const nextGrade = getNextGrade(user.grade);
     if (!window.confirm(`${user.nickname}님의 등급을 ${GRADE_NAMES[nextGrade]}로 승급하시겠습니까?`)) return;
     
     try {
+      setIsUpdating(true);
+      setError(null);
       const userRef = doc(db, 'users', user.uid);
       await updateDoc(userRef, { grade: nextGrade });
       await fetchUsers();
       alert('등급이 성공적으로 변경되었습니다.');
     } catch (error) {
       console.error('등급 변경 중 오류:', error);
-      alert('등급 변경 중 오류가 발생했습니다.');
+      setError('등급 변경 중 오류가 발생했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsUpdating(false);
     }
-  };
+  }, [fetchUsers]);
 
   // 마이그레이션
   const handleMigration = async () => {
@@ -353,39 +362,68 @@ const AdminUserPanel: React.FC = () => {
     );
   }
 
+  if (isUpdating) {
+    return (
+      <div className="admin-container">
+        <div className="updating-overlay">
+          <div className="updating-spinner">
+            <div className="spinner"></div>
+            <p>업데이트 중...</p>
+          </div>
+        </div>
+        {/* 기존 UI는 그대로 유지하되 업데이트 중임을 표시 */}
+      </div>
+    );
+  }
+
   return (
     <div className="admin-container">
-      {/* 통합 헤더 */}
+      {/* 헤더 */}
       <div className="admin-header">
-        <div className="header-left">
-          <h1 className="admin-title">
-            <Shield size={28} />
-            관리자 패널
-          </h1>
-        </div>
-        <div className="header-actions">
-          {activeTab === 'users' && (
-            <>
-              <button className="add-user-button" onClick={() => setShowAddUserModal(true)}>
-                <UserPlus size={20} />
-                회원 추가
-              </button>
-              <button className="export-button" onClick={handleExportExcel}>
-                <Download size={20} />
-                엑셀 내보내기
-              </button>
-              <button 
-                className="migration-button" 
-                onClick={handleMigration}
-                disabled={isMigrating}
-              >
-                <Database size={20} />
-                {isMigrating ? '마이그레이션 중...' : 'DB 마이그레이션'}
-              </button>
-            </>
-          )}
+        <div className="header-content">
+          <div className="header-left">
+            <h1 className="admin-title">
+              <Shield size={28} />
+              관리자 패널
+            </h1>
+          </div>
+          <div className="header-actions">
+            {activeTab === 'users' && (
+              <>
+                <button className="btn btn-primary" onClick={() => setShowAddUserModal(true)}>
+                  <UserPlus size={20} />
+                  회원 추가
+                </button>
+                <button className="btn btn-secondary" onClick={handleExportExcel}>
+                  <Download size={20} />
+                  엑셀 내보내기
+                </button>
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={handleMigration}
+                  disabled={isMigrating}
+                >
+                  <Database size={20} />
+                  {isMigrating ? '마이그레이션 중...' : 'DB 마이그레이션'}
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* 에러 메시지 */}
+      {error && (
+        <div className="error-message">
+          <div className="error-content">
+            <span className="error-icon">⚠️</span>
+            <span className="error-text">{error}</span>
+            <button className="error-close" onClick={() => setError(null)}>
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 마이그레이션 상태 */}
       {migrationStatus && (
@@ -399,27 +437,29 @@ const AdminUserPanel: React.FC = () => {
 
       {/* 탭 네비게이션 */}
       <div className="admin-tabs">
-        <button 
-          className={`tab-button ${activeTab === 'users' ? 'active' : ''}`}
-          onClick={() => setActiveTab('users')}
-        >
-          <Users size={20} />
-          <span>사용자 관리</span>
-        </button>
-        <button 
-          className={`tab-button ${activeTab === 'activity' ? 'active' : ''}`}
-          onClick={() => setActiveTab('activity')}
-        >
-          <Activity size={20} />
-          <span>활동 현황</span>
-        </button>
-        <button 
-          className={`tab-button ${activeTab === 'grades' ? 'active' : ''}`}
-          onClick={() => setActiveTab('grades')}
-        >
-          <Crown size={20} />
-          <span>등급 관리</span>
-        </button>
+        <div className="tabs-container">
+          <button 
+            className={`tab-button ${activeTab === 'users' ? 'active' : ''}`}
+            onClick={() => setActiveTab('users')}
+          >
+            <Users size={20} />
+            <span>사용자 관리</span>
+          </button>
+          <button 
+            className={`tab-button ${activeTab === 'activity' ? 'active' : ''}`}
+            onClick={() => setActiveTab('activity')}
+          >
+            <Activity size={20} />
+            <span>활동 현황</span>
+          </button>
+          <button 
+            className={`tab-button ${activeTab === 'grades' ? 'active' : ''}`}
+            onClick={() => setActiveTab('grades')}
+          >
+            <Crown size={20} />
+            <span>등급 관리</span>
+          </button>
+        </div>
       </div>
 
       {/* 탭 컨텐츠 */}
@@ -467,6 +507,22 @@ const AdminUserPanel: React.FC = () => {
 
             {/* 검색 및 필터 */}
             <div className="controls-section">
+              <div className="controls-header">
+                <h3 className="controls-title">사용자 검색 및 필터</h3>
+                <div className="controls-actions">
+                  <button className="btn btn-ghost" onClick={() => {
+                    setSearchTerm('');
+                    setFilterRole('all');
+                    setFilterGrade('all');
+                    setSortBy('createdAt');
+                    setSortOrder('desc');
+                  }}>
+                    <X size={16} />
+                    초기화
+                  </button>
+                </div>
+              </div>
+              
               <div className="search-box">
                 <Search size={20} />
                 <input
@@ -770,6 +826,6 @@ const AdminUserPanel: React.FC = () => {
       )}
     </div>
   );
-};
+});
 
 export default AdminUserPanel; 

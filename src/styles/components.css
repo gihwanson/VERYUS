@@ -260,6 +260,14 @@
   white-space: pre-line;
 }
 
+/* 심사코멘트 셀에서 텍스트 선택 활성화 */
+.contest-table td:last-child {
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
+
 /* 열린 콘테스트 리스트 항목 구분용 스타일 */
 .contest-list-item {
   border: 2px solid #8A55CC;

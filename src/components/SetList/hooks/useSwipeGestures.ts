@@ -8,7 +8,10 @@ export const useSwipeGestures = (
   setCurrentCardIndex: (index: number) => void,
   completeCurrentSong: () => void,
   deleteCurrentSong: () => void,
-  totalItemsCount: number = 0
+  totalItemsCount: number = 0,
+  goToNextCard?: () => void,
+  goToPrevCard?: () => void,
+  dragEnabled: boolean = false
 ) => {
   const [touchStart, setTouchStart] = useState<TouchData | null>(null);
   const [touchEnd, setTouchEnd] = useState<TouchData | null>(null);
@@ -17,11 +20,36 @@ export const useSwipeGestures = (
   const [isReadyToComplete, setIsReadyToComplete] = useState(false);
   const [isReadyToDelete, setIsReadyToDelete] = useState(false);
 
-  const minSwipeDistance = 80;
+  const minSwipeDistance = 60; // 스와이프 감지 거리를 줄여서 더 민감하게 만들기
   const completionThreshold = 60; // 완료 임계점 (픽셀)
   const deletionThreshold = 60; // 삭제 임계점 (픽셀)
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    console.log('🖐️ TouchStart - currentCardIndex:', currentCardIndex, 'dragEnabled:', dragEnabled);
+    
+    // dragEnabled가 false이면 스와이프 불가 (흰색 실선 상태)
+    if (!dragEnabled) {
+      console.log('❌ dragEnabled가 false - 스와이프 불가능');
+      // 터치 상태를 초기화하여 다른 핸들러들이 작동하지 않도록 함
+      setTouchStart(null);
+      setTouchEnd(null);
+      setIsDragging(false);
+      setDragDistance({ x: 0, y: 0 });
+      setIsReadyToComplete(false);
+      setIsReadyToDelete(false);
+      return;
+    }
+    
+    setTouchEnd(null);
+    setIsDragging(false);
+    setDragDistance({ x: 0, y: 0 });
+    setIsReadyToComplete(false);
+    setIsReadyToDelete(false);
+    setTouchStart({
+      x: e.targetTouches[0].clientX,
+      y: e.targetTouches[0].clientY
+    });
+    
     setTouchEnd(null);
     setIsDragging(false);
     setDragDistance({ x: 0, y: 0 });
@@ -34,6 +62,18 @@ export const useSwipeGestures = (
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
+    // dragEnabled가 false이면 스와이프 불가 (흰색 실선 상태)
+    if (!dragEnabled) {
+      // 터치 상태를 초기화하여 다른 핸들러들이 작동하지 않도록 함
+      setTouchStart(null);
+      setTouchEnd(null);
+      setIsDragging(false);
+      setDragDistance({ x: 0, y: 0 });
+      setIsReadyToComplete(false);
+      setIsReadyToDelete(false);
+      return;
+    }
+    
     if (!touchStart) return;
 
     const currentTouch = {
@@ -54,11 +94,8 @@ export const useSwipeGestures = (
       setIsDragging(true);
     }
 
-    // 현재 진행 중인 카드인지 확인
-    const isCurrentActiveCard = activeSetList && currentCardIndex === (activeSetList.currentSongIndex || 0);
-
-    // 위로 드래그 중이고 리더이며 현재 진행 중인 카드인 경우 완료 준비 상태 확인
-    if (isLeader && isCurrentActiveCard && deltaY > 0 && Math.abs(deltaX) < Math.abs(deltaY)) {
+    // 위로 드래그 중이고 리더인 경우 완료 준비 상태 확인 (dragEnabled가 true일 때만)
+    if (isLeader && dragEnabled && deltaY > 0 && Math.abs(deltaX) < Math.abs(deltaY)) {
       const upwardDistance = deltaY;
       setIsReadyToComplete(upwardDistance >= completionThreshold);
       setIsReadyToDelete(false);
@@ -68,8 +105,8 @@ export const useSwipeGestures = (
         window.navigator.vibrate(50);
       }
     } 
-    // 아래로 드래그 중이고 리더인 경우 삭제 준비 상태 확인 (모든 카드에서 가능)
-    else if (isLeader && deltaY < 0 && Math.abs(deltaX) < Math.abs(deltaY)) {
+    // 아래로 드래그 중이고 리더인 경우 삭제 준비 상태 확인 (dragEnabled가 true일 때만)
+    else if (isLeader && dragEnabled && deltaY < 0 && Math.abs(deltaX) < Math.abs(deltaY)) {
       const downwardDistance = Math.abs(deltaY);
       setIsReadyToDelete(downwardDistance >= deletionThreshold);
       setIsReadyToComplete(false);
@@ -87,34 +124,68 @@ export const useSwipeGestures = (
   };
 
   const handleTouchEnd = () => {
-    if (!touchStart || !touchEnd) {
+    // dragEnabled가 false이면 스와이프 불가 (흰색 실선 상태)
+    if (!dragEnabled) {
       resetDragState();
       return;
     }
     
-    const distanceX = touchStart.x - touchEnd.x;
-    const distanceY = touchStart.y - touchEnd.y;
+    // touchStart가 null이면 터치가 시작되지 않았거나 비활성화된 카드에서 시작된 것
+    if (!touchStart) {
+      resetDragState();
+      return;
+    }
     
-    const isLeftSwipe = distanceX > minSwipeDistance;
-    const isRightSwipe = distanceX < -minSwipeDistance;
-    const isUpSwipe = distanceY > minSwipeDistance;
-    const isDownSwipe = distanceY < -minSwipeDistance;
+    if (!touchEnd) {
+      resetDragState();
+      return;
+    }
+    
+    const distanceX = touchEnd.x - touchStart.x;
+    const distanceY = touchEnd.y - touchStart.y;
+    
+    const isLeftSwipe = distanceX < -minSwipeDistance;
+    const isRightSwipe = distanceX > minSwipeDistance;
+    const isUpSwipe = distanceY < -minSwipeDistance;
+    const isDownSwipe = distanceY > minSwipeDistance;
 
-    // 현재 진행 중인 카드인지 확인
-    const isCurrentActiveCard = activeSetList && currentCardIndex === (activeSetList.currentSongIndex || 0);
+    console.log('📊 스와이프 감지 - distanceX:', distanceX, 'distanceY:', distanceY, 'minSwipeDistance:', minSwipeDistance);
+    console.log('📊 스와이프 상태 - isLeftSwipe:', isLeftSwipe, 'isRightSwipe:', isRightSwipe, 'isUpSwipe:', isUpSwipe, 'isDownSwipe:', isDownSwipe);
 
-    // 리더이며 현재 진행 중인 카드에서만 위로 스와이프로 다음 곡 진행 가능
-    if (isUpSwipe && isLeader && isCurrentActiveCard && Math.abs(distanceX) < minSwipeDistance) {
+    // 리더인 경우 위로 스와이프로 다음 곡 진행 가능 (dragEnabled가 true일 때만)
+    if (isUpSwipe && isLeader && dragEnabled && Math.abs(distanceX) < minSwipeDistance) {
       completeCurrentSong();
     } 
-    // 리더이면 모든 카드에서 아래로 스와이프로 곡 삭제 가능
-    else if (isDownSwipe && isLeader && Math.abs(distanceX) < minSwipeDistance) {
+    // 리더인 경우 아래로 스와이프로 곡 삭제 가능 (dragEnabled가 true일 때만)
+    else if (isDownSwipe && isLeader && dragEnabled && Math.abs(distanceX) < minSwipeDistance) {
       deleteCurrentSong();
     } 
-    else if (isLeftSwipe && Math.abs(distanceY) < minSwipeDistance) {
-      goToNextCard();
-    } else if (isRightSwipe && Math.abs(distanceY) < minSwipeDistance) {
-      goToPrevCard();
+    // 좌우 스와이프로 카드 이동 가능 (dragEnabled가 true일 때만)
+    else if (isLeftSwipe && dragEnabled && Math.abs(distanceY) < minSwipeDistance * 1.5) {
+      console.log('⬅️ 왼쪽 스와이프 감지 - 다음 카드로 이동');
+      if (goToNextCard) {
+        goToNextCard();
+      } else {
+        // 기본 동작 (외부 함수가 제공되지 않은 경우)
+        if (currentCardIndex < totalItemsCount - 1) {
+          setCurrentCardIndex(currentCardIndex + 1);
+        }
+      }
+    } else if (isRightSwipe && dragEnabled && Math.abs(distanceY) < minSwipeDistance * 1.5) {
+      console.log('➡️ 오른쪽 스와이프 감지 - 이전 카드로 이동');
+      console.log('➡️ 오른쪽 스와이프 조건 확인 - isRightSwipe:', isRightSwipe, 'dragEnabled:', dragEnabled, 'Math.abs(distanceY):', Math.abs(distanceY), 'minSwipeDistance:', minSwipeDistance);
+      if (goToPrevCard) {
+        console.log('🔄 goToPrevCard 함수 호출');
+        goToPrevCard();
+      } else {
+        console.log('🔄 기본 goToPrevCard 동작 실행');
+        // 기본 동작 (외부 함수가 제공되지 않은 경우)
+        if (currentCardIndex > 0) {
+          setCurrentCardIndex(currentCardIndex - 1);
+        }
+      }
+    } else {
+      console.log('❌ 스와이프 조건 불만족 - isRightSwipe:', isRightSwipe, 'dragEnabled:', dragEnabled, 'Math.abs(distanceY):', Math.abs(distanceY), 'minSwipeDistance:', minSwipeDistance);
     }
 
     resetDragState();
@@ -129,13 +200,13 @@ export const useSwipeGestures = (
     setTouchEnd(null);
   };
 
-  const goToNextCard = () => {
+  const defaultGoToNextCard = () => {
     if (currentCardIndex < totalItemsCount - 1) {
       setCurrentCardIndex(currentCardIndex + 1);
     }
   };
 
-  const goToPrevCard = () => {
+  const defaultGoToPrevCard = () => {
     if (currentCardIndex > 0) {
       setCurrentCardIndex(currentCardIndex - 1);
     }
@@ -145,8 +216,8 @@ export const useSwipeGestures = (
     handleTouchStart,
     handleTouchMove,
     handleTouchEnd,
-    goToNextCard,
-    goToPrevCard,
+    goToNextCard: defaultGoToNextCard,
+    goToPrevCard: defaultGoToPrevCard,
     isDragging,
     dragDistance,
     isReadyToComplete,
