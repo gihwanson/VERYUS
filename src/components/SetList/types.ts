@@ -35,8 +35,24 @@ export interface FlexibleCard {
   completedAt?: any; // 전체 완료 시간
 }
 
-// 셋리스트 아이템 (기존 곡 또는 유연한 카드)
-export type SetListEntry = SetListItem | FlexibleCard;
+// 신청곡 카드
+export interface RequestSongCard {
+  id: string; // 카드 고유 ID
+  type: 'requestSong'; // 카드 타입 구분
+  songs: RequestSong[]; // 신청곡 목록
+  order: number; // 셋리스트 내 순서
+  completedAt?: any; // 완료 시간
+}
+
+// 개별 신청곡
+export interface RequestSong {
+  id: string; // 신청곡 고유 ID
+  title: string; // 곡 제목
+  requestedBy: string; // 신청자 닉네임
+}
+
+// 셋리스트 아이템 (기존 곡, 유연한 카드, 또는 신청곡 카드)
+export type SetListEntry = SetListItem | FlexibleCard | RequestSongCard;
 
 export interface SetListData {
   id?: string;
@@ -44,8 +60,10 @@ export interface SetListData {
   participants: string[];
   songs: SetListItem[]; // 기존 곡들
   flexibleCards?: FlexibleCard[]; // 유연한 카드들 (별도 필드)
+  requestSongCards?: RequestSongCard[]; // 신청곡 카드들 (별도 필드)
   completedSongs?: SetListItem[]; // 완료된 곡들
   completedFlexibleCards?: FlexibleCard[]; // 완료된 유연한 카드들
+  completedRequestSongCards?: RequestSongCard[]; // 완료된 신청곡 카드들
   createdBy: string;
   createdAt: any;
   updatedAt: any;
@@ -54,8 +72,8 @@ export interface SetListData {
 }
 
 export interface DragData {
-  type: 'song' | 'flexible';
-  id: string; // songId 또는 flexibleCardId
+  type: 'song' | 'flexible' | 'requestSong';
+  id: string; // songId, flexibleCardId, 또는 requestSongCardId
   x: number;
   y: number;
 }

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Crown, Shield, User, Users, Activity, CheckCircle, X, Edit3, AlertCircle, MessageSquare, Heart, FileText, Clock, TrendingUp, History, Eye, Search, Filter, Award, Plus, Target, Mail } from 'lucide-react';
+import { Crown, Shield, User, Users, Activity, CheckCircle, X, Edit3, AlertCircle, MessageSquare, Heart, FileText, Clock, TrendingUp, History, Eye, Search, Filter, Award, Plus, Target, Mail, Send } from 'lucide-react';
 import type { AdminUser, UserActivity, ActivityStats, UserActivitySummary, AdminLog, AdminAction, LogStats, ExtendedUserStats, UserAnalytics, BulkAction, Notification, NotificationType, NotificationTemplate, NotificationStats, NotificationTarget } from './AdminTypes';
 import { NOTIFICATION_TYPE_LABELS, NOTIFICATION_TYPE_COLORS, ADMIN_ACTION_LABELS, ADMIN_ACTION_COLORS } from './AdminTypes';
 import { formatDate, getGradeDisplay, calculateActivityDays, createRoleDisplay, createRoleIcon, getUserStatus, createStatusDisplay, getSuspensionTimeLeft, getActivityIcon, formatActivityTime, getActivityLevel, getLogActionIcon, formatLogTime, calculateStats, calculateActivityScore, calculateActivityStats, changeUserStatus, isUserSuspended, executeBulkAction, generateUserAnalytics, logAdminAction, fetchAdminLogs, calculateLogStats, getNotificationTypeIcon, getNotificationStatusDisplay, getDefaultTemplates, createNotificationTargets, fetchNotificationTemplates, toggleAllTargets } from './AdminUtils';
+import { Timestamp } from 'firebase/firestore';
 
 // 로딩 컴포넌트
 export const LoadingSpinner: React.FC = () => (
@@ -275,7 +276,7 @@ interface UserActivitySummaryProps {
   summary: UserActivitySummary;
 }
 
-export const UserActivitySummary: React.FC<UserActivitySummaryProps> = ({ summary }) => {
+const UserActivitySummary: React.FC<UserActivitySummaryProps> = ({ summary }) => {
   const activityLevel = getActivityLevel(summary.totalActivityScore);
   
   return (
@@ -657,7 +658,7 @@ export const NotificationSendModal = ({
       return;
     }
 
-    const selectedTargets = getSelectedTargets(targets);
+    const selectedTargets = targets.filter(t => t.isSelected).map((t: any) => t.uid);
     if (selectedTargets.length === 0) {
       alert('발송할 사용자를 선택해주세요.');
       return;
@@ -669,7 +670,7 @@ export const NotificationSendModal = ({
         title: title.trim(),
         content: content.trim(),
         type,
-        targetUsers: selectedTargets.map(t => t.uid)
+        targetUsers: selectedTargets
       });
       onClose();
     } catch (error) {
@@ -1017,7 +1018,7 @@ export const NotificationDetailModal = ({
 };
 
 // 알림 통계 컴포넌트
-export const NotificationStats = ({ 
+const NotificationStats = ({ 
   stats 
 }: { 
   stats: NotificationStats;

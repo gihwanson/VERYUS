@@ -2,7 +2,7 @@ import type { AdminUser, ExtendedUserStats, UserActivity, UserAnalytics, BulkAct
 import { GRADE_ORDER, GRADE_NAMES, ROLE_OPTIONS, GRADE_SYSTEM, ROLE_SYSTEM, USER_STATUS, USER_STATUS_LABELS, USER_STATUS_COLORS, ACTIVITY_SCORES, ACTIVITY_LABELS, ADMIN_ACTION_LABELS, ADMIN_ACTION_COLORS, NOTIFICATION_TYPE_LABELS, NOTIFICATION_TYPE_COLORS, type UserStatus, type ActivityStats, type UserActivitySummary, type AdminLog, type AdminAction, type LogFilter, type LogStats, type Notification, type NotificationType, type NotificationStatus, type NotificationTemplate, type NotificationStats, type NotificationTarget } from './AdminTypes';
 import { Crown, Shield, User, TrendingUp, Activity, Users, Clock, Award, MessageSquare, Heart, FileText, History, Search, Filter, Edit3, Trash2, AlertCircle, Settings, Download, LogIn, Bell, Send, Save, Plus, CheckCircle, X } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
-import { doc, updateDoc, collection, query, where, orderBy, limit, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDocs, updateDoc, addDoc, serverTimestamp, query, where, orderBy, limit as firestoreLimit } from 'firebase/firestore';
 import { db } from '../firebase';
 
 
@@ -390,7 +390,7 @@ export const fetchUserActivities = async (uid: string, limit: number = 50): Prom
       collection(db, 'user_activities'),
       where('uid', '==', uid),
       orderBy('timestamp', 'desc'),
-      limit(limit)
+      firestoreLimit(limit)
     );
     
     const snapshot = await getDocs(activitiesQuery);
@@ -899,7 +899,8 @@ export const getLogActionIcon = (action: AdminAction) => {
     bulk_action: Users,
     system_config: Settings,
     data_export: Download,
-    login: LogIn
+    login: LogIn,
+    notification_sent: Send
   };
   
   return iconMap[action] || History;
@@ -1002,7 +1003,7 @@ export const fetchNotifications = async (limit: number = 50): Promise<Notificati
     const notificationsQuery = query(
       collection(db, 'notifications'),
       orderBy('sentAt', 'desc'),
-      limit(limit)
+      firestoreLimit(limit)
     );
     
     const snapshot = await getDocs(notificationsQuery);

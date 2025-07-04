@@ -5,7 +5,7 @@ import { useSetListData } from './hooks/useSetListData';
 import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useSwipeGestures } from './hooks/useSwipeGestures';
 import { DragOverlay } from './components/DragOverlay';
-import type { Song, SetListItem, FlexibleCard, FlexibleSlot, SetListEntry } from './types';
+import type { Song, SetListItem, FlexibleCard, FlexibleSlot, SetListEntry, RequestSongCard, RequestSong } from './types';
 import './styles.css';
 
 const SetListCards: React.FC = () => {
@@ -33,6 +33,10 @@ const SetListCards: React.FC = () => {
   const [editingSlotIndex, setEditingSlotIndex] = useState<number>(-1);
   const [currentEditingSlot, setCurrentEditingSlot] = useState<FlexibleSlot | null>(null);
   const [newParticipantName, setNewParticipantName] = useState('');
+
+  // 신청곡 카드 편집 관련 상태
+  const [editingRequestSongCard, setEditingRequestSongCard] = useState<RequestSongCard | null>(null);
+  const [newSongTitle, setNewSongTitle] = useState('');
   
   // 모달 완료 상태 관리
   const [isModalCompleting, setIsModalCompleting] = useState<boolean>(false);
@@ -55,6 +59,10 @@ const SetListCards: React.FC = () => {
 
   const isFlexibleCard = (entry: SetListEntry): entry is FlexibleCard => {
     return 'type' in entry && entry.type === 'flexible';
+  };
+
+  const isRequestSongCard = (entry: SetListEntry): entry is RequestSongCard => {
+    return 'type' in entry && entry.type === 'requestSong';
   };
 
   // 유연한 카드 편집 권한 체크 함수
@@ -99,6 +107,154 @@ const SetListCards: React.FC = () => {
     }
   }, [activeSetList, isLeader, flexibleCardNickname, flexibleCardCount]);
 
+  // 신청곡 카드 생성 함수
+  const createRequestSongCard = useCallback(async () => {
+    if (!activeSetList || !isLeader) return;
+
+    // 기존 카드들의 order를 1씩 뒤로 밀기
+    const updatedRequestSongCards = (activeSetList.requestSongCards || []).map(card => ({
+      ...card,
+      order: (card.order ?? 0) + 1
+    }));
+
+    const newRequestSongCard: RequestSongCard = {
+      id: `requestSong_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type: 'requestSong',
+      songs: [],
+      order: 0,
+    };
+
+    const finalRequestSongCards = [newRequestSongCard, ...updatedRequestSongCards];
+
+    try {
+      await updateDoc(doc(db, 'setlists', activeSetList.id!), {
+        requestSongCards: finalRequestSongCards,
+        updatedAt: Timestamp.now()
+      });
+      alert('신청곡 카드가 셋리스트 제일 앞에 추가되었습니다! 🎵');
+    } catch (error) {
+      console.error('신청곡 카드 생성 실패:', error);
+      alert('신청곡 카드 생성에 실패했습니다.');
+    }
+  }, [activeSetList, isLeader]);
+
+  // 신청곡 카드에 곡 추가 함수
+  const addSongToRequestCard = useCallback(async (cardId: string, songTitle: string) => {
+    if (!activeSetList) return;
+
+    const cardToUpdate = activeSetList.requestSongCards?.find(card => card.id === cardId);
+    if (!cardToUpdate) return;
+
+    const newSong: RequestSong = {
+      id: `song_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      title: songTitle,
+      requestedBy: currentUserNickname
+    };
+
+    const updatedCard = { 
+      ...cardToUpdate, 
+      songs: [...cardToUpdate.songs, newSong]
+    };
+    const updatedRequestSongCards = (activeSetList.requestSongCards || []).map(card => 
+      card.id === cardId ? updatedCard : card
+    );
+
+    try {
+      await updateDoc(doc(db, 'setlists', activeSetList.id!), {
+        requestSongCards: updatedRequestSongCards,
+        updatedAt: Timestamp.now()
+      });
+      // 상태 즉시 갱신
+      if (editingRequestSongCard && editingRequestSongCard.id === cardId) {
+        setEditingRequestSongCard({ ...updatedCard });
+      }
+    } catch (error) {
+      console.error('신청곡 추가 실패:', error);
+      alert('신청곡 추가에 실패했습니다.');
+    }
+  }, [activeSetList, currentUserNickname, editingRequestSongCard]);
+
+  // 신청곡 카드에서 곡 삭제 함수
+  const removeSongFromRequestCard = useCallback(async (cardId: string, songId: string) => {
+    if (!activeSetList) return;
+    
+    // 리더만 삭제 가능
+    if (!isLeader) {
+      alert('신청곡 삭제는 리더만 가능합니다.');
+      return;
+    }
+
+    const cardToUpdate = activeSetList.requestSongCards?.find(card => card.id === cardId);
+    if (!cardToUpdate) return;
+
+    const updatedCard = { 
+      ...cardToUpdate, 
+      songs: cardToUpdate.songs.filter(song => song.id !== songId)
+    };
+    const updatedRequestSongCards = (activeSetList.requestSongCards || []).map(card => 
+      card.id === cardId ? updatedCard : card
+    );
+
+    try {
+      await updateDoc(doc(db, 'setlists', activeSetList.id!), {
+        requestSongCards: updatedRequestSongCards,
+        updatedAt: Timestamp.now()
+      });
+      
+      // 편집 중인 신청곡 카드 상태도 업데이트
+      if (editingRequestSongCard && editingRequestSongCard.id === cardId) {
+        setEditingRequestSongCard(updatedCard);
+      }
+    } catch (error) {
+      console.error('신청곡 삭제 실패:', error);
+      alert('신청곡 삭제에 실패했습니다.');
+    }
+  }, [activeSetList, editingRequestSongCard]);
+
+  // 기존 신청곡 카드 데이터를 새로운 구조로 마이그레이션하는 함수
+  const migrateRequestSongCards = useCallback(async () => {
+    if (!activeSetList || !activeSetList.requestSongCards) return;
+
+    let hasChanges = false;
+    const migratedCards = activeSetList.requestSongCards.map(card => {
+      // 이미 새로운 구조인 경우 그대로 반환
+      if (card.songs !== undefined) {
+        return card;
+      }
+
+      // 기존 구조인 경우 새로운 구조로 변환 (타입 단언 사용)
+      hasChanges = true;
+      const oldCard = card as any; // 기존 구조의 카드
+      return {
+        ...card,
+        songs: oldCard.songTitle ? [{
+          id: `migrated_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          title: oldCard.songTitle,
+          requestedBy: oldCard.requestedBy || '알 수 없음'
+        }] : []
+      };
+    });
+
+    if (hasChanges) {
+      try {
+        await updateDoc(doc(db, 'setlists', activeSetList.id!), {
+          requestSongCards: migratedCards,
+          updatedAt: Timestamp.now()
+        });
+        console.log('신청곡 카드 데이터 마이그레이션 완료');
+      } catch (error) {
+        console.error('신청곡 카드 마이그레이션 실패:', error);
+      }
+    }
+  }, [activeSetList]);
+
+  // 컴포넌트 마운트 시 마이그레이션 실행
+  useEffect(() => {
+    if (activeSetList) {
+      migrateRequestSongCards();
+    }
+  }, [activeSetList, migrateRequestSongCards]);
+
   // 활성 셋리스트의 참가자에 맞는 사용 가능한 곡 필터링
   useEffect(() => {
     if (activeSetList && songs.length > 0) {
@@ -114,7 +270,7 @@ const SetListCards: React.FC = () => {
     }
   }, [activeSetList, songs]);
 
-  // 전체 항목들 (곡 + 유연한 카드) 가져오기 및 정렬 (셋리스트에 추가된 것만)
+  // 전체 항목들 (곡 + 유연한 카드 + 신청곡 카드) 가져오기 및 정렬 (셋리스트에 추가된 것만)
   const getAllItems = useCallback(() => {
     if (!activeSetList) return [];
     
@@ -122,9 +278,15 @@ const SetListCards: React.FC = () => {
     const flexCards = (activeSetList.flexibleCards || [])
       .filter(card => card.order >= 0) // order가 0 이상인 카드만 셋리스트에 표시
       .map(card => ({ ...card, type: 'flexible' as const }));
+    const requestSongCards = (activeSetList.requestSongCards || [])
+      .filter(card => card.order >= 0) // order가 0 이상인 카드만 셋리스트에 표시
+      .map(card => ({ ...card, type: 'requestSong' as const }));
     
-    return [...songs, ...flexCards].sort((a, b) => a.order - b.order);
-  }, [activeSetList]);
+    const requestSongCardsSorted = requestSongCards.sort((a, b) => a.order - b.order);
+    const flexCardsSorted = flexCards.sort((a, b) => a.order - b.order);
+    const songsSorted = songs.sort((a, b) => a.order - b.order);
+    return [...requestSongCardsSorted, ...flexCardsSorted, ...songsSorted];
+  }, [activeSetList, songs]);
 
   const allItems = getAllItems();
 
@@ -363,16 +525,27 @@ const SetListCards: React.FC = () => {
     const newCardIndex = currentCardIndex >= allItems.length - 1 
       ? Math.max(0, allItems.length - 2) // 마지막 카드 삭제 시 이전 카드로
       : currentCardIndex; // 중간 카드 삭제 시 다음 카드가 현재 위치로 이동
-    
-    // 현재 항목이 곡인지 닉네임카드인지 확인
+
     if (isSetListItem(currentItem)) {
-      // 일반 곡 삭제 처리
       await deleteRegularSong(currentItem, currentCardIndex);
     } else if (isFlexibleCard(currentItem)) {
-      // 닉네임카드 삭제 처리
       await deleteFlexibleCardFromSetList(currentItem, currentCardIndex);
+    } else if (isRequestSongCard(currentItem)) {
+      // 신청곡카드 삭제 처리
+      const updatedRequestSongCards = (activeSetList.requestSongCards || [])
+        .filter(card => card.id !== currentItem.id)
+        .map((card, idx) => ({ ...card, order: idx }));
+      try {
+        await updateDoc(doc(db, 'setlists', activeSetList.id!), {
+          requestSongCards: updatedRequestSongCards,
+          updatedAt: Timestamp.now()
+        });
+        console.log(`🗑️ 신청곡카드가 삭제되었습니다.`);
+      } catch (error) {
+        console.error('신청곡카드 삭제 실패:', error);
+      }
     }
-    
+
     // 삭제 후 적절한 카드로 이동
     if (allItems.length > 1) {
       setCurrentCardIndex(newCardIndex);
@@ -769,6 +942,21 @@ const SetListCards: React.FC = () => {
     }
   }, [activeSetList?.flexibleCards, editingSlotIndex]);
 
+  // 신청곡 카드 삭제 함수
+  const deleteRequestSongCard = useCallback(async (cardId: string) => {
+    if (!activeSetList) return;
+    const updatedRequestSongCards = (activeSetList.requestSongCards || []).filter(card => card.id !== cardId);
+    try {
+      await updateDoc(doc(db, 'setlists', activeSetList.id!), {
+        requestSongCards: updatedRequestSongCards,
+        updatedAt: Timestamp.now()
+      });
+    } catch (error) {
+      console.error('신청곡 카드 삭제 실패:', error);
+      alert('신청곡 카드 삭제에 실패했습니다.');
+    }
+  }, [activeSetList]);
+
   return (
     <>
       <DragOverlay 
@@ -821,7 +1009,7 @@ const SetListCards: React.FC = () => {
                 background: availableCardDrag ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.15)',
                 backdropFilter: 'blur(15px)',
                 transition: 'all 0.2s ease',
-                touchAction: 'pan-y',
+                touchAction: dragEnabled ? 'none' : 'pan-y', // dragEnabled가 false일 때는 세로 스크롤 허용
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -857,7 +1045,7 @@ const SetListCards: React.FC = () => {
                 borderRadius: availableCardDrag ? '16px' : '0',
                 background: availableCardDrag ? 'rgba(138, 85, 204, 0.05)' : 'transparent',
                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                touchAction: 'none'
+                touchAction: dragEnabled ? 'none' : 'pan-y' // dragEnabled가 false일 때는 세로 스크롤 허용
               }}
               className="main-card-area"
               onTouchStart={handleTouchStart}
@@ -987,7 +1175,6 @@ const SetListCards: React.FC = () => {
                           if (item.type === 'flexible' && canEditFlexibleCard(item)) {
                             setEditingFlexibleCard(item);
                           } else if (isCurrentCard) {
-                            // 모든 사용자가 현재 카드를 클릭하면 드래그 모드를 토글할 수 있음
                             const newDragEnabled = !dragEnabled;
                             console.log('🔄 Toggling dragEnabled:', dragEnabled, '→', newDragEnabled);
                             setDragEnabled(newDragEnabled);
@@ -1004,6 +1191,8 @@ const SetListCards: React.FC = () => {
                             'linear-gradient(135deg, #06B6D4 0%, #0891B2 100%)' :
                             item.type === 'flexible' ?
                             'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)' :
+                            item.type === 'requestSong' ?
+                            'linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%)' :
                             'linear-gradient(135deg, #F8F9FA 0%, #FFFFFF 100%)',
                           borderRadius: '16px',
                           padding: '40px',
@@ -1038,8 +1227,10 @@ const SetListCards: React.FC = () => {
                             '3px solid #06B6D4' :
                             item.type === 'flexible' ?
                             '2px solid #F59E0B' :
+                            item.type === 'requestSong' ?
+                            '2px solid #10B981' :
                             '2px solid #E5E7EB',
-                          cursor: item.type === 'flexible' && canEditFlexibleCard(item) ? 'pointer' : 
+                          cursor: (item.type === 'flexible' && canEditFlexibleCard(item)) || item.type === 'requestSong' ? 'pointer' : 
                                   isCurrentCard ? 'grab' : 'default',
                           outline: dragEnabled && isCurrentCard && item.type !== 'flexible' ? '3px solid #8A55CC' : 'none',
                         }}
@@ -1067,6 +1258,60 @@ const SetListCards: React.FC = () => {
                           >
                             ✏️ 편집 가능
                           </div>
+                        )}
+
+                        {/* 신청곡 카드 편집 가능 문구 */}
+                        {item.type === 'requestSong' && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: '18px',
+                              left: '50%',
+                              transform: 'translateX(-50%)',
+                              background: 'rgba(16, 185, 129, 0.9)',
+                              color: '#fff',
+                              padding: '6px 16px',
+                              borderRadius: '20px',
+                              fontSize: '13px',
+                              fontWeight: 700,
+                              zIndex: 10,
+                              border: '2px solid rgba(255, 255, 255, 0.3)',
+                              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                              animation: 'pulse 2s ease-in-out infinite',
+                              cursor: 'default'
+                            }}
+                          >
+                            🎵 편집 가능
+                          </div>
+                        )}
+
+                        {/* 연필(✏️) 버튼 추가 */}
+                        {item.type === 'requestSong' && (
+                          <button
+                            style={{
+                              position: 'absolute',
+                              top: '18px',
+                              right: '18px',
+                              background: 'rgba(16,185,129,0.9)',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: '50%',
+                              width: '36px',
+                              height: '36px',
+                              fontSize: '18px',
+                              fontWeight: 700,
+                              zIndex: 20,
+                              cursor: 'pointer',
+                              boxShadow: '0 2px 8px rgba(16,185,129,0.15)'
+                            }}
+                            onClick={e => {
+                              e.stopPropagation();
+                              setEditingRequestSongCard(item);
+                            }}
+                            title="신청곡카드 편집"
+                          >
+                            ✏️
+                          </button>
                         )}
 
                         {/* 반짝반짝 효과를 위한 오버레이 */}
@@ -1255,13 +1500,21 @@ const SetListCards: React.FC = () => {
 
 
                         <div style={{ 
-                          fontSize: '48px', 
+                          fontSize: item.type === 'requestSong' ? '16px' : '48px', 
                           marginBottom: '20px',
-                          color: isCurrentCard ? '#fff' : isNextCard ? '#fff' : '#8A55CC',
+                          color: isCurrentCard ? '#fff' : isNextCard ? '#fff' : item.type === 'requestSong' ? '#10B981' : '#8A55CC',
                           position: 'relative',
-                          zIndex: 10
+                          zIndex: 10,
+                          textAlign: 'center',
+                          fontWeight: item.type === 'requestSong' ? 600 : 700,
+                          lineHeight: item.type === 'requestSong' ? '1.2' : '1'
                         }}>
-                          {index + 1}
+                          {item.type === 'requestSong' ? (
+                            <div>
+                              <div>신청곡 들어온거</div>
+                              <div>적어주세요!</div>
+                            </div>
+                          ) : allItems.slice(0, index).filter(item => item.type !== 'requestSong').length + 1}
                         </div>
                         
                         <h3 style={{ 
@@ -1273,7 +1526,9 @@ const SetListCards: React.FC = () => {
                           position: 'relative',
                           zIndex: 10
                         }}>
-                          {item.type === 'song' ? item.title : `${item.nickname} (${item.totalSlots}곡)`}
+                          {item.type === 'song' ? item.title : 
+                           item.type === 'flexible' ? `${item.nickname} (${item.totalSlots}곡)` :
+                           `신청곡 (${item.songs ? item.songs.length : 0}곡)`}
                         </h3>
                         
                         {item.type === 'song' ? (
@@ -1287,7 +1542,7 @@ const SetListCards: React.FC = () => {
                           }}>
                             {item.members.join(', ')}
                           </p>
-                        ) : (
+                        ) : item.type === 'flexible' ? (
                           <div style={{
                             marginBottom: isCurrentCard || isNextCard ? '100px' : '80px', // 안내문구를 위한 공간 확보
                             position: 'relative',
@@ -1299,7 +1554,7 @@ const SetListCards: React.FC = () => {
                               overflowY: 'auto',
                               padding: '0 8px'
                             }}>
-                              {item.slots.map((slot, slotIndex) => {
+                              {item.slots.map((slot: FlexibleSlot, slotIndex: number) => {
                                 const getSlotIcon = (type: string) => {
                                   switch (type) {
                                     case 'solo': return '🎤';
@@ -1372,6 +1627,70 @@ const SetListCards: React.FC = () => {
                               })}
                             </div>
                           </div>
+                        ) : (
+                          <div style={{
+                            marginBottom: isCurrentCard || isNextCard ? '100px' : '80px',
+                            position: 'relative',
+                            zIndex: 10
+                          }}>
+                            <div style={{
+                              background: isCurrentCard || isNextCard ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)',
+                              borderRadius: '12px',
+                              padding: '16px',
+                              border: '1px solid rgba(255,255,255,0.2)',
+                              maxHeight: '200px',
+                              overflowY: 'auto'
+                            }}>
+                              {item.songs && item.songs.length > 0 ? (
+                                <div style={{
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  gap: '16px',
+                                  margin: '24px 0',
+                                  width: '100%'
+                                }}>
+                                  {item.songs
+                                    .slice()
+                                    .sort((a, b) => a.id.localeCompare(b.id))
+                                    .map((song) => (
+                                      <div
+                                        key={song.id}
+                                        style={{
+                                          background: 'rgba(255,255,255,0.85)',
+                                          borderRadius: '16px',
+                                          boxShadow: '0 2px 12px 0 rgba(0,0,0,0.08)',
+                                          padding: '18px 20px 12px 20px',
+                                          minWidth: '180px',
+                                          maxWidth: '90vw',
+                                          width: '100%',
+                                          position: 'relative',
+                                          display: 'flex',
+                                          flexDirection: 'column',
+                                          alignItems: 'flex-start',
+                                          wordBreak: 'break-all',
+                                          boxSizing: 'border-box'
+                                        }}
+                                      >
+                                        <div style={{ fontWeight: 700, fontSize: '18px', color: '#222', marginBottom: '8px' }}>{song.title}</div>
+                                        <div style={{ position: 'absolute', right: 16, bottom: 10, fontSize: '12px', color: '#10B981', fontWeight: 500 }}>
+                                          신청자: {song.requestedBy}
+                                        </div>
+                                      </div>
+                                    ))}
+                                </div>
+                              ) : (
+                                <div style={{ textAlign: 'center' }}>
+                                  <p style={{ fontSize: '14px', color: isCurrentCard ? 'rgba(255,255,255,0.7)' : isNextCard ? 'rgba(255,255,255,0.7)' : '#6B7280', margin: '0 0 8px 0' }}>
+                                    신청곡이 없습니다
+                                  </p>
+                                  <p style={{ fontSize: '12px', color: isCurrentCard ? 'rgba(255,255,255,0.9)' : isNextCard ? 'rgba(255,255,255,0.9)' : '#10B981', fontWeight: 600, margin: 0 }}>
+                                    멤버들간 신청곡 가능
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         )}
 
                         {/* 다음 곡 안내 문구 */}
@@ -1423,7 +1742,8 @@ const SetListCards: React.FC = () => {
                               
                               const nextTitle = nextItem.type === 'song' 
                                 ? nextItem.title 
-                                : `${nextItem.nickname} (${nextItem.totalSlots}곡)`;
+                                : nextItem.type === 'flexible' ? `${nextItem.nickname} (${nextItem.totalSlots}곡)`
+                                : `신청곡 (${nextItem.songs ? nextItem.songs.length : 0}곡)`;
                               
                               return `🎤 다음: ${nextTitle.length > 15 ? nextTitle.substring(0, 15) + '...' : nextTitle}`;
                             })()}
@@ -1472,6 +1792,28 @@ const SetListCards: React.FC = () => {
                             fontWeight: 600,
                             zIndex: 10
                           }}>
+                            편집
+                          </div>
+                        )}
+
+                        {/* 신청곡 카드 편집 안내 */}
+                        {item.type === 'requestSong' && !isCurrentCard && !isNextCard && (
+                          <div 
+                            style={{
+                              position: 'absolute',
+                              top: '10px',
+                              right: '10px',
+                              background: '#10B981',
+                              color: '#fff',
+                              padding: '4px 8px',
+                              borderRadius: '8px',
+                              fontSize: '10px',
+                              fontWeight: 600,
+                              zIndex: 10,
+                              cursor: 'pointer'
+                            }}
+                            onClick={() => setEditingRequestSongCard(item)}
+                          >
                             편집
                           </div>
                         )}
@@ -1645,25 +1987,46 @@ const SetListCards: React.FC = () => {
                 <h3 style={{ color: 'white', fontSize: 18, margin: 0, fontWeight: 700 }}>
                   🎵 사용 가능한 곡
                 </h3>
-                <button
-                  onClick={() => setShowFlexibleCardForm(!showFlexibleCardForm)}
-                  style={{
-                    background: 'rgba(245, 158, 11, 0.8)',
-                    backdropFilter: 'blur(10px)',
-                    color: 'white',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
-                    borderRadius: 12,
-                    padding: '10px 16px',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.9)'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.8)'}
-                >
-                  {showFlexibleCardForm ? '❌ 취소' : '➕ 닉네임 카드 추가'}
-                </button>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button
+                    onClick={() => setShowFlexibleCardForm(!showFlexibleCardForm)}
+                    style={{
+                      background: 'rgba(245, 158, 11, 0.8)',
+                      backdropFilter: 'blur(10px)',
+                      color: 'white',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      borderRadius: 12,
+                      padding: '10px 16px',
+                      fontSize: 14,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.9)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.8)'}
+                  >
+                    {showFlexibleCardForm ? '❌ 취소' : '➕ 닉네임 카드 추가'}
+                  </button>
+                  <button
+                    onClick={createRequestSongCard}
+                    style={{
+                      background: 'rgba(16, 185, 129, 0.8)',
+                      backdropFilter: 'blur(10px)',
+                      color: 'white',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      borderRadius: 12,
+                      padding: '10px 16px',
+                      fontSize: 14,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(16, 185, 129, 0.9)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(16, 185, 129, 0.8)'}
+                  >
+                    🎵 신청곡카드 추가
+                  </button>
+                </div>
               </div>
 
               {/* 유연한 카드 생성 폼 */}
@@ -2628,6 +2991,172 @@ const SetListCards: React.FC = () => {
             </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 신청곡 카드 편집 모달 */}
+      {editingRequestSongCard && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          background: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '24px',
+            width: '90%',
+            maxWidth: '400px',
+            maxHeight: '80vh',
+            overflow: 'auto'
+          }}>
+            <h3 style={{
+              color: '#10B981',
+              fontSize: '18px',
+              marginBottom: '16px',
+              textAlign: 'center',
+              fontWeight: 700
+            }}>
+              🎵 신청곡 편집
+            </h3>
+            
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#374151' }}>
+                신청곡 추가
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  value={newSongTitle}
+                  onChange={(e) => setNewSongTitle(e.target.value)}
+                  placeholder="신청곡을 입력해주세요"
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: '1px solid #D1D5DB',
+                    fontSize: '16px',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    if (newSongTitle.trim()) {
+                      addSongToRequestCard(editingRequestSongCard.id, newSongTitle.trim());
+                      setNewSongTitle('');
+                    }
+                  }}
+                  style={{
+                    background: '#10B981',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '12px 16px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  추가
+                </button>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <h4 style={{ fontSize: '16px', fontWeight: 600, color: '#374151', marginBottom: '12px' }}>
+                신청곡 목록 ({editingRequestSongCard.songs ? editingRequestSongCard.songs.length : 0}곡)
+              </h4>
+                              {editingRequestSongCard.songs && editingRequestSongCard.songs.length > 0 ? (
+                <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                  {editingRequestSongCard.songs.map((song) => (
+                    <div
+                      key={song.id}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '8px 12px',
+                        background: '#F9FAFB',
+                        borderRadius: '6px',
+                        marginBottom: '8px',
+                        border: '1px solid #E5E7EB'
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600, color: '#374151' }}>{song.title}</div>
+                        <div style={{ fontSize: '12px', color: '#6B7280' }}>신청자: {song.requestedBy}</div>
+                      </div>
+                      {isLeader && (
+                        <button
+                          onClick={() => removeSongFromRequestCard(editingRequestSongCard.id, song.id)}
+                          style={{
+                            background: '#EF4444',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '4px 8px',
+                            fontSize: '12px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          삭제
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ fontSize: '14px', color: '#6B7280', textAlign: 'center', margin: 0 }}>
+                  신청곡이 없습니다
+                </p>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => {
+                  setEditingRequestSongCard(null);
+                }}
+                style={{
+                  background: '#EF4444',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '10px 16px',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                취소
+              </button>
+              <button
+                onClick={() => {
+                  setEditingRequestSongCard(null);
+                  setNewSongTitle('');
+                }}
+                style={{
+                  background: '#10B981',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '10px 16px',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                닫기
+              </button>
+            </div>
           </div>
         </div>
       )}

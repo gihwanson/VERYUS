@@ -27,28 +27,18 @@ export const useSwipeGestures = (
   const handleTouchStart = (e: React.TouchEvent) => {
     console.log('🖐️ TouchStart - currentCardIndex:', currentCardIndex, 'dragEnabled:', dragEnabled);
     
-    // dragEnabled가 false이면 스와이프 불가 (흰색 실선 상태)
+    // dragEnabled가 false이면 스와이프 기능만 비활성화하고 기본 터치 이벤트는 허용
     if (!dragEnabled) {
-      console.log('❌ dragEnabled가 false - 스와이프 불가능');
-      // 터치 상태를 초기화하여 다른 핸들러들이 작동하지 않도록 함
+      console.log('❌ dragEnabled가 false - 스와이프만 비활성화, 스크롤은 허용');
+      // 스와이프 관련 상태만 초기화하고 터치 이벤트는 차단하지 않음
       setTouchStart(null);
       setTouchEnd(null);
       setIsDragging(false);
       setDragDistance({ x: 0, y: 0 });
       setIsReadyToComplete(false);
       setIsReadyToDelete(false);
-      return;
+      return; // 여기서 return하지만 기본 터치 이벤트는 계속 진행됨
     }
-    
-    setTouchEnd(null);
-    setIsDragging(false);
-    setDragDistance({ x: 0, y: 0 });
-    setIsReadyToComplete(false);
-    setIsReadyToDelete(false);
-    setTouchStart({
-      x: e.targetTouches[0].clientX,
-      y: e.targetTouches[0].clientY
-    });
     
     setTouchEnd(null);
     setIsDragging(false);
@@ -62,16 +52,17 @@ export const useSwipeGestures = (
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    // dragEnabled가 false이면 스와이프 불가 (흰색 실선 상태)
+    // dragEnabled가 false이면 스와이프 기능만 비활성화하고 기본 터치 이벤트는 허용
     if (!dragEnabled) {
-      // 터치 상태를 초기화하여 다른 핸들러들이 작동하지 않도록 함
+      console.log('❌ dragEnabled가 false - 스와이프만 비활성화, 스크롤은 허용');
+      // 스와이프 관련 상태만 초기화하고 터치 이벤트는 차단하지 않음
       setTouchStart(null);
       setTouchEnd(null);
       setIsDragging(false);
       setDragDistance({ x: 0, y: 0 });
       setIsReadyToComplete(false);
       setIsReadyToDelete(false);
-      return;
+      return; // 여기서 return하지만 기본 터치 이벤트는 계속 진행됨
     }
     
     if (!touchStart) return;
@@ -124,10 +115,11 @@ export const useSwipeGestures = (
   };
 
   const handleTouchEnd = () => {
-    // dragEnabled가 false이면 스와이프 불가 (흰색 실선 상태)
+    // dragEnabled가 false이면 스와이프 기능만 비활성화하고 기본 터치 이벤트는 허용
     if (!dragEnabled) {
+      console.log('❌ dragEnabled가 false - 스와이프만 비활성화, 스크롤은 허용');
       resetDragState();
-      return;
+      return; // 여기서 return하지만 기본 터치 이벤트는 계속 진행됨
     }
     
     // touchStart가 null이면 터치가 시작되지 않았거나 비활성화된 카드에서 시작된 것

@@ -244,17 +244,18 @@ export type AdminAction =
   | 'login'
   | 'notification_sent';
 
+// AdminAction 라벨과 색상
 export const ADMIN_ACTION_LABELS: Record<AdminAction, string> = {
   user_create: '사용자 생성',
-  user_update: '사용자 정보 수정',
+  user_update: '사용자 수정',
   user_delete: '사용자 삭제',
   grade_change: '등급 변경',
   role_change: '역할 변경',
   status_change: '상태 변경',
-  bulk_action: '일괄 작업',
+  bulk_action: '대량 작업',
   system_config: '시스템 설정',
   data_export: '데이터 내보내기',
-  login: '관리자 로그인',
+  login: '로그인',
   notification_sent: '알림 발송'
 };
 
@@ -266,11 +267,13 @@ export const ADMIN_ACTION_COLORS: Record<AdminAction, string> = {
   role_change: '#8b5cf6',
   status_change: '#06b6d4',
   bulk_action: '#84cc16',
-  system_config: '#6366f1',
-  data_export: '#14b8a6',
-  login: '#6b7280',
-  notification_sent: '#8b5cf6'
+  system_config: '#6b7280',
+  data_export: '#f97316',
+  login: '#10b981',
+  notification_sent: '#ec4899'
 };
+
+
 
 export interface LogFilter {
   dateRange?: { start: Date; end: Date };

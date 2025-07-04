@@ -9,7 +9,8 @@ import {
   query,
   orderBy,
   addDoc,
-  serverTimestamp
+  serverTimestamp,
+  Timestamp
 } from 'firebase/firestore';
 import { 
   createUserWithEmailAndPassword,
@@ -17,7 +18,7 @@ import {
 } from 'firebase/auth';
 import { 
   Users, 
-  Search, 
+  Search,
   ArrowLeft,
   X,
   Download,
@@ -61,7 +62,8 @@ import {
   fetchNotificationTemplates,
   saveNotificationTemplate,
   calculateNotificationStats,
-  getDefaultTemplates
+  getDefaultTemplates,
+  getActivityLevel
 } from './AdminUtils';
 import { 
   LoadingSpinner, 
@@ -72,7 +74,6 @@ import {
   RoleIcon,
   ActivityItem,
   ActivityStatsCard,
-  UserActivitySummary as UserActivitySummaryComponent,
   ActivityChart,
   LogItem,
   LogStatsCard,
@@ -80,7 +81,6 @@ import {
   LogFilter,
   NotificationSendModal,
   NotificationList,
-  NotificationStats as NotificationStatsComponent,
   NotificationTemplates
 } from './AdminComponents';
 import { 
@@ -106,6 +106,33 @@ import {
 } from './AdminTypes';
 import './AdminUserPanel.css';
 import { FaUsers, FaUserShield, FaChartPie, FaFire } from "react-icons/fa";
+import type { UserActivitySummary as UserActivitySummaryType, NotificationStats as NotificationStatsType } from './AdminTypes';
+
+interface UserActivitySummaryProps {
+  summary: UserActivitySummaryType;
+}
+const UserActivitySummary: React.FC<UserActivitySummaryProps> = ({ summary }) => {
+  const activityLevel = getActivityLevel(summary.totalActivityScore);
+  return (
+    <div className="user-activity-summary">
+      <h3>활동 요약</h3>
+      <div>총 활동 점수: {summary.totalActivityScore} ({activityLevel.level})</div>
+      <div>주간 활동 점수: {summary.weeklyActivityScore}</div>
+      <div>월간 활동 점수: {summary.monthlyActivityScore}</div>
+      {/* 기타 표시 내용 필요시 추가 */}
+    </div>
+  );
+};
+
+const NotificationStats: React.FC<{ stats: NotificationStatsType }> = ({ stats }) => (
+  <div className="notification-stats">
+    <h3>알림 통계</h3>
+    <div>총 발송: {stats.totalSent}</div>
+    <div>총 읽음: {stats.totalRead}</div>
+    <div>평균 읽음률: {stats.averageReadRate.toFixed(1)}%</div>
+    {/* 기타 표시 내용 필요시 추가 */}
+  </div>
+);
 
 const AdminPanel: React.FC = () => {
   const navigate = useNavigate();
@@ -557,7 +584,7 @@ const AdminPanel: React.FC = () => {
     if (logFilters.dateRange) {
       filtered = filtered.filter(log => {
         const logDate = log.timestamp instanceof Date ? 
-          log.timestamp : new Date(log.timestamp);
+          log.timestamp : log.timestamp instanceof Timestamp ? log.timestamp.toDate() : new Date(log.timestamp);
         return logDate >= logFilters.dateRange!.start && logDate <= logFilters.dateRange!.end;
       });
     }
@@ -711,6 +738,496 @@ const AdminPanel: React.FC = () => {
     // 템플릿 데이터를 모달에 전달하는 로직은 모달 컴포넌트에서 처리
   };
 
+  // 사용자 관리 섹션 함수 분리
+  const renderUserFilters = () => (
+    <div className="controls-section">
+      {/* 검색, 필터, 정렬 UI 그대로 */}
+      <div className="search-box">
+        <Search size={20} />
+        <input
+          type="text"
+          placeholder="닉네임 또는 이메일로 검색..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+        {searchTerm && (
+          <button className="clear-search" onClick={() => setSearchTerm('')}>
+            <X size={16} />
+          </button>
+        )}
+      </div>
+      
+      <div className="filter-controls">
+        <div className="filter-group">
+          <label>역할</label>
+          <select
+            className="filter-select"
+            value={filterRole}
+            onChange={(e) => setFilterRole(e.target.value)}
+          >
+            <option value="all">전체</option>
+            {ROLE_OPTIONS.map(role => (
+              <option key={role} value={role}>{role}</option>
+            ))}
+          </select>
+        </div>
+        
+        <div className="filter-group">
+          <label>등급</label>
+          <select
+            className="filter-select"
+            value={filterGrade}
+            onChange={(e) => setFilterGrade(e.target.value)}
+          >
+            <option value="all">전체</option>
+            {GRADE_ORDER.map(grade => (
+              <option key={grade} value={grade}>{grade} {GRADE_NAMES[grade]}</option>
+            ))}
+          </select>
+        </div>
+        
+        <div className="filter-group">
+          <label>상태</label>
+          <select
+            className="filter-select"
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+          >
+            <option value="all">전체</option>
+            {Object.entries(USER_STATUS_LABELS).map(([status, label]) => (
+              <option key={status} value={status}>{label}</option>
+            ))}
+          </select>
+        </div>
+        
+        <div className="filter-group">
+          <label>정렬</label>
+          <select
+            className="filter-select"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortBy)}
+          >
+            <option value="createdAt">가입일 순</option>
+            <option value="nickname">닉네임 순</option>
+            <option value="role">역할 순</option>
+            <option value="grade">등급 순</option>
+          </select>
+        </div>
+
+        <div className="filter-group">
+          <label>순서</label>
+          <select
+            className="filter-select"
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+          >
+            <option value="desc">내림차순</option>
+            <option value="asc">오름차순</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderBulkActionBar = () => (
+    selectedUserUids.length > 0 && (
+      <div className="bulk-action-bar">
+        <span>{selectedUserUids.length}명 선택됨</span>
+        <button 
+          className="bulk-action-btn" 
+          onClick={() => setShowBulkGradeModal(true)}
+          disabled={bulkActionLoading}
+        >
+          등급 일괄 변경
+        </button>
+        <button 
+          className="bulk-action-btn" 
+          onClick={() => setShowBulkRoleModal(true)}
+          disabled={bulkActionLoading}
+        >
+          역할 일괄 변경
+        </button>
+        <button 
+          className="bulk-action-btn" 
+          onClick={handleBulkDeactivate}
+          disabled={bulkActionLoading}
+        >
+          비활성화
+        </button>
+        <button 
+          className="bulk-action-btn" 
+          onClick={handleBulkExport}
+          disabled={bulkActionLoading}
+        >
+          엑셀 내보내기
+        </button>
+        <button 
+          className="bulk-action-btn" 
+          onClick={() => setSelectedUserUids([])}
+          disabled={bulkActionLoading}
+        >
+          선택 해제
+        </button>
+      </div>
+    )
+  );
+
+  const renderUserList = () => (
+    <div className="users-list">
+      <div className="users-list-header">
+        <h3>사용자 목록</h3>
+        <span className="user-count">
+          {filteredUsers.length}명 / 총 {users.length}명
+        </span>
+        <div className="select-all-wrapper">
+          <input
+            type="checkbox"
+            checked={selectedUserUids.length === filteredUsers.length && filteredUsers.length > 0}
+            onChange={handleToggleSelectAll}
+            id="select-all"
+          />
+          <label htmlFor="select-all">전체 선택</label>
+        </div>
+      </div>
+      
+      {filteredUsers.length === 0 ? (
+        <EmptyState message="검색 조건에 맞는 사용자가 없습니다." />
+      ) : (
+        <div className="users-grid">
+          {filteredUsers.map(user => (
+            <div key={user.uid} className="user-card-wrapper">
+              <div className="checkbox-wrapper">
+                <input
+                  type="checkbox"
+                  checked={selectedUserUids.includes(user.uid)}
+                  onChange={() => handleToggleUserSelect(user.uid)}
+                  title="선택"
+                />
+              </div>
+              <UserCard
+                user={user}
+                isEditing={editingUser?.uid === user.uid}
+                onEdit={() => setEditingUser(user)}
+                onSave={() => handleUpdateUser(user)}
+                onCancel={() => setEditingUser(null)}
+                onDelete={() => handleDeleteUser(user)}
+                onView={() => setSelectedUser(user)}
+                onStatusChange={() => openStatusModal(user)}
+                editingUser={editingUser || undefined}
+                onEditChange={(field, value) => {
+                  if (editingUser) {
+                    setEditingUser({ ...editingUser, [field]: value });
+                  }
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const renderUsersPanel = () => (
+    <div className="users-panel">
+      {renderUserFilters()}
+      {renderBulkActionBar()}
+      {renderUserList()}
+    </div>
+  );
+
+  const renderActivityPanel = () => (
+    <div className="activity-panel">
+      <UserActivityBoard />
+    </div>
+  );
+
+  // 등급 관리 섹션 함수 분리
+  const renderGradesHeader = () => (
+    <div className="grades-header">
+      <h2>등급 관리</h2>
+      <p>멤버들의 활동 기간과 현재 등급을 확인하고 관리할 수 있습니다.</p>
+    </div>
+  );
+
+  const renderGradesTable = () => (
+    <div className="grades-list">
+      <div className="grades-table-container">
+        <table className="grades-table">
+          <thead>
+            <tr>
+              <th>닉네임</th>
+              <th>입장일</th>
+              <th>활동 기간</th>
+              <th>승급</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredUsers.map(user => {
+              const activityDays = calculateActivityDays(user.createdAt);
+              const canPromoteUser = canPromote(user);
+              const currentGradeIndex = GRADE_ORDER.indexOf(user.grade as any);
+              const nextGradeIndex = currentGradeIndex + 1;
+              const nextGradeDay = (nextGradeIndex) * 90;
+              const daysToPromote = nextGradeDay - activityDays;
+              return (
+                <tr key={user.uid}>
+                  <td style={{ width: 'auto', maxWidth: 120, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <div className="user-cell">
+                      <div className="profile-avatar small">
+                        {user.profileImageUrl ? (
+                          <img src={user.profileImageUrl} alt="프로필" />
+                        ) : (
+                          <User size={16} />
+                        )}
+                      </div>
+                      <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                        {user.nickname}
+                        <span style={{ marginLeft: 2, fontSize: '1em', verticalAlign: 'middle' }}>{user.grade}</span>
+                      </span>
+                    </div>
+                  </td>
+                  <td>{formatDate(user.createdAt)}</td>
+                  <td>{activityDays}일</td>
+                  <td>
+                    {(user.grade === GRADE_SYSTEM.SUN) ? (
+                      <span className="status-badge">최고등급</span>
+                    ) : canPromoteUser ? (
+                      <button
+                        className="promote-button"
+                        onClick={async () => {
+                          const nextGrade = getNextGrade(user.grade);
+                          if (!window.confirm(`${user.nickname}님의 등급을 ${GRADE_NAMES[nextGrade]}로 승급하시겠습니까?`)) return;
+                          try {
+                            const userRef = doc(db, 'users', user.uid);
+                            await updateDoc(userRef, { grade: nextGrade });
+                            await fetchUsers();
+                            alert('등급이 성공적으로 변경되었습니다.');
+                          } catch (error) {
+                            console.error('등급 변경 중 오류:', error);
+                            alert('등급 변경 중 오류가 발생했습니다.');
+                          }
+                        }}
+                      >
+                        승급
+                      </button>
+                    ) : (
+                      <span className="status-badge">승급까지 {daysToPromote > 0 ? `${daysToPromote}일` : '0일'}</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  const renderGradesPanel = () => (
+    <div className="grades-panel">
+      {renderGradesHeader()}
+      {renderGradesTable()}
+    </div>
+  );
+
+  // 활동 분석 섹션 함수 분리
+  const renderAnalyticsHeader = () => (
+    <div className="analytics-header">
+      <h2>사용자 활동 분석</h2>
+      <p>사용자를 선택하여 상세한 활동 내역과 통계를 확인할 수 있습니다.</p>
+    </div>
+  );
+
+  const renderUserSelection = () => (
+    <div className="user-selection">
+      <h3>분석할 사용자 선택</h3>
+      <div className="users-grid">
+        {filteredUsers.slice(0, 12).map(user => (
+          <div key={user.uid} className="user-select-card" onClick={() => openUserActivity(user)}>
+            <div className="profile-avatar">
+              {user.profileImageUrl ? (
+                <img src={user.profileImageUrl} alt="프로필" />
+              ) : (
+                <User size={24} />
+              )}
+            </div>
+            <div className="user-info">
+              <div className="user-name">{user.nickname}</div>
+              <div className="user-grade">{user.grade}</div>
+              <div className="user-role">{user.role}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderActivityAnalysis = () => (
+    <div className="activity-analysis">
+      <div className="analysis-header">
+        <button 
+          className="back-button"
+          onClick={() => {
+            setSelectedUserForActivity(null);
+            setUserActivitySummary(null);
+          }}
+        >
+          ← 목록으로 돌아가기
+        </button>
+      </div>
+      {activityLoading ? (
+        <div className="loading-container">
+          <LoadingSpinner />
+        </div>
+      ) : userActivitySummary ? (
+        <div className="analysis-content">
+          <UserActivitySummary summary={userActivitySummary} />
+          <div className="analysis-charts">
+            <ActivityChart activities={userActivitySummary.recentActivities} />
+            <ActivityStatsCard
+              stats={userActivitySummary.activityStats}
+              title="활동 통계"
+              icon={<TrendingUp size={24} />}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="error-state">
+          <p>활동 데이터를 불러올 수 없습니다.</p>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderAnalyticsPanel = () => (
+    <div className="analytics-panel">
+      {renderAnalyticsHeader()}
+      {!selectedUserForActivity ? renderUserSelection() : renderActivityAnalysis()}
+    </div>
+  );
+
+  // 관리자 로그 섹션 함수 분리
+  const renderLogsHeader = () => (
+    <div className="logs-header">
+      <h2>관리자 로그</h2>
+      <p>관리자가 수행한 모든 작업의 기록을 확인할 수 있습니다.</p>
+      <button 
+        className="export-logs-btn"
+        onClick={() => exportLogsToExcel(filteredLogs)}
+      >
+        <Download size={20} />
+        로그 내보내기
+      </button>
+    </div>
+  );
+
+  const renderLogsStats = () => (
+    logStats && (
+      <div className="logs-stats">
+        <LogStatsCard
+          stats={logStats}
+          title="로그 통계"
+          icon={<History size={24} />}
+        />
+      </div>
+    )
+  );
+
+  const renderLogsFilter = () => (
+    <LogFilter
+      filters={logFilters}
+      onFilterChange={setLogFilters}
+      actions={['user_create', 'user_update', 'user_delete', 'grade_change', 'role_change', 'status_change', 'bulk_action', 'data_export']}
+    />
+  );
+
+  const renderLogsList = () => (
+    logLoading ? (
+      <div className="loading-container">
+        <LoadingSpinner />
+      </div>
+    ) : (
+      <div className="logs-list">
+        <div className="logs-list-header">
+          <h3>로그 목록</h3>
+          <span className="log-count">
+            {filteredLogs.length}개 / 총 {logs.length}개
+          </span>
+        </div>
+        {filteredLogs.length === 0 ? (
+          <EmptyState message="검색 조건에 맞는 로그가 없습니다." />
+        ) : (
+          <div className="logs-container">
+            {filteredLogs.map(log => (
+              <LogItem
+                key={log.id}
+                log={log}
+                onViewDetails={setSelectedLog}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  );
+
+  const renderLogsPanel = () => (
+    <div className="logs-panel">
+      {renderLogsHeader()}
+      {renderLogsStats()}
+      {renderLogsFilter()}
+      {renderLogsList()}
+    </div>
+  );
+
+  // 공지/알림 섹션 함수 분리
+  const renderNotificationsHeader = () => (
+    <div className="notifications-header">
+      <h2>공지/알림 관리</h2>
+      <button 
+        onClick={() => setShowNotificationModal(true)}
+        className="btn btn-primary"
+      >
+        <Send size={16} />
+        새 알림 발송
+      </button>
+    </div>
+  );
+
+  const renderNotificationsStats = () => (
+    <div className="notifications-stats">
+      <NotificationStats stats={calculateNotificationStats(notifications)} />
+    </div>
+  );
+
+  const renderNotificationsMain = () => (
+    <div className="notifications-main">
+      <div className="notifications-section">
+        <NotificationList
+          notifications={notifications}
+          onRefresh={loadNotifications}
+        />
+      </div>
+      <div className="templates-section">
+        <NotificationTemplates
+          templates={notificationTemplates}
+          onSaveTemplate={handleSaveTemplate}
+          onUseTemplate={handleUseTemplate}
+        />
+      </div>
+    </div>
+  );
+
+  const renderNotificationsPanel = () => (
+    <div className="notifications-panel">
+      {renderNotificationsHeader()}
+      <div className="notifications-content">
+        {renderNotificationsStats()}
+        {renderNotificationsMain()}
+      </div>
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="admin-container">
@@ -721,71 +1238,15 @@ const AdminPanel: React.FC = () => {
 
   return (
     <div className="admin-container">
-      {/* Toss 스타일 카드 그룹 - 헤더 바로 위에만 위치 */}
-      <div className="toss-card-group">
-        <div className="toss-card">
-          <FaUsers className="icon" />
-          <div className="main-value">{userStats.totalUsers}명</div>
-          <div className="desc">총 회원 수</div>
-          <div className="sub-desc">최근 한달 가입: {userStats.recentJoins}명</div>
-        </div>
-        <div className="toss-card">
-          <FaUserShield className="icon" />
-          <div className="main-value">{userStats.adminCount}명</div>
-          <div className="desc">운영진 현황</div>
-          <div className="sub-desc">전체 대비: {((userStats.adminCount / (userStats.totalUsers || 1)) * 100).toFixed(1)}%</div>
-        </div>
-        <div className="toss-card">
-          <FaChartPie className="icon" />
-          <div className="main-value">{userStats.averageGrade || '-'}</div>
-          <div className="desc">평균 등급</div>
-          <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center" }}>
-            {Object.entries(userStats.gradeDistribution).map(([grade, count]) => (
-              <span key={grade} style={{ color: "#3182F6", fontSize: "0.95rem" }}>{grade} {count}명</span>
-            ))}
-          </div>
-        </div>
-        <div className="toss-card">
-          <FaFire className="icon" />
-          <div className="main-value">{userStats.activeUsers}명</div>
-          <div className="desc">활성 사용자</div>
-          <div className="sub-desc">전체 회원</div>
-        </div>
+      {/* 헤더(관리자 패널 문구) 화면 최상단 */}
+      <div className="admin-header" style={{marginBottom: 0, paddingTop: 32, paddingBottom: 16}}>
+        <h1 className="admin-title" style={{fontSize: '2.4rem', fontWeight: 900, color: '#7f5fff', letterSpacing: '-1px', margin: 0, textAlign: 'center'}}>
+          <Shield size={32} style={{verticalAlign: 'middle', marginRight: 8}} />
+          관리자 패널
+        </h1>
       </div>
-      {/* 헤더 */}
-      <div className="admin-header">
-        <div className="header-left">
-          <h1 className="admin-title">
-            <Shield size={28} />
-            관리자 패널
-          </h1>
-        </div>
-        <div className="header-actions">
-          {activeTab === 'users' && (
-            <>
-              <button className="add-user-button" onClick={() => setShowAddUserModal(true)}>
-                <UserPlus size={20} />
-                회원 추가
-              </button>
-              <button className="export-button" onClick={handleExportExcel}>
-                <Download size={20} />
-                엑셀 내보내기
-              </button>
-              <button 
-                className="migration-button" 
-                onClick={handleMigration}
-                disabled={isMigrating}
-              >
-                <Database size={20} />
-                {isMigrating ? '마이그레이션 중...' : 'DB 마이그레이션'}
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* 탭 네비게이션 */}
-      <div className="admin-tabs">
+      {/* 탭 버튼 헤더 바로 아래로 이동 */}
+      <div className="admin-tabs" style={{marginTop: 12, marginBottom: 24}}>
         <button 
           className={`tab-button ${activeTab === 'users' ? 'active' : ''}`}
           onClick={() => setActiveTab('users')}
@@ -836,463 +1297,55 @@ const AdminPanel: React.FC = () => {
           <span>공지/알림</span>
         </button>
       </div>
-
-      {/* 마이그레이션 상태 */}
-      {migrationStatus && (
-        <div className={`migration-status ${
-          migrationStatus.includes('실패') ? 'error' : 
-          migrationStatus.includes('완료') ? 'success' : 'warning'
-        }`}>
-          {migrationStatus}
+      {/* 통계 카드 탭 버튼 아래로 이동 */}
+      <div className="stats-grid" style={{marginTop: 0, marginBottom: 24}}>
+        <div className="stat-card glass">
+          <div className="stat-icon-glass">
+            <FaUsers size={32} color="#7f5fff" />
+          </div>
+          <div className="stat-title">총 회원 수</div>
+          <div className="stat-value">{userStats.totalUsers}명</div>
+          <div className="stat-sub">최근 한달 가입: {userStats.recentJoins}명</div>
         </div>
-      )}
-
-      {/* 탭 컨텐츠 */}
-      <div className="tab-content">
-        {activeTab === 'users' && (
-          <div className="users-panel">
-            {/* 검색 및 필터 */}
-            <div className="controls-section">
-              <div className="search-box">
-                <Search size={20} />
-                <input
-                  type="text"
-                  placeholder="닉네임 또는 이메일로 검색..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                {searchTerm && (
-                  <button className="clear-search" onClick={() => setSearchTerm('')}>
-                    <X size={16} />
-                  </button>
-                )}
-              </div>
-              
-              <div className="filter-controls">
-                <div className="filter-group">
-                  <label>역할</label>
-                  <select
-                    className="filter-select"
-                    value={filterRole}
-                    onChange={(e) => setFilterRole(e.target.value)}
-                  >
-                    <option value="all">전체</option>
-                    {ROLE_OPTIONS.map(role => (
-                      <option key={role} value={role}>{role}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div className="filter-group">
-                  <label>등급</label>
-                  <select
-                    className="filter-select"
-                    value={filterGrade}
-                    onChange={(e) => setFilterGrade(e.target.value)}
-                  >
-                    <option value="all">전체</option>
-                    {GRADE_ORDER.map(grade => (
-                      <option key={grade} value={grade}>{grade} {GRADE_NAMES[grade]}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div className="filter-group">
-                  <label>상태</label>
-                  <select
-                    className="filter-select"
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                  >
-                    <option value="all">전체</option>
-                    {Object.entries(USER_STATUS_LABELS).map(([status, label]) => (
-                      <option key={status} value={status}>{label}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div className="filter-group">
-                  <label>정렬</label>
-                  <select
-                    className="filter-select"
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as SortBy)}
-                  >
-                    <option value="createdAt">가입일 순</option>
-                    <option value="nickname">닉네임 순</option>
-                    <option value="role">역할 순</option>
-                    <option value="grade">등급 순</option>
-                  </select>
-                </div>
-
-                <div className="filter-group">
-                  <label>순서</label>
-                  <select
-                    className="filter-select"
-                    value={sortOrder}
-                    onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
-                  >
-                    <option value="desc">내림차순</option>
-                    <option value="asc">오름차순</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* 벌크 액션 바 */}
-            {selectedUserUids.length > 0 && (
-              <div className="bulk-action-bar">
-                <span>{selectedUserUids.length}명 선택됨</span>
-                <button 
-                  className="bulk-action-btn" 
-                  onClick={() => setShowBulkGradeModal(true)}
-                  disabled={bulkActionLoading}
-                >
-                  등급 일괄 변경
-                </button>
-                <button 
-                  className="bulk-action-btn" 
-                  onClick={() => setShowBulkRoleModal(true)}
-                  disabled={bulkActionLoading}
-                >
-                  역할 일괄 변경
-                </button>
-                <button 
-                  className="bulk-action-btn" 
-                  onClick={handleBulkDeactivate}
-                  disabled={bulkActionLoading}
-                >
-                  비활성화
-                </button>
-                <button 
-                  className="bulk-action-btn" 
-                  onClick={handleBulkExport}
-                  disabled={bulkActionLoading}
-                >
-                  엑셀 내보내기
-                </button>
-                <button 
-                  className="bulk-action-btn" 
-                  onClick={() => setSelectedUserUids([])}
-                  disabled={bulkActionLoading}
-                >
-                  선택 해제
-                </button>
-              </div>
-            )}
-
-            {/* 사용자 목록 */}
-            <div className="users-list">
-              <div className="users-list-header">
-                <h3>사용자 목록</h3>
-                <span className="user-count">
-                  {filteredUsers.length}명 / 총 {users.length}명
-                </span>
-                <div className="select-all-wrapper">
-                  <input
-                    type="checkbox"
-                    checked={selectedUserUids.length === filteredUsers.length && filteredUsers.length > 0}
-                    onChange={handleToggleSelectAll}
-                    id="select-all"
-                  />
-                  <label htmlFor="select-all">전체 선택</label>
-                </div>
-              </div>
-              
-              {filteredUsers.length === 0 ? (
-                <EmptyState message="검색 조건에 맞는 사용자가 없습니다." />
-              ) : (
-                <div className="users-grid">
-                  {filteredUsers.map(user => (
-                    <div key={user.uid} className="user-card-wrapper">
-                      <div className="checkbox-wrapper">
-                        <input
-                          type="checkbox"
-                          checked={selectedUserUids.includes(user.uid)}
-                          onChange={() => handleToggleUserSelect(user.uid)}
-                          title="선택"
-                        />
-                      </div>
-                      <UserCard
-                        user={user}
-                        isEditing={editingUser?.uid === user.uid}
-                        onEdit={() => setEditingUser(user)}
-                        onSave={() => handleUpdateUser(user)}
-                        onCancel={() => setEditingUser(null)}
-                        onDelete={() => handleDeleteUser(user)}
-                        onView={() => setSelectedUser(user)}
-                        onStatusChange={() => openStatusModal(user)}
-                        editingUser={editingUser || undefined}
-                        onEditChange={(field, value) => {
-                          if (editingUser) {
-                            setEditingUser({ ...editingUser, [field]: value });
-                          }
-                        }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+        <div className="stat-card glass">
+          <div className="stat-icon-glass">
+            <FaUserShield size={32} color="#5df2f5" />
           </div>
-        )}
-
-        {activeTab === 'activity' && (
-          <div className="activity-panel">
-            <UserActivityBoard />
+          <div className="stat-title">운영진 현황</div>
+          <div className="stat-value">{userStats.adminCount}명</div>
+          <div className="stat-sub">전체 대비: {((userStats.adminCount / (userStats.totalUsers || 1)) * 100).toFixed(1)}%</div>
+        </div>
+        <div className="stat-card glass">
+          <div className="stat-icon-glass">
+            <FaChartPie size={32} color="#10b981" />
           </div>
-        )}
-
-        {activeTab === 'grades' && (
-          <div className="grades-panel">
-            <div className="grades-header">
-              <h2>등급 관리</h2>
-              <p>멤버들의 활동 기간과 현재 등급을 확인하고 관리할 수 있습니다.</p>
-            </div>
-            
-            <div className="grades-list">
-              <div className="grades-table-container">
-                <table className="grades-table">
-                  <thead>
-                    <tr>
-                      <th>닉네임</th>
-                      <th>입장일</th>
-                      <th>활동 기간</th>
-                      <th>승급</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredUsers.map(user => {
-                      const activityDays = calculateActivityDays(user.createdAt);
-                      const canPromoteUser = canPromote(user);
-                      const currentGradeIndex = GRADE_ORDER.indexOf(user.grade as any);
-                      const nextGradeIndex = currentGradeIndex + 1;
-                      const nextGradeDay = (nextGradeIndex) * 90;
-                      const daysToPromote = nextGradeDay - activityDays;
-                      return (
-                        <tr key={user.uid}>
-                          <td style={{ width: 'auto', maxWidth: 120, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            <div className="user-cell">
-                              <div className="profile-avatar small">
-                                {user.profileImageUrl ? (
-                                  <img src={user.profileImageUrl} alt="프로필" />
-                                ) : (
-                                  <User size={16} />
-                                )}
-                              </div>
-                              <span style={{ display: 'inline-flex', alignItems: 'center' }}>
-                                {user.nickname}
-                                <span style={{ marginLeft: 2, fontSize: '1em', verticalAlign: 'middle' }}>{user.grade}</span>
-                              </span>
-                            </div>
-                          </td>
-                          <td>{formatDate(user.createdAt)}</td>
-                          <td>{activityDays}일</td>
-                          <td>
-                            {(user.grade === GRADE_SYSTEM.SUN) ? (
-                              <span className="status-badge">최고등급</span>
-                            ) : canPromoteUser ? (
-                              <button
-                                className="promote-button"
-                                onClick={async () => {
-                                  const nextGrade = getNextGrade(user.grade);
-                                  if (!window.confirm(`${user.nickname}님의 등급을 ${GRADE_NAMES[nextGrade]}로 승급하시겠습니까?`)) return;
-                                  try {
-                                    const userRef = doc(db, 'users', user.uid);
-                                    await updateDoc(userRef, { grade: nextGrade });
-                                    await fetchUsers();
-                                    alert('등급이 성공적으로 변경되었습니다.');
-                                  } catch (error) {
-                                    console.error('등급 변경 중 오류:', error);
-                                    alert('등급 변경 중 오류가 발생했습니다.');
-                                  }
-                                }}
-                              >
-                                승급
-                              </button>
-                            ) : (
-                              <span className="status-badge">승급까지 {daysToPromote > 0 ? `${daysToPromote}일` : '0일'}</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+          <div className="stat-title">평균 등급</div>
+          <div className="stat-value">{userStats.averageGrade || '-'}</div>
+          <div className="stat-grade-dist">
+            {Object.entries(userStats.gradeDistribution).map(([grade, count]) => (
+              <span key={grade} style={{ fontSize: '1.1em', display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                {grade} <span style={{fontWeight:600, marginLeft:2}}>{count}명</span>
+              </span>
+            ))}
           </div>
-        )}
-
-        {activeTab === 'analytics' && (
-          <div className="analytics-panel">
-            <div className="analytics-header">
-              <h2>사용자 활동 분석</h2>
-              <p>사용자를 선택하여 상세한 활동 내역과 통계를 확인할 수 있습니다.</p>
-            </div>
-            
-            {!selectedUserForActivity ? (
-              <div className="user-selection">
-                <h3>분석할 사용자 선택</h3>
-                <div className="users-grid">
-                  {filteredUsers.slice(0, 12).map(user => (
-                    <div key={user.uid} className="user-select-card" onClick={() => openUserActivity(user)}>
-                      <div className="profile-avatar">
-                        {user.profileImageUrl ? (
-                          <img src={user.profileImageUrl} alt="프로필" />
-                        ) : (
-                          <User size={24} />
-                        )}
-                      </div>
-                      <div className="user-info">
-                        <div className="user-name">{user.nickname}</div>
-                        <div className="user-grade">{user.grade}</div>
-                        <div className="user-role">{user.role}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="activity-analysis">
-                <div className="analysis-header">
-                  <button 
-                    className="back-button"
-                    onClick={() => {
-                      setSelectedUserForActivity(null);
-                      setUserActivitySummary(null);
-                    }}
-                  >
-                    ← 목록으로 돌아가기
-                  </button>
-                </div>
-                
-                {activityLoading ? (
-                  <div className="loading-container">
-                    <LoadingSpinner />
-                  </div>
-                ) : userActivitySummary ? (
-                  <div className="analysis-content">
-                    <UserActivitySummaryComponent summary={userActivitySummary} />
-                    
-                    <div className="analysis-charts">
-                      <ActivityChart activities={userActivitySummary.recentActivities} />
-                      
-                      <ActivityStatsCard
-                        stats={userActivitySummary.activityStats}
-                        title="활동 통계"
-                        icon={<TrendingUp size={24} />}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="error-state">
-                    <p>활동 데이터를 불러올 수 없습니다.</p>
-                  </div>
-                )}
-              </div>
-            )}
+        </div>
+        <div className="stat-card glass">
+          <div className="stat-icon-glass">
+            <FaFire size={32} color="#ff6b6b" />
           </div>
-        )}
-
-        {activeTab === 'logs' && (
-          <div className="logs-panel">
-            <div className="logs-header">
-              <h2>관리자 로그</h2>
-              <p>관리자가 수행한 모든 작업의 기록을 확인할 수 있습니다.</p>
-              <button 
-                className="export-logs-btn"
-                onClick={() => exportLogsToExcel(filteredLogs)}
-              >
-                <Download size={20} />
-                로그 내보내기
-              </button>
-            </div>
-            
-            {logStats && (
-              <div className="logs-stats">
-                <LogStatsCard
-                  stats={logStats}
-                  title="로그 통계"
-                  icon={<History size={24} />}
-                />
-              </div>
-            )}
-            
-            <LogFilter
-              filters={logFilters}
-              onFilterChange={setLogFilters}
-              actions={['user_create', 'user_update', 'user_delete', 'grade_change', 'role_change', 'status_change', 'bulk_action', 'data_export']}
-            />
-            
-            {logLoading ? (
-              <div className="loading-container">
-                <LoadingSpinner />
-              </div>
-            ) : (
-              <div className="logs-list">
-                <div className="logs-list-header">
-                  <h3>로그 목록</h3>
-                  <span className="log-count">
-                    {filteredLogs.length}개 / 총 {logs.length}개
-                  </span>
-                </div>
-                
-                {filteredLogs.length === 0 ? (
-                  <EmptyState message="검색 조건에 맞는 로그가 없습니다." />
-                ) : (
-                  <div className="logs-container">
-                    {filteredLogs.map(log => (
-                      <LogItem
-                        key={log.id}
-                        log={log}
-                        onViewDetails={setSelectedLog}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'notifications' && (
-          <div className="notifications-panel">
-            <div className="notifications-header">
-              <h2>공지/알림 관리</h2>
-              <button 
-                onClick={() => setShowNotificationModal(true)}
-                className="btn btn-primary"
-              >
-                <Send size={16} />
-                새 알림 발송
-              </button>
-            </div>
-
-            <div className="notifications-content">
-              <div className="notifications-stats">
-                <NotificationStatsComponent stats={calculateNotificationStats(notifications)} />
-              </div>
-
-              <div className="notifications-main">
-                <div className="notifications-section">
-                  <NotificationList
-                    notifications={notifications}
-                    onRefresh={loadNotifications}
-                  />
-                </div>
-
-                <div className="templates-section">
-                  <NotificationTemplates
-                    templates={notificationTemplates}
-                    onSaveTemplate={handleSaveTemplate}
-                    onUseTemplate={handleUseTemplate}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+          <div className="stat-title">활성 사용자</div>
+          <div className="stat-value">{userStats.activeUsers}명</div>
+          <div className="stat-sub">전체 회원</div>
+        </div>
+      </div>
+      {/* 주요 콘텐츠(tab-content)는 컨테이너 박스/배경을 줄이고, 여백을 충분히 */}
+      <div className="tab-content" style={{background: 'none', boxShadow: 'none', padding: '0 0 48px 0', margin: '0 auto', maxWidth: 1400}}>
+        {activeTab === 'users' && renderUsersPanel()}
+        {activeTab === 'activity' && renderActivityPanel()}
+        {activeTab === 'grades' && renderGradesPanel()}
+        {activeTab === 'analytics' && renderAnalyticsPanel()}
+        {activeTab === 'logs' && renderLogsPanel()}
+        {activeTab === 'notifications' && renderNotificationsPanel()}
       </div>
 
       {/* 사용자 상세 모달 */}
