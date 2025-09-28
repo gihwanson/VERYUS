@@ -17,6 +17,12 @@ const SetList: React.FC = () => {
   const [viewMode, setViewMode] = useState<'manage' | 'cards'>(isLeader ? 'manage' : 'cards');
   const { activeSetList, loading } = useSetListData();
 
+  // 셋리스트 활성화 콜백 함수
+  const handleSetListActivated = () => {
+    // 셋리스트가 활성화되었을 때 필요한 로직
+    console.log('셋리스트가 활성화되었습니다.');
+  };
+
   useEffect(() => {
     if (!isLeader) {
       setViewMode('cards');
@@ -65,7 +71,7 @@ const SetList: React.FC = () => {
       )}
 
       {/* 뷰 모드에 따라 컴포넌트 렌더링 */}
-      {viewMode === 'manage' ? <SetListManager /> : <SetListCards />}
+      {viewMode === 'manage' ? <SetListManager /> : <SetListCards onSetListActivated={handleSetListActivated} />}
     </div>
   );
 };

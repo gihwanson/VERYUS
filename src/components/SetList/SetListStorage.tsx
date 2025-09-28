@@ -36,9 +36,8 @@ const SetListStorage: React.FC = () => {
   const user = userString ? JSON.parse(userString) : null;
   const isLeader = user && user.role === '리더';
   
-  const { activeSetList, setLists } = useSetListData();
+  const { setLists } = useSetListData();
   const [storedSetLists, setStoredSetLists] = useState<StoredSetList[]>([]);
-  const [loading, setLoading] = useState(false);
 
   // 저장된 셋리스트 목록 가져오기
   const fetchStoredSetLists = async () => {
@@ -59,70 +58,44 @@ const SetListStorage: React.FC = () => {
     fetchStoredSetLists();
   }, []);
 
-  // 현재 활성 셋리스트를 저장소에 저장
-  const saveCurrentSetList = async () => {
-    if (!activeSetList || !isLeader) {
-      alert('저장할 활성 셋리스트가 없거나 권한이 없습니다.');
+
+  // 저장된 셋리스트를 다시 활성화
+  const reactivateStoredSetList = async (stored: StoredSetList) => {
+    if (!isLeader) {
+      alert('활성화 권한이 없습니다.');
       return;
     }
 
-    setLoading(true);
+    if (!confirm(`"${stored.name}" 셋리스트를 다시 활성화하시겠습니까?`)) {
+      return;
+    }
+
     try {
-      // 통계 계산
-      const totalSongs = activeSetList.songs.length + (activeSetList.completedSongs?.length || 0);
-      const totalCards = (activeSetList.flexibleCards || []).filter(card => card.order >= 0).length + 
-                        (activeSetList.completedFlexibleCards?.length || 0);
-      const totalSlots = [...(activeSetList.flexibleCards || []).filter(card => card.order >= 0),
-                         ...(activeSetList.completedFlexibleCards || [])].reduce((sum, card) => sum + card.totalSlots, 0);
-
-      // 참가자별 통계 계산
-      const participantStats = activeSetList.participants.map(participant => {
-        const songCount = [
-          ...activeSetList.songs,
-          ...(activeSetList.completedSongs || [])
-        ].filter(song => song.members.includes(participant)).length;
-
-        const slotCount = [
-          ...(activeSetList.flexibleCards || []).filter(card => card.order >= 0),
-          ...(activeSetList.completedFlexibleCards || [])
-        ].reduce((count, card) => {
-          return count + card.slots.filter(slot => slot.members.includes(participant)).length;
-        }, 0);
-
-        return {
-          nickname: participant,
-          songCount: songCount + slotCount,
-          totalSongs: songCount,
-          totalSlots: slotCount
-        };
-      });
-
-      const storedData = {
-        name: activeSetList.name,
-        originalSetListId: activeSetList.id || '',
-        participants: activeSetList.participants,
-        songs: activeSetList.songs,
-        completedSongs: activeSetList.completedSongs || [],
-        flexibleCards: activeSetList.flexibleCards || [],
-        completedFlexibleCards: activeSetList.completedFlexibleCards || [],
-        statistics: {
-          totalSongs: totalSongs + totalSlots,
-          totalSlots,
-          participantStats
-        },
-        createdBy: activeSetList.createdBy,
-        savedAt: Timestamp.now(),
-        originalCreatedAt: activeSetList.createdAt || Timestamp.now()
+      // 새로운 셋리스트 생성
+      const newSetListData = {
+        name: stored.name,
+        participants: stored.participants,
+        songs: stored.songs,
+        completedSongs: stored.completedSongs,
+        flexibleCards: stored.flexibleCards,
+        completedFlexibleCards: stored.completedFlexibleCards,
+        isActive: true,
+        isCompleted: false,
+        createdBy: stored.createdBy,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
       };
 
-      await addDoc(collection(db, 'storedSetLists'), storedData);
-      alert('셋리스트가 저장소에 저장되었습니다! 📦');
-      fetchStoredSetLists(); // 목록 새로고침
+      // 새로운 셋리스트 생성
+      await addDoc(collection(db, 'setlists'), newSetListData);
+      
+      alert(`"${stored.name}" 셋리스트가 활성화되었습니다! 🎉`);
+      
+      // 페이지 새로고침으로 관리탭에 반영
+      window.location.reload();
     } catch (error) {
-      console.error('셋리스트 저장 실패:', error);
-      alert('셋리스트 저장에 실패했습니다.');
-    } finally {
-      setLoading(false);
+      console.error('셋리스트 활성화 실패:', error);
+      alert('셋리스트 활성화에 실패했습니다.');
     }
   };
 
@@ -149,61 +122,6 @@ const SetListStorage: React.FC = () => {
 
   return (
     <div style={{ width: '100%', maxWidth: 'none' }}>
-      {/* 현재 셋리스트 저장 영역 */}
-      {isLeader && activeSetList && (
-        <div style={{ 
-          background: 'rgba(255, 255, 255, 0.15)',
-          backdropFilter: 'blur(15px)',
-          borderRadius: 20, 
-          padding: 24, 
-          marginBottom: 24,
-          border: '1px solid rgba(255, 255, 255, 0.2)'
-        }}>
-          <h2 style={{ color: 'white', fontSize: 20, marginBottom: 16, fontWeight: 700 }}>
-            💾 현재 셋리스트 저장
-          </h2>
-          
-          <div style={{ marginBottom: 16 }}>
-            <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: 14, margin: '0 0 12px 0' }}>
-              현재 활성 셋리스트: <strong style={{ color: 'white' }}>{activeSetList.name}</strong>
-            </p>
-            <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: 12, margin: 0 }}>
-              모든 곡, 닉네임 카드, 완료 상태 및 통계가 함께 저장됩니다.
-            </p>
-          </div>
-
-          <div style={{ textAlign: 'center' }}>
-            <button
-              onClick={saveCurrentSetList}
-              disabled={loading}
-              style={{ 
-                background: loading ? 'rgba(255, 255, 255, 0.1)' : 'rgba(34, 197, 94, 0.8)',
-                backdropFilter: 'blur(10px)',
-                color: 'white', 
-                border: '1px solid rgba(255, 255, 255, 0.3)', 
-                borderRadius: 12, 
-                padding: '12px 24px', 
-                fontWeight: 600, 
-                cursor: loading ? 'not-allowed' : 'pointer',
-                fontSize: 16,
-                transition: 'all 0.3s ease'
-              }}
-              onMouseEnter={(e) => {
-                if (!loading) {
-                  e.currentTarget.style.background = 'rgba(34, 197, 94, 0.9)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!loading) {
-                  e.currentTarget.style.background = 'rgba(34, 197, 94, 0.8)';
-                }
-              }}
-            >
-              {loading ? '⏳ 저장 중...' : '💾 저장소에 저장'}
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* 저장된 셋리스트 목록 */}
       <div>
@@ -225,7 +143,7 @@ const SetListStorage: React.FC = () => {
             <p style={{ fontSize: 16, margin: 0 }}>저장된 셋리스트가 없습니다.</p>
             {isLeader && (
               <p style={{ fontSize: 14, margin: '8px 0 0 0', color: 'rgba(255, 255, 255, 0.6)' }}>
-                위에서 현재 셋리스트를 저장해보세요!
+                관리탭에서 셋리스트를 완료하면 여기에 저장됩니다!
               </p>
             )}
           </div>
@@ -311,9 +229,32 @@ const SetListStorage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 삭제 버튼 (리더만) */}
+                {/* 버튼 영역 (리더만) */}
                 {isLeader && (
-                  <div style={{ textAlign: 'right' }}>
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                    <button
+                      onClick={() => reactivateStoredSetList(stored)}
+                      style={{
+                        background: 'rgba(34, 197, 94, 0.8)',
+                        backdropFilter: 'blur(10px)',
+                        color: 'white',
+                        border: '1px solid rgba(255, 255, 255, 0.3)',
+                        borderRadius: 8,
+                        padding: '6px 12px',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'rgba(34, 197, 94, 0.9)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'rgba(34, 197, 94, 0.8)';
+                      }}
+                    >
+                      🔄 활성화
+                    </button>
                     <button
                       onClick={() => deleteStoredSetList(stored.id)}
                       style={{
