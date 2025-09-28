@@ -40,14 +40,14 @@ const SetListStats: React.FC<SetListStatsProps> = ({ activeSetList, participants
         let completedSongsCount = 0;
         
         // 현재 셋리스트의 곡들에서 참여 횟수 계산
-        allSongs.forEach(song => {
+        allSongs.forEach((song: any) => {
           if (song.members && song.members.includes(participant)) {
             totalSongs++;
           }
           
           // 닉네임카드인 경우 슬롯별로 계산
           if (song.nickname && song.slots) {
-            song.slots.forEach(slot => {
+            song.slots.forEach((slot: any) => {
               if (slot.members && slot.members.includes(participant)) {
                 totalSongs++;
               }
@@ -56,14 +56,14 @@ const SetListStats: React.FC<SetListStatsProps> = ({ activeSetList, participants
         });
         
         // 완료된 곡들에서 참여 횟수 계산
-        completedSongs.forEach(song => {
+        completedSongs.forEach((song: any) => {
           if (song.members && song.members.includes(participant)) {
             completedSongsCount++;
           }
           
           // 닉네임카드인 경우 슬롯별로 계산
           if (song.nickname && song.slots) {
-            song.slots.forEach(slot => {
+            song.slots.forEach((slot: any) => {
               if (slot.members && slot.members.includes(participant)) {
                 completedSongsCount++;
               }
@@ -72,9 +72,9 @@ const SetListStats: React.FC<SetListStatsProps> = ({ activeSetList, participants
         });
         
         // 완료된 닉네임카드들에서 참여 횟수 계산
-        completedFlexibleCards.forEach(card => {
+        completedFlexibleCards.forEach((card: any) => {
           if (card.nickname && card.slots) {
-            card.slots.forEach(slot => {
+            card.slots.forEach((slot: any) => {
               if (slot.members && slot.members.includes(participant)) {
                 completedSongsCount++;
               }

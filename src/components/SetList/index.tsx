@@ -38,7 +38,13 @@ const SetList: React.FC = () => {
   }
 
   return (
-    <div style={{ maxWidth: '800px', margin: '40px auto', padding: '20px' }}>
+    <div style={{ 
+      maxWidth: window.innerWidth < 768 ? '100%' : '1200px', 
+      margin: window.innerWidth < 768 ? '10px auto' : '40px auto', 
+      padding: window.innerWidth < 768 ? '10px' : '20px',
+      width: '100%',
+      boxSizing: 'border-box'
+    }}>
       {/* 리더인 경우에만 헤더 표시 */}
       {isLeader ? (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>

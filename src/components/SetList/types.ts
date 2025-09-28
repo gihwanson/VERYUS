@@ -1,17 +1,27 @@
 export interface Song {
   id: string;
   title: string;
+  artist?: string;
+  songId?: string;
   members: string[];
   createdAt?: any;
   updatedAt?: any;
 }
 
 export interface SetListItem {
-  songId: string;
+  id?: string;
+  songId?: string;
   title: string;
+  artist?: string;
   members: string[];
   order: number;
   completedAt?: any; // 완료 시간 (선택적)
+  // 닉네임카드 관련 필드들
+  nickname?: string;
+  totalSlots?: number;
+  slots?: FlexibleSlot[];
+  allParticipants?: string[];
+  totalSlotsCompleted?: number;
 }
 
 // 유연한 카드의 각 슬롯 정보
@@ -68,6 +78,7 @@ export interface SetListData {
   createdAt: any;
   updatedAt: any;
   isActive: boolean;
+  isCompleted?: boolean; // 완료 여부
   currentSongIndex?: number;
 }
 

@@ -192,11 +192,11 @@ const SetListForm: React.FC<SetListFormProps> = ({
       const currentParticipants = activeSetList?.participants || participants.filter(p => p.trim());
       
       // 현재 참가자 목록에 있는 사람들만 포함된 곡만 필터링
-      const filteredSongs = allSongs.filter(song => {
+      const filteredSongs = allSongs.filter((song: any) => {
         if (!song.members || !Array.isArray(song.members)) return false;
         
         // 곡의 모든 참여자가 현재 셋리스트 참가자 목록에 있는지 확인
-        return song.members.every(member => 
+        return song.members.every((member: string) => 
           currentParticipants.includes(member.trim())
         );
       });
@@ -320,7 +320,7 @@ const SetListForm: React.FC<SetListFormProps> = ({
       return;
     }
 
-    const songTitle = song.nickname ? `${song.nickname}님의 닉네임카드` : song.title;
+    const songTitle = (song as any).nickname ? `${(song as any).nickname}님의 닉네임카드` : song.title;
     
     if (!confirm(`"${songTitle}"을 완료 처리하시겠습니까?\n\n완료된 곡은 통계에 반영됩니다.`)) {
       return;
@@ -330,9 +330,9 @@ const SetListForm: React.FC<SetListFormProps> = ({
       let completedSong;
       
       // 닉네임카드인 경우 모든 슬롯의 참여자들을 수집
-      if (song.nickname && song.slots) {
-        const allParticipants = [];
-        song.slots.forEach(slot => {
+      if ((song as any).nickname && (song as any).slots) {
+        const allParticipants: string[] = [];
+        (song as any).slots.forEach((slot: any) => {
           if (slot.members && Array.isArray(slot.members)) {
             allParticipants.push(...slot.members);
           }
@@ -346,7 +346,7 @@ const SetListForm: React.FC<SetListFormProps> = ({
           completedAt: Timestamp.now(),
           isCompleted: true,
           allParticipants: uniqueParticipants, // 통계용 참여자 목록 추가
-          totalSlotsCompleted: song.slots.length
+          totalSlotsCompleted: (song as any).slots.length
         };
       } else {
         // 일반 곡인 경우
@@ -369,9 +369,9 @@ const SetListForm: React.FC<SetListFormProps> = ({
         updatedAt: Timestamp.now()
       });
 
-      if (song.nickname) {
-        const participantCount = completedSong.allParticipants?.length || 0;
-        const slotCount = song.slots?.length || 0;
+      if ((song as any).nickname) {
+        const participantCount = (completedSong as any).allParticipants?.length || 0;
+        const slotCount = (song as any).slots?.length || 0;
         alert(`"${songTitle}"이 완료되었습니다! 🎉\n\n📊 통계 기록: ${participantCount}명이 ${slotCount}곡 완료`);
       } else {
         alert(`"${songTitle}"이 완료되었습니다! 🎉\n통계에 반영됩니다.`);
@@ -529,9 +529,11 @@ const SetListForm: React.FC<SetListFormProps> = ({
         background: 'rgba(255, 255, 255, 0.15)',
         backdropFilter: 'blur(15px)',
         borderRadius: 20,
-        padding: 24,
+        padding: window.innerWidth < 768 ? '16px' : '24px',
         marginBottom: 24,
-        border: '1px solid rgba(255, 255, 255, 0.2)'
+        border: '1px solid rgba(255, 255, 255, 0.2)',
+        width: '100%',
+        boxSizing: 'border-box'
       }}>
         <h2 style={{ color: 'white', fontSize: 20, marginBottom: 16, fontWeight: 700 }}>
           🎵 새 셋리스트 생성
@@ -561,7 +563,14 @@ const SetListForm: React.FC<SetListFormProps> = ({
             👥 참가자 목록
           </h3>
           {participants.map((participant, index) => (
-            <div key={index} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+            <div key={index} style={{ 
+              display: 'flex', 
+              gap: window.innerWidth < 768 ? '4px' : '8px', 
+              marginBottom: 8, 
+              alignItems: 'center',
+              width: '100%',
+              flexWrap: window.innerWidth < 768 ? 'wrap' : 'nowrap'
+            }}>
               <input
                 type="text"
                 placeholder={`참가자 ${index + 1}`}
@@ -569,13 +578,15 @@ const SetListForm: React.FC<SetListFormProps> = ({
                 onChange={(e) => updateParticipant(index, e.target.value)}
                 style={{
                   flex: 1,
-                  padding: '8px 12px',
+                  minWidth: window.innerWidth < 768 ? '120px' : '200px',
+                  padding: window.innerWidth < 768 ? '6px 8px' : '8px 12px',
                   borderRadius: 8,
                   border: '1px solid rgba(255, 255, 255, 0.3)',
                   background: 'rgba(255, 255, 255, 0.1)',
                   color: 'white',
-                  fontSize: 14,
-                  outline: 'none'
+                  fontSize: window.innerWidth < 768 ? '12px' : '14px',
+                  outline: 'none',
+                  boxSizing: 'border-box'
                 }}
               />
               {participant.trim() && (
@@ -586,11 +597,12 @@ const SetListForm: React.FC<SetListFormProps> = ({
                     color: 'white',
                     border: 'none',
                     borderRadius: 8,
-                    padding: '8px 12px',
+                    padding: window.innerWidth < 768 ? '6px 8px' : '8px 12px',
                     cursor: 'pointer',
-                    fontSize: 12,
+                    fontSize: window.innerWidth < 768 ? '10px' : '12px',
                     fontWeight: 600,
-                    whiteSpace: 'nowrap'
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = 'rgba(59, 130, 246, 0.9)';
@@ -610,9 +622,10 @@ const SetListForm: React.FC<SetListFormProps> = ({
                     color: 'white',
                     border: 'none',
                     borderRadius: 8,
-                    padding: '8px 12px',
+                    padding: window.innerWidth < 768 ? '6px 8px' : '8px 12px',
                     cursor: 'pointer',
-                    fontSize: 14
+                    fontSize: window.innerWidth < 768 ? '10px' : '14px',
+                    flexShrink: 0
                   }}
                 >
                   삭제
@@ -679,15 +692,17 @@ const SetListForm: React.FC<SetListFormProps> = ({
           background: 'rgba(255, 255, 255, 0.15)',
           backdropFilter: 'blur(15px)',
           borderRadius: 20,
-          padding: 24
+          padding: window.innerWidth < 768 ? '16px' : '24px',
+          width: '100%',
+          boxSizing: 'border-box'
           // 테두리 제거
         }}>
           <h2 style={{ color: 'white', fontSize: 20, marginBottom: 16, fontWeight: 700 }}>
-            📋 기존 셋리스트 ({setLists.filter(setList => !setList.isCompleted).length}개)
+            📋 기존 셋리스트 ({setLists.filter((setList: any) => !setList.isCompleted).length}개)
           </h2>
           
           <div style={{ display: 'grid', gap: 12 }}>
-            {setLists.filter(setList => !setList.isCompleted).map((setList) => (
+            {setLists.filter((setList: any) => !setList.isCompleted).map((setList) => (
               <div
                 key={setList.id}
                 style={{
@@ -728,7 +743,12 @@ const SetListForm: React.FC<SetListFormProps> = ({
                     </p>
                   </div>
                   
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ 
+                    display: 'flex', 
+                    gap: window.innerWidth < 768 ? '4px' : '8px',
+                    flexWrap: window.innerWidth < 768 ? 'wrap' : 'nowrap',
+                    justifyContent: window.innerWidth < 768 ? 'flex-end' : 'flex-start'
+                  }}>
                     {!setList.isActive && (
                       <button
                         onClick={() => activateSetList(setList)}
@@ -737,10 +757,11 @@ const SetListForm: React.FC<SetListFormProps> = ({
                           color: 'white',
                           border: 'none',
                           borderRadius: 8,
-                          padding: '6px 12px',
+                          padding: window.innerWidth < 768 ? '4px 8px' : '6px 12px',
                           cursor: 'pointer',
-                          fontSize: 12,
-                          fontWeight: 600
+                          fontSize: window.innerWidth < 768 ? '10px' : '12px',
+                          fontWeight: 600,
+                          flexShrink: 0
                         }}
                       >
                         활성화
@@ -754,9 +775,10 @@ const SetListForm: React.FC<SetListFormProps> = ({
                           color: 'white',
                           border: 'none',
                           borderRadius: 8,
-                          padding: '6px 12px',
+                          padding: window.innerWidth < 768 ? '4px 8px' : '6px 12px',
                           cursor: 'pointer',
-                          fontSize: 12,
+                          fontSize: window.innerWidth < 768 ? '10px' : '12px',
+                          flexShrink: 0,
                           fontWeight: 600
                         }}
                       >
@@ -770,10 +792,11 @@ const SetListForm: React.FC<SetListFormProps> = ({
                         color: 'white',
                         border: 'none',
                         borderRadius: 8,
-                        padding: '6px 12px',
+                        padding: window.innerWidth < 768 ? '4px 8px' : '6px 12px',
                         cursor: 'pointer',
-                        fontSize: 12,
-                        fontWeight: 600
+                        fontSize: window.innerWidth < 768 ? '10px' : '12px',
+                        fontWeight: 600,
+                        flexShrink: 0
                       }}
                     >
                       삭제
@@ -792,9 +815,11 @@ const SetListForm: React.FC<SetListFormProps> = ({
           background: 'rgba(255, 255, 255, 0.15)',
           backdropFilter: 'blur(15px)',
           borderRadius: 20,
-          padding: 24,
+          padding: window.innerWidth < 768 ? '16px' : '24px',
           marginTop: 32,
-          marginBottom: 24
+          marginBottom: 24,
+          width: '100%',
+          boxSizing: 'border-box'
         }}>
           <h2 style={{ color: 'white', fontSize: 20, marginBottom: 16, fontWeight: 700 }}>
             🎵 현재 셋리스트 곡 목록 ({activeSetList.songs.length}곡)
@@ -821,7 +846,7 @@ const SetListForm: React.FC<SetListFormProps> = ({
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ flex: 1 }}>
                     {/* 일반 곡인 경우 */}
-                    {!song.nickname && (
+                    {!(song as any).nickname && (
                       <>
                         <h3 style={{ 
                           color: 'white', 
@@ -836,7 +861,7 @@ const SetListForm: React.FC<SetListFormProps> = ({
                           fontSize: 14, 
                           margin: '0 0 8px 0' 
                         }}>
-                          {song.artist}
+                          {(song as any).artist}
                         </p>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                           {song.members && song.members.map((member: string, memberIndex: number) => (
@@ -859,7 +884,7 @@ const SetListForm: React.FC<SetListFormProps> = ({
                     )}
                     
                     {/* 닉네임카드인 경우 */}
-                    {song.nickname && (
+                    {(song as any).nickname && (
                       <>
                         <h3 style={{ 
                           color: 'white', 
@@ -867,17 +892,17 @@ const SetListForm: React.FC<SetListFormProps> = ({
                           margin: '0 0 4px 0', 
                           fontWeight: 600 
                         }}>
-                          🎭 {song.nickname} ({song.totalSlots || song.slots?.length || 0}곡)
+                          🎭 {(song as any).nickname} ({(song as any).totalSlots || (song as any).slots?.length || 0}곡)
                         </h3>
                         <p style={{ 
                           color: 'rgba(255, 255, 255, 0.8)', 
                           fontSize: 14, 
                           margin: '0 0 8px 0' 
                         }}>
-                          슬롯: {song.slots?.length || 0}개
+                          슬롯: {(song as any).slots?.length || 0}개
                         </p>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                          {song.slots && song.slots.map((slot: any, slotIndex: number) => (
+                          {(song as any).slots && (song as any).slots.map((slot: any, slotIndex: number) => (
                             <span
                               key={slotIndex}
                               style={{
@@ -900,21 +925,27 @@ const SetListForm: React.FC<SetListFormProps> = ({
                   <div style={{ 
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 12
+                    gap: window.innerWidth < 768 ? '6px' : '12px',
+                    flexWrap: window.innerWidth < 768 ? 'wrap' : 'nowrap'
                   }}>
                     <div style={{ 
                       background: 'rgba(34, 197, 94, 0.8)',
                       color: 'white',
-                      padding: '6px 12px',
+                      padding: window.innerWidth < 768 ? '4px 8px' : '6px 12px',
                       borderRadius: 8,
-                      fontSize: 14,
-                      fontWeight: 600
+                      fontSize: window.innerWidth < 768 ? '12px' : '14px',
+                      fontWeight: 600,
+                      flexShrink: 0
                     }}>
                       #{index + 1}
                     </div>
                     
                     {isLeader && (
-                      <div style={{ display: 'flex', gap: 8 }}>
+                      <div style={{ 
+                        display: 'flex', 
+                        gap: window.innerWidth < 768 ? '4px' : '8px',
+                        flexWrap: window.innerWidth < 768 ? 'wrap' : 'nowrap'
+                      }}>
                         <button
                           onClick={() => completeSongFromSetList(index)}
                           style={{
@@ -922,11 +953,12 @@ const SetListForm: React.FC<SetListFormProps> = ({
                             color: 'white',
                             border: 'none',
                             borderRadius: 8,
-                            padding: '6px 12px',
+                            padding: window.innerWidth < 768 ? '4px 8px' : '6px 12px',
                             cursor: 'pointer',
-                            fontSize: 12,
+                            fontSize: window.innerWidth < 768 ? '10px' : '12px',
                             fontWeight: 600,
-                            transition: 'all 0.3s ease'
+                            transition: 'all 0.3s ease',
+                            flexShrink: 0
                           }}
                           onMouseEnter={(e) => {
                             e.currentTarget.style.background = 'rgba(34, 197, 94, 0.9)';
@@ -944,10 +976,11 @@ const SetListForm: React.FC<SetListFormProps> = ({
                             color: 'white',
                             border: 'none',
                             borderRadius: 8,
-                            padding: '6px 12px',
+                            padding: window.innerWidth < 768 ? '4px 8px' : '6px 12px',
                             cursor: 'pointer',
-                            fontSize: 12,
+                            fontSize: window.innerWidth < 768 ? '10px' : '12px',
                             fontWeight: 600,
+                            flexShrink: 0,
                             transition: 'all 0.3s ease'
                           }}
                           onMouseEnter={(e) => {
@@ -1079,7 +1112,7 @@ const SetListForm: React.FC<SetListFormProps> = ({
                             color: '#6b7280', 
                             fontSize: 14 
                           }}>
-                            {song.artist}
+                            {(song as any).artist}
                           </p>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                             {song.members && song.members.map((member: string, memberIndex: number) => (
@@ -1224,22 +1257,47 @@ const SetListForm: React.FC<SetListFormProps> = ({
 
             <div style={{ marginBottom: 24 }}>
               <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 600, color: '#374151' }}>
-                슬롯 수 (1-10개)
+                슬롯 수 선택
               </label>
-              <input
-                type="number"
-                min="1"
-                max="10"
-                value={cardSlotCount}
-                onChange={(e) => setCardSlotCount(parseInt(e.target.value) || 3)}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: 8,
-                  fontSize: 14
-                }}
-              />
+              <div style={{ 
+                display: 'flex', 
+                gap: 8, 
+                flexWrap: 'wrap' 
+              }}>
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((count) => (
+                  <button
+                    key={count}
+                    type="button"
+                    onClick={() => setCardSlotCount(count)}
+                    style={{
+                      padding: '8px 16px',
+                      border: cardSlotCount === count ? '2px solid #3b82f6' : '1px solid #d1d5db',
+                      borderRadius: 8,
+                      background: cardSlotCount === count ? '#3b82f6' : '#ffffff',
+                      color: cardSlotCount === count ? '#ffffff' : '#374151',
+                      fontSize: 14,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      minWidth: '50px'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (cardSlotCount !== count) {
+                        e.currentTarget.style.background = '#f3f4f6';
+                        e.currentTarget.style.borderColor = '#9ca3af';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (cardSlotCount !== count) {
+                        e.currentTarget.style.background = '#ffffff';
+                        e.currentTarget.style.borderColor = '#d1d5db';
+                      }
+                    }}
+                  >
+                    {count}곡
+                  </button>
+                ))}
+              </div>
               <p style={{ margin: '8px 0 0 0', fontSize: 12, color: '#6b7280' }}>
                 해당 닉네임이 몇 곡을 부여받을지 설정하세요.
               </p>

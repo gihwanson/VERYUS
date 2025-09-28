@@ -429,7 +429,7 @@ const SetListItems: React.FC<SetListItemsProps> = ({
                       <button
                         onClick={() => {
                           if (isSetListItem(item)) {
-                            completeSongFromManager(item.songId);
+                            completeSongFromManager(item.songId || '');
                           } else if (isFlexibleCard(item)) {
                             completeFlexibleCard(item.id);
                           } else if (isRequestSongCard(item)) {
@@ -452,7 +452,7 @@ const SetListItems: React.FC<SetListItemsProps> = ({
                       <button
                         onClick={() => {
                           if (isSetListItem(item)) {
-                            removeSongFromSetList(item.songId);
+                            removeSongFromSetList(item.songId || '');
                           }
                         }}
                         style={{

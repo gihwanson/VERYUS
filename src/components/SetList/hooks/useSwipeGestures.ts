@@ -27,19 +27,6 @@ export const useSwipeGestures = (
   const handleTouchStart = (e: React.TouchEvent) => {
     console.log('🖐️ TouchStart - currentCardIndex:', currentCardIndex, 'dragEnabled:', dragEnabled);
     
-    // dragEnabled가 false이면 스와이프 기능만 비활성화하고 기본 터치 이벤트는 허용
-    if (!dragEnabled) {
-      console.log('❌ dragEnabled가 false - 스와이프만 비활성화, 스크롤은 허용');
-      // 스와이프 관련 상태만 초기화하고 터치 이벤트는 차단하지 않음
-      setTouchStart(null);
-      setTouchEnd(null);
-      setIsDragging(false);
-      setDragDistance({ x: 0, y: 0 });
-      setIsReadyToComplete(false);
-      setIsReadyToDelete(false);
-      return; // 여기서 return하지만 기본 터치 이벤트는 계속 진행됨
-    }
-    
     setTouchEnd(null);
     setIsDragging(false);
     setDragDistance({ x: 0, y: 0 });
@@ -52,19 +39,6 @@ export const useSwipeGestures = (
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    // dragEnabled가 false이면 스와이프 기능만 비활성화하고 기본 터치 이벤트는 허용
-    if (!dragEnabled) {
-      console.log('❌ dragEnabled가 false - 스와이프만 비활성화, 스크롤은 허용');
-      // 스와이프 관련 상태만 초기화하고 터치 이벤트는 차단하지 않음
-      setTouchStart(null);
-      setTouchEnd(null);
-      setIsDragging(false);
-      setDragDistance({ x: 0, y: 0 });
-      setIsReadyToComplete(false);
-      setIsReadyToDelete(false);
-      return; // 여기서 return하지만 기본 터치 이벤트는 계속 진행됨
-    }
-    
     if (!touchStart) return;
 
     const currentTouch = {
@@ -115,13 +89,6 @@ export const useSwipeGestures = (
   };
 
   const handleTouchEnd = () => {
-    // dragEnabled가 false이면 스와이프 기능만 비활성화하고 기본 터치 이벤트는 허용
-    if (!dragEnabled) {
-      console.log('❌ dragEnabled가 false - 스와이프만 비활성화, 스크롤은 허용');
-      resetDragState();
-      return; // 여기서 return하지만 기본 터치 이벤트는 계속 진행됨
-    }
-    
     // touchStart가 null이면 터치가 시작되지 않았거나 비활성화된 카드에서 시작된 것
     if (!touchStart) {
       resetDragState();
@@ -144,16 +111,8 @@ export const useSwipeGestures = (
     console.log('📊 스와이프 감지 - distanceX:', distanceX, 'distanceY:', distanceY, 'minSwipeDistance:', minSwipeDistance);
     console.log('📊 스와이프 상태 - isLeftSwipe:', isLeftSwipe, 'isRightSwipe:', isRightSwipe, 'isUpSwipe:', isUpSwipe, 'isDownSwipe:', isDownSwipe);
 
-    // 리더인 경우 위로 스와이프로 다음 곡 진행 가능 (dragEnabled가 true일 때만)
-    if (isUpSwipe && isLeader && dragEnabled && Math.abs(distanceX) < minSwipeDistance) {
-      completeCurrentSong();
-    } 
-    // 리더인 경우 아래로 스와이프로 곡 삭제 가능 (dragEnabled가 true일 때만)
-    else if (isDownSwipe && isLeader && dragEnabled && Math.abs(distanceX) < minSwipeDistance) {
-      deleteCurrentSong();
-    } 
-    // 좌우 스와이프로 카드 이동 가능 (dragEnabled가 true일 때만)
-    else if (isLeftSwipe && dragEnabled && Math.abs(distanceY) < minSwipeDistance * 1.5) {
+    // 좌우 스와이프로 카드 이동 가능 (dragEnabled와 관계없이 항상 작동)
+    if (isLeftSwipe && Math.abs(distanceY) < minSwipeDistance * 1.5) {
       console.log('⬅️ 왼쪽 스와이프 감지 - 다음 카드로 이동');
       if (goToNextCard) {
         goToNextCard();
@@ -163,7 +122,7 @@ export const useSwipeGestures = (
           setCurrentCardIndex(currentCardIndex + 1);
         }
       }
-    } else if (isRightSwipe && dragEnabled && Math.abs(distanceY) < minSwipeDistance * 1.5) {
+    } else if (isRightSwipe && Math.abs(distanceY) < minSwipeDistance * 1.5) {
       console.log('➡️ 오른쪽 스와이프 감지 - 이전 카드로 이동');
       console.log('➡️ 오른쪽 스와이프 조건 확인 - isRightSwipe:', isRightSwipe, 'dragEnabled:', dragEnabled, 'Math.abs(distanceY):', Math.abs(distanceY), 'minSwipeDistance:', minSwipeDistance);
       if (goToPrevCard) {
@@ -176,6 +135,14 @@ export const useSwipeGestures = (
           setCurrentCardIndex(currentCardIndex - 1);
         }
       }
+    }
+    // 리더인 경우 위로 스와이프로 다음 곡 진행 가능 (dragEnabled가 true일 때만)
+    else if (isUpSwipe && isLeader && dragEnabled && Math.abs(distanceX) < minSwipeDistance) {
+      completeCurrentSong();
+    } 
+    // 리더인 경우 아래로 스와이프로 곡 삭제 가능 (dragEnabled가 true일 때만)
+    else if (isDownSwipe && isLeader && dragEnabled && Math.abs(distanceX) < minSwipeDistance) {
+      deleteCurrentSong();
     } else {
       console.log('❌ 스와이프 조건 불만족 - isRightSwipe:', isRightSwipe, 'dragEnabled:', dragEnabled, 'Math.abs(distanceY):', Math.abs(distanceY), 'minSwipeDistance:', minSwipeDistance);
     }

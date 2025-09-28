@@ -11,7 +11,13 @@ const SetListManager: React.FC = () => {
   const { setLists, activeSetList } = useSetListData();
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
+    <div style={{ 
+      maxWidth: window.innerWidth < 768 ? '100%' : '1400px', 
+      margin: '0 auto', 
+      padding: window.innerWidth < 768 ? '5px' : '20px',
+      width: '100%',
+      boxSizing: 'border-box'
+    }}>
       {/* 셋리스트 생성/관리 폼 */}
       <SetListForm
         setLists={setLists}

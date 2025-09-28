@@ -102,16 +102,17 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
     return item.nickname === currentUserNickname;
   }, [currentUserNickname]);
 
-  // undefined 값 제거 함수
+  // undefined 값과 함수 제거 함수
   const removeUndefinedValues = (obj: any): any => {
     if (obj === null || obj === undefined) return null;
+    if (typeof obj === 'function') return null; // 함수 제거
     if (typeof obj !== 'object') return obj;
     if (Array.isArray(obj)) {
       return obj.map(removeUndefinedValues).filter(item => item !== null && item !== undefined);
     }
     const cleaned: any = {};
     for (const [key, value] of Object.entries(obj)) {
-      if (value !== undefined) {
+      if (value !== undefined && typeof value !== 'function') {
         cleaned[key] = removeUndefinedValues(value);
       }
     }
@@ -131,7 +132,7 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
     
     // flexibleCards에서 찾지 못했으면 songs에서 찾기 (관리탭에서 추가한 닉네임카드)
     if (!cardToUpdate) {
-      cardToUpdate = activeSetList.songs?.find(song => song.id === cardId && song.nickname);
+      cardToUpdate = activeSetList.songs?.find((song: any) => song.id === cardId && song.nickname) as any;
       isInSongs = true;
     }
     
@@ -154,32 +155,32 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
     const updatedSlots = [...cardToUpdate.slots];
     updatedSlots[slotIndex] = cleanedSlot;
 
-    const updatedCard = { 
+    const updatedCard = removeUndefinedValues({ 
       ...cardToUpdate, 
       slots: updatedSlots
-    };
+    });
 
     try {
       if (isInSongs) {
         // songs 배열에서 업데이트
-        const updatedSongs = (activeSetList.songs || []).map(song => 
+        const updatedSongs = (activeSetList.songs || []).map((song: any) => 
           song.id === cardId ? updatedCard : song
         );
         
         await updateDoc(doc(db, 'setlists', activeSetList.id!), {
-          songs: updatedSongs,
+          songs: removeUndefinedValues(updatedSongs),
           updatedAt: Timestamp.now()
         });
       } else {
         // flexibleCards 배열에서 업데이트
         const updatedFlexibleCards = (activeSetList.flexibleCards || []).map(card => 
-      card.id === cardId ? updatedCard : card
-    );
+          card.id === cardId ? updatedCard : card
+        );
 
-      await updateDoc(doc(db, 'setlists', activeSetList.id!), {
-          flexibleCards: updatedFlexibleCards,
-        updatedAt: Timestamp.now()
-      });
+        await updateDoc(doc(db, 'setlists', activeSetList.id!), {
+          flexibleCards: removeUndefinedValues(updatedFlexibleCards),
+          updatedAt: Timestamp.now()
+        });
       }
       
       // 편집 중인 카드 업데이트
@@ -319,8 +320,8 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
     const updatedSlot = {
       ...currentEditingSlot,
       title: song.title || '',
-      artist: song.artist || '',
-      songId: song.songId || song.id || '',
+      artist: (song as any).artist || '',
+      songId: (song as any).songId || song.id || '',
       type: 'solo' as const,
       members: song.members || [], // 합격곡의 참여자 목록을 자동으로 반영
       isCompleted: currentEditingSlot.isCompleted || false
@@ -350,8 +351,8 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
     if (!activeSetList) return [];
     
     // songs 배열에서 일반 곡과 닉네임카드 분리
-    const regularSongs = activeSetList.songs.filter(song => !song.nickname);
-    const nicknameCards = activeSetList.songs.filter(song => song.nickname);
+    const regularSongs = activeSetList.songs.filter((song: any) => !song.nickname);
+    const nicknameCards = activeSetList.songs.filter((song: any) => song.nickname);
     
     const songs = regularSongs.map(song => ({ ...song, type: 'song' as const }));
     const flexCards = (activeSetList.flexibleCards || [])
@@ -365,7 +366,7 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
     const convertedNicknameCards = nicknameCards.map(card => ({
       ...card,
       type: 'flexible' as const,
-      totalSlots: card.totalSlots || card.slots?.length || 0
+      totalSlots: (card as any).totalSlots || (card as any).slots?.length || 0
     }));
     
     return [...songs, ...flexCards, ...convertedNicknameCards, ...requestSongCards]
@@ -418,7 +419,7 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
       setIsModalCompleting(true);
       try {
         // 모든 슬롯의 참여자들을 수집
-        const allParticipants = [];
+        const allParticipants: string[] = [];
         if (currentItem.slots && Array.isArray(currentItem.slots)) {
           currentItem.slots.forEach(slot => {
             if (slot.members && Array.isArray(slot.members)) {
@@ -443,7 +444,7 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
         );
         
         // songs에서도 제거 (관리탭에서 추가한 닉네임카드인 경우)
-        const updatedSongs = (activeSetList.songs || []).filter(song => song.id !== currentItem.id);
+        const updatedSongs = (activeSetList.songs || []).filter((song: any) => song.id !== currentItem.id);
         
         const updatedCompletedFlexibleCards = [
           ...(activeSetList.completedFlexibleCards || []),
@@ -551,7 +552,7 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
         const updatedFlexibleCards = (activeSetList.flexibleCards || []).filter(card => card.id !== currentItem.id);
         
         // songs에서도 제거 (관리탭에서 추가한 닉네임카드인 경우)
-        const updatedSongs = (activeSetList.songs || []).filter(song => song.id !== currentItem.id);
+        const updatedSongs = (activeSetList.songs || []).filter((song: any) => song.id !== currentItem.id);
         
         await updateDoc(doc(db, 'setlists', activeSetList.id!), {
           flexibleCards: updatedFlexibleCards,
@@ -584,7 +585,7 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
       const allSongs = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
+      })) as Song[];
 
       // 현재 셋리스트의 참가자 목록 가져오기
       const currentParticipants = activeSetList?.participants || [];
@@ -594,12 +595,12 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
         if (!song.members || !Array.isArray(song.members)) return false;
         
         // 곡의 모든 참여자가 현재 셋리스트 참가자 목록에 있는지 확인
-        return song.members.every(member => 
+        return song.members.every((member: string) => 
           currentParticipants.includes(member.trim())
         );
       });
 
-      setParticipantPassedSongs(filteredSongs);
+      setParticipantPassedSongs(filteredSongs as Song[]);
     } catch (error) {
       console.error('합격곡 가져오기 실패:', error);
       alert('합격곡을 가져오는데 실패했습니다.');
@@ -645,15 +646,15 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
         }));
 
         // 현재 셋리스트 참가자와 관련된 곡만 필터링
-        const filteredSongs = participantSongs.filter(song => {
+        const filteredSongs = participantSongs.filter((song: any) => {
           if (!song.members || !Array.isArray(song.members)) return false;
           
-          return song.members.every(member => 
+          return song.members.every((member: string) => 
             currentParticipants.includes(member.trim())
           );
         });
 
-        allSongs.push(...filteredSongs);
+        allSongs.push(...(filteredSongs as Song[]));
       }
 
       // 중복 제거 (같은 곡이 여러 참가자에게 있을 수 있음)
@@ -783,7 +784,7 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
         const updatedFlexibleCards = (activeSetList.flexibleCards || []).filter(card => card.id !== currentItem.id);
         
         // songs에서도 제거 (관리탭에서 추가한 닉네임카드인 경우)
-        const updatedSongs = (activeSetList.songs || []).filter(song => song.id !== currentItem.id);
+        const updatedSongs = (activeSetList.songs || []).filter((song: any) => song.id !== currentItem.id);
         
       await updateDoc(doc(db, 'setlists', activeSetList.id!), {
         flexibleCards: updatedFlexibleCards,
@@ -933,7 +934,13 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
   }
 
   return (
-    <div style={{ maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
+    <div style={{ 
+      maxWidth: window.innerWidth < 768 ? '100%' : '1400px', 
+      margin: '0 auto', 
+      padding: window.innerWidth < 768 ? '5px' : '20px',
+      width: '100%',
+      boxSizing: 'border-box'
+    }}>
       {/* 현재 카드 */}
       {currentItem && (
         <div
@@ -941,10 +948,10 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
               style={{ 
-            transform: isDragging 
+            transform: (isDragging && dragEnabled && isLeader) 
               ? `translateY(${dragDistance.y}px) translateX(${dragDistance.x}px)` 
               : 'none',
-            transition: isDragging ? 'none' : 'transform 0.3s ease',
+            transition: (isDragging && dragEnabled && isLeader) ? 'none' : 'transform 0.3s ease',
             position: 'relative'
           }}
         >
@@ -1312,29 +1319,31 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
                 </button>
               )}
 
-              {/* 드래그 토글 버튼 */}
-              <button
-                onClick={() => setDragEnabled(!dragEnabled)}
-                            style={{
-                  background: dragEnabled ? 'rgba(34, 197, 94, 0.8)' : 'rgba(255, 255, 255, 0.2)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: 6,
-                  padding: '6px 12px',
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  transition: 'all 0.3s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = dragEnabled ? 'rgba(34, 197, 94, 0.9)' : 'rgba(255, 255, 255, 0.3)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = dragEnabled ? 'rgba(34, 197, 94, 0.8)' : 'rgba(255, 255, 255, 0.2)';
-                }}
-              >
-                {dragEnabled ? '✅ 드래그' : '❌ 드래그'}
-              </button>
+              {/* 드래그 토글 버튼 - 리더만 */}
+              {isLeader && (
+                <button
+                  onClick={() => setDragEnabled(!dragEnabled)}
+                  style={{
+                    background: dragEnabled ? 'rgba(34, 197, 94, 0.8)' : 'rgba(255, 255, 255, 0.2)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '6px 12px',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = dragEnabled ? 'rgba(34, 197, 94, 0.9)' : 'rgba(255, 255, 255, 0.3)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = dragEnabled ? 'rgba(34, 197, 94, 0.8)' : 'rgba(255, 255, 255, 0.2)';
+                  }}
+                >
+                  {dragEnabled ? '고정❌' : '고정✅'}
+                </button>
+              )}
 
               {isLeader && (
                   <button
@@ -1589,7 +1598,7 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
                             }}>
                               {myPassedSongs.map((song) => (
                                 <div
-                                  key={song.songId}
+                                  key={(song as any).songId || song.id}
                                   onClick={async () => await applyPassedSongToSlot(song)}
                                   style={{
                                     padding: '8px 12px',
@@ -1611,7 +1620,7 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
                                     {song.title}
                                   </div>
                                   <div style={{ fontSize: 12, color: '#6b7280' }}>
-                                    {song.artist}
+                                    {(song as any).artist}
                                   </div>
                                 </div>
                               ))}
@@ -2379,23 +2388,47 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
                   fontWeight: 600,
                   marginBottom: 8
                 }}>
-                  슬롯 수 (1-10개)
+                  슬롯 수 선택
                 </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={cardSlotCount}
-                  onChange={(e) => setCardSlotCount(parseInt(e.target.value) || 1)}
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: 8,
-                    fontSize: 14,
-                    color: '#374151'
-                  }}
-                />
+                <div style={{ 
+                  display: 'flex', 
+                  gap: 8, 
+                  flexWrap: 'wrap' 
+                }}>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((count) => (
+                    <button
+                      key={count}
+                      type="button"
+                      onClick={() => setCardSlotCount(count)}
+                      style={{
+                        padding: '8px 16px',
+                        border: cardSlotCount === count ? '2px solid #3b82f6' : '1px solid #d1d5db',
+                        borderRadius: 8,
+                        background: cardSlotCount === count ? '#3b82f6' : '#ffffff',
+                        color: cardSlotCount === count ? '#ffffff' : '#374151',
+                        fontSize: 14,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        minWidth: '50px'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (cardSlotCount !== count) {
+                          e.currentTarget.style.background = '#f3f4f6';
+                          e.currentTarget.style.borderColor = '#9ca3af';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (cardSlotCount !== count) {
+                          e.currentTarget.style.background = '#ffffff';
+                          e.currentTarget.style.borderColor = '#d1d5db';
+                        }
+                      }}
+                    >
+                      {count}곡
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* 버튼들 */}
