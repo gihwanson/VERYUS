@@ -28,6 +28,7 @@ interface TimeSlot {
   isAvailable: boolean;
   isPast: boolean;
   isBlocked: boolean;
+  isException?: boolean; // 규칙 예외 허용
   blockReason?: string;
   blockedBy?: string;
   blockId?: string;
@@ -42,6 +43,7 @@ interface BlockedSlot {
   reason: string;
   blockedBy: string;
   blockedAt: any;
+  isException?: boolean; // true = 규칙 무시하고 예약 허용
 }
 
 interface BlockingRule {
@@ -389,24 +391,47 @@ const PracticeRoomBooking: React.FC = () => {
         r => r.date === dateStr && r.startTime === timeStr
       );
       
-      // 차단된 시간대 찾기 (개별 차단)
-      const blockedSlot = blockedSlots.find(
+      // 개별 설정 찾기 (차단 또는 예외 허용)
+      const individualSlot = blockedSlots.find(
         b => b.date === dateStr && b.startTime === timeStr
       );
       
-      // 차단 여부 결정: 개별 차단 또는 규칙에 의한 차단
-      const isBlocked = !!blockedSlot || ruleCheck.blocked;
-      const blockReason = blockedSlot?.reason || ruleCheck.reason;
+      // 차단 여부 결정 (우선순위: 개별 설정 > 규칙)
+      let isBlocked = false;
+      let blockReason = '';
+      let blockedBy = '';
+      let blockId = undefined;
+      let isException = false;
+      
+      if (individualSlot) {
+        // 개별 설정이 있는 경우
+        if (individualSlot.isException) {
+          // 예외 허용: 규칙 무시하고 예약 가능
+          isBlocked = false;
+          isException = true;
+          blockReason = '규칙 예외 허용';
+          blockedBy = individualSlot.blockedBy;
+          blockId = individualSlot.id;
+          console.log(`✅ 예외 허용 발견: ${dateStr} ${timeStr}`, individualSlot.reason);
+        } else {
+          // 개별 차단
+          isBlocked = true;
+          blockReason = individualSlot.reason;
+          blockedBy = individualSlot.blockedBy;
+          blockId = individualSlot.id;
+          console.log(`🚫 개별 차단 발견: ${dateStr} ${timeStr}`, individualSlot.reason);
+        }
+      } else if (ruleCheck.blocked) {
+        // 개별 설정이 없고 규칙에 의한 차단
+        isBlocked = true;
+        blockReason = ruleCheck.reason || '규칙에 의한 차단';
+        blockedBy = '자동 규칙';
+        console.log(`🔄 규칙 차단 발견: ${dateStr} ${timeStr}`, ruleCheck.reason);
+      }
       
       // 디버깅 로그
       if (reservation) {
         console.log(`예약 발견: ${dateStr} ${timeStr}`, reservation.userDisplayName);
-      }
-      if (blockedSlot) {
-        console.log(`🚫 개별 차단 발견: ${dateStr} ${timeStr}`, blockedSlot.reason);
-      }
-      if (ruleCheck.blocked && !blockedSlot) {
-        console.log(`🔄 규칙 차단 발견: ${dateStr} ${timeStr}`, ruleCheck.reason);
       }
       
       slots.push({
@@ -415,9 +440,10 @@ const PracticeRoomBooking: React.FC = () => {
         isAvailable: !reservation && !isPast && !isBlocked,
         isPast: isPast,
         isBlocked: isBlocked,
+        isException: isException,
         blockReason: blockReason,
-        blockedBy: blockedSlot?.blockedBy || '자동 규칙',
-        blockId: blockedSlot?.id,
+        blockedBy: blockedBy,
+        blockId: blockId,
         reservation: reservation
       });
     }
@@ -469,13 +495,15 @@ const PracticeRoomBooking: React.FC = () => {
       return;
     }
     
-    // 차단된 시간대 클릭 - 관리자만 차단 해제 가능
+    // 차단된 시간대 클릭
     if (slot.isBlocked) {
       if (isAdmin) {
+        // 관리자: 차단 해제 또는 예외 허용
         setSelectedTimeSlot({ ...slot });
         setBookingDate(date);
         setShowBlockModal(true);
       } else {
+        // 일반 사용자: 차단 사유만 표시
         alert(`🚫 이 시간대는 차단되었습니다.\n\n사유: ${slot.blockReason || '관리자가 차단함'}`);
       }
       return;
@@ -487,13 +515,17 @@ const PracticeRoomBooking: React.FC = () => {
       console.log('📅 클릭한 날짜:', formatDate(date));
       console.log('🕐 선택한 시간:', slot.time);
       
-      // 관리자는 예약/차단 선택 모달 표시
-      if (isAdmin) {
+      // 관리자는 예약/차단/예외취소 선택 모달 표시
+      if (isAdmin && !slot.isException) {
+        // 일반 예약 가능 시간대 - 예약 또는 차단 선택
         setSelectedTimeSlot({ ...slot });
         setBookingDate(date);
         setShowAdminActionModal(true);
         return;
       }
+      
+      // 예외 허용된 시간대 포함, 일반 예약 가능 시간대는 예약 진행
+      // (관리자든 일반 사용자든 예약 가능)
       
       // 일반 사용자 - 일일 한도 체크
       const currentUsedHours = await calculateDailyUsedHours(date);
@@ -823,7 +855,13 @@ const PracticeRoomBooking: React.FC = () => {
   };
 
   const handleUnblockTimeSlot = async () => {
-    if (!selectedTimeSlot?.blockId) return;
+    if (!selectedTimeSlot) return;
+    
+    // 규칙에 의한 차단인지 확인
+    if (!selectedTimeSlot.blockId) {
+      alert('⚠️ 이 시간대는 반복 규칙에 의해 차단되었습니다.\n\n차단 해제는 "연습실 관리" 페이지에서 규칙을 비활성화하거나 삭제해주세요.');
+      return;
+    }
     
     setLoading(true);
     try {
@@ -843,6 +881,65 @@ const PracticeRoomBooking: React.FC = () => {
     } catch (error) {
       console.error('차단 해제 실패:', error);
       alert('차단 해제에 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAllowException = async () => {
+    if (!selectedTimeSlot || !bookingDate || !currentUser) return;
+    
+    setLoading(true);
+    try {
+      const dateStr = formatDate(bookingDate);
+      
+      console.log('✅ 예외 허용 시작:', dateStr, selectedTimeSlot.time);
+      
+      // 예외 허용 문서 추가
+      await addDoc(collection(db, 'blockedTimeSlots'), {
+        date: dateStr,
+        startTime: selectedTimeSlot.time,
+        endTime: selectedTimeSlot.endTime,
+        reason: '규칙 예외 허용',
+        blockedBy: currentUser.nickname || '관리자',
+        blockedAt: serverTimestamp(),
+        isException: true
+      });
+      
+      setShowBlockModal(false);
+      setSelectedTimeSlot(null);
+      setBookingDate(null);
+      
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await loadBlockedSlots();
+      
+      alert('✅ 이 시간대가 예약 가능하도록 허용되었습니다.');
+      console.log('✅ 예외 허용 완료');
+    } catch (error) {
+      console.error('예외 허용 실패:', error);
+      alert('예외 허용에 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelException = async (slot: TimeSlot) => {
+    if (!slot.blockId) return;
+    
+    setLoading(true);
+    try {
+      console.log('❌ 예외 취소 시작:', slot.time);
+      
+      await deleteDoc(doc(db, 'blockedTimeSlots', slot.blockId));
+      
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await loadBlockedSlots();
+      
+      alert('예외가 취소되었습니다.\n규칙에 의해 다시 차단됩니다.');
+      console.log('✅ 예외 취소 완료');
+    } catch (error) {
+      console.error('예외 취소 실패:', error);
+      alert('예외 취소에 실패했습니다.');
     } finally {
       setLoading(false);
     }
@@ -998,6 +1095,12 @@ const PracticeRoomBooking: React.FC = () => {
             <div className="legend-color available"></div>
             <span>예약 가능</span>
           </div>
+          {isAdmin && (
+            <div className="legend-item">
+              <div className="legend-color exception"></div>
+              <span>✅ 예외 허용</span>
+            </div>
+          )}
           <div className="legend-item">
             <div className="legend-color reserved"></div>
             <span>예약됨</span>
@@ -1043,7 +1146,7 @@ const PracticeRoomBooking: React.FC = () => {
                   key={idx}
                   className={`mobile-time-slot ${
                     slot.isPast ? 'past' : slot.isBlocked ? 'blocked' : slot.isAvailable ? 'available' : 'reserved'
-                  } ${isMyReservation ? 'my-reservation' : ''}`}
+                  } ${isMyReservation ? 'my-reservation' : ''} ${slot.isException ? 'exception' : ''}`}
                   onClick={() => !slot.isPast && handleTimeSlotClick(slot, selectedDate)}
                 >
                   <div className="mobile-slot-time">
@@ -1066,7 +1169,12 @@ const PracticeRoomBooking: React.FC = () => {
                         )}
                       </div>
                     ) : slot.isAvailable ? (
-                      <span className="slot-status available-label">예약 가능</span>
+                      <div className="available-status">
+                        <span className="slot-status available-label">예약 가능</span>
+                        {slot.isException && isAdmin && (
+                          <span className="exception-badge">✅ 예외 허용</span>
+                        )}
+                      </div>
                     ) : slot.reservation ? (
                       <div className="reservation-card">
                         <div className="reservation-header">
@@ -1145,7 +1253,7 @@ const PracticeRoomBooking: React.FC = () => {
                       key={`${dayIdx}-${hourIdx}`}
                       className={`time-slot ${
                         slot.isPast ? 'past' : slot.isBlocked ? 'blocked' : slot.isAvailable ? 'available' : 'reserved'
-                      } ${isMyReservation ? 'my-reservation' : ''}`}
+                      } ${isMyReservation ? 'my-reservation' : ''} ${slot.isException ? 'exception' : ''}`}
                       onClick={() => !slot.isPast && handleTimeSlotClick(slot, date)}
                       style={{ cursor: slot.isPast ? 'not-allowed' : 'pointer' }}
                     >
@@ -1155,6 +1263,10 @@ const PracticeRoomBooking: React.FC = () => {
                           {slot.blockReason && (
                             <span className="blocked-reason-small">{slot.blockReason}</span>
                           )}
+                        </div>
+                      ) : slot.isAvailable && slot.isException && isAdmin ? (
+                        <div className="exception-info">
+                          <span className="exception-icon">✅</span>
                         </div>
                       ) : slot.reservation && (
                         <div className="reservation-info">
@@ -1232,6 +1344,14 @@ const PracticeRoomBooking: React.FC = () => {
                 <X size={24} />
               </button>
             </div>
+            {selectedTimeSlot.isException && (
+              <div style={{ background: '#d1fae5', padding: '10px 20px', borderTop: '1px solid #6ee7b7' }}>
+                <p style={{ margin: 0, fontSize: '13px', color: '#065f46', textAlign: 'center' }}>
+                  ✅ <strong>규칙 예외로 허용된 시간대</strong>입니다
+                  {isAdmin && <span style={{ fontSize: '12px' }}> (취소는 하단 버튼)</span>}
+                </p>
+              </div>
+            )}
             <div className="modal-body">
               <div className="booking-info">
                 <div className="info-row">
@@ -1324,21 +1444,40 @@ const PracticeRoomBooking: React.FC = () => {
                 />
               </div>
             </div>
-            <div className="modal-footer">
-              <button 
-                className="cancel-btn" 
-                onClick={() => setShowBookingModal(false)}
-                disabled={loading}
-              >
-                취소
-              </button>
-              <button 
-                className="confirm-btn" 
-                onClick={handleBooking}
-                disabled={loading}
-              >
-                {loading ? '예약 중...' : '예약하기'}
-              </button>
+            <div className="modal-footer" style={{ flexDirection: selectedTimeSlot.isException && isAdmin ? 'column' : 'row', gap: selectedTimeSlot.isException && isAdmin ? '10px' : '12px' }}>
+              {selectedTimeSlot.isException && isAdmin && (
+                <button 
+                  className="delete-btn" 
+                  onClick={() => {
+                    setShowBookingModal(false);
+                    if (confirm('예외 허용을 취소하시겠습니까?\n\n규칙에 의해 다시 차단됩니다.')) {
+                      handleCancelException(selectedTimeSlot);
+                    }
+                  }}
+                  disabled={loading}
+                  style={{ width: '100%', background: '#f59e0b' }}
+                >
+                  ❌ 예외 취소 (다시 차단)
+                </button>
+              )}
+              <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
+                <button 
+                  className="cancel-btn" 
+                  onClick={() => setShowBookingModal(false)}
+                  disabled={loading}
+                  style={{ flex: 1 }}
+                >
+                  취소
+                </button>
+                <button 
+                  className="confirm-btn" 
+                  onClick={handleBooking}
+                  disabled={loading}
+                  style={{ flex: 1 }}
+                >
+                  {loading ? '예약 중...' : '예약하기'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1507,11 +1646,28 @@ const PracticeRoomBooking: React.FC = () => {
                     <p style={{ margin: '8px 0 0 0', color: '#7f1d1d' }}>
                       📝 사유: {selectedTimeSlot.blockReason}<br />
                       👤 차단자: {selectedTimeSlot.blockedBy}
+                      {!selectedTimeSlot.blockId && (
+                        <>
+                          <br />
+                          🔄 <strong>반복 규칙에 의한 자동 차단</strong>
+                        </>
+                      )}
                     </p>
                   </div>
-                  <p style={{ textAlign: 'center', color: '#6b7280' }}>
-                    이 시간대의 차단을 해제하시겠습니까?
-                  </p>
+                  {selectedTimeSlot.blockId ? (
+                    <p style={{ textAlign: 'center', color: '#6b7280' }}>
+                      이 시간대의 차단을 해제하시겠습니까?
+                    </p>
+                  ) : (
+                    <div style={{ background: '#dbeafe', padding: '12px', borderRadius: '8px', margin: '16px 0' }}>
+                      <p style={{ margin: 0, color: '#1e40af', fontSize: '14px', textAlign: 'center' }}>
+                        💡 <strong>이 시간대만 예외로 허용</strong>할 수 있습니다.<br />
+                        <span style={{ fontSize: '13px', color: '#1e3a8a' }}>
+                          규칙은 유지되지만, 이 날짜/시간은 예약 가능하게 됩니다.
+                        </span>
+                      </p>
+                    </div>
+                  )}
                 </>
               ) : (
                 <>
@@ -1548,14 +1704,39 @@ const PracticeRoomBooking: React.FC = () => {
               >
                 취소
               </button>
-              <button
-                className={selectedTimeSlot.isBlocked ? 'confirm-btn' : 'delete-btn'}
-                onClick={selectedTimeSlot.isBlocked ? handleUnblockTimeSlot : handleBlockTimeSlot}
-                disabled={loading}
-                style={{ background: selectedTimeSlot.isBlocked ? '#8A55CC' : '#ef4444' }}
-              >
-                {loading ? '처리 중...' : selectedTimeSlot.isBlocked ? '차단 해제' : '차단하기'}
-              </button>
+              {selectedTimeSlot.isBlocked ? (
+                selectedTimeSlot.blockId ? (
+                  // 개별 차단: 차단 해제
+                  <button
+                    className="confirm-btn"
+                    onClick={handleUnblockTimeSlot}
+                    disabled={loading}
+                    style={{ background: '#8A55CC' }}
+                  >
+                    {loading ? '처리 중...' : '차단 해제'}
+                  </button>
+                ) : (
+                  // 규칙 차단: 예외로 허용
+                  <button
+                    className="confirm-btn"
+                    onClick={handleAllowException}
+                    disabled={loading}
+                    style={{ background: '#10b981' }}
+                  >
+                    {loading ? '처리 중...' : '✅ 예외로 허용'}
+                  </button>
+                )
+              ) : (
+                // 차단하기
+                <button
+                  className="delete-btn"
+                  onClick={handleBlockTimeSlot}
+                  disabled={loading}
+                  style={{ background: '#ef4444' }}
+                >
+                  {loading ? '처리 중...' : '차단하기'}
+                </button>
+              )}
             </div>
           </div>
         </div>
