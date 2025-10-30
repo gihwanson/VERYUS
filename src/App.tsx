@@ -71,6 +71,10 @@ import EvaluationPostEdit from './components/EvaluationPostEdit';
 // @ts-ignore
 import PracticeRoom from './components/PracticeRoom';
 // @ts-ignore
+import PracticeRoomBooking from './components/PracticeRoomBooking';
+// @ts-ignore
+import PracticeRoomManagement from './components/PracticeRoomManagement';
+// @ts-ignore
 import BottomNavigation from './components/BottomNavigation';
 import { subscribeToAnnouncementUnreadCount } from './utils/readStatusService';
 import { subscribeToTotalUnreadCount } from './utils/chatService';
@@ -1049,6 +1053,10 @@ function App() {
               
               {/* 연습장 라우트 */}
               <Route path="/practice-room" element={<PracticeRoom />} />
+              
+              {/* 연습실 예약 라우트 */}
+              <Route path="/practice-room-booking" element={<ProtectedRoute><PracticeRoomBooking /></ProtectedRoute>} />
+              <Route path="/practice-room-management" element={<ProtectedRoute><PracticeRoomManagement /></ProtectedRoute>} />
               
               {/* 기타 모든 경로 - 404 대신 로그인으로 리다이렉트 */}
               <Route 

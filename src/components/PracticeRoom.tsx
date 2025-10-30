@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { db } from '../firebase';
 import { collection, addDoc, getDocs, updateDoc, doc, deleteDoc, query, where, onSnapshot, orderBy, limit } from 'firebase/firestore';
-import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameDay } from 'date-fns';
+import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameDay, startOfWeek, endOfWeek } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 
 interface PracticeSong {
@@ -120,9 +120,42 @@ const PracticeRoom: React.FC = () => {
   const handleAddSong = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSong.trim() || !user) return;
+    
+    // 주당 2곡 제한 체크
+    const now = new Date();
+    const weekStart = startOfWeek(now, { weekStartsOn: 0 }); // 일요일 시작
+    const weekEnd = endOfWeek(now, { weekStartsOn: 0 }); // 토요일 끝
+    
+    // 이번 주에 등록한 곡 개수 확인
+    const q = query(
+      collection(db, 'practiceSongs'),
+      where('uid', '==', user.uid)
+    );
+    const snapshot = await getDocs(q);
+    
+    const thisWeekSongs = snapshot.docs.filter(doc => {
+      const data = doc.data();
+      if (!data.createdAt) return false;
+      
+      // Firestore Timestamp를 Date로 변환
+      const createdDate = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
+      
+      return createdDate >= weekStart && createdDate <= weekEnd;
+    });
+    
+    console.log('📊 이번 주 등록 곡:', thisWeekSongs.length, '/ 2곡');
+    console.log('📅 주 기간:', format(weekStart, 'yyyy-MM-dd'), '~', format(weekEnd, 'yyyy-MM-dd'));
+    
+    if (thisWeekSongs.length >= 2) {
+      alert('주당 최대 2곡까지만 등록 가능합니다.\n\n이번 주 등록: ' + thisWeekSongs.length + '/2곡');
+      return;
+    }
+    
     const docRef = await addDoc(collection(db, 'practiceSongs'), { uid: user.uid, title: newSong.trim(), done: false, createdAt: new Date() });
     setSongs([...songs, { id: docRef.id, title: newSong.trim(), done: false, createdAt: new Date() }]);
     setNewSong('');
+    
+    alert(`곡이 등록되었습니다!\n\n이번 주 등록: ${thisWeekSongs.length + 1}/2곡`);
   };
 
   // 곡 완료 체크 (practiceSongs에서: done만 변경)
@@ -519,7 +552,7 @@ const PracticeRoom: React.FC = () => {
               type="text"
               value={newSong}
               onChange={e => setNewSong(e.target.value)}
-              placeholder="연습할 곡을 입력하세요"
+              placeholder="곡제목(곡제목만 써주세요!)"
                 style={{ 
                   flex: 1, 
                   padding: '12px 16px', 

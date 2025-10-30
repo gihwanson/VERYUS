@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, addDoc, serverTimestamp, getDoc, doc as firestoreDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDoc, doc as firestoreDoc, query, where, getDocs } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL, uploadBytesResumable } from 'firebase/storage';
 import { db, storage } from '../firebase';
 import { ArrowLeft, Mic, StopCircle, Save, X, Upload, Play, Pause } from 'lucide-react';
+import { startOfWeek, endOfWeek, format as formatDate } from 'date-fns';
 import '../styles/PostWrite.css';
 import '../styles/BoardLayout.css';
 
@@ -188,6 +189,52 @@ const EvaluationPostWrite: React.FC = () => {
       alert('닉네임을 1명 이상 입력해주세요.');
       return;
     }
+    
+    // 주당 2곡 제한 체크
+    try {
+      const now = new Date();
+      const weekStart = startOfWeek(now, { weekStartsOn: 0 }); // 일요일 시작
+      const weekEnd = endOfWeek(now, { weekStartsOn: 0 }); // 토요일 끝
+      
+      console.log('');
+      console.log('📊 ===== 평가글 주간 제한 체크 =====');
+      console.log('👤 사용자:', user.nickname, '(', user.uid, ')');
+      console.log('📅 주 기간:', formatDate(weekStart, 'yyyy-MM-dd'), '~', formatDate(weekEnd, 'yyyy-MM-dd'));
+      
+      // 이번 주에 작성한 평가글 개수 확인
+      const q = query(
+        collection(db, 'posts'),
+        where('type', '==', 'evaluation'),
+        where('writerUid', '==', user.uid)
+      );
+      
+      const snapshot = await getDocs(q);
+      
+      const thisWeekPosts = snapshot.docs.filter(doc => {
+        const data = doc.data();
+        if (!data.createdAt) return false;
+        
+        // Firestore Timestamp를 Date로 변환
+        const createdDate = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
+        
+        return createdDate >= weekStart && createdDate <= weekEnd;
+      });
+      
+      console.log('📊 이번 주 작성한 평가글:', thisWeekPosts.length, '/ 2곡');
+      
+      if (thisWeekPosts.length >= 2) {
+        console.log('🚫 주간 제한 초과!');
+        console.log('');
+        alert('주당 최대 2곡까지만 업로드 가능합니다.\n\n이번 주 업로드: ' + thisWeekPosts.length + '/2곡');
+        return;
+      }
+      
+      console.log('✅ 주간 제한 통과');
+      console.log('');
+    } catch (error) {
+      console.error('❌ 주간 제한 체크 실패:', error);
+    }
+    
     try {
       setLoading(true);
       let audioDownloadUrl = '';
@@ -243,7 +290,25 @@ const EvaluationPostWrite: React.FC = () => {
         likes: [],
         members: category === 'busking' ? members.filter(m => m.trim()) : [],
       });
-      alert('평가글이 성공적으로 업로드되었습니다.');
+      
+      // 업로드 후 이번 주 업로드 개수 다시 확인
+      const now = new Date();
+      const weekStart = startOfWeek(now, { weekStartsOn: 0 });
+      const weekEnd = endOfWeek(now, { weekStartsOn: 0 });
+      const q = query(
+        collection(db, 'posts'),
+        where('type', '==', 'evaluation'),
+        where('writerUid', '==', user.uid)
+      );
+      const snapshot = await getDocs(q);
+      const thisWeekPosts = snapshot.docs.filter(doc => {
+        const data = doc.data();
+        if (!data.createdAt) return false;
+        const createdDate = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
+        return createdDate >= weekStart && createdDate <= weekEnd;
+      });
+      
+      alert(`평가글이 업로드되었습니다!\n\n이번 주 업로드: ${thisWeekPosts.length}/2곡`);
       navigate('/evaluation');
     } catch (error) {
       console.error('평가글 업로드 오류:', error);
@@ -303,7 +368,7 @@ const EvaluationPostWrite: React.FC = () => {
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="곡제목"
+            placeholder="곡제목(곡제목만 써주세요!)"
             className="title-input"
           />
         </div>

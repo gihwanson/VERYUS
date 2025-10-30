@@ -52,6 +52,7 @@ const ADMIN_ROLES = ['리더', '운영진'];
 const BOARD_ITEMS: BoardItem[] = [
   { name: '통합 검색', path: 'search', icon: Search, isSearch: true },
   { name: '연습장', path: '/practice-room', icon: () => <span style={{fontSize:16}}>🎹</span>, emoji: '🎹' },
+  { name: '연습실예약', path: '/practice-room-booking', icon: () => <span style={{fontSize:16}}>📅</span>, emoji: '📅' },
   { name: '합격곡', path: '/approved-songs', icon: () => <span style={{fontSize:16}}>🏆</span>, emoji: '🏆' },
   { name: '셋리스트', path: '/setlist', icon: () => <span style={{fontSize:16}}>🎵</span>, emoji: '🎵' },
   { name: '콘테스트', path: '/contests', icon: () => <span style={{fontSize:16}}>🎤</span>, emoji: '🎤' },
@@ -142,7 +143,8 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
                 location.pathname.includes('/approved-songs') || 
                 location.pathname.includes('/setlist') || 
                 location.pathname.includes('/contests') || 
-                location.pathname.includes('/messages'),
+                location.pathname.includes('/messages') ||
+                location.pathname.includes('/practice-room-booking'),
       hasSubmenu: true
     },
     {
