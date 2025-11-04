@@ -45,9 +45,14 @@
   margin: 0 auto 32px auto;
 }
 
-.approved-songs-tabs.single {
-  grid-template-columns: 1fr;
-  max-width: 200px;
+.approved-songs-tabs.two {
+  grid-template-columns: repeat(2, 1fr);
+  max-width: 400px;
+}
+
+.approved-songs-tabs.three {
+  grid-template-columns: repeat(3, 1fr);
+  max-width: 600px;
 }
 
 .approved-songs-tab {

@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, Timestamp, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, Timestamp, query, orderBy, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import { collection as fbCollection, getDocs as fbGetDocs } from 'firebase/firestore';
 import { GRADE_ORDER, GRADE_NAMES, type AdminUser } from './AdminTypes';
 import type { ApprovedSong, UserMap, SongType, TabType } from './ApprovedSongsUtils';
+import { Play, Pause } from 'lucide-react';
 import { 
   filterSongsByType, 
   filterSongsBySearch, 
@@ -27,17 +28,17 @@ import './ApprovedSongs.css';
 const ApprovedSongs: React.FC = () => {
   const [songs, setSongs] = useState<ApprovedSong[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  const [activeTab, setActiveTab] = useState<'register' | 'list' | 'busking'>('list');
   const [form, setForm] = useState({ title: '', members: [''] });
   const [editId, setEditId] = useState<string | null>(null);
   const [buskingMembers, setBuskingMembers] = useState<string[]>(['']);
   const [filteredSongs, setFilteredSongs] = useState<ApprovedSong[]>([]);
-  const [showList, setShowList] = useState(true);
   const [songType, setSongType] = useState<SongType>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [userMap, setUserMap] = useState<UserMap>({});
   const [buskingTab, setBuskingTab] = useState<TabType>('all');
   const [manageTab, setManageTab] = useState<TabType>('all');
+  const [audioMap, setAudioMap] = useState<Record<string, { audioUrl: string; duration?: number }>>({});
 
   // 사용자 정보 및 권한
   const userString = localStorage.getItem('veryus_user');
@@ -50,7 +51,65 @@ const ApprovedSongs: React.FC = () => {
     const fetchSongs = async () => {
       const q = query(collection(db, 'approvedSongs'), orderBy('title'));
       const snap = await getDocs(q);
-      setSongs(snap.docs.map(convertFirestoreData));
+      const fetchedSongs = snap.docs.map(convertFirestoreData);
+      setSongs(fetchedSongs);
+      
+      // 평가게시판 게시글에서 합격된 곡들의 오디오 정보 가져오기
+      const audioDataMap: Record<string, { audioUrl: string; duration?: number }> = {};
+      
+      try {
+        // 평가게시판에서 status가 '합격'인 게시글들 가져오기
+        const evaluationQuery = query(
+          collection(db, 'posts'),
+          where('type', '==', 'evaluation'),
+          where('status', '==', '합격')
+        );
+        const evaluationSnap = await getDocs(evaluationQuery);
+        
+        // 제목별로 그룹화하고 가장 최신 것만 선택
+        const titleGroups: Record<string, { audioUrl: string; duration?: number; createdAt: any }> = {};
+        
+        evaluationSnap.docs.forEach(doc => {
+          const data = doc.data();
+          if (data.title && data.audioUrl) {
+            const titleKey = data.title.trim();
+            const createdAt = data.createdAt;
+            
+            // 같은 제목이 없거나, 더 최신 것일 때 업데이트
+            if (!titleGroups[titleKey] || 
+                (createdAt && titleGroups[titleKey].createdAt && 
+                 createdAt.toMillis && titleGroups[titleKey].createdAt.toMillis &&
+                 createdAt.toMillis() > titleGroups[titleKey].createdAt.toMillis())) {
+              titleGroups[titleKey] = {
+                audioUrl: data.audioUrl,
+                duration: data.duration,
+                createdAt: createdAt
+              };
+            }
+          }
+        });
+        
+        // 공백 제거한 버전도 매핑
+        Object.keys(titleGroups).forEach(titleKey => {
+          const titleNoSpace = titleKey.replace(/\s/g, '');
+          audioDataMap[titleKey] = {
+            audioUrl: titleGroups[titleKey].audioUrl,
+            duration: titleGroups[titleKey].duration
+          };
+          
+          if (titleNoSpace !== titleKey) {
+            audioDataMap[titleNoSpace] = {
+              audioUrl: titleGroups[titleKey].audioUrl,
+              duration: titleGroups[titleKey].duration
+            };
+          }
+        });
+        
+        setAudioMap(audioDataMap);
+      } catch (error) {
+        console.error('오디오 정보 가져오기 실패:', error);
+      }
+      
       setLoading(false);
     };
     fetchSongs();
@@ -75,6 +134,7 @@ const ApprovedSongs: React.FC = () => {
       return;
     }
     try {
+      const isEdit = !!editId;
       if (editId) {
         await updateDoc(doc(db, 'approvedSongs', editId), {
           title: form.title,
@@ -99,6 +159,8 @@ const ApprovedSongs: React.FC = () => {
       const q = query(collection(db, 'approvedSongs'), orderBy('title'));
       const snap = await getDocs(q);
       setSongs(snap.docs.map(convertFirestoreData));
+      // 저장 성공 메시지
+      alert(isEdit ? '수정되었습니다.' : '등록되었습니다.');
     } catch (err) {
       alert('저장 중 오류가 발생했습니다.');
     }
@@ -113,8 +175,7 @@ const ApprovedSongs: React.FC = () => {
   const handleEdit = (song: ApprovedSong) => {
     setForm({ title: song.title, members: Array.isArray(song.members) ? song.members : [''] });
     setEditId(song.id);
-    setShowForm(true);
-    setShowList(false);
+    setActiveTab('register');
   };
 
   const handleDelete = async (songId: string) => {
@@ -155,15 +216,14 @@ const ApprovedSongs: React.FC = () => {
         <h2 className="approved-songs-title">🎵 합격곡 관리 및 조회</h2>
         
         {/* 메인 탭 네비게이션 */}
-        <div className={`approved-songs-tabs ${!isAdmin ? 'single' : ''}`}>
+        <div className={`approved-songs-tabs ${!isAdmin ? 'two' : 'three'}`}>
           {isAdmin && (
             <TabButton
               icon="➕"
               label="합격곡 등록"
-              isActive={showForm}
+              isActive={activeTab === 'register'}
               onClick={() => { 
-                setShowForm(true); 
-                setShowList(false); 
+                setActiveTab('register');
                 setEditId(null); 
                 setForm({ title: '', members: [''] }); 
               }}
@@ -171,29 +231,27 @@ const ApprovedSongs: React.FC = () => {
           )}
           <TabButton
             icon="📋"
-            label={showList ? '리스트 닫기' : '리스트 보기'}
-            isActive={showList}
+            label="합격리스트"
+            isActive={activeTab === 'list'}
             onClick={() => { 
-              setShowList(l => { 
-                setShowForm(false); 
-                return !l; 
-              }); 
+              setActiveTab('list');
+            }}
+          />
+          <TabButton
+            icon="🎤"
+            label="버스킹용 합격곡 조회"
+            isActive={activeTab === 'busking'}
+            onClick={() => { 
+              setActiveTab('busking');
+              setBuskingMembers(['']);
+              setFilteredSongs([]);
             }}
           />
         </div>
 
         {/* 합격곡 등록/수정 폼 */}
-        {showForm && isAdmin && (
+        {activeTab === 'register' && isAdmin && (
           <>
-            <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 16 }}>
-              <button 
-                onClick={() => { setShowForm(false); setEditId(null); }} 
-                className="approved-songs-back-btn"
-              >
-                ← 이전
-              </button>
-            </div>
-            
             <FormInput
               label="곡 제목"
               value={form.title}
@@ -208,13 +266,13 @@ const ApprovedSongs: React.FC = () => {
             
             <ActionButtons
               onSave={handleSave}
-              onCancel={() => setShowForm(false)}
+              onCancel={() => setEditId(null)}
             />
           </>
         )}
 
         {/* 합격곡 리스트 */}
-        {showList && (
+        {activeTab === 'list' && (
           <>
             <SearchInput
               value={searchTerm}
@@ -285,13 +343,14 @@ const ApprovedSongs: React.FC = () => {
                 isAdmin={isAdmin}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
+                audioMap={audioMap}
               />
             )}
           </>
         )}
 
         {/* 버스킹용 합격곡 조회 폼 */}
-        {!showForm && !showList && (
+        {activeTab === 'busking' && (
           <div className="approved-songs-busking-card">
             <h3 className="approved-songs-busking-title">🎤 버스킹용 합격곡 조회</h3>
             
@@ -349,6 +408,7 @@ const ApprovedSongs: React.FC = () => {
                   onDelete={() => {}}
                   showGrade={buskingTab === 'grade'}
                   userMap={userMap}
+                  audioMap={audioMap}
                 />
               </div>
             )}

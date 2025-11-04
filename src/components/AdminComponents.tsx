@@ -92,7 +92,6 @@ export const UserCard: React.FC<UserCardProps> = ({
             <div className="user-badges">
               <span className="grade-badge">{user.grade}</span>
               <span className={`role-badge ${user.role}`}>{user.role}</span>
-              {createStatusDisplay(userStatus)}
             </div>
           </div>
           <div className="user-meta">

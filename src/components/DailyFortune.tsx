@@ -269,8 +269,7 @@ const DailyFortune: React.FC<DailyFortuneProps> = ({ user, isOpen, onClose }) =>
   if (!isOpen) return null;
 
   const getGradeEmoji = (grade?: string) => {
-    const gradeEmojis = ['🍒', '🫐', '🥝', '🍎', '🍈', '🍉', '🌍', '🪐', '☀️', '🌌', '🍺', '⚡', '⭐', '🌙'];
-    return gradeEmojis.includes(grade || '') ? grade : '🍒';
+    return '🍒';
   };
 
   return (

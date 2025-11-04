@@ -1,9 +1,46 @@
 import type { AdminUser, ExtendedUserStats, UserActivity, UserAnalytics, BulkAction } from './AdminTypes';
-import { GRADE_ORDER, GRADE_NAMES, ROLE_OPTIONS, GRADE_SYSTEM, ROLE_SYSTEM, USER_STATUS, USER_STATUS_LABELS, USER_STATUS_COLORS, ACTIVITY_SCORES, ACTIVITY_LABELS, ADMIN_ACTION_LABELS, ADMIN_ACTION_COLORS, NOTIFICATION_TYPE_LABELS, NOTIFICATION_TYPE_COLORS, type UserStatus, type ActivityStats, type UserActivitySummary, type AdminLog, type AdminAction, type LogFilter, type LogStats, type Notification, type NotificationType, type NotificationStatus, type NotificationTemplate, type NotificationStats, type NotificationTarget } from './AdminTypes';
+import { GRADE_ORDER, GRADE_NAMES, GRADE_REQUIREMENTS, ROLE_OPTIONS, GRADE_SYSTEM, ROLE_SYSTEM, USER_STATUS, USER_STATUS_LABELS, USER_STATUS_COLORS, ACTIVITY_SCORES, ACTIVITY_LABELS, ADMIN_ACTION_LABELS, ADMIN_ACTION_COLORS, NOTIFICATION_TYPE_LABELS, NOTIFICATION_TYPE_COLORS, type UserStatus, type ActivityStats, type UserActivitySummary, type AdminLog, type AdminAction, type LogFilter, type LogStats, type Notification, type NotificationType, type NotificationStatus, type NotificationTemplate, type NotificationStats, type NotificationTarget } from './AdminTypes';
 import { Crown, Shield, User, TrendingUp, Activity, Users, Clock, Award, MessageSquare, Heart, FileText, History, Search, Filter, Edit3, Trash2, AlertCircle, Settings, Download, LogIn, Bell, Send, Save, Plus, CheckCircle, X } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import { collection, doc, getDocs, updateDoc, addDoc, serverTimestamp, query, where, orderBy, limit as firestoreLimit } from 'firebase/firestore';
 import { db } from '../firebase';
+
+// 안전한 임시 비밀번호 생성
+export const generateTemporaryPassword = (): string => {
+  const length = 16;
+  const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+  const array = new Uint8Array(length);
+  crypto.getRandomValues(array);
+  
+  let password = '';
+  for (let i = 0; i < length; i++) {
+    password += charset[array[i] % charset.length];
+  }
+  
+  // 최소 하나의 대문자, 소문자, 숫자, 특수문자 포함 보장
+  const hasUpper = /[A-Z]/.test(password);
+  const hasLower = /[a-z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSpecial = /[!@#$%^&*]/.test(password);
+  
+  if (!hasUpper || !hasLower || !hasNumber || !hasSpecial) {
+    // 조건을 만족하지 않으면 재생성
+    return generateTemporaryPassword();
+  }
+  
+  return password;
+};
+
+// 비밀번호 복사 기능을 위한 유틸리티
+export const copyToClipboard = async (text: string): Promise<boolean> => {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (error) {
+    console.error('클립보드 복사 실패:', error);
+    return false;
+  }
+};
 
 
 // 날짜 포맷팅
@@ -138,31 +175,137 @@ export const getNextGrade = (currentGrade: string): string => {
   return GRADE_ORDER[currentIndex + 1];
 };
 
-// 예상 등급 계산
+// 예상 등급 계산 (활동 일수 기준)
 export const getExpectedGrade = (user: AdminUser): string => {
   const activityDays = calculateActivityDays(user.createdAt);
-  const expectedGradeIndex = Math.min(
-    Math.floor(activityDays / 90),
-    GRADE_ORDER.length - 1
-  );
   
-  if (expectedGradeIndex <= 0) return '-';
+  // GRADE_REQUIREMENTS를 역순으로 확인하여 현재 활동 일수에 맞는 최대 등급 찾기
+  // 은하 등급은 수동 부여이므로 제외
+  for (let i = GRADE_ORDER.length - 1; i >= 0; i--) {
+    const grade = GRADE_ORDER[i];
+    // 은하 등급은 수동 부여이므로 자동 계산에서 제외
+    if (grade === GRADE_SYSTEM.GALAXY) continue;
+    const requiredDays = GRADE_REQUIREMENTS[grade] || 0;
+    if (activityDays >= requiredDays) {
+      return grade;
+    }
+  }
   
-  const expectedGrade = GRADE_ORDER[expectedGradeIndex];
-  return expectedGrade;
+  return GRADE_SYSTEM.CHERRY;
 };
 
-// 승급 가능 여부 확인
-export const canPromote = (user: AdminUser): boolean => {
-  const activityDays = calculateActivityDays(user.createdAt);
-  const currentGradeIndex = GRADE_ORDER.indexOf(user.grade as any);
-  const maxGradeIndex = Math.min(
-    Math.floor(activityDays / 90),
-    GRADE_ORDER.length - 1
-  );
+// 승급 기준 인터페이스
+export interface PromotionCriteria {
+  minDays: number;
+  minActivityScore?: number;
+  minPosts?: number;
+  minComments?: number;
+  requireActive?: boolean;
+}
+
+// 특정 등급으로 승급하기 위한 기준 가져오기
+export const getPromotionCriteria = (targetGrade: string): PromotionCriteria => {
+  const requiredDays = GRADE_REQUIREMENTS[targetGrade] || 0;
+  const gradeIndex = GRADE_ORDER.indexOf(targetGrade as any);
   
-  if (activityDays < 90) return false;
-  return currentGradeIndex < maxGradeIndex;
+  return {
+    minDays: requiredDays,
+    minActivityScore: gradeIndex > 0 ? gradeIndex * 100 : 0, // 예시: 등급 인덱스 * 100
+    minPosts: gradeIndex > 0 ? gradeIndex * 5 : 0,
+    minComments: gradeIndex > 0 ? gradeIndex * 10 : 0,
+    requireActive: true
+  };
+};
+
+// 승급 자격 확인 및 부족한 항목 반환
+export const checkPromotionEligibility = (
+  user: AdminUser, 
+  targetGrade: string
+): {
+  eligible: boolean;
+  reasons: string[];
+  missing: {
+    days?: number;
+    activityScore?: number;
+    posts?: number;
+    comments?: number;
+  };
+} => {
+  const criteria = getPromotionCriteria(targetGrade);
+  const activityDays = calculateActivityDays(user.createdAt);
+  const reasons: string[] = [];
+  const missing: any = {};
+
+  // 활동 일수 체크
+  if (activityDays < criteria.minDays) {
+    reasons.push(`활동 기간 부족 (필요: ${criteria.minDays}일, 현재: ${activityDays}일)`);
+    missing.days = criteria.minDays - activityDays;
+  }
+
+  // 활동 점수 체크 (옵션)
+  if (criteria.minActivityScore !== undefined) {
+    const userScore = user.totalActivityScore || 0;
+    if (userScore < criteria.minActivityScore) {
+      reasons.push(`활동 점수 부족 (필요: ${criteria.minActivityScore}, 현재: ${userScore})`);
+      missing.activityScore = criteria.minActivityScore - userScore;
+    }
+  }
+
+  // 게시글 수 체크 (옵션)
+  if (criteria.minPosts !== undefined) {
+    const userPosts = user.postCount || 0;
+    if (userPosts < criteria.minPosts) {
+      reasons.push(`게시글 수 부족 (필요: ${criteria.minPosts}개, 현재: ${userPosts}개)`);
+      missing.posts = criteria.minPosts - userPosts;
+    }
+  }
+
+  // 댓글 수 체크 (옵션)
+  if (criteria.minComments !== undefined) {
+    const userComments = user.commentCount || 0;
+    if (userComments < criteria.minComments) {
+      reasons.push(`댓글 수 부족 (필요: ${criteria.minComments}개, 현재: ${userComments}개)`);
+      missing.comments = criteria.minComments - userComments;
+    }
+  }
+
+  // 활성 상태 체크 (옵션)
+  if (criteria.requireActive && getUserStatus(user) !== USER_STATUS.ACTIVE) {
+    reasons.push('사용자가 비활성 상태입니다');
+  }
+
+  return {
+    eligible: reasons.length === 0,
+    reasons,
+    missing
+  };
+};
+
+// 승급 가능 여부 확인 (다음 등급으로)
+export const canPromote = (user: AdminUser): boolean => {
+  const nextGrade = getNextGrade(user.grade);
+  if (nextGrade === user.grade) return false; // 이미 최고 등급
+  
+  const eligibility = checkPromotionEligibility(user, nextGrade);
+  return eligibility.eligible;
+};
+
+// 승급까지 남은 일수 계산
+export const getDaysUntilPromotion = (user: AdminUser): {
+  daysLeft: number;
+  nextGrade: string;
+  canPromote: boolean;
+} => {
+  const nextGrade = getNextGrade(user.grade);
+  const activityDays = calculateActivityDays(user.createdAt);
+  const requiredDays = GRADE_REQUIREMENTS[nextGrade] || 0;
+  const daysLeft = Math.max(0, requiredDays - activityDays);
+  
+  return {
+    daysLeft,
+    nextGrade,
+    canPromote: daysLeft === 0 && canPromote(user)
+  };
 };
 
 // 사용자 정렬 함수

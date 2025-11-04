@@ -111,47 +111,11 @@ const FreePostList: React.FC = () => {
   };
 
   const getGradeEmoji = (grade: string) => {
-    const gradeEmojis = ['🍒', '🫐', '🥝', '🍎', '🍈', '🍉', '🌍', '🪐', '☀️', '🌌', '🍺', '⚡', '⭐', '🌙'];
-    if (gradeEmojis.includes(grade)) {
-      return grade;
-    }
-    const gradeToEmoji: { [key: string]: string } = {
-      '체리': '🍒',
-      '블루베리': '🫐',
-      '키위': '🥝',
-      '사과': '🍎',
-      '멜론': '🍈',
-      '수박': '🍉',
-      '지구': '🌍',
-      '토성': '🪐',
-      '태양': '☀️',
-      '은하': '🌌',
-      '맥주': '🍺',
-      '번개': '⚡',
-      '별': '⭐',
-      '달': '🌙'
-    };
-    return gradeToEmoji[grade] || '🍒';
+    return '🍒';
   };
 
   const getGradeName = (emoji: string) => {
-    const emojiToGrade: { [key: string]: string } = {
-      '🍒': '체리',
-      '🫐': '블루베리',
-      '🥝': '키위',
-      '🍎': '사과',
-      '🍈': '멜론',
-      '🍉': '수박',
-      '🌍': '지구',
-      '🪐': '토성',
-      '☀️': '태양',
-      '🌌': '은하',
-      '🍺': '맥주',
-      '⚡': '번개',
-      '⭐': '별',
-      '🌙': '달'
-    };
-    return emojiToGrade[emoji] || '체리';
+    return '체리';
   };
 
   const setupUserInfoListener = (post: Post) => {

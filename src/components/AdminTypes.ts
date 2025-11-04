@@ -79,21 +79,25 @@ export const GRADE_SYSTEM = {
   WATERMELON: '🍉',
   EARTH: '🌍',
   SATURN: '🪐',
-  SUN: '☀️'
+  SUN: '☀️',
+  GALAXY: '🌌'
 } as const;
 
+// 등급 순서 (낮은 등급부터 높은 등급 순)
 export const GRADE_ORDER = [
-  GRADE_SYSTEM.CHERRY,
-  GRADE_SYSTEM.BLUEBERRY,
-  GRADE_SYSTEM.KIWI,
-  GRADE_SYSTEM.APPLE,
-  GRADE_SYSTEM.MELON,
-  GRADE_SYSTEM.WATERMELON,
-  GRADE_SYSTEM.EARTH,
-  GRADE_SYSTEM.SATURN,
-  GRADE_SYSTEM.SUN
+  GRADE_SYSTEM.CHERRY,      // 0일
+  GRADE_SYSTEM.BLUEBERRY,   // 90일
+  GRADE_SYSTEM.KIWI,        // 180일
+  GRADE_SYSTEM.APPLE,       // 270일
+  GRADE_SYSTEM.MELON,       // 360일
+  GRADE_SYSTEM.WATERMELON,  // 450일
+  GRADE_SYSTEM.EARTH,       // 540일
+  GRADE_SYSTEM.SATURN,      // 630일
+  GRADE_SYSTEM.SUN,         // 720일
+  GRADE_SYSTEM.GALAXY       // 은하 (평가자 등급)
 ] as const;
 
+// 등급 한글 이름
 export const GRADE_NAMES: Record<string, string> = {
   [GRADE_SYSTEM.CHERRY]: '체리',
   [GRADE_SYSTEM.BLUEBERRY]: '블루베리',
@@ -103,7 +107,22 @@ export const GRADE_NAMES: Record<string, string> = {
   [GRADE_SYSTEM.WATERMELON]: '수박',
   [GRADE_SYSTEM.EARTH]: '지구',
   [GRADE_SYSTEM.SATURN]: '토성',
-  [GRADE_SYSTEM.SUN]: '태양'
+  [GRADE_SYSTEM.SUN]: '태양',
+  [GRADE_SYSTEM.GALAXY]: '은하'
+};
+
+// 등급별 필요한 최소 활동 일수
+export const GRADE_REQUIREMENTS: Record<string, number> = {
+  [GRADE_SYSTEM.CHERRY]: 0,
+  [GRADE_SYSTEM.BLUEBERRY]: 90,
+  [GRADE_SYSTEM.KIWI]: 180,
+  [GRADE_SYSTEM.APPLE]: 270,
+  [GRADE_SYSTEM.MELON]: 360,
+  [GRADE_SYSTEM.WATERMELON]: 450,
+  [GRADE_SYSTEM.EARTH]: 540,
+  [GRADE_SYSTEM.SATURN]: 630,
+  [GRADE_SYSTEM.SUN]: 720,
+  [GRADE_SYSTEM.GALAXY]: 999 // 평가자 등급 (수동 부여)
 };
 
 // 역할 시스템 정의

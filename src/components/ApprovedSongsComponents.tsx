@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Play, Pause } from 'lucide-react';
 import type { ApprovedSong, SongType, TabType } from './ApprovedSongsUtils';
 import { GRADE_ORDER } from './AdminTypes';
 
@@ -37,6 +38,115 @@ export const FilterTab: React.FC<FilterTabProps> = ({ type, label, isActive, onC
   </button>
 );
 
+// 오디오 플레이어 컴포넌트
+const SimpleAudioPlayer: React.FC<{ audioUrl: string; duration?: number }> = ({ audioUrl, duration }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(duration || 0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const handleLoadedMetadata = () => setAudioDuration(audio.duration);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    return () => {
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+    };
+  }, [audioUrl]);
+
+  const handlePlayPause = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioRef.current.play();
+      setIsPlaying(true);
+    }
+  };
+
+  const formatTime = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <div style={{ 
+      display: 'flex', 
+      alignItems: 'center', 
+      gap: '8px', 
+      width: '100%',
+      marginTop: '8px',
+      padding: '8px',
+      background: 'rgba(255, 255, 255, 0.05)',
+      borderRadius: '8px'
+    }}>
+      <button 
+        onClick={handlePlayPause} 
+        style={{
+          background: 'rgba(138, 85, 204, 0.8)',
+          border: 'none',
+          borderRadius: '50%',
+          width: '36px',
+          height: '36px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          color: 'white',
+          flexShrink: 0
+        }}
+      >
+        {isPlaying ? <Pause size={18} /> : <Play size={18} />}
+      </button>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <span style={{ fontSize: 12, color: 'rgba(255, 255, 255, 0.8)', minWidth: 35 }}>
+          {formatTime(currentTime)}
+        </span>
+        <div
+          style={{ 
+            flex: 1, 
+            height: 6, 
+            background: 'rgba(255, 255, 255, 0.2)', 
+            borderRadius: 3, 
+            cursor: 'pointer', 
+            position: 'relative' 
+          }}
+          onClick={e => {
+            const bar = e.currentTarget;
+            const rect = bar.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const percent = x / rect.width;
+            if (audioRef.current && audioDuration) {
+              audioRef.current.currentTime = percent * audioDuration;
+              setCurrentTime(percent * audioDuration);
+            }
+          }}
+        >
+          <div
+            style={{
+              width: audioDuration ? `${(currentTime / audioDuration) * 100}%` : '0%',
+              height: '100%',
+              background: 'linear-gradient(90deg, #8A55CC 60%, #B497D6 100%)',
+              borderRadius: 3,
+              transition: 'width 0.1s',
+            }}
+          />
+        </div>
+        <span style={{ fontSize: 12, color: 'rgba(255, 255, 255, 0.8)', minWidth: 35 }}>
+          {formatTime(audioDuration || duration || 0)}
+        </span>
+      </div>
+      <audio ref={audioRef} src={audioUrl} preload="metadata" />
+    </div>
+  );
+};
+
 // 곡 리스트 아이템 컴포넌트
 interface SongListItemProps {
   song: ApprovedSong;
@@ -45,6 +155,8 @@ interface SongListItemProps {
   onDelete: (songId: string) => void;
   showGrade?: boolean;
   grade?: string;
+  audioUrl?: string;
+  audioDuration?: number;
 }
 
 export const SongListItem: React.FC<SongListItemProps> = ({ 
@@ -53,31 +165,38 @@ export const SongListItem: React.FC<SongListItemProps> = ({
   onEdit, 
   onDelete, 
   showGrade = false, 
-  grade 
+  grade,
+  audioUrl,
+  audioDuration
 }) => (
-  <li className="approved-songs-list-item">
-    {showGrade && grade && (
-      <span className="approved-songs-grade-badge">{grade}</span>
-    )}
-    <span className="approved-songs-title-text">{song.title}</span>
-    <span className="approved-songs-members">
-      {song.members?.join(', ')}
-    </span>
-    {isAdmin && (
-      <div className="approved-songs-actions-group">
-        <button
-          className="approved-songs-btn edit"
-          onClick={() => onEdit(song)}
-        >
-          ✏️ 수정
-        </button>
-        <button
-          className="approved-songs-btn remove"
-          onClick={() => onDelete(song.id)}
-        >
-          🗑️ 삭제
-        </button>
-      </div>
+  <li className="approved-songs-list-item" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+    <div style={{ display: 'flex', alignItems: 'center', width: '100%', flexWrap: 'wrap', gap: '12px' }}>
+      {showGrade && grade && (
+        <span className="approved-songs-grade-badge">{grade}</span>
+      )}
+      <span className="approved-songs-title-text" style={{ flex: '1 1 200px' }}>{song.title}</span>
+      <span className="approved-songs-members" style={{ flex: '1 1 150px' }}>
+        {song.members?.join(', ')}
+      </span>
+      {isAdmin && (
+        <div className="approved-songs-actions-group">
+          <button
+            className="approved-songs-btn edit"
+            onClick={() => onEdit(song)}
+          >
+            ✏️ 수정
+          </button>
+          <button
+            className="approved-songs-btn remove"
+            onClick={() => onDelete(song.id)}
+          >
+            🗑️ 삭제
+          </button>
+        </div>
+      )}
+    </div>
+    {audioUrl && (
+      <SimpleAudioPlayer audioUrl={audioUrl} duration={audioDuration} />
     )}
   </li>
 );
@@ -90,6 +209,7 @@ interface SongListProps {
   onDelete: (songId: string) => void;
   showGrade?: boolean;
   userMap?: Record<string, { grade?: string }>;
+  audioMap?: Record<string, { audioUrl: string; duration?: number }>;
 }
 
 export const SongList: React.FC<SongListProps> = ({ 
@@ -98,7 +218,8 @@ export const SongList: React.FC<SongListProps> = ({
   onEdit, 
   onDelete, 
   showGrade = false, 
-  userMap = {} 
+  userMap = {},
+  audioMap = {}
 }) => (
   <div className="approved-songs-card">
     <ul className="approved-songs-list">
@@ -113,6 +234,10 @@ export const SongList: React.FC<SongListProps> = ({
           grade = GRADE_ORDER[minIdx] || '🍒';
         }
         
+        // 오디오 정보 찾기 (제목과 공백 제거한 제목 모두 체크)
+        const audioInfo = audioMap[song.title.trim()] || audioMap[song.titleNoSpace] || 
+                          audioMap[song.title.replace(/\s/g, '')];
+        
         return (
           <SongListItem
             key={song.id}
@@ -122,6 +247,8 @@ export const SongList: React.FC<SongListProps> = ({
             onDelete={onDelete}
             showGrade={showGrade}
             grade={grade}
+            audioUrl={audioInfo?.audioUrl}
+            audioDuration={audioInfo?.duration}
           />
         );
       })}

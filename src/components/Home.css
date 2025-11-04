@@ -235,12 +235,15 @@
 .logo-image {
   width: 150px;
   height: 150px;
-  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.2));
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4)) brightness(1.1) contrast(1.15);
   transition: transform 0.3s ease;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.15);
   padding: 10px;
   margin-bottom: 20px;
+  opacity: 1;
+  -webkit-backdrop-filter: blur(0px);
+  backdrop-filter: blur(0px);
 }
 
 .logo-image:hover {
@@ -254,17 +257,24 @@
 .home-title {
   font-size: 42px;
   font-weight: 800;
-  color: white;
+  color: #ffffff;
   margin: 0 0 8px 0;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 255, 255, 0.2);
   letter-spacing: -0.02em;
+  opacity: 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .home-slogan {
   font-size: 18px;
-  color: rgba(255, 255, 255, 0.8);
+  color: #ffffff;
   margin: 0;
-  font-weight: 500;
+  font-weight: 600;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 15px rgba(255, 255, 255, 0.15);
+  opacity: 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* 게시판 섹션 */

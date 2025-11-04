@@ -45,6 +45,7 @@ interface EvaluationPost {
   writerPosition?: string;
   category: string;
   status?: string;
+  members?: string[];
 }
 
 interface User {
@@ -70,16 +71,16 @@ const EvaluationPostList: React.FC = () => {
   const observer = useRef<IntersectionObserver | null>(null);
   const lastPostElementRef = useRef<HTMLDivElement | null>(null);
 
-  // 등급 이모지 매핑 함수 (자유게시판과 동일)
-  const gradeEmojis = ['🍒', '🫐', '🥝', '🍎', '🍈', '🍉', '🌍', '🪐', '☀️', '🌌', '🍺', '⚡', '⭐', '🌙'];
+  // 등급 이모지 매핑 함수 - 체리만 사용
+  const gradeEmojis = ['🍒'];
   const gradeToEmoji: { [key: string]: string } = {
-    '체리': '🍒', '블루베리': '🫐', '키위': '🥝', '사과': '🍎', '멜론': '🍈', '수박': '🍉', '지구': '🌍', '토성': '🪐', '태양': '☀️', '은하': '🌌', '맥주': '🍺', '번개': '⚡', '별': '⭐', '달': '🌙'
+    '체리': '🍒', '블루베리': '🍒', '키위': '🍒', '사과': '🍒', '멜론': '🍒', '수박': '🍒', '지구': '🍒', '토성': '🍒', '태양': '🍒', '은하': '🍒', '맥주': '🍒', '번개': '🍒', '별': '🍒', '달': '🍒'
   };
   const emojiToGrade: { [key: string]: string } = {
-    '🍒': '체리', '🫐': '블루베리', '🥝': '키위', '🍎': '사과', '🍈': '멜론', '🍉': '수박', '🌍': '지구', '🪐': '토성', '☀️': '태양', '🌌': '은하', '🍺': '맥주', '⚡': '번개', '⭐': '별', '🌙': '달'
+    '🍒': '체리', '🫐': '체리', '🥝': '체리', '🍎': '체리', '🍈': '체리', '🍉': '체리', '🌍': '체리', '🪐': '체리', '☀️': '체리', '🌌': '체리', '🍺': '체리', '⚡': '체리', '⭐': '체리', '🌙': '체리'
   };
-  const getGradeEmoji = (grade: string) => gradeEmojis.includes(grade) ? grade : gradeToEmoji[grade] || '🍒';
-  const getGradeName = (emoji: string) => emojiToGrade[emoji] || '체리';
+  const getGradeEmoji = (grade: string) => '🍒';
+  const getGradeName = (emoji: string) => '체리';
 
   const fetchPosts = useCallback(async (isInitial: boolean = false) => {
     try {
@@ -88,23 +89,36 @@ const EvaluationPostList: React.FC = () => {
       setIsLoadingMore(!isInitial);
       setError(null);
       
+      // 검색어가 있으면 모든 게시글을 가져와서 필터링, 없으면 페이지네이션
+      const hasSearchTerm = searchTerm && searchTerm.trim().length > 0;
+      
       let baseQuery;
       
-      if (!isInitial && lastVisible) {
+      if (hasSearchTerm) {
+        // 검색어가 있을 때는 모든 게시글 가져오기 (페이지네이션 없음)
         baseQuery = query(
           collection(db, 'posts'),
           where('type', '==', 'evaluation'),
-          orderBy('createdAt', 'desc'),
-          startAfter(lastVisible),
-          limit(POSTS_PER_PAGE)
+          orderBy('createdAt', 'desc')
         );
       } else {
-        baseQuery = query(
-          collection(db, 'posts'),
-          where('type', '==', 'evaluation'),
-          orderBy('createdAt', 'desc'),
-          limit(POSTS_PER_PAGE)
-        );
+        // 검색어가 없을 때는 페이지네이션 사용
+        if (!isInitial && lastVisible) {
+          baseQuery = query(
+            collection(db, 'posts'),
+            where('type', '==', 'evaluation'),
+            orderBy('createdAt', 'desc'),
+            startAfter(lastVisible),
+            limit(POSTS_PER_PAGE)
+          );
+        } else {
+          baseQuery = query(
+            collection(db, 'posts'),
+            where('type', '==', 'evaluation'),
+            orderBy('createdAt', 'desc'),
+            limit(POSTS_PER_PAGE)
+          );
+        }
       }
 
       const snapshot = await getDocs(baseQuery);
@@ -117,8 +131,11 @@ const EvaluationPostList: React.FC = () => {
         return;
       }
 
-      const lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
-      setLastVisible(lastVisibleDoc);
+      // 검색어가 없을 때만 lastVisible 업데이트
+      if (!hasSearchTerm) {
+        const lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
+        setLastVisible(lastVisibleDoc);
+      }
 
       let newPosts = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -127,11 +144,46 @@ const EvaluationPostList: React.FC = () => {
       })) as EvaluationPost[];
 
       // 검색어로 필터링 (클라이언트 사이드)
-      if (searchTerm) {
-        newPosts = newPosts.filter(post => 
-          post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          post.description.toLowerCase().includes(searchTerm.toLowerCase())
-        );
+      if (hasSearchTerm) {
+        const searchLower = searchTerm.toLowerCase().trim();
+        newPosts = newPosts.filter(post => {
+          // 제목과 설명 검색
+          const matchesTitleOrDescription = 
+            (post.title && typeof post.title === 'string' && post.title.toLowerCase().includes(searchLower)) ||
+            (post.description && typeof post.description === 'string' && post.description.toLowerCase().includes(searchLower));
+          
+          // 작성자 닉네임 검색
+          const matchesWriter = 
+            post.writerNickname && 
+            typeof post.writerNickname === 'string' &&
+            post.writerNickname.toLowerCase().includes(searchLower);
+          
+          // 참여 인원 닉네임 검색 - 정확한 매칭 및 부분 매칭 모두 지원
+          let matchesMembers = false;
+          if (post.members) {
+            try {
+              if (Array.isArray(post.members)) {
+                matchesMembers = post.members.some((member: any) => {
+                  if (member == null) return false;
+                  // 문자열로 변환하고 공백 제거 후 검색
+                  const memberStr = String(member).trim();
+                  if (!memberStr) return false;
+                  // 대소문자 구분 없이 부분 매칭
+                  return memberStr.toLowerCase().includes(searchLower);
+                });
+              } else if (typeof post.members === 'string') {
+                // 혹시 문자열로 저장된 경우 (콤마로 구분된 경우 등)
+                const membersStr = String(post.members).toLowerCase();
+                matchesMembers = membersStr.includes(searchLower);
+              }
+            } catch (error) {
+              // members 필드 처리 중 오류 발생 시 무시
+              console.warn('Members 검색 중 오류:', error, post);
+            }
+          }
+          
+          return matchesTitleOrDescription || matchesWriter || matchesMembers;
+        });
       }
 
       // 작성자 등급/역할/포지션 최신화
@@ -160,12 +212,18 @@ const EvaluationPostList: React.FC = () => {
         post.writerPosition = userInfo?.position || '';
       }));
 
-      setHasMore(snapshot.docs.length === POSTS_PER_PAGE);
-
-      if (isInitial) {
+      // 검색어가 있을 때는 페이지네이션 없음
+      if (hasSearchTerm) {
+        setHasMore(false);
+        setLastVisible(null);
         setPosts(newPosts);
       } else {
-        setPosts(prev => [...prev, ...newPosts]);
+        setHasMore(snapshot.docs.length === POSTS_PER_PAGE);
+        if (isInitial) {
+          setPosts(newPosts);
+        } else {
+          setPosts(prev => [...prev, ...newPosts]);
+        }
       }
 
       setLoading(false);
