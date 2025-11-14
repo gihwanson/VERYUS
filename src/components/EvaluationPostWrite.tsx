@@ -112,6 +112,38 @@ const EvaluationPostWrite: React.FC = () => {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
+
+    // 오디오 파일만 허용 (영상 파일 차단)
+    const audioMimeTypes = ['audio/mpeg', 'audio/mp3', 'audio/mp4', 'audio/m4a', 'audio/wav', 'audio/wave', 'audio/x-wav', 'audio/aac', 'audio/x-aac', 'audio/flac', 'audio/x-flac', 'audio/ogg', 'audio/x-ogg', 'audio/webm', 'audio/x-ms-wma', 'audio/caf', 'audio/amr', 'audio/x-amr', 'audio/3gpp', 'audio/x-3gpp'];
+    const videoMimeTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-ms-wmv', 'video/webm', 'video/ogg', 'video/3gpp', 'video/x-flv', 'video/x-matroska'];
+    
+    // MIME 타입 확인
+    const fileType = file.type.toLowerCase();
+    const isAudio = audioMimeTypes.some(type => fileType.includes(type));
+    const isVideo = videoMimeTypes.some(type => fileType.includes(type));
+    
+    // 확장자 확인 (MIME 타입이 없는 경우 대비)
+    const fileName = file.name.toLowerCase();
+    const audioExtensions = ['.mp3', '.m4a', '.wav', '.aac', '.caf', '.amr', '.flac', '.ogg', '.wma', '.webm', '.3gp'];
+    const videoExtensions = ['.mp4', '.mov', '.avi', '.wmv', '.flv', '.mkv', '.webm', '.3gp'];
+    
+    const hasAudioExt = audioExtensions.some(ext => fileName.endsWith(ext));
+    const hasVideoExt = videoExtensions.some(ext => fileName.endsWith(ext));
+    
+    // 영상 파일이면 차단
+    if (isVideo || hasVideoExt) {
+      alert('영상 파일은 업로드할 수 없습니다. 오디오 파일만 업로드 가능합니다.');
+      e.target.value = ''; // input 초기화
+      return;
+    }
+    
+    // 오디오 파일이 아니면 차단
+    if (!isAudio && !hasAudioExt) {
+      alert('오디오 파일만 업로드 가능합니다. (mp3, m4a, wav, aac, caf, amr, flac, ogg, wma 등)');
+      e.target.value = ''; // input 초기화
+      return;
+    }
+
     setUploading(true);
     setUploadProgress(0);
     setDisplayFileName(null);
@@ -441,7 +473,7 @@ const EvaluationPostWrite: React.FC = () => {
           <label className="record-button upload-audio-label" style={{ minWidth: '160px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: uploading ? 'not-allowed' : 'pointer' }}>
             <input
               type="file"
-              accept="audio/*,.mp3,.m4a,.wav,.aac,.caf,.mp4,.mov,.3gp,.amr,.flac,.ogg,.wma"
+              accept="audio/*,.mp3,.m4a,.wav,.aac,.caf,.amr,.flac,.ogg,.wma"
               style={{ display: 'none' }}
               onChange={handleFileUpload}
               disabled={uploading}

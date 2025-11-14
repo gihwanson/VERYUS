@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, where, getDocs, addDoc, deleteDoc, doc, Timestamp, orderBy, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, deleteDoc, doc, Timestamp, orderBy, serverTimestamp, onSnapshot, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Calendar, Clock, User, X, ChevronLeft, ChevronRight, Info, RefreshCw } from 'lucide-react';
+import { Calendar, Clock, User, X, ChevronLeft, ChevronRight, Info, RefreshCw, LogIn, LogOut, Users } from 'lucide-react';
 import './PracticeRoomBooking.css';
 
 interface Reservation {
@@ -58,6 +58,16 @@ interface BlockingRule {
   createdAt: any;
 }
 
+interface CheckIn {
+  id: string;
+  userId: string;
+  userNickname: string;
+  checkInTime: any;
+  checkOutTime?: any;
+  status: 'checked_in' | 'checked_out';
+  createdAt: any;
+}
+
 const PracticeRoomBooking: React.FC = () => {
   const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -84,6 +94,8 @@ const PracticeRoomBooking: React.FC = () => {
   const isBookingInProgress = useRef(false); // 예약 진행 중 플래그
   const [isAdmin, setIsAdmin] = useState(false);
   const [dailyUsedHours, setDailyUsedHours] = useState(0);
+  const [checkedInMembers, setCheckedInMembers] = useState<CheckIn[]>([]);
+  const [myCheckIn, setMyCheckIn] = useState<CheckIn | null>(null);
 
   // 연습실 운영 시간 설정 (09:00 ~ 22:00, 1시간 단위)
   const OPEN_TIME = 9;
@@ -123,6 +135,57 @@ const PracticeRoomBooking: React.FC = () => {
       loadBlockingRules();
     }
   }, [selectedDate, currentUser]);
+
+  // 실시간 입실 현황 로드
+  useEffect(() => {
+    if (!currentUser) return;
+
+    console.log('입실 현황 실시간 구독 시작');
+    
+    // 인덱스 문제를 완전히 피하기 위해 모든 데이터를 가져온 후 클라이언트에서 필터링 및 정렬
+    const q = query(collection(db, 'practiceRoomCheckIn'));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const allCheckIns: CheckIn[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        allCheckIns.push({
+          id: doc.id,
+          ...data
+        } as CheckIn);
+      });
+
+      // 클라이언트에서 입실 중인 것만 필터링
+      const checkedInOnly = allCheckIns.filter(c => c.status === 'checked_in');
+      
+      // 입실 시간 기준으로 정렬 (최신순)
+      checkedInOnly.sort((a, b) => {
+        const timeA = a.checkInTime?.toMillis?.() || a.checkInTime?.seconds * 1000 || 0;
+        const timeB = b.checkInTime?.toMillis?.() || b.checkInTime?.seconds * 1000 || 0;
+        return timeB - timeA; // 내림차순
+      });
+      
+      setCheckedInMembers(checkedInOnly);
+      
+      // 내 입실 상태 확인 (입실 중인 것만)
+      const myCheckInData = checkedInOnly.find(c => c.userId === currentUser.uid);
+      setMyCheckIn(myCheckInData || null);
+
+      console.log('입실 현황 업데이트:', checkedInOnly.length, '명 / 전체:', allCheckIns.length, '명');
+      if (checkedInOnly.length > 0) {
+        console.log('입실 중인 멤버:', checkedInOnly.map(c => c.userNickname).join(', '));
+      }
+    }, (error) => {
+      console.error('입실 현황 구독 오류:', error);
+      console.error('에러 상세:', error.message);
+      // 에러가 발생해도 계속 작동하도록 alert 제거
+    });
+
+    return () => {
+      console.log('입실 현황 구독 해제');
+      unsubscribe();
+    };
+  }, [currentUser]);
 
   // 5초마다 자동 새로고침 (로딩 중이 아닐 때만)
   useEffect(() => {
@@ -1021,6 +1084,115 @@ const PracticeRoomBooking: React.FC = () => {
     }
   };
 
+  // 입실 처리
+  const handleCheckIn = async () => {
+    if (!currentUser) {
+      alert('로그인이 필요합니다.');
+      return;
+    }
+
+    // 이미 입실 중인지 확인
+    if (myCheckIn) {
+      alert('이미 입실하셨습니다.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      console.log('입실 처리 시작...');
+      console.log('사용자 정보:', {
+        uid: currentUser.uid,
+        nickname: currentUser.nickname
+      });
+
+      const checkInTime = serverTimestamp();
+      const checkInData = {
+        userId: currentUser.uid,
+        userNickname: currentUser.nickname || '익명',
+        checkInTime: checkInTime,
+        status: 'checked_in' as const,
+        createdAt: checkInTime
+      };
+
+      console.log('입실 데이터:', checkInData);
+
+      const docRef = await addDoc(collection(db, 'practiceRoomCheckIn'), checkInData);
+      console.log('✅ 입실 완료 - 문서 ID:', docRef.id);
+      
+      // 즉시 상태 업데이트를 위해 약간의 지연
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      alert('입실이 완료되었습니다.');
+    } catch (error: any) {
+      console.error('❌ 입실 실패:', error);
+      console.error('에러 코드:', error.code);
+      console.error('에러 메시지:', error.message);
+      alert(`입실 처리에 실패했습니다: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 퇴실 처리
+  const handleCheckOut = async () => {
+    if (!currentUser || !myCheckIn) {
+      alert('입실 상태가 아닙니다.');
+      return;
+    }
+
+    if (!window.confirm('퇴실하시겠습니까?')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const checkInRef = doc(db, 'practiceRoomCheckIn', myCheckIn.id);
+      await updateDoc(checkInRef, {
+        checkOutTime: serverTimestamp(),
+        status: 'checked_out'
+      });
+      alert('퇴실이 완료되었습니다.');
+      console.log('✅ 퇴실 완료');
+    } catch (error) {
+      console.error('퇴실 실패:', error);
+      alert('퇴실 처리에 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 입실 시간 포맷팅
+  const formatCheckInTime = (checkInTime: any): string => {
+    if (!checkInTime) return '';
+    
+    let date: Date;
+    if (checkInTime instanceof Timestamp) {
+      date = checkInTime.toDate();
+    } else if (checkInTime.toDate) {
+      date = checkInTime.toDate();
+    } else {
+      date = new Date(checkInTime);
+    }
+
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return '방금 전';
+    if (diffMins < 60) return `${diffMins}분 전`;
+    if (diffHours < 24) return `${diffHours}시간 전`;
+    if (diffDays < 7) return `${diffDays}일 전`;
+    
+    return date.toLocaleString('ko-KR', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   const weekDates = getWeekDates();
 
   return (
@@ -1049,6 +1221,66 @@ const PracticeRoomBooking: React.FC = () => {
             <RefreshCw size={20} className={loading ? 'spinning' : ''} />
           </button>
         </div>
+      </div>
+
+      {/* 현재 입실 현황 섹션 */}
+      <div className="check-in-section">
+        <div className="check-in-header">
+          <div className="check-in-title">
+            <Users size={20} />
+            <h2>현재 입실 현황</h2>
+            <span className="check-in-count">({checkedInMembers.length}명)</span>
+          </div>
+          {currentUser && (
+            <div className="check-in-actions">
+              {myCheckIn ? (
+                <button 
+                  className="check-out-button"
+                  onClick={handleCheckOut}
+                  disabled={loading}
+                >
+                  <LogOut size={18} />
+                  퇴실하기
+                </button>
+              ) : (
+                <button 
+                  className="check-in-button"
+                  onClick={handleCheckIn}
+                  disabled={loading}
+                >
+                  <LogIn size={18} />
+                  입실하기
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        
+        {checkedInMembers.length === 0 ? (
+          <div className="check-in-empty">
+            <p>현재 입실 중인 멤버가 없습니다.</p>
+          </div>
+        ) : (
+          <div className="check-in-list">
+            {checkedInMembers.map((checkIn) => (
+              <div 
+                key={checkIn.id} 
+                className={`check-in-item ${checkIn.userId === currentUser?.uid ? 'my-check-in' : ''}`}
+              >
+                <div className="check-in-user">
+                  <User size={16} />
+                  <span className="check-in-name">{checkIn.userNickname}</span>
+                  {checkIn.userId === currentUser?.uid && (
+                    <span className="check-in-badge">나</span>
+                  )}
+                </div>
+                <div className="check-in-time">
+                  {formatCheckInTime(checkIn.checkInTime)}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="booking-controls">

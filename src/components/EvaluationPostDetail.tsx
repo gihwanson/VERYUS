@@ -422,7 +422,7 @@ const EvaluationPostDetail: React.FC = () => {
                 <span style={{ fontSize: 15 }}>다운로드</span>
               </a>
               {/* 합불 판정 버튼 (오디오 밑, 가운데 정렬) */}
-              {user && user.role === '리더' && post.category === 'busking' && post.status !== '합격' && post.status !== '불합격' && (
+              {user && (user.nickname === '너래' || user.role === '리더' || user.grade === '🌌') && post.category === 'busking' && post.status !== '합격' && post.status !== '불합격' && (
                 <div style={{margin:'18px 0 0 0', display:'flex', justifyContent:'center', gap:16}}>
                   <button onClick={async()=>{
                     if (!window.confirm('정말 합격 처리하시겠습니까?')) return;

@@ -37,8 +37,6 @@ import RecordingPostDetail from './components/RecordingPostDetail';
 // @ts-ignore
 import RecordingPostEdit from './components/RecordingPostEdit';
 // @ts-ignore
-import Messages from './components/Messages';
-// @ts-ignore
 import Notifications from './components/Notifications';
 // @ts-ignore
 import ContestList from './components/ContestList';
@@ -77,7 +75,6 @@ import PracticeRoomManagement from './components/PracticeRoomManagement';
 // @ts-ignore
 import BottomNavigation from './components/BottomNavigation';
 import { subscribeToAnnouncementUnreadCount } from './utils/readStatusService';
-import { subscribeToTotalUnreadCount } from './utils/chatService';
 // @ts-ignore
 import SearchSystem from './components/SearchSystem';
 import './App.css';
@@ -703,9 +700,7 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
-  const [unreadChatCount, setUnreadChatCount] = useState(0);
   const [announcementUnreadCount, setAnnouncementUnreadCount] = useState(0);
-  const [generalChatUnreadCount, setGeneralChatUnreadCount] = useState(0);
   const [showSearchSystem, setShowSearchSystem] = useState(false);
   
   useEffect(() => {
@@ -750,9 +745,7 @@ function App() {
   useEffect(() => {
     if (!user) {
       setUnreadNotificationCount(0);
-      setUnreadChatCount(0);
       setAnnouncementUnreadCount(0);
-      setGeneralChatUnreadCount(0);
       return;
     }
 
@@ -778,22 +771,12 @@ function App() {
       setAnnouncementUnreadCount(count);
     });
 
-    // 일반 채팅방 안읽은 개수 구독 
-    const unsubscribeGeneralChat = subscribeToTotalUnreadCount(user.uid, (count) => {
-      setGeneralChatUnreadCount(count);
-    });
-
     return () => {
       unsubscribeNotifications();
       unsubscribeAnnouncement();
-      unsubscribeGeneralChat();
     };
   }, [user]);
 
-  // 전체 채팅 안읽은 개수 계산
-  useEffect(() => {
-    setUnreadChatCount(announcementUnreadCount + generalChatUnreadCount);
-  }, [announcementUnreadCount, generalChatUnreadCount]);
 
   // 파티클 데이터를 메모이제이션하여 렌더링마다 변경되지 않도록
   const particles = useMemo(() => {
@@ -1054,16 +1037,6 @@ function App() {
               <Route path="/recording/:id" element={<RecordingPostDetail />} />
               <Route path="/recording/edit/:id" element={<RecordingPostEdit />} />
               
-              {/* 쪽지함 라우트 */}
-              <Route 
-                path="/messages" 
-                element={
-                  <ProtectedRoute>
-                    <Messages />
-                  </ProtectedRoute>
-                }
-              />
-              
               {/* 알림 라우트 */}
               <Route 
                 path="/notifications" 
@@ -1116,7 +1089,6 @@ function App() {
             {user && (
               <BottomNavigation 
                 unreadNotificationCount={unreadNotificationCount}
-                unreadChatCount={unreadChatCount}
                 onSearchOpen={() => setShowSearchSystem(true)}
               />
             )}

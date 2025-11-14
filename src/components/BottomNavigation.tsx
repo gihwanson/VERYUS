@@ -12,7 +12,6 @@ interface User {
 
 interface BottomNavigationProps {
   unreadNotificationCount: number;
-  unreadChatCount?: number;
   onSearchOpen?: () => void;
 }
 
@@ -56,7 +55,6 @@ const BOARD_ITEMS: BoardItem[] = [
   { name: '합격곡', path: '/approved-songs', icon: () => <span style={{fontSize:16}}>🏆</span>, emoji: '🏆' },
   { name: '셋리스트', path: '/setlist', icon: () => <span style={{fontSize:16}}>🎵</span>, emoji: '🎵' },
   { name: '콘테스트', path: '/contests', icon: () => <span style={{fontSize:16}}>🎤</span>, emoji: '🎤' },
-  { name: '채팅방', path: '/messages', icon: () => <span style={{fontSize:16}}>💬</span>, emoji: '💬' },
 ];
 
 // Utility functions
@@ -95,7 +93,6 @@ const getSavedTogglePosition = (): Position => {
 
 const BottomNavigation: React.FC<BottomNavigationProps> = memo(({ 
   unreadNotificationCount, 
-  unreadChatCount = 0, 
   onSearchOpen 
 }) => {
   const navigate = useNavigate();
@@ -142,8 +139,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
       isActive: location.pathname.includes('/practice-room') || 
                 location.pathname.includes('/approved-songs') || 
                 location.pathname.includes('/setlist') || 
-                location.pathname.includes('/contests') || 
-                location.pathname.includes('/messages') ||
+                location.pathname.includes('/contests') ||
                 location.pathname.includes('/practice-room-booking'),
       hasSubmenu: true
     },
@@ -399,11 +395,6 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
         <board.icon size={16} />
       )}
       <span>{board.name}</span>
-      {board.path === '/messages' && unreadChatCount > 0 && (
-        <span className="chat-badge">
-          {unreadChatCount > 99 ? '99+' : unreadChatCount}
-        </span>
-      )}
     </button>
   );
 
@@ -421,9 +412,6 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
         />
         {item.badge && typeof item.badge === 'number' && item.badge > 0 && (
           <span className="bottom-nav-badge-dot"></span>
-        )}
-        {item.id === 'boards' && unreadChatCount > 0 && (
-          <span className="bottom-nav-badge-dot" style={{ backgroundColor: '#ef4444' }}></span>
         )}
         {Boolean(item.hasSubmenu) && showBoardsMenu && (
           <ChevronUp size={12} className="submenu-indicator" />

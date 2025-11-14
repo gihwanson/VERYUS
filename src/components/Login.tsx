@@ -52,16 +52,27 @@ const Login: React.FC = () => {
   // 닉네임으로 이메일 찾기
   const findEmailByNickname = useCallback(async (nickname: string): Promise<string | null> => {
     try {
+      const trimmedNickname = nickname.trim();
+      console.log('이메일 찾기 - 검색 닉네임:', trimmedNickname);
+      
       const q = query(
         collection(db, 'users'), 
-        where('nickname', '==', nickname.trim())
+        where('nickname', '==', trimmedNickname)
       );
       const querySnapshot = await getDocs(q);
       
+      console.log('이메일 찾기 - 검색 결과 문서 수:', querySnapshot.docs.length);
+      
       if (!querySnapshot.empty) {
         const userData = querySnapshot.docs[0].data();
+        console.log('이메일 찾기 - 찾은 사용자 데이터:', {
+          uid: querySnapshot.docs[0].id,
+          email: userData.email,
+          nickname: userData.nickname
+        });
         return userData.email;
       }
+      console.log('이메일 찾기 - 닉네임을 찾을 수 없음:', trimmedNickname);
       return null;
     } catch (error) {
       console.error('닉네임으로 이메일 찾기 에러:', error);
@@ -90,12 +101,17 @@ const Login: React.FC = () => {
         throw new Error('존재하지 않는 닉네임입니다.');
       }
 
+      console.log('로그인 시도 - 찾은 이메일:', foundEmail);
+      console.log('로그인 시도 - 닉네임:', formData.nickname);
+
       // Firebase 로그인
       const userCredential = await signInWithEmailAndPassword(
         auth, 
         foundEmail, 
         formData.password
       );
+      
+      console.log('로그인 성공 - UID:', userCredential.user.uid);
       
       // 사용자 정보 가져오기 (uid로 정확히 조회)
       const userRef = doc(db, 'users', userCredential.user.uid);

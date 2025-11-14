@@ -11,6 +11,7 @@ import {
   writeBatch,
   orderBy,
   addDoc,
+  setDoc,
   serverTimestamp,
   Timestamp,
   getDoc
@@ -485,13 +486,19 @@ const AdminPanel: React.FC = () => {
       const timestamp = Date.now();
       const internalEmail = `${sanitizedNickname}${timestamp}@veryus.internal`;
       
+      console.log('회원 추가 - 생성된 이메일:', internalEmail);
+      console.log('회원 추가 - 닉네임:', newUser.nickname);
+      
       const userCredential = await createUserWithEmailAndPassword(
         auth, 
         internalEmail, 
         newUser.password
       );
       
-      await addDoc(collection(db, 'users'), {
+      console.log('회원 추가 - Firebase Auth 사용자 생성 완료, UID:', userCredential.user.uid);
+      
+      // 문서 ID를 uid로 설정하여 저장 (로그인 시 조회 용이)
+      await setDoc(doc(db, 'users', userCredential.user.uid), {
         uid: userCredential.user.uid,
         email: internalEmail,
         nickname: newUser.nickname.trim(),
@@ -515,17 +522,56 @@ const AdminPanel: React.FC = () => {
       // 새로 생성된 사용자로 자동 로그인된 상태를 해제하기 위해 로그아웃
       await signOut(auth);
       
-      // 현재 관리자 정보를 localStorage에 복원
+      // 관리자로 다시 로그인 (localStorage에 저장된 이메일 정보 사용)
+      // 관리자 이메일을 Firestore에서 조회
       if (currentAdminInfo) {
-        localStorage.setItem('veryus_user', JSON.stringify({
-          uid: currentAdminInfo.uid,
-          email: currentAdminInfo.email,
-          nickname: currentAdminInfo.nickname,
-          role: currentAdminInfo.role,
-          grade: currentAdminInfo.grade,
-          profileImageUrl: currentAdminInfo.profileImageUrl,
-          isLoggedIn: true
-        }));
+        try {
+          const adminDocRef = doc(db, 'users', currentAdminInfo.uid);
+          const adminDocSnap = await getDoc(adminDocRef);
+          
+          if (adminDocSnap.exists()) {
+            const adminData = adminDocSnap.data();
+            const adminEmail = adminData.email || currentAdminInfo.email;
+            
+            // 관리자 이메일로 다시 로그인 시도
+            // 주의: 비밀번호는 저장하지 않으므로, 이 부분은 사용자에게 다시 로그인하도록 안내해야 함
+            // 대신 localStorage에만 정보를 저장하고 페이지를 새로고침하지 않음
+            localStorage.setItem('veryus_user', JSON.stringify({
+              uid: currentAdminInfo.uid,
+              email: adminEmail,
+              nickname: currentAdminInfo.nickname,
+              role: currentAdminInfo.role,
+              grade: currentAdminInfo.grade,
+              profileImageUrl: currentAdminInfo.profileImageUrl,
+              isLoggedIn: true
+            }));
+            
+            console.log('관리자 정보 복원 완료');
+          } else {
+            // 문서가 없으면 저장된 정보로만 복원
+            localStorage.setItem('veryus_user', JSON.stringify({
+              uid: currentAdminInfo.uid,
+              email: currentAdminInfo.email,
+              nickname: currentAdminInfo.nickname,
+              role: currentAdminInfo.role,
+              grade: currentAdminInfo.grade,
+              profileImageUrl: currentAdminInfo.profileImageUrl,
+              isLoggedIn: true
+            }));
+          }
+        } catch (error) {
+          console.error('관리자 정보 복원 실패:', error);
+          // 실패해도 localStorage에 저장된 정보로 복원 시도
+          localStorage.setItem('veryus_user', JSON.stringify({
+            uid: currentAdminInfo.uid,
+            email: currentAdminInfo.email,
+            nickname: currentAdminInfo.nickname,
+            role: currentAdminInfo.role,
+            grade: currentAdminInfo.grade,
+            profileImageUrl: currentAdminInfo.profileImageUrl,
+            isLoggedIn: true
+          }));
+        }
       }
       
       await fetchUsers();
