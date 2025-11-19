@@ -9,6 +9,7 @@ const ContestResults: React.FC = () => {
   const [grades, setGrades] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
   const [participants, setParticipants] = useState<any[]>([]);
+  const [evaluationTargets, setEvaluationTargets] = useState<any[]>([]); // 평가받는 대상 (참가자 관리에서 설정한 멤버들)
   const [selectedEvaluator, setSelectedEvaluator] = useState<string>('');
   const [selectedTarget, setSelectedTarget] = useState<string>('');
   const userString = localStorage.getItem('veryus_user');
@@ -23,6 +24,8 @@ const ContestResults: React.FC = () => {
     // 팀/참가자 정보도 불러오기
     getDocs(collection(db, 'contests', id, 'teams')).then(snap => setTeams(snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))));
     getDocs(collection(db, 'contests', id, 'participants')).then(snap => setParticipants(snap.docs.map(doc => doc.data())));
+    // 평가받는 대상 불러오기 (참가자 관리에서 설정한 멤버들)
+    getDocs(collection(db, 'contests', id, 'evaluationTargets')).then(snap => setEvaluationTargets(snap.docs.map(doc => ({ uid: doc.id, ...doc.data() }))));
   }, [id]);
 
   if (!contest) {
@@ -100,15 +103,27 @@ const ContestResults: React.FC = () => {
   const getTargetDisplay = (target: string) => {
     const team = teams.find(t => t.id === target);
     if (team) {
-      // 듀엣: 팀명 (팀원1, 팀원2)
+      // 팀: 멤버들의 닉네임을 evaluationTargets에서 먼저 찾기
       const memberNames = Array.isArray(team.members) ? team.members.map((uid: string) => {
-        // 먼저 participants에서 찾기
+        // 1순위: evaluationTargets에서 찾기 (참가자 관리에서 설정한 닉네임)
+        const evalTarget = evaluationTargets.find(et => et.uid === uid);
+        if (evalTarget && evalTarget.nickname) {
+          return evalTarget.nickname;
+        }
+        
+        // 2순위: participants에서 찾기
         const p = participants.find(pp => pp.uid === uid);
         if (p && p.nickname) {
           return p.nickname;
         }
         
-        // 그래도 찾지 못하면 uid에서 닉네임 추출 시도
+        // 3순위: uid에서 닉네임 추출 시도 (target_닉네임_... 또는 custom_닉네임_... 형태)
+        if (uid.startsWith('target_')) {
+          const parts = uid.split('_');
+          if (parts.length >= 2) {
+            return parts[1]; // target_닉네임_...에서 닉네임 부분
+          }
+        }
         if (uid.startsWith('custom_')) {
           const parts = uid.split('_');
           if (parts.length >= 2) {
@@ -118,16 +133,29 @@ const ContestResults: React.FC = () => {
         
         // 최후의 수단으로 uid 표시 (하지만 더 읽기 쉽게)
         return `참가자_${uid.slice(-4)}`;
-      }).join(', ') : '';
-      return `${team.teamName} (${memberNames})`;
+      }).join(' & ') : '';
+      return memberNames || `팀 (${team.members?.length || 0}명)`;
     }
-    // 솔로: 닉네임
+    
+    // 솔로: evaluationTargets에서 먼저 찾기
+    const evalTarget = evaluationTargets.find(et => et.uid === target);
+    if (evalTarget && evalTarget.nickname) {
+      return evalTarget.nickname;
+    }
+    
+    // participants에서 찾기
     const solo = participants.find(p => p.uid === target);
     if (solo && solo.nickname) {
       return solo.nickname;
     }
     
-    // 솔로 참가자도 찾지 못하면 uid에서 닉네임 추출 시도
+    // uid에서 닉네임 추출 시도
+    if (target.startsWith('target_')) {
+      const parts = target.split('_');
+      if (parts.length >= 2) {
+        return parts[1];
+      }
+    }
     if (target.startsWith('custom_')) {
       const parts = target.split('_');
       if (parts.length >= 2) {
@@ -142,10 +170,12 @@ const ContestResults: React.FC = () => {
   const sortedParticipants = Object.entries(participantMap)
     .map(([target, { scores, comments }]) => {
       const avg = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+      const count = scores.length; // 평가 인원 수
       return {
         target,
         display: getTargetDisplay(target),
         avg,
+        count,
         grade: getGrade(avg),
         comments: comments.join(', ')
       };
@@ -167,10 +197,12 @@ const ContestResults: React.FC = () => {
   const sortedSubAdminParticipants = Object.entries(subAdminParticipantMap)
     .map(([target, { scores, comments }]) => {
       const avg = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+      const count = scores.length; // 평가 인원 수
       return {
         target,
         display: getTargetDisplay(target),
         avg,
+        count,
         grade: getGrade(avg),
         comments: comments.join(', ')
       };
@@ -362,7 +394,7 @@ const ContestResults: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {sortedParticipants.map(({ target, display, avg, grade, comments }, index) => {
+            {sortedParticipants.map(({ target, display, avg, count, grade, comments }, index) => {
               const rank = index + 1;
               const isTop3 = rank <= 3;
               const rankEmoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}`;
@@ -399,7 +431,7 @@ const ContestResults: React.FC = () => {
                     fontWeight: isTop3 ? 'bold' : 'normal',
                     color: isTop3 ? '#2E7D32' : 'var(--text-primary, #333)'
                   }}>
-                    {avg ? avg.toFixed(1) : '-'}
+                    {avg ? `${avg.toFixed(1)} (${count})` : '-'}
                   </td>
                   <td style={{ 
                     padding: 8, 
@@ -584,7 +616,7 @@ const ContestResults: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedSubAdminParticipants.map(({ target, display, avg, grade, comments }, index) => {
+                  {sortedSubAdminParticipants.map(({ target, display, avg, count, grade, comments }, index) => {
                     const rank = index + 1;
                     const isTop3 = rank <= 3;
                     const rankEmoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}`;
@@ -621,7 +653,7 @@ const ContestResults: React.FC = () => {
                           fontWeight: isTop3 ? 'bold' : 'normal',
                           color: isTop3 ? '#2E7D32' : 'var(--text-primary, #333)'
                         }}>
-                          {avg ? avg.toFixed(1) : '-'}
+                          {avg ? `${avg.toFixed(1)} (${count})` : '-'}
                         </td>
                         <td style={{ 
                           padding: 8, 

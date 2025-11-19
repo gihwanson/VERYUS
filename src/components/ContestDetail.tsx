@@ -356,43 +356,39 @@ const ContestDetail: React.FC = () => {
   useEffect(() => {
     if (!id) return;
     
-    const fetchContest = async () => {
-      try {
-        const contestDoc = await getDoc(doc(db, 'contests', id));
-        if (contestDoc.exists()) {
-          const data = contestDoc.data();
-          const contestData = { id: contestDoc.id, ...data } as Contest;
-          setContest(contestData);
-          setEnded(!!data.ended);
-          setIsStarted(!!data.isStarted);
+    // 콘테스트 정보 실시간 구독 (개최 상태, 종료 상태, 입장 제한 상태 모두 포함)
+    const unsubContest = onSnapshot(doc(db, 'contests', id), async (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        const contestData = { id: snap.id, ...data } as Contest;
+        setContest(contestData);
+        setEnded(!!data.ended);
+        setIsStarted(!!data.isStarted);
+        // entryRestricted는 명시적으로 설정된 경우에만 업데이트 (undefined면 false로 유지)
+        if (data.entryRestricted !== undefined) {
           setEntryRestricted(!!data.entryRestricted);
-          
-          // 마감일이 지났고 아직 종료되지 않았다면 자동 종료
-          if (data.deadline && data.deadline.toDate) {
-            const deadlineDate = data.deadline.toDate();
-            const now = new Date();
-            
-            // 날짜만 비교 (시간 제거)
-            const deadlineDateOnly = new Date(deadlineDate.getFullYear(), deadlineDate.getMonth(), deadlineDate.getDate());
-            const nowDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            
-            // 마감일 다음날부터 종료 (마감일 당일까지는 참가 가능)
-            if (nowDateOnly > deadlineDateOnly && !data.ended) {
-              await updateDoc(doc(db, 'contests', id), { ended: true });
-              setEnded(true);
-              setContest({ ...contestData, ended: true });
-            }
-          }
-        } else {
-          setContest(null);
         }
-      } catch (error) {
-        console.error('콘테스트 정보 로딩 중 오류:', error);
+        
+        // 마감일이 지났고 아직 종료되지 않았다면 자동 종료
+        if (data.deadline && data.deadline.toDate) {
+          const deadlineDate = data.deadline.toDate();
+          const now = new Date();
+          
+          // 날짜만 비교 (시간 제거)
+          const deadlineDateOnly = new Date(deadlineDate.getFullYear(), deadlineDate.getMonth(), deadlineDate.getDate());
+          const nowDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          
+          // 마감일 다음날부터 종료 (마감일 당일까지는 참가 가능)
+          if (nowDateOnly > deadlineDateOnly && !data.ended) {
+            await updateDoc(doc(db, 'contests', id), { ended: true });
+            setEnded(true);
+            setContest({ ...contestData, ended: true });
+          }
+        }
+      } else {
         setContest(null);
       }
-    };
-
-    fetchContest();
+    });
     
     // 참가자 목록 실시간 구독 (평가하는 인원)
     const unsub = onSnapshot(collection(db, 'contests', id, 'participants'), snap => {
@@ -407,14 +403,6 @@ const ContestDetail: React.FC = () => {
     // 팀 목록 실시간 구독
     const unsubTeams = onSnapshot(collection(db, 'contests', id, 'teams'), snap => {
       setTeams(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Team[]);
-    });
-    
-    // 입장 제한 상태 실시간 구독 (경연 유형)
-    const unsubEntryRestriction = onSnapshot(doc(db, 'contests', id), snap => {
-      if (snap.exists()) {
-        const data = snap.data();
-        setEntryRestricted(!!data.entryRestricted);
-      }
     });
     
     // 참가자별 제출완료 여부 확인 (grades 컬렉션에서 evaluator == 참가자 닉네임)
@@ -432,10 +420,10 @@ const ContestDetail: React.FC = () => {
     fetchSubmittedUids();
     
     return () => { 
+      unsubContest();
       unsub(); 
       unsubEvaluationTargets();
       unsubTeams();
-      unsubEntryRestriction();
     };
   }, [id]);
 

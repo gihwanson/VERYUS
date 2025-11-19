@@ -128,12 +128,33 @@ const ContestParticipate: React.FC = () => {
     if (!id || !user) return;
     // "너래"는 예외로 모두 평가 가능
     if (user.nickname === '너래') return;
-    // 실시간 구독으로 변경
+    // 실시간 구독으로 변경 - 이미 제출한 평가의 점수와 코멘트도 불러오기
     const unsub = onSnapshot(
       query(collection(db, 'contests', id, 'grades'), where('evaluator', '==', user.nickname)),
       (snap) => {
-        const targets = snap.docs.map(doc => doc.data().target);
+        const targets: string[] = [];
+        const submittedGrades: Record<string, { score: string; comment: string }> = {};
+        
+        snap.docs.forEach(doc => {
+          const data = doc.data();
+          const targetId = data.target;
+          targets.push(targetId);
+          // 이미 제출한 평가의 점수와 코멘트를 gradeInputs에 설정
+          submittedGrades[targetId] = {
+            score: String(data.score || ''),
+            comment: data.comment || ''
+          };
+        });
+        
         setGradedTargets(prev => Array.from(new Set([...prev, ...targets])));
+        // 이미 제출한 평가의 점수와 코멘트를 입력 필드에 표시
+        setGradeInputs(prev => {
+          const updated = { ...prev };
+          Object.keys(submittedGrades).forEach(targetId => {
+            updated[targetId] = submittedGrades[targetId];
+          });
+          return updated;
+        });
       }
     );
     return () => unsub();
@@ -339,82 +360,132 @@ const ContestParticipate: React.FC = () => {
 
     if (!id || !user) return;
 
-    // 현재 입력된 모든 평가 데이터 수집
-    const submissionsToProcess = [];
-    
-    // 팀 평가 데이터 수집
-    for (const team of teams) {
-      const input = gradeInputs[team.id];
-      if (input && input.score && !gradedTargets.includes(team.id)) {
-        const numScore = Number(input.score);
-        if (!isNaN(numScore) && numScore >= 0 && numScore <= 100) {
-          const isMyTeam = user && (
-            team.members.includes(user.uid) ||
-            getMemberNicknames(team).some((nick: string) =>
-              extractNickname(nick).toLowerCase().replace(/\s/g, '') === user.nickname.toLowerCase().replace(/\s/g, '')
-            )
-          );
-          if (!isMyTeam) {
-            submissionsToProcess.push({
-              target: team.id,
-              score: numScore,
-              comment: input.comment || ''
-            });
-          }
-        }
-      }
-    }
-
-    // 솔로 평가받는 대상 평가 데이터 수집
-    const soloTargets = uniqueEvaluationTargets.filter(t => !teams.some(team => Array.isArray(team.members) && team.members.includes(t.uid)));
-    for (const target of soloTargets) {
-      const input = gradeInputs[target.uid];
-      if (input && input.score && !gradedTargets.includes(target.uid)) {
-        const numScore = Number(input.score);
-        if (!isNaN(numScore) && numScore >= 0 && numScore <= 100) {
-          // 본인인지 확인
-          const isMe = user && target.uid === user.uid;
-          const isMeByNickname = user && target.nickname && user.nickname && target.nickname.toLowerCase().trim() === user.nickname.toLowerCase().trim();
-          
-          if (!isMe && !isMeByNickname) {
-            submissionsToProcess.push({
-              target: target.uid,
-              score: numScore,
-              comment: input.comment || ''
-            });
-          }
-        }
-      }
-    }
-
-    if (submissionsToProcess.length === 0) {
-      alert('제출할 평가가 없습니다. 점수를 입력해주세요.');
-      return;
-    }
-
     try {
-      // 모든 평가를 데이터베이스에 제출
-      for (const submission of submissionsToProcess) {
-        // 중복 평가 확인
-        const q = query(collection(db, 'contests', id, 'grades'), where('evaluator', '==', user.nickname), where('target', '==', submission.target));
-        const snap = await getDocs(q);
-        
-        if (snap.empty) {
-          await addDoc(collection(db, 'contests', id, 'grades'), {
-            evaluator: user.nickname,
-            evaluatorRole: user.role,
-            target: submission.target,
-            score: submission.score,
-            comment: submission.comment,
-            createdAt: new Date()
+      // 1. 평가해야 할 모든 대상 목록 수집 (본인 제외)
+      const allTargetsToEvaluate: Array<{ targetId: string; displayName: string }> = [];
+      
+      // 팀 평가 대상 수집
+      for (const team of teams) {
+        const isMyTeam = user && (
+          team.members.includes(user.uid) ||
+          getMemberNicknames(team).some((nick: string) =>
+            extractNickname(nick).toLowerCase().replace(/\s/g, '') === user.nickname.toLowerCase().replace(/\s/g, '')
+          )
+        );
+        if (!isMyTeam) {
+          const memberNames = getMemberNicknames(team).join(' & ');
+          allTargetsToEvaluate.push({
+            targetId: team.id,
+            displayName: memberNames || `팀 (${team.members?.length || 0}명)`
           });
         }
       }
 
+      // 솔로 평가받는 대상 수집
+      const soloTargets = uniqueEvaluationTargets.filter(t => !teams.some(team => Array.isArray(team.members) && team.members.includes(t.uid)));
+      for (const target of soloTargets) {
+        const isMe = user && target.uid === user.uid;
+        const isMeByNickname = user && target.nickname && user.nickname && target.nickname.toLowerCase().trim() === user.nickname.toLowerCase().trim();
+        
+        if (!isMe && !isMeByNickname) {
+          allTargetsToEvaluate.push({
+            targetId: target.uid,
+            displayName: target.nickname || extractNickname(target.uid)
+          });
+        }
+      }
+
+      // 2. DB에서 이미 제출한 평가 목록 가져오기
+      const submittedGradesQuery = query(
+        collection(db, 'contests', id, 'grades'),
+        where('evaluator', '==', user.nickname)
+      );
+      const submittedGradesSnap = await getDocs(submittedGradesQuery);
+      const submittedTargetIds = submittedGradesSnap.docs.map(doc => doc.data().target);
+
+      // 3. 제출하지 않은 평가 확인
+      const unsubmittedTargets = allTargetsToEvaluate.filter(
+        target => !submittedTargetIds.includes(target.targetId)
+      );
+
+      // 4. 제출하지 않은 평가가 있으면 알림창 표시
+      if (unsubmittedTargets.length > 0) {
+        const unsubmittedNames = unsubmittedTargets.map(t => t.displayName).join(', ');
+        alert(`아직 제출하지 않은 평가가 있습니다:\n${unsubmittedNames}\n\n모든 평가를 제출한 후 다시 시도해주세요.`);
+        return;
+      }
+
+      // 5. 현재 입력된 평가 데이터 수집 및 제출 (혹시 모를 경우를 대비)
+      const submissionsToProcess = [];
+      
+      // 팀 평가 데이터 수집
+      for (const team of teams) {
+        const input = gradeInputs[team.id];
+        if (input && input.score && !submittedTargetIds.includes(team.id)) {
+          const numScore = Number(input.score);
+          if (!isNaN(numScore) && numScore >= 0 && numScore <= 100) {
+            const isMyTeam = user && (
+              team.members.includes(user.uid) ||
+              getMemberNicknames(team).some((nick: string) =>
+                extractNickname(nick).toLowerCase().replace(/\s/g, '') === user.nickname.toLowerCase().replace(/\s/g, '')
+              )
+            );
+            if (!isMyTeam) {
+              submissionsToProcess.push({
+                target: team.id,
+                score: numScore,
+                comment: input.comment || ''
+              });
+            }
+          }
+        }
+      }
+
+      // 솔로 평가받는 대상 평가 데이터 수집
+      for (const target of soloTargets) {
+        const input = gradeInputs[target.uid];
+        if (input && input.score && !submittedTargetIds.includes(target.uid)) {
+          const numScore = Number(input.score);
+          if (!isNaN(numScore) && numScore >= 0 && numScore <= 100) {
+            const isMe = user && target.uid === user.uid;
+            const isMeByNickname = user && target.nickname && user.nickname && target.nickname.toLowerCase().trim() === user.nickname.toLowerCase().trim();
+            
+            if (!isMe && !isMeByNickname) {
+              submissionsToProcess.push({
+                target: target.uid,
+                score: numScore,
+                comment: input.comment || ''
+              });
+            }
+          }
+        }
+      }
+
+      // 혹시 모를 제출할 평가가 있으면 제출
+      if (submissionsToProcess.length > 0) {
+        for (const submission of submissionsToProcess) {
+          const q = query(collection(db, 'contests', id, 'grades'), where('evaluator', '==', user.nickname), where('target', '==', submission.target));
+          const snap = await getDocs(q);
+          
+          if (snap.empty) {
+            await addDoc(collection(db, 'contests', id, 'grades'), {
+              evaluator: user.nickname,
+              evaluatorRole: user.role,
+              target: submission.target,
+              score: submission.score,
+              comment: submission.comment,
+              createdAt: new Date()
+            });
+          }
+        }
+      }
+
+      // 6. 모든 평가가 완료되었으면 "제출을 완료했습니다!" 알림 후 메인보드로 이동
+      alert('제출을 완료했습니다!');
       setShowSubmitMsg(true);
       setTimeout(() => {
-        navigate(`/contests/${id}`);
-      }, 1500);
+        navigate('/');
+      }, 500);
     } catch (error) {
       console.error('평가 제출 중 오류:', error);
       alert('평가 제출 중 오류가 발생했습니다. 다시 시도해주세요.');
@@ -962,7 +1033,9 @@ const ContestParticipate: React.FC = () => {
                         const alreadyGraded = gradedTargets.includes(team.id);
                         return (
                           <div key={team.id} style={{ 
-                            background: 'linear-gradient(135deg, #F6F2FF 0%, #F0F4FF 100%)', 
+                            background: alreadyGraded 
+                              ? 'linear-gradient(135deg, #E5E7EB 0%, #D1D5DB 100%)' 
+                              : 'linear-gradient(135deg, #F6F2FF 0%, #F0F4FF 100%)', 
                             borderRadius: 16, 
                             padding: '20px', 
                             marginBottom: 16, 
@@ -970,10 +1043,24 @@ const ContestParticipate: React.FC = () => {
                             flexDirection: 'column', 
                             gap: 12, 
                             width: '100%',
-                            boxShadow: '0 4px 16px rgba(138, 85, 204, 0.1)',
-                            border: '1px solid rgba(138, 85, 204, 0.1)'
+                            boxShadow: alreadyGraded 
+                              ? '0 2px 8px rgba(0, 0, 0, 0.1)' 
+                              : '0 4px 16px rgba(138, 85, 204, 0.1)',
+                            border: alreadyGraded 
+                              ? '1px solid #9CA3AF' 
+                              : '1px solid rgba(138, 85, 204, 0.1)',
+                            opacity: alreadyGraded ? 0.7 : 1
                           }}>
-                            <div style={{ fontWeight: 700, color: '#8A55CC', textAlign: 'center', fontSize: 18 }}>{getMemberNicknames(team).join(' & ')}</div>
+                            <div style={{ 
+                              fontWeight: 700, 
+                              color: alreadyGraded ? '#6B7280' : '#8A55CC', 
+                              textAlign: 'center', 
+                              fontSize: 18,
+                              textDecoration: alreadyGraded ? 'line-through' : 'none'
+                            }}>
+                              {getMemberNicknames(team).join(' & ')}
+                              {alreadyGraded && <span style={{ marginLeft: 8, fontSize: 14, color: '#10B981' }}>✅ 제출완료</span>}
+                            </div>
                             {/* 곡 제목 입력 필드 */}
                             <div style={{ marginTop: '8px', marginBottom: '8px' }}>
                               {isAdmin && editingSongTitle === team.id ? (
@@ -1051,26 +1138,33 @@ const ContestParticipate: React.FC = () => {
                                   <span style={{ color: '#9CA3AF', fontSize: 14 }}>자기 평가는 금지되어 있습니다.</span>
                                 </div>
                               ) : alreadyGraded ? (
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                                  <button
-                                    style={{
-                                      background: '#BDBDBD',
-                                      color: '#fff',
-                                      borderRadius: 8,
-                                      padding: '10px 24px',
-                                      fontWeight: 600,
-                                      fontSize: 16,
-                                      border: 'none',
-                                      cursor: 'not-allowed',
-                                      transition: 'background 0.2s',
-                                    }}
-                                    disabled
-                                  >
-                                    제출완료
-                                  </button>
-                                  <div style={{ color: '#10B981', fontWeight: 600, fontSize: 14, textAlign: 'center' }}>
-                                    {successMsgMap[team.id] || '이미 평가를 완료하셨습니다.'}
+                                <div style={{ 
+                                  display: 'flex', 
+                                  flexDirection: 'column', 
+                                  alignItems: 'center', 
+                                  gap: 8,
+                                  padding: '16px',
+                                  background: 'rgba(255, 255, 255, 0.5)',
+                                  borderRadius: 8
+                                }}>
+                                  <div style={{ color: '#6B7280', fontWeight: 600, fontSize: 16, textAlign: 'center' }}>
+                                    평가 제출 완료
                                   </div>
+                                  {gradeInputs[team.id]?.score && (
+                                    <div style={{ color: '#9CA3AF', fontSize: 14, textAlign: 'center' }}>
+                                      점수: {gradeInputs[team.id].score}점
+                                      {!isNaN(Number(gradeInputs[team.id]?.score)) && Number(gradeInputs[team.id]?.score) >= 1 && Number(gradeInputs[team.id]?.score) <= 100 && (
+                                        <span style={{ marginLeft: 8, color: '#8A55CC' }}>
+                                          ({getGradeFromScore(Number(gradeInputs[team.id]?.score))})
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                  {gradeInputs[team.id]?.comment && (
+                                    <div style={{ color: '#9CA3AF', fontSize: 13, textAlign: 'center', fontStyle: 'italic' }}>
+                                      "{gradeInputs[team.id].comment}"
+                                    </div>
+                                  )}
                                 </div>
                               ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
@@ -1167,7 +1261,7 @@ const ContestParticipate: React.FC = () => {
                           key={t.uid}
                           style={{
                             background: alreadyGraded 
-                              ? 'linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%)' 
+                              ? 'linear-gradient(135deg, #E5E7EB 0%, #D1D5DB 100%)' 
                               : 'linear-gradient(135deg, #F6F2FF 0%, #F0F4FF 100%)',
                             borderRadius: 16,
                             padding: '20px',
@@ -1176,13 +1270,26 @@ const ContestParticipate: React.FC = () => {
                             flexDirection: 'column',
                             gap: 12,
                             width: '100%',
-                            filter: alreadyGraded ? 'grayscale(1) opacity(0.7)' : 'none',
-                            border: alreadyGraded ? '2px dashed #B497D6' : '1px solid rgba(138, 85, 204, 0.1)',
-                            boxShadow: '0 4px 16px rgba(138, 85, 204, 0.1)',
+                            boxShadow: alreadyGraded 
+                              ? '0 2px 8px rgba(0, 0, 0, 0.1)' 
+                              : '0 4px 16px rgba(138, 85, 204, 0.1)',
+                            border: alreadyGraded 
+                              ? '1px solid #9CA3AF' 
+                              : '1px solid rgba(138, 85, 204, 0.1)',
+                            opacity: alreadyGraded ? 0.7 : 1,
                             position: 'relative',
                           }}
                         >
-                          <div style={{ fontWeight: 700, color: '#8A55CC', textAlign: 'center', fontSize: 18, textDecoration: alreadyGraded ? 'line-through' : 'none' }}>{t.nickname}</div>
+                          <div style={{ 
+                            fontWeight: 700, 
+                            color: alreadyGraded ? '#6B7280' : '#8A55CC', 
+                            textAlign: 'center', 
+                            fontSize: 18, 
+                            textDecoration: alreadyGraded ? 'line-through' : 'none' 
+                          }}>
+                            {t.nickname}
+                            {alreadyGraded && <span style={{ marginLeft: 8, fontSize: 14, color: '#10B981' }}>✅ 제출완료</span>}
+                          </div>
                           {/* 곡 제목 입력 필드 */}
                           <div style={{ marginTop: '8px', marginBottom: '8px' }}>
                             {isAdmin && editingSongTitle === t.uid ? (
@@ -1260,26 +1367,33 @@ const ContestParticipate: React.FC = () => {
                                 <span style={{ color: '#9CA3AF', fontSize: 14 }}>자기 평가는 금지되어 있습니다.</span>
                               </div>
                             ) : alreadyGraded ? (
-                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                                <button
-                                  style={{
-                                    background: '#BDBDBD',
-                                    color: '#fff',
-                                    borderRadius: 8,
-                                    padding: '10px 24px',
-                                    fontWeight: 600,
-                                    fontSize: 16,
-                                    border: 'none',
-                                    cursor: 'not-allowed',
-                                    transition: 'background 0.2s',
-                                  }}
-                                  disabled
-                                >
-                                  제출완료
-                                </button>
-                                <div style={{ color: '#10B981', fontWeight: 600, fontSize: 14, textAlign: 'center' }}>
-                                  {successMsgMap[t.uid] || '이미 평가를 완료하셨습니다.'}
+                              <div style={{ 
+                                display: 'flex', 
+                                flexDirection: 'column', 
+                                alignItems: 'center', 
+                                gap: 8,
+                                padding: '16px',
+                                background: 'rgba(255, 255, 255, 0.5)',
+                                borderRadius: 8
+                              }}>
+                                <div style={{ color: '#6B7280', fontWeight: 600, fontSize: 16, textAlign: 'center' }}>
+                                  평가 제출 완료
                                 </div>
+                                {gradeInputs[t.uid]?.score && (
+                                  <div style={{ color: '#9CA3AF', fontSize: 14, textAlign: 'center' }}>
+                                    점수: {gradeInputs[t.uid].score}점
+                                    {!isNaN(Number(gradeInputs[t.uid]?.score)) && Number(gradeInputs[t.uid]?.score) >= 1 && Number(gradeInputs[t.uid]?.score) <= 100 && (
+                                      <span style={{ marginLeft: 8, color: '#8A55CC' }}>
+                                        ({getGradeFromScore(Number(gradeInputs[t.uid]?.score))})
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                                {gradeInputs[t.uid]?.comment && (
+                                  <div style={{ color: '#9CA3AF', fontSize: 13, textAlign: 'center', fontStyle: 'italic' }}>
+                                    "{gradeInputs[t.uid].comment}"
+                                  </div>
+                                )}
                               </div>
                             ) : (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
