@@ -71,7 +71,11 @@ const ContestCreate: React.FC = () => {
         type: formData.type,
         deadline: deadlineDate,
         createdBy: user?.nickname,
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        // 경연 유형도 개최 버튼을 눌러야 시작됨
+        isStarted: false,
+        ended: false,
+        entryRestricted: false
       });
       navigate('/contests');
     } catch (error) {
@@ -139,10 +143,76 @@ const ContestCreate: React.FC = () => {
               value={formData.type} 
               onChange={e => handleInputChange('type', e.target.value as ContestType)} 
             >
-              <option value="정규등급전">정규등급전</option>
-              <option value="세미등급전">세미등급전</option>
-              <option value="경연">경연</option>
+              <option value="정규등급전">정규등급전 - 정식 등급 평가 콘테스트</option>
+              <option value="세미등급전">세미등급전 - 연습용 등급 평가 콘테스트</option>
+              <option value="경연">경연 - 참가자 상호 평가 콘테스트</option>
             </select>
+            {/* 유형별 설명 */}
+            <div style={{ 
+              marginTop: '8px', 
+              padding: '12px', 
+              borderRadius: '8px', 
+              fontSize: '14px',
+              lineHeight: '1.6',
+              background: formData.type === '경연' ? '#F6F2FF' : '#F0F9FF',
+              border: formData.type === '경연' ? '1px solid #8A55CC' : '1px solid #BAE6FD',
+              color: formData.type === '경연' ? '#6B21A8' : '#0369A1'
+            }}>
+              {formData.type === '정규등급전' && (
+                <div>
+                  <strong>📋 정규등급전</strong>
+                  <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
+                    <li>정식 등급 평가를 위한 콘테스트입니다</li>
+                    <li>운영진이 참가자들을 평가합니다</li>
+                    <li>등급 결정에 직접적으로 반영됩니다</li>
+                  </ul>
+                </div>
+              )}
+              {formData.type === '세미등급전' && (
+                <div>
+                  <strong>📋 세미등급전</strong>
+                  <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
+                    <li>연습용 등급 평가 콘테스트입니다</li>
+                    <li>운영진이 참가자들을 평가합니다</li>
+                    <li>등급 결정에 참고용으로 사용됩니다</li>
+                  </ul>
+                </div>
+              )}
+              {formData.type === '경연' && (
+                <div>
+                  <strong>🎭 경연</strong>
+                  <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
+                    <li>참가자들이 서로 평가하는 콘테스트입니다</li>
+                    <li>솔로 참가 또는 듀엣 팀 구성이 가능합니다</li>
+                    <li>각 참가자는 다른 참가자/팀을 평가합니다</li>
+                    <li>본인 또는 본인이 속한 팀은 평가할 수 없습니다</li>
+                    <li>0~100점 사이로 점수를 부여할 수 있습니다</li>
+                  </ul>
+                  <div style={{ 
+                    marginTop: '12px', 
+                    padding: '10px', 
+                    background: '#FFF7ED', 
+                    borderRadius: '6px',
+                    border: '1px solid #FED7AA',
+                    color: '#9A3412',
+                    fontSize: '13px'
+                  }}>
+                    <strong>💡 참고사항:</strong> 경연은 참가자 상호 평가 방식이므로, 참가자들이 모두 평가를 완료할 수 있도록 충분한 마감일을 설정해주세요.
+                  </div>
+                  <div style={{ 
+                    marginTop: '8px', 
+                    padding: '10px', 
+                    background: '#EFF6FF', 
+                    borderRadius: '6px',
+                    border: '1px solid #BFDBFE',
+                    color: '#1E40AF',
+                    fontSize: '13px'
+                  }}>
+                    <strong>📝 다음 단계:</strong> 콘테스트 생성 후 상세 페이지에서 참가자를 추가하고, 필요시 듀엣 팀을 구성해주세요.
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           
           <div className="contest-field">
@@ -154,7 +224,18 @@ const ContestCreate: React.FC = () => {
               className="contest-input"
               value={formData.deadline} 
               onChange={e => handleInputChange('deadline', e.target.value)} 
+              min={new Date().toISOString().split('T')[0]}
             />
+            {formData.type === '경연' && (
+              <div style={{ 
+                marginTop: '8px', 
+                fontSize: '13px', 
+                color: '#6B7280',
+                fontStyle: 'italic'
+              }}>
+                💡 경연의 경우 참가자들이 서로 평가하므로 충분한 시간을 확보해주세요.
+              </div>
+            )}
           </div>
           
           <button 

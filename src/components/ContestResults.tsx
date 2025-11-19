@@ -429,7 +429,24 @@ const ContestResults: React.FC = () => {
             })}
           </tbody>
         </table>
-        {contest.type === '경연' && <div style={{ color: '#7C4DBC', fontWeight: 600, textAlign: 'center', marginTop: '12px' }}>※ 경연 모드: 점수순 랭킹으로 최종 순위 결정</div>}
+        {contest.type === '경연' && (
+          <div style={{
+            background: 'rgba(138, 85, 204, 0.1)',
+            border: '1px solid rgba(138, 85, 204, 0.3)',
+            borderRadius: '12px',
+            padding: '16px',
+            marginTop: '16px',
+            textAlign: 'center'
+          }}>
+            <div style={{ color: '#7C4DBC', fontWeight: 700, fontSize: '16px', marginBottom: '8px' }}>
+              🎭 경연 결과 안내
+            </div>
+            <div style={{ color: '#6B21A8', fontSize: '14px', lineHeight: '1.6' }}>
+              경연은 참가자 상호 평가 방식으로 진행되었습니다.<br />
+              위 순위는 모든 참가자들의 평가 점수를 평균내어 결정되었습니다.
+            </div>
+          </div>
+        )}
       </div>
       {grades.length > 0 && (
         <div style={{ marginBottom: 32 }}>
