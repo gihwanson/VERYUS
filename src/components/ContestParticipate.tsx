@@ -1083,7 +1083,8 @@ const ContestParticipate: React.FC = () => {
                                       borderRadius: '6px',
                                       border: '1px solid #E5DAF5',
                                       fontSize: '14px',
-                                      background: '#fff'
+                                      background: '#fff',
+                                      color: '#1F2937'
                                     }}
                                   />
                                   <button
@@ -1184,7 +1185,8 @@ const ContestParticipate: React.FC = () => {
                                         border: '1px solid #E5DAF5', 
                                         fontSize: 16,
                                         boxSizing: 'border-box',
-                                        background: '#FAFAFA'
+                                        background: '#FAFAFA',
+                                        color: '#1F2937'
                                       }}
                                     />
                                     {gradeInputs[team.id]?.score && !isNaN(Number(gradeInputs[team.id]?.score)) && Number(gradeInputs[team.id]?.score) >= 1 && Number(gradeInputs[team.id]?.score) <= 100 && (
@@ -1206,7 +1208,8 @@ const ContestParticipate: React.FC = () => {
                                       border: '1px solid #E5DAF5',
                                       fontSize: 16,
                                       boxSizing: 'border-box',
-                                      background: '#FAFAFA'
+                                      background: '#FAFAFA',
+                                      color: '#1F2937'
                                     }}
                                   />
                                   <button
@@ -1312,7 +1315,8 @@ const ContestParticipate: React.FC = () => {
                                     borderRadius: '6px',
                                     border: '1px solid #E5DAF5',
                                     fontSize: '14px',
-                                    background: '#fff'
+                                    background: '#fff',
+                                    color: '#1F2937'
                                   }}
                                 />
                                 <button
@@ -1413,7 +1417,8 @@ const ContestParticipate: React.FC = () => {
                                       border: '1px solid #E5DAF5', 
                                       fontSize: 16,
                                       boxSizing: 'border-box',
-                                      background: '#FAFAFA'
+                                      background: '#FAFAFA',
+                                      color: '#1F2937'
                                     }}
                                   />
                                   {gradeInputs[t.uid]?.score && !isNaN(Number(gradeInputs[t.uid]?.score)) && Number(gradeInputs[t.uid]?.score) >= 1 && Number(gradeInputs[t.uid]?.score) <= 100 && (
@@ -1435,7 +1440,8 @@ const ContestParticipate: React.FC = () => {
                                     border: '1px solid #E5DAF5',
                                     fontSize: 16,
                                     boxSizing: 'border-box',
-                                    background: '#FAFAFA'
+                                    background: '#FAFAFA',
+                                    color: '#1F2937'
                                   }}
                                 />
                                 <button

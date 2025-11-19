@@ -189,6 +189,40 @@ const ContestDetail: React.FC = () => {
     await deleteDoc(firestoreDoc(db, 'contests', id, 'teams', teamId));
   }, [id]);
 
+  // 팀 삭제 (팀과 팀 멤버들을 evaluationTargets에서도 삭제)
+  const handleDeleteTeam = useCallback(async (teamId: string) => {
+    if (!id) return;
+    const team = teams.find(t => t.id === teamId);
+    if (!team) return;
+    
+    const teamMembers = Array.isArray(team.members) ? team.members.map((uid: string) => {
+      const target = evaluationTargets.find(tt => tt.uid === uid);
+      if (target) return target.nickname;
+      const p = participants.find(pp => pp.uid === uid);
+      return p ? p.nickname : uid;
+    }).join(' & ') : '';
+    
+    if (!window.confirm(`정말로 이 팀(${teamMembers})을 삭제하시겠습니까?\n평가지에서도 제거됩니다.`)) return;
+    
+    try {
+      // 팀 삭제
+      await deleteDoc(firestoreDoc(db, 'contests', id, 'teams', teamId));
+      
+      // 팀 멤버들을 evaluationTargets에서도 삭제
+      if (Array.isArray(team.members)) {
+        for (const memberUid of team.members) {
+          const target = evaluationTargets.find(tt => tt.uid === memberUid);
+          if (target) {
+            await deleteDoc(firestoreDoc(db, 'contests', id, 'evaluationTargets', memberUid));
+          }
+        }
+      }
+    } catch (error) {
+      console.error('팀 삭제 중 오류:', error);
+      alert('팀 삭제 중 오류가 발생했습니다.');
+    }
+  }, [id, teams, evaluationTargets, participants]);
+
 
   const handleAddParticipant = useCallback(async () => {
     if (!id || !newParticipantNickname.trim()) return;
@@ -334,12 +368,21 @@ const ContestDetail: React.FC = () => {
 
   // 참가자 목록 중복 제거 유틸
   const uniqueParticipants = useMemo(() => {
-    return participants.filter((p, idx, arr) => 
-      arr.findIndex(pp => 
-        pp.nickname && p.nickname && 
-        pp.nickname.toLowerCase().trim() === p.nickname.toLowerCase().trim()
-      ) === idx
+    // uid 기준으로 먼저 중복 제거
+    const byUid = participants.filter((p, idx, arr) => 
+      arr.findIndex(pp => pp.uid === p.uid) === idx
     );
+    
+    // nickname 기준으로 추가 중복 제거 (nickname이 있는 경우)
+    const byNickname = byUid.filter((p, idx, arr) => {
+      if (!p.nickname) return true; // nickname이 없으면 유지
+      return arr.findIndex(pp => 
+        pp.nickname && 
+        pp.nickname.toLowerCase().trim() === p.nickname.toLowerCase().trim()
+      ) === idx;
+    });
+    
+    return byNickname;
   }, [participants]);
 
   // 팀 목록을 생성 시간 순으로 정렬하는 유틸
@@ -392,7 +435,16 @@ const ContestDetail: React.FC = () => {
     
     // 참가자 목록 실시간 구독 (평가하는 인원)
     const unsub = onSnapshot(collection(db, 'contests', id, 'participants'), snap => {
-      setParticipants(snap.docs.map(doc => doc.data()) as Participant[]);
+      const participantsData = snap.docs.map(doc => {
+        const data = doc.data();
+        return {
+          uid: data.uid || doc.id,
+          nickname: data.nickname || '',
+          joinedAt: data.joinedAt || null
+        } as Participant;
+      });
+      setParticipants(participantsData);
+      console.log('참가자 목록 업데이트:', participantsData.length, '명');
     });
     
     // 평가받는 대상 목록 실시간 구독
@@ -405,25 +457,23 @@ const ContestDetail: React.FC = () => {
       setTeams(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Team[]);
     });
     
-    // 참가자별 제출완료 여부 확인 (grades 컬렉션에서 evaluator == 참가자 닉네임)
-    const fetchSubmittedUids = async () => {
+    // 참가자별 제출완료 여부 실시간 구독 (grades 컬렉션에서 evaluator == 참가자 닉네임)
+    const unsubGrades = onSnapshot(collection(db, 'contests', id, 'grades'), (snap) => {
       try {
-        const gradesSnap = await getDocs(collection(db, 'contests', id, 'grades'));
         // evaluator(닉네임) 기준으로 제출완료자 목록 추출
-        const evaluators = gradesSnap.docs.map(doc => doc.data().evaluator);
+        const evaluators = snap.docs.map(doc => doc.data().evaluator);
         setSubmittedUids(Array.from(new Set(evaluators)));
       } catch (error) {
         console.error('제출 상태 확인 중 오류:', error);
       }
-    };
-    
-    fetchSubmittedUids();
+    });
     
     return () => { 
       unsubContest();
       unsub(); 
       unsubEvaluationTargets();
       unsubTeams();
+      unsubGrades();
     };
   }, [id]);
 
@@ -613,17 +663,32 @@ const ContestDetail: React.FC = () => {
             </div>
             <div className="contest-detail-participant-list" ref={soloListRef}>
               {uniqueParticipants
-                .filter(p => !teams.some(t => Array.isArray(t.members) && t.members.includes(p.uid)))
                 .map(p => {
                   const isSubmitted = isParticipantSubmitted(p.nickname);
+                  const isInTeam = teams.some(t => Array.isArray(t.members) && t.members.includes(p.uid));
+                  const teamInfo = teams.find(t => Array.isArray(t.members) && t.members.includes(p.uid));
                   return (
                     <div 
                       key={p.uid} 
                       className={`contest-detail-participant-item ${selectedSolo.includes(p.uid) ? 'selected' : ''}`}
                       onClick={() => handleParticipantClick(p.uid)}
+                      style={{
+                        opacity: isInTeam ? 0.8 : 1,
+                        background: isInTeam ? 'rgba(138, 85, 204, 0.1)' : undefined
+                      }}
                     >
                       <span className="contest-detail-participant-name">
                         {p.nickname}
+                        {isInTeam && teamInfo && (
+                          <span style={{ 
+                            marginLeft: '8px', 
+                            fontSize: '12px', 
+                            color: '#8A55CC',
+                            fontWeight: 500
+                          }}>
+                            (팀 소속)
+                          </span>
+                        )}
                       </span>
                       <span className={`contest-detail-participant-status ${isSubmitted ? 'submitted' : 'pending'}`}>
                         {isSubmitted ? '✅ 제출완료' : '⏳ 대기중'}
@@ -649,7 +714,7 @@ const ContestDetail: React.FC = () => {
                     </div>
                   );
                 })}
-              {uniqueParticipants.filter(p => !teams.some(t => Array.isArray(t.members) && t.members.includes(p.uid))).length === 0 && (
+              {uniqueParticipants.length === 0 && (
                 <div style={{
                   textAlign: 'center',
                   padding: '20px',
@@ -898,16 +963,21 @@ const ContestDetail: React.FC = () => {
           </section>
         )}
 
-        {/* 팀 목록 섹션 - 관리자만 표시 */}
-        {isAdmin && teams.length > 0 && (
+        {/* 팀 목록 섹션 - 관리자만 표시 (팀 + evaluationTargets의 솔로참가자만 포함) */}
+        {isAdmin && (teams.length > 0 || evaluationTargets.filter(t => !teams.some(team => Array.isArray(team.members) && team.members.includes(t.uid))).length > 0) && (
           <section className="contest-detail-section">
             <h3 className="contest-detail-section-title">🎭 팀 목록</h3>
             <hr className="contest-detail-section-divider" />
             <div className="contest-detail-team-list">
+              {/* 팀 목록 */}
               {sortedTeams.map(team => {
                 const teamSubmitted = Array.isArray(team.members) && team.members.some((uid: string) => {
-                  const p = participants.find(pp => pp.uid === uid);
-                  return p && isParticipantSubmitted(p.nickname);
+                  const target = evaluationTargets.find(tt => tt.uid === uid);
+                  if (target) {
+                    const p = participants.find(pp => pp.nickname === target.nickname);
+                    return p && isParticipantSubmitted(p.nickname);
+                  }
+                  return false;
                 });
                 return (
                   <div key={team.id} className="contest-detail-team-item">
@@ -918,21 +988,28 @@ const ContestDetail: React.FC = () => {
                       marginBottom: '8px'
                     }}>
                       {Array.isArray(team.members) ? team.members.map((uid: string) => {
-                        // 평가받는 대상에서 먼저 찾기
+                        // 평가받는 대상에서만 찾기 (participants는 사용하지 않음)
                         const target = evaluationTargets.find(tt => tt.uid === uid);
-                        if (target) return target.nickname;
-                        // 없으면 참가자에서 찾기
-                        const p = participants.find(pp => pp.uid === uid);
-                        return p ? p.nickname : uid;
+                        return target ? target.nickname : uid;
                       }).join(' & ') : ''}
                     </div>
                     {isAdmin && (
-                      <div className="contest-detail-team-actions">
+                      <div className="contest-detail-team-actions" style={{ display: 'flex', gap: '8px' }}>
                         <button 
                           className="contest-detail-team-button break"
                           onClick={() => handleBreakDuet(team.id)}
                         >
                           팀 해제
+                        </button>
+                        <button 
+                          className="contest-detail-team-button break"
+                          onClick={() => handleDeleteTeam(team.id)}
+                          style={{
+                            background: '#F43F5E',
+                            color: '#fff'
+                          }}
+                        >
+                          삭제
                         </button>
                       </div>
                     )}
@@ -944,28 +1021,42 @@ const ContestDetail: React.FC = () => {
                   </div>
                 );
               })}
-            </div>
-          </section>
-        )}
-
-        {/* 솔로 참가자 섹션 - 관리자만 표시 */}
-        {isAdmin && uniqueParticipants.filter(p => !teams.some(t => Array.isArray(t.members) && t.members.includes(p.uid))).length > 0 && (
-          <section className="contest-detail-section">
-            <h3 className="contest-detail-section-title">🎤 솔로 참가자</h3>
-            <hr className="contest-detail-section-divider" />
-            <div className="contest-detail-participant-list">
-              {uniqueParticipants
-                .filter(p => !teams.some(t => Array.isArray(t.members) && t.members.includes(p.uid)))
-                .map(p => {
-                  const isSubmitted = isParticipantSubmitted(p.nickname);
+              {/* 솔로 참가자 목록 (evaluationTargets만 표시) */}
+              {evaluationTargets
+                .filter(t => !teams.some(team => Array.isArray(team.members) && team.members.includes(t.uid)))
+                .map(t => {
+                  // evaluationTargets의 닉네임으로 participants에서 찾아서 제출 상태 확인
+                  const p = participants.find(pp => pp.nickname === t.nickname);
+                  const isSubmitted = p ? isParticipantSubmitted(p.nickname) : false;
                   return (
-                    <div key={p.uid} className="contest-detail-participant-item">
-                      <span className="contest-detail-participant-name">
-                        {p.nickname}
-                      </span>
-                      <span className={`contest-detail-participant-status ${isSubmitted ? 'submitted' : 'pending'}`}>
-                        {isSubmitted ? '✅ 제출완료' : '⏳ 대기중'}
-                      </span>
+                    <div key={t.uid} className="contest-detail-team-item">
+                      <div className="contest-detail-team-members" style={{
+                        fontWeight: 700,
+                        fontSize: '18px',
+                        color: '#8A55CC',
+                        marginBottom: '8px'
+                      }}>
+                        {t.nickname}
+                      </div>
+                      {isAdmin && (
+                        <div className="contest-detail-team-actions" style={{ display: 'flex', gap: '8px' }}>
+                          <button 
+                            className="contest-detail-team-button break"
+                            onClick={() => handleDeleteEvaluationTarget(t.uid)}
+                            style={{
+                              background: '#F43F5E',
+                              color: '#fff'
+                            }}
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      )}
+                      <div style={{ marginTop: '8px' }}>
+                        <span className={`contest-detail-participant-status ${isSubmitted ? 'submitted' : 'pending'}`}>
+                          {isSubmitted ? '✅ 제출완료' : '⏳ 대기중'}
+                        </span>
+                      </div>
                     </div>
                   );
                 })}

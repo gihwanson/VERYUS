@@ -310,7 +310,7 @@ const ContestList: React.FC = () => {
                   {!isEnded && (
                     <button 
                       className="contest-button participate"
-                      onClick={() => navigate(`/contests/${contest.id}/participate`)}
+                      onClick={() => handleParticipate(contest)}
                     >
                       🎯 참여
                     </button>
