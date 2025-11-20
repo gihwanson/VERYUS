@@ -361,41 +361,7 @@ const ContestParticipate: React.FC = () => {
     if (!id || !user) return;
 
     try {
-      // 1. 평가해야 할 모든 대상 목록 수집 (본인 제외)
-      const allTargetsToEvaluate: Array<{ targetId: string; displayName: string }> = [];
-      
-      // 팀 평가 대상 수집
-      for (const team of teams) {
-        const isMyTeam = user && (
-          team.members.includes(user.uid) ||
-          getMemberNicknames(team).some((nick: string) =>
-            extractNickname(nick).toLowerCase().replace(/\s/g, '') === user.nickname.toLowerCase().replace(/\s/g, '')
-          )
-        );
-        if (!isMyTeam) {
-          const memberNames = getMemberNicknames(team).join(' & ');
-          allTargetsToEvaluate.push({
-            targetId: team.id,
-            displayName: memberNames || `팀 (${team.members?.length || 0}명)`
-          });
-        }
-      }
-
-      // 솔로 평가받는 대상 수집
-      const soloTargets = uniqueEvaluationTargets.filter(t => !teams.some(team => Array.isArray(team.members) && team.members.includes(t.uid)));
-      for (const target of soloTargets) {
-        const isMe = user && target.uid === user.uid;
-        const isMeByNickname = user && target.nickname && user.nickname && target.nickname.toLowerCase().trim() === user.nickname.toLowerCase().trim();
-        
-        if (!isMe && !isMeByNickname) {
-          allTargetsToEvaluate.push({
-            targetId: target.uid,
-            displayName: target.nickname || extractNickname(target.uid)
-          });
-        }
-      }
-
-      // 2. DB에서 이미 제출한 평가 목록 가져오기
+      // DB에서 이미 제출한 평가 목록 가져오기
       const submittedGradesQuery = query(
         collection(db, 'contests', id, 'grades'),
         where('evaluator', '==', user.nickname)
@@ -403,19 +369,7 @@ const ContestParticipate: React.FC = () => {
       const submittedGradesSnap = await getDocs(submittedGradesQuery);
       const submittedTargetIds = submittedGradesSnap.docs.map(doc => doc.data().target);
 
-      // 3. 제출하지 않은 평가 확인
-      const unsubmittedTargets = allTargetsToEvaluate.filter(
-        target => !submittedTargetIds.includes(target.targetId)
-      );
-
-      // 4. 제출하지 않은 평가가 있으면 알림창 표시
-      if (unsubmittedTargets.length > 0) {
-        const unsubmittedNames = unsubmittedTargets.map(t => t.displayName).join(', ');
-        alert(`아직 제출하지 않은 평가가 있습니다:\n${unsubmittedNames}\n\n모든 평가를 제출한 후 다시 시도해주세요.`);
-        return;
-      }
-
-      // 5. 현재 입력된 평가 데이터 수집 및 제출 (혹시 모를 경우를 대비)
+      // 현재 입력된 평가 데이터 수집 및 제출
       const submissionsToProcess = [];
       
       // 팀 평가 데이터 수집
@@ -442,6 +396,7 @@ const ContestParticipate: React.FC = () => {
       }
 
       // 솔로 평가받는 대상 평가 데이터 수집
+      const soloTargets = uniqueEvaluationTargets.filter(t => !teams.some(team => Array.isArray(team.members) && team.members.includes(t.uid)));
       for (const target of soloTargets) {
         const input = gradeInputs[target.uid];
         if (input && input.score && !submittedTargetIds.includes(target.uid)) {
@@ -461,7 +416,7 @@ const ContestParticipate: React.FC = () => {
         }
       }
 
-      // 혹시 모를 제출할 평가가 있으면 제출
+      // 입력된 평가가 있으면 제출
       if (submissionsToProcess.length > 0) {
         for (const submission of submissionsToProcess) {
           const q = query(collection(db, 'contests', id, 'grades'), where('evaluator', '==', user.nickname), where('target', '==', submission.target));
@@ -480,7 +435,7 @@ const ContestParticipate: React.FC = () => {
         }
       }
 
-      // 6. 모든 평가가 완료되었으면 "제출을 완료했습니다!" 알림 후 메인보드로 이동
+      // 제출 완료 메시지 표시 및 메인보드로 이동
       alert('제출을 완료했습니다!');
       setShowSubmitMsg(true);
       setTimeout(() => {

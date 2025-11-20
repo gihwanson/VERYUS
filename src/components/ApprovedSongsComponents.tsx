@@ -157,6 +157,7 @@ interface SongListItemProps {
   grade?: string;
   audioUrl?: string;
   audioDuration?: number;
+  onLoadAudio?: (songTitle: string) => void;
 }
 
 export const SongListItem: React.FC<SongListItemProps> = ({ 
@@ -167,39 +168,74 @@ export const SongListItem: React.FC<SongListItemProps> = ({
   showGrade = false, 
   grade,
   audioUrl,
-  audioDuration
-}) => (
-  <li className="approved-songs-list-item" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
-    <div style={{ display: 'flex', alignItems: 'center', width: '100%', flexWrap: 'wrap', gap: '12px' }}>
-      {showGrade && grade && (
-        <span className="approved-songs-grade-badge">{grade}</span>
-      )}
-      <span className="approved-songs-title-text" style={{ flex: '1 1 200px' }}>{song.title}</span>
-      <span className="approved-songs-members" style={{ flex: '1 1 150px' }}>
-        {song.members?.join(', ')}
-      </span>
-      {isAdmin && (
-        <div className="approved-songs-actions-group">
+  audioDuration,
+  onLoadAudio
+}) => {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleLoadAudio = async () => {
+    if (!onLoadAudio || audioUrl) return;
+    setIsLoading(true);
+    try {
+      await onLoadAudio(song.title);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <li className="approved-songs-list-item" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', alignItems: 'center', width: '100%', flexWrap: 'wrap', gap: '12px' }}>
+        {showGrade && grade && (
+          <span className="approved-songs-grade-badge">{grade}</span>
+        )}
+        <span className="approved-songs-title-text" style={{ flex: '1 1 200px' }}>{song.title}</span>
+        <span className="approved-songs-members" style={{ flex: '1 1 150px' }}>
+          {song.members?.join(', ')}
+        </span>
+        {!audioUrl && onLoadAudio && (
           <button
-            className="approved-songs-btn edit"
-            onClick={() => onEdit(song)}
+            className="approved-songs-btn"
+            onClick={handleLoadAudio}
+            disabled={isLoading}
+            style={{
+              background: 'rgba(138, 85, 204, 0.8)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '6px 12px',
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              opacity: isLoading ? 0.6 : 1,
+              fontSize: '13px',
+              fontWeight: 500
+            }}
           >
-            ✏️ 수정
+            {isLoading ? '⏳ 로딩 중...' : '🎵 녹음 듣기'}
           </button>
-          <button
-            className="approved-songs-btn remove"
-            onClick={() => onDelete(song.id)}
-          >
-            🗑️ 삭제
-          </button>
-        </div>
+        )}
+        {isAdmin && (
+          <div className="approved-songs-actions-group">
+            <button
+              className="approved-songs-btn edit"
+              onClick={() => onEdit(song)}
+            >
+              ✏️ 수정
+            </button>
+            <button
+              className="approved-songs-btn remove"
+              onClick={() => onDelete(song.id)}
+            >
+              🗑️ 삭제
+            </button>
+          </div>
+        )}
+      </div>
+      {audioUrl && (
+        <SimpleAudioPlayer audioUrl={audioUrl} duration={audioDuration} />
       )}
-    </div>
-    {audioUrl && (
-      <SimpleAudioPlayer audioUrl={audioUrl} duration={audioDuration} />
-    )}
-  </li>
-);
+    </li>
+  );
+};
 
 // 곡 리스트 컴포넌트
 interface SongListProps {
@@ -210,6 +246,7 @@ interface SongListProps {
   showGrade?: boolean;
   userMap?: Record<string, { grade?: string }>;
   audioMap?: Record<string, { audioUrl: string; duration?: number }>;
+  onLoadAudio?: (songTitle: string) => void;
 }
 
 export const SongList: React.FC<SongListProps> = ({ 
@@ -219,7 +256,8 @@ export const SongList: React.FC<SongListProps> = ({
   onDelete, 
   showGrade = false, 
   userMap = {},
-  audioMap = {}
+  audioMap = {},
+  onLoadAudio
 }) => (
   <div className="approved-songs-card">
     <ul className="approved-songs-list">
@@ -249,6 +287,7 @@ export const SongList: React.FC<SongListProps> = ({
             grade={grade}
             audioUrl={audioInfo?.audioUrl}
             audioDuration={audioInfo?.duration}
+            onLoadAudio={onLoadAudio}
           />
         );
       })}

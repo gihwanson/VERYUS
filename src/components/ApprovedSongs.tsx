@@ -53,63 +53,6 @@ const ApprovedSongs: React.FC = () => {
       const snap = await getDocs(q);
       const fetchedSongs = snap.docs.map(convertFirestoreData);
       setSongs(fetchedSongs);
-      
-      // 평가게시판 게시글에서 합격된 곡들의 오디오 정보 가져오기
-      const audioDataMap: Record<string, { audioUrl: string; duration?: number }> = {};
-      
-      try {
-        // 평가게시판에서 status가 '합격'인 게시글들 가져오기
-        const evaluationQuery = query(
-          collection(db, 'posts'),
-          where('type', '==', 'evaluation'),
-          where('status', '==', '합격')
-        );
-        const evaluationSnap = await getDocs(evaluationQuery);
-        
-        // 제목별로 그룹화하고 가장 최신 것만 선택
-        const titleGroups: Record<string, { audioUrl: string; duration?: number; createdAt: any }> = {};
-        
-        evaluationSnap.docs.forEach(doc => {
-          const data = doc.data();
-          if (data.title && data.audioUrl) {
-            const titleKey = data.title.trim();
-            const createdAt = data.createdAt;
-            
-            // 같은 제목이 없거나, 더 최신 것일 때 업데이트
-            if (!titleGroups[titleKey] || 
-                (createdAt && titleGroups[titleKey].createdAt && 
-                 createdAt.toMillis && titleGroups[titleKey].createdAt.toMillis &&
-                 createdAt.toMillis() > titleGroups[titleKey].createdAt.toMillis())) {
-              titleGroups[titleKey] = {
-                audioUrl: data.audioUrl,
-                duration: data.duration,
-                createdAt: createdAt
-              };
-            }
-          }
-        });
-        
-        // 공백 제거한 버전도 매핑
-        Object.keys(titleGroups).forEach(titleKey => {
-          const titleNoSpace = titleKey.replace(/\s/g, '');
-          audioDataMap[titleKey] = {
-            audioUrl: titleGroups[titleKey].audioUrl,
-            duration: titleGroups[titleKey].duration
-          };
-          
-          if (titleNoSpace !== titleKey) {
-            audioDataMap[titleNoSpace] = {
-              audioUrl: titleGroups[titleKey].audioUrl,
-              duration: titleGroups[titleKey].duration
-            };
-          }
-        });
-        
-        setAudioMap(audioDataMap);
-      } catch (error) {
-        console.error('오디오 정보 가져오기 실패:', error);
-      }
-      
       setLoading(false);
     };
     fetchSongs();
@@ -192,6 +135,117 @@ const ApprovedSongs: React.FC = () => {
       await deleteDoc(doc(db, 'approvedSongs', song.id));
     }
     setSongs(songs => songs.filter(song => !toDelete.some(s => s.id === song.id)));
+  };
+
+  // 특정 곡의 오디오 정보를 가져오는 함수
+  const loadAudioForSong = async (songTitle: string) => {
+    // 이미 로드된 경우 스킵
+    const titleKey = songTitle.trim();
+    const titleNoSpace = titleKey.replace(/\s/g, '');
+    if (audioMap[titleKey] || audioMap[titleNoSpace]) {
+      return;
+    }
+
+    try {
+      // 평가게시판에서 해당 제목의 합격된 게시글 찾기
+      const evaluationQuery = query(
+        collection(db, 'posts'),
+        where('type', '==', 'evaluation'),
+        where('status', '==', '합격'),
+        where('title', '==', titleKey)
+      );
+      const evaluationSnap = await getDocs(evaluationQuery);
+      
+      if (evaluationSnap.empty) {
+        // 제목이 정확히 일치하지 않는 경우, 모든 합격 게시글에서 검색
+        const allEvaluationQuery = query(
+          collection(db, 'posts'),
+          where('type', '==', 'evaluation'),
+          where('status', '==', '합격')
+        );
+        const allEvaluationSnap = await getDocs(allEvaluationQuery);
+        
+        // 제목이 유사한 것 찾기 (공백 제거한 버전도 체크)
+        let foundAudio: { audioUrl: string; duration?: number; createdAt: any } | null = null;
+        
+        allEvaluationSnap.docs.forEach(doc => {
+          const data = doc.data();
+          if (data.title && data.audioUrl) {
+            const dataTitle = data.title.trim();
+            const dataTitleNoSpace = dataTitle.replace(/\s/g, '');
+            
+            if (dataTitle === titleKey || dataTitleNoSpace === titleNoSpace) {
+              const createdAt = data.createdAt;
+              // 같은 제목이 없거나, 더 최신 것일 때 업데이트
+              if (!foundAudio || 
+                  (createdAt && foundAudio.createdAt && 
+                   createdAt.toMillis && foundAudio.createdAt.toMillis &&
+                   createdAt.toMillis() > foundAudio.createdAt.toMillis())) {
+                foundAudio = {
+                  audioUrl: data.audioUrl,
+                  duration: data.duration,
+                  createdAt: createdAt
+                };
+              }
+            }
+          }
+        });
+        
+        if (foundAudio) {
+          setAudioMap(prev => ({
+            ...prev,
+            [titleKey]: {
+              audioUrl: foundAudio!.audioUrl,
+              duration: foundAudio!.duration
+            },
+            ...(titleNoSpace !== titleKey ? {
+              [titleNoSpace]: {
+                audioUrl: foundAudio!.audioUrl,
+                duration: foundAudio!.duration
+              }
+            } : {})
+          }));
+        }
+      } else {
+        // 정확히 일치하는 경우, 가장 최신 것 선택
+        let latestAudio: { audioUrl: string; duration?: number; createdAt: any } | null = null;
+        
+        evaluationSnap.docs.forEach(doc => {
+          const data = doc.data();
+          if (data.audioUrl) {
+            const createdAt = data.createdAt;
+            if (!latestAudio || 
+                (createdAt && latestAudio.createdAt && 
+                 createdAt.toMillis && latestAudio.createdAt.toMillis &&
+                 createdAt.toMillis() > latestAudio.createdAt.toMillis())) {
+              latestAudio = {
+                audioUrl: data.audioUrl,
+                duration: data.duration,
+                createdAt: createdAt
+              };
+            }
+          }
+        });
+        
+        if (latestAudio) {
+          setAudioMap(prev => ({
+            ...prev,
+            [titleKey]: {
+              audioUrl: latestAudio!.audioUrl,
+              duration: latestAudio!.duration
+            },
+            ...(titleNoSpace !== titleKey ? {
+              [titleNoSpace]: {
+                audioUrl: latestAudio!.audioUrl,
+                duration: latestAudio!.duration
+              }
+            } : {})
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('오디오 정보 가져오기 실패:', error);
+    }
   };
 
   // 필터링된 곡 리스트
@@ -344,6 +398,7 @@ const ApprovedSongs: React.FC = () => {
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 audioMap={audioMap}
+                onLoadAudio={loadAudioForSong}
               />
             )}
           </>
@@ -409,6 +464,7 @@ const ApprovedSongs: React.FC = () => {
                   showGrade={buskingTab === 'grade'}
                   userMap={userMap}
                   audioMap={audioMap}
+                  onLoadAudio={loadAudioForSong}
                 />
               </div>
             )}
