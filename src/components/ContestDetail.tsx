@@ -42,6 +42,7 @@ interface Team {
   members: string[];
   createdAt: any;
   updatedAt: any;
+  order?: number; // 팀 순서 (낮을수록 위에 표시)
 }
 
 interface User {
@@ -175,14 +176,19 @@ const ContestDetail: React.FC = () => {
     const teamId = uuidv4();
     const members = selectedSolo;
     const teamName = `듀엣${teams.length + 1}`;
+    // 기존 팀들의 최대 order 값 계산 (없으면 현재 시간 사용)
+    const maxOrder = teams.length > 0 
+      ? Math.max(...teams.map(t => t.order ?? (t.createdAt?.toDate ? t.createdAt.toDate().getTime() : Date.now())))
+      : Date.now();
     await setDoc(firestoreDoc(db, 'contests', id, 'teams', teamId), {
       teamName,
       members,
       createdAt: new Date(),
       updatedAt: new Date(),
+      order: maxOrder + 1, // 새 팀은 맨 아래에 추가
     });
     setSelectedSolo([]);
-  }, [id, selectedSolo, teams.length]);
+  }, [id, selectedSolo, teams]);
 
   const handleBreakDuet = useCallback(async (teamId: string) => {
     if (!id) return;
@@ -321,14 +327,19 @@ const ContestDetail: React.FC = () => {
     const teamId = uuidv4();
     const members = selectedEvaluationTargets;
     const teamName = `팀${teams.length + 1}`;
+    // 기존 팀들의 최대 order 값 계산 (없으면 현재 시간 사용)
+    const maxOrder = teams.length > 0 
+      ? Math.max(...teams.map(t => t.order ?? (t.createdAt?.toDate ? t.createdAt.toDate().getTime() : Date.now())))
+      : Date.now();
     await setDoc(firestoreDoc(db, 'contests', id, 'teams', teamId), {
       teamName,
       members,
       createdAt: new Date(),
       updatedAt: new Date(),
+      order: maxOrder + 1, // 새 팀은 맨 아래에 추가
     });
     setSelectedEvaluationTargets([]);
-  }, [id, selectedEvaluationTargets, teams.length]);
+  }, [id, selectedEvaluationTargets, teams]);
 
   const handleDeleteParticipant = useCallback(async (uid: string) => {
     if (!id) return;
@@ -385,15 +396,59 @@ const ContestDetail: React.FC = () => {
     return byNickname;
   }, [participants]);
 
-  // 팀 목록을 생성 시간 순으로 정렬하는 유틸
+  // 팀 목록을 순서(order) 기준으로 정렬하는 유틸
   const sortedTeams = useMemo(() => {
-    return teams.sort((a, b) => {
-      // createdAt 기준으로 정렬
-      const aTime = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0);
-      const bTime = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0);
-      return aTime - bTime;
+    // order가 없는 팀들을 위해 초기화
+    const teamsWithOrder = teams.map((team, index) => {
+      if (team.order === undefined) {
+        // order가 없으면 createdAt 기준으로 초기값 설정
+        const time = team.createdAt?.toDate ? team.createdAt.toDate().getTime() : (team.createdAt?.seconds ? team.createdAt.seconds * 1000 : 0);
+        return { ...team, order: time };
+      }
+      return team;
+    });
+    
+    // order 기준으로 정렬 (낮은 순서가 위에)
+    return [...teamsWithOrder].sort((a, b) => {
+      const aOrder = a.order ?? 0;
+      const bOrder = b.order ?? 0;
+      return aOrder - bOrder;
     });
   }, [teams]);
+
+  // 팀 순서 변경 함수
+  const handleMoveTeam = useCallback(async (teamId: string, direction: 'up' | 'down') => {
+    if (!id) return;
+    
+    const currentIndex = sortedTeams.findIndex(t => t.id === teamId);
+    if (currentIndex === -1) return;
+    
+    if (direction === 'up' && currentIndex === 0) return; // 이미 맨 위
+    if (direction === 'down' && currentIndex === sortedTeams.length - 1) return; // 이미 맨 아래
+    
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    const currentTeam = sortedTeams[currentIndex];
+    const targetTeam = sortedTeams[targetIndex];
+    
+    // 두 팀의 order를 교환
+    const currentOrder = currentTeam.order ?? 0;
+    const targetOrder = targetTeam.order ?? 0;
+    
+    try {
+      // 두 팀의 order를 업데이트
+      await updateDoc(firestoreDoc(db, 'contests', id, 'teams', currentTeam.id), {
+        order: targetOrder,
+        updatedAt: new Date()
+      });
+      await updateDoc(firestoreDoc(db, 'contests', id, 'teams', targetTeam.id), {
+        order: currentOrder,
+        updatedAt: new Date()
+      });
+    } catch (error) {
+      console.error('팀 순서 변경 중 오류:', error);
+      alert('팀 순서 변경에 실패했습니다.');
+    }
+  }, [id, sortedTeams]);
 
   // Effects
   useEffect(() => {
@@ -970,7 +1025,7 @@ const ContestDetail: React.FC = () => {
             <hr className="contest-detail-section-divider" />
             <div className="contest-detail-team-list">
               {/* 팀 목록 */}
-              {sortedTeams.map(team => {
+              {sortedTeams.map((team, index) => {
                 const teamSubmitted = Array.isArray(team.members) && team.members.some((uid: string) => {
                   const target = evaluationTargets.find(tt => tt.uid === uid);
                   if (target) {
@@ -979,19 +1034,63 @@ const ContestDetail: React.FC = () => {
                   }
                   return false;
                 });
+                const canMoveUp = index > 0;
+                const canMoveDown = index < sortedTeams.length - 1;
                 return (
                   <div key={team.id} className="contest-detail-team-item">
-                    <div className="contest-detail-team-members" style={{
-                      fontWeight: 700,
-                      fontSize: '18px',
-                      color: '#8A55CC',
-                      marginBottom: '8px'
-                    }}>
-                      {Array.isArray(team.members) ? team.members.map((uid: string) => {
-                        // 평가받는 대상에서만 찾기 (participants는 사용하지 않음)
-                        const target = evaluationTargets.find(tt => tt.uid === uid);
-                        return target ? target.nickname : uid;
-                      }).join(' & ') : ''}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                      <div className="contest-detail-team-members" style={{
+                        fontWeight: 700,
+                        fontSize: '18px',
+                        color: '#8A55CC',
+                        flex: 1
+                      }}>
+                        {Array.isArray(team.members) ? team.members.map((uid: string) => {
+                          // 평가받는 대상에서만 찾기 (participants는 사용하지 않음)
+                          const target = evaluationTargets.find(tt => tt.uid === uid);
+                          return target ? target.nickname : uid;
+                        }).join(' & ') : ''}
+                      </div>
+                      {isAdmin && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <button
+                            onClick={() => handleMoveTeam(team.id, 'up')}
+                            disabled={!canMoveUp}
+                            style={{
+                              background: canMoveUp ? '#8A55CC' : '#D1D5DB',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: '4px',
+                              padding: '4px 8px',
+                              cursor: canMoveUp ? 'pointer' : 'not-allowed',
+                              fontSize: '12px',
+                              minWidth: '32px',
+                              opacity: canMoveUp ? 1 : 0.5
+                            }}
+                            title="위로 이동"
+                          >
+                            ↑
+                          </button>
+                          <button
+                            onClick={() => handleMoveTeam(team.id, 'down')}
+                            disabled={!canMoveDown}
+                            style={{
+                              background: canMoveDown ? '#8A55CC' : '#D1D5DB',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: '4px',
+                              padding: '4px 8px',
+                              cursor: canMoveDown ? 'pointer' : 'not-allowed',
+                              fontSize: '12px',
+                              minWidth: '32px',
+                              opacity: canMoveDown ? 1 : 0.5
+                            }}
+                            title="아래로 이동"
+                          >
+                            ↓
+                          </button>
+                        </div>
+                      )}
                     </div>
                     {isAdmin && (
                       <div className="contest-detail-team-actions" style={{ display: 'flex', gap: '8px' }}>

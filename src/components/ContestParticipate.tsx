@@ -973,10 +973,10 @@ const ContestParticipate: React.FC = () => {
                     <div style={{ fontWeight: 600, color: '#7C4DBC', marginBottom: 8, textAlign: 'center' }}>듀엣 팀</div>
                     {teams
                       .sort((a, b) => {
-                        // createdAt 기준으로 정렬 (오래된 순)
-                        const aTime = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
-                        const bTime = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
-                        return aTime - bTime;
+                        // order 기준으로 정렬 (order가 없으면 createdAt 기준)
+                        const aOrder = a.order !== undefined ? a.order : (a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0);
+                        const bOrder = b.order !== undefined ? b.order : (b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0);
+                        return aOrder - bOrder;
                       })
                       .map(team => {
                         const isMyTeam = user && (
