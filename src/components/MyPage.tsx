@@ -37,11 +37,16 @@ import {
   Mic,
   Play,
   Pause,
-  Settings
+  Settings,
+  Download,
+  Bell,
+  BellOff
 } from 'lucide-react';
 import './MyPage.css';
 import { auth } from '../firebase';
 import { NotificationService } from '../utils/notificationService';
+import { enablePushNotifications, removeCurrentPushToken } from '../utils/pushNotificationService';
+import { GRADE_NAMES, GRADE_SYSTEM } from './AdminTypes';
 
 interface User {
   uid: string;
@@ -51,6 +56,7 @@ interface User {
   grade: string;
   profileImageUrl?: string;
   intro?: string;
+  notificationsEnabled?: boolean;
   createdAt: any;
 }
 
@@ -92,31 +98,44 @@ interface ApprovedSong {
   members: string[];
   createdAt?: any;
   grade?: string;
+  audioUrl?: string;
+  approvedPostId?: string;
+  postId?: string;
+  fileName?: string;
+  duration?: number;
 }
 
-// 등급 관련 상수
-const GRADE_OPTIONS = [
-  '🍒', // 체리
-  '🫐', // 블루베리
-  '🥝', // 키위
-  '🍎', // 사과
-  '🍈', // 멜론
-  '🍉', // 수박
-  '🌍', // 지구
-  '🪐', // 토성
-  '☀️', // 태양
-  // '🌌', // 은하(선택 불가)
-  '🌙', // 달
-];
-
-const GRADE_ORDER = [
-  '🍒'
-];
-
-const GRADE_NAMES: Record<string, string> = {
-  '🍒': '체리', '🫐': '체리', '🥝': '체리', '🍎': '체리', '🍈': '체리', '🍉': '체리',
-  '🌍': '체리', '🪐': '체리', '☀️': '체리', '🌌': '체리', '🍺': '체리', '⚡': '체리', '⭐': '체리', '🌙': '체리'
+type GradeOption = {
+  value: string;
+  emoji: string;
+  category: '일반' | '예외';
 };
+
+const GRADE_OPTIONS: GradeOption[] = [
+  { value: GRADE_SYSTEM.CHERRY, emoji: GRADE_SYSTEM.CHERRY, category: '일반' },
+  { value: GRADE_SYSTEM.BLUEBERRY, emoji: GRADE_SYSTEM.BLUEBERRY, category: '일반' },
+  { value: GRADE_SYSTEM.KIWI, emoji: GRADE_SYSTEM.KIWI, category: '일반' },
+  { value: GRADE_SYSTEM.APPLE, emoji: GRADE_SYSTEM.APPLE, category: '일반' },
+  { value: GRADE_SYSTEM.MELON, emoji: GRADE_SYSTEM.MELON, category: '일반' },
+  { value: GRADE_SYSTEM.WATERMELON, emoji: GRADE_SYSTEM.WATERMELON, category: '일반' },
+  { value: GRADE_SYSTEM.EARTH, emoji: GRADE_SYSTEM.EARTH, category: '일반' },
+  { value: GRADE_SYSTEM.SATURN, emoji: GRADE_SYSTEM.SATURN, category: '일반' },
+  { value: GRADE_SYSTEM.SUN, emoji: GRADE_SYSTEM.SUN, category: '일반' },
+  { value: GRADE_SYSTEM.CRESCENT, emoji: GRADE_SYSTEM.CRESCENT, category: '예외' },
+  { value: GRADE_SYSTEM.GALAXY, emoji: GRADE_SYSTEM.GALAXY, category: '예외' }
+];
+
+const GRADE_NAME_TO_EMOJI: Record<string, string> = GRADE_OPTIONS.reduce((acc, option) => {
+  acc[option.value] = option.emoji;
+  return acc;
+}, {} as Record<string, string>);
+
+const GRADE_EMOJI_TO_NAME: Record<string, string> = GRADE_OPTIONS.reduce((acc, option) => {
+  acc[option.emoji] = option.value;
+  return acc;
+}, {} as Record<string, string>);
+
+const GRADE_ORDER = GRADE_OPTIONS.map((option) => option.emoji);
 
 const MyPage: React.FC = () => {
   const navigate = useNavigate();
@@ -168,6 +187,8 @@ const MyPage: React.FC = () => {
   // 유저 등급 정보 fetch
   const [userMap, setUserMap] = useState<Record<string, {grade?: string}>>({});
   const [showAllSongs, setShowAllSongs] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [notificationUpdating, setNotificationUpdating] = useState(false);
 
   // Initialize user data
   useEffect(() => {
@@ -179,6 +200,7 @@ const MyPage: React.FC = () => {
     }
     const loginUser = JSON.parse(userString) as User;
     setCurrentUser(loginUser);
+    setNotificationsEnabled(loginUser.notificationsEnabled ?? true);
 
     async function fetchUserData(targetUid: string) {
       try {
@@ -188,7 +210,8 @@ const MyPage: React.FC = () => {
           setUser({ ...userData, uid: targetUid });
           setEditNickname(userData.nickname || '');
           setEditIntro(userData.intro || '');
-          setSelectedGrade(userData.grade || '🍒');
+          setSelectedGrade(userData.grade || GRADE_SYSTEM.CHERRY);
+          setNotificationsEnabled(userData.notificationsEnabled ?? true);
           // 본인 여부 판별
           let isMe = loginUser.uid === targetUid;
           setIsOwner(isMe);
@@ -217,7 +240,8 @@ const MyPage: React.FC = () => {
         setUser(loginUser);
         setEditNickname(loginUser.nickname || '');
         setEditIntro(loginUser.intro || '');
-        setSelectedGrade(loginUser.grade || '🍒');
+        setSelectedGrade(loginUser.grade || GRADE_SYSTEM.CHERRY);
+        setNotificationsEnabled(loginUser.notificationsEnabled ?? true);
         setIsOwner(true);
         // Firestore에서 내 정보가 있으면 덮어씌우고, 없으면 fallback
         loadUserData(loginUser.uid, true).catch((err) => {
@@ -257,7 +281,7 @@ const MyPage: React.FC = () => {
       setUser(userData);
       setEditNickname(userData.nickname || '');
       setEditIntro(userData.intro || '');
-      setSelectedGrade(userData.grade || '🍒');
+      setSelectedGrade(userData.grade || GRADE_SYSTEM.CHERRY);
       if (isOwner) {
         localStorage.setItem('veryus_user', JSON.stringify(userData));
       }
@@ -415,37 +439,46 @@ const MyPage: React.FC = () => {
 
     try {
       const oldNickname = user.nickname;
+      const nextNickname = editNickname.trim();
+
+      if (!nextNickname) {
+        setError('닉네임을 입력해주세요.');
+        return;
+      }
       
       await updateDoc(doc(db, 'users', user.uid), {
-        nickname: editNickname
+        nickname: nextNickname,
+        intro: editIntro
       });
 
-      if (oldNickname !== editNickname) {
-        await updateNicknameInAllDocuments(oldNickname, editNickname);
+      if (oldNickname !== nextNickname) {
+        await updateNicknameInAllDocuments(oldNickname, nextNickname);
       }
 
-      const updatedUser = { ...user, nickname: editNickname };
+      const updatedUser = { ...user, nickname: nextNickname, intro: editIntro };
       setUser(updatedUser);
+      setCurrentUser(prev => prev ? { ...prev, nickname: nextNickname, intro: editIntro } : prev);
+      localStorage.setItem('veryus_user', JSON.stringify(updatedUser));
 
       setEditingProfile(false);
       
-      if (oldNickname !== editNickname) {
-        loadMyPosts(editNickname);
-        loadActivityStats(editNickname);
-        setupGuestMessagesListener(editNickname);
+      if (oldNickname !== nextNickname) {
+        loadMyPosts(nextNickname);
+        loadActivityStats(nextNickname);
+        setupGuestMessagesListener(nextNickname);
         // 평가 게시글과 녹음 다시 로드
         const loadEvalPosts = async () => {
           try {
             const writerQuery = query(
               collection(db, 'posts'),
               where('type', '==', 'evaluation'),
-              where('writerNickname', '==', editNickname)
+              where('writerNickname', '==', nextNickname)
             );
             const writerSnap = await getDocs(writerQuery);
             const memberQuery = query(
               collection(db, 'posts'),
               where('type', '==', 'evaluation'),
-              where('members', 'array-contains', editNickname)
+              where('members', 'array-contains', nextNickname)
             );
             const memberSnap = await getDocs(memberQuery);
             const allDocs = [...writerSnap.docs, ...memberSnap.docs];
@@ -464,13 +497,13 @@ const MyPage: React.FC = () => {
             const recordingQuery = query(
               collection(db, 'posts'),
               where('type', '==', 'recording'),
-              where('writerNickname', '==', editNickname)
+              where('writerNickname', '==', nextNickname)
             );
             const recordingSnap = await getDocs(recordingQuery);
             const evaluationQuery = query(
               collection(db, 'posts'),
               where('type', '==', 'evaluation'),
-              where('members', 'array-contains', editNickname)
+              where('members', 'array-contains', nextNickname)
             );
             const evaluationSnap = await getDocs(evaluationQuery);
             const evaluationWithAudio = evaluationSnap.docs.filter(doc => doc.data().audioUrl);
@@ -492,7 +525,7 @@ const MyPage: React.FC = () => {
       console.error('Error saving profile:', error);
       setError('프로필 저장 중 오류가 발생했습니다.');
     }
-  }, [user, editNickname, loadMyPosts, loadActivityStats, setupGuestMessagesListener, isOwner]);
+  }, [user, editNickname, editIntro, loadMyPosts, loadActivityStats, setupGuestMessagesListener, isOwner]);
 
   const updateNicknameInAllDocuments = async (oldNickname: string, newNickname: string) => {
     try {
@@ -531,6 +564,24 @@ const MyPage: React.FC = () => {
       throw error; // Re-throw to be caught by the caller
     }
   };
+
+  const syncUserGradeInAllDocuments = useCallback(async (targetUid: string, newGrade: string) => {
+    const batch = writeBatch(db);
+
+    const postsQuery = query(collection(db, 'posts'), where('writerUid', '==', targetUid));
+    const postsSnapshot = await getDocs(postsQuery);
+    postsSnapshot.forEach((snapshotDoc) => {
+      batch.update(snapshotDoc.ref, { writerGrade: newGrade });
+    });
+
+    const commentsQuery = query(collection(db, 'comments'), where('writerUid', '==', targetUid));
+    const commentsSnapshot = await getDocs(commentsQuery);
+    commentsSnapshot.forEach((snapshotDoc) => {
+      batch.update(snapshotDoc.ref, { writerGrade: newGrade });
+    });
+
+    await batch.commit();
+  }, []);
 
   const handleSaveIntro = useCallback(async () => {
     if (!user) return;
@@ -592,19 +643,76 @@ const MyPage: React.FC = () => {
   }, [user]);
 
   const handleGradeChange = useCallback(async (newGrade: string) => {
-    if (!user) return;
+    if (!user || !isOwner) return;
 
     try {
       await updateDoc(doc(db, 'users', user.uid), {
         grade: newGrade
       });
+      await syncUserGradeInAllDocuments(user.uid, newGrade);
 
-      setUser(prev => prev ? { ...prev, grade: newGrade } : null);
+      const updatedUser = { ...user, grade: newGrade };
+      setUser(updatedUser);
+      setCurrentUser((prev) => (prev ? { ...prev, grade: newGrade } : prev));
+      setSelectedGrade(newGrade);
+
+      const localUser = localStorage.getItem('veryus_user');
+      if (localUser) {
+        const parsed = JSON.parse(localUser);
+        localStorage.setItem('veryus_user', JSON.stringify({ ...parsed, grade: newGrade }));
+      }
     } catch (error) {
       console.error('Error changing grade:', error);
       setError('등급 변경 중 오류가 발생했습니다.');
     }
-  }, [user]);
+  }, [user, isOwner, syncUserGradeInAllDocuments]);
+
+  const handleNotificationToggle = useCallback(async () => {
+    if (!user || !isOwner || notificationUpdating) return;
+
+    const nextEnabled = !notificationsEnabled;
+    setNotificationUpdating(true);
+    setNotificationsEnabled(nextEnabled);
+
+    try {
+      if (nextEnabled) {
+        const granted = await enablePushNotifications(user.uid);
+        if (!granted) {
+          setNotificationsEnabled(false);
+          alert('푸시 권한이 허용되지 않았거나 설정이 완료되지 않았습니다.');
+          return;
+        }
+      } else {
+        await removeCurrentPushToken();
+      }
+
+      await updateDoc(doc(db, 'users', user.uid), {
+        notificationsEnabled: nextEnabled
+      });
+
+      setNotificationsEnabled(nextEnabled);
+      setUser((prev) => (prev ? { ...prev, notificationsEnabled: nextEnabled } : prev));
+      setCurrentUser((prev) => (prev ? { ...prev, notificationsEnabled: nextEnabled } : prev));
+
+      const localUser = localStorage.getItem('veryus_user');
+      if (localUser) {
+        const parsed = JSON.parse(localUser);
+        localStorage.setItem(
+          'veryus_user',
+          JSON.stringify({
+            ...parsed,
+            notificationsEnabled: nextEnabled
+          })
+        );
+      }
+    } catch (error) {
+      console.error('마이페이지 알림 설정 변경 실패:', error);
+      setNotificationsEnabled(!nextEnabled);
+      alert('알림 설정 변경 중 오류가 발생했습니다.');
+    } finally {
+      setNotificationUpdating(false);
+    }
+  }, [user, isOwner, notificationUpdating, notificationsEnabled]);
 
   const formatDate = (timestamp: any) => {
     if (!timestamp) return '';
@@ -613,7 +721,9 @@ const MyPage: React.FC = () => {
   };
 
   const getGradeEmoji = (grade: string) => {
-    return grade?.match(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu)?.[0] || '🍒';
+    if (!grade) return GRADE_SYSTEM.CHERRY;
+    if (GRADE_EMOJI_TO_NAME[grade]) return grade;
+    return GRADE_NAME_TO_EMOJI[grade] || GRADE_SYSTEM.CHERRY;
   };
 
   const handleProfileImageClick = () => {
@@ -621,15 +731,13 @@ const MyPage: React.FC = () => {
   };
 
   const getGradeDisplay = (grade: string) => {
-    // 이미 이모지인 경우 그대로 반환
-    if (GRADE_OPTIONS.includes(grade)) return grade;
-    // 텍스트인 경우 해당하는 이모지 찾기
-    const emoji = Object.entries(GRADE_NAMES).find(([_, name]) => name === grade)?.[0];
-    return emoji || '🍒'; // 기본값은 체리
+    return getGradeEmoji(grade);
   };
 
   const getGradeName = (emoji: string) => {
-    return GRADE_NAMES[emoji] || '체리';
+    if (!emoji) return GRADE_NAMES[GRADE_SYSTEM.CHERRY];
+    if (GRADE_NAME_TO_EMOJI[emoji]) return emoji;
+    return GRADE_NAMES[emoji] || GRADE_EMOJI_TO_NAME[emoji] || GRADE_NAMES[GRADE_SYSTEM.CHERRY];
   };
 
   const handleSaveJoinDate = useCallback(async () => {
@@ -720,9 +828,37 @@ const MyPage: React.FC = () => {
         const data = doc.data() as ApprovedSong;
         return { ...data, id: doc.id };
       });
+      
+      // 합격곡에 저장된 postId/audioUrl 기준으로 오디오 연결
+      const songsWithAudio = await Promise.all(songs.map(async (song) => {
+        try {
+          if (song.audioUrl) return song;
+          if (!song.approvedPostId) return song;
+
+          const postRef = doc(db, 'posts', song.approvedPostId);
+          const postSnap = await getDoc(postRef);
+          if (!postSnap.exists()) return song;
+
+          const postData = postSnap.data();
+          if (postData?.audioUrl) {
+            return {
+              ...song,
+              audioUrl: postData.audioUrl,
+              postId: postSnap.id,
+              fileName: postData.fileName || ''
+            };
+          }
+
+          return song;
+        } catch (error) {
+          console.error(`합격곡 ${song.title}의 오디오 파일 찾기 오류:`, error);
+          return song;
+        }
+      }));
+      
       // 최신순 정렬(합격일 createdAt 기준)
-      songs.sort((a, b) => ((b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
-      setApprovedSongs(songs);
+      songsWithAudio.sort((a, b) => ((b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
+      setApprovedSongs(songsWithAudio);
     } catch (error) {
       console.error('합격곡 불러오기 오류:', error);
       setApprovedSongs([]);
@@ -744,7 +880,9 @@ const MyPage: React.FC = () => {
 
   // 합격곡 등급 계산 함수
   const getSongGrade = (song: ApprovedSong) => {
-    const idxs = (song.members||[]).map((m:string) => GRADE_ORDER.indexOf(userMap[m]?.grade||'🍒'));
+    const idxs = (song.members || []).map((m: string) =>
+      GRADE_ORDER.indexOf(getGradeEmoji(userMap[m]?.grade || GRADE_SYSTEM.CHERRY))
+    );
     const minIdx = Math.min(...(idxs.length?idxs:[GRADE_ORDER.length-1]));
     return GRADE_ORDER[minIdx] || '🍒';
   };
@@ -961,6 +1099,50 @@ const MyPage: React.FC = () => {
           )}
         </div>
 
+      {isOwner && (
+        <div style={{ marginBottom: 16 }}>
+          <div
+            className={`mypage-notification-card ${notificationUpdating ? 'disabled' : ''}`}
+            onClick={() => {
+              if (!notificationUpdating) {
+                void handleNotificationToggle();
+              }
+            }}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              if (!notificationUpdating) {
+                void handleNotificationToggle();
+              }
+            }}
+          >
+            <div className="mypage-notification-info">
+              {notificationsEnabled ? <Bell size={18} color="white" /> : <BellOff size={18} color="white" />}
+              <div className="mypage-notification-texts">
+                <div className="mypage-notification-title">알림 받기</div>
+                <div className="mypage-notification-desc">새 댓글/답글 알림을 휴대폰으로 받을 수 있어요.</div>
+              </div>
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                void handleNotificationToggle();
+              }}
+              onTouchEnd={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                void handleNotificationToggle();
+              }}
+              disabled={notificationUpdating}
+              className={`toggle-switch mypage-toggle ${notificationsEnabled ? 'active' : ''}`}
+              aria-label="알림 받기 토글"
+            >
+              <div className="toggle-slider"></div>
+            </button>
+          </div>
+          {notificationUpdating && <div className="mypage-notification-loading">알림 설정 적용 중...</div>}
+        </div>
+      )}
+
       {/* 프로필 히어로 섹션 */}
         <div style={{
           background: 'rgba(255, 255, 255, 0.1)',
@@ -1035,7 +1217,6 @@ const MyPage: React.FC = () => {
                 textAlign: 'center',
                 textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
               }}>{user?.nickname}</span>
-              <span style={{ fontSize: 30 }}>{user?.grade}</span>
             {user?.role && user.role !== '일반' && (
                 <span style={{
                 fontSize: 16,
@@ -1056,6 +1237,15 @@ const MyPage: React.FC = () => {
           </div>
           {editingProfile ? (
             <div style={{ marginTop: 8 }}>
+              <input
+                type="text"
+                value={editNickname}
+                onChange={e => setEditNickname(e.target.value)}
+                className="edit-input"
+                placeholder="닉네임을 입력해주세요..."
+                maxLength={20}
+                style={{ width: '100%', marginBottom: 8 }}
+              />
               <textarea
                 value={editIntro}
                 onChange={e => setEditIntro(e.target.value)}
@@ -1065,8 +1255,8 @@ const MyPage: React.FC = () => {
                 style={{ width: '100%', marginBottom: 8 }}
               />
               <div className="edit-buttons">
-                <button onClick={async () => { await handleSaveIntro(); setEditingProfile(false); }} className="save-btn"><Save size={16} />저장</button>
-                <button onClick={() => { setEditingProfile(false); setEditIntro(user?.intro || ''); }} className="cancel-btn"><X size={16} />취소</button>
+                <button onClick={handleSaveProfile} className="save-btn"><Save size={16} />저장</button>
+                <button onClick={() => { setEditingProfile(false); setEditNickname(user?.nickname || ''); setEditIntro(user?.intro || ''); }} className="cancel-btn"><X size={16} />취소</button>
               </div>
             </div>
           ) : (
@@ -1078,6 +1268,69 @@ const MyPage: React.FC = () => {
               textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
             }}>{user?.intro || '한 줄 소개를 입력해보세요!'}</div>
           )}
+          <div style={{ marginTop: 12, textAlign: 'center' }}>
+            <div style={{ color: 'rgba(255, 255, 255, 0.9)', fontWeight: 600, fontSize: 15 }}>
+              등급: {getGradeEmoji(user?.grade || GRADE_SYSTEM.CHERRY)} {getGradeName(user?.grade || GRADE_SYSTEM.CHERRY)}
+            </div>
+            {isOwner && (
+              <>
+                {editingGrade ? (
+                  <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <select
+                      className="grade-select"
+                      value={selectedGrade || GRADE_SYSTEM.CHERRY}
+                      onChange={(e) => setSelectedGrade(e.target.value)}
+                    >
+                      {GRADE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.emoji} {getGradeName(option.value)} ({option.category})
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => {
+                        void handleGradeChange(selectedGrade || GRADE_SYSTEM.CHERRY);
+                        setEditingGrade(false);
+                      }}
+                      className="save-btn"
+                    >
+                      <Save size={14} />
+                      저장
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingGrade(false);
+                        setSelectedGrade(user?.grade || GRADE_SYSTEM.CHERRY);
+                      }}
+                      className="cancel-btn"
+                    >
+                      <X size={14} />
+                      취소
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setSelectedGrade(user?.grade || GRADE_SYSTEM.CHERRY);
+                      setEditingGrade(true);
+                    }}
+                    style={{
+                      marginTop: 8,
+                      padding: '6px 14px',
+                      borderRadius: 10,
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      background: 'rgba(255, 255, 255, 0.15)',
+                      color: 'white',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    등급 변경
+                  </button>
+                )}
+              </>
+            )}
+          </div>
           <div style={{ 
             marginTop: 8, 
             fontSize: 14, 
@@ -1138,151 +1391,10 @@ const MyPage: React.FC = () => {
                 e.currentTarget.style.transform = 'translateY(0)';
               }}
             >
-              <Edit3 size={18} /> ✏️ 프로필 수정
+              <Edit3 size={18} /> 프로필 수정
             </button>
           )}
         </div>
-      </div>
-
-      {/* 등급 카드 */}
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.1)',
-          backdropFilter: 'blur(15px)',
-          borderRadius: '20px',
-          padding: '24px',
-          marginBottom: '24px',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
-        }}>
-          <h3 style={{ 
-            color: 'white', 
-            fontSize: '20px', 
-            fontWeight: 700, 
-            marginBottom: '16px', 
-            textAlign: 'center',
-            textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
-          }}>🏆 현재 등급</h3>
-        {editingGrade ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
-            <select
-              value={selectedGrade || (user?.grade ? getGradeDisplay(user.grade) : '🍒')}
-              onChange={(e) => setSelectedGrade(e.target.value)}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(255, 255, 255, 0.3)',
-                  borderRadius: '12px',
-                  padding: '10px 16px',
-                  color: 'white',
-                  fontSize: '16px',
-                  fontWeight: 600
-                }}
-            >
-              {GRADE_OPTIONS.filter(g => g !== '🌌').map(grade => (
-                  <option key={grade} value={grade} style={{ background: '#333', color: 'white' }}>
-                  {grade} {getGradeName(grade)}
-                </option>
-              ))}
-            </select>
-              <div style={{ display: 'flex', gap: '12px' }}>
-              <button
-                onClick={() => handleGradeChange(selectedGrade)}
-                  style={{
-                    background: 'rgba(16, 185, 129, 0.8)',
-                    backdropFilter: 'blur(10px)',
-                    color: 'white',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
-                    borderRadius: '12px',
-                    padding: '8px 16px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontSize: 14,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    transition: 'all 0.3s ease'
-                  }}
-              >
-                <Save size={16} />
-                  💾 저장
-              </button>
-              <button
-                onClick={() => {
-                  setEditingGrade(false);
-                  setSelectedGrade('');
-                }}
-                  style={{
-                    background: 'rgba(239, 68, 68, 0.8)',
-                    backdropFilter: 'blur(10px)',
-                    color: 'white',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
-                    borderRadius: '12px',
-                    padding: '8px 16px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontSize: 14,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    transition: 'all 0.3s ease'
-                  }}
-              >
-                <X size={16} />
-                  ❌ 취소
-              </button>
-            </div>
-          </div>
-        ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <span style={{ fontSize: '48px' }}>
-              {user?.grade ? getGradeDisplay(user.grade) : '🍒'}
-            </span>
-                <span style={{ 
-                  fontSize: '24px', 
-                  fontWeight: 700, 
-                  color: 'white',
-                  textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
-                }}>
-              {user?.grade ? getGradeName(getGradeDisplay(user.grade)) : '체리'}
-            </span>
-              </div>
-            {isOwner && (
-              <button
-                onClick={() => {
-                  setEditingGrade(true);
-                  setSelectedGrade(user?.grade ? getGradeDisplay(user.grade) : '🍒');
-                }}
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.2)',
-                    backdropFilter: 'blur(10px)',
-                    color: 'white',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
-                    borderRadius: '12px',
-                    padding: '8px 16px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontSize: 14,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    transition: 'all 0.3s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
-              >
-                <Edit3 size={16} />
-                  ✏️ 수정
-              </button>
-            )}
-          </div>
-        )}
       </div>
 
       {/* 활동/통계 카드 */}
@@ -1412,83 +1524,6 @@ const MyPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 등급/뱃지 컬렉션 */}
-        <div style={{ 
-          marginBottom: 32, 
-          background: 'rgba(255, 255, 255, 0.1)', 
-          backdropFilter: 'blur(15px)',
-          borderRadius: 20, 
-          padding: 24, 
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)', 
-          textAlign: 'center' 
-        }}>
-          <h3 style={{ 
-            fontSize: 20, 
-            fontWeight: 700, 
-            color: 'white', 
-            marginBottom: 16, 
-            textAlign: 'center',
-            textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
-          }}>🏅 내 등급/뱃지</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 12 }}>
-            {/* 1줄: 🍒, 🫐, 🥝, 🍎, 🍈, 🍉, 🌍, 🪐, ☀️, 🌌 */}
-            {GRADE_OPTIONS.filter(e => !['🍺','⚡','⭐','🌙'].includes(e)).map((emoji) => (
-              <div key={emoji} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 60 }}>
-                <span style={{ fontSize: 32 }}>{emoji}</span>
-                <span style={{ 
-                  fontSize: 14, 
-                  color: 'rgba(255, 255, 255, 0.8)', 
-                  fontWeight: 600,
-                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-                }}>{GRADE_NAMES[emoji]}</span>
-                {user?.grade === emoji && (
-                  <span style={{ 
-                    color: '#fff', 
-                    background: 'rgba(255, 255, 255, 0.2)', 
-                    backdropFilter: 'blur(10px)',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
-                    borderRadius: 8, 
-                    padding: '2px 8px', 
-                    fontSize: 12, 
-                    marginTop: 4,
-                    fontWeight: 600
-                  }}>✨ 내 등급</span>
-                )}
-              </div>
-            ))}
-          </div>
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center' }}>
-            {/* 2줄: 🍺, ⚡, ⭐, 🌙 */}
-            {GRADE_OPTIONS.filter(e => ['🍺','⚡','⭐','🌙'].includes(e)).map((emoji) => (
-              <div key={emoji} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 60 }}>
-                <span style={{ fontSize: 32 }}>{emoji}</span>
-                <span style={{ 
-                  fontSize: 14, 
-                  color: 'rgba(255, 255, 255, 0.8)', 
-                  fontWeight: 600,
-                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-                }}>{GRADE_NAMES[emoji]}</span>
-                {user?.grade === emoji && (
-                  <span style={{ 
-                    color: '#fff', 
-                    background: 'rgba(255, 255, 255, 0.2)', 
-                    backdropFilter: 'blur(10px)',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
-                    borderRadius: 8, 
-                    padding: '2px 8px', 
-                    fontSize: 12, 
-                    marginTop: 4,
-                    fontWeight: 600
-                  }}>✨ 내 등급</span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
       {/* 최근 활동 섹션 */}
         <div style={{ 
           marginBottom: 32, 
@@ -1609,10 +1644,43 @@ const MyPage: React.FC = () => {
                       padding: '4px 8px',
                       borderRadius: '8px'
                     }}>👥 {Array.isArray(song.members) ? song.members.join(', ') : ''}</span> */}
+                    {song.audioUrl && (
+                      <a
+                        href={song.audioUrl}
+                        download={song.fileName || `${song.title}.mp3`}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '6px 10px',
+                          background: 'rgba(138, 85, 204, 0.3)',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          textDecoration: 'none',
+                          color: 'white',
+                          border: '1px solid rgba(138, 85, 204, 0.5)'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'rgba(138, 85, 204, 0.5)';
+                          e.currentTarget.style.transform = 'scale(1.05)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'rgba(138, 85, 204, 0.3)';
+                          e.currentTarget.style.transform = 'scale(1)';
+                        }}
+                        title="녹음 파일 다운로드"
+                      >
+                        <Download size={16} />
+                      </a>
+                    )}
                     <span style={{ 
                       color: 'rgba(255, 255, 255, 0.6)', 
                       fontSize: 12,
-                      textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                      textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
+                      minWidth: '80px',
+                      textAlign: 'right'
                     }}>{song.createdAt && song.createdAt.seconds ? (new Date(song.createdAt.seconds * 1000)).toLocaleDateString('ko-KR') : ''}</span>
                 </div>
               ))}
@@ -1652,7 +1720,8 @@ const MyPage: React.FC = () => {
 
       {/* 설정/계정 카드 */}
       {isOwner && (
-          <div style={{ display: 'flex', gap: 16, marginBottom: 32 }}>
+          <div style={{ marginBottom: 32 }}>
+            <div style={{ display: 'flex', gap: 16 }}>
             <button 
               style={{ 
                 flex: 1, 
@@ -1705,6 +1774,7 @@ const MyPage: React.FC = () => {
                 e.currentTarget.style.transform = 'translateY(0)';
               }}
             >🚪 로그아웃</button>
+            </div>
         </div>
       )}
 
@@ -1753,7 +1823,7 @@ const MyPage: React.FC = () => {
             }}
         >
           <FileText size={16} />
-            📝 내 글
+          <span>내 글</span>
         </button>
         <button 
           onClick={() => setActiveTab('evaluations')}
@@ -1788,7 +1858,7 @@ const MyPage: React.FC = () => {
             }}
         >
           <Star size={16} />
-            ⭐ 평가 이력
+          <span>평가 이력</span>
         </button>
         <button 
           onClick={() => setActiveTab('recordings')}
@@ -1823,7 +1893,7 @@ const MyPage: React.FC = () => {
             }}
         >
           <Mic size={16} />
-            🎤 내 녹음
+          <span>내 녹음</span>
         </button>
         <button 
           onClick={() => setActiveTab('guestbook')}
@@ -1858,7 +1928,7 @@ const MyPage: React.FC = () => {
             }}
         >
           <Users size={16} />
-            👥 방명록
+          <span>방명록</span>
         </button>
       </div>
 

@@ -201,6 +201,28 @@
   text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
 }
 
+.balance-vote-privacy-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.98rem;
+}
+
+.balance-vote-privacy-toggle input[type='checkbox'] {
+  width: 17px;
+  height: 17px;
+  accent-color: #8b5cf6;
+}
+
+.balance-vote-privacy-help {
+  margin: 0.45rem 0 0;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
 /* Input Fields */
 .title-input {
   width: 100%;

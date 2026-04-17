@@ -21,6 +21,7 @@ export interface AdminUser {
   likeCount?: number;
   weeklyActivityScore?: number;
   monthlyActivityScore?: number;
+  evaluationBuskingWeeklyLimit?: number;
 }
 
 export interface UserStats {
@@ -80,6 +81,7 @@ export const GRADE_SYSTEM = {
   EARTH: '🌍',
   SATURN: '🪐',
   SUN: '☀️',
+  CRESCENT: '🌙',
   GALAXY: '🌌'
 } as const;
 
@@ -94,6 +96,7 @@ export const GRADE_ORDER = [
   GRADE_SYSTEM.EARTH,       // 540일
   GRADE_SYSTEM.SATURN,      // 630일
   GRADE_SYSTEM.SUN,         // 720일
+  GRADE_SYSTEM.CRESCENT,    // 초승달 (예외 등급)
   GRADE_SYSTEM.GALAXY       // 은하 (평가자 등급)
 ] as const;
 
@@ -108,6 +111,7 @@ export const GRADE_NAMES: Record<string, string> = {
   [GRADE_SYSTEM.EARTH]: '지구',
   [GRADE_SYSTEM.SATURN]: '토성',
   [GRADE_SYSTEM.SUN]: '태양',
+  [GRADE_SYSTEM.CRESCENT]: '초승달',
   [GRADE_SYSTEM.GALAXY]: '은하'
 };
 
@@ -122,6 +126,7 @@ export const GRADE_REQUIREMENTS: Record<string, number> = {
   [GRADE_SYSTEM.EARTH]: 540,
   [GRADE_SYSTEM.SATURN]: 630,
   [GRADE_SYSTEM.SUN]: 720,
+  [GRADE_SYSTEM.CRESCENT]: 9999, // 예외 등급 (수동 부여)
   [GRADE_SYSTEM.GALAXY]: 999 // 평가자 등급 (수동 부여)
 };
 

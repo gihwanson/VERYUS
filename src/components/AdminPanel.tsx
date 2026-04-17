@@ -14,11 +14,13 @@ import {
   setDoc,
   serverTimestamp,
   Timestamp,
-  getDoc
+  getDoc,
+  deleteField
 } from 'firebase/firestore';
 import { 
   createUserWithEmailAndPassword,
   getAuth,
+  sendPasswordResetEmail,
   signOut,
   signInWithEmailAndPassword
 } from 'firebase/auth';
@@ -47,6 +49,7 @@ import {
   EyeOff
 } from 'lucide-react';
 import { db } from '../firebase';
+import { startOfWeek, endOfWeek } from 'date-fns';
 import { migrateExistingMessages } from '../utils/chatService';
 import UserActivityBoard from './UserActivityBoard';
 import { 
@@ -167,6 +170,9 @@ const AdminPanel: React.FC = () => {
   // 편집 상태
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+  const [selectedUserBuskingCount, setSelectedUserBuskingCount] = useState<number | null>(null);
+  const [selectedUserBuskingLoading, setSelectedUserBuskingLoading] = useState(false);
+  const [buskingLimitInput, setBuskingLimitInput] = useState<string>('');
   
   // 모달 상태
   const [showAddUserModal, setShowAddUserModal] = useState(false);
@@ -221,6 +227,8 @@ const AdminPanel: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationTemplates, setNotificationTemplates] = useState<NotificationTemplate[]>([]);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [passwordResetLoadingUid, setPasswordResetLoadingUid] = useState<string | null>(null);
+  const [passwordResetMessage, setPasswordResetMessage] = useState<string>('');
 
   // 사용자 목록 가져오기 (useCallback으로 최적화) - useEffect보다 먼저 정의
   const fetchUsers = useCallback(async () => {
@@ -291,6 +299,54 @@ const AdminPanel: React.FC = () => {
     }
   }, [navigate, fetchUsers]);
 
+  // 선택된 사용자 버스킹심사곡 업로드 횟수 및 제한 로드
+  useEffect(() => {
+    const loadSelectedUserBuskingCount = async () => {
+      if (!selectedUser) {
+        setSelectedUserBuskingCount(null);
+        setBuskingLimitInput('');
+        return;
+      }
+
+      setSelectedUserBuskingLoading(true);
+      try {
+        const now = new Date();
+        const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+        const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+
+        const q = query(
+          collection(db, 'posts'),
+          where('type', '==', 'evaluation'),
+          where('writerUid', '==', selectedUser.uid)
+        );
+
+        const snapshot = await getDocs(q);
+        const buskingCategoryValues = ['busking', '버스킹심사곡'];
+        const thisWeekPosts = snapshot.docs.filter(docSnapshot => {
+          const data = docSnapshot.data();
+          if (!data.createdAt) return false;
+          if (!buskingCategoryValues.includes(data.category)) return false;
+          const createdDate = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
+          return createdDate >= weekStart && createdDate <= weekEnd;
+        });
+
+        setSelectedUserBuskingCount(thisWeekPosts.length);
+        setBuskingLimitInput(
+          selectedUser.evaluationBuskingWeeklyLimit !== undefined
+            ? String(selectedUser.evaluationBuskingWeeklyLimit)
+            : ''
+        );
+      } catch (error) {
+        console.error('버스킹 업로드 횟수 조회 실패:', error);
+        setSelectedUserBuskingCount(null);
+      } finally {
+        setSelectedUserBuskingLoading(false);
+      }
+    };
+
+    loadSelectedUserBuskingCount();
+  }, [selectedUser]);
+
   // 통계 계산 최적화 (기본값 포함)
   const userStats = useMemo(() => {
     if (!users || users.length === 0) {
@@ -336,6 +392,24 @@ const AdminPanel: React.FC = () => {
     }
   };
 
+  const syncUserGradeInDocuments = async (targetUid: string, grade: string) => {
+    const batch = writeBatch(db);
+
+    const postsQuery = query(collection(db, 'posts'), where('writerUid', '==', targetUid));
+    const postsSnapshot = await getDocs(postsQuery);
+    postsSnapshot.forEach((snapshotDoc) => {
+      batch.update(snapshotDoc.ref, { writerGrade: grade });
+    });
+
+    const commentsQuery = query(collection(db, 'comments'), where('writerUid', '==', targetUid));
+    const commentsSnapshot = await getDocs(commentsQuery);
+    commentsSnapshot.forEach((snapshotDoc) => {
+      batch.update(snapshotDoc.ref, { writerGrade: grade });
+    });
+
+    await batch.commit();
+  };
+
   // 사용자 업데이트 (로그 포함)
   const handleUpdateUser = async (user: AdminUser) => {
     if (!editingUser || !currentUser) return;
@@ -365,6 +439,9 @@ const AdminPanel: React.FC = () => {
       if (changes.nickname) {
         await updateUserNicknameInPosts(user.nickname, editingUser.nickname);
       }
+      if (changes.grade) {
+        await syncUserGradeInDocuments(user.uid, editingUser.grade);
+      }
       
       // 로그 기록
       const changeDetails = Object.entries(changes)
@@ -388,6 +465,54 @@ const AdminPanel: React.FC = () => {
     } catch (error) {
       console.error('사용자 업데이트 실패:', error);
       alert('사용자 정보 업데이트에 실패했습니다.');
+    }
+  };
+
+  // 버스킹심사곡 주간 업로드 제한 저장
+  const handleSaveBuskingLimit = async () => {
+    if (!selectedUser || !currentUser) return;
+
+    const trimmed = buskingLimitInput.trim();
+    let updateData: Record<string, any> = {};
+
+    if (trimmed === '') {
+      updateData.evaluationBuskingWeeklyLimit = deleteField();
+    } else {
+      const value = Number(trimmed);
+      if (!Number.isFinite(value) || value < 0 || !Number.isInteger(value)) {
+        alert('업로드 제한은 0 이상의 정수로 입력해주세요.');
+        return;
+      }
+      updateData.evaluationBuskingWeeklyLimit = value;
+    }
+
+    try {
+      const userRef = doc(db, 'users', selectedUser.uid);
+      await updateDoc(userRef, updateData);
+
+      const newLimitValue = trimmed === '' ? undefined : Number(trimmed);
+      setSelectedUser(prev => prev ? { ...prev, evaluationBuskingWeeklyLimit: newLimitValue } : prev);
+      setUsers(prev => prev.map(user => (
+        user.uid === selectedUser.uid
+          ? { ...user, evaluationBuskingWeeklyLimit: newLimitValue }
+          : user
+      )));
+
+      await logAdminAction(
+        currentUser.uid,
+        currentUser.nickname,
+        'user_update',
+        `${selectedUser.nickname}님의 버스킹 주간 업로드 제한을 ${newLimitValue ?? '기본값(2)'}으로 설정했습니다.`,
+        selectedUser.uid,
+        selectedUser.nickname,
+        { evaluationBuskingWeeklyLimit: selectedUser.evaluationBuskingWeeklyLimit ?? 2 },
+        { evaluationBuskingWeeklyLimit: newLimitValue ?? 2 }
+      );
+
+      alert('업로드 제한 설정이 저장되었습니다.');
+    } catch (error) {
+      console.error('버스킹 업로드 제한 저장 실패:', error);
+      alert('업로드 제한 저장 중 오류가 발생했습니다.');
     }
   };
 
@@ -435,6 +560,48 @@ const AdminPanel: React.FC = () => {
     } catch (error) {
       console.error('사용자 삭제 실패:', error);
       alert('사용자 삭제에 실패했습니다.');
+    }
+  };
+
+  // 관리자 비밀번호 초기화 메일 발송
+  const handleAdminPasswordReset = async (targetUser: AdminUser) => {
+    if (!currentUser) return;
+    if (!targetUser.email) {
+      setPasswordResetMessage('해당 사용자의 이메일 정보가 없습니다.');
+      return;
+    }
+
+    try {
+      setPasswordResetLoadingUid(targetUser.uid);
+      setPasswordResetMessage('');
+      const auth = getAuth();
+      await sendPasswordResetEmail(auth, targetUser.email, {
+        url: `${window.location.origin}/login`,
+        handleCodeInApp: true
+      });
+
+      await logAdminAction(
+        currentUser.uid,
+        currentUser.nickname,
+        'user_update',
+        `${targetUser.nickname}님 비밀번호 초기화 메일을 발송했습니다.`,
+        targetUser.uid,
+        targetUser.nickname
+      );
+
+      setPasswordResetMessage(`초기화 메일 발송 완료: ${targetUser.email}`);
+    } catch (error: any) {
+      console.error('관리자 비밀번호 초기화 메일 발송 실패:', error);
+      const code = error?.code || '';
+      if (code === 'auth/invalid-email') {
+        setPasswordResetMessage('이메일 형식이 올바르지 않아 발송에 실패했습니다.');
+      } else if (code === 'auth/too-many-requests') {
+        setPasswordResetMessage('요청이 너무 많습니다. 잠시 후 다시 시도해주세요.');
+      } else {
+        setPasswordResetMessage('비밀번호 초기화 메일 발송에 실패했습니다.');
+      }
+    } finally {
+      setPasswordResetLoadingUid(null);
     }
   };
 
@@ -658,6 +825,7 @@ const AdminPanel: React.FC = () => {
 
         const userRef = doc(db, 'users', uid);
         await updateDoc(userRef, { grade: bulkGrade });
+        await syncUserGradeInDocuments(uid, bulkGrade);
         
         // 로그 기록
         await logAdminAction(
@@ -1354,6 +1522,7 @@ const AdminPanel: React.FC = () => {
         const nextGrade = getNextGrade(user.grade);
         const userRef = doc(db, 'users', user.uid);
         await updateDoc(userRef, { grade: nextGrade });
+        await syncUserGradeInDocuments(user.uid, nextGrade);
         
         // 로그 기록
         if (currentUser) {
@@ -1387,6 +1556,7 @@ const AdminPanel: React.FC = () => {
     try {
       const userRef = doc(db, 'users', user.uid);
       await updateDoc(userRef, { grade: nextGrade });
+      await syncUserGradeInDocuments(user.uid, nextGrade);
       
       // 로그 기록
       if (currentUser) {
@@ -1915,6 +2085,21 @@ const AdminPanel: React.FC = () => {
                   <strong>이메일:</strong> 
                   <span>{selectedUser.email}</span>
                 </div>
+                <div className="detail-row" style={{ alignItems: 'center' }}>
+                  <strong>비밀번호 초기화:</strong>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      className="action-btn save-btn"
+                      onClick={() => handleAdminPasswordReset(selectedUser)}
+                      disabled={passwordResetLoadingUid === selectedUser.uid}
+                    >
+                      {passwordResetLoadingUid === selectedUser.uid ? '발송 중...' : '초기화 메일 발송'}
+                    </button>
+                  </div>
+                  {passwordResetMessage && (
+                    <span style={{ fontSize: '0.9rem', color: '#334155' }}>{passwordResetMessage}</span>
+                  )}
+                </div>
                 <div className="detail-row">
                   <strong>가입일:</strong> 
                   <span>{formatDate(selectedUser.createdAt)}</span>
@@ -1926,6 +2111,41 @@ const AdminPanel: React.FC = () => {
                 <div className="detail-row">
                   <strong>UID:</strong> 
                   <span className="uid-text">{selectedUser.uid}</span>
+                </div>
+                <div className="detail-row">
+                  <strong>버스킹 주간 업로드:</strong>
+                  <span>
+                    {selectedUserBuskingLoading
+                      ? '조회 중...'
+                      : `${selectedUserBuskingCount ?? 0} / ${selectedUser.evaluationBuskingWeeklyLimit ?? 2}`}
+                  </span>
+                </div>
+                <div className="detail-row" style={{ alignItems: 'center' }}>
+                  <strong>업로드 제한 설정:</strong>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="기본값: 2"
+                      value={buskingLimitInput}
+                      onChange={(e) => setBuskingLimitInput(e.target.value)}
+                      className="edit-input"
+                      style={{ maxWidth: 140 }}
+                    />
+                    <button
+                      className="action-btn save-btn"
+                      onClick={handleSaveBuskingLimit}
+                    >
+                      저장
+                    </button>
+                    <button
+                      className="action-btn cancel-btn"
+                      onClick={() => setBuskingLimitInput('')}
+                      title="기본값(2)으로 복원"
+                    >
+                      기본값
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
