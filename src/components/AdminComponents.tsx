@@ -152,6 +152,7 @@ export const UserCard: React.FC<UserCardProps> = ({
               onChange={(e) => onEditChange('role', e.target.value)}
             >
               <option value="일반">일반</option>
+              <option value="평가자">평가자</option>
               <option value="부운영진">부운영진</option>
               <option value="운영진">운영진</option>
               <option value="리더">리더</option>

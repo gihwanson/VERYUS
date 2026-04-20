@@ -112,6 +112,7 @@ const PartnerPostWrite: React.FC = () => {
           writerNickname: user.nickname || '익명',
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
+          lastBumpedAt: serverTimestamp(),
           views: 0,
           likesCount: 0,
           commentCount: 0,

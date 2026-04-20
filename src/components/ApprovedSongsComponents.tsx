@@ -39,7 +39,21 @@ export const FilterTab: React.FC<FilterTabProps> = ({ type, label, isActive, onC
 );
 
 // 오디오 플레이어 컴포넌트
-const SimpleAudioPlayer: React.FC<{ audioUrl: string; duration?: number }> = ({ audioUrl, duration }) => {
+interface SimpleAudioPlayerProps {
+  playerId: string;
+  audioUrl: string;
+  duration?: number;
+  currentPlayingId: string | null;
+  onPlayChange: (songId: string | null) => void;
+}
+
+const SimpleAudioPlayer: React.FC<SimpleAudioPlayerProps> = ({
+  playerId,
+  audioUrl,
+  duration,
+  currentPlayingId,
+  onPlayChange
+}) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(duration || 0);
@@ -50,22 +64,40 @@ const SimpleAudioPlayer: React.FC<{ audioUrl: string; duration?: number }> = ({ 
     if (!audio) return;
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
     const handleLoadedMetadata = () => setAudioDuration(audio.duration);
+    const handleEnded = () => {
+      setIsPlaying(false);
+      if (currentPlayingId === playerId) {
+        onPlayChange(null);
+      }
+    };
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('ended', handleEnded);
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('ended', handleEnded);
     };
-  }, [audioUrl]);
+  }, [audioUrl, currentPlayingId, onPlayChange, playerId]);
+
+  useEffect(() => {
+    if (!audioRef.current) return;
+    if (currentPlayingId !== playerId && isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    }
+  }, [currentPlayingId, isPlaying, playerId]);
 
   const handlePlayPause = () => {
     if (!audioRef.current) return;
     if (isPlaying) {
       audioRef.current.pause();
       setIsPlaying(false);
+      onPlayChange(null);
     } else {
       audioRef.current.play();
       setIsPlaying(true);
+      onPlayChange(playerId);
     }
   };
 
@@ -157,7 +189,9 @@ interface SongListItemProps {
   grade?: string;
   audioUrl?: string;
   audioDuration?: number;
-  onLoadAudio?: (songTitle: string) => void;
+  onLoadAudio?: (song: ApprovedSong) => void;
+  currentPlayingId: string | null;
+  onPlayChange: (songId: string | null) => void;
 }
 
 export const SongListItem: React.FC<SongListItemProps> = ({ 
@@ -169,7 +203,9 @@ export const SongListItem: React.FC<SongListItemProps> = ({
   grade,
   audioUrl,
   audioDuration,
-  onLoadAudio
+  onLoadAudio,
+  currentPlayingId,
+  onPlayChange
 }) => {
   const [isLoading, setIsLoading] = useState(false);
 
@@ -177,7 +213,7 @@ export const SongListItem: React.FC<SongListItemProps> = ({
     if (!onLoadAudio || audioUrl) return;
     setIsLoading(true);
     try {
-      await onLoadAudio(song.title);
+      await onLoadAudio(song);
     } finally {
       setIsLoading(false);
     }
@@ -231,7 +267,13 @@ export const SongListItem: React.FC<SongListItemProps> = ({
         )}
       </div>
       {audioUrl && (
-        <SimpleAudioPlayer audioUrl={audioUrl} duration={audioDuration} />
+        <SimpleAudioPlayer
+          playerId={song.id}
+          audioUrl={audioUrl}
+          duration={audioDuration}
+          currentPlayingId={currentPlayingId}
+          onPlayChange={onPlayChange}
+        />
       )}
     </li>
   );
@@ -246,7 +288,9 @@ interface SongListProps {
   showGrade?: boolean;
   userMap?: Record<string, { grade?: string }>;
   audioMap?: Record<string, { audioUrl: string; duration?: number }>;
-  onLoadAudio?: (songTitle: string) => void;
+  onLoadAudio?: (song: ApprovedSong) => void;
+  currentPlayingId: string | null;
+  onPlayChange: (songId: string | null) => void;
 }
 
 export const SongList: React.FC<SongListProps> = ({ 
@@ -257,7 +301,9 @@ export const SongList: React.FC<SongListProps> = ({
   showGrade = false, 
   userMap = {},
   audioMap = {},
-  onLoadAudio
+  onLoadAudio,
+  currentPlayingId,
+  onPlayChange
 }) => (
   <div className="approved-songs-card">
     <ul className="approved-songs-list">
@@ -272,9 +318,8 @@ export const SongList: React.FC<SongListProps> = ({
           grade = GRADE_ORDER[minIdx] || '🍒';
         }
         
-        // 오디오 정보 찾기 (제목과 공백 제거한 제목 모두 체크)
-        const audioInfo = audioMap[song.title.trim()] || audioMap[song.titleNoSpace] || 
-                          audioMap[song.title.replace(/\s/g, '')];
+        // 오디오 정보 찾기 (곡 id 기준, 없으면 곡에 저장된 오디오 사용)
+        const audioInfo = audioMap[song.id] || (song.audioUrl ? { audioUrl: song.audioUrl, duration: song.duration } : undefined);
         
         return (
           <SongListItem
@@ -288,6 +333,8 @@ export const SongList: React.FC<SongListProps> = ({
             audioUrl={audioInfo?.audioUrl}
             audioDuration={audioInfo?.duration}
             onLoadAudio={onLoadAudio}
+            currentPlayingId={currentPlayingId}
+            onPlayChange={onPlayChange}
           />
         );
       })}

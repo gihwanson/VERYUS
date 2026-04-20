@@ -54,6 +54,8 @@ interface UserData {
   position?: string;
 }
 
+const EVALUATOR_ALIAS = '평가자';
+
 // 등급 이모지 매핑 - 체리만 사용
 const gradeEmojis = ['🍒'];
 const gradeToEmoji: { [key: string]: string } = {
@@ -93,10 +95,8 @@ const emojiToGrade: { [key: string]: string } = {
 const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noCommentAuthMessage, emptyCommentMessageVisibleToRoles }) => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
-  const [isSecret, setIsSecret] = useState(false);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState('');
-  const [isReplySecret, setIsReplySecret] = useState(false);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [messageRecipient, setMessageRecipient] = useState<{uid: string, nickname: string} | null>(null);
   const [messageContent, setMessageContent] = useState('');
@@ -106,10 +106,21 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
   const [mentionUsers, setMentionUsers] = useState<UserMention[]>([]);
   const mentionsInputRef = useRef<any>(null);
   const [isComposing, setIsComposing] = useState(false);
+  const [commentAsEvaluator, setCommentAsEvaluator] = useState(false);
+  const [commentAsAnonymous, setCommentAsAnonymous] = useState(false);
 
   // Memoized values
   const flatComments = useMemo(() => getFlatComments(comments), [comments]);
   const postType = useMemo(() => getPostTypeFromPath(), []);
+  const canUseEvaluatorAlias = useMemo(() => {
+    if (!user) return false;
+    if (postType !== 'evaluation') return false;
+    return (user.role || '').trim() === EVALUATOR_ALIAS || (user.position || '').trim() === EVALUATOR_ALIAS;
+  }, [user, postType]);
+  const effectiveCommentNickname = useMemo(() => {
+    if (canUseEvaluatorAlias && commentAsEvaluator) return EVALUATOR_ALIAS;
+    return user?.nickname || '익명';
+  }, [canUseEvaluatorAlias, commentAsEvaluator, user]);
   const canComment = useMemo(() => {
     if (!user) return false;
     // 평가게시판의 경우: 너래 또는 은하 등급 또는 리더/부운영진만 댓글 작성 가능
@@ -144,33 +155,56 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
 
     try {
       setIsSubmitting(true);
-      await submitComment(postId, newComment, user, isSecret, post);
+      const realNickname = user.nickname || '익명';
+      const writerNickname = commentAsAnonymous ? '익명' : effectiveCommentNickname;
+      await submitComment(
+        postId,
+        newComment,
+        user,
+        false,
+        post,
+        writerNickname,
+        commentAsAnonymous,
+        commentAsAnonymous ? realNickname : undefined
+      );
       setNewComment('');
-      setIsSecret(false);
+      setCommentAsAnonymous(false);
     } catch (error) {
       console.error('댓글 작성 에러:', error);
       alert('댓글 작성 중 오류가 발생했습니다.');
     } finally {
       setIsSubmitting(false);
     }
-  }, [user, newComment, isSecret, postId, post]);
+  }, [user, newComment, postId, post, effectiveCommentNickname, commentAsAnonymous]);
 
   const handleSubmitReply = useCallback(async (parentId: string) => {
     if (!user || !replyContent.trim()) return;
 
     try {
       setIsSubmitting(true);
-      await submitReply(postId, parentId, replyContent, user, isReplySecret, post);
+      const realNickname = user.nickname || '익명';
+      const writerNickname = commentAsAnonymous ? '익명' : effectiveCommentNickname;
+      await submitReply(
+        postId,
+        parentId,
+        replyContent,
+        user,
+        false,
+        post,
+        writerNickname,
+        commentAsAnonymous,
+        commentAsAnonymous ? realNickname : undefined
+      );
       setReplyContent('');
       setReplyingTo(null);
-      setIsReplySecret(false);
+      setCommentAsAnonymous(false);
     } catch (error) {
       console.error('대댓글 작성 에러:', error);
       alert('대댓글 작성 중 오류가 발생했습니다.');
     } finally {
       setIsSubmitting(false);
     }
-  }, [user, replyContent, isReplySecret, postId, post]);
+  }, [user, replyContent, postId, post, effectiveCommentNickname, commentAsAnonymous]);
 
   const handleSendMessage = useCallback(async () => {
     if (!user || !messageRecipient || !messageContent.trim()) return;
@@ -214,7 +248,6 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
   const handleCancelReply = useCallback(() => {
     setReplyingTo(null);
     setReplyContent('');
-    setIsReplySecret(false);
   }, []);
 
   const handleInputChange = useCallback((event: any, newValue: string) => {
@@ -262,6 +295,12 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
   useEffect(() => {
     getUserMentions().then(setMentionUsers);
   }, []);
+
+  useEffect(() => {
+    if (!canUseEvaluatorAlias) {
+      setCommentAsEvaluator(false);
+    }
+  }, [canUseEvaluatorAlias]);
 
   // Loading state
   if (isLoading) {
@@ -374,11 +413,21 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
                 <label className="secret-comment-toggle">
                   <input
                     type="checkbox"
-                    checked={isSecret}
-                    onChange={(e) => setIsSecret(e.target.checked)}
+                    checked={commentAsAnonymous}
+                    onChange={(e) => setCommentAsAnonymous(e.target.checked)}
                   />
-                  비밀댓글
+                  익명으로 달기
                 </label>
+                {canUseEvaluatorAlias && (
+                  <label className="secret-comment-toggle">
+                    <input
+                      type="checkbox"
+                      checked={commentAsEvaluator}
+                      onChange={(e) => setCommentAsEvaluator(e.target.checked)}
+                    />
+                    평가자로 댓글 달기
+                  </label>
+                )}
               </div>
               
               <button 

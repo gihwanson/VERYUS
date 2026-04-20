@@ -15,7 +15,7 @@ export interface SearchResult {
   title: string;
   content: string;
   author: string;
-  boardType: 'free' | 'recording' | 'evaluation' | 'partner';
+  boardType: 'free' | 'recording' | 'evaluation' | 'balance' | 'partner';
   createdAt: any;
   tags?: string[];
   score?: number;
@@ -33,10 +33,11 @@ export interface SearchFilters {
 
 // 게시판 타입 매핑
 const BOARD_TYPE_MAPPING: Record<string, string[]> = {
-  'all': ['free', 'recording', 'evaluation', 'partner'],
+  'all': ['free', 'recording', 'evaluation', 'balance', 'partner'],
   'free': ['free'],
   'recording': ['recording'],
   'evaluation': ['evaluation'],
+  'balance': ['balance'],
   'partner': ['partner']
 };
 

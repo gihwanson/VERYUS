@@ -308,6 +308,18 @@ export const getDaysUntilPromotion = (user: AdminUser): {
   };
 };
 
+/** Firestore orderBy 없이 가져온 문서 중 createdAt 누락/깨짐 시 정렬용 */
+const toCreatedAtMillis = (v: unknown): number => {
+  if (v == null) return 0;
+  if (v instanceof Timestamp) return v.toMillis();
+  if (typeof v === 'object' && v !== null && 'seconds' in v && typeof (v as { seconds: unknown }).seconds === 'number') {
+    return (v as { seconds: number }).seconds * 1000;
+  }
+  const d = v instanceof Date ? v : new Date(v as string | number);
+  const t = d.getTime();
+  return Number.isFinite(t) ? t : 0;
+};
+
 // 사용자 정렬 함수
 export const sortUsers = (users: AdminUser[], sortBy: string, sortOrder: 'asc' | 'desc' = 'asc') => {
   return [...users].sort((a, b) => {
@@ -315,8 +327,8 @@ export const sortUsers = (users: AdminUser[], sortBy: string, sortOrder: 'asc' |
 
     switch (sortBy) {
       case 'nickname':
-        aValue = a.nickname.toLowerCase();
-        bValue = b.nickname.toLowerCase();
+        aValue = (a.nickname ?? '').toLowerCase();
+        bValue = (b.nickname ?? '').toLowerCase();
         break;
       case 'grade':
         aValue = GRADE_ORDER.indexOf(a.grade as any);
@@ -327,8 +339,8 @@ export const sortUsers = (users: AdminUser[], sortBy: string, sortOrder: 'asc' |
         bValue = ROLE_OPTIONS.indexOf(b.role as any);
         break;
       case 'createdAt':
-        aValue = a.createdAt instanceof Timestamp ? a.createdAt.toDate() : new Date(a.createdAt);
-        bValue = b.createdAt instanceof Timestamp ? b.createdAt.toDate() : new Date(b.createdAt);
+        aValue = toCreatedAtMillis(a.createdAt);
+        bValue = toCreatedAtMillis(b.createdAt);
         break;
       default:
         return 0;
@@ -351,9 +363,11 @@ export const filterUsers = (users: AdminUser[], filters: {
     // 검색 필터
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
-      const matchesSearch = 
-        user.nickname.toLowerCase().includes(searchLower) ||
-        user.email.toLowerCase().includes(searchLower);
+      const internal = String((user as AdminUser & { internalEmail?: string }).internalEmail ?? '').toLowerCase();
+      const matchesSearch =
+        (user.nickname ?? '').toLowerCase().includes(searchLower) ||
+        (user.email ?? '').toLowerCase().includes(searchLower) ||
+        internal.includes(searchLower);
       if (!matchesSearch) return false;
     }
 
@@ -787,10 +801,12 @@ export const advancedUserSearch = (users: AdminUser[], searchParams: {
     // 키워드 검색
     if (searchParams.keyword) {
       const keyword = searchParams.keyword.toLowerCase();
-      const matchesKeyword = 
-        user.nickname.toLowerCase().includes(keyword) ||
-        user.email.toLowerCase().includes(keyword) ||
-        user.uid.toLowerCase().includes(keyword);
+      const internal = String((user as AdminUser & { internalEmail?: string }).internalEmail ?? '').toLowerCase();
+      const matchesKeyword =
+        (user.nickname ?? '').toLowerCase().includes(keyword) ||
+        (user.email ?? '').toLowerCase().includes(keyword) ||
+        internal.includes(keyword) ||
+        (user.uid ?? '').toLowerCase().includes(keyword);
       if (!matchesKeyword) return false;
     }
     

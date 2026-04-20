@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, Timestamp, query, orderBy, where } from 'firebase/firestore';
+import { collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, Timestamp, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import { collection as fbCollection, getDocs as fbGetDocs } from 'firebase/firestore';
@@ -26,6 +26,13 @@ import {
 import './ApprovedSongs.css';
 
 const ApprovedSongs: React.FC = () => {
+  type RepairFailureItem = {
+    songId: string;
+    title: string;
+    members: string[];
+    reason: string;
+  };
+
   const [songs, setSongs] = useState<ApprovedSong[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'register' | 'list' | 'busking'>('list');
@@ -36,9 +43,13 @@ const ApprovedSongs: React.FC = () => {
   const [songType, setSongType] = useState<SongType>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [userMap, setUserMap] = useState<UserMap>({});
+  const [allNicknames, setAllNicknames] = useState<string[]>([]);
   const [buskingTab, setBuskingTab] = useState<TabType>('all');
   const [manageTab, setManageTab] = useState<TabType>('all');
   const [audioMap, setAudioMap] = useState<Record<string, { audioUrl: string; duration?: number }>>({});
+  const [currentPlayingId, setCurrentPlayingId] = useState<string | null>(null);
+  const [isRepairingAudioLinks, setIsRepairingAudioLinks] = useState(false);
+  const [repairFailures, setRepairFailures] = useState<RepairFailureItem[]>([]);
 
   // 사용자 정보 및 권한
   const userString = localStorage.getItem('veryus_user');
@@ -48,27 +59,31 @@ const ApprovedSongs: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchSongs = async () => {
-      const q = query(collection(db, 'approvedSongs'), orderBy('title'));
-      const snap = await getDocs(q);
+    const q = query(collection(db, 'approvedSongs'), orderBy('title'));
+    const unsubscribe = onSnapshot(q, (snap) => {
       const fetchedSongs = snap.docs.map(convertFirestoreData);
       setSongs(fetchedSongs);
       setLoading(false);
-    };
-    fetchSongs();
+    });
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
     // 유저 등급 정보도 fetch
-    (async () => {
-      const snap = await fbGetDocs(fbCollection(db, 'users'));
+    const unsubscribe = onSnapshot(fbCollection(db, 'users'), (snap) => {
       const map: UserMap = {};
+      const nicknames: string[] = [];
       snap.docs.forEach(doc => {
         const d = doc.data();
-        if (d.nickname) map[d.nickname] = { grade: d.grade };
+        if (d.nickname) {
+          map[d.nickname] = { grade: d.grade };
+          nicknames.push(d.nickname);
+        }
       });
       setUserMap(map);
-    })();
+      setAllNicknames(nicknames);
+    });
+    return () => unsubscribe();
   }, []);
 
   const handleSave = async () => {
@@ -137,111 +152,171 @@ const ApprovedSongs: React.FC = () => {
     setSongs(songs => songs.filter(song => !toDelete.some(s => s.id === song.id)));
   };
 
+  const normalizeTitle = (value: string) => value.replace(/\s/g, '').toLowerCase();
+
+  const repairMissingAudioLinks = async () => {
+    if (isRepairingAudioLinks) return;
+    setIsRepairingAudioLinks(true);
+    setRepairFailures([]);
+
+    try {
+      const postsSnap = await getDocs(collection(db, 'posts'));
+      const candidatePosts = postsSnap.docs
+        .map(postDoc => {
+          const data = postDoc.data() as any;
+          if (!data?.audioUrl || typeof data.audioUrl !== 'string' || !data.audioUrl.trim()) return null;
+          return {
+            id: postDoc.id,
+            title: data.title || '',
+            titleNoSpace: data.titleNoSpace || '',
+            writerNickname: data.writerNickname || '',
+            members: Array.isArray(data.members) ? data.members : [],
+            status: data.status || '',
+            audioUrl: data.audioUrl,
+            duration: typeof data.duration === 'number' ? data.duration : undefined,
+            fileName: data.fileName || '',
+            createdAtSeconds: data.createdAt?.seconds || 0
+          };
+        })
+        .filter(Boolean) as Array<{
+          id: string;
+          title: string;
+          titleNoSpace: string;
+          writerNickname: string;
+          members: string[];
+          status: string;
+          audioUrl: string;
+          duration?: number;
+          fileName: string;
+          createdAtSeconds: number;
+        }>;
+
+      const targets = songs.filter(song => {
+        const audioMissing = !song.audioUrl && !audioMap[song.id]?.audioUrl;
+        const postMissing = !song.approvedPostId;
+        const postBroken =
+          !!song.approvedPostId &&
+          !candidatePosts.some(post => post.id === song.approvedPostId);
+        return audioMissing || postMissing || postBroken;
+      });
+
+      if (targets.length === 0) {
+        alert('점검 결과: 연결 누락 항목이 없습니다.');
+        return;
+      }
+
+      let repairedCount = 0;
+      let failedCount = 0;
+      const failures: RepairFailureItem[] = [];
+
+      for (const song of targets) {
+        const songTitleKey = normalizeTitle(song.title || '');
+        const songMembers = Array.isArray(song.members) ? song.members.filter(Boolean) : [];
+
+        const matched = candidatePosts
+          .map(post => {
+            const postTitleKey = normalizeTitle(post.titleNoSpace || post.title || '');
+            const postMembers = [...post.members, post.writerNickname].filter(Boolean);
+            const overlap = songMembers.filter(member => postMembers.includes(member)).length;
+            const allMembersMatch = songMembers.length > 0 && songMembers.every(member => postMembers.includes(member));
+            const titleMatched = postTitleKey === songTitleKey;
+            const statusMatched = post.status === '합격';
+
+            let score = 0;
+            if (titleMatched) score += 5;
+            if (allMembersMatch) score += 4;
+            score += Math.min(overlap, 3);
+            if (statusMatched) score += 2;
+            if (song.approvedPostId && song.approvedPostId === post.id) score += 3;
+            return { post, score, titleMatched, overlap };
+          })
+          .filter(item => item.titleMatched && item.overlap > 0)
+          .sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score;
+            return b.post.createdAtSeconds - a.post.createdAtSeconds;
+          })[0];
+
+        if (!matched) {
+          const hasSameTitle = candidatePosts.some(post => {
+            const postTitleKey = normalizeTitle(post.titleNoSpace || post.title || '');
+            return postTitleKey === songTitleKey;
+          });
+          const hasMemberOverlap = candidatePosts.some(post => {
+            const postMembers = [...post.members, post.writerNickname].filter(Boolean);
+            return songMembers.some(member => postMembers.includes(member));
+          });
+          let reason = '제목/멤버 조건에 맞는 녹음 게시글을 찾지 못함';
+          if (!hasSameTitle) {
+            reason = '동일 제목의 오디오 게시글 없음';
+          } else if (!hasMemberOverlap) {
+            reason = '동일 제목은 있으나 멤버 정보가 일치하지 않음';
+          }
+          failures.push({
+            songId: song.id,
+            title: song.title || '(제목 없음)',
+            members: songMembers,
+            reason
+          });
+          failedCount += 1;
+          continue;
+        }
+
+        await updateDoc(doc(db, 'approvedSongs', song.id), {
+          approvedPostId: matched.post.id,
+          audioUrl: matched.post.audioUrl,
+          duration: matched.post.duration,
+          fileName: matched.post.fileName,
+          updatedAt: Timestamp.now(),
+          updatedBy: user?.nickname || user?.email || 'system-repair'
+        });
+
+        setAudioMap(prev => ({
+          ...prev,
+          [song.id]: {
+            audioUrl: matched.post.audioUrl,
+            duration: matched.post.duration
+          }
+        }));
+        repairedCount += 1;
+      }
+
+      setRepairFailures(failures);
+      alert(`점검 완료\n- 점검 대상: ${targets.length}곡\n- 연결 복구: ${repairedCount}곡\n- 미매칭: ${failedCount}곡`);
+    } catch (error) {
+      console.error('합격곡 녹음 연결 점검 실패:', error);
+      alert('점검/복구 중 오류가 발생했습니다. 콘솔 로그를 확인해주세요.');
+    } finally {
+      setIsRepairingAudioLinks(false);
+    }
+  };
+
   // 특정 곡의 오디오 정보를 가져오는 함수
-  const loadAudioForSong = async (songTitle: string) => {
-    // 이미 로드된 경우 스킵
-    const titleKey = songTitle.trim();
-    const titleNoSpace = titleKey.replace(/\s/g, '');
-    if (audioMap[titleKey] || audioMap[titleNoSpace]) {
+  const loadAudioForSong = async (song: ApprovedSong) => {
+    if (audioMap[song.id] || song.audioUrl) return;
+
+    if (!song.approvedPostId) {
+      alert('이 합격곡은 아직 녹음파일이 연결되지 않았습니다.');
       return;
     }
 
     try {
-      // 평가게시판에서 해당 제목의 합격된 게시글 찾기
-      const evaluationQuery = query(
-        collection(db, 'posts'),
-        where('type', '==', 'evaluation'),
-        where('status', '==', '합격'),
-        where('title', '==', titleKey)
-      );
-      const evaluationSnap = await getDocs(evaluationQuery);
-      
-      if (evaluationSnap.empty) {
-        // 제목이 정확히 일치하지 않는 경우, 모든 합격 게시글에서 검색
-        const allEvaluationQuery = query(
-          collection(db, 'posts'),
-          where('type', '==', 'evaluation'),
-          where('status', '==', '합격')
-        );
-        const allEvaluationSnap = await getDocs(allEvaluationQuery);
-        
-        // 제목이 유사한 것 찾기 (공백 제거한 버전도 체크)
-        let foundAudio: { audioUrl: string; duration?: number; createdAt: any } | null = null;
-        
-        allEvaluationSnap.docs.forEach(doc => {
-          const data = doc.data();
-          if (data.title && data.audioUrl) {
-            const dataTitle = data.title.trim();
-            const dataTitleNoSpace = dataTitle.replace(/\s/g, '');
-            
-            if (dataTitle === titleKey || dataTitleNoSpace === titleNoSpace) {
-              const createdAt = data.createdAt;
-              // 같은 제목이 없거나, 더 최신 것일 때 업데이트
-              if (!foundAudio || 
-                  (createdAt && foundAudio.createdAt && 
-                   createdAt.toMillis && foundAudio.createdAt.toMillis &&
-                   createdAt.toMillis() > foundAudio.createdAt.toMillis())) {
-                foundAudio = {
-                  audioUrl: data.audioUrl,
-                  duration: data.duration,
-                  createdAt: createdAt
-                };
-              }
-            }
+      const postRef = doc(db, 'posts', song.approvedPostId);
+      const postSnap = await getDoc(postRef);
+
+      if (!postSnap.exists()) {
+        console.error('연결된 게시글을 찾지 못했습니다.');
+        return;
+      }
+
+      const postData = postSnap.data();
+      if (postData?.audioUrl) {
+        setAudioMap(prev => ({
+          ...prev,
+          [song.id]: {
+            audioUrl: postData.audioUrl,
+            duration: postData.duration
           }
-        });
-        
-        if (foundAudio) {
-          setAudioMap(prev => ({
-            ...prev,
-            [titleKey]: {
-              audioUrl: foundAudio!.audioUrl,
-              duration: foundAudio!.duration
-            },
-            ...(titleNoSpace !== titleKey ? {
-              [titleNoSpace]: {
-                audioUrl: foundAudio!.audioUrl,
-                duration: foundAudio!.duration
-              }
-            } : {})
-          }));
-        }
-      } else {
-        // 정확히 일치하는 경우, 가장 최신 것 선택
-        let latestAudio: { audioUrl: string; duration?: number; createdAt: any } | null = null;
-        
-        evaluationSnap.docs.forEach(doc => {
-          const data = doc.data();
-          if (data.audioUrl) {
-            const createdAt = data.createdAt;
-            if (!latestAudio || 
-                (createdAt && latestAudio.createdAt && 
-                 createdAt.toMillis && latestAudio.createdAt.toMillis &&
-                 createdAt.toMillis() > latestAudio.createdAt.toMillis())) {
-              latestAudio = {
-                audioUrl: data.audioUrl,
-                duration: data.duration,
-                createdAt: createdAt
-              };
-            }
-          }
-        });
-        
-        if (latestAudio) {
-          setAudioMap(prev => ({
-            ...prev,
-            [titleKey]: {
-              audioUrl: latestAudio!.audioUrl,
-              duration: latestAudio!.duration
-            },
-            ...(titleNoSpace !== titleKey ? {
-              [titleNoSpace]: {
-                audioUrl: latestAudio!.audioUrl,
-                duration: latestAudio!.duration
-              }
-            } : {})
-          }));
-        }
+        }));
       }
     } catch (error) {
       console.error('오디오 정보 가져오기 실패:', error);
@@ -255,7 +330,12 @@ const ApprovedSongs: React.FC = () => {
   );
 
   // 중복 없는 닉네임 추출
-  const uniqueMembers = getUniqueMembers(songs);
+  const uniqueMembers = getUniqueMembers(songs).sort((a, b) => a.localeCompare(b, 'ko'));
+  const uniqueMembersText = uniqueMembers.join('\n');
+  const otherMembers = allNicknames
+    .filter(nickname => !uniqueMembers.includes(nickname))
+    .sort((a, b) => a.localeCompare(b, 'ko'));
+  const otherMembersText = otherMembers.join('\n');
 
   if (loading) {
     return <div className="approved-songs-container">로딩 중...</div>;
@@ -370,6 +450,42 @@ const ApprovedSongs: React.FC = () => {
                 <h4 className="approved-songs-manage-title">
                   👥 합격곡에 등재된 닉네임 목록
                 </h4>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+                  <button
+                    className="approved-songs-btn"
+                    onClick={repairMissingAudioLinks}
+                    disabled={isRepairingAudioLinks}
+                    style={{
+                      background: 'rgba(138, 85, 204, 0.9)',
+                      borderRadius: '10px',
+                      padding: '8px 14px',
+                      opacity: isRepairingAudioLinks ? 0.7 : 1,
+                      cursor: isRepairingAudioLinks ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    {isRepairingAudioLinks ? '⏳ 연결 점검 중...' : '🔧 녹음 연결 점검/복구'}
+                  </button>
+                </div>
+                {repairFailures.length > 0 && (
+                  <div className="approved-songs-copy-box" style={{ marginBottom: '16px' }}>
+                    <div className="approved-songs-copy-header">
+                      <span>⚠️ 자동 복구 실패 항목 ({repairFailures.length}곡)</span>
+                    </div>
+                    <ul className="approved-songs-manage-list">
+                      {repairFailures.map(item => (
+                        <li key={item.songId} className="approved-songs-manage-item" style={{ alignItems: 'flex-start', flexDirection: 'column' }}>
+                          <span className="approved-songs-manage-nickname">🎵 {item.title}</span>
+                          <span style={{ color: 'rgba(255, 255, 255, 0.85)', fontSize: '13px' }}>
+                            멤버: {item.members.length > 0 ? item.members.join(', ') : '-'}
+                          </span>
+                          <span style={{ color: '#ffd6d6', fontSize: '13px' }}>
+                            사유: {item.reason}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 <div className="approved-songs-card">
                   <ul className="approved-songs-manage-list">
                     {uniqueMembers.map(nickname => (
@@ -387,6 +503,56 @@ const ApprovedSongs: React.FC = () => {
                     ))}
                   </ul>
                 </div>
+                <div className="approved-songs-copy-box">
+                  <div className="approved-songs-copy-header">
+                    <span>📋 닉네임 전체 복사 ({uniqueMembers.length}명)</span>
+                    <button
+                      className="approved-songs-copy-button"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(uniqueMembersText);
+                          alert('닉네임 목록이 복사되었습니다.');
+                        } catch (error) {
+                          console.error('복사 실패:', error);
+                          alert('복사에 실패했습니다. 직접 선택해서 복사해주세요.');
+                        }
+                      }}
+                    >
+                      복사
+                    </button>
+                  </div>
+                  <textarea
+                    className="approved-songs-copy-textarea"
+                    readOnly
+                    value={uniqueMembersText}
+                    placeholder="합격곡에 등재된 닉네임이 없습니다."
+                  />
+                </div>
+                <div className="approved-songs-copy-box">
+                  <div className="approved-songs-copy-header">
+                    <span>📋 그 외 멤버 전체 복사 ({otherMembers.length}명)</span>
+                    <button
+                      className="approved-songs-copy-button"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(otherMembersText);
+                          alert('닉네임 목록이 복사되었습니다.');
+                        } catch (error) {
+                          console.error('복사 실패:', error);
+                          alert('복사에 실패했습니다. 직접 선택해서 복사해주세요.');
+                        }
+                      }}
+                    >
+                      복사
+                    </button>
+                  </div>
+                  <textarea
+                    className="approved-songs-copy-textarea"
+                    readOnly
+                    value={otherMembersText}
+                    placeholder="그 외 멤버가 없습니다."
+                  />
+                </div>
               </div>
             )}
             
@@ -399,6 +565,8 @@ const ApprovedSongs: React.FC = () => {
                 onDelete={handleDelete}
                 audioMap={audioMap}
                 onLoadAudio={loadAudioForSong}
+                currentPlayingId={currentPlayingId}
+                onPlayChange={setCurrentPlayingId}
               />
             )}
           </>
@@ -465,6 +633,8 @@ const ApprovedSongs: React.FC = () => {
                   userMap={userMap}
                   audioMap={audioMap}
                   onLoadAudio={loadAudioForSong}
+                  currentPlayingId={currentPlayingId}
+                  onPlayChange={setCurrentPlayingId}
                 />
               </div>
             )}

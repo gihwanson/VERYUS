@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { onSnapshot, doc } from 'firebase/firestore';
-import { User } from 'lucide-react';
+import { signOut } from 'firebase/auth';
+import { toast } from 'react-toastify';
+import { User, LogOut } from 'lucide-react';
 import './Home.css';
 import DailyFortune from './DailyFortune';
-import { db } from '../firebase';
+import AnonymousNoteBubble from './AnonymousNoteBubble';
+import { auth } from '../firebase';
+import { useUserProfile } from '../contexts/UserProfileContext';
 import { 
   markBoardAsVisited,
   getAllBoardNotificationStatus
@@ -34,6 +37,7 @@ interface BoardItem {
 const BOARDS: BoardItem[] = [
   { name: '자유게시판', icon: () => <span style={{fontSize: 36}}>💬</span>, path: '/free', color: '#667eea' },
   { name: '녹음게시판', icon: () => <span style={{fontSize: 36}}>🎙️</span>, path: '/recording', color: '#f093fb' },
+  { name: '밸런스게시판', icon: () => <span style={{fontSize: 28, fontWeight: 800}}>VS</span>, path: '/balance', color: '#ff9ff3' },
   { name: '평가게시판', icon: () => <span style={{fontSize: 36}}>📝</span>, path: '/evaluation', color: '#ffeaa7' },
   { name: '파트너모집', icon: () => <span style={{fontSize: 36}}>🤝</span>, path: '/boards/partner', color: '#55efc4' }
 ];
@@ -43,6 +47,7 @@ interface HomeProps {
 }
 
 const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
+  const { profile } = useUserProfile();
   // State
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,6 +62,21 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
     setDailyFortuneOpen(!dailyFortuneOpen);
   };
 
+  // 로그아웃 핸들러
+  const handleLogout = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (window.confirm('로그아웃 하시겠습니까?')) {
+      try {
+        await signOut(auth);
+        localStorage.removeItem('veryus_user');
+        navigate('/login');
+      } catch (error) {
+        console.error('로그아웃 에러:', error);
+        toast.error('로그아웃 중 오류가 발생했습니다.');
+      }
+    }
+  };
+
   // 게시판 네비게이션 - 방문 기록 저장
   const navigateToBoard = (path: string) => {
     if (user?.uid) {
@@ -66,6 +86,7 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
       if (path === '/free') boardType = 'free';
       else if (path === '/recording') boardType = 'recording';
       else if (path === '/evaluation') boardType = 'evaluation';
+      else if (path === '/balance') boardType = 'balance';
       else if (path === '/boards/partner') boardType = 'partner';
       
       // 게시판 방문 기록 저장
@@ -87,39 +108,31 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
     return notification?.hasNewPosts || false;
   };
 
-  // Effects
+  // Effects — 전역 UserProfileContext가 Firestore와 localStorage를 동기화함
   useEffect(() => {
+    if (profile) {
+      setUser({
+        uid: String(profile.uid),
+        email: String(profile.email || ''),
+        nickname: profile.nickname as string | undefined,
+        role: profile.role as string | undefined,
+        grade: profile.grade as string | undefined,
+        profileImageUrl: profile.profileImageUrl as string | undefined,
+        isLoggedIn: true
+      });
+      setLoading(false);
+      return;
+    }
     const userString = localStorage.getItem('veryus_user');
     if (userString) {
       try {
-        const basicUserData = JSON.parse(userString);
-        setUser(basicUserData);
-        setLoading(false);
-        
-        if (basicUserData.uid) {
-          const userDocRef = doc(db, 'users', basicUserData.uid);
-          const unsubscribe = onSnapshot(userDocRef, (docSnapshot) => {          
-            if (docSnapshot.exists()) {
-              const firestoreData = docSnapshot.data();
-              const completeUserData: User = {
-                ...basicUserData,
-                ...firestoreData,
-                isLoggedIn: true
-              };
-              setUser(completeUserData);
-              localStorage.setItem('veryus_user', JSON.stringify(completeUserData));
-            }
-          });
-          return () => unsubscribe();
-        }
+        setUser(JSON.parse(userString));
       } catch (error) {
         console.error('사용자 정보 파싱 에러:', error);
-        setLoading(false);
       }
-    } else {
-      setLoading(false);
     }
-  }, []);
+    setLoading(false);
+  }, [profile]);
 
   // useEffect for dropdown click outside and notifications removed - no longer needed
 
@@ -167,7 +180,7 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
       {/* 우측 상단 고정 헤더 */}
       <div className="fixed-header">
         {/* 프로필 버튼 - 오늘의 운세 */}
-        <div className="profile-section">
+        <div className="profile-section" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <button
             className="profile-button"
             onClick={handleProfileClick}
@@ -183,6 +196,42 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
               </div>
             </div>
           </button>
+          <button
+            className="logout-button"
+            onClick={handleLogout}
+            title="로그아웃"
+            style={{
+              background: 'rgba(239, 68, 68, 0.2)',
+              border: '1.5px solid rgba(239, 68, 68, 0.4)',
+              borderRadius: '20px',
+              padding: '6px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              color: 'white',
+              fontSize: '12px',
+              fontWeight: 600,
+              backdropFilter: 'blur(10px)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(239, 68, 68, 0.35)';
+              e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.6)';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.3)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
+              e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+          >
+            <LogOut size={14} />
+            <span>로그아웃</span>
+          </button>
         </div>
       </div>
 
@@ -190,15 +239,18 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
       <div className="home-content">
         {/* 로고 섹션 */}
         <div className="logo-section">
-          <img 
-            src="/veryus_logo.png" 
-            alt="VERYUS Logo" 
-            className="logo-image"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.src = "/veryus-logo.svg";
-            }}
-          />
+          <div className="logo-with-bubble">
+            <img 
+              src="/veryus_logo.png" 
+              alt="VERYUS Logo" 
+              className="logo-image"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = "/veryus-logo.svg";
+              }}
+            />
+            <AnonymousNoteBubble />
+          </div>
           <div className="brand-text">
             <h1 className="home-title">VERYUS</h1>
             <p className="home-slogan">다양한 음악을 우리답게</p>
@@ -207,28 +259,37 @@ const Home: React.FC<HomeProps> = ({ onSearchOpen }) => {
 
         {/* 게시판 바로가기 */}
         <div className="boards-section">
-          <div className="boards-grid">
+          <div className="boards-cross-layout">
             {BOARDS.map((board, index) => {
-              // 경로에 따라 게시판 타입 결정
-              let boardType: 'free' | 'recording' | 'evaluation' | 'partner' | null = null;
+              let boardType: 'free' | 'recording' | 'evaluation' | 'balance' | 'partner' | null = null;
               if (board.path === '/free') boardType = 'free';
               else if (board.path === '/recording') boardType = 'recording';
               else if (board.path === '/evaluation') boardType = 'evaluation';
+              else if (board.path === '/balance') boardType = 'balance';
               else if (board.path === '/boards/partner') boardType = 'partner';
 
               const hasNewPosts = boardType ? getBoardNotification(boardType) : false;
+              const boardClass = board.path === '/balance'
+                ? 'bubble-center'
+                : board.path === '/free'
+                  ? 'bubble-top-left'
+                  : board.path === '/recording'
+                    ? 'bubble-top-right'
+                    : board.path === '/evaluation'
+                      ? 'bubble-bottom-left'
+                      : 'bubble-bottom-right';
 
               return (
-                <div 
-                  key={index} 
-                  className={`bubble-button bubble-${board.path.replace('/', '').replace('boards/', '')}`}
+                <div
+                  key={index}
+                  className={`bubble-button ${boardClass} bubble-${board.path.replace('/', '').replace('boards/', '')}`}
                   onClick={() => navigateToBoard(board.path)}
                   style={{ '--board-color': board.color } as React.CSSProperties}
                 >
                   <div className="bubble-icon" style={{ position: 'relative' }}>
                     <board.icon />
                     {hasNewPosts && (
-                      <span 
+                      <span
                         className="board-notification-dot"
                         style={{
                           position: 'absolute',

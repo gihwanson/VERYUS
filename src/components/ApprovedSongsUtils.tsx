@@ -10,6 +10,10 @@ export interface ApprovedSong {
   createdAt: Timestamp;
   createdBy: string;
   createdByRole: string;
+  approvedPostId?: string;
+  audioUrl?: string;
+  duration?: number;
+  fileName?: string;
   updatedAt?: Timestamp;
   updatedBy?: string;
 }
@@ -110,6 +114,10 @@ export const convertFirestoreData = (doc: any): ApprovedSong => {
     createdAt: data.createdAt || Timestamp.now(),
     createdBy: data.createdBy || '',
     createdByRole: data.createdByRole || '',
+    approvedPostId: data.approvedPostId || '',
+    audioUrl: data.audioUrl || '',
+    duration: typeof data.duration === 'number' ? data.duration : undefined,
+    fileName: data.fileName || '',
     updatedAt: data.updatedAt,
     updatedBy: data.updatedBy
   } as ApprovedSong;

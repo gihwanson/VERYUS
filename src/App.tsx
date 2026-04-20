@@ -1,7 +1,7 @@
-import React, { useEffect, useState, createContext, useContext, useRef, useMemo } from 'react';
+import React, { useEffect, useState, createContext, useContext, useRef, useMemo, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
-import { collection, getDocs, query, where, orderBy, addDoc, deleteDoc, doc, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy, addDoc, deleteDoc, doc, onSnapshot, getDoc } from 'firebase/firestore';
 import { uploadBytes, getDownloadURL, ref as storageRef } from 'firebase/storage';
 import type { User } from 'firebase/auth';
 import { ToastContainer } from 'react-toastify';
@@ -9,75 +9,65 @@ import 'react-toastify/dist/ReactToastify.css';
 // @ts-ignore
 import { auth, db, storage } from './firebase';
 // @ts-ignore
-import Login from './components/Login';
-// @ts-ignore
-import Home from './components/Home';
-// @ts-ignore
-import Signup from './components/Signup';
-// @ts-ignore
-import ForgotPassword from './components/ForgotPassword';
-// @ts-ignore
-import FreePostList from './components/FreePostList';
-// @ts-ignore
-import FreePostWrite from './components/FreePostWrite';
-// @ts-ignore
-import FreePostDetail from './components/FreePostDetail';
-// @ts-ignore
-import AdminPanel from './components/AdminPanel';
-// @ts-ignore
-import MyPage from './components/MyPage';
-// @ts-ignore
-import Settings from './components/Settings';
-// @ts-ignore
-import RecordingPostList from './components/RecordingPostList';
-// @ts-ignore
-import RecordingPostWrite from './components/RecordingPostWrite';
-// @ts-ignore
-import RecordingPostDetail from './components/RecordingPostDetail';
-// @ts-ignore
-import RecordingPostEdit from './components/RecordingPostEdit';
-// @ts-ignore
-import Notifications from './components/Notifications';
-// @ts-ignore
-import ContestList from './components/ContestList';
-// @ts-ignore
-import ContestCreate from './components/ContestCreate';
-// @ts-ignore
-import ContestDetail from './components/ContestDetail';
-// @ts-ignore
-import ContestParticipate from './components/ContestParticipate';
-// @ts-ignore
-import ContestResults from './components/ContestResults';
-// @ts-ignore
-import ApprovedSongs from './components/ApprovedSongs';
-// @ts-ignore
-import SetList from './components/SetList';
-// @ts-ignore
-import PartnerPostList from './components/PartnerPostList';
-// @ts-ignore
-import PartnerPostWrite from './components/PartnerPostWrite';
-// @ts-ignore
-import PartnerPostDetail from './components/PartnerPostDetail';
-// @ts-ignore
-import EvaluationPostList from './components/EvaluationPostList';
-// @ts-ignore
-import EvaluationPostWrite from './components/EvaluationPostWrite';
-// @ts-ignore
-import EvaluationPostDetail from './components/EvaluationPostDetail';
-// @ts-ignore
-import EvaluationPostEdit from './components/EvaluationPostEdit';
-// @ts-ignore
-import PracticeRoom from './components/PracticeRoom';
-// @ts-ignore
-import PracticeRoomBooking from './components/PracticeRoomBooking';
-// @ts-ignore
-import PracticeRoomManagement from './components/PracticeRoomManagement';
-// @ts-ignore
 import BottomNavigation from './components/BottomNavigation';
-import { subscribeToAnnouncementUnreadCount } from './utils/readStatusService';
 // @ts-ignore
 import SearchSystem from './components/SearchSystem';
+import { subscribeToAnnouncementUnreadCount } from './utils/readStatusService';
+import { initPushNotifications, removeCurrentPushToken } from './utils/pushNotificationService';
+import { mergeVeryusUserFromAuth, readVeryusUserFromStorage, writeVeryusUserToStorage } from './utils/veryusUserStorage';
+import { UserProfileProvider } from './contexts/UserProfileContext';
 import './App.css';
+
+const AdminPanel = lazy(() => import('./components/AdminPanel'));
+const MyPage = lazy(() => import('./components/MyPage'));
+const Settings = lazy(() => import('./components/Settings'));
+const Login = lazy(() => import('./components/Login'));
+const Home = lazy(() => import('./components/Home'));
+const Signup = lazy(() => import('./components/Signup'));
+const ForgotPassword = lazy(() => import('./components/ForgotPassword'));
+const FreePostList = lazy(() => import('./components/FreePostList'));
+const FreePostWrite = lazy(() => import('./components/FreePostWrite'));
+const FreePostDetail = lazy(() => import('./components/FreePostDetail'));
+const RecordingPostList = lazy(() => import('./components/RecordingPostList'));
+const RecordingPostWrite = lazy(() => import('./components/RecordingPostWrite'));
+const RecordingPostDetail = lazy(() => import('./components/RecordingPostDetail'));
+const RecordingPostEdit = lazy(() => import('./components/RecordingPostEdit'));
+const Notifications = lazy(() => import('./components/Notifications'));
+const ContestList = lazy(() => import('./components/ContestList'));
+const ContestCreate = lazy(() => import('./components/ContestCreate'));
+const ContestDetail = lazy(() => import('./components/ContestDetail'));
+const ContestParticipate = lazy(() => import('./components/ContestParticipate'));
+const ContestResults = lazy(() => import('./components/ContestResults'));
+const ApprovedSongs = lazy(() => import('./components/ApprovedSongs'));
+const SetList = lazy(() => import('./components/SetList'));
+const PartnerPostList = lazy(() => import('./components/PartnerPostList'));
+const PartnerPostWrite = lazy(() => import('./components/PartnerPostWrite'));
+const PartnerPostDetail = lazy(() => import('./components/PartnerPostDetail'));
+const EvaluationPostList = lazy(() => import('./components/EvaluationPostList'));
+const EvaluationPostWrite = lazy(() => import('./components/EvaluationPostWrite'));
+const EvaluationPostDetail = lazy(() => import('./components/EvaluationPostDetail'));
+const EvaluationPostEdit = lazy(() => import('./components/EvaluationPostEdit'));
+const BalancePostList = lazy(() => import('./components/BalancePostList'));
+const BalancePostWrite = lazy(() => import('./components/BalancePostWrite'));
+const BalancePostDetail = lazy(() => import('./components/BalancePostDetail'));
+const PracticeRoomBooking = lazy(() => import('./components/PracticeRoomBooking'));
+const PracticeRoomManagement = lazy(() => import('./components/PracticeRoomManagement'));
+
+const PageLoader = () => (
+  <div
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: '40vh',
+      color: '#6B7280',
+      fontSize: 15,
+      fontWeight: 600
+    }}
+  >
+    페이지를 불러오는 중…
+  </div>
+);
 
 const GRADE_ORDER = [
   '🍒'
@@ -191,7 +181,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
             fontSize: 48,
             letterSpacing: '3px',
             textShadow: '0 0 20px rgba(255, 255, 255, 0.5), 0 0 40px rgba(138, 85, 204, 0.3)',
-            animation: 'glow 2s ease-in-out infinite alternate'
+            animation: 'none'
           }}>
             VERYUS
           </h2>
@@ -711,27 +701,19 @@ function App() {
       // localStorage에 로그인 상태 저장/제거
       if (currentUser) {
         try {
-          // Firestore에서 사용자 추가 정보 가져오기
-          const userDoc = await getDocs(query(collection(db, 'users'), where('uid', '==', currentUser.uid)));
-          const userData = userDoc.docs[0]?.data();
-          
-          localStorage.setItem('veryus_user', JSON.stringify({
-            uid: currentUser.uid,
-            email: currentUser.email,
-            nickname: userData?.nickname || '',
-            role: userData?.role || '일반',
-            grade: userData?.grade || '🍒체리',
-            isLoggedIn: true
-          }));
+          const previous = readVeryusUserFromStorage();
+          const userSnap = await getDoc(doc(db, 'users', currentUser.uid));
+          const userData = userSnap.exists() ? userSnap.data() : undefined;
+          const merged = mergeVeryusUserFromAuth(currentUser, userData, previous);
+          writeVeryusUserToStorage(merged);
         } catch (error) {
           console.error('사용자 정보 가져오기 실패:', error);
-          localStorage.setItem('veryus_user', JSON.stringify({
-            uid: currentUser.uid,
-            email: currentUser.email,
-            isLoggedIn: true
-          }));
+          const merged = mergeVeryusUserFromAuth(currentUser, {}, readVeryusUserFromStorage());
+          writeVeryusUserToStorage(merged);
         }
+        await initPushNotifications(currentUser.uid);
       } else {
+        await removeCurrentPushToken();
         localStorage.removeItem('veryus_user');
       }
       
@@ -852,7 +834,7 @@ function App() {
             fontSize: 48,
             letterSpacing: '3px',
             textShadow: '0 0 20px rgba(255, 255, 255, 0.5), 0 0 40px rgba(138, 85, 204, 0.3)',
-            animation: 'glow 2s ease-in-out infinite alternate'
+            animation: 'none'
           }}>
             VERYUS
           </h2>
@@ -892,10 +874,12 @@ function App() {
 
   return (
     <>
-      <AudioPlayerProvider>
-        <Router>
-          <div className="App">
-            <Routes>
+      <UserProfileProvider authUser={user}>
+        <AudioPlayerProvider>
+          <Router>
+            <div className="App">
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
               {/* 로그인 페이지 - 이미 로그인되어 있으면 메인으로 */}
               <Route 
                 path="/login" 
@@ -1072,8 +1056,11 @@ function App() {
               <Route path="/evaluation/:id" element={<EvaluationPostDetail />} />
               <Route path="/evaluation/edit/:id" element={<EvaluationPostEdit />} />
               
-              {/* 연습장 라우트 */}
-              <Route path="/practice-room" element={<PracticeRoom />} />
+              {/* 밸런스게시판 라우트들 */}
+              <Route path="/balance" element={<BalancePostList />} />
+              <Route path="/balance/write" element={<BalancePostWrite />} />
+              <Route path="/balance/:id" element={<BalancePostDetail />} />
+              <Route path="/balance/edit/:id" element={<BalancePostWrite />} />
               
               {/* 연습실 예약 라우트 */}
               <Route path="/practice-room-booking" element={<ProtectedRoute><PracticeRoomBooking /></ProtectedRoute>} />
@@ -1084,7 +1071,8 @@ function App() {
                 path="*" 
                 element={<Navigate to={user ? "/" : "/login"} replace />} 
               />
-            </Routes>
+                </Routes>
+              </Suspense>
             {/* 모바일 하단 네비게이션 바 */}
             {user && (
               <BottomNavigation 
@@ -1126,6 +1114,7 @@ function App() {
           />
         </Router>
       </AudioPlayerProvider>
+      </UserProfileProvider>
     </>
   );
 }

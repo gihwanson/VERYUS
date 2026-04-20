@@ -1,8 +1,10 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import './Login.css';
+
+const EMAIL_LIKE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface LoginFormData {
   nickname: string;
@@ -49,35 +51,29 @@ const Login: React.FC = () => {
     setError(''); // 입력 시 에러 메시지 초기화
   }, []);
 
-  // 닉네임으로 이메일 찾기
-  const findEmailByNickname = useCallback(async (nickname: string): Promise<string | null> => {
-    try {
-      const trimmedNickname = nickname.trim();
-      console.log('이메일 찾기 - 검색 닉네임:', trimmedNickname);
-      
-      const q = query(
-        collection(db, 'users'), 
-        where('nickname', '==', trimmedNickname)
-      );
-      const querySnapshot = await getDocs(q);
-      
-      console.log('이메일 찾기 - 검색 결과 문서 수:', querySnapshot.docs.length);
-      
-      if (!querySnapshot.empty) {
-        const userData = querySnapshot.docs[0].data();
-        console.log('이메일 찾기 - 찾은 사용자 데이터:', {
-          uid: querySnapshot.docs[0].id,
-          email: userData.email,
-          nickname: userData.nickname
-        });
-        return userData.email;
+  /** 로그인에 쓸 이메일: 닉네임이면 Firestore 조회, 이메일 형식이면 정규화(프로필 없어도 Auth 시도 가능) */
+  const resolveEmailForSignIn = useCallback(async (raw: string): Promise<string | null> => {
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+
+    if (EMAIL_LIKE.test(trimmed)) {
+      const normalized = trimmed.toLowerCase();
+      const q = query(collection(db, 'users'), where('email', '==', normalized));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        const em = snap.docs[0].data().email;
+        return String(em ?? normalized).trim().toLowerCase();
       }
-      console.log('이메일 찾기 - 닉네임을 찾을 수 없음:', trimmedNickname);
-      return null;
-    } catch (error) {
-      console.error('닉네임으로 이메일 찾기 에러:', error);
-      throw new Error('사용자 정보를 찾는 중 오류가 발생했습니다.');
+      return normalized;
     }
+
+    const q = query(collection(db, 'users'), where('nickname', '==', trimmed));
+    const querySnapshot = await getDocs(q);
+    if (querySnapshot.empty) return null;
+    const userData = querySnapshot.docs[0].data();
+    const em = userData.email;
+    if (!em || typeof em !== 'string') return null;
+    return em.trim().toLowerCase();
   }, []);
 
   // 로그인 처리
@@ -87,49 +83,61 @@ const Login: React.FC = () => {
     setError('');
 
     try {
-      // 입력값 검증
       if (!formData.nickname.trim()) {
-        throw new Error('닉네임을 입력해주세요.');
+        throw new Error('닉네임 또는 이메일을 입력해주세요.');
       }
       if (!formData.password.trim()) {
         throw new Error('비밀번호를 입력해주세요.');
       }
 
-      // 닉네임으로 이메일 찾기
-      const foundEmail = await findEmailByNickname(formData.nickname);
-      if (!foundEmail) {
-        throw new Error('존재하지 않는 닉네임입니다.');
+      const emailForSignIn = await resolveEmailForSignIn(formData.nickname);
+      if (!emailForSignIn) {
+        throw new Error('등록된 닉네임·이메일을 찾을 수 없습니다. 회원가입 시 기입한 닉네임으로 시도해 주세요.');
       }
 
-      console.log('로그인 시도 - 찾은 이메일:', foundEmail);
-      console.log('로그인 시도 - 닉네임:', formData.nickname);
-
-      // Firebase 로그인
       const userCredential = await signInWithEmailAndPassword(
-        auth, 
-        foundEmail, 
+        auth,
+        emailForSignIn,
         formData.password
       );
-      
-      console.log('로그인 성공 - UID:', userCredential.user.uid);
-      
-      // 사용자 정보 가져오기 (uid로 정확히 조회)
-      const userRef = doc(db, 'users', userCredential.user.uid);
-      const userSnap = await getDoc(userRef);
-      const userData = userSnap.data();
-      if (!userData || !userData.nickname) {
-        alert('닉네임 정보가 없습니다. 관리자에게 문의하세요.');
-        setIsLoading(false);
+
+      const authEmail = (userCredential.user.email ?? emailForSignIn).trim().toLowerCase();
+
+      let userSnap = await getDoc(doc(db, 'users', userCredential.user.uid));
+      let userData = userSnap.data();
+
+      if (!userData?.nickname) {
+        const qByEmail = query(collection(db, 'users'), where('email', '==', authEmail));
+        const byEmail = await getDocs(qByEmail);
+        if (!byEmail.empty) {
+          userData = byEmail.docs[0].data();
+          if (byEmail.docs[0].id !== userCredential.user.uid) {
+            console.warn(
+              '[로그인] users 문서 ID와 Auth UID가 다릅니다. 문서:',
+              byEmail.docs[0].id,
+              'Auth:',
+              userCredential.user.uid
+            );
+          }
+        }
+      }
+
+      if (!userData?.nickname) {
+        await signOut(auth);
+        setError(
+          '로그인은 되었으나 프로필(닉네임) 정보가 없습니다. 가입이 중간에 실패한 계정일 수 있습니다. 관리자에게 문의하거나, 다른 이메일로 새로 가입해 주세요.'
+        );
         return;
       }
-      // 관리자 권한 확인
-      const isAdmin = userData.nickname === '너래' || 
-                     userData.role === '리더' || 
-                     userData.role === '운영진';
-      // 로그인 정보 저장
+
+      const isAdmin =
+        userData.nickname === '너래' ||
+        userData.role === '리더' ||
+        userData.role === '운영진';
+
       const userInfo: UserData = {
         uid: userCredential.user.uid,
-        email: foundEmail,
+        email: authEmail,
         nickname: userData.nickname,
         role: userData.role || '일반',
         grade: userData.grade || '🍒체리',
@@ -139,14 +147,18 @@ const Login: React.FC = () => {
       };
       localStorage.setItem('veryus_user', JSON.stringify(userInfo));
       window.location.replace('/');
-      
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('로그인 에러:', error);
-      setError(getErrorMessage(error.code || error.message));
+      const err = error as { code?: string; message?: string };
+      if (err.message && !err.code) {
+        setError(err.message);
+      } else {
+        setError(getErrorMessage(err.code || err.message || ''));
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [formData, findEmailByNickname]);
+  }, [formData, resolveEmailForSignIn]);
 
   // 에러 메시지 변환
   const getErrorMessage = (errorCode: string): string => {
@@ -169,7 +181,7 @@ const Login: React.FC = () => {
         <div className="login-header">
           <h1 className="app-title">VERYUS</h1>
           <p className="app-subtitle">베리어스 버스킹팀에 오신 것을 환영합니다</p>
-          <p className="login-guide">닉네임과 비밀번호로 간편하게 로그인하세요</p>
+          <p className="login-guide">닉네임(또는 이메일)과 비밀번호로 로그인하세요</p>
         </div>
 
         <form onSubmit={handleLogin} className="login-form">
@@ -179,10 +191,10 @@ const Login: React.FC = () => {
               name="nickname"
               value={formData.nickname}
               onChange={handleInputChange}
-              placeholder="닉네임을 입력해주세요"
+              placeholder="닉네임 또는 이메일"
               className="login-input"
               autoComplete="username"
-              maxLength={20}
+              maxLength={254}
               disabled={isLoading}
             />
           </div>

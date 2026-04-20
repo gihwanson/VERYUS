@@ -102,6 +102,7 @@ const PracticeRoomBooking: React.FC = () => {
   const CLOSE_TIME = 22;
   const SLOT_DURATION = 60; // 분
   const MAX_DAILY_HOURS = 3; // 1인당 하루 최대 예약 시간
+  const AUTO_CHECKOUT_MS = 4 * 60 * 60 * 1000; // 4시간 자동 퇴실
 
   useEffect(() => {
     const userString = localStorage.getItem('veryus_user');
@@ -155,8 +156,47 @@ const PracticeRoomBooking: React.FC = () => {
         } as CheckIn);
       });
 
-      // 클라이언트에서 입실 중인 것만 필터링
-      const checkedInOnly = allCheckIns.filter(c => c.status === 'checked_in');
+      const getCheckInMillis = (checkInTime: any): number | null => {
+        if (!checkInTime) return null;
+        if (checkInTime instanceof Timestamp) return checkInTime.toMillis();
+        if (checkInTime?.toMillis) return checkInTime.toMillis();
+        if (checkInTime?.seconds) return checkInTime.seconds * 1000;
+        const parsed = new Date(checkInTime);
+        return Number.isNaN(parsed.getTime()) ? null : parsed.getTime();
+      };
+
+      const isExpired = (checkInTime: any) => {
+        const checkInMs = getCheckInMillis(checkInTime);
+        if (!checkInMs) return false;
+        return Date.now() - checkInMs >= AUTO_CHECKOUT_MS;
+      };
+
+      const autoCheckOutExpired = async (expired: CheckIn[]) => {
+        if (expired.length === 0) return;
+        try {
+          await Promise.all(
+            expired.map((checkIn) =>
+              updateDoc(doc(db, 'practiceRoomCheckIn', checkIn.id), {
+                checkOutTime: serverTimestamp(),
+                status: 'checked_out'
+              })
+            )
+          );
+          console.log('✅ 자동 퇴실 처리:', expired.map(c => c.userNickname).join(', '));
+        } catch (error) {
+          console.error('자동 퇴실 처리 실패:', error);
+        }
+      };
+
+      const expiredCheckIns = allCheckIns.filter(
+        c => c.status === 'checked_in' && isExpired(c.checkInTime)
+      );
+      autoCheckOutExpired(expiredCheckIns);
+
+      // 클라이언트에서 입실 중 + 4시간 미만만 필터링
+      const checkedInOnly = allCheckIns.filter(
+        c => c.status === 'checked_in' && !isExpired(c.checkInTime)
+      );
       
       // 입실 시간 기준으로 정렬 (최신순)
       checkedInOnly.sort((a, b) => {
@@ -313,9 +353,27 @@ const PracticeRoomBooking: React.FC = () => {
         ...doc.data()
       })) as Reservation[];
       
+      // 현재 날짜와 시간
+      const now = new Date();
+      const todayStr = formatDate(now);
+      const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      
       // 클라이언트 사이드에서 필터링 및 정렬
       const data = allData
-        .filter(r => r.status === 'confirmed')
+        .filter(r => {
+          // 취소된 예약 제외
+          if (r.status !== 'confirmed') return false;
+          
+          // 예약 날짜가 오늘보다 이전이면 제외
+          if (r.date < todayStr) return false;
+          
+          // 예약 날짜가 오늘이면 종료 시간이 현재 시간보다 이전이면 제외
+          if (r.date === todayStr) {
+            if (r.endTime <= currentTime) return false;
+          }
+          
+          return true;
+        })
         .sort((a, b) => {
           // 날짜순 정렬
           if (a.date !== b.date) {
@@ -1161,6 +1219,29 @@ const PracticeRoomBooking: React.FC = () => {
     }
   };
 
+  const handleForceCheckOut = async (checkIn: CheckIn) => {
+    if (!currentUser || !isAdmin) return;
+
+    const confirmMessage = `${checkIn.userNickname}님을 퇴실 처리하시겠습니까?`;
+    if (!window.confirm(confirmMessage)) return;
+
+    try {
+      setLoading(true);
+      const checkInRef = doc(db, 'practiceRoomCheckIn', checkIn.id);
+      await updateDoc(checkInRef, {
+        checkOutTime: serverTimestamp(),
+        status: 'checked_out'
+      });
+      console.log('✅ 관리자 퇴실 처리:', checkIn.userNickname);
+      alert('퇴실 처리되었습니다.');
+    } catch (error) {
+      console.error('관리자 퇴실 처리 실패:', error);
+      alert('퇴실 처리에 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // 입실 시간 포맷팅
   const formatCheckInTime = (checkInTime: any): string => {
     if (!checkInTime) return '';
@@ -1277,6 +1358,16 @@ const PracticeRoomBooking: React.FC = () => {
                 <div className="check-in-time">
                   {formatCheckInTime(checkIn.checkInTime)}
                 </div>
+                {isAdmin && checkIn.userId !== currentUser?.uid && (
+                  <button
+                    className="force-checkout-button"
+                    onClick={() => handleForceCheckOut(checkIn)}
+                    disabled={loading}
+                    title="퇴실 처리"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
               </div>
             ))}
           </div>

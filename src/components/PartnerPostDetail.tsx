@@ -16,6 +16,7 @@ import {
 import { db } from '../firebase';
 import CommentSection from './CommentSection';
 import { NotificationService } from '../utils/notificationService';
+import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
 import { 
   ArrowLeft, 
   UserPlus, 
@@ -62,6 +63,7 @@ interface Post {
   applicants?: string[];
   isClosed?: boolean;
   closedAt?: any;
+  lastBumpedAt?: any;
 }
 
 interface User {
@@ -135,6 +137,8 @@ const PartnerPostDetail: React.FC = () => {
   const [closedAt, setClosedAt] = useState<any>(null);
   const [applicantUsers, setApplicantUsers] = useState<any[]>([]);
   const [showApplicantsModal, setShowApplicantsModal] = useState(false);
+  const [isBumping, setIsBumping] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const getGradeEmoji = (grade: string) => {
     return '🍒';
@@ -177,6 +181,7 @@ const PartnerPostDetail: React.FC = () => {
       navigate('/boards/partner');
       return;
     }
+    setLoadError(null);
 
     // 조회수 증가 - 세션당 한 번만
     const incrementViews = async () => {
@@ -200,6 +205,7 @@ const PartnerPostDetail: React.FC = () => {
       if (!docSnapshot.exists() || docSnapshot.data().type !== 'partner') {
         setPost(null);
         setLoading(false);
+        setLoadError('게시글을 찾을 수 없습니다.');
         return;
       }
       const data = docSnapshot.data();
@@ -215,13 +221,10 @@ const PartnerPostDetail: React.FC = () => {
       setIsClosed(data.isClosed || false);
       setClosedAt(data.closedAt || null);
       setLoading(false);
-      if (!data.isClosed && data.createdAt && Date.now() - data.createdAt.toDate().getTime() > 10 * 24 * 60 * 60 * 1000) {
-        await updateDoc(doc(db, 'posts', id), { isClosed: true, closedAt: serverTimestamp() });
-        setIsClosed(true);
-      }
     }, (error) => {
       setLoading(false);
       setPost(null);
+      setLoadError('게시글을 불러오는 중 오류가 발생했습니다.');
     });
     return () => unsubscribe();
   }, [id, navigate]);
@@ -231,8 +234,41 @@ const PartnerPostDetail: React.FC = () => {
     Promise.all(applicants.map(async (uid) => {
       const userDoc = await getDoc(doc(db, 'users', uid));
       return userDoc.exists() ? { uid, ...userDoc.data() } : null;
-    })).then(setApplicantUsers);
+    }))
+      .then((users) => setApplicantUsers(users.filter(Boolean)))
+      .catch((error) => {
+        console.error('지원자 정보 로드 실패:', error);
+        setApplicantUsers([]);
+      });
   }, [user, post, applicants]);
+
+  if (loading) {
+    return (
+      <div className="board-container">
+        <div className="loading-container">
+          <Loader className="loading-spinner" />
+          게시글을 불러오는 중...
+        </div>
+      </div>
+    );
+  }
+
+  if (!post) {
+    return (
+      <div className="board-container">
+        <div className="error-container">
+          <AlertTriangle size={48} />
+          <h3>{loadError || '게시글을 찾을 수 없습니다.'}</h3>
+          <button
+            className="back-button"
+            onClick={() => navigate('/boards/partner')}
+          >
+            목록으로 돌아가기
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const formatDate = (date: Date | any) => {
     if (!date) return '';
@@ -289,6 +325,33 @@ const PartnerPostDetail: React.FC = () => {
   const isLiked = post.likes.includes(user?.uid || '');
   const canEdit = user && user.uid === post.writerUid;
   const canDelete = user && (user.uid === post.writerUid || user.nickname === '너래' || user.role === '운영진' || user.role === '리더');
+  const canBump = !!(user && user.uid === post.writerUid && !isClosed);
+
+  const BUMP_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000;
+
+  const toMs = (value: any) => {
+    if (!value) return 0;
+    if (value?.toDate) return value.toDate().getTime();
+    if (value instanceof Date) return value.getTime();
+    const parsed = new Date(value).getTime();
+    return Number.isNaN(parsed) ? 0 : parsed;
+  };
+
+  const lastBumpTimeMs = toMs(post.lastBumpedAt) || toMs(post.createdAt);
+  const nextBumpAtMs = lastBumpTimeMs + BUMP_COOLDOWN_MS;
+  const remainingBumpMs = Math.max(0, nextBumpAtMs - Date.now());
+  const canBumpNow = remainingBumpMs === 0;
+
+  const formatRemainingBumpTime = (ms: number) => {
+    if (ms <= 0) return '지금 끌어올릴 수 있습니다.';
+    const totalMinutes = Math.ceil(ms / (1000 * 60));
+    const days = Math.floor(totalMinutes / (60 * 24));
+    const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+    const minutes = totalMinutes % 60;
+    if (days > 0) return `${days}일 ${hours}시간 후 가능`;
+    if (hours > 0) return `${hours}시간 ${minutes}분 후 가능`;
+    return `${minutes}분 후 가능`;
+  };
 
   const handleApply = async () => {
     if (!user || !post) return;
@@ -307,6 +370,7 @@ const PartnerPostDetail: React.FC = () => {
           await NotificationService.createNotification({
             type: 'partnership',
             toUid: post.writerUid,
+            fromUid: user.uid,
             fromNickname: user.nickname || '익명',
             postId: post.id,
             postTitle: post.title,
@@ -345,7 +409,8 @@ const PartnerPostDetail: React.FC = () => {
         applicantUid,
         post.id,
         post.title,
-        user.nickname || '익명'
+        user.nickname || '익명',
+        user.uid
       );
       
       alert(`${applicantNickname}님을 파트너로 확정했습니다.`);
@@ -372,7 +437,8 @@ const PartnerPostDetail: React.FC = () => {
               applicantUid,
               post.id,
               post.title,
-              user.nickname || '익명'
+              user.nickname || '익명',
+              user.uid
             )
           );
           await Promise.all(notificationPromises);
@@ -418,6 +484,39 @@ const PartnerPostDetail: React.FC = () => {
     }
   };
 
+  const handleBumpPost = async () => {
+    if (!post || !user) return;
+    if (post.writerUid !== user.uid) {
+      alert('내 게시글만 끌어올릴 수 있습니다.');
+      return;
+    }
+    if (isClosed) {
+      alert('모집완료된 글은 끌어올릴 수 없습니다.');
+      return;
+    }
+    if (!canBumpNow) {
+      alert(`아직 끌어올릴 수 없습니다. ${formatRemainingBumpTime(remainingBumpMs)}`);
+      return;
+    }
+
+    if (!window.confirm('게시글을 맨 위로 끌어올릴까요?')) return;
+
+    try {
+      setIsBumping(true);
+      await updateDoc(doc(db, 'posts', post.id), {
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        lastBumpedAt: serverTimestamp()
+      });
+      alert('게시글을 끌어올렸습니다.');
+    } catch (error) {
+      console.error('끌어올리기 실패:', error);
+      alert('끌어올리기 중 오류가 발생했습니다.');
+    } finally {
+      setIsBumping(false);
+    }
+  };
+
   return (
     <div className="post-detail-container">
       <div className="post-navigation glassmorphism">
@@ -445,10 +544,10 @@ const PartnerPostDetail: React.FC = () => {
                   </span>
                   {post.writerNickname}
                 </span>
-                <span className={`role-badge ${post.writerRole || '일반'}`}>
-                  {post.writerRole || '일반'}
+                <span className={`role-badge ${getPublicRoleBadge(post.writerRole, post.writerPosition)}`}>
+                  {getPublicRoleBadge(post.writerRole, post.writerPosition)}
                 </span>
-                {post.writerPosition && (
+                {shouldShowPublicPosition(post.writerPosition) && (
                   <span className="author-position">{post.writerPosition}</span>
                 )}
               </div>
@@ -528,10 +627,22 @@ const PartnerPostDetail: React.FC = () => {
             )}
             {/* 모집완료/지원자보기 버튼: 작성자만, 모집중일 때만 노출 */}
             {user && post.writerUid === user.uid && !isClosed && (
-              <>
+              <div className="partner-owner-actions">
+                <button
+                  className="action-button partner-owner-action-btn"
+                  onClick={handleBumpPost}
+                  disabled={!canBump || !canBumpNow || isBumping}
+                  style={{
+                    opacity: !canBumpNow || isBumping ? 0.6 : 1,
+                    cursor: !canBumpNow || isBumping ? 'not-allowed' : 'pointer'
+                  }}
+                  title={canBumpNow ? '게시글 끌어올리기' : `다음 가능: ${formatRemainingBumpTime(remainingBumpMs)}`}
+                >
+                  {isBumping ? '처리 중...' : '끌어올리기'}
+                </button>
                 <button 
-                  className="close-btn" 
-                  style={{marginLeft:24, background:'#8A55CC', color:'#fff', fontWeight:700, fontSize:'1.05rem', borderRadius:8, padding:'0.7rem 1.5rem', border:'none', boxShadow:'0 2px 8px rgba(124,58,237,0.12)', cursor:'pointer'}}
+                  className="close-btn partner-owner-action-btn"
+                  style={{ background:'#8A55CC', color:'#fff', fontWeight:700, fontSize:'1.05rem', borderRadius:8, padding:'0.7rem 1.5rem', border:'none', boxShadow:'0 2px 8px rgba(124,58,237,0.12)', cursor:'pointer'}}
                   onClick={() => {
                     if(window.confirm('정말 모집완료 하겠습니까?')) handleClose();
                   }}
@@ -539,13 +650,13 @@ const PartnerPostDetail: React.FC = () => {
                   파트너 모집완료
                 </button>
                 <button
-                  className="applicants-btn"
-                  style={{marginLeft:12, background:'#fff', color:'#8A55CC', fontWeight:700, fontSize:'1.05rem', borderRadius:8, padding:'0.7rem 1.5rem', border:'2px solid #8A55CC', boxShadow:'0 2px 8px rgba(124,58,237,0.08)', cursor:'pointer'}}
+                  className="applicants-btn partner-owner-action-btn"
+                  style={{ background:'#fff', color:'#8A55CC', fontWeight:700, fontSize:'1.05rem', borderRadius:8, padding:'0.7rem 1.5rem', border:'2px solid #8A55CC', boxShadow:'0 2px 8px rgba(124,58,237,0.08)', cursor:'pointer'}}
                   onClick={() => setShowApplicantsModal(true)}
                 >
                   지원자보기
                 </button>
-              </>
+              </div>
             )}
             {user && post.writerUid === user.uid && isClosed && (
               <span className="closed-badge" style={{marginLeft:24, color:'#8A55CC', fontWeight:600}}>모집완료</span>

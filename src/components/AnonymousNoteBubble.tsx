@@ -1,0 +1,838 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { collection, getDocs, query, where, orderBy, addDoc, serverTimestamp, limit, Timestamp, updateDoc, doc, deleteDoc } from 'firebase/firestore';
+import { db } from '../firebase';
+import './AnonymousNoteBubble.css';
+
+// 관리자 권한 체크 함수 (너래만 접근 가능)
+const checkAdminAccess = (user: any): boolean => {
+  if (!user) return false;
+  return user.nickname === '너래';
+};
+
+// 욕설 필터링 기본 금칙어 배열
+const PROFANITY_FILTER = [
+  '시발', '씨발', '개새끼', '병신', '미친', '좆', '젓', '좃', '지랄', '닥쳐',
+  '죽어', '뒤져', '엿', '개같', '개돼지', '씹', '새끼', '놈', '년', '농',
+  'fuck', 'shit', 'damn', 'bitch', 'asshole', 'bastard', 'piss', 'crap'
+];
+
+// 하루 쿨다운 시간 (밀리초)
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+interface AnonymousNote {
+  id: string;
+  text: string;
+  createdAt: any;
+  isActive: boolean;
+  authorUid?: string;
+  authorNickname?: string;
+}
+
+const AnonymousNoteBubble: React.FC = () => {
+  const [currentNote, setCurrentNote] = useState<string>('');
+  const [allNotes, setAllNotes] = useState<string[]>([]);
+  const [currentNoteIndex, setCurrentNoteIndex] = useState<number>(0);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [showModal, setShowModal] = useState<boolean>(false);
+  const [showAdminModal, setShowAdminModal] = useState<boolean>(false);
+  const [inputText, setInputText] = useState<string>('');
+  const [submitting, setSubmitting] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
+  const [user, setUser] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [adminNotes, setAdminNotes] = useState<AnonymousNote[]>([]);
+  const [adminInactiveNotes, setAdminInactiveNotes] = useState<AnonymousNote[]>([]);
+  const [adminLoading, setAdminLoading] = useState<boolean>(false);
+  const [adminViewMode, setAdminViewMode] = useState<'active' | 'inactive' | 'all'>('active');
+  const inputRef = useRef<HTMLInputElement>(null);
+  const rotationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 사용자 정보 가져오기
+  useEffect(() => {
+    const userString = localStorage.getItem('veryus_user');
+    if (userString) {
+      try {
+        const userData = JSON.parse(userString);
+        setUser(userData);
+        setIsAdmin(checkAdminAccess(userData));
+      } catch (err) {
+        console.error('사용자 정보 파싱 실패:', err);
+      }
+    }
+  }, []);
+
+  // 하루가 지난 쪽지 비활성화 및 랜덤 쪽지 가져오기
+  useEffect(() => {
+    const fetchRandomNote = async () => {
+      try {
+        setLoading(true);
+        
+        // 24시간 이내의 쪽지만 가져오기
+        const oneDayAgo = Timestamp.fromDate(new Date(Date.now() - ONE_DAY_MS));
+        
+        // 먼저 모든 활성 쪽지를 가져와서 날짜 필터링
+        const allNotesQuery = query(
+          collection(db, 'anonymousNotes'),
+          where('isActive', '==', true),
+          orderBy('createdAt', 'desc'),
+          limit(500)
+        );
+        
+        const snapshot = await getDocs(allNotesQuery);
+        const allNotes: AnonymousNote[] = [];
+        const notesToDeactivate: string[] = [];
+        
+        snapshot.docs.forEach(docSnapshot => {
+          const data = docSnapshot.data();
+          const note: AnonymousNote = {
+            id: docSnapshot.id,
+            ...data
+          } as AnonymousNote;
+          
+          // createdAt이 있는 경우만 처리
+          if (note.createdAt) {
+            const createdAt = note.createdAt.toDate ? note.createdAt.toDate() : new Date(note.createdAt);
+            const now = new Date();
+            const diffMs = now.getTime() - createdAt.getTime();
+            
+            // 24시간이 지났으면 비활성화 대상에 추가
+            if (diffMs > ONE_DAY_MS) {
+              notesToDeactivate.push(docSnapshot.id);
+            } else {
+              // 24시간 이내의 쪽지만 추가
+              allNotes.push(note);
+            }
+          } else {
+            // createdAt이 없으면 비활성화
+            notesToDeactivate.push(docSnapshot.id);
+          }
+        });
+        
+        // 하루가 지난 쪽지들 비활성화
+        if (notesToDeactivate.length > 0) {
+          await Promise.all(
+            notesToDeactivate.map(noteId => 
+              updateDoc(doc(db, 'anonymousNotes', noteId), { isActive: false })
+            )
+          );
+        }
+        
+        // 24시간 이내의 쪽지들을 배열로 저장
+        if (allNotes.length > 0) {
+          // 쪽지 텍스트만 추출하여 배열로 저장
+          const noteTexts = allNotes.map(note => note.text);
+          // 배열을 랜덤하게 섞기
+          const shuffledNotes = noteTexts.sort(() => Math.random() - 0.5);
+          setAllNotes(shuffledNotes);
+          setCurrentNoteIndex(0);
+          setCurrentNote(shuffledNotes[0]);
+        } else {
+          // 기본 문구
+          setAllNotes([]);
+          setCurrentNoteIndex(0);
+          setCurrentNote('익명 쪽지 남겨줘 🙂');
+        }
+      } catch (err: any) {
+        console.error('익명 쪽지 가져오기 실패:', err);
+        // 인덱스 에러인 경우 createdAt 없이 시도
+        if (err?.code === 'failed-precondition') {
+          try {
+            const simpleQuery = query(
+              collection(db, 'anonymousNotes'),
+              where('isActive', '==', true),
+              limit(200)
+            );
+            const snapshot = await getDocs(simpleQuery);
+            const notes: AnonymousNote[] = [];
+            
+            snapshot.docs.forEach(docSnapshot => {
+              const data = docSnapshot.data();
+              const note: AnonymousNote = {
+                id: docSnapshot.id,
+                ...data
+              } as AnonymousNote;
+              
+              if (note.createdAt) {
+                const createdAt = note.createdAt.toDate ? note.createdAt.toDate() : new Date(note.createdAt);
+                const now = new Date();
+                const diffMs = now.getTime() - createdAt.getTime();
+                
+                if (diffMs <= ONE_DAY_MS) {
+                  notes.push(note);
+                }
+              }
+            });
+            
+            if (notes.length > 0) {
+              const noteTexts = notes.map(note => note.text);
+              const shuffledNotes = noteTexts.sort(() => Math.random() - 0.5);
+              setAllNotes(shuffledNotes);
+              setCurrentNoteIndex(0);
+              setCurrentNote(shuffledNotes[0]);
+            } else {
+              setAllNotes([]);
+              setCurrentNoteIndex(0);
+              setCurrentNote('익명 쪽지 남겨줘 🙂');
+            }
+          } catch (err2) {
+            console.error('간단 쿼리도 실패:', err2);
+            setCurrentNote('익명 쪽지 남겨줘 🙂');
+          }
+        } else {
+          setCurrentNote('익명 쪽지 남겨줘 🙂');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRandomNote();
+  }, []); // 컴포넌트 마운트 시 한 번만 실행
+
+  // 쪽지 자동 순환 (5초마다)
+  useEffect(() => {
+    if (allNotes.length > 1) {
+      // 기존 인터벌 정리
+      if (rotationIntervalRef.current) {
+        clearInterval(rotationIntervalRef.current);
+      }
+
+      // 5초마다 다음 쪽지로 변경
+      rotationIntervalRef.current = setInterval(() => {
+        setCurrentNoteIndex(prevIndex => {
+          const nextIndex = (prevIndex + 1) % allNotes.length;
+          setCurrentNote(allNotes[nextIndex]);
+          return nextIndex;
+        });
+      }, 5000);
+
+      return () => {
+        if (rotationIntervalRef.current) {
+          clearInterval(rotationIntervalRef.current);
+        }
+      };
+    }
+  }, [allNotes]);
+
+  // 욕설 필터링 함수
+  const containsProfanity = (text: string): boolean => {
+    const lowerText = text.toLowerCase();
+    return PROFANITY_FILTER.some(word => lowerText.includes(word.toLowerCase()));
+  };
+
+  // 입력 검증
+  const validateInput = (text: string): string | null => {
+    const trimmed = text.trim();
+    
+    if (trimmed.length === 0) {
+      return '내용을 입력해주세요.';
+    }
+    
+    if (trimmed.length > 50) {
+      return '최대 50자까지 입력 가능합니다.';
+    }
+    
+    // 공백만 있는지 확인
+    if (trimmed.replace(/\s/g, '').length === 0) {
+      return '공백만 입력할 수 없습니다.';
+    }
+    
+    // 줄바꿈 제거
+    if (text.includes('\n')) {
+      return '줄바꿈은 사용할 수 없습니다.';
+    }
+    
+    // 욕설 필터링
+    if (containsProfanity(trimmed)) {
+      return '부적절한 단어가 포함되어 있습니다.';
+    }
+    
+    return null;
+  };
+
+  // 하루 쿨다운 체크
+  const checkCooldown = (): boolean => {
+    const lastSubmitTime = localStorage.getItem('anonymousNote_lastSubmit');
+    const lastSubmitDate = localStorage.getItem('anonymousNote_lastSubmitDate');
+    
+    if (lastSubmitTime && lastSubmitDate) {
+      const now = new Date();
+      const lastDate = new Date(lastSubmitDate);
+      
+      // 같은 날인지 확인
+      const isSameDay = 
+        now.getFullYear() === lastDate.getFullYear() &&
+        now.getMonth() === lastDate.getMonth() &&
+        now.getDate() === lastDate.getDate();
+      
+      if (isSameDay) {
+        const elapsed = Date.now() - parseInt(lastSubmitTime);
+        if (elapsed < ONE_DAY_MS) {
+          const remainingHours = Math.ceil((ONE_DAY_MS - elapsed) / (60 * 60 * 1000));
+          setError(`하루에 한 번만 작성할 수 있습니다. ${remainingHours}시간 후에 다시 시도해주세요.`);
+          return false;
+        }
+      }
+    }
+    return true;
+  };
+
+  // 중복 체크
+  const checkDuplicate = async (text: string): Promise<boolean> => {
+    try {
+      const lastNote = localStorage.getItem('anonymousNote_lastText');
+      if (lastNote === text.trim()) {
+        setError('동일한 내용은 연속으로 등록할 수 없습니다.');
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error('중복 체크 실패:', err);
+      return true; // 에러 시 통과
+    }
+  };
+
+  // 쪽지 등록
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // 입력 검증
+    const validationError = validateInput(inputText);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    // 쿨다운 체크
+    if (!checkCooldown()) {
+      return;
+    }
+
+    // 중복 체크
+    const trimmedText = inputText.trim();
+    const isNotDuplicate = await checkDuplicate(trimmedText);
+    if (!isNotDuplicate) {
+      return;
+    }
+
+    setSubmitting(true);
+    setError('');
+
+    try {
+      // Firestore에 저장
+      // 관리자만 볼 수 있도록 authorUid, authorNickname 저장 (일반 사용자에게는 보이지 않음)
+      const noteData: any = {
+        text: trimmedText,
+        createdAt: serverTimestamp(),
+        isActive: true
+      };
+
+      // 로그인한 사용자 정보가 있으면 작성자 정보 저장 (관리자 확인용)
+      if (user?.uid && user?.nickname) {
+        noteData.authorUid = user.uid;
+        noteData.authorNickname = user.nickname;
+      }
+
+      await addDoc(collection(db, 'anonymousNotes'), noteData);
+
+      // localStorage에 마지막 등록 시각, 날짜 및 텍스트 저장
+      const now = Date.now();
+      localStorage.setItem('anonymousNote_lastSubmit', now.toString());
+      localStorage.setItem('anonymousNote_lastSubmitDate', new Date().toISOString());
+      localStorage.setItem('anonymousNote_lastText', trimmedText);
+
+      // 성공 처리
+      setInputText('');
+      setShowModal(false);
+      setError('');
+      
+      // 랜덤 쪽지 다시 가져오기 (새로고침 효과)
+      const oneDayAgo = Timestamp.fromDate(new Date(Date.now() - ONE_DAY_MS));
+      
+      try {
+        const notesQuery = query(
+          collection(db, 'anonymousNotes'),
+          where('isActive', '==', true),
+          orderBy('createdAt', 'desc'),
+          limit(200)
+        );
+        
+        const snapshot = await getDocs(notesQuery);
+        const validNotes: AnonymousNote[] = [];
+        
+        snapshot.docs.forEach(docSnapshot => {
+          const data = docSnapshot.data();
+          if (data.createdAt) {
+            const createdAt = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
+            const diffMs = Date.now() - createdAt.getTime();
+            if (diffMs <= ONE_DAY_MS) {
+              validNotes.push({
+                id: docSnapshot.id,
+                ...data
+              } as AnonymousNote);
+            }
+          }
+        });
+
+        if (validNotes.length > 0) {
+          const noteTexts = validNotes.map(note => note.text);
+          const shuffledNotes = noteTexts.sort(() => Math.random() - 0.5);
+          setAllNotes(shuffledNotes);
+          setCurrentNoteIndex(0);
+          setCurrentNote(shuffledNotes[0]);
+        }
+      } catch (err) {
+        console.error('쪽지 새로고침 실패:', err);
+      }
+    } catch (err) {
+      console.error('쪽지 등록 실패:', err);
+      setError('등록 중 오류가 발생했습니다. 다시 시도해주세요.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // 쪽지 삭제 함수
+  const handleDeleteNote = async (noteId: string) => {
+    if (!isAdmin) return;
+    
+    if (!window.confirm('정말 이 쪽지를 삭제하시겠습니까?')) {
+      return;
+    }
+    
+    try {
+      await deleteDoc(doc(db, 'anonymousNotes', noteId));
+      
+      // 목록에서 제거
+      setAdminNotes(prevNotes => prevNotes.filter(note => note.id !== noteId));
+      
+      // allNotes에서도 제거 (표시 중인 쪽지 목록)
+      setAllNotes(prevNotes => {
+        const updated = prevNotes.filter((_, index) => {
+          // 현재 표시 중인 쪽지가 삭제된 경우를 확인
+          const deletedNote = adminNotes.find(n => n.id === noteId);
+          if (deletedNote) {
+            // 삭제된 쪽지의 텍스트와 일치하는 항목 제거
+            return prevNotes[index] !== deletedNote.text;
+          }
+          return true;
+        });
+        
+        // 현재 표시 중인 쪽지가 삭제된 경우 다음 쪽지로 변경
+        if (updated.length > 0 && currentNote === adminNotes.find(n => n.id === noteId)?.text) {
+          setCurrentNoteIndex(0);
+          setCurrentNote(updated[0]);
+        } else if (updated.length === 0) {
+          setCurrentNote('익명 쪽지 남겨줘 🙂');
+        }
+        
+        return updated;
+      });
+    } catch (err) {
+      console.error('쪽지 삭제 실패:', err);
+      alert('쪽지 삭제 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 관리자 모달 열기
+  const handleAdminModalOpen = async () => {
+    if (!isAdmin) return;
+    
+    setShowAdminModal(true);
+    setAdminLoading(true);
+    setAdminViewMode('active');
+    
+    try {
+      // 활성 쪽지 가져오기
+      const activeNotesQuery = query(
+        collection(db, 'anonymousNotes'),
+        where('isActive', '==', true),
+        orderBy('createdAt', 'desc'),
+        limit(500)
+      );
+      
+      // 비활성 쪽지 가져오기
+      const inactiveNotesQuery = query(
+        collection(db, 'anonymousNotes'),
+        where('isActive', '==', false),
+        orderBy('createdAt', 'desc'),
+        limit(500)
+      );
+      
+      const [activeSnapshot, inactiveSnapshot] = await Promise.all([
+        getDocs(activeNotesQuery),
+        getDocs(inactiveNotesQuery)
+      ]);
+      
+      const allActiveNotes: AnonymousNote[] = [];
+      const notesToDeactivate: string[] = [];
+      
+      // 활성 쪽지 처리
+      activeSnapshot.docs.forEach(docSnapshot => {
+        const data = docSnapshot.data();
+        const note: AnonymousNote = {
+          id: docSnapshot.id,
+          ...data
+        } as AnonymousNote;
+        
+        if (note.createdAt) {
+          const createdAt = note.createdAt.toDate ? note.createdAt.toDate() : new Date(note.createdAt);
+          const now = new Date();
+          const diffMs = now.getTime() - createdAt.getTime();
+          
+          // 24시간이 지났으면 비활성화 대상에 추가
+          if (diffMs > ONE_DAY_MS) {
+            notesToDeactivate.push(docSnapshot.id);
+          } else {
+            // 24시간 이내의 쪽지만 표시
+            allActiveNotes.push(note);
+          }
+        } else {
+          notesToDeactivate.push(docSnapshot.id);
+        }
+      });
+      
+      // 하루가 지난 쪽지들 비활성화
+      if (notesToDeactivate.length > 0) {
+        await Promise.all(
+          notesToDeactivate.map(noteId => 
+            updateDoc(doc(db, 'anonymousNotes', noteId), { isActive: false })
+          )
+        );
+      }
+      
+      // 비활성 쪽지 처리
+      const allInactiveNotes: AnonymousNote[] = inactiveSnapshot.docs.map(docSnapshot => ({
+        id: docSnapshot.id,
+        ...docSnapshot.data()
+      } as AnonymousNote));
+      
+      // 비활성화된 쪽지들도 추가 (방금 비활성화된 것 포함)
+      notesToDeactivate.forEach(noteId => {
+        const deactivatedNote = activeSnapshot.docs.find(doc => doc.id === noteId);
+        if (deactivatedNote) {
+          allInactiveNotes.unshift({
+            id: deactivatedNote.id,
+            ...deactivatedNote.data()
+          } as AnonymousNote);
+        }
+      });
+      
+      // createdAt 기준으로 정렬
+      allInactiveNotes.sort((a, b) => {
+        const aDate = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+        const bDate = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+        return bDate.getTime() - aDate.getTime();
+      });
+      
+      setAdminNotes(allActiveNotes);
+      setAdminInactiveNotes(allInactiveNotes);
+    } catch (err: any) {
+      console.error('관리자 쪽지 목록 가져오기 실패:', err);
+      // 인덱스 에러인 경우 간단한 쿼리로 시도
+      if (err?.code === 'failed-precondition') {
+        try {
+          const [activeQuery, inactiveQuery] = await Promise.all([
+            getDocs(query(collection(db, 'anonymousNotes'), where('isActive', '==', true), limit(500))),
+            getDocs(query(collection(db, 'anonymousNotes'), where('isActive', '==', false), limit(500)))
+          ]);
+          
+          const validActiveNotes: AnonymousNote[] = [];
+          activeQuery.docs.forEach(docSnapshot => {
+            const data = docSnapshot.data();
+            if (data.createdAt) {
+              const createdAt = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
+              const diffMs = Date.now() - createdAt.getTime();
+              if (diffMs <= ONE_DAY_MS) {
+                validActiveNotes.push({
+                  id: docSnapshot.id,
+                  ...data
+                } as AnonymousNote);
+              }
+            }
+          });
+          
+          const validInactiveNotes: AnonymousNote[] = inactiveQuery.docs.map(docSnapshot => ({
+            id: docSnapshot.id,
+            ...docSnapshot.data()
+          } as AnonymousNote));
+          
+          setAdminNotes(validActiveNotes);
+          setAdminInactiveNotes(validInactiveNotes);
+        } catch (err2) {
+          console.error('간단 쿼리도 실패:', err2);
+          setAdminNotes([]);
+          setAdminInactiveNotes([]);
+        }
+      } else {
+        setAdminNotes([]);
+        setAdminInactiveNotes([]);
+      }
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  // 다음 쪽지로 변경 (클릭 시)
+  const handleNextNote = () => {
+    if (allNotes.length > 1) {
+      setCurrentNoteIndex(prevIndex => {
+        const nextIndex = (prevIndex + 1) % allNotes.length;
+        setCurrentNote(allNotes[nextIndex]);
+        return nextIndex;
+      });
+    }
+  };
+
+  // 모달 열기
+  const handleBubbleClick = (e: React.MouseEvent) => {
+    // 우클릭이면 관리자 모달 (관리자만)
+    if (e.button === 2 || (e.ctrlKey && isAdmin)) {
+      e.preventDefault();
+      handleAdminModalOpen();
+      return;
+    }
+    
+    // 일반 클릭 시 다음 쪽지로 변경 (모달 열기 전)
+    if (allNotes.length > 1) {
+      handleNextNote();
+    }
+    
+    setShowModal(true);
+    setInputText('');
+    setError('');
+    // 모달 열릴 때 입력창에 포커스
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
+  };
+
+  // 모달 닫기
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setInputText('');
+    setError('');
+  };
+
+  // Enter 키 처리 (Shift+Enter는 막기)
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e);
+    }
+  };
+
+  // 입력 변경 시 줄바꿈 자동 제거
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\n/g, '');
+    if (value.length <= 50) {
+      setInputText(value);
+      setError(''); // 입력 시 에러 메시지 초기화
+    }
+  };
+
+  return (
+    <>
+      {/* 말풍선 */}
+      <div 
+        className="anonymous-note-bubble"
+        onClick={handleBubbleClick}
+        onContextMenu={(e) => {
+          if (isAdmin) {
+            e.preventDefault();
+            handleAdminModalOpen();
+          }
+        }}
+        title={isAdmin ? "클릭: 쪽지 남기기 | 우클릭: 관리자 뷰" : "익명 쪽지 남기기"}
+      >
+        <div className="bubble-content">
+          {loading ? (
+            <span className="bubble-loading">...</span>
+          ) : (
+            <>
+              <span className="bubble-label">익명이 보낸 쪽지입니다</span>
+              <span className="bubble-text">{currentNote}</span>
+              <span className="bubble-hint">&lt;말풍선을 클릭하여 쪽지를 작성하세요&gt;</span>
+            </>
+          )}
+        </div>
+        <div className="bubble-tail"></div>
+      </div>
+
+      {/* 모달 - Portal로 body에 직접 렌더링 */}
+      {showModal && typeof document !== 'undefined' && createPortal(
+        <div className="anonymous-note-modal-overlay" onClick={handleCloseModal}>
+          <div className="anonymous-note-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>익명 쪽지 남기기</h3>
+              <button 
+                className="modal-close-btn"
+                onClick={handleCloseModal}
+                aria-label="닫기"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="modal-form">
+              <div className="input-container">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={inputText}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  placeholder="익명으로 남기고 싶은 말을 적어주세요 (최대 50자)"
+                  maxLength={50}
+                  className="note-input"
+                  disabled={submitting}
+                />
+                <div className="char-count">
+                  {inputText.length}/50
+                </div>
+              </div>
+              
+              {error && (
+                <div className="error-message">
+                  {error}
+                </div>
+              )}
+              
+              <div className="modal-buttons">
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setShowModal(false);
+                      handleAdminModalOpen();
+                    }}
+                    className="btn-admin"
+                  >
+                    관리자 뷰
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className="btn-cancel"
+                  disabled={submitting}
+                >
+                  닫기
+                </button>
+                <button
+                  type="submit"
+                  className="btn-submit"
+                  disabled={submitting || inputText.trim().length === 0}
+                >
+                  {submitting ? '등록 중...' : '등록'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* 관리자 모달 - Portal로 body에 직접 렌더링 */}
+      {showAdminModal && isAdmin && typeof document !== 'undefined' && createPortal(
+        <div className="anonymous-note-modal-overlay" onClick={() => setShowAdminModal(false)}>
+          <div className="anonymous-note-modal admin-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>익명 쪽지 관리자 뷰</h3>
+              <button 
+                className="modal-close-btn"
+                onClick={() => setShowAdminModal(false)}
+                aria-label="닫기"
+              >
+                ✕
+              </button>
+            </div>
+            
+            {/* 뷰 모드 선택 탭 */}
+            <div className="admin-view-tabs">
+              <button
+                className={`admin-tab ${adminViewMode === 'active' ? 'active' : ''}`}
+                onClick={() => setAdminViewMode('active')}
+              >
+                활성 쪽지 ({adminNotes.length})
+              </button>
+              <button
+                className={`admin-tab ${adminViewMode === 'inactive' ? 'active' : ''}`}
+                onClick={() => setAdminViewMode('inactive')}
+              >
+                비활성 쪽지 ({adminInactiveNotes.length})
+              </button>
+              <button
+                className={`admin-tab ${adminViewMode === 'all' ? 'active' : ''}`}
+                onClick={() => setAdminViewMode('all')}
+              >
+                전체 ({adminNotes.length + adminInactiveNotes.length})
+              </button>
+            </div>
+            
+            <div className="admin-notes-list">
+              {adminLoading ? (
+                <div className="admin-loading">로딩 중...</div>
+              ) : (() => {
+                const notesToShow = adminViewMode === 'active' 
+                  ? adminNotes 
+                  : adminViewMode === 'inactive' 
+                  ? adminInactiveNotes 
+                  : [...adminNotes, ...adminInactiveNotes];
+                
+                if (notesToShow.length === 0) {
+                  return <div className="admin-empty">등록된 쪽지가 없습니다.</div>;
+                }
+                
+                return (
+                  <div className="admin-notes-container">
+                    {notesToShow.map((note) => {
+                      const isInactive = !note.isActive || adminInactiveNotes.some(n => n.id === note.id);
+                      return (
+                        <div key={note.id} className={`admin-note-item ${isInactive ? 'inactive' : ''}`}>
+                          {isInactive && <div className="admin-note-badge">비활성</div>}
+                          <div className="admin-note-text">{note.text}</div>
+                          <div className="admin-note-meta">
+                            <div className="admin-note-meta-left">
+                              {note.authorNickname ? (
+                                <span className="admin-note-author">
+                                  작성자: <strong>{note.authorNickname}</strong>
+                                  {note.authorUid && <span className="admin-note-uid"> ({note.authorUid.substring(0, 8)}...)</span>}
+                                </span>
+                              ) : (
+                                <span className="admin-note-author anonymous">익명</span>
+                              )}
+                              {note.createdAt && (
+                                <span className="admin-note-date">
+                                  {note.createdAt.toDate ? 
+                                    new Date(note.createdAt.toDate()).toLocaleString('ko-KR') : 
+                                    '날짜 없음'}
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => handleDeleteNote(note.id)}
+                              className="admin-note-delete-btn"
+                              title="쪽지 삭제"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
+  );
+};
+
+export default AnonymousNoteBubble;

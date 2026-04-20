@@ -7,6 +7,7 @@ import {
   arrayUnion,
   arrayRemove,
   increment,
+  deleteField,
   collection,
   addDoc,
   query,
@@ -40,6 +41,7 @@ import '../styles/BoardLayout.css';
 import CommentSection from './CommentSection';
 import { useAudioPlayer } from '../App';
 import { NotificationService } from '../utils/notificationService';
+import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
 
 interface User {
   uid: string;
@@ -51,13 +53,16 @@ interface User {
   isLoggedIn: boolean;
 }
 
-interface Comment {
-  id: string;
-  content: string;
-  writerUid: string;
-  writerNickname: string;
-  createdAt: any;
-}
+const EVALUATOR_ROLE = '평가자';
+
+const isEvaluationJudge = (user: User | null): boolean => {
+  if (!user) return false;
+  const normalizedRole = (user.role || '').trim();
+  return (
+    user.nickname === '너래' ||
+    normalizedRole === EVALUATOR_ROLE
+  );
+};
 
 interface EvaluationPost {
   id: string;
@@ -79,6 +84,11 @@ interface EvaluationPost {
   fileName?: string;
   duration?: number;
   members?: string[];
+  votesPass?: number;
+  votesFail?: number;
+  votedMap?: Record<string, 'PASS' | 'FAIL'>;
+  votedUserNicknames?: Record<string, string>;
+  isAnonymousVote?: boolean;
 }
 
 const gradeEmojis = ['🍒'];
@@ -103,14 +113,14 @@ const EvaluationPostDetail: React.FC = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [post, setPost] = useState<EvaluationPost | null>(null);
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [newComment, setNewComment] = useState('');
   const [showOptions, setShowOptions] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const optionsRef = useRef<HTMLDivElement>(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [messageContent, setMessageContent] = useState('');
+  const [voting, setVoting] = useState(false);
+  const [showAdminVoteReveal, setShowAdminVoteReveal] = useState(false);
   const { isPlaying: isGlobalPlaying, pause: pauseGlobal, play: playGlobal, currentIdx: globalIdx } = useAudioPlayer();
   const location = useLocation();
   // 글로벌 플레이리스트 상태 기억용
@@ -138,10 +148,43 @@ const EvaluationPostDetail: React.FC = () => {
 
   useEffect(() => {
     const userString = localStorage.getItem('veryus_user');
-    if (userString) {
-      setUser(JSON.parse(userString));
+    if (!userString) return;
+    let parsedUser: User | null = null;
+    try {
+      parsedUser = JSON.parse(userString) as User;
+      setUser(parsedUser);
+    } catch (parseError) {
+      console.error('사용자 정보 파싱 오류:', parseError);
+      return;
     }
+
+    const refreshUserProfile = async () => {
+      if (!parsedUser?.uid) return;
+      try {
+        const userSnap = await getDoc(doc(db, 'users', parsedUser.uid));
+        if (!userSnap.exists()) return;
+        const userData = userSnap.data();
+        const mergedUser: User = {
+          ...parsedUser,
+          email: (userData.email as string | undefined) || parsedUser.email,
+          nickname: (userData.nickname as string | undefined) || parsedUser.nickname,
+          role: (userData.role as string | undefined) || parsedUser.role,
+          grade: (userData.grade as string | undefined) || parsedUser.grade,
+          position: (userData.position as string | undefined) || parsedUser.position
+        };
+        setUser(mergedUser);
+        localStorage.setItem('veryus_user', JSON.stringify({ ...mergedUser, isLoggedIn: true }));
+      } catch (refreshError) {
+        console.error('최신 사용자 정보 로딩 실패:', refreshError);
+      }
+    };
+
+    void refreshUserProfile();
   }, []);
+
+  useEffect(() => {
+    setShowAdminVoteReveal(false);
+  }, [post?.id]);
 
   useEffect(() => {
     if (!id) return;
@@ -177,29 +220,6 @@ const EvaluationPostDetail: React.FC = () => {
       setError('게시글을 불러오는 중 오류가 발생했습니다.');
       setLoading(false);
     });
-    return () => unsubscribe();
-  }, [id]);
-
-  useEffect(() => {
-    if (!id) return;
-
-    const commentsQuery = query(
-      collection(db, 'comments'),
-      where('postId', '==', id),
-      orderBy('createdAt', 'desc')
-    );
-
-    const unsubscribe = onSnapshot(commentsQuery, (snapshot) => {
-      const newComments = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Comment[];
-      setComments(newComments);
-    }, (error) => {
-      console.error('댓글 로딩 오류:', error);
-      setError('댓글을 불러오는 중 오류가 발생했습니다.');
-    });
-
     return () => unsubscribe();
   }, [id]);
 
@@ -259,6 +279,65 @@ const EvaluationPostDetail: React.FC = () => {
     navigate(`/evaluation/edit/${post.id}`);
   };
 
+  const myVote = user?.uid && post?.votedMap ? post.votedMap[user.uid] : undefined;
+  const totalVotes = (post?.votesPass || 0) + (post?.votesFail || 0);
+  const ratioPass = totalVotes > 0 ? Math.round(((post?.votesPass || 0) / totalVotes) * 100) : 0;
+  const ratioFail = totalVotes > 0 ? 100 - ratioPass : 0;
+  const isAnonymousVote = post?.isAnonymousVote !== false;
+  const canViewAnonymousVoters = user?.nickname === '너래';
+  const voteEntries = Object.entries(post?.votedMap || {});
+  const passVoters = voteEntries
+    .filter(([, choice]) => choice === 'PASS')
+    .map(([uid]) => post?.votedUserNicknames?.[uid] || '알 수 없음');
+  const failVoters = voteEntries
+    .filter(([, choice]) => choice === 'FAIL')
+    .map(([uid]) => post?.votedUserNicknames?.[uid] || '알 수 없음');
+
+  const handleVerdictVote = async (choice: 'PASS' | 'FAIL') => {
+    if (!post || !user) {
+      alert('로그인이 필요합니다.');
+      return;
+    }
+
+    try {
+      setVoting(true);
+      const postRef = doc(db, 'posts', post.id);
+      const updateBase = {
+        [`votedUserNicknames.${user.uid}`]: user.nickname || '익명'
+      };
+
+      if (!myVote) {
+        await updateDoc(postRef, {
+          ...updateBase,
+          [`votedMap.${user.uid}`]: choice,
+          ...(choice === 'PASS' ? { votesPass: increment(1) } : { votesFail: increment(1) })
+        });
+        return;
+      }
+
+      if (myVote === choice) {
+        await updateDoc(postRef, {
+          [`votedMap.${user.uid}`]: deleteField(),
+          [`votedUserNicknames.${user.uid}`]: deleteField(),
+          ...(choice === 'PASS' ? { votesPass: increment(-1) } : { votesFail: increment(-1) })
+        });
+        return;
+      }
+
+      await updateDoc(postRef, {
+        ...updateBase,
+        [`votedMap.${user.uid}`]: choice,
+        ...(myVote === 'PASS' ? { votesPass: increment(-1) } : { votesFail: increment(-1) }),
+        ...(choice === 'PASS' ? { votesPass: increment(1) } : { votesFail: increment(1) })
+      });
+    } catch (voteError) {
+      console.error('합불 투표 실패:', voteError);
+      alert('투표 처리 중 오류가 발생했습니다.');
+    } finally {
+      setVoting(false);
+    }
+  };
+
   if (error) {
     return (
       <div className="error-container">
@@ -310,10 +389,10 @@ const EvaluationPostDetail: React.FC = () => {
                     </span>
                     {post.writerNickname}
                   </span>
-                  <span className={`role-badge ${post.writerRole || '일반'}`}>
-                    {post.writerRole || '일반'}
+                  <span className={`role-badge ${getPublicRoleBadge(post.writerRole, post.writerPosition)}`}>
+                    {getPublicRoleBadge(post.writerRole, post.writerPosition)}
                   </span>
-                  {post.writerPosition && (
+                  {shouldShowPublicPosition(post.writerPosition) && (
                     <span className="author-position">{post.writerPosition}</span>
                   )}
                 </div>
@@ -400,6 +479,77 @@ const EvaluationPostDetail: React.FC = () => {
               ))}
             </div>
           </div>
+
+          {post.category === 'busking' && (
+            <div style={{ marginTop: 16, display: 'grid', gap: 10 }}>
+              <div style={{ textAlign: 'center', color: '#8A55CC', fontWeight: 700 }}>
+                멤버 의견 투표 (합/불)
+              </div>
+              <button
+                className={`action-button ${myVote === 'PASS' ? 'liked' : ''}`}
+                disabled={voting}
+                onClick={() => handleVerdictVote('PASS')}
+                style={{ justifyContent: 'space-between' }}
+              >
+                <span>합격</span>
+                <span>{post.votesPass || 0}표 ({ratioPass}%)</span>
+              </button>
+              <button
+                className={`action-button ${myVote === 'FAIL' ? 'liked' : ''}`}
+                disabled={voting}
+                onClick={() => handleVerdictVote('FAIL')}
+                style={{ justifyContent: 'space-between' }}
+              >
+                <span>불합격</span>
+                <span>{post.votesFail || 0}표 ({ratioFail}%)</span>
+              </button>
+              <div style={{ textAlign: 'center', color: '#6B7280', fontSize: '0.92rem' }}>
+                {isAnonymousVote ? '익명 투표로 집계됩니다.' : '투표자 정보가 공개됩니다.'}
+              </div>
+              {isAnonymousVote && !canViewAnonymousVoters ? null : isAnonymousVote && canViewAnonymousVoters && !showAdminVoteReveal ? (
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                  <button
+                    type="button"
+                    className="action-button"
+                    onClick={() => setShowAdminVoteReveal(true)}
+                    style={{ maxWidth: 220 }}
+                  >
+                    관리자 보기
+                  </button>
+                </div>
+              ) : (
+                <div style={{ marginTop: 8, padding: 12, background: '#F6F2FF', borderRadius: 12 }}>
+                  <div style={{ fontWeight: 700, color: '#7C4DBC', marginBottom: 8 }}>
+                    {isAnonymousVote ? '투표자 공개 (관리자 보기)' : '투표자 공개'}
+                  </div>
+                  {isAnonymousVote && canViewAnonymousVoters && (
+                    <button
+                      type="button"
+                      className="action-button"
+                      onClick={() => setShowAdminVoteReveal(false)}
+                      style={{ marginBottom: 10 }}
+                    >
+                      숨기기
+                    </button>
+                  )}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <div>
+                      <div style={{ fontWeight: 600, marginBottom: 6 }}>합격</div>
+                      {passVoters.length > 0 ? passVoters.map((name, idx) => (
+                        <div key={`pass-voter-${idx}`} style={{ fontSize: 14, color: '#4B5563' }}>{name}</div>
+                      )) : <div style={{ fontSize: 14, color: '#9CA3AF' }}>아직 투표자가 없습니다.</div>}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 600, marginBottom: 6 }}>불합격</div>
+                      {failVoters.length > 0 ? failVoters.map((name, idx) => (
+                        <div key={`fail-voter-${idx}`} style={{ fontSize: 14, color: '#4B5563' }}>{name}</div>
+                      )) : <div style={{ fontSize: 14, color: '#9CA3AF' }}>아직 투표자가 없습니다.</div>}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           {/* 오디오 플레이어 (녹음게시판과 동일) */}
           {post.audioUrl && (
             <div style={{marginBottom:18}}>
@@ -422,99 +572,255 @@ const EvaluationPostDetail: React.FC = () => {
                 <span style={{ fontSize: 15 }}>다운로드</span>
               </a>
               {/* 합불 판정 버튼 (오디오 밑, 가운데 정렬) */}
-              {user && (user.nickname === '너래' || user.role === '리더' || user.grade === '🌌') && post.category === 'busking' && post.status !== '합격' && post.status !== '불합격' && (
+              {isEvaluationJudge(user) && post.category === 'busking' && (
                 <div style={{margin:'18px 0 0 0', display:'flex', justifyContent:'center', gap:16}}>
-                  <button onClick={async()=>{
-                    if (!window.confirm('정말 합격 처리하시겠습니까?')) return;
-                    
-                    try {
-                      // 게시글 상태 업데이트
-                      await updateDoc(doc(db, 'posts', post.id), { status: '합격' });
-                      setPost(p=>p ? { ...p, status: '합격' } : p);
+                  {(!post.status || post.status === '대기') ? (
+                    <>
+                      <button onClick={async()=>{
+                        if (!window.confirm('정말 합격 처리하시겠습니까?')) return;
+                        
+                        try {
+                          // 게시글 상태 업데이트
+                          await updateDoc(doc(db, 'posts', post.id), { 
+                            status: '합격',
+                            statusUpdatedAt: new Date()
+                          });
+                          setPost(p=>p ? { ...p, status: '합격' } : p);
+                          
+                          // 합격곡 자동 등록/갱신
+                          const members = Array.isArray(post.members) ? post.members.filter(Boolean) : [];
+                          const allMembers = [...members, post.writerNickname].filter((v, i, arr) => !!v && arr.indexOf(v) === i);
+                          const approvedQuery = query(
+                            collection(db, 'approvedSongs'),
+                            where('approvedPostId', '==', post.id)
+                          );
+                          const approvedSnap = await getDocs(approvedQuery);
+                          if (approvedSnap.empty) {
+                            await addDoc(collection(db, 'approvedSongs'), {
+                              title: post.title,
+                              titleNoSpace: post.title.replace(/\s/g, ''),
+                              members: allMembers,
+                              createdAt: new Date(),
+                              createdBy: user?.nickname || '알 수 없음',
+                              createdByRole: user?.role || '',
+                              approvedPostId: post.id,
+                              audioUrl: post.audioUrl || '',
+                              duration: post.duration || 0,
+                              fileName: post.fileName || '',
+                            });
+                          } else {
+                            const docId = approvedSnap.docs[0].id;
+                            await updateDoc(doc(db, 'approvedSongs', docId), {
+                              title: post.title,
+                              titleNoSpace: post.title.replace(/\s/g, ''),
+                              members: allMembers,
+                              updatedAt: new Date(),
+                              updatedBy: user?.nickname || '알 수 없음',
+                              approvedPostId: post.id,
+                              audioUrl: post.audioUrl || '',
+                              duration: post.duration || 0,
+                              fileName: post.fileName || '',
+                            });
+                          }
+
+                          // 게시글 작성자에게 합격 알림 전송
+                          await NotificationService.createApprovalNotification(
+                            post.writerUid,
+                            post.id,
+                            post.title,
+                            'evaluation'
+                          );
+
+                          // 듀엣 파트너들에게도 합격 알림 전송
+                          if (Array.isArray(post.members) && post.members.length > 0) {
+                            for (const memberNickname of post.members) {
+                              if (memberNickname && memberNickname.trim() && memberNickname !== post.writerNickname) {
+                                const memberUid = await findUidByNickname(memberNickname);
+                                if (memberUid) {
+                                  await NotificationService.createApprovalNotification(
+                                    memberUid,
+                                    post.id,
+                                    post.title,
+                                    'evaluation'
+                                  );
+                                }
+                              }
+                            }
+                          }
+
+                          alert('합격 처리가 완료되었습니다. 관련 멤버들에게 알림이 전송되었습니다.');
+                        } catch(e) {
+                          console.error('합격 처리 중 오류:', e);
+                          alert('합격 처리 중 오류가 발생했습니다.');
+                        }
+                      }} style={{background:'#8A55CC',color:'#fff',fontWeight:700,padding:'8px 22px',borderRadius:8,border:'none',fontSize:16,cursor:'pointer'}}>합격</button>
                       
-                      // 합격곡 자동 등록 (중복 체크 없이 무조건 등록)
-                      const members = Array.isArray(post.members) ? post.members.filter(Boolean) : [];
-                      const allMembers = [...members, post.writerNickname].filter((v, i, arr) => !!v && arr.indexOf(v) === i);
-                      await addDoc(collection(db, 'approvedSongs'), {
-                        title: post.title,
-                        titleNoSpace: post.title.replace(/\s/g, ''),
-                        members: allMembers,
-                        createdAt: new Date(),
-                        createdBy: user.nickname,
-                        createdByRole: user.role || '',
-                      });
+                      <button onClick={async()=>{
+                        if (!window.confirm('정말 불합격 처리하시겠습니까?')) return;
+                        
+                        try {
+                          // 게시글 상태 업데이트
+                          await updateDoc(doc(db, 'posts', post.id), { 
+                            status: '불합격',
+                            statusUpdatedAt: new Date()
+                          });
+                          setPost(p=>p ? { ...p, status: '불합격' } : p);
 
-                      // 게시글 작성자에게 합격 알림 전송
-                      await NotificationService.createApprovalNotification(
-                        post.writerUid,
-                        post.id,
-                        post.title,
-                        'evaluation'
-                      );
+                          // 연결된 합격곡 삭제
+                          const approvedQuery = query(
+                            collection(db, 'approvedSongs'),
+                            where('approvedPostId', '==', post.id)
+                          );
+                          const approvedSnap = await getDocs(approvedQuery);
+                          for (const approvedDoc of approvedSnap.docs) {
+                            await deleteDoc(doc(db, 'approvedSongs', approvedDoc.id));
+                          }
 
-                      // 듀엣 파트너들에게도 합격 알림 전송
-                      if (Array.isArray(post.members) && post.members.length > 0) {
-                        for (const memberNickname of post.members) {
-                          if (memberNickname && memberNickname.trim() && memberNickname !== post.writerNickname) {
-                            const memberUid = await findUidByNickname(memberNickname);
-                            if (memberUid) {
-                              await NotificationService.createApprovalNotification(
-                                memberUid,
-                                post.id,
-                                post.title,
-                                'evaluation'
-                              );
+                          // 게시글 작성자에게 불합격 알림 전송
+                          await NotificationService.createRejectionNotification(
+                            post.writerUid,
+                            post.id,
+                            post.title,
+                            'evaluation'
+                          );
+
+                          // 듀엣 파트너들에게도 불합격 알림 전송
+                          if (Array.isArray(post.members) && post.members.length > 0) {
+                            for (const memberNickname of post.members) {
+                              if (memberNickname && memberNickname.trim() && memberNickname !== post.writerNickname) {
+                                const memberUid = await findUidByNickname(memberNickname);
+                                if (memberUid) {
+                                  await NotificationService.createRejectionNotification(
+                                    memberUid,
+                                    post.id,
+                                    post.title,
+                                    'evaluation'
+                                  );
+                                }
+                              }
+                            }
+                          }
+
+                          alert('불합격 처리가 완료되었습니다. 관련 멤버들에게 알림이 전송되었습니다.');
+                        } catch(e) {
+                          console.error('불합격 처리 중 오류:', e);
+                          alert('불합격 처리 중 오류가 발생했습니다.');
+                        }
+                      }} style={{background:'#F43F5E',color:'#fff',fontWeight:700,padding:'8px 22px',borderRadius:8,border:'none',fontSize:16,cursor:'pointer'}}>불합격</button>
+                    </>
+                  ) : (
+                    <button onClick={async()=>{
+                      const nextStatus = post.status === '합격' ? '불합격' : '합격';
+                      if (!window.confirm(`정말 ${nextStatus}으로 전환하시겠습니까?`)) return;
+
+                      try {
+                        await updateDoc(doc(db, 'posts', post.id), { 
+                          status: nextStatus,
+                          statusUpdatedAt: new Date()
+                        });
+                        setPost(p=>p ? { ...p, status: nextStatus } : p);
+
+                        if (nextStatus === '합격') {
+                          const members = Array.isArray(post.members) ? post.members.filter(Boolean) : [];
+                          const allMembers = [...members, post.writerNickname].filter((v, i, arr) => !!v && arr.indexOf(v) === i);
+                          const approvedQuery = query(
+                            collection(db, 'approvedSongs'),
+                            where('approvedPostId', '==', post.id)
+                          );
+                          const approvedSnap = await getDocs(approvedQuery);
+                          if (approvedSnap.empty) {
+                            await addDoc(collection(db, 'approvedSongs'), {
+                              title: post.title,
+                              titleNoSpace: post.title.replace(/\s/g, ''),
+                              members: allMembers,
+                              createdAt: new Date(),
+                              createdBy: user?.nickname || '알 수 없음',
+                              createdByRole: user?.role || '',
+                              approvedPostId: post.id,
+                              audioUrl: post.audioUrl || '',
+                              duration: post.duration || 0,
+                              fileName: post.fileName || '',
+                            });
+                          } else {
+                            const docId = approvedSnap.docs[0].id;
+                            await updateDoc(doc(db, 'approvedSongs', docId), {
+                              title: post.title,
+                              titleNoSpace: post.title.replace(/\s/g, ''),
+                              members: allMembers,
+                              updatedAt: new Date(),
+                              updatedBy: user?.nickname || '알 수 없음',
+                              approvedPostId: post.id,
+                              audioUrl: post.audioUrl || '',
+                              duration: post.duration || 0,
+                              fileName: post.fileName || '',
+                            });
+                          }
+
+                          await NotificationService.createApprovalNotification(
+                            post.writerUid,
+                            post.id,
+                            post.title,
+                            'evaluation'
+                          );
+
+                          if (Array.isArray(post.members) && post.members.length > 0) {
+                            for (const memberNickname of post.members) {
+                              if (memberNickname && memberNickname.trim() && memberNickname !== post.writerNickname) {
+                                const memberUid = await findUidByNickname(memberNickname);
+                                if (memberUid) {
+                                  await NotificationService.createApprovalNotification(
+                                    memberUid,
+                                    post.id,
+                                    post.title,
+                                    'evaluation'
+                                  );
+                                }
+                              }
+                            }
+                          }
+                        } else {
+                          const approvedQuery = query(
+                            collection(db, 'approvedSongs'),
+                            where('approvedPostId', '==', post.id)
+                          );
+                          const approvedSnap = await getDocs(approvedQuery);
+                          for (const approvedDoc of approvedSnap.docs) {
+                            await deleteDoc(doc(db, 'approvedSongs', approvedDoc.id));
+                          }
+
+                          await NotificationService.createRejectionNotification(
+                            post.writerUid,
+                            post.id,
+                            post.title,
+                            'evaluation'
+                          );
+
+                          if (Array.isArray(post.members) && post.members.length > 0) {
+                            for (const memberNickname of post.members) {
+                              if (memberNickname && memberNickname.trim() && memberNickname !== post.writerNickname) {
+                                const memberUid = await findUidByNickname(memberNickname);
+                                if (memberUid) {
+                                  await NotificationService.createRejectionNotification(
+                                    memberUid,
+                                    post.id,
+                                    post.title,
+                                    'evaluation'
+                                  );
+                                }
+                              }
                             }
                           }
                         }
+
+                        alert(`${nextStatus}으로 전환되었습니다. 관련 멤버들에게 알림이 전송되었습니다.`);
+                      } catch (e) {
+                        console.error('합불 전환 중 오류:', e);
+                        alert('합불 전환 중 오류가 발생했습니다.');
                       }
-
-                      alert('합격 처리가 완료되었습니다. 관련 멤버들에게 알림이 전송되었습니다.');
-                    } catch(e) {
-                      console.error('합격 처리 중 오류:', e);
-                      alert('합격 처리 중 오류가 발생했습니다.');
-                    }
-                  }} style={{background:'#8A55CC',color:'#fff',fontWeight:700,padding:'8px 22px',borderRadius:8,border:'none',fontSize:16,cursor:'pointer'}}>합격</button>
-                  
-                  <button onClick={async()=>{
-                    if (!window.confirm('정말 불합격 처리하시겠습니까?')) return;
-                    
-                    try {
-                      // 게시글 상태 업데이트
-                      await updateDoc(doc(db, 'posts', post.id), { status: '불합격' });
-                      setPost(p=>p ? { ...p, status: '불합격' } : p);
-
-                      // 게시글 작성자에게 불합격 알림 전송
-                      await NotificationService.createRejectionNotification(
-                        post.writerUid,
-                        post.id,
-                        post.title,
-                        'evaluation'
-                      );
-
-                      // 듀엣 파트너들에게도 불합격 알림 전송
-                      if (Array.isArray(post.members) && post.members.length > 0) {
-                        for (const memberNickname of post.members) {
-                          if (memberNickname && memberNickname.trim() && memberNickname !== post.writerNickname) {
-                            const memberUid = await findUidByNickname(memberNickname);
-                            if (memberUid) {
-                              await NotificationService.createRejectionNotification(
-                                memberUid,
-                                post.id,
-                                post.title,
-                                'evaluation'
-                              );
-                            }
-                          }
-                        }
-                      }
-
-                      alert('불합격 처리가 완료되었습니다. 관련 멤버들에게 알림이 전송되었습니다.');
-                    } catch(e) {
-                      console.error('불합격 처리 중 오류:', e);
-                      alert('불합격 처리 중 오류가 발생했습니다.');
-                    }
-                  }} style={{background:'#F43F5E',color:'#fff',fontWeight:700,padding:'8px 22px',borderRadius:8,border:'none',fontSize:16,cursor:'pointer'}}>불합격</button>
+                    }} style={{background: post.status === '합격' ? '#F43F5E' : '#3B82F6',color:'#fff',fontWeight:700,padding:'8px 22px',borderRadius:8,border:'none',fontSize:16,cursor:'pointer'}}>
+                      {post.status === '합격' ? '불합격으로 전환' : '합격으로 전환'}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -565,12 +871,6 @@ const EvaluationPostDetail: React.FC = () => {
             postId={post.id}
             user={user}
             post={post}
-            {...(post.category === 'feedback'
-              ? {}
-              : {
-                  noCommentAuthMessage: '해당 게시판은 리더와, 부운영진만 댓글을 달 수 있습니다',
-                  emptyCommentMessageVisibleToRoles: ['리더', '부운영진'],
-                })}
           />
         )}
 

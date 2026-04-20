@@ -21,6 +21,8 @@ export interface Comment {
   postId: string;
   content: string;
   writerNickname: string;
+  realWriterNickname?: string;
+  isAnonymousWriter?: boolean;
   writerUid: string;
   createdAt: any;
   parentId?: string | null;
@@ -40,6 +42,7 @@ export interface User {
   isLoggedIn: boolean;
   role?: string;
   grade?: string;
+  position?: string;
 }
 
 export interface UserData {
@@ -98,6 +101,7 @@ export const getPostTypeFromPath = (): string => {
   if (path.includes('/free/')) return 'free';
   if (path.includes('/recording/')) return 'recording';
   if (path.includes('/evaluation/')) return 'evaluation';
+  if (path.includes('/balance/')) return 'balance';
   if (path.includes('/boards/partner/')) return 'partner';
   return 'free'; // 기본값
 };
@@ -140,46 +144,50 @@ export const isCommentVisible = (comment: Comment, user: User | null, postWriter
   return user.uid === comment.writerUid || user.uid === postWriterUid;
 };
 
+const getCommentTime = (comment: Comment): number => {
+  const raw = comment.createdAt;
+  if (typeof raw === 'number') return raw;
+  if (raw?.seconds) return raw.seconds * 1000 + Math.floor((raw.nanoseconds || 0) / 1_000_000);
+  if (raw?.toMillis) return raw.toMillis();
+  const parsed = new Date(raw).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
 // 댓글 평면 구조로 변환 (depth 정보 포함)
 export const getFlatComments = (comments: Comment[]): (Comment & { depth: number })[] => {
-  // 댓글 id로 빠른 접근을 위한 맵 생성
-  const commentMap = new Map(comments.map(c => [c.id, c]));
-  
-  // depth 계산 함수
-  const getDepth = (comment: Comment): number => {
-    let depth = 0;
-    let current = comment;
-    while (current.parentId) {
-      const parent = commentMap.get(current.parentId);
-      if (!parent) break;
-      depth++;
-      current = parent;
-    }
-    return depth;
-  };
-  
-  // 원댓글만 추출
-  const rootComments = comments.filter(c => !c.parentId);
-  
-  // 각 원댓글 아래에 해당 원댓글을 부모로 하는 모든 답글(대댓글, 대대댓글 등)을 평면구조로 나열
+  const commentMap = new Map(comments.map((c) => [c.id, c]));
+  const childrenMap = new Map<string, Comment[]>();
+
+  comments.forEach((comment) => {
+    if (!comment.parentId || !commentMap.has(comment.parentId)) return;
+    const siblings = childrenMap.get(comment.parentId) || [];
+    siblings.push(comment);
+    childrenMap.set(comment.parentId, siblings);
+  });
+
+  // 부모 아래의 자식은 시간순으로 정렬
+  childrenMap.forEach((children, parentId) => {
+    children.sort((a, b) => getCommentTime(a) - getCommentTime(b));
+    childrenMap.set(parentId, children);
+  });
+
+  const rootComments = comments
+    .filter((c) => !c.parentId || !commentMap.has(c.parentId))
+    .sort((a, b) => getCommentTime(a) - getCommentTime(b));
+
   const flatList: (Comment & { depth: number })[] = [];
-  rootComments.forEach(root => {
-    flatList.push({ ...root, depth: 0 });
-    // 해당 root 아래의 모든 답글(대댓글, 대대댓글 등)
-    comments
-      .filter(c => c.parentId && isDescendantOfRoot(c, root.id, commentMap))
-      .forEach(reply => {
-        flatList.push({ ...reply, depth: getDepth(reply) });
-      });
-  });
-  
-  // 시간순(오래된 순) 정렬
-  flatList.sort((a, b) => {
-    const aTime = a.createdAt?.seconds || a.createdAt || 0;
-    const bTime = b.createdAt?.seconds || b.createdAt || 0;
-    return aTime - bTime;
-  });
-  
+  const visited = new Set<string>();
+
+  const appendWithChildren = (comment: Comment, depth: number) => {
+    if (visited.has(comment.id)) return;
+    visited.add(comment.id);
+    flatList.push({ ...comment, depth });
+
+    const children = childrenMap.get(comment.id) || [];
+    children.forEach((child) => appendWithChildren(child, depth + 1));
+  };
+
+  rootComments.forEach((root) => appendWithChildren(root, 0));
   return flatList;
 };
 
@@ -201,21 +209,28 @@ export const submitComment = async (
   content: string,
   user: User,
   isSecret: boolean,
-  post: Post
+  post: Post,
+  writerNicknameOverride?: string,
+  isAnonymousWriter: boolean = false,
+  realWriterNicknameOverride?: string
 ): Promise<void> => {
+  const writerNickname = writerNicknameOverride || user.nickname || '익명';
   await addDoc(collection(db, 'comments'), {
     postId,
     content: content.trim(),
-    writerNickname: user.nickname || '익명',
+    writerNickname,
+    realWriterNickname: realWriterNicknameOverride || null,
+    isAnonymousWriter,
     writerUid: user.uid,
     createdAt: serverTimestamp(),
     isSecret,
     parentId: null
   });
   
-  // 댓글 추가 후 commentCount 증가
+  // 댓글 추가 후 commentCount 증가 및 lastCommentAt 업데이트
   await updateDoc(doc(db, 'posts', postId), {
-    commentCount: increment(1)
+    commentCount: increment(1),
+    lastCommentAt: new Date()
   });
   
   // 댓글 알림: 게시글 작성자에게(본인이면 생략)
@@ -224,7 +239,8 @@ export const submitComment = async (
       const postType = getPostTypeFromPath();
       await NotificationService.createCommentNotification(
         post.writerUid,
-        user.nickname || '익명',
+        user.uid,
+        writerNickname,
         post.id,
         post.title,
         postType
@@ -242,21 +258,28 @@ export const submitReply = async (
   content: string,
   user: User,
   isSecret: boolean,
-  post: Post
+  post: Post,
+  writerNicknameOverride?: string,
+  isAnonymousWriter: boolean = false,
+  realWriterNicknameOverride?: string
 ): Promise<void> => {
+  const writerNickname = writerNicknameOverride || user.nickname || '익명';
   await addDoc(collection(db, 'comments'), {
     postId,
     content: content.trim(),
-    writerNickname: user.nickname || '익명',
+    writerNickname,
+    realWriterNickname: realWriterNicknameOverride || null,
+    isAnonymousWriter,
     writerUid: user.uid,
     createdAt: serverTimestamp(),
     isSecret,
     parentId
   });
   
-  // 대댓글 추가 후 commentCount 증가
+  // 대댓글 추가 후 commentCount 증가 및 lastCommentAt 업데이트
   await updateDoc(doc(db, 'posts', postId), {
-    commentCount: increment(1)
+    commentCount: increment(1),
+    lastCommentAt: new Date()
   });
   
   // 답글 알림: 부모 댓글 작성자에게(본인이면 생략)
@@ -268,7 +291,8 @@ export const submitReply = async (
         const postType = getPostTypeFromPath();
         await NotificationService.createReplyNotification(
           parentComment.writerUid,
-          user.nickname || '익명',
+          user.uid,
+          writerNickname,
           post.id,
           post.title,
           parentId,
@@ -349,23 +373,40 @@ export const subscribeToComments = (
     async (snapshot) => {
       const commentsData: Comment[] = [];
       const userDataCache = new Map<string, UserData>();
-      
-      for (const docSnapshot of snapshot.docs) {
-        const commentData = docSnapshot.data() as DocumentData;
-        
-        // 작성자 정보 캐시 확인 또는 가져오기
-        let userData: UserData | undefined = userDataCache.get(commentData.writerUid);
-        if (!userData) {
-          const userDoc = await getDoc(doc(db, 'users', commentData.writerUid));
-          userData = userDoc.data() as UserData || {
+      const uniqueWriterUids = Array.from(
+        new Set(
+          snapshot.docs
+            .map((docSnapshot) => (docSnapshot.data() as DocumentData).writerUid as string | undefined)
+            .filter((uid): uid is string => Boolean(uid))
+        )
+      );
+
+      await Promise.all(uniqueWriterUids.map(async (uid) => {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', uid));
+          const userData = userDoc.data() as UserData | undefined;
+          userDataCache.set(uid, userData || {
             grade: '🍒',
             role: '일반',
             position: ''
-          };
-          userDataCache.set(commentData.writerUid, userData);
+          });
+        } catch {
+          userDataCache.set(uid, {
+            grade: '🍒',
+            role: '일반',
+            position: ''
+          });
         }
-        
-        // 기존 댓글 데이터를 유지하면서 새로운 데이터 추가
+      }));
+
+      snapshot.docs.forEach((docSnapshot) => {
+        const commentData = docSnapshot.data() as DocumentData;
+        const userData = userDataCache.get(commentData.writerUid as string) || {
+          grade: '🍒',
+          role: '일반',
+          position: ''
+        };
+
         commentsData.push({
           id: docSnapshot.id,
           ...commentData,
@@ -375,8 +416,8 @@ export const subscribeToComments = (
           likedBy: commentData.likedBy || [],
           likesCount: commentData.likesCount || 0
         } as Comment);
-      }
-      
+      });
+
       onCommentsUpdate(commentsData);
     },
     onError

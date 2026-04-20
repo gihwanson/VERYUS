@@ -19,12 +19,13 @@ export interface BoardVisitData {
     free?: Timestamp;
     recording?: Timestamp;
     evaluation?: Timestamp;
+    balance?: Timestamp;
     partner?: Timestamp;
   };
 }
 
 export interface NewPostNotification {
-  boardType: 'free' | 'recording' | 'evaluation' | 'partner';
+  boardType: 'free' | 'recording' | 'evaluation' | 'balance' | 'partner';
   hasNewPosts: boolean;
   newPostCount?: number;
 }
@@ -34,6 +35,7 @@ const BOARD_COLLECTIONS = {
   free: 'posts',
   recording: 'posts', 
   evaluation: 'posts',
+  balance: 'posts',
   partner: 'posts'
 } as const;
 
@@ -42,6 +44,7 @@ const BOARD_TYPE_FILTERS = {
   free: 'free',
   recording: 'recording',
   evaluation: 'evaluation',
+  balance: 'balance',
   partner: 'partner'
 } as const;
 
@@ -154,7 +157,7 @@ export const getNewPostCount = async (
 
 // 모든 게시판의 새 게시글 알림 상태 가져오기
 export const getAllBoardNotifications = async (userId: string): Promise<NewPostNotification[]> => {
-  const boardTypes: (keyof typeof BOARD_COLLECTIONS)[] = ['free', 'recording', 'evaluation', 'partner'];
+  const boardTypes: (keyof typeof BOARD_COLLECTIONS)[] = ['free', 'recording', 'evaluation', 'balance', 'partner'];
   const notifications: NewPostNotification[] = [];
   
   for (const boardType of boardTypes) {
@@ -185,7 +188,7 @@ export const subscribeToBoardNotifications = (
 ): (() => void) => {
   const unsubscribeFunctions: (() => void)[] = [];
   
-  const boardTypes: (keyof typeof BOARD_COLLECTIONS)[] = ['free', 'recording', 'evaluation', 'partner'];
+  const boardTypes: (keyof typeof BOARD_COLLECTIONS)[] = ['free', 'recording', 'evaluation', 'balance', 'partner'];
   
   // 방문 기록 변경 감지
   const visitDocRef = doc(db, 'boardVisits', userId);

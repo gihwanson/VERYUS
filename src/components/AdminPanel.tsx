@@ -9,7 +9,6 @@ import {
   query,
   where,
   writeBatch,
-  orderBy,
   addDoc,
   setDoc,
   serverTimestamp,
@@ -234,8 +233,9 @@ const AdminPanel: React.FC = () => {
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
-      const usersQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
-      const snapshot = await getDocs(usersQuery);
+      // orderBy('createdAt')만 쓰면 createdAt 필드가 없는 문서는 쿼리 결과에서 제외됨.
+      // 회원가입 이메일 중복(where email ==)은 그 문서를 찾으므로 관리자 목록과 불일치가 날 수 있음.
+      const snapshot = await getDocs(collection(db, 'users'));
       
       const usersData = snapshot.docs.map(doc => ({
         uid: doc.id,

@@ -7,9 +7,13 @@ import {
   getDoc, 
   updateDoc, 
   serverTimestamp,
-  setDoc
+  setDoc,
+  query,
+  where,
+  getDocs
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { NotificationService } from '../utils/notificationService';
 import { 
   ArrowLeft, 
   PenTool, 
@@ -59,7 +63,7 @@ const FreePostWrite: React.FC = () => {
     return userStr ? JSON.parse(userStr) : null;
   });
   const [isEditMode, setIsEditMode] = useState(false);
-  const [requestTarget, setRequestTarget] = useState('');
+  const [requestTargets, setRequestTargets] = useState<string[]>(['']);
 
   // 컴포넌트 마운트 시 body 배경 설정
   useEffect(() => {
@@ -95,9 +99,29 @@ const FreePostWrite: React.FC = () => {
         const postDoc = await getDoc(doc(db, 'posts', id));
         if (postDoc.exists()) {
           const data = postDoc.data();
-          setTitle(data.title || '');
-          setContent(data.content || '');
-          setCategory(data.category || 'general');
+          const loadedTitle = data.title || '';
+          const loadedContent = data.content || '';
+          const loadedCategory = data.category || 'general';
+
+          setTitle(loadedTitle);
+          setCategory(loadedCategory);
+
+          if (loadedCategory === 'request' && typeof loadedContent === 'string') {
+            const lines = loadedContent.split('\n');
+            const firstLine = lines[0] || '';
+            if (firstLine.startsWith('신청 대상: ')) {
+              const targetLine = firstLine.replace('신청 대상: ', '').trim();
+              const targets = targetLine
+                ? targetLine.split(',').map((t: string) => t.trim()).filter(Boolean)
+                : [];
+              setRequestTargets(targets.length > 0 ? targets : ['']);
+              setContent(lines.slice(1).join('\n'));
+            } else {
+              setContent(loadedContent);
+            }
+          } else {
+            setContent(loadedContent);
+          }
         } else {
           alert('게시글을 찾을 수 없습니다.');
           navigate('/free');
@@ -114,13 +138,15 @@ const FreePostWrite: React.FC = () => {
       navigate('/login');
       return;
     }
-    if (!title.trim() || !content.trim() || (category === 'request' && !requestTarget.trim())) {
+    const hasRequestTarget = requestTargets.some(target => target.trim());
+    if (!title.trim() || !content.trim() || (category === 'request' && !hasRequestTarget)) {
       alert('제목, 내용을 모두 입력해주시고, 신청곡은 대상도 입력해주세요.');
       return;
     }
     let finalContent = content;
-    if (category === 'request' && requestTarget.trim()) {
-      finalContent = `신청 대상: ${requestTarget.trim()}\n` + content;
+    if (category === 'request' && hasRequestTarget) {
+      const targetsText = requestTargets.map(t => t.trim()).filter(Boolean).join(', ');
+      finalContent = `신청 대상: ${targetsText}\n` + content;
     }
     try {
       setIsSubmitting(true);
@@ -151,7 +177,41 @@ const FreePostWrite: React.FC = () => {
           commentCount: 0,
           likes: [],
         };
-        await addDoc(postRef, newPost);
+        const createdPostRef = await addDoc(postRef, newPost);
+
+        // 신청곡 카테고리면 대상 멤버들에게 알림 전송
+        if (category === 'request' && requestTargets.some(target => target.trim())) {
+          try {
+            const rawTargets = requestTargets.map(target => target.trim()).filter(Boolean);
+            const uniqueTargets = Array.from(new Set(rawTargets));
+
+            await Promise.all(uniqueTargets.map(async (targetNickname) => {
+              const q = query(
+                collection(db, 'users'),
+                where('nickname', '==', targetNickname)
+              );
+              const snapshot = await getDocs(q);
+              if (snapshot.empty) return;
+
+              await Promise.all(snapshot.docs.map(async (targetUserDoc) => {
+                const targetUid = targetUserDoc.id;
+                if (targetUid === user.uid) return;
+
+                await NotificationService.createNotification({
+                  type: 'new_post',
+                  toUid: targetUid,
+                  fromNickname: user.nickname || '익명',
+                  postId: createdPostRef.id,
+                  postTitle: title,
+                  postType: 'free',
+                  message: `"${targetNickname}"님에게 신청곡 요청이 도착했습니다.`
+                });
+              }));
+            }));
+          } catch (notifyError) {
+            console.error('신청곡 알림 전송 실패:', notifyError);
+          }
+        }
         navigate('/free');
       }
     } catch (error) {
@@ -205,14 +265,37 @@ const FreePostWrite: React.FC = () => {
           {category === 'request' && (
             <div className="form-group" style={{ marginTop: 12 }}>
               <div style={{ fontWeight: 600, color: '#8A55CC', marginBottom: 6 }}>대상은?</div>
-              <input
-                type="text"
-                className="title-input"
-                placeholder="누구에게 신청하고 싶나요?"
-                value={requestTarget}
-                onChange={e => setRequestTarget(e.target.value)}
-                maxLength={50}
-              />
+              {requestTargets.map((target, idx) => (
+                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <input
+                    type="text"
+                    className="title-input"
+                    placeholder="누구에게 신청하고 싶나요?"
+                    value={target}
+                    onChange={e => setRequestTargets(prev => prev.map((t, i) => i === idx ? e.target.value : t))}
+                    maxLength={50}
+                    style={{ flex: 1 }}
+                  />
+                  {requestTargets.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setRequestTargets(prev => prev.filter((_, i) => i !== idx))}
+                      style={{ background: '#F43F5E', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 10px', fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      삭제
+                    </button>
+                  )}
+                  {idx === requestTargets.length - 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setRequestTargets(prev => [...prev, ''])}
+                      style={{ background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 10px', fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      + 추가
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
           )}
 

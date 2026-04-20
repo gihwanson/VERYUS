@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import type { DocumentData } from 'firebase/firestore';
 import { db } from '../firebase';
+import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
 import { 
   ArrowLeft, 
   MessageSquare, 
@@ -86,7 +87,13 @@ const FreePostList: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const observer = useRef<IntersectionObserver | null>(null);
   const lastPostElementRef = useRef<HTMLDivElement | null>(null);
+  const userInfoUnsubscribersRef = useRef<Array<() => void>>([]);
   const [searchType, setSearchType] = useState('title');
+
+  const clearUserInfoListeners = useCallback(() => {
+    userInfoUnsubscribersRef.current.forEach((unsubscribe) => unsubscribe());
+    userInfoUnsubscribersRef.current = [];
+  }, []);
 
   const categories = [
     { id: 'all', name: '전체' },
@@ -206,8 +213,12 @@ const FreePostList: React.FC = () => {
         };
       })) as Post[];
 
+      if (isInitial) {
+        clearUserInfoListeners();
+      }
       postsData.forEach(post => {
-        setupUserInfoListener(post);
+        const unsubscribe = setupUserInfoListener(post);
+        userInfoUnsubscribersRef.current.push(unsubscribe);
       });
 
       if (sortBy !== 'latest') {
@@ -253,7 +264,7 @@ const FreePostList: React.FC = () => {
       setLoading(false);
       setIsLoadingMore(false);
     }
-  }, [isLoadingMore, lastVisible, sortBy, searchTerm, selectedCategory]);
+  }, [isLoadingMore, lastVisible, sortBy, searchTerm, selectedCategory, clearUserInfoListeners]);
 
   useEffect(() => {
     const userString = localStorage.getItem('veryus_user');
@@ -272,8 +283,15 @@ const FreePostList: React.FC = () => {
     setHasMore(true);
     setLoading(true);
     setError(null);
+    clearUserInfoListeners();
     fetchPosts(true);
-  }, [sortBy, searchTerm, selectedCategory]);
+  }, [sortBy, searchTerm, selectedCategory, clearUserInfoListeners]);
+
+  useEffect(() => {
+    return () => {
+      clearUserInfoListeners();
+    };
+  }, [clearUserInfoListeners]);
 
   useEffect(() => {
     const options = {
@@ -453,10 +471,10 @@ const FreePostList: React.FC = () => {
                     <span className="author-info" style={{ fontSize: '1.1rem', color: '#FFFFFF', fontWeight: 600, textDecoration: 'none' }}>
                       {post.writerNickname}
                     </span>
-                    <span className={`role-badge ${post.writerRole || '일반'}`}>
-                      {post.writerRole || '일반'}
+                    <span className={`role-badge ${getPublicRoleBadge(post.writerRole, post.writerPosition)}`}>
+                      {getPublicRoleBadge(post.writerRole, post.writerPosition)}
                     </span>
-                    {post.writerPosition && (
+                    {shouldShowPublicPosition(post.writerPosition) && (
                       <span className="author-position">{post.writerPosition}</span>
                     )}
                   </div>

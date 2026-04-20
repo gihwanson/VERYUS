@@ -5,12 +5,12 @@ import {
   deleteDoc, 
   arrayUnion, 
   arrayRemove,
-  increment,
-  getDoc
+  increment
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import TagParser from './TagParser';
 import { Heart, MessageCircle, Edit, Trash2, Send, Clock } from 'lucide-react';
+import { getPublicRoleBadge } from '../utils/publicRoleBadge';
 import './CommentItem.css';
 import { NotificationService } from '../utils/notificationService';
 
@@ -20,6 +20,8 @@ interface Comment {
   postId: string;
   content: string;
   writerNickname: string;
+  realWriterNickname?: string;
+  isAnonymousWriter?: boolean;
   writerUid: string;
   createdAt: any;
   parentId?: string | null;
@@ -27,6 +29,8 @@ interface Comment {
   likesCount: number;
   replies?: Comment[];
   writerGrade?: string;
+  writerRole?: string;
+  writerPosition?: string;
 }
 
 interface User {
@@ -108,7 +112,6 @@ const CommentItem: React.FC<CommentItemProps> = ({
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(comment.likesCount || 0);
   const [isLiking, setIsLiking] = useState(false);
-  const [writerRole, setWriterRole] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [isComposing, setIsComposing] = useState(false);
 
@@ -135,33 +138,30 @@ const CommentItem: React.FC<CommentItemProps> = ({
     return className;
   }, [depth]);
 
+  const displayAuthorName = useMemo(() => {
+    const baseNickname = comment.writerNickname || '익명';
+    const isNoraeViewer = user?.nickname === '너래';
+    if (!isNoraeViewer || !comment.isAnonymousWriter) return baseNickname;
+    const realNickname = (comment.realWriterNickname || '').trim();
+    if (!realNickname || realNickname === baseNickname) return baseNickname;
+    return `${baseNickname} (${realNickname})`;
+  }, [comment.writerNickname, comment.realWriterNickname, comment.isAnonymousWriter, user?.nickname]);
+
+  const displayGradeEmoji = useMemo(() => {
+    if (comment.isAnonymousWriter) return '🍒';
+    return comment.writerGrade || '🍒';
+  }, [comment.isAnonymousWriter, comment.writerGrade]);
+
+  const displayRoleBadge = useMemo(() => {
+    return getPublicRoleBadge(comment.writerRole, comment.writerPosition);
+  }, [comment.writerRole, comment.writerPosition]);
+
   // Effects
   useEffect(() => {
     if (user) {
       setIsLiked(comment.likedBy?.includes(user.uid) || false);
     }
   }, [comment.likedBy, user]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchWriterRole = async () => {
-      try {
-        const userDoc = await getDoc(doc(db, 'users', comment.writerUid));
-        if (userDoc.exists() && isMounted) {
-          setWriterRole(userDoc.data().role || null);
-        }
-      } catch (error) {
-        console.error('작성자 역할 조회 에러:', error);
-      }
-    };
-
-    fetchWriterRole();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [comment.writerUid]);
 
   useEffect(() => {
     setEditContent(comment.content);
@@ -372,15 +372,15 @@ const CommentItem: React.FC<CommentItemProps> = ({
       <div className="comment-header">
         <div className="comment-info">
           <div className="author-info">
-            {comment.writerGrade && (
-              <span className="comment-grade-emoji" title={comment.writerGrade}>
-                {comment.writerGrade}
+            <span className="comment-grade-emoji" title={displayGradeEmoji}>
+              {displayGradeEmoji}
+            </span>
+            <span className="comment-author">{displayAuthorName}</span>
+            {!comment.isAnonymousWriter && (
+              <span className={`role-badge ${displayRoleBadge || 'general'}`}>
+                {displayRoleBadge}
               </span>
             )}
-            <span className="comment-author">{comment.writerNickname}</span>
-            <span className={`role-badge ${writerRole || 'general'}`}>
-              {writerRole || '일반'}
-            </span>
           </div>
           <span className="comment-date">
             <Clock size={14} />

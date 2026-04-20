@@ -51,6 +51,7 @@ const BOARD_TYPES = [
   { value: 'free', label: '자유게시판', color: '#10B981' },
   { value: 'recording', label: '녹음게시판', color: '#F59E0B' },
   { value: 'evaluation', label: '평가게시판', color: '#EF4444' },
+  { value: 'balance', label: '밸런스게시판', color: '#EC4899' },
   { value: 'partner', label: '파트너모집', color: '#8B5CF6' }
 ];
 
@@ -211,6 +212,7 @@ const SearchSystem: React.FC<SearchSystemProps> = memo(({
       free: '/free',
       recording: '/recording', 
       evaluation: '/evaluation',
+      balance: '/balance',
       partner: '/boards/partner'
     };
     

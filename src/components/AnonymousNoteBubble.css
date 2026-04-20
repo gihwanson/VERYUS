@@ -1,0 +1,666 @@
+/* 익명 쪽지 말풍선 스타일 */
+.anonymous-note-bubble {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 10;
+  animation: floatBubble 6s ease-in-out infinite;
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+@keyframes floatBubble {
+  0%, 100% { transform: translateY(0px); opacity: 1 !important; }
+  50% { transform: translateY(-8px); opacity: 1 !important; }
+}
+
+.anonymous-note-bubble:hover {
+  transform: translateY(-2px);
+}
+
+.bubble-content {
+  background: #ffffff;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 255, 255, 1);
+  border-radius: 18px;
+  padding: 12px 18px;
+  max-width: 280px;
+  min-width: 160px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+  opacity: 1 !important;
+  filter: none !important;
+  will-change: transform;
+  isolation: isolate;
+}
+
+.bubble-content * {
+  opacity: 1 !important;
+  filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.anonymous-note-bubble:hover .bubble-content {
+  background: #ffffff;
+  border-color: rgba(255, 255, 255, 1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+.bubble-text {
+  color: #111827;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.5;
+  display: block;
+  text-shadow: none;
+  word-break: break-word;
+  white-space: normal;
+  opacity: 1 !important;
+}
+
+.bubble-label {
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 1 !important;
+}
+
+.bubble-hint {
+  color: #9ca3af;
+  font-size: 10px;
+  font-weight: 500;
+  margin-top: 6px;
+  display: block;
+  font-style: italic;
+  text-align: center;
+  opacity: 1 !important;
+}
+
+.bubble-loading {
+  color: #111827;
+  font-size: 16px;
+  font-weight: 700;
+  display: inline-block;
+  animation: pulse 1.5s ease-in-out infinite;
+  opacity: 1 !important;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.bubble-tail {
+  position: absolute;
+  left: -10px;
+  bottom: 10px;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 10px 10px 10px 0;
+  border-color: transparent #ffffff transparent transparent;
+  filter: drop-shadow(-2px 2px 2px rgba(0, 0, 0, 0.2));
+}
+
+.anonymous-note-bubble:hover .bubble-tail {
+  border-color: transparent #ffffff transparent transparent;
+}
+
+/* 모달 스타일 */
+.anonymous-note-modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.2s ease;
+  transform: none !important;
+  will-change: auto !important;
+  isolation: isolate;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 모달이 부모 애니메이션 영향 받지 않도록 */
+.anonymous-note-modal-overlay * {
+  animation: none !important;
+  transform: none !important;
+}
+
+.anonymous-note-modal-overlay {
+  animation: fadeIn 0.2s ease !important;
+}
+
+.anonymous-note-modal {
+  animation: slideUp 0.3s ease !important;
+}
+
+.anonymous-note-modal {
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  width: 90%;
+  max-width: 420px;
+  padding: 0;
+  animation: slideUp 0.3s ease !important;
+  overflow: hidden;
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  transform: none !important;
+  will-change: auto !important;
+  margin: 0 auto;
+  isolation: isolate;
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.modal-close-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  padding: 0;
+  line-height: 1;
+}
+
+.modal-close-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.modal-form {
+  padding: 24px;
+}
+
+.input-container {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.note-input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 15px;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+  background: #ffffff;
+  color: #1f2937;
+}
+
+.note-input:focus {
+  outline: none;
+  border-color: #8A55CC;
+  box-shadow: 0 0 0 3px rgba(138, 85, 204, 0.1);
+}
+
+.note-input:disabled {
+  background: #f3f4f6;
+  cursor: not-allowed;
+}
+
+.note-input::placeholder {
+  color: #9ca3af;
+}
+
+.char-count {
+  position: absolute;
+  bottom: 8px;
+  right: 12px;
+  font-size: 12px;
+  color: #6b7280;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 2px 6px;
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.error-message {
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.btn-cancel,
+.btn-submit {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.btn-cancel {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.btn-cancel:hover:not(:disabled) {
+  background: #e5e7eb;
+  color: #4b5563;
+}
+
+.btn-submit {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.btn-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-submit:disabled,
+.btn-cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-admin {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #f59e0b;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+  margin-right: auto;
+}
+
+.btn-admin:hover:not(:disabled) {
+  background: #d97706;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+}
+
+/* 관리자 모달 스타일 */
+.admin-modal {
+  max-width: 600px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 관리자 뷰 탭 */
+.admin-view-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 16px 24px 0;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.admin-tab {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.admin-tab:hover {
+  color: #8A55CC;
+  background: rgba(138, 85, 204, 0.05);
+}
+
+.admin-tab.active {
+  color: #8A55CC;
+  border-bottom-color: #8A55CC;
+  background: rgba(138, 85, 204, 0.1);
+}
+
+.admin-notes-list {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.admin-loading,
+.admin-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #6b7280;
+  font-size: 15px;
+}
+
+.admin-notes-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-note-item {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.admin-note-item:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.admin-note-item.inactive {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  opacity: 0.7;
+}
+
+.admin-note-item.inactive .admin-note-text {
+  color: #6b7280;
+}
+
+.admin-note-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: #9ca3af;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.admin-note-text {
+  font-size: 15px;
+  color: #1f2937;
+  font-weight: 500;
+  margin-bottom: 10px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.admin-note-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.admin-note-meta-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.admin-note-author {
+  font-weight: 500;
+}
+
+.admin-note-author strong {
+  color: #8A55CC;
+  font-weight: 700;
+}
+
+.admin-note-author.anonymous {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.admin-note-uid {
+  color: #9ca3af;
+  font-size: 11px;
+  font-family: monospace;
+}
+
+.admin-note-date {
+  color: #9ca3af;
+  font-size: 11px;
+}
+
+.admin-note-delete-btn {
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+}
+
+.admin-note-delete-btn:hover {
+  background: #fecaca;
+  border-color: #f87171;
+  transform: scale(1.05);
+}
+
+.admin-note-delete-btn:active {
+  transform: scale(0.95);
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+  .anonymous-note-bubble {
+    margin-left: 8px;
+  }
+
+  .bubble-content {
+    max-width: 220px;
+    min-width: 140px;
+    padding: 10px 16px;
+  }
+
+  .bubble-text {
+    font-size: 14px;
+  }
+
+  .bubble-label {
+    font-size: 10px;
+  }
+
+  .bubble-hint {
+    font-size: 9px;
+    margin-top: 4px;
+  }
+
+  .anonymous-note-modal {
+    width: 95%;
+    max-width: 380px;
+  }
+
+  .modal-header {
+    padding: 16px 20px;
+  }
+
+  .modal-header h3 {
+    font-size: 18px;
+  }
+
+  .modal-form {
+    padding: 20px;
+  }
+
+  .note-input {
+    padding: 12px 14px;
+    font-size: 14px;
+  }
+
+  .char-count {
+    font-size: 11px;
+    bottom: 6px;
+    right: 10px;
+  }
+
+  .btn-cancel,
+  .btn-submit {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .bubble-content {
+    max-width: 200px;
+    min-width: 120px;
+    padding: 8px 14px;
+  }
+
+  .bubble-text {
+    font-size: 13px;
+  }
+
+  .bubble-label {
+    font-size: 9px;
+  }
+
+  .bubble-hint {
+    font-size: 8px;
+    margin-top: 3px;
+  }
+
+  .anonymous-note-modal {
+    width: 95%;
+    max-width: 340px;
+  }
+
+  .modal-header {
+    padding: 14px 16px;
+  }
+
+  .modal-header h3 {
+    font-size: 16px;
+  }
+
+  .modal-form {
+    padding: 16px;
+  }
+
+  .admin-modal {
+    max-width: 95%;
+    max-height: 85vh;
+  }
+
+  .admin-notes-list {
+    padding: 16px;
+  }
+
+  .admin-note-item {
+    padding: 12px;
+  }
+
+  .admin-note-text {
+    font-size: 14px;
+  }
+
+  .admin-note-meta {
+    font-size: 11px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .btn-admin {
+    padding: 10px 16px;
+    font-size: 13px;
+    width: 100%;
+    margin-right: 0;
+    margin-bottom: 8px;
+  }
+}

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { arrayRemove, arrayUnion, deleteDoc, deleteField, doc, increment, onSnapshot, updateDoc } from 'firebase/firestore';
 import { AlertTriangle, ArrowLeft, Clock, Eye, Loader, Scale, Trash2 } from 'lucide-react';
 import { db } from '../firebase';
+import { getPublicRoleBadge } from '../utils/publicRoleBadge';
 import CommentSection from './CommentSection';
 import '../styles/PostDetail.css';
 import '../styles/BoardLayout.css';
@@ -239,8 +240,8 @@ const BalancePostDetail: React.FC = () => {
                   <span className="author-grade-emoji">{toGradeEmoji(post.writerGrade)}</span>
                   {post.writerNickname}
                 </span>
-                <span className={`role-badge ${post.writerRole || '일반'}`}>
-                  {post.writerRole || '일반'}
+                <span className={`role-badge ${getPublicRoleBadge(post.writerRole)}`}>
+                  {getPublicRoleBadge(post.writerRole)}
                 </span>
               </div>
               <div className="post-detail-info balance-post-detail-info">

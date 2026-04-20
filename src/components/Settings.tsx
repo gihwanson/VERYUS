@@ -1,21 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { signOut, deleteUser as firebaseDeleteUser, sendPasswordResetEmail } from 'firebase/auth';
 import { 
-  doc, 
-  updateDoc, 
-  deleteDoc, 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  writeBatch 
+  doc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  writeBatch
 } from 'firebase/firestore';
 import { auth, db } from '../firebase';
+import { useUserProfile } from '../contexts/UserProfileContext';
 import { 
-  ArrowLeft, 
-  Bell, 
-  BellOff, 
   Edit, 
   Trash2, 
   LogOut, 
@@ -38,58 +37,39 @@ interface User {
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
+  const { profile } = useUserProfile();
   const [user, setUser] = useState<User | null>(null);
-  const [notifications, setNotifications] = useState(true);
   const [newNickname, setNewNickname] = useState('');
   const [editingNickname, setEditingNickname] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   useEffect(() => {
-    // 사용자 정보 불러오기
-    const userString = localStorage.getItem('veryus_user');
-    if (userString) {
-      const userData = JSON.parse(userString);
-      setUser(userData);
-      setNewNickname(userData.nickname || '');
-      setNotifications(userData.notificationsEnabled ?? true);
-    } else {
-      alert('로그인이 필요합니다.');
-      navigate('/login');
+    if (profile?.uid) {
+      setUser(profile as unknown as User);
+      setNewNickname(String(profile.nickname || ''));
+      setLoading(false);
       return;
     }
-
-    setLoading(false);
-  }, [navigate]);
-
-  const handleNotificationToggle = async () => {
-    if (!user) return;
-
-    const newNotifications = !notifications;
-    setNotifications(newNotifications);
-
-    try {
-      // Firestore에 알림 설정 저장
-      await updateDoc(doc(db, 'users', user.uid), {
-        notificationsEnabled: newNotifications
-      });
-
-      // localStorage도 업데이트
-      const updatedUser = { ...user, notificationsEnabled: newNotifications };
-      localStorage.setItem('veryus_user', JSON.stringify(updatedUser));
-      setUser(updatedUser);
-
-      alert(`알림이 ${newNotifications ? '활성화' : '비활성화'}되었습니다.`);
-    } catch (error) {
-      console.error('알림 설정 업데이트 에러:', error);
-      alert('알림 설정 업데이트 중 오류가 발생했습니다.');
-      setNotifications(!newNotifications); // 원래 상태로 되돌리기
+    const userString = localStorage.getItem('veryus_user');
+    if (userString) {
+      try {
+        const userData = JSON.parse(userString);
+        setUser(userData);
+        setNewNickname(userData.nickname || '');
+      } catch {
+        toast.error('저장된 로그인 정보를 읽을 수 없습니다.');
+      }
+      setLoading(false);
+      return;
     }
-  };
+    toast.error('로그인이 필요합니다.');
+    navigate('/login');
+  }, [navigate, profile]);
 
   const handleNicknameChange = async () => {
     if (!user || !newNickname.trim()) {
-      alert('닉네임을 입력해주세요.');
+      toast.warning('닉네임을 입력해주세요.');
       return;
     }
 
@@ -117,10 +97,10 @@ const Settings: React.FC = () => {
       setUser(updatedUser);
 
       setEditingNickname(false);
-      alert('닉네임이 성공적으로 변경되었습니다.');
+      toast.success('닉네임이 변경되었습니다.');
     } catch (error) {
       console.error('닉네임 변경 에러:', error);
-      alert('닉네임 변경 중 오류가 발생했습니다.');
+      toast.error('닉네임 변경에 실패했습니다. 잠시 후 다시 시도해 주세요.');
     }
   };
 
@@ -179,11 +159,11 @@ const Settings: React.FC = () => {
       // localStorage 클리어
       localStorage.removeItem('veryus_user');
 
-      alert('계정이 성공적으로 삭제되었습니다.');
+      toast.success('계정이 삭제되었습니다.');
       navigate('/login');
     } catch (error) {
       console.error('계정 삭제 에러:', error);
-      alert('계정 삭제 중 오류가 발생했습니다.');
+      toast.error('계정 삭제에 실패했습니다. 다시 로그인한 뒤 시도하거나 관리자에게 문의해 주세요.');
     }
   };
 
@@ -191,24 +171,24 @@ const Settings: React.FC = () => {
     try {
       await signOut(auth);
       localStorage.removeItem('veryus_user');
-      alert('로그아웃되었습니다.');
+      toast.info('로그아웃되었습니다.');
       navigate('/login');
     } catch (error) {
       console.error('로그아웃 에러:', error);
-      alert('로그아웃 중 오류가 발생했습니다.');
+      toast.error('로그아웃에 실패했습니다.');
     }
   };
 
   const handlePasswordReset = async () => {
     if (!user?.email) {
-      alert('이메일 정보가 없습니다.');
+      toast.warning('이메일 정보가 없습니다. 가입 시 사용한 이메일이 프로필에 없을 수 있습니다.');
       return;
     }
     try {
       await sendPasswordResetEmail(auth, user.email);
-      alert('비밀번호 재설정 메일이 발송되었습니다. 이메일을 확인해주세요.');
+      toast.success('비밀번호 재설정 메일을 보냈습니다. 메일함(스팸함)을 확인해 주세요.');
     } catch (error) {
-      alert('비밀번호 재설정 메일 발송 중 오류가 발생했습니다.');
+      toast.error('재설정 메일 발송에 실패했습니다. 네트워크를 확인한 뒤 다시 시도해 주세요.');
     }
   };
 
@@ -232,15 +212,22 @@ const Settings: React.FC = () => {
     <div className="settings-container">
       {/* 헤더 */}
       <div className="settings-header glassmorphism">
-        <button className="back-button glassmorphism" onClick={() => navigate(-1)}>
-          <ArrowLeft size={20} />
-          뒤로가기
-        </button>
         <h1 className="settings-title">
           <SettingsIcon size={28} />
           설정
         </h1>
       </div>
+      <p
+        style={{
+          textAlign: 'center',
+          color: '#64748b',
+          fontSize: 13,
+          margin: '0 16px 16px',
+          lineHeight: 1.5
+        }}
+      >
+        여기서 저장한 내용은 서버에 반영되며, 홈·마이페이지·하단 메뉴에도 곧바로 맞춰집니다.
+      </p>
 
       {/* 사용자 프로필 섹션 */}
       <div className="settings-card">
@@ -259,25 +246,7 @@ const Settings: React.FC = () => {
           <div className="profile-details">
             <div className="user-name">{user.nickname}</div>
             <div className="user-email">{user.email}</div>
-            <div className="user-grade">{user.grade}</div>
           </div>
-        </div>
-      </div>
-
-      {/* 알림 설정 */}
-      <div className="settings-card">
-        <div className="card-header">
-          {notifications ? <Bell className="card-icon" /> : <BellOff className="card-icon" />}
-          <h3>알림 설정</h3>
-        </div>
-        <div className="setting-item">
-          <span>알림 받기</span>
-          <button 
-            className={`toggle-switch ${notifications ? 'active' : ''}`}
-            onClick={handleNotificationToggle}
-          >
-            <div className="toggle-slider"></div>
-          </button>
         </div>
       </div>
 

@@ -101,14 +101,17 @@
 }
 
 @keyframes pulse {
-  0% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.2); opacity: 0.8; }
-  100% { transform: scale(1); opacity: 1; }
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
 }
 
 /* 프로필 섹션 - 오늘의 운세 */
 .profile-section {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .profile-button {
@@ -215,6 +218,9 @@
   align-items: center;
   min-height: 100vh;
   justify-content: center;
+  opacity: 1 !important;
+  filter: none !important;
+  isolation: isolate;
 }
 
 /* 로고 섹션 */
@@ -225,25 +231,45 @@
   margin-bottom: 1rem;
   margin-top: 4rem;
   animation: float 6s ease-in-out infinite;
+  opacity: 1 !important;
+  filter: none !important;
+  isolation: isolate;
+}
+
+.logo-with-bubble {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin-bottom: 20px;
+  opacity: 1 !important;
+  filter: none !important;
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-8px); }
+  0%, 100% { transform: translateY(0px); opacity: 1 !important; }
+  50% { transform: translateY(-8px); opacity: 1 !important; }
 }
 
 .logo-image {
   width: 150px;
   height: 150px;
-  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4)) brightness(1.1) contrast(1.15);
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4)) brightness(1.1) contrast(1.15) !important;
   transition: transform 0.3s ease;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.3);
   padding: 10px;
   margin-bottom: 20px;
-  opacity: 1;
-  -webkit-backdrop-filter: blur(0px);
-  backdrop-filter: blur(0px);
+  opacity: 1 !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  will-change: transform;
+}
+
+.logo-image img {
+  opacity: 1 !important;
+  filter: none !important;
 }
 
 .logo-image:hover {
@@ -252,45 +278,56 @@
 
 .brand-text {
   text-align: center;
+  opacity: 1 !important;
+  filter: none !important;
 }
 
 .home-title {
   font-size: 42px;
   font-weight: 800;
-  color: #ffffff;
+  color: #ffffff !important;
   margin: 0 0 8px 0;
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 255, 255, 0.2);
   letter-spacing: -0.02em;
-  opacity: 1;
+  opacity: 1 !important;
+  filter: none !important;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  will-change: transform;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
 }
 
 .home-slogan {
   font-size: 18px;
-  color: #ffffff;
+  color: #ffffff !important;
   margin: 0;
   font-weight: 600;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 15px rgba(255, 255, 255, 0.15);
-  opacity: 1;
+  opacity: 1 !important;
+  filter: none !important;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  will-change: transform;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
 }
 
 /* 게시판 섹션 */
 .boards-section {
   max-width: 600px;
   width: 100%;
+  display: flex;
+  justify-content: center;
 }
 
 /* 게시판 그리드 */
-.boards-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 40px;
-  max-width: 360px;
+.boards-cross-layout {
+  position: relative;
+  width: 380px;
+  height: 380px;
   margin: 0 auto;
-  justify-items: center;
+  left: 0;
 }
 
 /* 물방울 스타일 게시판 버튼 */
@@ -308,6 +345,42 @@
   position: relative;
   justify-content: center;
   padding: 16px;
+}
+
+.bubble-top-left {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.bubble-top-right {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.bubble-bottom-left {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+}
+
+.bubble-bottom-right {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+}
+
+.bubble-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+}
+
+.bubble-button.bubble-center:hover {
+  transform: translate(-50%, -50%) translateY(-8px) scale(1.05);
 }
 
 .bubble-button::before {
@@ -532,10 +605,9 @@
     font-size: 16px;
   }
 
-  .boards-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 30px;
-    max-width: 320px;
+  .boards-cross-layout {
+    width: 320px;
+    height: 320px;
   }
 
   .bubble-button {
@@ -604,10 +676,9 @@
     font-size: 14px;
   }
 
-  .boards-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
-    max-width: 260px;
+  .boards-cross-layout {
+    width: 280px;
+    height: 280px;
   }
 
   .bubble-button {
@@ -638,6 +709,10 @@
   
   .bubble-button:hover {
     animation: bubble-bounce 0.6s ease-in-out;
+  }
+
+  .bubble-button.bubble-center:hover {
+    animation: none;
   }
 }
 

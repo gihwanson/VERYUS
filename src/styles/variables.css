@@ -1,43 +1,49 @@
 /* Global CSS Variables */
 :root {
-  /* Colors */
-  --primary-color: #7C3AED;
-  --primary-light: #8B5CF6;
-  --primary-dark: #6D28D9;
-  --primary-alpha-10: rgba(124, 58, 237, 0.1);
-  --primary-alpha-20: rgba(124, 58, 237, 0.2);
-  --primary-alpha-30: rgba(124, 58, 237, 0.3);
+  /* Colors - Christmas Theme */
+  --primary-color: #C41E3A;
+  --primary-light: #DC3545;
+  --primary-dark: #A01D2E;
+  --primary-alpha-10: rgba(196, 30, 58, 0.1);
+  --primary-alpha-20: rgba(196, 30, 58, 0.2);
+  --primary-alpha-30: rgba(196, 30, 58, 0.3);
+  
+  /* Christmas Accent Colors */
+  --christmas-red: #C41E3A;
+  --christmas-green: #228B22;
+  --christmas-gold: #FFD700;
+  --christmas-silver: #C0C0C0;
 
-  /* Background Colors */
-  --primary-bg: #EDE9FE;
+  /* Background Colors - Christmas Theme */
+  --primary-bg: linear-gradient(135deg, #E8F4F8 0%, #D1E7F0 50%, #B8D9E8 100%);
   --card-bg: #FFFFFF;
-  --bg-gradient: linear-gradient(135deg, #E5DAF5 0%, #D4C2F0 100%);
+  --bg-gradient: linear-gradient(135deg, #E8F4F8 0%, #D1E7F0 50%, #B8D9E8 100%);
   --bg-white: #FFFFFF;
-  --bg-light: #F9FAFB;
-  --bg-lighter: #F3F4F6;
+  --bg-light: #F0F8FC;
+  --bg-lighter: #E8F4F8;
   --bg-input: #FAFAFA;
   --bg-success: #F0FDF4;
   --bg-error: #FEF2F2;
-  --hover-bg: #F9FAFB;
+  --hover-bg: #E8F4F8;
 
-  /* Bottom Navigation Colors */
+  /* Bottom Navigation Colors - Christmas Theme */
   --nav-bg: rgba(30, 30, 40, 0.95);
   --nav-border: rgba(255, 255, 255, 0.1);
   --nav-shadow: rgba(0, 0, 0, 0.3);
-  --nav-item-hover: rgba(255, 255, 255, 0.1);
-  --nav-item-active: rgba(255, 255, 255, 0.15);
+  --nav-item-hover: rgba(196, 30, 58, 0.2);
+  --nav-item-active: rgba(196, 30, 58, 0.3);
   --nav-text: rgba(255, 255, 255, 0.7);
   --nav-text-active: #ffffff;
   --nav-badge-bg: linear-gradient(135deg, #FF4757 0%, #FF3838 100%);
   --nav-badge-shadow: rgba(255, 71, 87, 0.3);
-  --nav-admin-bg: linear-gradient(135deg, #8A55CC 0%, #9F6ADB 100%);
-  --nav-admin-hover: linear-gradient(135deg, #7A47BC 0%, #8F5ACB 100%);
-  --nav-search-bg: linear-gradient(135deg, #8A55CC 0%, #9F6ADB 100%);
-  --nav-search-hover: linear-gradient(135deg, #7A47BC 0%, #8F5ACB 100%);
+  --nav-admin-bg: linear-gradient(135deg, #C41E3A 0%, #DC3545 100%);
+  --nav-admin-hover: linear-gradient(135deg, #A01D2E 0%, #C41E3A 100%);
+  --nav-search-bg: linear-gradient(135deg, #C41E3A 0%, #DC3545 100%);
+  --nav-search-hover: linear-gradient(135deg, #A01D2E 0%, #C41E3A 100%);
   --nav-toggle-bg: rgba(30, 30, 40, 0.95);
   --nav-toggle-hover: rgba(40, 40, 50, 0.95);
-  --nav-toggle-shadow: rgba(138, 85, 204, 0.3);
-  --nav-toggle-shadow-hover: rgba(138, 85, 204, 0.4);
+  --nav-toggle-shadow: rgba(196, 30, 58, 0.3);
+  --nav-toggle-shadow-hover: rgba(196, 30, 58, 0.4);
 
   /* Comment Item Colors */
   --comment-bg: rgba(255, 255, 255, 0.08);
@@ -125,19 +131,19 @@
   --text-3xl: 28px;
   --text-4xl: 36px;
 
-  /* Shadows */
-  --shadow-sm: 0 4px 6px rgba(124, 58, 237, 0.1);
-  --shadow-md: 0 8px 25px rgba(124, 58, 237, 0.15);
-  --shadow-lg: 0 20px 40px rgba(124, 58, 237, 0.2);
-  --shadow-color: rgba(124, 58, 237, 0.1);
+  /* Shadows - Christmas Theme */
+  --shadow-sm: 0 4px 6px rgba(196, 30, 58, 0.1);
+  --shadow-md: 0 8px 25px rgba(196, 30, 58, 0.15);
+  --shadow-lg: 0 20px 40px rgba(196, 30, 58, 0.2);
+  --shadow-color: rgba(196, 30, 58, 0.1);
 
-  /* Button Styles */
+  /* Button Styles - Christmas Theme */
   --button-bg: #FFFFFF;
-  --button-hover-bg: #F3F4F6;
-  --button-primary-bg: var(--primary-color);
+  --button-hover-bg: #F0F8FC;
+  --button-primary-bg: var(--christmas-red);
   --button-primary-hover: var(--primary-dark);
   --button-text-color: #FFFFFF;
-  --button-shadow: 0 2px 4px var(--shadow-color);
+  --button-shadow: 0 2px 4px rgba(196, 30, 58, 0.2);
   --button-spacing: var(--space-md);
 
   /* Transitions */

@@ -45,7 +45,7 @@ import {
 import './MyPage.css';
 import { auth } from '../firebase';
 import { NotificationService } from '../utils/notificationService';
-import { enablePushNotifications, removeCurrentPushToken } from '../utils/pushNotificationService';
+import { enablePushNotifications, removeAllPushTokens } from '../utils/pushNotificationService';
 import { GRADE_NAMES, GRADE_SYSTEM } from './AdminTypes';
 
 interface User {
@@ -613,6 +613,7 @@ const MyPage: React.FC = () => {
         try {
           await NotificationService.createGuestbookNotification(
             user.uid,
+            currentUser.uid,
             currentUser.nickname
           );
         } catch (err) {
@@ -683,7 +684,7 @@ const MyPage: React.FC = () => {
           return;
         }
       } else {
-        await removeCurrentPushToken();
+        await removeAllPushTokens(user.uid);
       }
 
       await updateDoc(doc(db, 'users', user.uid), {
@@ -1217,7 +1218,7 @@ const MyPage: React.FC = () => {
                 textAlign: 'center',
                 textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
               }}>{user?.nickname}</span>
-            {user?.role && user.role !== '일반' && (
+            {user?.role && user.role !== '일반' && user.role !== '평가자' && (
                 <span style={{
                 fontSize: 16,
                 color: '#fff',

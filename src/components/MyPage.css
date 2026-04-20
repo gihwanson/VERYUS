@@ -796,3 +796,100 @@ body {
     color: #B5BFE2 !important;
   }
 } 
+
+/* 마이페이지 알림 토글 */
+.mypage-notification-card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px);
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.mypage-notification-card.disabled {
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.mypage-notification-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mypage-notification-title {
+  color: white;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.mypage-notification-desc {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 12px;
+}
+
+.mypage-toggle {
+  flex-shrink: 0;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 56px;
+  height: 32px;
+  border: none;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.toggle-switch.active {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.toggle-slider {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: white;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-switch.active .toggle-slider {
+  transform: translateX(24px);
+}
+
+.mypage-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.mypage-notification-loading {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  text-align: right;
+}
+
+.mypage-account-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.72);
+  font-weight: 500;
+  text-align: left;
+  max-width: 420px;
+}

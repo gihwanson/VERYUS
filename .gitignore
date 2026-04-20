@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+android/.gradle/
+android/local.properties
+android/app/google-services.json
+android/keystore.properties
+android/keystore/
+functions/node_modules/
+functions/lib/

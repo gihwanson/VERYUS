@@ -91,7 +91,7 @@
 }
 
 .login-input:focus {
-  border-color: var(--primary);
+  border-color: var(--primary-color);
   background: var(--bg-white);
   box-shadow: 0 0 0 3px var(--primary-alpha-10);
   outline: none;
@@ -111,7 +111,9 @@
 .login-button {
   width: 100%;
   padding: var(--space-lg);
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  /* --primary 미정의 시 그라데이션이 무효가 되어 버튼이 흰색으로 보이던 문제 방지 */
+  background-color: var(--primary-color);
+  background-image: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
   color: var(--bg-white);
   border: none;
   border-radius: var(--radius-lg);
@@ -124,7 +126,8 @@
 }
 
 .login-button:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+  background-color: var(--primary-dark);
+  background-image: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-color) 100%);
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
@@ -204,7 +207,7 @@
 }
 
 .file-upload-label:hover {
-  border-color: var(--primary);
+  border-color: var(--primary-color);
   background: var(--bg-white);
 }
 
@@ -216,23 +219,60 @@
   cursor: pointer;
 }
 
+/* 닉네임 입력 오른쪽 오버레이용(컨테이너에 position: relative 필요) */
 .nickname-check-container {
   position: relative;
 }
 
+/* 회원가입 등: 부모에 relative가 없을 때 absolute면 뷰포트 기준으로 겹쳐 한 줄 막대처럼 보임 */
 .nickname-check-button {
-  position: absolute;
-  right: var(--space-xs);
-  top: 50%;
-  transform: translateY(-50%);
-  background: var(--primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-color);
   color: var(--bg-white);
   border: none;
-  padding: var(--space-xs) var(--space-md);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-xs);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: 500;
   cursor: pointer;
   transition: all var(--transition-base);
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.signup-email-check-row .nickname-check-button {
+  width: 100%;
+}
+
+.signup-nickname-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: var(--space-sm);
+}
+
+/* 닉네임은 20자 이하라 입력 칸을 넓게 늘릴 필요 없음 */
+.signup-nickname-row .login-input {
+  flex: 0 0 auto;
+  width: min(200px, 100%);
+  max-width: 100%;
+  min-width: 0;
+}
+
+.signup-nickname-row .nickname-check-button {
+  flex: 1 1 auto;
+  min-height: 48px;
+}
+
+@media (min-width: 420px) {
+  .signup-nickname-row .nickname-check-button {
+    flex: 0 0 auto;
+    min-height: unset;
+    align-self: stretch;
+  }
 }
 
 .nickname-check-button:hover {

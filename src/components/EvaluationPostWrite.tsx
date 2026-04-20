@@ -222,49 +222,57 @@ const EvaluationPostWrite: React.FC = () => {
       return;
     }
     
-    // 주당 2곡 제한 체크
-    try {
-      const now = new Date();
-      const weekStart = startOfWeek(now, { weekStartsOn: 0 }); // 일요일 시작
-      const weekEnd = endOfWeek(now, { weekStartsOn: 0 }); // 토요일 끝
-      
-      console.log('');
-      console.log('📊 ===== 평가글 주간 제한 체크 =====');
-      console.log('👤 사용자:', user.nickname, '(', user.uid, ')');
-      console.log('📅 주 기간:', formatDate(weekStart, 'yyyy-MM-dd'), '~', formatDate(weekEnd, 'yyyy-MM-dd'));
-      
-      // 이번 주에 작성한 평가글 개수 확인
-      const q = query(
-        collection(db, 'posts'),
-        where('type', '==', 'evaluation'),
-        where('writerUid', '==', user.uid)
-      );
-      
-      const snapshot = await getDocs(q);
-      
-      const thisWeekPosts = snapshot.docs.filter(doc => {
-        const data = doc.data();
-        if (!data.createdAt) return false;
+    // 버스킹심사곡만 주당 2곡 제한 체크
+    if (category === 'busking') {
+      try {
+        const now = new Date();
+        const weekStart = startOfWeek(now, { weekStartsOn: 1 }); // 월요일 시작
+        const weekEnd = endOfWeek(now, { weekStartsOn: 1 }); // 일요일 끝
+        const userDoc = await getDoc(firestoreDoc(db, 'users', user.uid));
+        const userData = userDoc.exists() ? userDoc.data() : null;
+        const limitOverride = userData?.evaluationBuskingWeeklyLimit;
+        const effectiveLimit = Number.isInteger(limitOverride) ? limitOverride : 2;
         
-        // Firestore Timestamp를 Date로 변환
-        const createdDate = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
-        
-        return createdDate >= weekStart && createdDate <= weekEnd;
-      });
-      
-      console.log('📊 이번 주 작성한 평가글:', thisWeekPosts.length, '/ 2곡');
-      
-      if (thisWeekPosts.length >= 2) {
-        console.log('🚫 주간 제한 초과!');
         console.log('');
-        alert('주당 최대 2곡까지만 업로드 가능합니다.\n\n이번 주 업로드: ' + thisWeekPosts.length + '/2곡');
-        return;
+        console.log('📊 ===== 버스킹심사곡 주간 제한 체크 =====');
+        console.log('👤 사용자:', user.nickname, '(', user.uid, ')');
+        console.log('📅 주 기간:', formatDate(weekStart, 'yyyy-MM-dd'), '~', formatDate(weekEnd, 'yyyy-MM-dd'));
+        
+        // 이번 주에 작성한 버스킹심사곡 개수 확인 (삭제된 글은 제외됨)
+        const q = query(
+          collection(db, 'posts'),
+          where('type', '==', 'evaluation'),
+          where('writerUid', '==', user.uid)
+        );
+        
+        const snapshot = await getDocs(q);
+        
+        const buskingCategoryValues = ['busking', '버스킹심사곡'];
+        const thisWeekPosts = snapshot.docs.filter(doc => {
+          const data = doc.data();
+          if (!data.createdAt) return false;
+          if (!buskingCategoryValues.includes(data.category)) return false;
+          
+          // Firestore Timestamp를 Date로 변환
+          const createdDate = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
+          
+          return createdDate >= weekStart && createdDate <= weekEnd;
+        });
+        
+        console.log('📊 이번 주 작성한 버스킹심사곡:', thisWeekPosts.length, `/ ${effectiveLimit}곡`);
+        
+        if (thisWeekPosts.length >= effectiveLimit) {
+          console.log('🚫 주간 제한 초과!');
+          console.log('');
+          alert(`버스킹심사곡은 주당 최대 ${effectiveLimit}곡까지만 업로드 가능합니다.\n\n이번 주 업로드: ${thisWeekPosts.length}/${effectiveLimit}곡`);
+          return;
+        }
+        
+        console.log('✅ 주간 제한 통과');
+        console.log('');
+      } catch (error) {
+        console.error('❌ 주간 제한 체크 실패:', error);
       }
-      
-      console.log('✅ 주간 제한 통과');
-      console.log('');
-    } catch (error) {
-      console.error('❌ 주간 제한 체크 실패:', error);
     }
     
     try {
@@ -323,24 +331,34 @@ const EvaluationPostWrite: React.FC = () => {
         members: category === 'busking' ? members.filter(m => m.trim()) : [],
       });
       
-      // 업로드 후 이번 주 업로드 개수 다시 확인
-      const now = new Date();
-      const weekStart = startOfWeek(now, { weekStartsOn: 0 });
-      const weekEnd = endOfWeek(now, { weekStartsOn: 0 });
-      const q = query(
-        collection(db, 'posts'),
-        where('type', '==', 'evaluation'),
-        where('writerUid', '==', user.uid)
-      );
-      const snapshot = await getDocs(q);
-      const thisWeekPosts = snapshot.docs.filter(doc => {
-        const data = doc.data();
-        if (!data.createdAt) return false;
-        const createdDate = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
-        return createdDate >= weekStart && createdDate <= weekEnd;
-      });
-      
-      alert(`평가글이 업로드되었습니다!\n\n이번 주 업로드: ${thisWeekPosts.length}/2곡`);
+      // 업로드 후 안내
+      if (category === 'busking') {
+        const now = new Date();
+        const weekStart = startOfWeek(now, { weekStartsOn: 1 }); // 월요일 시작
+        const weekEnd = endOfWeek(now, { weekStartsOn: 1 }); // 일요일 끝
+        const userDoc = await getDoc(firestoreDoc(db, 'users', user.uid));
+        const userData = userDoc.exists() ? userDoc.data() : null;
+        const limitOverride = userData?.evaluationBuskingWeeklyLimit;
+        const effectiveLimit = Number.isInteger(limitOverride) ? limitOverride : 2;
+        const q = query(
+          collection(db, 'posts'),
+          where('type', '==', 'evaluation'),
+          where('writerUid', '==', user.uid)
+        );
+        const snapshot = await getDocs(q);
+        const buskingCategoryValues = ['busking', '버스킹심사곡'];
+        const thisWeekPosts = snapshot.docs.filter(doc => {
+          const data = doc.data();
+          if (!data.createdAt) return false;
+          if (!buskingCategoryValues.includes(data.category)) return false;
+          const createdDate = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
+          return createdDate >= weekStart && createdDate <= weekEnd;
+        });
+        
+        alert(`버스킹심사곡이 업로드되었습니다!\n\n이번 주 업로드: ${thisWeekPosts.length}/${effectiveLimit}곡`);
+      } else {
+        alert('피드백심사 글이 업로드되었습니다!');
+      }
       navigate('/evaluation');
     } catch (error) {
       console.error('평가글 업로드 오류:', error);

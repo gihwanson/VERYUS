@@ -37,6 +37,7 @@ import {
 import '../styles/PostDetail.css';
 import '../styles/BoardLayout.css';
 import CommentSection from './CommentSection';
+import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
 import { useAudioPlayer } from '../App';
 
 // 전역 변수로 중복 방지
@@ -58,14 +59,6 @@ interface User {
   grade?: string;
   position?: string;
   isLoggedIn: boolean;
-}
-
-interface Comment {
-  id: string;
-  content: string;
-  writerUid: string;
-  writerNickname: string;
-  createdAt: any;
 }
 
 interface RecordingPost {
@@ -104,8 +97,6 @@ const RecordingPostDetail: React.FC = () => {
 
   const [user, setUser] = useState<User | null>(null);
   const [post, setPost] = useState<RecordingPost | null>(null);
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [newComment, setNewComment] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -169,29 +160,6 @@ const RecordingPostDetail: React.FC = () => {
   }, [id]);
 
   useEffect(() => {
-    if (!id) return;
-
-    const commentsQuery = query(
-      collection(db, 'comments'),
-      where('postId', '==', id),
-      orderBy('createdAt', 'desc')
-    );
-
-    const unsubscribe = onSnapshot(commentsQuery, (snapshot) => {
-      const newComments = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Comment[];
-      setComments(newComments);
-    }, (error) => {
-      console.error('댓글 로딩 오류:', error);
-      setError('댓글을 불러오는 중 오류가 발생했습니다.');
-    });
-
-    return () => unsubscribe();
-  }, [id]);
-
-  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (optionsRef.current && !optionsRef.current.contains(event.target as Node)) {
         setShowOptions(false);
@@ -232,33 +200,6 @@ const RecordingPostDetail: React.FC = () => {
       alert('좋아요 처리 중 오류가 발생했습니다.');
     }
   };
-
-  const handleCommentSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || !post || !newComment.trim()) return;
-
-    try {
-      const commentData = {
-        postId: post.id,
-        content: newComment.trim(),
-        writerUid: user.uid,
-        writerNickname: user.nickname,
-        createdAt: serverTimestamp()
-      };
-
-      const commentRef = await addDoc(collection(db, 'comments'), commentData);
-      
-      // 게시글의 댓글 수 업데이트
-      await updateDoc(doc(db, 'posts', post.id), {
-        commentCount: increment(1)
-      });
-
-      setNewComment('');
-    } catch (error) {
-      console.error('댓글 작성 오류:', error);
-      alert('댓글 작성 중 오류가 발생했습니다.');
-    }
-  }, [user, post, newComment]);
 
   const handleDelete = async () => {
     if (!post || !user || (user.uid !== post.writerUid && user.role !== '리더' && user.role !== '운영진')) {
@@ -452,10 +393,10 @@ const RecordingPostDetail: React.FC = () => {
                   </span>
                   {post.writerNickname}
                 </span>
-                <span className={`role-badge ${post.writerRole || '일반'}`}>
-                  {post.writerRole || '일반'}
+                <span className={`role-badge ${getPublicRoleBadge(post.writerRole, post.writerPosition)}`}>
+                  {getPublicRoleBadge(post.writerRole, post.writerPosition)}
                 </span>
-                {post.writerPosition && (
+                {shouldShowPublicPosition(post.writerPosition) && (
                   <span className="author-position">{post.writerPosition}</span>
                 )}
               </div>

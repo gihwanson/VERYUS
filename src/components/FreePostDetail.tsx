@@ -14,6 +14,7 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
 import CommentSection from './CommentSection';
 import { 
   ArrowLeft, 
@@ -416,10 +417,10 @@ const FreePostDetail: React.FC = () => {
         </span>
         {post.writerNickname}
       </span>
-      <span className={`role-badge ${post.writerRole || '일반'}`}>
-        {post.writerRole || '일반'}
+      <span className={`role-badge ${getPublicRoleBadge(post.writerRole, post.writerPosition)}`}>
+        {getPublicRoleBadge(post.writerRole, post.writerPosition)}
       </span>
-      {post.writerPosition && (
+      {shouldShowPublicPosition(post.writerPosition) && (
         <span className="author-position">{post.writerPosition}</span>
       )}
     </>

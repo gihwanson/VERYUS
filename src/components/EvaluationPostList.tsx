@@ -10,10 +10,12 @@ import {
   startAfter,
   QueryDocumentSnapshot,
   getDoc,
+  updateDoc,
   doc as firestoreDoc
 } from 'firebase/firestore';
 import type { DocumentData } from 'firebase/firestore';
 import { db } from '../firebase';
+import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
 import { 
   Plus, 
   Heart, 
@@ -46,6 +48,8 @@ interface EvaluationPost {
   category: string;
   status?: string;
   members?: string[];
+  statusUpdatedAt?: any;
+  lastCommentAt?: any;
 }
 
 interface User {
@@ -57,6 +61,7 @@ interface User {
 }
 
 const POSTS_PER_PAGE = 10;
+const HIDDEN_COMPLETED_PER_PAGE = 10;
 
 const EvaluationPostList: React.FC = () => {
   const navigate = useNavigate();
@@ -68,6 +73,8 @@ const EvaluationPostList: React.FC = () => {
   const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hiddenCompletedPosts, setHiddenCompletedPosts] = useState<EvaluationPost[]>([]);
+  const [hiddenCompletedVisibleCount, setHiddenCompletedVisibleCount] = useState(HIDDEN_COMPLETED_PER_PAGE);
   const observer = useRef<IntersectionObserver | null>(null);
   const lastPostElementRef = useRef<HTMLDivElement | null>(null);
 
@@ -109,39 +116,147 @@ const EvaluationPostList: React.FC = () => {
             where('type', '==', 'evaluation'),
             orderBy('createdAt', 'desc'),
             startAfter(lastVisible),
-            limit(POSTS_PER_PAGE)
+            limit(POSTS_PER_PAGE * 3) // 필터링으로 인해 일부가 제외될 수 있으므로 더 많이 가져오기
           );
         } else {
           baseQuery = query(
             collection(db, 'posts'),
             where('type', '==', 'evaluation'),
             orderBy('createdAt', 'desc'),
-            limit(POSTS_PER_PAGE)
+            limit(POSTS_PER_PAGE * 3) // 필터링으로 인해 일부가 제외될 수 있으므로 더 많이 가져오기
           );
         }
       }
 
       const snapshot = await getDocs(baseQuery);
       
-      if (snapshot.empty && isInitial) {
+      let rawPosts = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate() || new Date()
+      })) as EvaluationPost[];
+
+      // lastCommentAt 누락된 피드백 게시글은 최신 댓글 기준으로 보정
+      const needsLastCommentAt = rawPosts.filter(
+        post => post.category === 'feedback' && post.commentCount > 0 && !post.lastCommentAt
+      );
+      if (needsLastCommentAt.length > 0) {
+        await Promise.all(needsLastCommentAt.map(async (post) => {
+          try {
+            const commentQuery = query(
+              collection(db, 'comments'),
+              where('postId', '==', post.id),
+              orderBy('createdAt', 'desc'),
+              limit(1)
+            );
+            const commentSnapshot = await getDocs(commentQuery);
+            if (!commentSnapshot.empty) {
+              const latestComment = commentSnapshot.docs[0].data();
+              const latestCreatedAtRaw = latestComment.createdAt;
+              const latestCreatedAt = latestCreatedAtRaw?.toDate
+                ? latestCreatedAtRaw.toDate()
+                : (latestCreatedAtRaw instanceof Date
+                  ? latestCreatedAtRaw
+                  : (latestCreatedAtRaw ? new Date(latestCreatedAtRaw) : null));
+              if (latestCreatedAt) {
+                post.lastCommentAt = latestCreatedAtRaw ?? latestCreatedAt;
+                await updateDoc(firestoreDoc(db, 'posts', post.id), {
+                  lastCommentAt: latestCreatedAtRaw ?? latestCreatedAt
+                });
+              }
+            }
+          } catch (err) {
+            console.warn('피드백 게시글 lastCommentAt 보정 실패:', post.id, err);
+          }
+        }));
+      }
+
+      // 합격/불합격 완료된 게시물은 별도 리스트로 보관
+      const completedHiddenCandidates = rawPosts.filter(post =>
+        post.category === 'busking' && (post.status === '합격' || post.status === '불합격')
+      );
+
+      // 합격/불합격 완료된 게시물 및 댓글이 달린 피드백 요청 게시물 숨김 처리
+      const now = new Date().getTime();
+      const twoDaysInMs = 2 * 24 * 60 * 60 * 1000; // 2일을 밀리초로 변환
+      
+      let newPosts = rawPosts.filter(post => {
+        // 피드백 요청 카테고리 처리
+        if (post.category === 'feedback') {
+          // 피드백 요청: 마지막 댓글 기준 2일 경과 시 숨김 (commentCount와 무관하게 lastCommentAt 우선)
+          if (post.lastCommentAt) {
+            const lastCommentTime = post.lastCommentAt?.toDate 
+              ? post.lastCommentAt.toDate().getTime() 
+              : (post.lastCommentAt instanceof Date 
+                ? post.lastCommentAt.getTime() 
+                : new Date(post.lastCommentAt).getTime());
+            const daysSinceLastComment = now - lastCommentTime;
+            if (daysSinceLastComment >= twoDaysInMs) {
+              return false; // 숨김 처리
+            }
+          }
+          // 댓글이 없거나 2일이 지나지 않았으면 표시
+          return true;
+        }
+        
+        // 버스킹 심사곡 처리
+        // 합격/불합격 처리된 경우
+        if (post.status === '합격' || post.status === '불합격') {
+          // 기존 데이터: statusUpdatedAt이 없으면 즉시 숨김
+          if (!post.statusUpdatedAt) {
+            return false; // 기존 데이터는 즉시 숨김
+          }
+          // 새로 올라온 데이터: 평가 완료 후 2일 이상 지났으면 숨김
+          const statusUpdateTime = post.statusUpdatedAt?.toDate 
+            ? post.statusUpdatedAt.toDate().getTime() 
+            : (post.statusUpdatedAt instanceof Date 
+              ? post.statusUpdatedAt.getTime() 
+              : new Date(post.statusUpdatedAt).getTime());
+          const daysSinceStatusUpdate = now - statusUpdateTime;
+          if (daysSinceStatusUpdate >= twoDaysInMs) {
+            return false; // 숨김 처리
+          }
+          // 2일이 지나지 않았으면 표시
+          return true;
+        }
+        
+        // 대기 상태인 경우 표시
+        return !post.status || post.status === '대기';
+      });
+
+      const completedHiddenPosts = completedHiddenCandidates.filter(post => {
+        if (!post.statusUpdatedAt) return true;
+        const statusUpdateTime = post.statusUpdatedAt?.toDate
+          ? post.statusUpdatedAt.toDate().getTime()
+          : (post.statusUpdatedAt instanceof Date
+            ? post.statusUpdatedAt.getTime()
+            : new Date(post.statusUpdatedAt).getTime());
+        return now - statusUpdateTime >= twoDaysInMs;
+      });
+
+      // 페이지네이션을 위해 필터링된 결과가 POSTS_PER_PAGE보다 적으면 더 가져오기
+      if (!hasSearchTerm && newPosts.length < POSTS_PER_PAGE && snapshot.docs.length === POSTS_PER_PAGE * 3) {
+        // 더 가져올 수 있는 경우가 있으므로 hasMore를 true로 설정
+        // lastVisible은 원본 snapshot의 마지막 문서로 설정
+        if (snapshot.docs.length > 0) {
+          const lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
+          setLastVisible(lastVisibleDoc);
+        }
+      } else if (!hasSearchTerm) {
+        // 필터링 후에도 충분한 게시물이 있거나, 더 이상 가져올 게 없을 때
+        if (snapshot.docs.length > 0) {
+          const lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
+          setLastVisible(lastVisibleDoc);
+        }
+      }
+
+      if (newPosts.length === 0 && isInitial) {
         setPosts([]);
         setHasMore(false);
         setLoading(false);
         setIsLoadingMore(false);
         return;
       }
-
-      // 검색어가 없을 때만 lastVisible 업데이트
-      if (!hasSearchTerm) {
-        const lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
-        setLastVisible(lastVisibleDoc);
-      }
-
-      let newPosts = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date()
-      })) as EvaluationPost[];
 
       // 검색어로 필터링 (클라이언트 사이드)
       if (hasSearchTerm) {
@@ -184,6 +299,54 @@ const EvaluationPostList: React.FC = () => {
           
           return matchesTitleOrDescription || matchesWriter || matchesMembers;
         });
+        
+        // 검색 결과에서도 합격/불합격 완료된 게시물 및 댓글이 달린 피드백 요청 게시물 숨김 처리
+        const searchNow = new Date().getTime();
+        const searchTwoDaysInMs = 2 * 24 * 60 * 60 * 1000; // 2일을 밀리초로 변환
+        
+        newPosts = newPosts.filter(post => {
+          // 피드백 요청 카테고리 처리
+          if (post.category === 'feedback') {
+            // 피드백 요청: 마지막 댓글 기준 2일 경과 시 숨김 (commentCount와 무관하게 lastCommentAt 우선)
+            if (post.lastCommentAt) {
+              const lastCommentTime = post.lastCommentAt?.toDate 
+                ? post.lastCommentAt.toDate().getTime() 
+                : (post.lastCommentAt instanceof Date 
+                  ? post.lastCommentAt.getTime() 
+                  : new Date(post.lastCommentAt).getTime());
+              const daysSinceLastComment = searchNow - lastCommentTime;
+              if (daysSinceLastComment >= searchTwoDaysInMs) {
+                return false; // 숨김 처리
+              }
+            }
+            // 댓글이 없거나 2일이 지나지 않았으면 표시
+            return true;
+          }
+          
+          // 버스킹 심사곡 처리
+          // 합격/불합격 처리된 경우
+          if (post.status === '합격' || post.status === '불합격') {
+            // 기존 데이터: statusUpdatedAt이 없으면 즉시 숨김
+            if (!post.statusUpdatedAt) {
+              return false; // 기존 데이터는 즉시 숨김
+            }
+            // 새로 올라온 데이터: 평가 완료 후 2일 이상 지났으면 숨김
+            const statusUpdateTime = post.statusUpdatedAt?.toDate 
+              ? post.statusUpdatedAt.toDate().getTime() 
+              : (post.statusUpdatedAt instanceof Date 
+                ? post.statusUpdatedAt.getTime() 
+                : new Date(post.statusUpdatedAt).getTime());
+            const daysSinceStatusUpdate = searchNow - statusUpdateTime;
+            if (daysSinceStatusUpdate >= searchTwoDaysInMs) {
+              return false; // 숨김 처리
+            }
+            // 2일이 지나지 않았으면 표시
+            return true;
+          }
+          
+          // 대기 상태인 경우 표시
+          return !post.status || post.status === '대기';
+        });
       }
 
       // 작성자 등급/역할/포지션 최신화
@@ -217,12 +380,26 @@ const EvaluationPostList: React.FC = () => {
         setHasMore(false);
         setLastVisible(null);
         setPosts(newPosts);
+        setHiddenCompletedPosts(completedHiddenPosts);
+        setHiddenCompletedVisibleCount(HIDDEN_COMPLETED_PER_PAGE);
       } else {
-        setHasMore(snapshot.docs.length === POSTS_PER_PAGE);
+        // 원본 snapshot의 길이를 기준으로 hasMore 결정
+        // 필터링으로 인해 실제 표시되는 게시물 수가 적을 수 있음
+        const hasMoreData = snapshot.docs.length === POSTS_PER_PAGE * 3;
+        setHasMore(hasMoreData);
+        
         if (isInitial) {
           setPosts(newPosts);
+          setHiddenCompletedPosts(completedHiddenPosts);
+          setHiddenCompletedVisibleCount(HIDDEN_COMPLETED_PER_PAGE);
         } else {
           setPosts(prev => [...prev, ...newPosts]);
+          setHiddenCompletedPosts(prev => {
+            const merged = [...prev, ...completedHiddenPosts];
+            const uniqueById = new Map<string, EvaluationPost>();
+            merged.forEach(post => uniqueById.set(post.id, post));
+            return Array.from(uniqueById.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+          });
         }
       }
 
@@ -249,6 +426,8 @@ const EvaluationPostList: React.FC = () => {
 
   useEffect(() => {
     setPosts([]);
+    setHiddenCompletedPosts([]);
+    setHiddenCompletedVisibleCount(HIDDEN_COMPLETED_PER_PAGE);
     setLastVisible(null);
     setHasMore(true);
     setLoading(true);
@@ -305,6 +484,20 @@ const EvaluationPostList: React.FC = () => {
       return;
     }
     navigate('/evaluation/write');
+  };
+
+  const handleLoadMoreHiddenCompleted = async () => {
+    const nextVisibleCount = hiddenCompletedVisibleCount + HIDDEN_COMPLETED_PER_PAGE;
+    // 숨김 완료글 풀이 부족하고, 아직 가져올 원본 페이지가 남아있으면 먼저 추가 로드
+    if (
+      nextVisibleCount > hiddenCompletedPosts.length &&
+      hasMore &&
+      !searchTerm &&
+      !isLoadingMore
+    ) {
+      await fetchPosts(false);
+    }
+    setHiddenCompletedVisibleCount(prev => prev + HIDDEN_COMPLETED_PER_PAGE);
   };
 
   const formatDate = (date: Date) => {
@@ -411,10 +604,10 @@ const EvaluationPostList: React.FC = () => {
                   <span className="author-name" style={{ fontSize: '1.1rem', color: '#FFFFFF', fontWeight: 600, textDecoration: 'none' }}>
                     {post.writerNickname}
                   </span>
-                  <span className={`role-badge ${post.writerRole || '일반'}`}>
-                    {post.writerRole || '일반'}
+                  <span className={`role-badge ${getPublicRoleBadge(post.writerRole, post.writerPosition)}`}>
+                    {getPublicRoleBadge(post.writerRole, post.writerPosition)}
                   </span>
-                  {post.writerPosition && (
+                  {shouldShowPublicPosition(post.writerPosition) && (
                     <span className="author-position">{post.writerPosition}</span>
                   )}
                 </div>
@@ -447,6 +640,79 @@ const EvaluationPostList: React.FC = () => {
           ))
         )}
       </div>
+      {!loading && hiddenCompletedPosts.length > 0 && (
+        <div className="post-list" style={{ marginTop: '1.25rem' }}>
+          <div className="board-info-banner" style={{ marginBottom: '0.75rem' }}>
+            평가 완료되어 목록에서 숨겨진 글
+          </div>
+          {hiddenCompletedPosts.slice(0, hiddenCompletedVisibleCount).map((post) => (
+            <article
+              key={`hidden-${post.id}`}
+              className="post-card"
+              onClick={() => handlePostClick(post.id)}
+              style={{ opacity: 0.88 }}
+            >
+              <div className="post-category-title">
+                <span className="post-category category-badge">
+                  {post.category === 'busking' ? '버스킹심사곡' : post.category === 'feedback' ? '피드백요청' : '평가'}
+                </span>
+                <h2 className="post-title" style={{ fontSize: '1.3rem' }}>{post.title}</h2>
+              </div>
+              <div className="post-meta">
+                <div className="post-author">
+                  <span className="author-grade" title={getGradeName(post.writerGrade || '🍒')} style={{ fontSize: '1.1rem', marginRight: '0.3rem' }}>
+                    {getGradeEmoji(post.writerGrade || '🍒')}
+                  </span>
+                  <span className="author-name" style={{ fontSize: '1.1rem', color: '#FFFFFF', fontWeight: 600, textDecoration: 'none' }}>
+                    {post.writerNickname}
+                  </span>
+                  <span className={`role-badge ${getPublicRoleBadge(post.writerRole, post.writerPosition)}`}>
+                    {getPublicRoleBadge(post.writerRole, post.writerPosition)}
+                  </span>
+                  {shouldShowPublicPosition(post.writerPosition) && (
+                    <span className="author-position">{post.writerPosition}</span>
+                  )}
+                </div>
+              </div>
+              <div className="post-content-preview">
+                {post.description}
+              </div>
+              <div className="post-stats" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(139, 92, 246, 0.1)', color: '#FFFFFF', fontSize: '0.85rem', fontWeight: 500 }}>
+                <span className="post-stat" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#FFFFFF' }}>
+                  <Heart size={16} style={{ color: '#FFFFFF' }} />
+                  {post.likesCount || 0}
+                </span>
+                <span className="post-stat" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#FFFFFF' }}>
+                  <MessageCircle size={16} style={{ color: '#FFFFFF' }} />
+                  {post.commentCount || 0}
+                </span>
+                <span className="post-date" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#FFFFFF' }}>
+                  <Clock size={16} style={{ color: '#FFFFFF' }} />
+                  {formatDate(post.createdAt)}
+                </span>
+                <span className="post-views" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#FFFFFF' }}>
+                  <Eye size={16} style={{ color: '#FFFFFF' }} />
+                  조회 {post.views || 0}
+                </span>
+                <span className={`post-status-badge ${post.status === '합격' ? 'approved' : 'rejected'}`}>
+                  {post.status || '평가완료'}
+                </span>
+              </div>
+            </article>
+          ))}
+          {hiddenCompletedVisibleCount < hiddenCompletedPosts.length && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '0.75rem' }}>
+              <button
+                className="write-button"
+                onClick={handleLoadMoreHiddenCompleted}
+                disabled={isLoadingMore}
+              >
+                {isLoadingMore ? '불러오는 중...' : '더보기'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

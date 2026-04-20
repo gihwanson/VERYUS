@@ -1,13 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import { collection, query, where, orderBy, onSnapshot, updateDoc, doc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Bell, MessageCircle, X, Heart, CheckCircle, XCircle, Users, AtSign, UserPlus, CheckCheck } from 'lucide-react';
+import { Bell, MessageCircle, X, Heart, CheckCircle, XCircle, Users, AtSign, UserPlus, CheckCheck, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { NotificationService } from '../utils/notificationService';
 
 interface Notification {
   id: string;
-  type: 'comment' | 'reply' | 'like' | 'approval' | 'rejection' | 'guestbook' | 'mention' | 'new_post' | 'partnership' | 'partnership_closed' | 'partnership_confirmed';
+  type:
+    | 'comment'
+    | 'reply'
+    | 'like'
+    | 'approval'
+    | 'rejection'
+    | 'guestbook'
+    | 'mention'
+    | 'new_post'
+    | 'partnership'
+    | 'partnership_closed'
+    | 'partnership_confirmed'
+    | 'grade_request_pending';
   postId?: string;
   postTitle?: string;
   postType?: string;
@@ -25,6 +37,37 @@ const Notifications: React.FC = () => {
   const userString = localStorage.getItem('veryus_user');
   const user = userString ? JSON.parse(userString) : null;
 
+  const getNotificationRoute = (notification: Notification): string | null => {
+    if (notification.postId && notification.postType) {
+      return NotificationService.getRouteByPostType(notification.postType, notification.postId);
+    }
+
+    if (notification.type === 'guestbook') {
+      return '/mypage';
+    }
+
+    if (notification.type === 'grade_request_pending') {
+      return '/admin';
+    }
+
+    if (
+      notification.type === 'partnership' ||
+      notification.type === 'partnership_closed' ||
+      notification.type === 'partnership_confirmed'
+    ) {
+      if (notification.postId) {
+        return `/boards/partner/${notification.postId}`;
+      }
+      return '/boards/partner';
+    }
+
+    if (notification.postId) {
+      return `/free/${notification.postId}`;
+    }
+
+    return null;
+  };
+
   useEffect(() => {
     if (!user) return;
     const q = query(
@@ -40,21 +83,19 @@ const Notifications: React.FC = () => {
   }, [user]);
 
   const handleNotificationClick = async (notification: Notification) => {
+    const route = getNotificationRoute(notification);
+    if (!route) return;
+
     if (!notification.isRead) {
       await updateDoc(doc(db, 'notifications', notification.id), { isRead: true });
     }
-    
-    // 게시글 관련 알림의 경우 해당 게시판으로 이동
-    if (notification.postId && notification.postType) {
-      const route = NotificationService.getRouteByPostType(notification.postType, notification.postId);
-      navigate(route);
-    } else if (notification.type === 'guestbook') {
-      // 방명록 알림의 경우 마이페이지로 이동
-      navigate('/mypage');
-    } else if (notification.postId) {
-      // postType이 없는 기존 알림의 경우 자유게시판으로 기본 이동
-      navigate(`/free/${notification.postId}`);
+
+    if (notification.type === 'grade_request_pending') {
+      navigate('/admin', { state: { openAdminTab: 'approvals' } });
+      return;
     }
+
+    navigate(route);
   };
 
   const handleDeleteNotification = async (id: string) => {
@@ -114,6 +155,8 @@ const Notifications: React.FC = () => {
         return <CheckCircle size={18} className="text-green-500" style={{ color: '#10B981' }} />;
       case 'partnership_confirmed':
         return <CheckCircle size={18} className="text-blue-500" style={{ color: '#3B82F6' }} />;
+      case 'grade_request_pending':
+        return <Shield size={18} className="text-violet-600" style={{ color: '#7f5fff' }} />;
       default:
         return <Bell size={18} className="text-gray-500" style={{ color: '#8A55CC' }} />;
     }
@@ -139,6 +182,7 @@ const Notifications: React.FC = () => {
       'free': { label: '자유', color: '#8A55CC', bg: '#F6F2FF' },
       'recording': { label: '녹음', color: '#FF6B6B', bg: '#FFF0F0' },
       'evaluation': { label: '평가', color: '#4ECDC4', bg: '#F0FFFF' },
+      'balance': { label: '밸런스', color: '#EC4899', bg: '#FDF2F8' },
       'partner': { label: '파트너', color: '#FFE66D', bg: '#FFFEF0' },
       'notice': { label: '공지', color: '#95A5A6', bg: '#F8F9FA' }
     };
@@ -154,6 +198,7 @@ const Notifications: React.FC = () => {
   if (loading) return <div className="notifications-container">로딩 중...</div>;
 
   const unreadCount = notifications.filter(noti => !noti.isRead).length;
+  const visibleNotifications = notifications;
 
   return (
     <div style={{
@@ -259,7 +304,7 @@ const Notifications: React.FC = () => {
               </button>
             )}
           </div>
-          {notifications.filter(noti => !noti.isRead).length === 0 ? (
+          {visibleNotifications.length === 0 ? (
             <div style={{
               textAlign: 'center',
               color: 'rgba(255, 255, 255, 0.7)',
@@ -271,7 +316,7 @@ const Notifications: React.FC = () => {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {notifications.filter(noti => !noti.isRead).map(noti => {
+              {visibleNotifications.map(noti => {
                 const postBadge = getPostTypeBadge(noti.postType);
                 return (
                   <div
@@ -284,7 +329,8 @@ const Notifications: React.FC = () => {
                       padding: '20px',
                       border: '1px solid rgba(255, 255, 255, 0.2)',
                       cursor: 'pointer',
-                      transition: 'all 0.3s ease'
+                      transition: 'all 0.3s ease',
+                      opacity: noti.isRead ? 0.76 : 1
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
