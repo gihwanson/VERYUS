@@ -9,6 +9,7 @@ export interface NotificationData {
     | 'approval'
     | 'rejection'
     | 'guestbook'
+    | 'guestbook_reply'
     | 'mention'
     | 'new_post'
     | 'partnership'
@@ -24,6 +25,8 @@ export interface NotificationData {
   postType?: 'free' | 'recording' | 'evaluation' | 'balance' | 'partner';
   commentId?: string;
   message?: string;
+  /** 방명록이 달린 마이페이지 주인 uid — 알림 탭/푸시에서 /mypage/:uid 로 이동 */
+  guestbookOwnerUid?: string;
 }
 
 export class NotificationService {
@@ -118,6 +121,7 @@ export class NotificationService {
       'approval': '내 게시글이 합격되었습니다.',
       'rejection': '내 게시글이 불합격되었습니다.',
       'guestbook': '방명록에 메시지를 남겼습니다.',
+      'guestbook_reply': '방명록 글에 답글이 달렸습니다.',
       'mention': '게시글에서 나를 언급했습니다.',
       'new_post': '새 게시글이 작성되었습니다.',
       'partnership': '파트너 신청이 있습니다.',
@@ -281,7 +285,8 @@ export class NotificationService {
     toUid: string,
     fromUid: string,
     fromNickname: string,
-    messagePreview?: string
+    messagePreview?: string,
+    guestbookOwnerUid?: string
   ) {
     const message = messagePreview?.trim()
       ? `${fromNickname}님의 방명록: ${this.clampText(messagePreview.trim(), 100)}`
@@ -291,7 +296,29 @@ export class NotificationService {
       toUid,
       fromUid,
       fromNickname,
-      message
+      message,
+      guestbookOwnerUid: guestbookOwnerUid || toUid
+    });
+  }
+
+  /** 방명록 특정 글에 대한 답장 — 원글 작성자(toUid)에게 전달 */
+  static async createGuestbookReplyNotification(
+    toUid: string,
+    fromUid: string,
+    fromNickname: string,
+    messagePreview?: string,
+    guestbookOwnerUid?: string
+  ) {
+    const message = messagePreview?.trim()
+      ? `${fromNickname}님의 방명록 답글: ${this.clampText(messagePreview.trim(), 100)}`
+      : `${fromNickname}님이 회원님의 방명록 글에 답글을 남겼습니다.`;
+    return this.createNotification({
+      type: 'guestbook_reply',
+      toUid,
+      fromUid,
+      fromNickname,
+      message,
+      guestbookOwnerUid
     });
   }
 

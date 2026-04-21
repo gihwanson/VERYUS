@@ -97,6 +97,31 @@ html, body {
   box-sizing: border-box;
 }
 
+/* 입력 필드 공통: 폰트/입력 방향을 고정해 모바일 키보드 역순 입력 이슈 완화 */
+input,
+textarea,
+select,
+button {
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+input,
+textarea {
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: plaintext;
+}
+
+input[type='password'],
+input[type='text'],
+input[type='email'],
+input[type='search'],
+input[type='tel'],
+input[type='number'] {
+  direction: ltr;
+  text-align: left;
+}
+
 /* 웹킷 기반 브라우저(Chrome, Safari)용 스크롤바 숨기기 */
 body::-webkit-scrollbar {
   display: none;

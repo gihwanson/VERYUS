@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, Bell, User, ChevronUp, Search, Grid3x3, ChevronDown, Menu, Settings } from 'lucide-react';
 import './BottomNavigation.css';
+import MemberNicknameSearch from './MemberNicknameSearch';
 
 // Types
 interface User {
@@ -424,8 +425,11 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
       {/* 기능 서브메뉴 */}
       {showBoardsMenu && !isCollapsed && !isHiddenByScroll && (
         <div className="boards-submenu">
-          <div className="boards-submenu-content">
-            {boardItems.map(renderBoardItem)}
+          <div className="boards-submenu-panel">
+            <MemberNicknameSearch />
+            <div className="boards-submenu-content">
+              {boardItems.map(renderBoardItem)}
+            </div>
           </div>
         </div>
       )}

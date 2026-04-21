@@ -25,8 +25,9 @@ const getNotificationRoute = (data: FirebaseFirestore.DocumentData): string => {
     return '/admin?tab=approvals';
   }
 
-  if (notificationType === 'guestbook') {
-    return '/mypage';
+  if (notificationType === 'guestbook' || notificationType === 'guestbook_reply') {
+    const ownerUid = (data.guestbookOwnerUid as string | undefined) || '';
+    return ownerUid ? `/mypage/${ownerUid}` : '/mypage';
   }
 
   if (

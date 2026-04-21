@@ -91,14 +91,23 @@ html, body {
   animation: slideUp var(--transition-fast) ease-out;
 }
 
+.boards-submenu-panel {
+  max-width: 500px;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-sm) 0 var(--space-md);
+  box-sizing: border-box;
+}
+
 .boards-submenu-content {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--space-xs);
-  max-width: 500px;
-  margin: 0 auto;
-  padding: var(--space-md) var(--space-sm) var(--space-md) var(--space-md);
-  max-height: 70vh;
+  padding: 0 var(--space-sm) var(--space-md) var(--space-md);
+  max-height: min(70vh, calc(100vh - 200px));
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: thin;
@@ -133,10 +142,15 @@ html, body {
     padding: 6px 8px;
   }
   
+  .boards-submenu-panel {
+    padding: var(--space-sm) var(--space-sm) 0 var(--space-sm);
+    gap: 8px;
+  }
+
   .boards-submenu-content {
-    padding: var(--space-sm);
+    padding: 0 var(--space-sm) var(--space-sm) var(--space-sm);
     gap: 6px;
-    max-height: 75vh;
+    max-height: min(75vh, calc(100vh - 220px));
   }
   
   .board-submenu-item {

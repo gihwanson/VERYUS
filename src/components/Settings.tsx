@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { signOut, deleteUser as firebaseDeleteUser, sendPasswordResetEmail } from 'firebase/auth';
 import { 
   doc,
+  getDoc,
   updateDoc,
   deleteDoc,
   collection,
@@ -14,13 +15,14 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { useUserProfile } from '../contexts/UserProfileContext';
+import { GRADE_NAMES, GRADE_SYSTEM } from './AdminTypes';
 import { 
   Edit, 
   Trash2, 
   LogOut, 
   User, 
   Save,
-  Settings as SettingsIcon
+  ArrowLeft
 } from 'lucide-react';
 import './Settings.css';
 
@@ -28,9 +30,11 @@ interface User {
   uid: string;
   email: string;
   nickname?: string;
+  intro?: string;
   role?: string;
   grade?: string;
   profileImageUrl?: string;
+  createdAt?: any;
   notificationsEnabled?: boolean;
   isLoggedIn: boolean;
 }
@@ -41,30 +45,91 @@ const Settings: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [newNickname, setNewNickname] = useState('');
   const [editingNickname, setEditingNickname] = useState(false);
+  const [newIntro, setNewIntro] = useState('');
+  const [newGrade, setNewGrade] = useState<string>(GRADE_SYSTEM.CHERRY);
+  const [newJoinDate, setNewJoinDate] = useState('');
+  const [savingProfileMeta, setSavingProfileMeta] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
 
+  const toLocalDateInputValue = (date: Date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
   useEffect(() => {
-    if (profile?.uid) {
-      setUser(profile as unknown as User);
-      setNewNickname(String(profile.nickname || ''));
-      setLoading(false);
-      return;
-    }
-    const userString = localStorage.getItem('veryus_user');
-    if (userString) {
-      try {
-        const userData = JSON.parse(userString);
-        setUser(userData);
-        setNewNickname(userData.nickname || '');
-      } catch {
-        toast.error('저장된 로그인 정보를 읽을 수 없습니다.');
+    const applyUserState = (userData: User) => {
+      setUser(userData);
+      setNewNickname(userData.nickname || '');
+      setNewIntro(userData.intro || '');
+      setNewGrade(userData.grade || GRADE_SYSTEM.CHERRY);
+
+      const createdAt = userData.createdAt;
+      const date = createdAt?.seconds
+        ? new Date(createdAt.seconds * 1000)
+        : createdAt
+          ? new Date(createdAt)
+          : null;
+      setNewJoinDate(date ? toLocalDateInputValue(date) : '');
+    };
+
+    const loadLatestUser = async () => {
+      const localUserString = localStorage.getItem('veryus_user');
+      const localUser = localUserString ? (JSON.parse(localUserString) as User) : null;
+      const uid = profile?.uid || localUser?.uid;
+
+      if (!uid) {
+        toast.error('로그인이 필요합니다.');
+        navigate('/login');
+        return;
       }
-      setLoading(false);
-      return;
-    }
-    toast.error('로그인이 필요합니다.');
-    navigate('/login');
+
+      try {
+        const userSnap = await getDoc(doc(db, 'users', uid));
+        if (userSnap.exists()) {
+          const dbUser = userSnap.data() as Partial<User>;
+          const mergedUser: User = {
+            uid,
+            email: (dbUser.email as string) || profile?.email || localUser?.email || '',
+            nickname: (dbUser.nickname as string) || profile?.nickname || localUser?.nickname || '',
+            intro: (dbUser.intro as string) || '',
+            role: (dbUser.role as string) || profile?.role || localUser?.role,
+            grade: (dbUser.grade as string) || GRADE_SYSTEM.CHERRY,
+            profileImageUrl: (dbUser.profileImageUrl as string) || profile?.profileImageUrl || localUser?.profileImageUrl,
+            notificationsEnabled:
+              typeof dbUser.notificationsEnabled === 'boolean'
+                ? dbUser.notificationsEnabled
+                : localUser?.notificationsEnabled,
+            createdAt: dbUser.createdAt,
+            isLoggedIn: true
+          };
+
+          applyUserState(mergedUser);
+          localStorage.setItem('veryus_user', JSON.stringify(mergedUser));
+        } else if (localUser) {
+          applyUserState(localUser);
+        } else {
+          toast.error('사용자 정보를 찾을 수 없습니다.');
+          navigate('/login');
+          return;
+        }
+      } catch (error) {
+        console.error('사용자 정보 로딩 에러:', error);
+        if (localUser) {
+          applyUserState(localUser);
+        } else {
+          toast.error('사용자 정보를 불러올 수 없습니다.');
+          navigate('/login');
+          return;
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void loadLatestUser();
   }, [navigate, profile]);
 
   const handleNicknameChange = async () => {
@@ -101,6 +166,39 @@ const Settings: React.FC = () => {
     } catch (error) {
       console.error('닉네임 변경 에러:', error);
       toast.error('닉네임 변경에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+    }
+  };
+
+  const handleProfileMetaSave = async () => {
+    if (!user) return;
+    if (!newJoinDate) {
+      toast.warning('가입일을 입력해주세요.');
+      return;
+    }
+
+    try {
+      setSavingProfileMeta(true);
+      const payload = {
+        intro: newIntro.trim(),
+        grade: newGrade || GRADE_SYSTEM.CHERRY,
+        createdAt: new Date(`${newJoinDate}T00:00:00`)
+      };
+
+      await updateDoc(doc(db, 'users', user.uid), payload);
+
+      const updatedUser = {
+        ...user,
+        ...payload,
+        createdAt: { seconds: Math.floor(new Date(`${newJoinDate}T00:00:00`).getTime() / 1000) }
+      };
+      setUser(updatedUser);
+      localStorage.setItem('veryus_user', JSON.stringify(updatedUser));
+      toast.success('프로필 정보(소개/등급/가입일)가 저장되었습니다.');
+    } catch (error) {
+      console.error('프로필 정보 저장 에러:', error);
+      toast.error('프로필 정보 저장에 실패했습니다.');
+    } finally {
+      setSavingProfileMeta(false);
     }
   };
 
@@ -210,25 +308,10 @@ const Settings: React.FC = () => {
 
   return (
     <div className="settings-container">
-      {/* 헤더 */}
-      <div className="settings-header glassmorphism">
-        <h1 className="settings-title">
-          <SettingsIcon size={28} />
-          설정
-        </h1>
-      </div>
-      <p
-        style={{
-          textAlign: 'center',
-          color: '#64748b',
-          fontSize: 13,
-          margin: '0 16px 16px',
-          lineHeight: 1.5
-        }}
-      >
-        여기서 저장한 내용은 서버에 반영되며, 홈·마이페이지·하단 메뉴에도 곧바로 맞춰집니다.
-      </p>
-
+      <button type="button" className="back-button" onClick={() => navigate(-1)} style={{ marginBottom: 16 }}>
+        <ArrowLeft size={18} />
+        뒤로가기
+      </button>
       {/* 사용자 프로필 섹션 */}
       <div className="settings-card">
         <div className="card-header">
@@ -250,13 +333,13 @@ const Settings: React.FC = () => {
         </div>
       </div>
 
-      {/* 닉네임 변경 */}
       <div className="settings-card">
         <div className="card-header">
           <Edit className="card-icon" />
-          <h3>닉네임 변경</h3>
+          <h3>닉네임 / 소개 / 등급 / 가입일</h3>
         </div>
-        <div className="setting-item">
+        <div className="setting-item" style={{ display: 'grid', gap: 12 }}>
+          <label style={{ fontSize: 13, color: '#475569', fontWeight: 600 }}>닉네임</label>
           {editingNickname ? (
             <div className="nickname-edit">
               <input
@@ -271,11 +354,11 @@ const Settings: React.FC = () => {
                   <Save size={16} />
                   저장
                 </button>
-                <button 
+                <button
                   onClick={() => {
                     setEditingNickname(false);
                     setNewNickname(user.nickname || '');
-                  }} 
+                  }}
                   className="cancel-btn"
                 >
                   취소
@@ -285,14 +368,54 @@ const Settings: React.FC = () => {
           ) : (
             <div className="nickname-display">
               <span>현재 닉네임: {user.nickname}</span>
-              <button 
-                onClick={() => setEditingNickname(true)} 
-                className="edit-btn"
-              >
+              <button onClick={() => setEditingNickname(true)} className="edit-btn">
                 변경
               </button>
             </div>
           )}
+
+          <div className="nickname-edit">
+            <label style={{ fontSize: 13, color: 'rgba(255,255,255,0.88)', fontWeight: 700 }}>한 줄 소개</label>
+            <textarea
+              value={newIntro}
+              onChange={(e) => setNewIntro(e.target.value)}
+              rows={3}
+              className="nickname-input"
+              style={{ resize: 'vertical', minHeight: 84 }}
+              placeholder="한 줄 소개를 입력하세요."
+            />
+
+            <label style={{ fontSize: 13, color: 'rgba(255,255,255,0.88)', fontWeight: 700 }}>등급</label>
+            <select
+              value={newGrade}
+              onChange={(e) => setNewGrade(e.target.value)}
+              className="nickname-input"
+            >
+              {Object.values(GRADE_SYSTEM).map((grade) => (
+                <option key={grade} value={grade}>
+                  {grade} {GRADE_NAMES[grade] || grade}
+                </option>
+              ))}
+            </select>
+
+            <label style={{ fontSize: 13, color: 'rgba(255,255,255,0.88)', fontWeight: 700 }}>가입일</label>
+            <input
+              type="date"
+              value={newJoinDate}
+              onChange={(e) => setNewJoinDate(e.target.value)}
+              className="nickname-input"
+            />
+          </div>
+
+          <button
+            onClick={handleProfileMetaSave}
+            className="save-btn"
+            disabled={savingProfileMeta}
+            style={{ justifySelf: 'start' }}
+          >
+            <Save size={16} />
+            {savingProfileMeta ? '저장 중...' : '저장'}
+          </button>
         </div>
       </div>
 

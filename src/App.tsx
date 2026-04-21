@@ -904,7 +904,7 @@ function App() {
                 path="/" 
                 element={
                   <ProtectedRoute>
-                    <Home onSearchOpen={() => setShowSearchSystem(true)} />
+                    <Home />
                   </ProtectedRoute>
                 } 
               />

@@ -541,14 +541,39 @@ body {
 .message-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 12px;
   margin-bottom: 12px;
+}
+
+.message-header-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.message-header-aside {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .message-author {
   font-weight: 600;
   color: #B497D6;
   font-size: 14px;
+}
+
+.message-author-grade {
+  font-size: 18px;
+  font-weight: 600;
+  color: #6b7280;
+  line-height: 1.15;
+  display: inline-flex;
+  align-items: center;
 }
 
 .message-date {
@@ -1052,4 +1077,124 @@ body {
   color: #6b7280;
   line-height: 1.45;
   text-align: left;
+}
+
+/* 마이페이지 탭 바: 좁은 화면에서 줄바꿈 */
+.mypage-tabs-bar {
+  align-content: flex-start;
+}
+
+/* 글래스 배경 안 방명록 */
+.mypage-guestbook-dark .guestbook-textarea {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #fff;
+}
+
+.mypage-guestbook-dark .guestbook-textarea::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.mypage-guestbook-dark .guestbook-textarea:focus {
+  border-color: rgba(255, 255, 255, 0.45);
+  outline: none;
+}
+
+.mypage-guestbook-dark .send-btn {
+  background: rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.mypage-guestbook-dark .send-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.mypage-guestbook-dark .guestbook-item {
+  background: rgba(255, 255, 255, 0.1);
+  border-left-color: rgba(255, 255, 255, 0.5);
+}
+
+.mypage-guestbook-dark .guestbook-item:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.mypage-guestbook-dark .message-author {
+  color: #e9d5ff;
+}
+
+.mypage-guestbook-dark .message-author-grade {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.mypage-guestbook-dark .message-date {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.mypage-guestbook-dark .message-content {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.mypage-guestbook-dark .delete-btn {
+  background: rgba(254, 202, 202, 0.25);
+  color: #fecaca;
+}
+
+.mypage-guestbook-dark .delete-btn:hover {
+  background: #dc2626;
+  color: #fff;
+}
+
+.guestbook-reply-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.guestbook-reply-banner-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.guestbook-reply-cancel {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+}
+
+.guestbook-reply-cancel:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.guestbook-reply-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  cursor: pointer;
+}
+
+.guestbook-reply-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
 }

@@ -51,17 +51,6 @@
   100% { transform: rotate(360deg); }
 }
 
-/* 좌측 상단 — 멤버 검색 (우측 프로필·로그아웃과 겹치지 않도록 여백 확보) */
-.home-search-fixed-left {
-  position: fixed;
-  top: 16px;
-  left: 16px;
-  z-index: 1000;
-  box-sizing: border-box;
-  /* 우측 고정 헤더(프로필 + 로그아웃) 영역 확보 */
-  width: min(280px, max(96px, calc(100vw - 210px)));
-}
-
 /* 우측 상단 고정 헤더 */
 .fixed-header {
   position: fixed;
@@ -125,147 +114,11 @@
   gap: 10px;
 }
 
-/* 홈 — 멤버 닉네임 검색 입력 줄 */
-.home-member-search-inner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  min-height: 44px;
-  background: rgba(255, 255, 255, 0.22);
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: 22px;
-  padding: 6px 8px 6px 14px;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-sizing: border-box;
-}
-
-.home-member-search-icon {
-  flex-shrink: 0;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.home-member-search-input {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  background: transparent;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  outline: none;
-  font-family: inherit;
-}
-
-.home-member-search-input::placeholder {
-  color: rgba(255, 255, 255, 0.75);
-  font-weight: 500;
-}
-
-.home-member-search-submit {
-  flex-shrink: 0;
-  border: none;
-  border-radius: 16px;
-  padding: 6px 10px;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  background: rgba(255, 255, 255, 0.95);
-  color: #5b4fcf;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.home-member-search-submit:hover:not(:disabled) {
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-}
-
-.home-member-search-submit:disabled {
-  opacity: 0.7;
-  cursor: wait;
-}
-
-.home-member-search-dropdown {
-  margin: 8px 0 0;
-  padding: 6px;
-  width: 100%;
-  box-sizing: border-box;
-  max-height: min(320px, 42vh);
-  overflow-y: auto;
-  background: rgba(255, 255, 255, 0.98);
-  border-radius: 14px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  z-index: 1201;
-}
-
-.home-member-search-suggest-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.home-member-search-suggest-status {
-  padding: 14px 16px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #6b7280;
-  text-align: center;
-}
-
-.home-member-search-hit {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border: none;
-  border-radius: 10px;
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
-  font-size: 14px;
-  font-weight: 600;
-  color: #1f2937;
-}
-
-.home-member-search-hit:hover {
-  background: #f3f4f6;
-}
-
-.home-member-search-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.home-member-search-avatar-fallback {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #e5e7eb;
-  color: #6b7280;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: 800;
-}
-
-.home-member-search-nick {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .profile-button {
   background: rgba(255, 255, 255, 0.2);
   border: none;
   border-radius: 50%;
-  padding: 8px;
+  padding: 0;
   cursor: pointer;
   transition: all 0.3s ease;
   backdrop-filter: blur(10px);
@@ -276,6 +129,9 @@
   justify-content: center;
   position: relative;
   border: 2px solid rgba(255, 255, 255, 0.3);
+  box-sizing: border-box;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
 .profile-button:hover {
@@ -289,29 +145,42 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0px;
+  gap: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
 }
 
-.profile-avatar {
-  width: 20px;
-  height: 20px;
+/* 홈 헤더 전용: 원형 테두리(버튼) 안을 이미지가 꽉 채움 — MyPage 등의 .profile-avatar 전역 규칙과 분리 */
+.home-header-profile-avatar {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
-.profile-avatar img {
+.home-header-profile-avatar img {
   width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
   object-fit: cover;
+  object-position: center;
   border-radius: 50%;
+  display: block;
 }
 
-.profile-avatar svg {
+.home-header-profile-avatar svg {
   color: white;
+  flex-shrink: 0;
 }
 
 .profile-name {
@@ -685,16 +554,6 @@
 
 /* 모바일 반응형 */
 @media (max-width: 768px) {
-  .home-search-fixed-left {
-    top: 12px;
-    left: 12px;
-    width: min(260px, max(88px, calc(100vw - 170px)));
-  }
-
-  .home-member-search-input {
-    font-size: 13px;
-  }
-
   .fixed-header {
     top: 15px;
     right: 15px;
@@ -712,12 +571,7 @@
   .profile-button {
     width: 36px;
     height: 36px;
-    padding: 6px;
-  }
-
-  .profile-avatar {
-    width: 18px;
-    height: 18px;
+    padding: 0;
   }
 
   .profile-name {
@@ -769,26 +623,6 @@
 }
 
 @media (max-width: 480px) {
-  .home-search-fixed-left {
-    top: 10px;
-    left: 10px;
-    width: min(220px, max(80px, calc(100vw - 130px)));
-  }
-
-  .home-member-search-inner {
-    min-height: 42px;
-    padding: 5px 6px 5px 10px;
-  }
-
-  .home-member-search-input {
-    font-size: 13px;
-  }
-
-  .home-member-search-submit {
-    padding: 6px 10px;
-    font-size: 11px;
-  }
-
   .fixed-header {
     top: 10px;
     right: 10px;
@@ -804,12 +638,7 @@
   .profile-button {
     width: 32px;
     height: 32px;
-    padding: 5px;
-  }
-
-  .profile-avatar {
-    width: 16px;
-    height: 16px;
+    padding: 0;
   }
 
   .profile-name {

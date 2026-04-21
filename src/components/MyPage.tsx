@@ -24,23 +24,22 @@ import {
   Edit3, 
   Save, 
   X, 
-  MessageSquare, 
   Heart, 
   MessageCircle,
   User,
   FileText,
   Star,
   Users,
-  Calendar,
   Trash2,
   Send,
+  Reply,
   Mic,
-  Play,
-  Pause,
   Settings,
   Download,
   Bell,
-  BellOff
+  BellOff,
+  Music,
+  BarChart3
 } from 'lucide-react';
 import './MyPage.css';
 import { auth } from '../firebase';
@@ -80,8 +79,12 @@ interface ActivityStats {
   postsCount: number;
   commentsCount: number;
   totalLikes: number;
-  averageScore: number;
-  lastEvaluationDate: string;
+}
+
+interface ApprovedSongRankRow {
+  rank: number;
+  nickname: string;
+  count: number;
 }
 
 /** 활동 통계 모달: 내 댓글 + 원글 메타 */
@@ -100,7 +103,106 @@ interface GuestbookMessage {
   message: string;
   createdAt: any;
   toNickname: string;
+  parentMessageId?: string;
 }
+
+interface GuestbookTreeProps {
+  message: GuestbookMessage;
+  depth: number;
+  childrenMap: Map<string, GuestbookMessage[]>;
+  formatDate: (timestamp: any) => string;
+  currentUser: User | null;
+  isOwner: boolean;
+  onDelete: (messageId: string, fromNickname: string) => void;
+  onReply: (messageId: string, fromNickname: string) => void;
+  gradeLabel: (nickname: string) => string;
+  gradeTitle: (nickname: string) => string;
+}
+
+const GuestbookTree: React.FC<GuestbookTreeProps> = ({
+  message,
+  depth,
+  childrenMap,
+  formatDate,
+  currentUser,
+  isOwner,
+  onDelete,
+  onReply,
+  gradeLabel,
+  gradeTitle
+}) => {
+  const children = childrenMap.get(message.id) ?? [];
+  const canDelete =
+    Boolean(currentUser) && (message.fromNickname === currentUser!.nickname || isOwner);
+  const indent = depth > 0 ? Math.min(depth * 14, 70) : 0;
+
+  return (
+    <>
+      <div
+        className="guestbook-item"
+        style={
+          depth > 0
+            ? {
+                marginLeft: indent,
+                borderLeft: '2px solid rgba(255, 255, 255, 0.28)',
+                paddingLeft: 12
+              }
+            : undefined
+        }
+      >
+        <div className="message-header">
+          <div className="message-header-main">
+            <span className="message-author">{message.fromNickname}</span>
+            <span className="message-author-grade" title={gradeTitle(message.fromNickname)}>
+              {gradeLabel(message.fromNickname)}
+            </span>
+          </div>
+          <div className="message-header-aside">
+            <span className="message-date">{formatDate(message.createdAt)}</span>
+            {canDelete && (
+              <button
+                type="button"
+                onClick={() => onDelete(message.id, message.fromNickname)}
+                className="delete-btn"
+                aria-label="방명록 삭제"
+              >
+                <Trash2 size={12} />
+              </button>
+            )}
+          </div>
+        </div>
+        <p className="message-content">{message.message}</p>
+        {currentUser && (
+          <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              onClick={() => onReply(message.id, message.fromNickname)}
+              className="guestbook-reply-btn"
+            >
+              <Reply size={14} aria-hidden />
+              답장
+            </button>
+          </div>
+        )}
+      </div>
+      {children.map((c) => (
+        <GuestbookTree
+          key={c.id}
+          message={c}
+          depth={depth + 1}
+          childrenMap={childrenMap}
+          formatDate={formatDate}
+          currentUser={currentUser}
+          isOwner={isOwner}
+          onDelete={onDelete}
+          onReply={onReply}
+          gradeLabel={gradeLabel}
+          gradeTitle={gradeTitle}
+        />
+      ))}
+    </>
+  );
+};
 
 interface ApprovedSong {
   id: string;
@@ -154,7 +256,9 @@ const MyPage: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'posts' | 'evaluations' | 'recordings' | 'guestbook'>('posts');
+  const [activeTab, setActiveTab] = useState<
+    'stats' | 'posts' | 'evaluations' | 'recordings' | 'approved' | 'guestbook'
+  >('guestbook');
   const [editingProfile, setEditingProfile] = useState(false);
   const [editingIntro, setEditingIntro] = useState(false);
   const [editingGrade, setEditingGrade] = useState(false);
@@ -165,6 +269,9 @@ const MyPage: React.FC = () => {
   const [editNickname, setEditNickname] = useState('');
   const [editIntro, setEditIntro] = useState('');
   const [newGuestMessage, setNewGuestMessage] = useState('');
+  const [guestReplyTarget, setGuestReplyTarget] = useState<{ id: string; fromNickname: string } | null>(
+    null
+  );
   
   // 파일 입력 참조
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -174,15 +281,11 @@ const MyPage: React.FC = () => {
   const [activityStats, setActivityStats] = useState<ActivityStats>({
     postsCount: 0,
     commentsCount: 0,
-    totalLikes: 0,
-    averageScore: 0,
-    lastEvaluationDate: ''
+    totalLikes: 0
   });
+  const [approvedSongLeaderboard, setApprovedSongLeaderboard] = useState<ApprovedSongRankRow[]>([]);
+  const [approvedSongLeaderboardLoading, setApprovedSongLeaderboardLoading] = useState(true);
   const [guestMessages, setGuestMessages] = useState<GuestbookMessage[]>([]);
-  const [recentFree, setRecentFree] = useState<Post | null>(null);
-  const [recentRecording, setRecentRecording] = useState<Post | null>(null);
-  const [recentEvaluation, setRecentEvaluation] = useState<Post | null>(null);
-  const [recentPartner, setRecentPartner] = useState<Post | null>(null);
   const [myEvaluationPosts, setMyEvaluationPosts] = useState<Post[]>([]);
   const [myRecordings, setMyRecordings] = useState<Post[]>([]);
   const [approvedSongs, setApprovedSongs] = useState<ApprovedSong[]>([]);
@@ -236,7 +339,6 @@ const MyPage: React.FC = () => {
           loadMyPosts(userData.nickname);
           loadActivityStats(userData.nickname);
           setupGuestMessagesListener(userData.nickname);
-          fetchRecentPosts();
           loadMyEvaluationPosts(userData.nickname);
           loadMyRecordings(userData.nickname);
           loadApprovedSongs(userData.nickname);
@@ -267,7 +369,6 @@ const MyPage: React.FC = () => {
         loadMyPosts(loginUser.nickname);
         loadActivityStats(loginUser.nickname);
         setupGuestMessagesListener(loginUser.nickname);
-        fetchRecentPosts();
         loadMyEvaluationPosts(loginUser.nickname);
         loadMyRecordings(loginUser.nickname);
         loadApprovedSongs(loginUser.nickname);
@@ -285,6 +386,10 @@ const MyPage: React.FC = () => {
       }
     };
   }, [navigate, uid]);
+
+  useEffect(() => {
+    setActiveTab('guestbook');
+  }, [uid]);
 
   const loadUserData = useCallback(async (uid: string, isOwner: boolean) => {
     try {
@@ -338,9 +443,7 @@ const MyPage: React.FC = () => {
       setActivityStats({
         postsCount: postsSnapshot.size,
         commentsCount: commentsSnapshot.size,
-        totalLikes,
-        averageScore: 0,
-        lastEvaluationDate: ''
+        totalLikes
       });
 
       const rawComments = commentsSnapshot.docs.map((d) => ({
@@ -414,21 +517,6 @@ const MyPage: React.FC = () => {
       console.error('Error setting up guestbook listener:', error);
       setError('방명록 설정 중 오류가 발생했습니다.');
     }
-  }, []);
-
-  const fetchRecentPosts = useCallback(async () => {
-    // 자유게시판
-    const freeSnap = await getDocs(query(collection(db, 'posts'), where('type', '==', 'free'), orderBy('createdAt', 'desc'), limit(1)));
-    setRecentFree(freeSnap.docs[0] ? { id: freeSnap.docs[0].id, ...freeSnap.docs[0].data() } as Post : null);
-    // 녹음게시판
-    const recSnap = await getDocs(query(collection(db, 'posts'), where('type', '==', 'recording'), orderBy('createdAt', 'desc'), limit(1)));
-    setRecentRecording(recSnap.docs[0] ? { id: recSnap.docs[0].id, ...recSnap.docs[0].data() } as Post : null);
-    // 평가게시판
-    const evalSnap = await getDocs(query(collection(db, 'posts'), where('type', '==', 'evaluation'), orderBy('createdAt', 'desc'), limit(1)));
-    setRecentEvaluation(evalSnap.docs[0] ? { id: evalSnap.docs[0].id, ...evalSnap.docs[0].data() } as Post : null);
-    // 파트너모집
-    const partnerSnap = await getDocs(query(collection(db, 'posts'), where('type', '==', 'partner'), orderBy('createdAt', 'desc'), limit(1)));
-    setRecentPartner(partnerSnap.docs[0] ? { id: partnerSnap.docs[0].id, ...partnerSnap.docs[0].data() } as Post : null);
   }, []);
 
   const handleProfileImageUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -657,50 +745,113 @@ const MyPage: React.FC = () => {
     }
   }, [user, editIntro]);
 
+  const findUserUidByNickname = useCallback(async (nickname: string): Promise<string | null> => {
+    const n = nickname.trim();
+    if (!n) return null;
+    try {
+      const q = query(collection(db, 'users'), where('nickname', '==', n), limit(1));
+      const snap = await getDocs(q);
+      if (snap.empty) return null;
+      return snap.docs[0].id;
+    } catch (e) {
+      console.error('닉네임으로 uid 조회 실패:', e);
+      return null;
+    }
+  }, []);
+
   const handleSendGuestMessage = useCallback(async () => {
     if (!newGuestMessage.trim() || !user || !currentUser) return;
+    const text = newGuestMessage.trim();
+    const wallOwnerUid = user.uid;
     try {
-      await addDoc(collection(db, 'guestbook'), {
+      const payload: Record<string, unknown> = {
         toNickname: user.nickname,
         fromNickname: currentUser.nickname,
-        message: newGuestMessage,
+        message: text,
         createdAt: serverTimestamp()
-      });
-      // 방명록 알림 추가
-      if (user.uid) {
+      };
+      if (guestReplyTarget?.id) {
+        payload.parentMessageId = guestReplyTarget.id;
+      }
+      await addDoc(collection(db, 'guestbook'), payload);
+
+      if (guestReplyTarget?.id) {
+        const parentAuthorUid = await findUserUidByNickname(guestReplyTarget.fromNickname);
+        if (
+          parentAuthorUid &&
+          parentAuthorUid !== currentUser.uid &&
+          wallOwnerUid
+        ) {
+          try {
+            await NotificationService.createGuestbookReplyNotification(
+              parentAuthorUid,
+              currentUser.uid,
+              currentUser.nickname,
+              text,
+              wallOwnerUid
+            );
+          } catch (err) {
+            console.error('방명록 답글 알림 생성 실패:', err);
+          }
+        }
+      } else if (wallOwnerUid && currentUser.uid !== wallOwnerUid) {
         try {
           await NotificationService.createGuestbookNotification(
-            user.uid,
+            wallOwnerUid,
             currentUser.uid,
             currentUser.nickname,
-            newGuestMessage.trim()
+            text,
+            wallOwnerUid
           );
         } catch (err) {
           console.error('방명록 알림 생성 실패:', err);
         }
       }
+
       setNewGuestMessage('');
+      setGuestReplyTarget(null);
     } catch (error) {
       console.error('Error sending guest message:', error);
       setError('방명록 작성 중 오류가 발생했습니다.');
     }
-  }, [newGuestMessage, user, currentUser]);
+  }, [newGuestMessage, user, currentUser, guestReplyTarget, findUserUidByNickname]);
 
-  const handleDeleteGuestMessage = useCallback(async (messageId: string, fromNickname: string) => {
-    if (!user) return;
-    if (fromNickname !== user.nickname && user.nickname !== user.nickname) {
-      setError('삭제 권한이 없습니다.');
-      return;
-    }
-    // 삭제 확인 안내
-    if (!window.confirm('정말로 이 방명록 메시지를 삭제하시겠습니까?')) return;
-    try {
-      await deleteDoc(doc(db, 'guestbook', messageId));
-    } catch (error) {
-      console.error('Error deleting guest message:', error);
-      setError('메시지 삭제 중 오류가 발생했습니다.');
-    }
-  }, [user]);
+  const handleDeleteGuestMessage = useCallback(
+    async (messageId: string, fromNickname: string) => {
+      if (!user || !currentUser) return;
+      const isMessageAuthor = fromNickname === currentUser.nickname;
+      if (!isMessageAuthor && !isOwner) {
+        setError('삭제 권한이 없습니다.');
+        return;
+      }
+      if (
+        !window.confirm(
+          '정말로 이 방명록 메시지를 삭제하시겠습니까? 이 글에 달린 답글도 함께 삭제됩니다.'
+        )
+      ) {
+        return;
+      }
+
+      const collectIds = (id: string): string[] => {
+        const children = guestMessages.filter((m) => m.parentMessageId === id);
+        return [id, ...children.flatMap((c) => collectIds(c.id))];
+      };
+
+      try {
+        const ids = [...new Set(collectIds(messageId))];
+        const batch = writeBatch(db);
+        ids.forEach((id) => batch.delete(doc(db, 'guestbook', id)));
+        await batch.commit();
+        setGuestReplyTarget((prev) =>
+          prev && ids.includes(prev.id) ? null : prev
+        );
+      } catch (error) {
+        console.error('Error deleting guest message:', error);
+        setError('메시지 삭제 중 오류가 발생했습니다.');
+      }
+    },
+    [user, currentUser, isOwner, guestMessages]
+  );
 
   const handleGradeChange = useCallback(async (newGrade: string) => {
     if (!user || !isOwner) return;
@@ -782,6 +933,33 @@ const MyPage: React.FC = () => {
     [myPosts]
   );
 
+  /** 현재 보고 있는 프로필 닉네임의 합격곡 순위(듀엣·합창은 members 전원에게 각 1곡씩 반영) */
+  const viewedProfileApprovedRank = useMemo(() => {
+    const nick = user?.nickname?.trim();
+    if (!nick || approvedSongLeaderboard.length === 0) return null;
+    return approvedSongLeaderboard.find((r) => r.nickname.trim() === nick) ?? null;
+  }, [user?.nickname, approvedSongLeaderboard]);
+
+  const guestbookThreadModel = useMemo(() => {
+    const byId = new Map(guestMessages.map((m) => [m.id, m]));
+    const roots: GuestbookMessage[] = [];
+    const childrenMap = new Map<string, GuestbookMessage[]>();
+    for (const m of guestMessages) {
+      const p = m.parentMessageId?.trim();
+      if (p && byId.has(p)) {
+        if (!childrenMap.has(p)) childrenMap.set(p, []);
+        childrenMap.get(p)!.push(m);
+      } else {
+        roots.push(m);
+      }
+    }
+    roots.sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
+    childrenMap.forEach((arr) =>
+      arr.sort((a, b) => (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0))
+    );
+    return { roots, childrenMap };
+  }, [guestMessages]);
+
   const navigateToPost = useCallback((post: Pick<Post, 'id' | 'type'>) => {
     const t = post.type || 'free';
     navigate(NotificationService.getRouteByPostType(t, post.id));
@@ -802,6 +980,34 @@ const MyPage: React.FC = () => {
     return date.toLocaleDateString('ko-KR');
   };
 
+  type MypageTabId = 'stats' | 'posts' | 'evaluations' | 'recordings' | 'approved' | 'guestbook';
+
+  const mypageTabBaseStyle = (tab: MypageTabId): React.CSSProperties => ({
+    flex: '1 1 28%',
+    minWidth: '76px',
+    padding: '12px 6px',
+    borderRadius: '12px',
+    border: 'none',
+    background: activeTab === tab ? 'rgba(255, 255, 255, 0.3)' : 'transparent',
+    color: 'white',
+    fontWeight: 600,
+    fontSize: '12px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '4px',
+    transition: 'all 0.3s ease',
+    textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+  });
+
+  const onMypageTabEnter = (tab: MypageTabId) => (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (activeTab !== tab) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+  };
+  const onMypageTabLeave = (tab: MypageTabId) => (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (activeTab !== tab) e.currentTarget.style.background = 'transparent';
+  };
+
   const getGradeEmoji = (grade: string) => {
     if (!grade) return GRADE_SYSTEM.CHERRY;
     if (GRADE_EMOJI_TO_NAME[grade]) return grade;
@@ -816,11 +1022,29 @@ const MyPage: React.FC = () => {
     return getGradeEmoji(grade);
   };
 
-  const getGradeName = (emoji: string) => {
-    if (!emoji) return GRADE_NAMES[GRADE_SYSTEM.CHERRY];
-    if (GRADE_NAME_TO_EMOJI[emoji]) return emoji;
-    return GRADE_NAMES[emoji] || GRADE_EMOJI_TO_NAME[emoji] || GRADE_NAMES[GRADE_SYSTEM.CHERRY];
+  const getGradeName = (grade: string) => {
+    if (!grade) return GRADE_NAMES[GRADE_SYSTEM.CHERRY];
+    const emoji = getGradeEmoji(grade);
+    return GRADE_NAMES[emoji] || GRADE_NAMES[GRADE_SYSTEM.CHERRY];
   };
+
+  const getGuestbookGradeLabel = useCallback(
+    (nickname: string) => {
+      const grade = userMap[nickname.trim()]?.grade;
+      const g = grade || GRADE_SYSTEM.CHERRY;
+      return getGradeEmoji(g);
+    },
+    [userMap]
+  );
+
+  const getGuestbookGradeTitle = useCallback(
+    (nickname: string) => {
+      const grade = userMap[nickname.trim()]?.grade;
+      const g = grade || GRADE_SYSTEM.CHERRY;
+      return `등급: ${getGradeName(g)}`;
+    },
+    [userMap]
+  );
 
   const handleSaveJoinDate = useCallback(async () => {
     if (!user) return;
@@ -902,6 +1126,46 @@ const MyPage: React.FC = () => {
     }
   }, []);
 
+  const loadApprovedSongLeaderboard = useCallback(async () => {
+    setApprovedSongLeaderboardLoading(true);
+    try {
+      const snap = await getDocs(collection(db, 'approvedSongs'));
+      const counts = new Map<string, number>();
+      snap.docs.forEach((docSnap) => {
+        const data = docSnap.data();
+        // 평가 합격·관리자 등록 모두 members에 솔로/듀엣/합창 참여자가 들어가며, 곡 1개당 참여자마다 1곡씩 집계
+        const raw = Array.isArray(data.members) ? data.members : [];
+        const seen = new Set<string>();
+        raw.forEach((m) => {
+          const nick = typeof m === 'string' ? m.trim() : '';
+          if (!nick || seen.has(nick)) return;
+          seen.add(nick);
+          counts.set(nick, (counts.get(nick) || 0) + 1);
+        });
+      });
+      const sorted = [...counts.entries()]
+        .map(([nickname, count]) => ({ nickname, count }))
+        .sort((a, b) => b.count - a.count || a.nickname.localeCompare(b.nickname, 'ko'));
+      const ranked: ApprovedSongRankRow[] = [];
+      let lastCount: number | null = null;
+      let rank = 0;
+      for (let i = 0; i < sorted.length; i++) {
+        const { nickname, count } = sorted[i];
+        if (lastCount !== count) {
+          rank = i + 1;
+          lastCount = count;
+        }
+        ranked.push({ rank, nickname, count });
+      }
+      setApprovedSongLeaderboard(ranked);
+    } catch (e) {
+      console.error('합격곡 순위 집계 오류:', e);
+      setApprovedSongLeaderboard([]);
+    } finally {
+      setApprovedSongLeaderboardLoading(false);
+    }
+  }, []);
+
   const loadApprovedSongs = useCallback(async (nickname: string) => {
     try {
       const q = query(collection(db, 'approvedSongs'), where('members', 'array-contains', nickname));
@@ -946,6 +1210,10 @@ const MyPage: React.FC = () => {
       setApprovedSongs([]);
     }
   }, []);
+
+  useEffect(() => {
+    void loadApprovedSongLeaderboard();
+  }, [loadApprovedSongLeaderboard]);
 
   // 유저 등급 정보 fetch
   useEffect(() => {
@@ -1245,7 +1513,7 @@ const MyPage: React.FC = () => {
             marginBottom: 16, 
             display: 'flex', 
             justifyContent: 'center' 
-          }} onClick={isOwner ? handleProfileImageClick : undefined}>
+          }}>
             <div style={{ 
               width: 120, 
               height: 120, 
@@ -1265,28 +1533,6 @@ const MyPage: React.FC = () => {
                 <img src={user.profileImageUrl} alt="프로필" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             ) : (
                 <User size={64} color="rgba(255, 255, 255, 0.8)" />
-            )}
-            {isOwner && (
-              <>
-                  <div style={{ 
-                    position: 'absolute', 
-                    top: 0, 
-                    left: 0, 
-                    width: '100%', 
-                    height: '100%', 
-                    background: 'rgba(0,0,0,0.3)', 
-                    color: '#fff', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    opacity: 0, 
-                    transition: 'opacity 0.3s',
-                    borderRadius: '50%'
-                  }}>
-                  <Camera size={28} />
-                </div>
-                <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleProfileImageUpload} />
-              </>
             )}
           </div>
         </div>
@@ -1317,636 +1563,46 @@ const MyPage: React.FC = () => {
               }}>{user.role}</span>
             )}
           </div>
-          {isOwner && editingProfile ? (
-            <div style={{ marginTop: 8 }}>
-              <input
-                type="text"
-                value={editNickname}
-                onChange={e => setEditNickname(e.target.value)}
-                className="edit-input"
-                placeholder="닉네임을 입력해주세요..."
-                maxLength={20}
-                style={{ width: '100%', marginBottom: 8 }}
-              />
-              <textarea
-                value={editIntro}
-                onChange={e => setEditIntro(e.target.value)}
-                className="edit-textarea"
-                placeholder="자기소개를 입력해주세요..."
-                rows={3}
-                style={{ width: '100%', marginBottom: 8 }}
-              />
-              <div className="edit-buttons">
-                <button onClick={handleSaveProfile} className="save-btn"><Save size={16} />저장</button>
-                <button onClick={() => { setEditingProfile(false); setEditNickname(user?.nickname || ''); setEditIntro(user?.intro || ''); }} className="cancel-btn"><X size={16} />취소</button>
-              </div>
-            </div>
-          ) : (
-            <div style={{ 
-              marginTop: 8, 
-              fontSize: 16, 
-              color: 'rgba(255, 255, 255, 0.8)', 
-              textAlign: 'center',
-              textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-            }}>{user?.intro || (isOwner ? '한 줄 소개를 입력해보세요!' : '등록된 소개가 없습니다.')}</div>
-          )}
-          <div style={{ marginTop: 12, textAlign: 'center' }}>
-            <div style={{ color: 'rgba(255, 255, 255, 0.9)', fontWeight: 600, fontSize: 15 }}>
-              등급: {getGradeEmoji(user?.grade || GRADE_SYSTEM.CHERRY)} {getGradeName(user?.grade || GRADE_SYSTEM.CHERRY)}
-            </div>
-            {isOwner && (
-              <>
-                {editingGrade ? (
-                  <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
-                    <select
-                      className="grade-select"
-                      value={selectedGrade || GRADE_SYSTEM.CHERRY}
-                      onChange={(e) => setSelectedGrade(e.target.value)}
-                    >
-                      {GRADE_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.emoji} {getGradeName(option.value)} ({option.category})
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={() => {
-                        void handleGradeChange(selectedGrade || GRADE_SYSTEM.CHERRY);
-                        setEditingGrade(false);
-                      }}
-                      className="save-btn"
-                    >
-                      <Save size={14} />
-                      저장
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEditingGrade(false);
-                        setSelectedGrade(user?.grade || GRADE_SYSTEM.CHERRY);
-                      }}
-                      className="cancel-btn"
-                    >
-                      <X size={14} />
-                      취소
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => {
-                      setSelectedGrade(user?.grade || GRADE_SYSTEM.CHERRY);
-                      setEditingGrade(true);
-                    }}
-                    style={{
-                      marginTop: 8,
-                      padding: '6px 14px',
-                      borderRadius: 10,
-                      border: '1px solid rgba(255, 255, 255, 0.3)',
-                      background: 'rgba(255, 255, 255, 0.15)',
-                      color: 'white',
-                      fontWeight: 600,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    등급 변경
-                  </button>
-                )}
-              </>
-            )}
-          </div>
           <div style={{ 
             marginTop: 8, 
-            fontSize: 14, 
-            color: 'rgba(255, 255, 255, 0.7)', 
+            fontSize: 16, 
+            color: 'rgba(255, 255, 255, 0.8)', 
             textAlign: 'center',
             textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-          }}>
-            가입일: {isOwner && editingJoinDate ? (
-              <>
-                <input
-                  type="date"
-                  value={editJoinDate}
-                  onChange={e => setEditJoinDate(e.target.value)}
-                  style={{ marginRight: 8 }}
-                />
-                <button onClick={handleSaveJoinDate} style={{ marginRight: 4, background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 6, padding: '4px 12px', fontWeight: 600, cursor: 'pointer' }}>저장</button>
-                <button onClick={() => setEditingJoinDate(false)} style={{ background: '#eee', color: '#8A55CC', border: 'none', borderRadius: 6, padding: '4px 12px', fontWeight: 600, cursor: 'pointer' }}>취소</button>
-              </>
-            ) : (
-              <>
-                {user?.createdAt && (new Date(user.createdAt.seconds * 1000)).toLocaleDateString('ko-KR')}
-                {isOwner && (
-                  <button onClick={() => {
-                    setEditingJoinDate(true);
-                    setEditJoinDate(user?.createdAt
-                      ? new Date(user.createdAt.seconds * 1000).toISOString().slice(0, 10)
-                      : '');
-                  }} style={{ marginLeft: 8, background: '#F6F2FF', color: '#8A55CC', border: 'none', borderRadius: 6, padding: '4px 12px', fontWeight: 600, cursor: 'pointer' }}>수정</button>
-                )}
-              </>
-            )}
+          }}>{user?.intro || '등록된 소개가 없습니다.'}</div>
+          <div style={{ marginTop: 12, color: 'rgba(255, 255, 255, 0.9)', fontWeight: 600, fontSize: 15 }}>
+            등급: {getGradeEmoji(user?.grade || GRADE_SYSTEM.CHERRY)} {getGradeName(user?.grade || GRADE_SYSTEM.CHERRY)}
           </div>
-          {isOwner && !editingProfile && (
-            <button 
-              onClick={() => { setEditingProfile(true); setEditIntro(user?.intro || ''); }}
-              style={{ 
-                marginTop: 16, 
-                padding: '10px 24px', 
-                borderRadius: 12, 
-                background: 'rgba(255, 255, 255, 0.2)', 
-                backdropFilter: 'blur(10px)',
-                color: 'white', 
-                fontWeight: 600, 
-                border: '1px solid rgba(255, 255, 255, 0.3)', 
-                cursor: 'pointer', 
-                fontSize: 16,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'all 0.3s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-                e.currentTarget.style.transform = 'translateY(0)';
+          <div style={{ marginTop: 8, fontSize: 14, color: 'rgba(255, 255, 255, 0.75)' }}>
+            가입일: {user?.createdAt && (new Date(user.createdAt.seconds * 1000)).toLocaleDateString('ko-KR')}
+          </div>
+          {isOwner && (
+            <button
+              onClick={() => navigate('/settings')}
+              style={{
+                marginTop: 14,
+                padding: '9px 18px',
+                borderRadius: 12,
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                background: 'rgba(255, 255, 255, 0.15)',
+                color: 'white',
+                fontWeight: 700,
+                cursor: 'pointer',
+                fontSize: 14
               }}
             >
-              <Edit3 size={18} /> 프로필 수정
+              설정에서 프로필 수정
             </button>
           )}
         </div>
       </div>
 
-      {/* 활동/통계 카드 */}
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.1)',
-          backdropFilter: 'blur(15px)',
-          borderRadius: '20px',
-          padding: '24px',
-          marginBottom: '24px',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
-        }}>
-          <h3 style={{ 
-            color: 'white', 
-            fontSize: '20px', 
-            fontWeight: 700, 
-            marginBottom: '20px', 
-            textAlign: 'center',
-            textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
-          }}>📊 활동 통계</h3>
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(2, 1fr)', 
-            gap: '16px',
-            marginBottom: '16px'
-          }}>
-            <div
-              role="button"
-              tabIndex={0}
-              title="내가 쓴 글 목록 보기"
-              onClick={() => setStatsModal('posts')}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  setStatsModal('posts');
-                }
-              }}
-              style={{
-              background: 'rgba(255, 255, 255, 0.1)',
-              backdropFilter: 'blur(10px)',
-              borderRadius: '16px',
-              padding: '16px',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              cursor: 'pointer',
-              transition: 'transform 0.15s ease, box-shadow 0.15s ease'
-            }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            >
-              <span style={{ fontSize: '24px' }}>📝</span>
-              <div>
-                <div style={{ 
-                  fontSize: '24px', 
-                  fontWeight: 700, 
-                  color: 'white',
-                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-                }}>{activityStats.postsCount}</div>
-                <div style={{ 
-                  fontSize: '14px', 
-                  color: 'rgba(255, 255, 255, 0.8)',
-                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-                }}>내가 쓴 글</div>
-            </div>
-          </div>
-            <div
-              role="button"
-              tabIndex={0}
-              title="내가 쓴 댓글이 달린 글 목록 보기"
-              onClick={() => setStatsModal('comments')}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  setStatsModal('comments');
-                }
-              }}
-              style={{
-              background: 'rgba(255, 255, 255, 0.1)',
-              backdropFilter: 'blur(10px)',
-              borderRadius: '16px',
-              padding: '16px',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              cursor: 'pointer',
-              transition: 'transform 0.15s ease, box-shadow 0.15s ease'
-            }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            >
-              <span style={{ fontSize: '24px' }}>💬</span>
-              <div>
-                <div style={{ 
-                  fontSize: '24px', 
-                  fontWeight: 700, 
-                  color: 'white',
-                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-                }}>{activityStats.commentsCount}</div>
-                <div style={{ 
-                  fontSize: '14px', 
-                  color: 'rgba(255, 255, 255, 0.8)',
-                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-                }}>내가 쓴 댓글</div>
-            </div>
-          </div>
-            <div
-              role="button"
-              tabIndex={0}
-              title="받은 좋아요가 있는 글 목록 보기"
-              onClick={() => setStatsModal('likes')}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  setStatsModal('likes');
-                }
-              }}
-              style={{
-              background: 'rgba(255, 255, 255, 0.1)',
-              backdropFilter: 'blur(10px)',
-              borderRadius: '16px',
-              padding: '16px',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              cursor: 'pointer',
-              transition: 'transform 0.15s ease, box-shadow 0.15s ease'
-            }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            >
-              <span style={{ fontSize: '24px' }}>❤️</span>
-              <div>
-                <div style={{ 
-                  fontSize: '24px', 
-                  fontWeight: 700, 
-                  color: 'white',
-                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-                }}>{activityStats.totalLikes}</div>
-                <div style={{ 
-                  fontSize: '14px', 
-                  color: 'rgba(255, 255, 255, 0.8)',
-                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-                }}>받은 좋아요</div>
-            </div>
-          </div>
-            <div style={{
-              background: 'rgba(255, 255, 255, 0.1)',
-              backdropFilter: 'blur(10px)',
-              borderRadius: '16px',
-              padding: '16px',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px'
-            }}>
-              <span style={{ fontSize: '24px' }}>⭐</span>
-              <div>
-                <div style={{ 
-                  fontSize: '24px', 
-                  fontWeight: 700, 
-                  color: 'white',
-                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-                }}>{activityStats.averageScore || '-'}</div>
-                <div style={{ 
-                  fontSize: '14px', 
-                  color: 'rgba(255, 255, 255, 0.8)',
-                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-                }}>평균 평가점수</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 최근 활동 섹션 */}
-        <div style={{ 
-          marginBottom: 32, 
-          background: 'rgba(255, 255, 255, 0.1)', 
-          backdropFilter: 'blur(15px)',
-          borderRadius: 20, 
-          padding: 24, 
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
-        }}>
-          <h3 style={{ 
-            fontSize: 20, 
-            fontWeight: 700, 
-            color: 'white', 
-            marginBottom: 16,
-            textAlign: 'center',
-            textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
-          }}>📋 최근 활동</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {myPosts.slice(0, 5).map(post => (
-              <div
-                key={post.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => navigateToPost(post)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    navigateToPost(post);
-                  }
-                }}
-                style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 12, 
-                padding: '12px 16px', 
-                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-                background: 'rgba(255, 255, 255, 0.05)',
-                borderRadius: '12px',
-                marginBottom: '8px',
-                cursor: 'pointer',
-                transition: 'background 0.15s ease'
-              }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                }}
-              >
-                <span style={{ 
-                  color: 'rgba(255, 255, 255, 0.9)', 
-                  fontWeight: 700,
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  padding: '4px 8px',
-                  borderRadius: '8px',
-                  fontSize: '12px'
-                }}>[{postTypeLabel(post.type)}]</span>
-                <span style={{ 
-                  fontWeight: 600, 
-                  color: 'white',
-                  flex: 1,
-                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-                }}>{post.title}</span>
-                <span style={{ 
-                  color: 'rgba(255, 255, 255, 0.6)', 
-                  fontSize: 12,
-                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-                }}>{formatDate(post.createdAt)}</span>
-            </div>
-          ))}
-            {myPosts.length === 0 && (
-              <span style={{ 
-                color: 'rgba(255, 255, 255, 0.7)', 
-                textAlign: 'center',
-                fontStyle: 'italic',
-                textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-              }}>📝 최근 작성한 글이 없습니다.</span>
-            )}
-        </div>
-      </div>
-
-      {/* 합격곡 카드 */}
-        <div style={{ 
-          marginBottom: 32, 
-          background: 'rgba(255, 255, 255, 0.1)', 
-          backdropFilter: 'blur(15px)',
-          borderRadius: 20, 
-          padding: 24, 
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
-        }}>
-          <h3 style={{ 
-            fontSize: 20, 
-            fontWeight: 700, 
-            color: 'white', 
-            marginBottom: 16,
-            textAlign: 'center',
-            textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
-          }}>🎵 합격곡</h3>
-        {approvedSongs.length === 0 ? (
-            <div style={{ 
-              color: 'rgba(255, 255, 255, 0.7)', 
-              textAlign: 'center', 
-              fontWeight: 500,
-              fontStyle: 'italic',
-              textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-            }}>🎼 아직 합격곡이 없습니다.</div>
-        ) : (
-          <>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {(showAllSongs ? approvedSongs : approvedSongs.slice(0,5)).map(song => (
-                  <div key={song.id} style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: 12, 
-                    padding: '12px 16px', 
-                    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    borderRadius: '12px',
-                    marginBottom: '8px'
-                  }}>
-                  <span style={{ fontSize: 22 }}>{getSongGrade(song)}</span>
-                    <span style={{ 
-                      fontWeight: 700, 
-                      color: 'white', 
-                      flex: 1,
-                      textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-                    }}>{song.title}</span>
-                    {/* 👥 파트너 닉네임 표시 부분 제거 */}
-                    {/* <span style={{ 
-                      color: 'rgba(255, 255, 255, 0.8)', 
-                      fontWeight: 500, 
-                      fontSize: 14,
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      padding: '4px 8px',
-                      borderRadius: '8px'
-                    }}>👥 {Array.isArray(song.members) ? song.members.join(', ') : ''}</span> */}
-                    {song.audioUrl && (
-                      <a
-                        href={song.audioUrl}
-                        download={song.fileName || `${song.title}.mp3`}
-                        onClick={(e) => e.stopPropagation()}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          padding: '6px 10px',
-                          background: 'rgba(138, 85, 204, 0.3)',
-                          borderRadius: '8px',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s',
-                          textDecoration: 'none',
-                          color: 'white',
-                          border: '1px solid rgba(138, 85, 204, 0.5)'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = 'rgba(138, 85, 204, 0.5)';
-                          e.currentTarget.style.transform = 'scale(1.05)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'rgba(138, 85, 204, 0.3)';
-                          e.currentTarget.style.transform = 'scale(1)';
-                        }}
-                        title="녹음 파일 다운로드"
-                      >
-                        <Download size={16} />
-                      </a>
-                    )}
-                    <span style={{ 
-                      color: 'rgba(255, 255, 255, 0.6)', 
-                      fontSize: 12,
-                      textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
-                      minWidth: '80px',
-                      textAlign: 'right'
-                    }}>{song.createdAt && song.createdAt.seconds ? (new Date(song.createdAt.seconds * 1000)).toLocaleDateString('ko-KR') : ''}</span>
-                </div>
-              ))}
-            </div>
-            {approvedSongs.length > 5 && (
-                <button 
-                  style={{ 
-                    marginTop: 12, 
-                    background: 'rgba(255, 255, 255, 0.2)', 
-                    backdropFilter: 'blur(10px)',
-                    color: 'white', 
-                    border: '1px solid rgba(255, 255, 255, 0.3)', 
-                    borderRadius: 12, 
-                    padding: '8px 20px', 
-                    fontWeight: 600, 
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    display: 'block',
-                    margin: '16px auto 0'
-                  }} 
-                  onClick={() => setShowAllSongs(v => !v)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
-                >
-                  {showAllSongs ? '📁 접기' : `📂 더보기 (${approvedSongs.length - 5}곡)`}
-              </button>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* 설정/계정 카드 */}
-      {isOwner && (
-          <div style={{ marginBottom: 32 }}>
-            <div style={{ display: 'flex', gap: 16 }}>
-            <button 
-              style={{ 
-                flex: 1, 
-                background: 'rgba(255, 255, 255, 0.1)', 
-                backdropFilter: 'blur(15px)',
-                borderRadius: 16, 
-                padding: 20, 
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)', 
-                fontWeight: 600, 
-                color: 'white', 
-                fontSize: 16, 
-                cursor: 'pointer',
-                textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
-                transition: 'all 0.3s ease'
-              }} 
-              onClick={() => navigate('/settings')}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >⚙️ 프로필/계정 설정</button>
-            <button 
-              style={{ 
-                flex: 1, 
-                background: 'rgba(255, 255, 255, 0.1)', 
-                backdropFilter: 'blur(15px)',
-                borderRadius: 16, 
-                padding: 20, 
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)', 
-                fontWeight: 600, 
-                color: 'white', 
-                fontSize: 16, 
-                cursor: 'pointer',
-                textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
-                transition: 'all 0.3s ease'
-              }} 
-              onClick={() => auth.signOut()}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >🚪 로그아웃</button>
-            </div>
-        </div>
-      )}
-
       {/* 탭 네비게이션 */}
-        <div style={{
+      <div
+        className="mypage-tabs-bar"
+        style={{
           display: 'flex',
+          flexWrap: 'wrap',
           gap: '8px',
           marginBottom: '24px',
           background: 'rgba(255, 255, 255, 0.1)',
@@ -1955,150 +1611,72 @@ const MyPage: React.FC = () => {
           padding: '8px',
           border: '1px solid rgba(255, 255, 255, 0.2)',
           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
-        }}>
-        <button 
-          onClick={() => setActiveTab('posts')}
-            style={{
-              flex: 1,
-              padding: '12px 16px',
-              borderRadius: '12px',
-              border: 'none',
-              background: activeTab === 'posts' 
-                ? 'rgba(255, 255, 255, 0.3)' 
-                : 'transparent',
-              color: 'white',
-              fontWeight: 600,
-              fontSize: '14px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              transition: 'all 0.3s ease',
-              textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-            }}
-            onMouseEnter={(e) => {
-              if (activeTab !== 'posts') {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (activeTab !== 'posts') {
-                e.currentTarget.style.background = 'transparent';
-              }
-            }}
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setActiveTab('stats')}
+          style={mypageTabBaseStyle('stats')}
+          onMouseEnter={onMypageTabEnter('stats')}
+          onMouseLeave={onMypageTabLeave('stats')}
         >
-          <FileText size={16} />
+          <BarChart3 size={15} />
+          <span>활동통계</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('posts')}
+          style={mypageTabBaseStyle('posts')}
+          onMouseEnter={onMypageTabEnter('posts')}
+          onMouseLeave={onMypageTabLeave('posts')}
+        >
+          <FileText size={15} />
           <span>내 글</span>
         </button>
-        <button 
+        <button
+          type="button"
           onClick={() => setActiveTab('evaluations')}
-            style={{
-              flex: 1,
-              padding: '12px 16px',
-              borderRadius: '12px',
-              border: 'none',
-              background: activeTab === 'evaluations' 
-                ? 'rgba(255, 255, 255, 0.3)' 
-                : 'transparent',
-              color: 'white',
-              fontWeight: 600,
-              fontSize: '14px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              transition: 'all 0.3s ease',
-              textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-            }}
-            onMouseEnter={(e) => {
-              if (activeTab !== 'evaluations') {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (activeTab !== 'evaluations') {
-                e.currentTarget.style.background = 'transparent';
-              }
-            }}
+          style={mypageTabBaseStyle('evaluations')}
+          onMouseEnter={onMypageTabEnter('evaluations')}
+          onMouseLeave={onMypageTabLeave('evaluations')}
         >
-          <Star size={16} />
-          <span>평가 이력</span>
+          <Star size={15} />
+          <span>평가</span>
         </button>
-        <button 
+        <button
+          type="button"
           onClick={() => setActiveTab('recordings')}
-            style={{
-              flex: 1,
-              padding: '12px 16px',
-              borderRadius: '12px',
-              border: 'none',
-              background: activeTab === 'recordings' 
-                ? 'rgba(255, 255, 255, 0.3)' 
-                : 'transparent',
-              color: 'white',
-              fontWeight: 600,
-              fontSize: '14px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              transition: 'all 0.3s ease',
-              textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-            }}
-            onMouseEnter={(e) => {
-              if (activeTab !== 'recordings') {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (activeTab !== 'recordings') {
-                e.currentTarget.style.background = 'transparent';
-              }
-            }}
+          style={mypageTabBaseStyle('recordings')}
+          onMouseEnter={onMypageTabEnter('recordings')}
+          onMouseLeave={onMypageTabLeave('recordings')}
         >
-          <Mic size={16} />
-          <span>내 녹음</span>
+          <Mic size={15} />
+          <span>녹음</span>
         </button>
-        <button 
-          onClick={() => setActiveTab('guestbook')}
-            style={{
-              flex: 1,
-              padding: '12px 16px',
-              borderRadius: '12px',
-              border: 'none',
-              background: activeTab === 'guestbook' 
-                ? 'rgba(255, 255, 255, 0.3)' 
-                : 'transparent',
-              color: 'white',
-              fontWeight: 600,
-              fontSize: '14px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              transition: 'all 0.3s ease',
-              textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-            }}
-            onMouseEnter={(e) => {
-              if (activeTab !== 'guestbook') {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (activeTab !== 'guestbook') {
-                e.currentTarget.style.background = 'transparent';
-              }
-            }}
+        <button
+          type="button"
+          onClick={() => setActiveTab('approved')}
+          style={mypageTabBaseStyle('approved')}
+          onMouseEnter={onMypageTabEnter('approved')}
+          onMouseLeave={onMypageTabLeave('approved')}
         >
-          <Users size={16} />
+          <Music size={15} />
+          <span>합격곡</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('guestbook')}
+          style={mypageTabBaseStyle('guestbook')}
+          onMouseEnter={onMypageTabEnter('guestbook')}
+          onMouseLeave={onMypageTabLeave('guestbook')}
+        >
+          <Users size={15} />
           <span>방명록</span>
         </button>
       </div>
 
       {/* 탭 컨텐츠 */}
+      {activeTab && (
         <div style={{
           background: 'rgba(255, 255, 255, 0.1)',
           backdropFilter: 'blur(15px)',
@@ -2108,6 +1686,192 @@ const MyPage: React.FC = () => {
           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
           marginBottom: '24px'
         }}>
+        {activeTab === 'stats' && (
+          <div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginBottom: '8px' }}>
+              <div
+                role="button"
+                tabIndex={0}
+                title="내가 쓴 글 목록 보기"
+                onClick={() => setStatsModal('posts')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setStatsModal('posts');
+                  }
+                }}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  backdropFilter: 'blur(10px)',
+                  borderRadius: '16px',
+                  padding: '16px',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  cursor: 'pointer',
+                  transition: 'transform 0.15s ease, box-shadow 0.15s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                <span style={{ fontSize: '24px' }}>📝</span>
+                <div>
+                  <div style={{ fontSize: '24px', fontWeight: 700, color: 'white', textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)' }}>
+                    {activityStats.postsCount}
+                  </div>
+                  <div style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.8)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)' }}>
+                    내가 쓴 글
+                  </div>
+                </div>
+              </div>
+              <div
+                role="button"
+                tabIndex={0}
+                title="내가 쓴 댓글이 달린 글 목록 보기"
+                onClick={() => setStatsModal('comments')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setStatsModal('comments');
+                  }
+                }}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  backdropFilter: 'blur(10px)',
+                  borderRadius: '16px',
+                  padding: '16px',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  cursor: 'pointer',
+                  transition: 'transform 0.15s ease, box-shadow 0.15s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                <span style={{ fontSize: '24px' }}>💬</span>
+                <div>
+                  <div style={{ fontSize: '24px', fontWeight: 700, color: 'white', textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)' }}>
+                    {activityStats.commentsCount}
+                  </div>
+                  <div style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.8)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)' }}>
+                    내가 쓴 댓글
+                  </div>
+                </div>
+              </div>
+              <div
+                role="button"
+                tabIndex={0}
+                title="받은 좋아요가 있는 글 목록 보기"
+                onClick={() => setStatsModal('likes')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setStatsModal('likes');
+                  }
+                }}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  backdropFilter: 'blur(10px)',
+                  borderRadius: '16px',
+                  padding: '16px',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  cursor: 'pointer',
+                  transition: 'transform 0.15s ease, box-shadow 0.15s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                <span style={{ fontSize: '24px' }}>❤️</span>
+                <div>
+                  <div style={{ fontSize: '24px', fontWeight: 700, color: 'white', textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)' }}>
+                    {activityStats.totalLikes}
+                  </div>
+                  <div style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.8)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)' }}>
+                    받은 좋아요
+                  </div>
+                </div>
+              </div>
+              <div
+                style={{
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  backdropFilter: 'blur(10px)',
+                  borderRadius: '16px',
+                  padding: '16px',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '12px',
+                  minHeight: '88px'
+                }}
+              >
+                <span style={{ fontSize: '24px', lineHeight: 1 }} aria-hidden>🏆</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: '14px',
+                      fontWeight: 700,
+                      color: 'rgba(255, 255, 255, 0.95)',
+                      textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
+                      marginBottom: '8px'
+                    }}
+                  >
+                    합격곡 순위
+                  </div>
+                  {approvedSongLeaderboardLoading ? (
+                    <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.75)' }}>불러오는 중…</div>
+                  ) : approvedSongLeaderboard.length === 0 ? (
+                    <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.75)' }}>
+                      집계할 합격곡이 없습니다
+                    </div>
+                  ) : (approvedSongs.length === 0 && !viewedProfileApprovedRank) ? (
+                    <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.75)' }}>
+                      합격곡 0곡 · 순위 없음
+                    </div>
+                  ) : viewedProfileApprovedRank ? (
+                    <div
+                      style={{
+                        fontSize: '16px',
+                        fontWeight: 800,
+                        color: 'white',
+                        textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                      }}
+                    >
+                      {viewedProfileApprovedRank.rank}위 · 합격곡 {viewedProfileApprovedRank.count}곡
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.75)' }}>
+                      합격곡 {approvedSongs.length}곡 · 순위 정보를 불러오지 못했습니다
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         {activeTab === 'posts' && (
             <div>
             {myPosts.length === 0 ? (
@@ -2203,23 +1967,122 @@ const MyPage: React.FC = () => {
         )}
 
         {activeTab === 'evaluations' && (
-          <div className="evaluations-list">
+          <div>
             {myEvaluationPosts.length === 0 ? (
-              <div className="empty-state">
-                <Star size={48} />
-                <h3>평가 이력이 없습니다</h3>
-                <p>평가받은 게시글이 여기에 표시됩니다.</p>
+              <div
+                style={{
+                  textAlign: 'center',
+                  padding: '40px 20px',
+                  color: 'rgba(255, 255, 255, 0.7)'
+                }}
+              >
+                <Star size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
+                <h3
+                  style={{
+                    fontSize: '20px',
+                    fontWeight: 600,
+                    marginBottom: '8px',
+                    color: 'white',
+                    textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                  }}
+                >
+                  평가 이력이 없습니다
+                </h3>
+                <p style={{ fontSize: '14px', textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)' }}>
+                  평가 게시글이 여기에 표시됩니다.
+                </p>
               </div>
             ) : (
               myEvaluationPosts.map((post) => (
-                <div key={post.id} className="evaluation-item">
-                  <h4 className="post-title">{post.title}</h4>
-                  <div className="post-meta">
-                    <span className="post-type">{post.type}</span>
-                    <span className="post-date">{formatDate(post.createdAt)}</span>
-                    <div className="post-stats">
-                      <span><Heart size={12} /> {post.likesCount}</span>
-                      <span><MessageCircle size={12} /> {post.commentCount}</span>
+                <div
+                  key={post.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => navigateToPost(post)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      navigateToPost(post);
+                    }
+                  }}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    backdropFilter: 'blur(10px)',
+                    borderRadius: '16px',
+                    padding: '16px',
+                    marginBottom: '12px',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    transition: 'all 0.3s ease',
+                    cursor: 'pointer'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  <h4
+                    style={{
+                      fontSize: '16px',
+                      fontWeight: 600,
+                      marginBottom: '8px',
+                      color: 'white',
+                      textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                    }}
+                  >
+                    {post.title}
+                  </h4>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      fontSize: '12px'
+                    }}
+                  >
+                    <span
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.2)',
+                        padding: '4px 8px',
+                        borderRadius: '8px',
+                        color: 'white',
+                        fontWeight: 600
+                      }}
+                    >
+                      {postTypeLabel(post.type)}
+                    </span>
+                    <span
+                      style={{
+                        color: 'rgba(255, 255, 255, 0.7)',
+                        textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                      }}
+                    >
+                      {formatDate(post.createdAt)}
+                    </span>
+                    <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
+                      <span
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          color: 'rgba(255, 255, 255, 0.8)'
+                        }}
+                      >
+                        <Heart size={12} /> {post.likesCount}
+                      </span>
+                      <span
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          color: 'rgba(255, 255, 255, 0.8)'
+                        }}
+                      >
+                        <MessageCircle size={12} /> {post.commentCount}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -2229,24 +2092,44 @@ const MyPage: React.FC = () => {
         )}
 
         {activeTab === 'recordings' && (
-          <div className="recordings-list">
+          <div>
             {myRecordings.length === 0 ? (
-              <div className="empty-state">
-                <Mic size={48} />
-                <h3>녹음이 없습니다</h3>
-                <p>녹음게시판에 업로드하거나 평가게시판에 참여해보세요!</p>
+              <div
+                style={{
+                  textAlign: 'center',
+                  padding: '40px 20px',
+                  color: 'rgba(255, 255, 255, 0.7)'
+                }}
+              >
+                <Mic size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
+                <h3
+                  style={{
+                    fontSize: '20px',
+                    fontWeight: 600,
+                    marginBottom: '8px',
+                    color: 'white',
+                    textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                  }}
+                >
+                  녹음이 없습니다
+                </h3>
+                <p style={{ fontSize: '14px', textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)' }}>
+                  녹음 게시판에 업로드하거나 평가 게시판에 참여해 보세요.
+                </p>
               </div>
             ) : (
               myRecordings.map((post) => (
-                <div 
-                  key={post.id} 
-                  className="recording-item"
+                <div
+                  key={post.id}
+                  role="button"
+                  tabIndex={0}
                   style={{
-                    border: '1px solid #E5DAF5',
-                    borderRadius: '12px',
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    backdropFilter: 'blur(10px)',
+                    borderRadius: '16px',
                     padding: '16px',
                     marginBottom: '12px',
-                    background: '#fff',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease'
                   }}
@@ -2257,77 +2140,120 @@ const MyPage: React.FC = () => {
                       navigate(`/evaluation/${post.id}`);
                     }
                   }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      if (post.type === 'recording') {
+                        navigate(`/recording/${post.id}`);
+                      } else if (post.type === 'evaluation') {
+                        navigate(`/evaluation/${post.id}`);
+                      }
+                    }
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                    <Mic size={20} style={{ color: '#8A55CC' }} />
-                    <h4 style={{ 
-                      margin: 0, 
-                      fontSize: '16px', 
-                      fontWeight: '600', 
-                      color: '#374151',
-                      flex: 1
-                    }}>
+                    <Mic size={20} color="rgba(255,255,255,0.95)" />
+                    <h4
+                      style={{
+                        margin: 0,
+                        fontSize: '16px',
+                        fontWeight: 600,
+                        color: 'white',
+                        flex: 1,
+                        textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                      }}
+                    >
                       {post.title}
                     </h4>
-                    <span style={{
-                      background: post.type === 'recording' ? '#E5DAF5' : '#FEF3C7',
-                      color: post.type === 'recording' ? '#8A55CC' : '#D97706',
-                      padding: '4px 8px',
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                      fontWeight: '600'
-                    }}>
+                    <span
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.2)',
+                        color: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontWeight: 600
+                      }}
+                    >
                       {post.type === 'recording' ? '녹음게시판' : '평가게시판'}
                     </span>
                   </div>
-                  
+
                   {post.fileName && (
-                    <div style={{ 
-                      fontSize: '14px', 
-                      color: '#6B7280', 
-                      marginBottom: '8px',
-                      background: '#F9FAFB',
-                      padding: '6px 12px',
-                      borderRadius: '8px'
-                    }}>
-                      📁 {post.fileName}
+                    <div
+                      style={{
+                        fontSize: '14px',
+                        color: 'rgba(255, 255, 255, 0.85)',
+                        marginBottom: '8px',
+                        background: 'rgba(255, 255, 255, 0.08)',
+                        padding: '6px 12px',
+                        borderRadius: '8px'
+                      }}
+                    >
+                      {post.fileName}
                     </div>
                   )}
-                  
+
                   {post.members && post.members.length > 0 && (
-                    <div style={{ 
-                      fontSize: '14px', 
-                      color: '#8A55CC', 
-                      marginBottom: '8px',
-                      fontWeight: '500'
-                    }}>
-                      👥 함께한 멤버: {post.members.join(', ')}
+                    <div
+                      style={{
+                        fontSize: '14px',
+                        color: 'rgba(255, 255, 255, 0.9)',
+                        marginBottom: '8px',
+                        fontWeight: 500
+                      }}
+                    >
+                      함께한 멤버: {post.members.join(', ')}
                     </div>
                   )}
-                  
+
                   {post.status && (
-                    <div style={{ 
-                      fontSize: '14px', 
-                      marginBottom: '8px',
-                      fontWeight: '600',
-                      color: post.status === '합격' ? '#059669' : post.status === '불합격' ? '#DC2626' : '#6B7280'
-                    }}>
-                      📋 상태: {post.status}
+                    <div
+                      style={{
+                        fontSize: '14px',
+                        marginBottom: '8px',
+                        fontWeight: 600,
+                        color:
+                          post.status === '합격'
+                            ? '#86EFAC'
+                            : post.status === '불합격'
+                              ? '#FCA5A5'
+                              : 'rgba(255, 255, 255, 0.8)'
+                      }}
+                    >
+                      상태: {post.status}
                     </div>
                   )}
-                  
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center',
-                    marginTop: '12px',
-                    paddingTop: '8px',
-                    borderTop: '1px solid #F3F4F6'
-                  }}>
-                    <span style={{ fontSize: '14px', color: '#9CA3AF' }}>
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginTop: '12px',
+                      paddingTop: '8px',
+                      borderTop: '1px solid rgba(255, 255, 255, 0.15)'
+                    }}
+                  >
+                    <span style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.65)' }}>
                       {formatDate(post.createdAt)}
                     </span>
-                    <div style={{ display: 'flex', gap: '12px', fontSize: '14px', color: '#6B7280' }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: '12px',
+                        fontSize: '14px',
+                        color: 'rgba(255, 255, 255, 0.85)'
+                      }}
+                    >
                       <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <Heart size={14} /> {post.likesCount || 0}
                       </span>
@@ -2342,51 +2268,220 @@ const MyPage: React.FC = () => {
           </div>
         )}
 
+        {activeTab === 'approved' && (
+          <div>
+            {approvedSongs.length === 0 ? (
+              <div
+                style={{
+                  textAlign: 'center',
+                  padding: '40px 20px',
+                  color: 'rgba(255, 255, 255, 0.7)'
+                }}
+              >
+                <Music size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
+                <h3
+                  style={{
+                    fontSize: '20px',
+                    fontWeight: 600,
+                    marginBottom: '8px',
+                    color: 'white',
+                    textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                  }}
+                >
+                  합격곡이 없습니다
+                </h3>
+                <p style={{ fontSize: '14px', textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)' }}>
+                  합격 처리된 곡이 여기에 모입니다.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {(showAllSongs ? approvedSongs : approvedSongs.slice(0, 5)).map((song) => (
+                    <div
+                      key={song.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12,
+                        padding: '12px 16px',
+                        background: 'rgba(255, 255, 255, 0.08)',
+                        borderRadius: '12px',
+                        marginBottom: '4px',
+                        border: '1px solid rgba(255, 255, 255, 0.15)'
+                      }}
+                    >
+                      <span style={{ fontSize: 22 }}>{getSongGrade(song)}</span>
+                      <span
+                        style={{
+                          fontWeight: 700,
+                          color: 'white',
+                          flex: 1,
+                          textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                        }}
+                      >
+                        {song.title}
+                      </span>
+                      {song.audioUrl && (
+                        <a
+                          href={song.audioUrl}
+                          download={song.fileName || `${song.title}.mp3`}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '6px 10px',
+                            background: 'rgba(138, 85, 204, 0.35)',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            textDecoration: 'none',
+                            color: 'white',
+                            border: '1px solid rgba(138, 85, 204, 0.55)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'rgba(138, 85, 204, 0.55)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'rgba(138, 85, 204, 0.35)';
+                          }}
+                          title="녹음 파일 다운로드"
+                        >
+                          <Download size={16} />
+                        </a>
+                      )}
+                      <span
+                        style={{
+                          color: 'rgba(255, 255, 255, 0.6)',
+                          fontSize: 12,
+                          textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
+                          minWidth: '72px',
+                          textAlign: 'right'
+                        }}
+                      >
+                        {song.createdAt && song.createdAt.seconds
+                          ? new Date(song.createdAt.seconds * 1000).toLocaleDateString('ko-KR')
+                          : ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                {approvedSongs.length > 5 && (
+                  <button
+                    type="button"
+                    style={{
+                      marginTop: 12,
+                      background: 'rgba(255, 255, 255, 0.2)',
+                      backdropFilter: 'blur(10px)',
+                      color: 'white',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      borderRadius: 12,
+                      padding: '8px 20px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      display: 'block',
+                      margin: '16px auto 0'
+                    }}
+                    onClick={() => setShowAllSongs((v) => !v)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    {showAllSongs ? '접기' : `더보기 (${approvedSongs.length - 5}곡)`}
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
         {activeTab === 'guestbook' && (
-          <div className="guestbook-section">
+          <div className="guestbook-section mypage-guestbook-dark">
+            <div className="guestbook-list">
+              {guestMessages.length === 0 ? (
+                <div
+                  style={{
+                    textAlign: 'center',
+                    padding: '40px 20px',
+                    color: 'rgba(255, 255, 255, 0.7)'
+                  }}
+                >
+                  <Users size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
+                  <h3
+                    style={{
+                      fontSize: '20px',
+                      fontWeight: 600,
+                      marginBottom: '8px',
+                      color: 'white',
+                      textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                    }}
+                  >
+                    방명록이 비어 있습니다
+                  </h3>
+                  <p style={{ fontSize: '14px', textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)' }}>
+                    첫 메시지를 남겨 보세요.
+                  </p>
+                </div>
+              ) : (
+                guestbookThreadModel.roots.map((message) => (
+                  <GuestbookTree
+                    key={message.id}
+                    message={message}
+                    depth={0}
+                    childrenMap={guestbookThreadModel.childrenMap}
+                    formatDate={formatDate}
+                    currentUser={currentUser}
+                    isOwner={isOwner}
+                    onDelete={handleDeleteGuestMessage}
+                    onReply={(id, fromNickname) => setGuestReplyTarget({ id, fromNickname })}
+                    gradeLabel={getGuestbookGradeLabel}
+                    gradeTitle={getGuestbookGradeTitle}
+                  />
+                ))
+              )}
+            </div>
+            {guestReplyTarget && (
+              <div className="guestbook-reply-banner">
+                <span className="guestbook-reply-banner-text">
+                  <Reply size={14} aria-hidden />
+                  {guestReplyTarget.fromNickname}님에게 답장
+                </span>
+                <button
+                  type="button"
+                  className="guestbook-reply-cancel"
+                  onClick={() => setGuestReplyTarget(null)}
+                >
+                  취소
+                </button>
+              </div>
+            )}
             <div className="guestbook-write">
               <textarea
                 value={newGuestMessage}
                 onChange={(e) => setNewGuestMessage(e.target.value)}
-                placeholder="방명록에 메시지를 남겨보세요..."
+                placeholder={
+                  guestReplyTarget
+                    ? `${guestReplyTarget.fromNickname}님에게 답장을 입력하세요...`
+                    : '방명록에 메시지를 남겨보세요...'
+                }
                 className="guestbook-textarea"
               />
-              <button onClick={handleSendGuestMessage} className="send-btn">
+              <button type="button" onClick={() => void handleSendGuestMessage()} className="send-btn">
                 <Send size={16} />
-                보내기
+                {guestReplyTarget ? '답장 보내기' : '보내기'}
               </button>
-            </div>
-            <div className="guestbook-list">
-              {guestMessages.length === 0 ? (
-                <div className="empty-state">
-                  <Users size={48} />
-                  <h3>방명록이 비어있습니다</h3>
-                  <p>첫 번째 메시지를 남겨보세요!</p>
-                </div>
-              ) : (
-                guestMessages.map((message) => (
-                  <div key={message.id} className="guestbook-item">
-                    <div className="message-header">
-                      <span className="message-author">{message.fromNickname}</span>
-                      <span className="message-date">{formatDate(message.createdAt)}</span>
-                      {(currentUser && message.fromNickname === currentUser.nickname) && (
-                        <button 
-                          onClick={() => handleDeleteGuestMessage(message.id, message.fromNickname)}
-                          className="delete-btn"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      )}
-                    </div>
-                    <p className="message-content">{message.message}</p>
-                  </div>
-                ))
-              )}
             </div>
           </div>
         )}
         </div>
-      </div>
+      )}
 
       {statsModal && (
         <div
@@ -2495,6 +2590,7 @@ const MyPage: React.FC = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

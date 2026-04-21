@@ -14,6 +14,7 @@ interface Notification {
     | 'approval'
     | 'rejection'
     | 'guestbook'
+    | 'guestbook_reply'
     | 'mention'
     | 'new_post'
     | 'partnership'
@@ -26,6 +27,7 @@ interface Notification {
   commentId?: string;
   fromNickname: string;
   message?: string;
+  guestbookOwnerUid?: string;
   createdAt: any;
   isRead: boolean;
 }
@@ -42,8 +44,9 @@ const Notifications: React.FC = () => {
       return NotificationService.getRouteByPostType(notification.postType, notification.postId);
     }
 
-    if (notification.type === 'guestbook') {
-      return '/mypage';
+    if (notification.type === 'guestbook' || notification.type === 'guestbook_reply') {
+      const uid = notification.guestbookOwnerUid;
+      return uid ? `/mypage/${uid}` : '/mypage';
     }
 
     if (notification.type === 'grade_request_pending') {
@@ -147,6 +150,8 @@ const Notifications: React.FC = () => {
         return <XCircle size={18} className="text-red-600" style={{ color: '#FF3838' }} />;
       case 'guestbook':
         return <Users size={18} className="text-purple-500" style={{ color: '#A55EEA' }} />;
+      case 'guestbook_reply':
+        return <MessageCircle size={18} className="text-purple-500" style={{ color: '#B794F4' }} />;
       case 'mention':
         return <AtSign size={18} className="text-orange-500" style={{ color: '#FFA726' }} />;
       case 'partnership':
