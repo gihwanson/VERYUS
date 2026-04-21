@@ -774,7 +774,11 @@ const AnonymousChatRoom: React.FC = () => {
 
   const handleMuteParticipant = async (targetMessage: AnonymousMessage) => {
     if (!selectedRoomId || !selectedRoom || !user?.uid) return;
-    if (selectedRoom.createdByUid !== user.uid) return;
+    const managerUids = new Set<string>([
+      selectedRoom.createdByUid,
+      ...(selectedRoom.coHostUids || [])
+    ]);
+    if (!managerUids.has(user.uid)) return;
     const targetUid = targetMessage.uid;
     if (!targetUid || targetUid === '__system__' || targetUid === user.uid) return;
     const targetName = targetMessage.senderLabel || '익명';

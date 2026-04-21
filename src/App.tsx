@@ -35,6 +35,38 @@ class AppErrorBoundary extends React.Component<
 
   componentDidCatch(error: unknown) {
     console.error('전역 렌더링 오류:', error);
+    const message = error instanceof Error ? error.message : String(error);
+    const recoverableChunkError =
+      message.includes('Failed to fetch dynamically imported module') ||
+      message.includes('Importing a module script failed') ||
+      message.includes('Loading chunk') ||
+      message.includes('ChunkLoadError');
+
+    if (recoverableChunkError) {
+      try {
+        const reloadKey = 'veryus_chunk_reload_once';
+        const alreadyRetried = sessionStorage.getItem(reloadKey) === '1';
+        if (!alreadyRetried) {
+          sessionStorage.setItem(reloadKey, '1');
+          const params = new URLSearchParams(window.location.search);
+          params.set('v', String(Date.now()));
+          params.set('chunkReload', '1');
+          window.location.replace(`${window.location.pathname}?${params.toString()}`);
+          return;
+        }
+        sessionStorage.removeItem(reloadKey);
+      } catch (storageError) {
+        console.warn('에러 복구용 sessionStorage 접근 실패:', storageError);
+        const params = new URLSearchParams(window.location.search);
+        const alreadyRetriedByQuery = params.get('chunkReload') === '1';
+        if (!alreadyRetriedByQuery) {
+          params.set('v', String(Date.now()));
+          params.set('chunkReload', '1');
+          window.location.replace(`${window.location.pathname}?${params.toString()}`);
+          return;
+        }
+      }
+    }
   }
 
   render() {
@@ -54,6 +86,9 @@ class AppErrorBoundary extends React.Component<
             <h2 style={{ marginBottom: 10 }}>앱을 불러오지 못했습니다</h2>
             <p style={{ opacity: 0.9, marginBottom: 16 }}>
               새로고침 후 다시 시도해주세요.
+            </p>
+            <p style={{ opacity: 0.85, marginBottom: 16, fontSize: 12, maxWidth: 320, wordBreak: 'break-word' }}>
+              오류: {this.state.message || '원인 미확인 오류'}
             </p>
             <button
               type="button"
@@ -850,6 +885,7 @@ function App() {
       (snapshot) => {
         const visibleUnread = snapshot.docs.filter((snap) => {
           const data = snap.data() as Record<string, any>;
+          if (data.hiddenFromInbox === true) return false;
           const type = String(data.type || '').toLowerCase();
           const postType = String(data.postType || '').toLowerCase();
           const route = String(data.route || '').toLowerCase();

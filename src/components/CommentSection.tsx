@@ -165,7 +165,8 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
         post,
         writerNickname,
         commentAsAnonymous,
-        commentAsAnonymous ? realNickname : undefined
+        commentAsAnonymous ? realNickname : undefined,
+        canUseEvaluatorAlias && commentAsEvaluator && !commentAsAnonymous
       );
       setNewComment('');
       setCommentAsAnonymous(false);
@@ -175,7 +176,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
     } finally {
       setIsSubmitting(false);
     }
-  }, [user, newComment, postId, post, effectiveCommentNickname, commentAsAnonymous]);
+  }, [user, newComment, postId, post, effectiveCommentNickname, commentAsAnonymous, canUseEvaluatorAlias, commentAsEvaluator]);
 
   const handleSubmitReply = useCallback(async (parentId: string) => {
     if (!user || !replyContent.trim()) return;
@@ -193,7 +194,8 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
         post,
         writerNickname,
         commentAsAnonymous,
-        commentAsAnonymous ? realNickname : undefined
+        commentAsAnonymous ? realNickname : undefined,
+        canUseEvaluatorAlias && commentAsEvaluator && !commentAsAnonymous
       );
       setReplyContent('');
       setReplyingTo(null);
@@ -204,7 +206,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
     } finally {
       setIsSubmitting(false);
     }
-  }, [user, replyContent, postId, post, effectiveCommentNickname, commentAsAnonymous]);
+  }, [user, replyContent, postId, post, effectiveCommentNickname, commentAsAnonymous, canUseEvaluatorAlias, commentAsEvaluator]);
 
   const handleSendMessage = useCallback(async () => {
     if (!user || !messageRecipient || !messageContent.trim()) return;

@@ -22,7 +22,8 @@ interface Notification {
     | 'partnership_confirmed'
     | 'grade_request_pending'
     | 'grade_change_approved'
-    | 'grade_change_rejected';
+    | 'grade_change_rejected'
+    | 'anonymous_chat';
   postId?: string;
   postTitle?: string;
   postType?: string;
@@ -33,6 +34,7 @@ interface Notification {
   createdAt: any;
   isRead: boolean;
   route?: string;
+  hiddenFromInbox?: boolean;
 }
 
 const Notifications: React.FC = () => {
@@ -52,6 +54,11 @@ const Notifications: React.FC = () => {
       route.startsWith('/anonymous-chat') ||
       route.startsWith('/chat')
     );
+  };
+
+  const isHiddenInInbox = (noti: Notification) => {
+    if (noti.hiddenFromInbox === true) return true;
+    return isChatNotification(noti);
   };
 
   const getNotificationRoute = (notification: Notification): string | null => {
@@ -99,7 +106,7 @@ const Notifications: React.FC = () => {
     );
     const unsub = onSnapshot(q, (snap) => {
       const all = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Notification[];
-      setNotifications(all.filter((noti) => !isChatNotification(noti)));
+      setNotifications(all.filter((noti) => !isHiddenInInbox(noti)));
       setLoading(false);
     });
     return () => unsub();

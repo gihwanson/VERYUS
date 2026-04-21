@@ -33,6 +33,7 @@ export interface Comment {
   writerGrade?: string;
   writerRole?: string;
   writerPosition?: string;
+  isEvaluatorAliasComment?: boolean;
 }
 
 export interface User {
@@ -212,7 +213,8 @@ export const submitComment = async (
   post: Post,
   writerNicknameOverride?: string,
   isAnonymousWriter: boolean = false,
-  realWriterNicknameOverride?: string
+  realWriterNicknameOverride?: string,
+  isEvaluatorAliasComment: boolean = false
 ): Promise<void> => {
   const writerNickname = writerNicknameOverride || user.nickname || '익명';
   await addDoc(collection(db, 'comments'), {
@@ -222,6 +224,7 @@ export const submitComment = async (
     realWriterNickname: realWriterNicknameOverride || null,
     isAnonymousWriter,
     writerUid: user.uid,
+    isEvaluatorAliasComment,
     createdAt: serverTimestamp(),
     isSecret,
     parentId: null
@@ -262,7 +265,8 @@ export const submitReply = async (
   post: Post,
   writerNicknameOverride?: string,
   isAnonymousWriter: boolean = false,
-  realWriterNicknameOverride?: string
+  realWriterNicknameOverride?: string,
+  isEvaluatorAliasComment: boolean = false
 ): Promise<void> => {
   const writerNickname = writerNicknameOverride || user.nickname || '익명';
   await addDoc(collection(db, 'comments'), {
@@ -272,6 +276,7 @@ export const submitReply = async (
     realWriterNickname: realWriterNicknameOverride || null,
     isAnonymousWriter,
     writerUid: user.uid,
+    isEvaluatorAliasComment,
     createdAt: serverTimestamp(),
     isSecret,
     parentId
@@ -408,11 +413,13 @@ export const subscribeToComments = (
           role: '일반',
           position: ''
         };
+        const isEvaluatorAliasComment =
+          Boolean(commentData.isEvaluatorAliasComment) || commentData.writerNickname === '평가자';
 
         commentsData.push({
           id: docSnapshot.id,
           ...commentData,
-          writerGrade: userData.grade || commentData.writerGrade || '🍒',
+          writerGrade: isEvaluatorAliasComment ? '🍒' : (userData.grade || commentData.writerGrade || '🍒'),
           writerRole: userData.role || commentData.writerRole || '일반',
           writerPosition: userData.position || commentData.writerPosition || '',
           likedBy: commentData.likedBy || [],
