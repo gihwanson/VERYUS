@@ -314,6 +314,7 @@ const AnonymousChatRoom: React.FC = () => {
   }, [roomParticipants]);
 
   const isNerae = user?.nickname === NERAE_NICKNAME;
+  const canChangeNicknameUnlimited = isNerae;
 
   const getDisplayName = (baseNickname?: string, profileNickname?: string) => {
     if (!baseNickname) return '익명';
@@ -445,7 +446,7 @@ const AnonymousChatRoom: React.FC = () => {
 
   const handleChangeNicknameOnce = async () => {
     if (!user?.uid || !profile) return;
-    if (profile.nicknameChangedOnce) {
+    if (!canChangeNicknameUnlimited && profile.nicknameChangedOnce) {
       alert('닉네임 변경은 1회만 가능합니다.');
       return;
     }
@@ -473,12 +474,12 @@ const AnonymousChatRoom: React.FC = () => {
           throw new Error('프로필 정보가 없습니다.');
         }
         const currentProfile = snapshot.data() as AnonymousProfile;
-        if (currentProfile.nicknameChangedOnce) {
+        if (!canChangeNicknameUnlimited && currentProfile.nicknameChangedOnce) {
           throw new Error('닉네임은 이미 변경되었습니다.');
         }
         transaction.update(profileRef, {
           customNickname: trimmed,
-          nicknameChangedOnce: true
+          nicknameChangedOnce: canChangeNicknameUnlimited ? false : true
         });
       });
 
@@ -496,7 +497,11 @@ const AnonymousChatRoom: React.FC = () => {
       }
 
       setNicknameChangeInput('');
-      alert('닉네임이 변경되었습니다. (1회 변경 완료)');
+      alert(
+        canChangeNicknameUnlimited
+          ? '닉네임이 변경되었습니다.'
+          : '닉네임이 변경되었습니다. (1회 변경 완료)'
+      );
     } catch (error: any) {
       console.error('닉네임 변경 실패:', error);
       alert(error?.message || '닉네임 변경 중 오류가 발생했습니다.');
@@ -522,6 +527,7 @@ const AnonymousChatRoom: React.FC = () => {
       const roomRef = await addDoc(collection(db, 'anonymousChatRooms'), {
         title: trimmed,
         createdByUid: user.uid,
+        // 채팅방 목록의 방장 닉네임은 생성 시점 값을 고정한다.
         createdByNickname: profile.customNickname,
         requiredActiveDays: 0,
         createdAt: serverTimestamp()
@@ -658,12 +664,22 @@ const AnonymousChatRoom: React.FC = () => {
                 value={nicknameChangeInput}
                 onChange={(e) => setNicknameChangeInput(e.target.value)}
                 maxLength={15}
-                placeholder={profile.nicknameChangedOnce ? '닉네임 변경 완료' : '닉네임 1회 변경'}
-                disabled={profile.nicknameChangedOnce || updatingNickname}
+                placeholder={
+                  canChangeNicknameUnlimited
+                    ? '닉네임 변경 (무제한)'
+                    : profile.nicknameChangedOnce
+                      ? '닉네임 변경 완료'
+                      : '닉네임 1회 변경'
+                }
+                disabled={(!canChangeNicknameUnlimited && profile.nicknameChangedOnce) || updatingNickname}
               />
               <button
                 onClick={handleChangeNicknameOnce}
-                disabled={profile.nicknameChangedOnce || updatingNickname || !nicknameChangeInput.trim()}
+                disabled={
+                  (!canChangeNicknameUnlimited && profile.nicknameChangedOnce) ||
+                  updatingNickname ||
+                  !nicknameChangeInput.trim()
+                }
               >
                 {updatingNickname ? '변경 중...' : '변경 적용'}
               </button>
