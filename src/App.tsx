@@ -19,6 +19,11 @@ import { subscribeAdminVerification } from './utils/adminSessionVerify';
 import { UserProfileProvider } from './contexts/UserProfileContext';
 import './App.css';
 
+const APP_BUILD =
+  typeof __APP_BUILD__ !== 'undefined' && __APP_BUILD__
+    ? __APP_BUILD__
+    : 'dev';
+
 class AppErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { hasError: boolean; message: string }
@@ -40,7 +45,8 @@ class AppErrorBoundary extends React.Component<
       message.includes('Failed to fetch dynamically imported module') ||
       message.includes('Importing a module script failed') ||
       message.includes('Loading chunk') ||
-      message.includes('ChunkLoadError');
+      message.includes('ChunkLoadError') ||
+      message.includes('Unable to preload CSS');
 
     if (recoverableChunkError) {
       try {
@@ -51,7 +57,9 @@ class AppErrorBoundary extends React.Component<
           const params = new URLSearchParams(window.location.search);
           params.set('v', String(Date.now()));
           params.set('chunkReload', '1');
-          window.location.replace(`${window.location.pathname}?${params.toString()}`);
+          const nextQuery = params.toString();
+          const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash || ''}`;
+          window.location.replace(nextUrl);
           return;
         }
         sessionStorage.removeItem(reloadKey);
@@ -62,7 +70,9 @@ class AppErrorBoundary extends React.Component<
         if (!alreadyRetriedByQuery) {
           params.set('v', String(Date.now()));
           params.set('chunkReload', '1');
-          window.location.replace(`${window.location.pathname}?${params.toString()}`);
+          const nextQuery = params.toString();
+          const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash || ''}`;
+          window.location.replace(nextUrl);
           return;
         }
       }
@@ -89,6 +99,12 @@ class AppErrorBoundary extends React.Component<
             </p>
             <p style={{ opacity: 0.85, marginBottom: 16, fontSize: 12, maxWidth: 320, wordBreak: 'break-word' }}>
               오류: {this.state.message || '원인 미확인 오류'}
+            </p>
+            <p style={{ opacity: 0.75, marginBottom: 16, fontSize: 11, maxWidth: 340, wordBreak: 'break-word' }}>
+              빌드: {APP_BUILD} | 경로: {window.location.pathname}
+            </p>
+            <p style={{ opacity: 0.7, marginBottom: 16, fontSize: 10, maxWidth: 340, wordBreak: 'break-word' }}>
+              환경: {navigator.userAgent}
             </p>
             <button
               type="button"
@@ -821,6 +837,36 @@ function App() {
   const [announcementUnreadCount, setAnnouncementUnreadCount] = useState(0);
   const [showSearchSystem, setShowSearchSystem] = useState(false);
   
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+
+    let reloadingForSw = false;
+    const onControllerChange = () => {
+      if (reloadingForSw) return;
+      reloadingForSw = true;
+      const reloadKey = 'veryus_sw_reload_once';
+      try {
+        if (sessionStorage.getItem(reloadKey) === '1') {
+          sessionStorage.removeItem(reloadKey);
+          return;
+        }
+        sessionStorage.setItem(reloadKey, '1');
+      } catch {
+        // 저장소 접근 실패 시에도 1회 재로딩은 진행
+      }
+      window.location.reload();
+    };
+
+    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+    navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js')
+      .then((registration) => registration?.update().catch(() => undefined))
+      .catch(() => undefined);
+
+    return () => {
+      navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+    };
+  }, []);
+
   useEffect(() => {
     const loadingGuard = window.setTimeout(() => {
       setLoading(false);

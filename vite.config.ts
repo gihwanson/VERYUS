@@ -18,6 +18,7 @@ export default defineConfig({
     }
   },
   define: {
-    'process.env.VITE_APP_TITLE': JSON.stringify('VERYUS')
+    'process.env.VITE_APP_TITLE': JSON.stringify('VERYUS'),
+    __APP_BUILD__: JSON.stringify(new Date().toISOString())
   }
 })

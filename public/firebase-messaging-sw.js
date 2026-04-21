@@ -13,6 +13,14 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
 messaging.onBackgroundMessage((payload) => {
   // 서버 메시지에 notification 필드가 있으면 브라우저/FCM이 이미 알림을 띄우는 경우가 많아
   // 여기서 showNotification을 또 호출하면 동일 알림이 2번 뜰 수 있다.
