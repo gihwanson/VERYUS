@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { collection, getDocs, query, where, orderBy, addDoc, serverTimestamp, limit, Timestamp, updateDoc, doc, deleteDoc } from 'firebase/firestore';
+import { List } from 'lucide-react';
 import { db } from '../firebase';
 import './AnonymousNoteBubble.css';
 
@@ -29,6 +30,138 @@ interface AnonymousNote {
   authorNickname?: string;
 }
 
+/** 활성(24시간 이내)·비활성 쪽지 목록 — 만료 쪽지는 DB에서 비활성화 처리 */
+async function fetchAnonymousNotesCatalog(): Promise<{
+  active: AnonymousNote[];
+  inactive: AnonymousNote[];
+}> {
+  const activeNotesQuery = query(
+    collection(db, 'anonymousNotes'),
+    where('isActive', '==', true),
+    orderBy('createdAt', 'desc'),
+    limit(500)
+  );
+
+  const inactiveNotesQuery = query(
+    collection(db, 'anonymousNotes'),
+    where('isActive', '==', false),
+    orderBy('createdAt', 'desc'),
+    limit(500)
+  );
+
+  const [activeSnapshot, inactiveSnapshot] = await Promise.all([
+    getDocs(activeNotesQuery),
+    getDocs(inactiveNotesQuery)
+  ]);
+
+  const allActiveNotes: AnonymousNote[] = [];
+  const notesToDeactivate: string[] = [];
+
+  activeSnapshot.docs.forEach(docSnapshot => {
+    const data = docSnapshot.data();
+    const note: AnonymousNote = {
+      id: docSnapshot.id,
+      ...data
+    } as AnonymousNote;
+
+    if (note.createdAt) {
+      const createdAt = note.createdAt.toDate ? note.createdAt.toDate() : new Date(note.createdAt);
+      const diffMs = Date.now() - createdAt.getTime();
+
+      if (diffMs > ONE_DAY_MS) {
+        notesToDeactivate.push(docSnapshot.id);
+      } else {
+        allActiveNotes.push(note);
+      }
+    } else {
+      notesToDeactivate.push(docSnapshot.id);
+    }
+  });
+
+  if (notesToDeactivate.length > 0) {
+    await Promise.all(
+      notesToDeactivate.map(noteId =>
+        updateDoc(doc(db, 'anonymousNotes', noteId), { isActive: false })
+      )
+    );
+  }
+
+  const allInactiveNotes: AnonymousNote[] = inactiveSnapshot.docs.map(docSnapshot => ({
+    id: docSnapshot.id,
+    ...docSnapshot.data()
+  } as AnonymousNote));
+
+  notesToDeactivate.forEach(noteId => {
+    const deactivatedNote = activeSnapshot.docs.find(d => d.id === noteId);
+    if (deactivatedNote) {
+      allInactiveNotes.unshift({
+        id: deactivatedNote.id,
+        ...deactivatedNote.data()
+      } as AnonymousNote);
+    }
+  });
+
+  allInactiveNotes.sort((a, b) => {
+    const aDate = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+    const bDate = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+    return bDate.getTime() - aDate.getTime();
+  });
+
+  return { active: allActiveNotes, inactive: allInactiveNotes };
+}
+
+async function fetchAnonymousNotesCatalogFallback(): Promise<{
+  active: AnonymousNote[];
+  inactive: AnonymousNote[];
+}> {
+  const [activeQuery, inactiveQuery] = await Promise.all([
+    getDocs(query(collection(db, 'anonymousNotes'), where('isActive', '==', true), limit(500))),
+    getDocs(query(collection(db, 'anonymousNotes'), where('isActive', '==', false), limit(500)))
+  ]);
+
+  const validActiveNotes: AnonymousNote[] = [];
+  activeQuery.docs.forEach(docSnapshot => {
+    const data = docSnapshot.data();
+    if (data.createdAt) {
+      const createdAt = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
+      const diffMs = Date.now() - createdAt.getTime();
+      if (diffMs <= ONE_DAY_MS) {
+        validActiveNotes.push({
+          id: docSnapshot.id,
+          ...data
+        } as AnonymousNote);
+      }
+    }
+  });
+
+  const validInactiveNotes: AnonymousNote[] = inactiveQuery.docs.map(docSnapshot => ({
+    id: docSnapshot.id,
+    ...docSnapshot.data()
+  } as AnonymousNote));
+
+  return { active: validActiveNotes, inactive: validInactiveNotes };
+}
+
+async function loadNotesCatalogWithFallback(): Promise<{
+  active: AnonymousNote[];
+  inactive: AnonymousNote[];
+}> {
+  try {
+    return await fetchAnonymousNotesCatalog();
+  } catch (err: any) {
+    console.error('쪽지 카탈로그 조회 실패:', err);
+    if (err?.code === 'failed-precondition') {
+      try {
+        return await fetchAnonymousNotesCatalogFallback();
+      } catch (err2) {
+        console.error('간단 쿼리도 실패:', err2);
+        return { active: [], inactive: [] };
+      }
+    }
+    return { active: [], inactive: [] };
+  }
+}
+
 const AnonymousNoteBubble: React.FC = () => {
   const [currentNote, setCurrentNote] = useState<string>('');
   const [allNotes, setAllNotes] = useState<string[]>([]);
@@ -45,6 +178,11 @@ const AnonymousNoteBubble: React.FC = () => {
   const [adminInactiveNotes, setAdminInactiveNotes] = useState<AnonymousNote[]>([]);
   const [adminLoading, setAdminLoading] = useState<boolean>(false);
   const [adminViewMode, setAdminViewMode] = useState<'active' | 'inactive' | 'all'>('active');
+  const [showListModal, setShowListModal] = useState(false);
+  const [listLoading, setListLoading] = useState(false);
+  const [listActiveNotes, setListActiveNotes] = useState<AnonymousNote[]>([]);
+  const [listInactiveNotes, setListInactiveNotes] = useState<AnonymousNote[]>([]);
+  const [listError, setListError] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const rotationIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -438,140 +576,47 @@ const AnonymousNoteBubble: React.FC = () => {
   // 관리자 모달 열기
   const handleAdminModalOpen = async () => {
     if (!isAdmin) return;
-    
+
     setShowAdminModal(true);
     setAdminLoading(true);
     setAdminViewMode('active');
-    
+
     try {
-      // 활성 쪽지 가져오기
-      const activeNotesQuery = query(
-        collection(db, 'anonymousNotes'),
-        where('isActive', '==', true),
-        orderBy('createdAt', 'desc'),
-        limit(500)
-      );
-      
-      // 비활성 쪽지 가져오기
-      const inactiveNotesQuery = query(
-        collection(db, 'anonymousNotes'),
-        where('isActive', '==', false),
-        orderBy('createdAt', 'desc'),
-        limit(500)
-      );
-      
-      const [activeSnapshot, inactiveSnapshot] = await Promise.all([
-        getDocs(activeNotesQuery),
-        getDocs(inactiveNotesQuery)
-      ]);
-      
-      const allActiveNotes: AnonymousNote[] = [];
-      const notesToDeactivate: string[] = [];
-      
-      // 활성 쪽지 처리
-      activeSnapshot.docs.forEach(docSnapshot => {
-        const data = docSnapshot.data();
-        const note: AnonymousNote = {
-          id: docSnapshot.id,
-          ...data
-        } as AnonymousNote;
-        
-        if (note.createdAt) {
-          const createdAt = note.createdAt.toDate ? note.createdAt.toDate() : new Date(note.createdAt);
-          const now = new Date();
-          const diffMs = now.getTime() - createdAt.getTime();
-          
-          // 24시간이 지났으면 비활성화 대상에 추가
-          if (diffMs > ONE_DAY_MS) {
-            notesToDeactivate.push(docSnapshot.id);
-          } else {
-            // 24시간 이내의 쪽지만 표시
-            allActiveNotes.push(note);
-          }
-        } else {
-          notesToDeactivate.push(docSnapshot.id);
-        }
-      });
-      
-      // 하루가 지난 쪽지들 비활성화
-      if (notesToDeactivate.length > 0) {
-        await Promise.all(
-          notesToDeactivate.map(noteId => 
-            updateDoc(doc(db, 'anonymousNotes', noteId), { isActive: false })
-          )
-        );
-      }
-      
-      // 비활성 쪽지 처리
-      const allInactiveNotes: AnonymousNote[] = inactiveSnapshot.docs.map(docSnapshot => ({
-        id: docSnapshot.id,
-        ...docSnapshot.data()
-      } as AnonymousNote));
-      
-      // 비활성화된 쪽지들도 추가 (방금 비활성화된 것 포함)
-      notesToDeactivate.forEach(noteId => {
-        const deactivatedNote = activeSnapshot.docs.find(doc => doc.id === noteId);
-        if (deactivatedNote) {
-          allInactiveNotes.unshift({
-            id: deactivatedNote.id,
-            ...deactivatedNote.data()
-          } as AnonymousNote);
-        }
-      });
-      
-      // createdAt 기준으로 정렬
-      allInactiveNotes.sort((a, b) => {
-        const aDate = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
-        const bDate = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
-        return bDate.getTime() - aDate.getTime();
-      });
-      
-      setAdminNotes(allActiveNotes);
-      setAdminInactiveNotes(allInactiveNotes);
-    } catch (err: any) {
+      const { active, inactive } = await loadNotesCatalogWithFallback();
+      setAdminNotes(active);
+      setAdminInactiveNotes(inactive);
+    } catch (err) {
       console.error('관리자 쪽지 목록 가져오기 실패:', err);
-      // 인덱스 에러인 경우 간단한 쿼리로 시도
-      if (err?.code === 'failed-precondition') {
-        try {
-          const [activeQuery, inactiveQuery] = await Promise.all([
-            getDocs(query(collection(db, 'anonymousNotes'), where('isActive', '==', true), limit(500))),
-            getDocs(query(collection(db, 'anonymousNotes'), where('isActive', '==', false), limit(500)))
-          ]);
-          
-          const validActiveNotes: AnonymousNote[] = [];
-          activeQuery.docs.forEach(docSnapshot => {
-            const data = docSnapshot.data();
-            if (data.createdAt) {
-              const createdAt = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
-              const diffMs = Date.now() - createdAt.getTime();
-              if (diffMs <= ONE_DAY_MS) {
-                validActiveNotes.push({
-                  id: docSnapshot.id,
-                  ...data
-                } as AnonymousNote);
-              }
-            }
-          });
-          
-          const validInactiveNotes: AnonymousNote[] = inactiveQuery.docs.map(docSnapshot => ({
-            id: docSnapshot.id,
-            ...docSnapshot.data()
-          } as AnonymousNote));
-          
-          setAdminNotes(validActiveNotes);
-          setAdminInactiveNotes(validInactiveNotes);
-        } catch (err2) {
-          console.error('간단 쿼리도 실패:', err2);
-          setAdminNotes([]);
-          setAdminInactiveNotes([]);
-        }
-      } else {
-        setAdminNotes([]);
-        setAdminInactiveNotes([]);
-      }
+      setAdminNotes([]);
+      setAdminInactiveNotes([]);
     } finally {
       setAdminLoading(false);
     }
+  };
+
+  const handleOpenListModal = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setShowListModal(true);
+    setListLoading(true);
+    setListError('');
+    try {
+      const { active, inactive } = await loadNotesCatalogWithFallback();
+      setListActiveNotes(active);
+      setListInactiveNotes(inactive);
+    } catch (err) {
+      console.error('익명 쪽지 목록 로드 실패:', err);
+      setListError('목록을 불러오지 못했습니다.');
+      setListActiveNotes([]);
+      setListInactiveNotes([]);
+    } finally {
+      setListLoading(false);
+    }
+  };
+
+  const handleCloseListModal = () => {
+    setShowListModal(false);
+    setListError('');
   };
 
   // 다음 쪽지로 변경 (클릭 시)
@@ -634,30 +679,43 @@ const AnonymousNoteBubble: React.FC = () => {
 
   return (
     <>
-      {/* 말풍선 */}
-      <div 
-        className="anonymous-note-bubble"
-        onClick={handleBubbleClick}
-        onContextMenu={(e) => {
-          if (isAdmin) {
-            e.preventDefault();
-            handleAdminModalOpen();
-          }
-        }}
-        title={isAdmin ? "클릭: 쪽지 남기기 | 우클릭: 관리자 뷰" : "익명 쪽지 남기기"}
-      >
-        <div className="bubble-content">
-          {loading ? (
-            <span className="bubble-loading">...</span>
-          ) : (
-            <>
-              <span className="bubble-label">익명이 보낸 쪽지입니다</span>
-              <span className="bubble-text">{currentNote}</span>
-              <span className="bubble-hint">&lt;말풍선을 클릭하여 쪽지를 작성하세요&gt;</span>
-            </>
-          )}
+      <div className="anonymous-note-bubble-row">
+        {/* 말풍선 */}
+        <div
+          className="anonymous-note-bubble"
+          onClick={handleBubbleClick}
+          onContextMenu={(e) => {
+            if (isAdmin) {
+              e.preventDefault();
+              handleAdminModalOpen();
+            }
+          }}
+          title={isAdmin ? "클릭: 쪽지 남기기 | 우클릭: 관리자 뷰" : "익명 쪽지 남기기"}
+        >
+          <div className="bubble-content">
+            {loading ? (
+              <span className="bubble-loading">...</span>
+            ) : (
+              <>
+                <span className="bubble-label">익명이 보낸 쪽지입니다</span>
+                <span className="bubble-text">{currentNote}</span>
+                <span className="bubble-hint">&lt;말풍선을 클릭하여 쪽지를 작성하세요&gt;</span>
+              </>
+            )}
+          </div>
+          <div className="bubble-tail"></div>
         </div>
-        <div className="bubble-tail"></div>
+        <button
+          type="button"
+          className="anonymous-note-list-toggle"
+          onClick={handleOpenListModal}
+          onMouseDown={(e) => e.stopPropagation()}
+          title="활성·비활성 익명 쪽지 목록"
+          aria-expanded={showListModal}
+          aria-label="익명 쪽지 목록 보기"
+        >
+          <List size={20} strokeWidth={2.25} aria-hidden />
+        </button>
       </div>
 
       {/* 모달 - Portal로 body에 직접 렌더링 */}
@@ -730,6 +788,76 @@ const AnonymousNoteBubble: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* 익명 쪽지 목록 (일반 사용자) */}
+      {showListModal && typeof document !== 'undefined' && createPortal(
+        <div className="anonymous-note-modal-overlay" onClick={handleCloseListModal}>
+          <div className="anonymous-note-modal user-notes-list-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>익명 쪽지 목록</h3>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={handleCloseListModal}
+                aria-label="닫기"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="user-notes-list-body">
+              {listLoading ? (
+                <div className="admin-loading">불러오는 중...</div>
+              ) : listError ? (
+                <div className="error-message user-notes-list-error">{listError}</div>
+              ) : (
+                <>
+                  <section className="user-notes-section" aria-labelledby="user-notes-active-heading">
+                    <h4 id="user-notes-active-heading" className="user-notes-section-title">
+                      활성 쪽지
+                      <span className="user-notes-count">({listActiveNotes.length})</span>
+                    </h4>
+                    {listActiveNotes.length === 0 ? (
+                      <p className="user-notes-empty">현재 올라온 활성 쪽지가 없습니다.</p>
+                    ) : (
+                      <ul className="user-notes-ul">
+                        {listActiveNotes.map(note => (
+                          <li key={note.id} className="user-note-li user-note-li--active">
+                            <p className="user-note-text">{note.text}</p>
+                            <div className="user-note-footer">
+                              <span className="user-note-anon">익명</span>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </section>
+                  <section className="user-notes-section" aria-labelledby="user-notes-inactive-heading">
+                    <h4 id="user-notes-inactive-heading" className="user-notes-section-title">
+                      비활성 쪽지
+                      <span className="user-notes-count">({listInactiveNotes.length})</span>
+                    </h4>
+                    {listInactiveNotes.length === 0 ? (
+                      <p className="user-notes-empty">아직 비활성 쪽지가 없습니다.</p>
+                    ) : (
+                      <ul className="user-notes-ul">
+                        {listInactiveNotes.map(note => (
+                          <li key={note.id} className="user-note-li user-note-li--inactive">
+                            <p className="user-note-text">{note.text}</p>
+                            <div className="user-note-footer">
+                              <span className="user-note-anon">익명</span>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </section>
+                </>
+              )}
+            </div>
           </div>
         </div>,
         document.body

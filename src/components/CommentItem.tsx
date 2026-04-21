@@ -198,14 +198,23 @@ const CommentItem: React.FC<CommentItemProps> = ({
       // 좋아요 알림
       if (newIsLiked && user.uid !== comment.writerUid && postTitle && postType) {
         try {
+          const fromNick = user.nickname || '익명';
+          const message = NotificationService.buildCommentLikeMessage(
+            fromNick,
+            postTitle,
+            postType,
+            comment.content || ''
+          );
           await NotificationService.createNotification({
             type: 'like',
             toUid: comment.writerUid,
-            fromNickname: user.nickname || '익명',
+            fromUid: user.uid,
+            fromNickname: fromNick,
             postId,
             postTitle,
             postType: postType as any,
-            message: `내 댓글을 좋아합니다.`
+            commentId: comment.id,
+            message
           });
         } catch (err) {
           console.error('좋아요 알림 생성 실패:', err);
@@ -220,7 +229,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
     } finally {
       setIsLiking(false);
     }
-  }, [user, comment.id, comment.writerUid, isLiked, isLiking, postId, postTitle, postType]);
+  }, [user, comment.id, comment.writerUid, comment.content, isLiked, isLiking, postId, postTitle, postType]);
 
   const handleEdit = useCallback(async () => {
     if (!editContent.trim()) {

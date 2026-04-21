@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
   collection, 
@@ -82,6 +82,16 @@ interface ActivityStats {
   totalLikes: number;
   averageScore: number;
   lastEvaluationDate: string;
+}
+
+/** 활동 통계 모달: 내 댓글 + 원글 메타 */
+interface ProfileCommentEntry {
+  id: string;
+  postId: string;
+  postType: string;
+  postTitle: string;
+  contentPreview: string;
+  createdAt: any;
 }
 
 interface GuestbookMessage {
@@ -189,6 +199,8 @@ const MyPage: React.FC = () => {
   const [showAllSongs, setShowAllSongs] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [notificationUpdating, setNotificationUpdating] = useState(false);
+  const [statsModal, setStatsModal] = useState<'posts' | 'comments' | 'likes' | null>(null);
+  const [profileCommentsWithPosts, setProfileCommentsWithPosts] = useState<ProfileCommentEntry[]>([]);
 
   // Initialize user data
   useEffect(() => {
@@ -201,6 +213,10 @@ const MyPage: React.FC = () => {
     const loginUser = JSON.parse(userString) as User;
     setCurrentUser(loginUser);
     setNotificationsEnabled(loginUser.notificationsEnabled ?? true);
+    setEditingProfile(false);
+    setEditingGrade(false);
+    setEditingJoinDate(false);
+    setEditingIntro(false);
 
     async function fetchUserData(targetUid: string) {
       try {
@@ -316,8 +332,8 @@ const MyPage: React.FC = () => {
         getDocs(query(collection(db, 'posts'), where('writerNickname', '==', nickname))),
         getDocs(query(collection(db, 'comments'), where('writerNickname', '==', nickname)))
       ]);
-      
-      const totalLikes = postsSnapshot.docs.reduce((sum, doc) => sum + (doc.data().likesCount || 0), 0);
+
+      const totalLikes = postsSnapshot.docs.reduce((sum, d) => sum + (d.data().likesCount || 0), 0);
 
       setActivityStats({
         postsCount: postsSnapshot.size,
@@ -326,8 +342,50 @@ const MyPage: React.FC = () => {
         averageScore: 0,
         lastEvaluationDate: ''
       });
+
+      const rawComments = commentsSnapshot.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as Record<string, unknown>)
+      })) as Array<{ id: string; postId?: string; content?: string; createdAt?: { seconds?: number } }>;
+
+      const postIds = [...new Set(rawComments.map((c) => c.postId).filter(Boolean))] as string[];
+      const postMetas = await Promise.all(
+        postIds.map(async (pid) => {
+          const snap = await getDoc(doc(db, 'posts', pid));
+          if (!snap.exists()) return null;
+          const data = snap.data() as { title?: string; type?: string };
+          return { postId: pid, title: data.title || '제목 없음', type: data.type || 'free' };
+        })
+      );
+      const metaMap = new Map(
+        postMetas.filter((m): m is NonNullable<typeof m> => m !== null).map((m) => [m.postId, m])
+      );
+
+      const enriched: ProfileCommentEntry[] = rawComments
+        .filter(
+          (c) =>
+            c.postId &&
+            metaMap.has(c.postId) &&
+            c.content &&
+            c.content !== '[삭제된 댓글입니다.]'
+        )
+        .map((c) => {
+          const m = metaMap.get(c.postId!)!;
+          return {
+            id: c.id,
+            postId: c.postId!,
+            postType: m.type,
+            postTitle: m.title,
+            contentPreview: (c.content || '').trim().slice(0, 100),
+            createdAt: c.createdAt
+          };
+        })
+        .sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
+
+      setProfileCommentsWithPosts(enriched);
     } catch (error) {
       console.error('Error loading activity stats:', error);
+      setProfileCommentsWithPosts([]);
       setError('활동 통계를 불러오는 중 오류가 발생했습니다.');
     }
   }, []);
@@ -614,7 +672,8 @@ const MyPage: React.FC = () => {
           await NotificationService.createGuestbookNotification(
             user.uid,
             currentUser.uid,
-            currentUser.nickname
+            currentUser.nickname,
+            newGuestMessage.trim()
           );
         } catch (err) {
           console.error('방명록 알림 생성 실패:', err);
@@ -714,6 +773,28 @@ const MyPage: React.FC = () => {
       setNotificationUpdating(false);
     }
   }, [user, isOwner, notificationUpdating, notificationsEnabled]);
+
+  const postsWithLikesList = useMemo(
+    () =>
+      [...myPosts]
+        .filter((p) => (p.likesCount || 0) > 0)
+        .sort((a, b) => (b.likesCount || 0) - (a.likesCount || 0)),
+    [myPosts]
+  );
+
+  const navigateToPost = useCallback((post: Pick<Post, 'id' | 'type'>) => {
+    const t = post.type || 'free';
+    navigate(NotificationService.getRouteByPostType(t, post.id));
+  }, [navigate]);
+
+  const postTypeLabel = (type: string) => {
+    if (type === 'free') return '자유게시판';
+    if (type === 'recording') return '녹음게시판';
+    if (type === 'evaluation') return '평가게시판';
+    if (type === 'partner') return '파트너모집';
+    if (type === 'balance') return '밸런스';
+    return type || '게시판';
+  };
 
   const formatDate = (timestamp: any) => {
     if (!timestamp) return '';
@@ -1236,7 +1317,7 @@ const MyPage: React.FC = () => {
               }}>{user.role}</span>
             )}
           </div>
-          {editingProfile ? (
+          {isOwner && editingProfile ? (
             <div style={{ marginTop: 8 }}>
               <input
                 type="text"
@@ -1267,7 +1348,7 @@ const MyPage: React.FC = () => {
               color: 'rgba(255, 255, 255, 0.8)', 
               textAlign: 'center',
               textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-            }}>{user?.intro || '한 줄 소개를 입력해보세요!'}</div>
+            }}>{user?.intro || (isOwner ? '한 줄 소개를 입력해보세요!' : '등록된 소개가 없습니다.')}</div>
           )}
           <div style={{ marginTop: 12, textAlign: 'center' }}>
             <div style={{ color: 'rgba(255, 255, 255, 0.9)', fontWeight: 600, fontSize: 15 }}>
@@ -1339,7 +1420,7 @@ const MyPage: React.FC = () => {
             textAlign: 'center',
             textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
           }}>
-            가입일: {editingJoinDate ? (
+            가입일: {isOwner && editingJoinDate ? (
               <>
                 <input
                   type="date"
@@ -1422,7 +1503,18 @@ const MyPage: React.FC = () => {
             gap: '16px',
             marginBottom: '16px'
           }}>
-            <div style={{
+            <div
+              role="button"
+              tabIndex={0}
+              title="내가 쓴 글 목록 보기"
+              onClick={() => setStatsModal('posts')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setStatsModal('posts');
+                }
+              }}
+              style={{
               background: 'rgba(255, 255, 255, 0.1)',
               backdropFilter: 'blur(10px)',
               borderRadius: '16px',
@@ -1430,8 +1522,19 @@ const MyPage: React.FC = () => {
               border: '1px solid rgba(255, 255, 255, 0.2)',
               display: 'flex',
               alignItems: 'center',
-              gap: '12px'
-            }}>
+              gap: '12px',
+              cursor: 'pointer',
+              transition: 'transform 0.15s ease, box-shadow 0.15s ease'
+            }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
               <span style={{ fontSize: '24px' }}>📝</span>
               <div>
                 <div style={{ 
@@ -1447,7 +1550,18 @@ const MyPage: React.FC = () => {
                 }}>내가 쓴 글</div>
             </div>
           </div>
-            <div style={{
+            <div
+              role="button"
+              tabIndex={0}
+              title="내가 쓴 댓글이 달린 글 목록 보기"
+              onClick={() => setStatsModal('comments')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setStatsModal('comments');
+                }
+              }}
+              style={{
               background: 'rgba(255, 255, 255, 0.1)',
               backdropFilter: 'blur(10px)',
               borderRadius: '16px',
@@ -1455,8 +1569,19 @@ const MyPage: React.FC = () => {
               border: '1px solid rgba(255, 255, 255, 0.2)',
               display: 'flex',
               alignItems: 'center',
-              gap: '12px'
-            }}>
+              gap: '12px',
+              cursor: 'pointer',
+              transition: 'transform 0.15s ease, box-shadow 0.15s ease'
+            }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
               <span style={{ fontSize: '24px' }}>💬</span>
               <div>
                 <div style={{ 
@@ -1472,7 +1597,18 @@ const MyPage: React.FC = () => {
                 }}>내가 쓴 댓글</div>
             </div>
           </div>
-            <div style={{
+            <div
+              role="button"
+              tabIndex={0}
+              title="받은 좋아요가 있는 글 목록 보기"
+              onClick={() => setStatsModal('likes')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setStatsModal('likes');
+                }
+              }}
+              style={{
               background: 'rgba(255, 255, 255, 0.1)',
               backdropFilter: 'blur(10px)',
               borderRadius: '16px',
@@ -1480,8 +1616,19 @@ const MyPage: React.FC = () => {
               border: '1px solid rgba(255, 255, 255, 0.2)',
               display: 'flex',
               alignItems: 'center',
-              gap: '12px'
-            }}>
+              gap: '12px',
+              cursor: 'pointer',
+              transition: 'transform 0.15s ease, box-shadow 0.15s ease'
+            }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
               <span style={{ fontSize: '24px' }}>❤️</span>
               <div>
                 <div style={{ 
@@ -1545,7 +1692,18 @@ const MyPage: React.FC = () => {
           }}>📋 최근 활동</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {myPosts.slice(0, 5).map(post => (
-              <div key={post.id} style={{ 
+              <div
+                key={post.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => navigateToPost(post)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    navigateToPost(post);
+                  }
+                }}
+                style={{ 
                 display: 'flex', 
                 alignItems: 'center', 
                 gap: 12, 
@@ -1553,8 +1711,17 @@ const MyPage: React.FC = () => {
                 borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
                 background: 'rgba(255, 255, 255, 0.05)',
                 borderRadius: '12px',
-                marginBottom: '8px'
-              }}>
+                marginBottom: '8px',
+                cursor: 'pointer',
+                transition: 'background 0.15s ease'
+              }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                }}
+              >
                 <span style={{ 
                   color: 'rgba(255, 255, 255, 0.9)', 
                   fontWeight: 700,
@@ -1562,7 +1729,7 @@ const MyPage: React.FC = () => {
                   padding: '4px 8px',
                   borderRadius: '8px',
                   fontSize: '12px'
-                }}>[{post.type === 'free' ? '자유게시판' : post.type === 'recording' ? '녹음게시판' : post.type === 'evaluation' ? '평가게시판' : post.type === 'partner' ? '파트너모집' : post.type}]</span>
+                }}>[{postTypeLabel(post.type)}]</span>
                 <span style={{ 
                   fontWeight: 600, 
                   color: 'white',
@@ -1631,11 +1798,9 @@ const MyPage: React.FC = () => {
                     <span style={{ 
                       fontWeight: 700, 
                       color: 'white', 
-                      cursor: 'pointer', 
-                      textDecoration: 'underline',
                       flex: 1,
                       textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-                    }} onClick={() => navigate('/approved-songs')}>{song.title}</span>
+                    }}>{song.title}</span>
                     {/* 👥 파트너 닉네임 표시 부분 제거 */}
                     {/* <span style={{ 
                       color: 'rgba(255, 255, 255, 0.8)', 
@@ -2222,6 +2387,114 @@ const MyPage: React.FC = () => {
         )}
         </div>
       </div>
+
+      {statsModal && (
+        <div
+          className="mypage-stats-modal-overlay"
+          role="presentation"
+          onClick={() => setStatsModal(null)}
+        >
+          <div
+            className="mypage-stats-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="mypage-stats-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mypage-stats-modal-header">
+              <h2 id="mypage-stats-modal-title" className="mypage-stats-modal-title">
+                {statsModal === 'posts' && '내가 쓴 글'}
+                {statsModal === 'comments' && '내가 쓴 댓글이 달린 글'}
+                {statsModal === 'likes' && '받은 좋아요가 있는 글'}
+              </h2>
+              <button
+                type="button"
+                className="mypage-stats-modal-close"
+                onClick={() => setStatsModal(null)}
+                aria-label="닫기"
+              >
+                <X size={22} />
+              </button>
+            </div>
+            <div className="mypage-stats-modal-body">
+              {statsModal === 'posts' &&
+                (myPosts.length === 0 ? (
+                  <p className="mypage-stats-modal-empty">작성한 글이 없습니다.</p>
+                ) : (
+                  <ul className="mypage-stats-modal-list">
+                    {myPosts.map((post) => (
+                      <li key={post.id}>
+                        <button
+                          type="button"
+                          className="mypage-stats-modal-row"
+                          onClick={() => {
+                            navigateToPost(post);
+                            setStatsModal(null);
+                          }}
+                        >
+                          <span className="mypage-stats-modal-badge">{postTypeLabel(post.type)}</span>
+                          <span className="mypage-stats-modal-row-title">{post.title || '제목 없음'}</span>
+                          <span className="mypage-stats-modal-meta">{formatDate(post.createdAt)}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ))}
+
+              {statsModal === 'comments' &&
+                (profileCommentsWithPosts.length === 0 ? (
+                  <p className="mypage-stats-modal-empty">표시할 댓글이 없습니다.</p>
+                ) : (
+                  <ul className="mypage-stats-modal-list">
+                    {profileCommentsWithPosts.map((row) => (
+                      <li key={row.id}>
+                        <button
+                          type="button"
+                          className="mypage-stats-modal-row mypage-stats-modal-row-multiline"
+                          onClick={() => {
+                            navigate(NotificationService.getRouteByPostType(row.postType, row.postId));
+                            setStatsModal(null);
+                          }}
+                        >
+                          <div className="mypage-stats-modal-row-top">
+                            <span className="mypage-stats-modal-badge">{postTypeLabel(row.postType)}</span>
+                            <span className="mypage-stats-modal-row-title">{row.postTitle}</span>
+                            <span className="mypage-stats-modal-meta">{formatDate(row.createdAt)}</span>
+                          </div>
+                          <p className="mypage-stats-modal-preview">{row.contentPreview}</p>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ))}
+
+              {statsModal === 'likes' &&
+                (postsWithLikesList.length === 0 ? (
+                  <p className="mypage-stats-modal-empty">좋아요를 받은 게시글이 아직 없습니다.</p>
+                ) : (
+                  <ul className="mypage-stats-modal-list">
+                    {postsWithLikesList.map((post) => (
+                      <li key={post.id}>
+                        <button
+                          type="button"
+                          className="mypage-stats-modal-row"
+                          onClick={() => {
+                            navigateToPost(post);
+                            setStatsModal(null);
+                          }}
+                        >
+                          <span className="mypage-stats-modal-badge">{postTypeLabel(post.type)}</span>
+                          <span className="mypage-stats-modal-row-title">{post.title || '제목 없음'}</span>
+                          <span className="mypage-stats-modal-meta">❤️ {post.likesCount || 0}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

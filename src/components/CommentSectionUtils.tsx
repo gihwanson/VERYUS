@@ -243,7 +243,8 @@ export const submitComment = async (
         writerNickname,
         post.id,
         post.title,
-        postType
+        postType,
+        { commentPreview: content.trim(), isSecret }
       );
     } catch (err) {
       console.error('알림 생성 실패:', err);
@@ -296,7 +297,8 @@ export const submitReply = async (
           post.id,
           post.title,
           parentId,
-          postType
+          postType,
+          { replyPreview: content.trim(), isSecret }
         );
       } catch (err) {
         console.error('답글 알림 생성 실패:', err);

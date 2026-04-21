@@ -51,6 +51,17 @@
   100% { transform: rotate(360deg); }
 }
 
+/* 좌측 상단 — 멤버 검색 (우측 프로필·로그아웃과 겹치지 않도록 여백 확보) */
+.home-search-fixed-left {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 1000;
+  box-sizing: border-box;
+  /* 우측 고정 헤더(프로필 + 로그아웃) 영역 확보 */
+  width: min(280px, max(96px, calc(100vw - 210px)));
+}
+
 /* 우측 상단 고정 헤더 */
 .fixed-header {
   position: fixed;
@@ -106,12 +117,148 @@
   100% { transform: scale(1); }
 }
 
-/* 프로필 섹션 - 오늘의 운세 */
+/* 프로필 섹션 */
 .profile-section {
   position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+/* 홈 — 멤버 닉네임 검색 입력 줄 */
+.home-member-search-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  background: rgba(255, 255, 255, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 22px;
+  padding: 6px 8px 6px 14px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-sizing: border-box;
+}
+
+.home-member-search-icon {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.home-member-search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  outline: none;
+  font-family: inherit;
+}
+
+.home-member-search-input::placeholder {
+  color: rgba(255, 255, 255, 0.75);
+  font-weight: 500;
+}
+
+.home-member-search-submit {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 16px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.95);
+  color: #5b4fcf;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.home-member-search-submit:hover:not(:disabled) {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.home-member-search-submit:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.home-member-search-dropdown {
+  margin: 8px 0 0;
+  padding: 6px;
+  width: 100%;
+  box-sizing: border-box;
+  max-height: min(320px, 42vh);
+  overflow-y: auto;
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  z-index: 1201;
+}
+
+.home-member-search-suggest-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.home-member-search-suggest-status {
+  padding: 14px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  text-align: center;
+}
+
+.home-member-search-hit {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.home-member-search-hit:hover {
+  background: #f3f4f6;
+}
+
+.home-member-search-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.home-member-search-avatar-fallback {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.home-member-search-nick {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .profile-button {
@@ -136,28 +283,6 @@
   transform: translateY(-2px) scale(1.05);
   border-color: rgba(255, 255, 255, 0.5);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-}
-
-.profile-button::after {
-  content: '✨';
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  font-size: 14px;
-  opacity: 0;
-  transition: all 0.3s ease;
-  pointer-events: none;
-  animation: sparkleFloat 2s ease-in-out infinite;
-}
-
-.profile-button:hover::after {
-  opacity: 1;
-  transform: scale(1.3);
-}
-
-@keyframes sparkleFloat {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  50% { transform: translateY(-2px) rotate(180deg); }
 }
 
 .profile-info {
@@ -205,8 +330,6 @@
 .profile-chevron {
   display: none;
 }
-
-/* 드롭다운 관련 CSS 제거됨 - 오늘의 운세 기능으로 교체 */
 
 /* 메인 컨텐트 */
 .home-content {
@@ -562,10 +685,23 @@
 
 /* 모바일 반응형 */
 @media (max-width: 768px) {
+  .home-search-fixed-left {
+    top: 12px;
+    left: 12px;
+    width: min(260px, max(88px, calc(100vw - 170px)));
+  }
+
+  .home-member-search-input {
+    font-size: 13px;
+  }
+
   .fixed-header {
     top: 15px;
     right: 15px;
     padding: 6px 12px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: calc(100vw - 24px);
   }
 
   .notification-icon-button {
@@ -633,10 +769,31 @@
 }
 
 @media (max-width: 480px) {
+  .home-search-fixed-left {
+    top: 10px;
+    left: 10px;
+    width: min(220px, max(80px, calc(100vw - 130px)));
+  }
+
+  .home-member-search-inner {
+    min-height: 42px;
+    padding: 5px 6px 5px 10px;
+  }
+
+  .home-member-search-input {
+    font-size: 13px;
+  }
+
+  .home-member-search-submit {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
   .fixed-header {
     top: 10px;
     right: 10px;
     padding: 2px 4px;
+    gap: 8px;
   }
 
   .notification-icon-button {

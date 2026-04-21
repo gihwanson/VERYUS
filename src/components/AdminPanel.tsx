@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   collection, 
   getDocs, 
@@ -153,11 +153,24 @@ const NotificationStats: React.FC<{ stats: NotificationStatsType }> = ({ stats }
 
 const AdminPanel: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('users');
-  
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tabParam = params.get('tab');
+    if (tabParam === 'approvals' || tabParam === 'grades') {
+      setActiveTab('grades');
+    }
+    const navState = location.state as { openAdminTab?: string } | null;
+    if (navState?.openAdminTab === 'approvals') {
+      setActiveTab('grades');
+    }
+  }, [location.search, location.state]);
+
   // 검색 및 필터링
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState<string>('all');

@@ -695,29 +695,36 @@ function App() {
   
   useEffect(() => {
     // Firebase Auth 상태 변화 감지
+    // 주의: 홈화면(PWA) 등에서 initPushNotifications(getToken/SW 등록)이 지연·정지되면
+    // await로 UI를 막으면 무한 로딩·빈 화면처럼 보일 수 있어 푸시는 비동기로만 실행합니다.
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
-      
-      // localStorage에 로그인 상태 저장/제거
-      if (currentUser) {
-        try {
-          const previous = readVeryusUserFromStorage();
-          const userSnap = await getDoc(doc(db, 'users', currentUser.uid));
-          const userData = userSnap.exists() ? userSnap.data() : undefined;
-          const merged = mergeVeryusUserFromAuth(currentUser, userData, previous);
-          writeVeryusUserToStorage(merged);
-        } catch (error) {
-          console.error('사용자 정보 가져오기 실패:', error);
-          const merged = mergeVeryusUserFromAuth(currentUser, {}, readVeryusUserFromStorage());
-          writeVeryusUserToStorage(merged);
+
+      try {
+        if (currentUser) {
+          try {
+            const previous = readVeryusUserFromStorage();
+            const userSnap = await getDoc(doc(db, 'users', currentUser.uid));
+            const userData = userSnap.exists() ? userSnap.data() : undefined;
+            const merged = mergeVeryusUserFromAuth(currentUser, userData, previous);
+            writeVeryusUserToStorage(merged);
+          } catch (error) {
+            console.error('사용자 정보 가져오기 실패:', error);
+            const merged = mergeVeryusUserFromAuth(currentUser, {}, readVeryusUserFromStorage());
+            writeVeryusUserToStorage(merged);
+          }
+          void initPushNotifications(currentUser.uid).catch((err) =>
+            console.error('푸시 초기화(백그라운드) 실패:', err)
+          );
+        } else {
+          localStorage.removeItem('veryus_user');
+          void removeCurrentPushToken().catch((err) =>
+            console.error('푸시 토큰 정리(백그라운드) 실패:', err)
+          );
         }
-        await initPushNotifications(currentUser.uid);
-      } else {
-        await removeCurrentPushToken();
-        localStorage.removeItem('veryus_user');
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
     });
 
     return () => unsubscribe();

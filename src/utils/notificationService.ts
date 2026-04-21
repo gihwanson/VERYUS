@@ -27,6 +27,76 @@ export interface NotificationData {
 }
 
 export class NotificationService {
+  /** 푸시/알림 목록에 쓰는 게시판 짧은 이름 */
+  static boardLabel(postType?: string): string {
+    const labels: Record<string, string> = {
+      free: '자유',
+      recording: '녹음',
+      evaluation: '평가',
+      balance: '밸런스',
+      partner: '파트너'
+    };
+    return labels[postType || ''] || '게시판';
+  }
+
+  static clampText(text: string, maxChars: number): string {
+    const t = text.replace(/\s+/g, ' ').trim();
+    if (!t) return '';
+    if (t.length <= maxChars) return t;
+    return `${t.slice(0, Math.max(0, maxChars - 1))}…`;
+  }
+
+  /** 댓글 알림 본문 (비밀 댓글이면 내용 미포함) */
+  static buildCommentMessage(
+    fromNickname: string,
+    postTitle: string,
+    postType: string,
+    opts?: { commentPreview?: string; isSecret?: boolean }
+  ): string {
+    const board = this.boardLabel(postType);
+    const title = this.clampText(postTitle || '제목 없음', 40);
+    if (opts?.isSecret) {
+      return `[${board}]「${title}」에 ${fromNickname}님이 비밀 댓글을 남겼습니다.`;
+    }
+    if (opts?.commentPreview) {
+      const prev = this.clampText(opts.commentPreview, 72);
+      return `[${board}]「${title}」— ${fromNickname}님: ${prev}`;
+    }
+    return `[${board}]「${title}」에 ${fromNickname}님이 댓글을 남겼습니다.`;
+  }
+
+  /** 답글 알림 본문 */
+  static buildReplyMessage(
+    fromNickname: string,
+    postTitle: string,
+    postType: string,
+    opts?: { replyPreview?: string; isSecret?: boolean }
+  ): string {
+    const board = this.boardLabel(postType);
+    const title = this.clampText(postTitle || '제목 없음', 36);
+    if (opts?.isSecret) {
+      return `[${board}]「${title}」글의 내 댓글에 ${fromNickname}님이 비밀 답글을 남겼습니다.`;
+    }
+    if (opts?.replyPreview) {
+      const prev = this.clampText(opts.replyPreview, 64);
+      return `[${board}]「${title}」— ${fromNickname}님의 답글: ${prev}`;
+    }
+    return `[${board}]「${title}」글의 내 댓글에 ${fromNickname}님이 답글을 남겼습니다.`;
+  }
+
+  /** 댓글 좋아요 알림 본문 */
+  static buildCommentLikeMessage(
+    fromNickname: string,
+    postTitle: string,
+    postType: string,
+    commentPreview: string
+  ): string {
+    const board = this.boardLabel(postType);
+    const title = this.clampText(postTitle || '제목 없음', 32);
+    const prev = this.clampText(commentPreview, 36);
+    return `[${board}]「${title}」의 댓글「${prev}」에 ${fromNickname}님이 좋아요를 눌렀습니다.`;
+  }
+
   // 게시판 타입별 라우팅
   static getRouteByPostType(postType: string, postId: string): string {
     const routes: Record<string, string> = {
@@ -140,8 +210,10 @@ export class NotificationService {
     fromNickname: string,
     postId: string,
     postTitle: string,
-    postType: string = 'free'
+    postType: string = 'free',
+    opts?: { commentPreview?: string; isSecret?: boolean }
   ) {
+    const message = this.buildCommentMessage(fromNickname, postTitle, postType, opts);
     return this.createNotification({
       type: 'comment',
       toUid,
@@ -149,7 +221,8 @@ export class NotificationService {
       fromNickname,
       postId,
       postTitle,
-      postType: postType as any
+      postType: postType as any,
+      message
     });
   }
 
@@ -160,8 +233,10 @@ export class NotificationService {
     postId: string,
     postTitle: string,
     commentId: string,
-    postType: string = 'free'
+    postType: string = 'free',
+    opts?: { replyPreview?: string; isSecret?: boolean }
   ) {
+    const message = this.buildReplyMessage(fromNickname, postTitle, postType, opts);
     return this.createNotification({
       type: 'reply',
       toUid,
@@ -170,7 +245,8 @@ export class NotificationService {
       postId,
       postTitle,
       commentId,
-      postType: postType as any
+      postType: postType as any,
+      message
     });
   }
 
@@ -181,8 +257,13 @@ export class NotificationService {
     postId: string,
     postTitle: string,
     postType: string = 'free',
-    commentId?: string
+    commentId?: string,
+    commentPreview?: string
   ) {
+    const message =
+      commentId && commentPreview?.trim()
+        ? this.buildCommentLikeMessage(fromNickname, postTitle, postType, commentPreview)
+        : `[${this.boardLabel(postType)}]「${this.clampText(postTitle || '', 36)}」에 ${fromNickname}님이 좋아요를 눌렀습니다.`;
     return this.createNotification({
       type: 'like',
       toUid,
@@ -192,16 +273,25 @@ export class NotificationService {
       postTitle,
       postType: postType as any,
       commentId,
-      message: '내 댓글을 좋아합니다.'
+      message
     });
   }
 
-  static async createGuestbookNotification(toUid: string, fromUid: string, fromNickname: string) {
+  static async createGuestbookNotification(
+    toUid: string,
+    fromUid: string,
+    fromNickname: string,
+    messagePreview?: string
+  ) {
+    const message = messagePreview?.trim()
+      ? `${fromNickname}님의 방명록: ${this.clampText(messagePreview.trim(), 100)}`
+      : `${fromNickname}님이 방명록에 메시지를 남겼습니다.`;
     return this.createNotification({
       type: 'guestbook',
       toUid,
       fromUid,
-      fromNickname
+      fromNickname,
+      message
     });
   }
 
@@ -236,6 +326,8 @@ export class NotificationService {
     fromNickname: string,
     fromUid: string
   ) {
+    const t = this.clampText(postTitle, 36);
+    const message = `${fromNickname}님이 파트너 모집「${t}」를 마감했습니다.`;
     return this.createNotification({
       type: 'partnership_closed',
       toUid,
@@ -243,7 +335,8 @@ export class NotificationService {
       fromNickname,
       postId,
       postTitle,
-      postType: 'partner'
+      postType: 'partner',
+      message
     });
   }
 
@@ -254,6 +347,8 @@ export class NotificationService {
     fromNickname: string,
     fromUid: string
   ) {
+    const t = this.clampText(postTitle, 36);
+    const message = `「${t}」모집에서 ${fromNickname}님이 회원님을 파트너로 확정했습니다.`;
     return this.createNotification({
       type: 'partnership_confirmed',
       toUid,
@@ -261,7 +356,8 @@ export class NotificationService {
       fromNickname,
       postId,
       postTitle,
-      postType: 'partner'
+      postType: 'partner',
+      message
     });
   }
 

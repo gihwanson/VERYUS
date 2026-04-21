@@ -367,15 +367,17 @@ const PartnerPostDetail: React.FC = () => {
         
         // 지원 시 게시글 작성자에게 알림 보내기
         try {
+          const applicant = user.nickname || '익명';
+          const shortTitle = NotificationService.clampText(post.title, 34);
           await NotificationService.createNotification({
             type: 'partnership',
             toUid: post.writerUid,
             fromUid: user.uid,
-            fromNickname: user.nickname || '익명',
+            fromNickname: applicant,
             postId: post.id,
             postTitle: post.title,
             postType: 'partner',
-            message: '파트너 신청이 있습니다.'
+            message: `파트너 모집「${shortTitle}」에 ${applicant}님이 지원했습니다.`
           });
         } catch (notificationError) {
           console.error('지원 알림 생성 실패:', notificationError);

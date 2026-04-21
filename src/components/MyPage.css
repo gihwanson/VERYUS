@@ -893,3 +893,163 @@ body {
   text-align: left;
   max-width: 420px;
 }
+
+/* 활동 통계 — 글/댓글/좋아요 목록 모달 */
+.mypage-stats-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+
+.mypage-stats-modal {
+  width: 100%;
+  max-width: 480px;
+  max-height: min(80vh, 640px);
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mypage-stats-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.mypage-stats-modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.mypage-stats-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 10px;
+  background: #f3f4f6;
+  color: #374151;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.mypage-stats-modal-close:hover {
+  background: #e5e7eb;
+}
+
+.mypage-stats-modal-body {
+  overflow-y: auto;
+  padding: 8px 0 16px;
+  flex: 1;
+  min-height: 0;
+}
+
+.mypage-stats-modal-empty {
+  margin: 0;
+  padding: 28px 20px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 15px;
+}
+
+.mypage-stats-modal-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mypage-stats-modal-list li {
+  margin: 0;
+  padding: 0;
+}
+
+.mypage-stats-modal-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  transition: background 0.12s ease;
+}
+
+.mypage-stats-modal-row:hover {
+  background: #f9fafb;
+}
+
+.mypage-stats-modal-row-multiline {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.mypage-stats-modal-row-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.mypage-stats-modal-badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: #6b21a8;
+  background: #f3e8ff;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.mypage-stats-modal-row-title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  color: #111827;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mypage-stats-modal-row-multiline .mypage-stats-modal-row-title {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.mypage-stats-modal-meta {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.mypage-stats-modal-preview {
+  margin: 0;
+  padding-left: 2px;
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.45;
+  text-align: left;
+}

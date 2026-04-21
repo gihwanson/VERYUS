@@ -1,9 +1,46 @@
+/* 말풍선 + 목록 버튼 */
+.anonymous-note-bubble-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 12px;
+  vertical-align: middle;
+}
+
+.anonymous-note-list-toggle {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  color: #5b4fcf;
+  cursor: pointer;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  z-index: 10;
+}
+
+.anonymous-note-list-toggle:hover {
+  background: #ffffff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.32);
+  transform: translateY(-1px);
+}
+
+.anonymous-note-list-toggle:active {
+  transform: translateY(0);
+}
+
 /* 익명 쪽지 말풍선 스타일 */
 .anonymous-note-bubble {
   position: relative;
   display: inline-flex;
   align-items: center;
-  margin-left: 12px;
+  margin-left: 0;
   cursor: pointer;
   transition: all 0.3s ease;
   z-index: 10;
@@ -359,11 +396,111 @@
 }
 
 /* 관리자 모달 스타일 */
-.admin-modal {
+.admin-modal,
+.user-notes-list-modal {
   max-width: 600px;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
+}
+
+.user-notes-list-body {
+  padding: 0 0 20px;
+  overflow-y: auto;
+  flex: 1;
+  max-height: calc(80vh - 76px);
+}
+
+.user-notes-list-error {
+  margin: 20px 24px 0;
+}
+
+.user-notes-section {
+  padding: 16px 24px 0;
+}
+
+.user-notes-section + .user-notes-section {
+  border-top: 1px solid #e5e7eb;
+  margin-top: 8px;
+  padding-top: 20px;
+}
+
+.user-notes-section-title {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #374151;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.user-notes-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: #8A55CC;
+}
+
+.user-notes-empty {
+  margin: 0;
+  padding: 8px 0 4px;
+  font-size: 14px;
+  color: #9ca3af;
+}
+
+.user-notes-ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.user-note-li {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #fafafa;
+}
+
+.user-note-li--active {
+  background: #f5f3ff;
+  border-color: #ddd6fe;
+}
+
+.user-note-li--inactive {
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+  opacity: 0.92;
+}
+
+.user-note-text {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2937;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.user-note-li--inactive .user-note-text {
+  color: #4b5563;
+  font-weight: 500;
+}
+
+.user-note-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.user-note-anon {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #9ca3af;
+  text-transform: uppercase;
 }
 
 /* 관리자 뷰 탭 */
@@ -538,8 +675,19 @@
 
 /* 모바일 반응형 */
 @media (max-width: 768px) {
-  .anonymous-note-bubble {
+  .anonymous-note-bubble-row {
     margin-left: 8px;
+    gap: 6px;
+  }
+
+  .anonymous-note-list-toggle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+  }
+
+  .anonymous-note-bubble {
+    margin-left: 0;
   }
 
   .bubble-content {
@@ -633,9 +781,14 @@
     padding: 16px;
   }
 
-  .admin-modal {
+  .admin-modal,
+  .user-notes-list-modal {
     max-width: 95%;
     max-height: 85vh;
+  }
+
+  .user-notes-list-body {
+    max-height: calc(85vh - 70px);
   }
 
   .admin-notes-list {
