@@ -22,6 +22,12 @@ export interface AdminUser {
   weeklyActivityScore?: number;
   monthlyActivityScore?: number;
   evaluationBuskingWeeklyLimit?: number;
+  /** 설정에서 요청한 등급(승인 전). 없으면 승인 대기 없음 */
+  pendingGrade?: string;
+  pendingGradeRequestedAt?: Timestamp | Date;
+  /** 설정에서 요청한 가입일(승인 전). 없으면 승인 대기 없음 */
+  pendingCreatedAt?: Timestamp | Date;
+  pendingCreatedAtRequestedAt?: Timestamp | Date;
 }
 
 export interface UserStats {
@@ -145,12 +151,25 @@ export const ROLE_OPTIONS = [
   ROLE_SYSTEM.LEADER
 ] as const;
 
-// 관리자 권한 체크 함수
-export const checkAdminAccess = (user: any): boolean => {
+/** 관리자 패널·운영 권한: 리더/운영진 + 아래 닉네임 (코드 한 곳에서만 수정) */
+export const SUPER_ADMIN_NICKNAMES: readonly string[] = ['너래'];
+
+export type AdminAccessUser = {
+  nickname?: string;
+  role?: string;
+} | null | undefined;
+
+/** 관리자 패널·데이터 운영에 해당하는 계정 */
+export const checkAdminAccess = (user: AdminAccessUser): boolean => {
   if (!user) return false;
-  return user.nickname === '너래' || 
-         user.role === ROLE_SYSTEM.LEADER || 
-         user.role === ROLE_SYSTEM.ADMIN;
+  if (user.nickname && SUPER_ADMIN_NICKNAMES.includes(user.nickname)) return true;
+  return user.role === ROLE_SYSTEM.LEADER || user.role === ROLE_SYSTEM.ADMIN;
+};
+
+/** 익명 쪽지 관리 등 일부 기능은 지정 닉네임만 허용 */
+export const canManageAnonymousNotes = (user: AdminAccessUser): boolean => {
+  if (!user?.nickname) return false;
+  return SUPER_ADMIN_NICKNAMES.includes(user.nickname);
 };
 
 // 타입 가드 함수들

@@ -1,0 +1,562 @@
+/* 활동 현황 — 관리자 패널과 톤 맞춤 */
+.uab-root {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 22px;
+  border: 1px solid rgba(127, 95, 255, 0.12);
+  box-shadow: 0 8px 32px rgba(127, 95, 255, 0.1), 0 1.5px 8px rgba(93, 242, 245, 0.06);
+  padding: 24px;
+  overflow: hidden;
+}
+
+.uab-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.uab-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  background: linear-gradient(90deg, #6d4ce6 0%, #7f5fff 50%, #2a9eb8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.uab-desc {
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+  color: #64748b;
+  line-height: 1.5;
+  max-width: 520px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.uab-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.uab-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid rgba(127, 95, 255, 0.1);
+  box-shadow: 0 2px 12px rgba(127, 95, 255, 0.06);
+}
+
+.uab-stat-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #eef2ff 0%, #e0f7fa 100%);
+  color: #6d4ce6;
+  flex-shrink: 0;
+}
+
+.uab-stat-body {
+  min-width: 0;
+}
+
+.uab-stat-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+  margin-bottom: 2px;
+}
+
+.uab-stat-value {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #1e293b;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.uab-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(127, 95, 255, 0.12);
+}
+
+.uab-toolbar-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748b;
+  margin-right: 4px;
+}
+
+.uab-sort-pill {
+  border: 1px solid rgba(127, 95, 255, 0.25);
+  background: #fff;
+  color: #5b4ab8;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, border-color 0.18s, box-shadow 0.18s;
+}
+
+.uab-sort-pill:hover {
+  background: #eef2ff;
+  border-color: rgba(127, 95, 255, 0.4);
+}
+
+.uab-sort-pill.active {
+  background: linear-gradient(90deg, #7f5fff 0%, #5df2f5 100%);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 4px 14px rgba(127, 95, 255, 0.25);
+}
+
+.uab-order-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  border: 1px solid rgba(127, 95, 255, 0.25);
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s;
+}
+
+.uab-order-btn:hover {
+  background: #eef2ff;
+  border-color: rgba(127, 95, 255, 0.35);
+}
+
+.uab-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(127, 95, 255, 0.25);
+  background: #fff;
+  color: #6d4ce6;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.18s, transform 0.15s;
+}
+
+.uab-refresh:hover {
+  background: #eef2ff;
+}
+
+.uab-refresh:active {
+  transform: scale(0.98);
+}
+
+.uab-table-shell {
+  border: 1px solid rgba(127, 95, 255, 0.12);
+  border-radius: 16px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.uab-table-head {
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border-bottom: 1px solid rgba(127, 95, 255, 0.12);
+}
+
+.uab-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.uab-table thead th {
+  padding: 14px 12px;
+  text-align: left;
+  font-weight: 700;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.uab-table thead th.uab-num {
+  text-align: center;
+}
+
+.uab-table-scroll {
+  max-height: min(62vh, 560px);
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(127, 95, 255, 0.35) transparent;
+}
+
+.uab-table-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.uab-table-scroll::-webkit-scrollbar-thumb {
+  background: rgba(127, 95, 255, 0.35);
+  border-radius: 999px;
+}
+
+.uab-table tbody tr {
+  border-bottom: 1px solid #f1f5f9;
+  transition: background 0.15s;
+}
+
+.uab-table tbody tr:hover {
+  background: rgba(238, 242, 255, 0.55);
+}
+
+.uab-table tbody tr:nth-child(even) {
+  background: rgba(248, 250, 252, 0.6);
+}
+
+.uab-table tbody tr:nth-child(even):hover {
+  background: rgba(238, 242, 255, 0.65);
+}
+
+.uab-table tbody td {
+  padding: 12px;
+  vertical-align: middle;
+  color: #334155;
+}
+
+.uab-table tbody td.uab-td-center {
+  text-align: center;
+}
+
+.uab-table tbody td.uab-score {
+  text-align: center;
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: #6d4ce6;
+  font-variant-numeric: tabular-nums;
+}
+
+.uab-rank {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.uab-rank--gold {
+  background: linear-gradient(145deg, #fcd34d, #f59e0b);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.35);
+}
+
+.uab-rank--silver {
+  background: linear-gradient(145deg, #e2e8f0, #94a3b8);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(148, 163, 184, 0.35);
+}
+
+.uab-rank--bronze {
+  background: linear-gradient(145deg, #fdba74, #ea580c);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(234, 88, 12, 0.3);
+}
+
+.uab-rank--muted {
+  background: #e2e8f0;
+  color: #64748b;
+}
+
+.uab-nick-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.uab-grade-emoji {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.uab-role-pill {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.uab-role-pill--leader {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.uab-role-pill--admin {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.uab-role-pill--sub {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.uab-role-pill--member {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.uab-num-mono {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #475569;
+}
+
+.uab-mobile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.uab-mobile-card {
+  background: #fff;
+  border: 1px solid rgba(127, 95, 255, 0.12);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 4px 16px rgba(127, 95, 255, 0.06);
+}
+
+.uab-mobile-card--top {
+  box-shadow: 0 8px 28px rgba(127, 95, 255, 0.12);
+  border-color: rgba(127, 95, 255, 0.2);
+}
+
+.uab-mobile-row1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.uab-mobile-row2 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  margin-top: 12px;
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+.uab-mobile-score {
+  margin-left: auto;
+  font-weight: 800;
+  color: #6d4ce6;
+  font-variant-numeric: tabular-nums;
+}
+
+.uab-loading,
+.uab-error,
+.uab-empty {
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 32px 16px;
+}
+
+.uab-loading-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #7f5fff;
+  border-radius: 50%;
+  animation: uab-spin 0.85s linear infinite;
+  margin-bottom: 12px;
+}
+
+@keyframes uab-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.uab-loading-text {
+  font-weight: 600;
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+.uab-error-icon {
+  font-size: 2.5rem;
+  margin-bottom: 8px;
+}
+
+.uab-error-msg {
+  color: #64748b;
+  margin: 0 0 16px;
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+.uab-retry-btn {
+  background: linear-gradient(90deg, #7f5fff 0%, #6d4ce6 100%);
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 999px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(127, 95, 255, 0.3);
+}
+
+.uab-retry-btn:hover {
+  filter: brightness(1.05);
+}
+
+.uab-empty {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .uab-root {
+    padding: 18px 16px;
+    border-radius: 18px;
+  }
+
+  .uab-title {
+    font-size: 1.25rem;
+  }
+
+  .uab-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .uab-order-btn {
+    margin-left: 0;
+    justify-content: center;
+  }
+
+  .uab-stat-card {
+    padding: 12px 14px;
+  }
+
+  .uab-stat-value {
+    font-size: 1.2rem;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .uab-root {
+    background: rgba(30, 34, 54, 0.92);
+    border-color: rgba(167, 139, 250, 0.2);
+  }
+
+  .uab-desc {
+    color: #94a3b8;
+  }
+
+  .uab-stat-card {
+    background: rgba(35, 41, 70, 0.95);
+    border-color: rgba(167, 139, 250, 0.15);
+  }
+
+  .uab-stat-value {
+    color: #f1f5f9;
+  }
+
+  .uab-sort-pill {
+    background: rgba(35, 41, 70, 0.9);
+    color: #c4b5fd;
+    border-color: rgba(167, 139, 250, 0.25);
+  }
+
+  .uab-sort-pill:hover {
+    background: rgba(55, 62, 100, 0.95);
+  }
+
+  .uab-order-btn {
+    background: rgba(35, 41, 70, 0.8);
+    color: #cbd5e1;
+    border-color: rgba(167, 139, 250, 0.2);
+  }
+
+  .uab-refresh {
+    background: rgba(35, 41, 70, 0.9);
+    color: #c4b5fd;
+  }
+
+  .uab-table-shell {
+    background: rgba(26, 31, 46, 0.95);
+    border-color: rgba(167, 139, 250, 0.15);
+  }
+
+  .uab-table-head {
+    background: linear-gradient(180deg, #1e2438 0%, #252b45 100%);
+  }
+
+  .uab-table thead th {
+    color: #94a3b8;
+  }
+
+  .uab-table tbody tr {
+    border-bottom-color: rgba(51, 65, 85, 0.5);
+  }
+
+  .uab-table tbody tr:hover {
+    background: rgba(55, 62, 100, 0.35);
+  }
+
+  .uab-table tbody tr:nth-child(even) {
+    background: rgba(30, 36, 54, 0.5);
+  }
+
+  .uab-table tbody td {
+    color: #e2e8f0;
+  }
+
+  .uab-nick-cell {
+    color: #f8fafc;
+  }
+
+  .uab-mobile-card {
+    background: rgba(35, 41, 70, 0.95);
+    border-color: rgba(167, 139, 250, 0.18);
+  }
+
+  .uab-loading-text {
+    color: #94a3b8;
+  }
+
+  .uab-empty {
+    color: #64748b;
+  }
+}

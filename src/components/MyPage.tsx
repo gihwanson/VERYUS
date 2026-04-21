@@ -53,6 +53,10 @@ interface User {
   nickname: string;
   role: string;
   grade: string;
+  pendingGrade?: string;
+  pendingGradeRequestedAt?: unknown;
+  pendingCreatedAt?: any;
+  pendingCreatedAtRequestedAt?: unknown;
   profileImageUrl?: string;
   intro?: string;
   notificationsEnabled?: boolean;
@@ -261,8 +265,6 @@ const MyPage: React.FC = () => {
   >('guestbook');
   const [editingProfile, setEditingProfile] = useState(false);
   const [editingIntro, setEditingIntro] = useState(false);
-  const [editingGrade, setEditingGrade] = useState(false);
-  const [selectedGrade, setSelectedGrade] = useState('');
   const [isOwner, setIsOwner] = useState(false);
   
   // 편집 상태
@@ -317,7 +319,6 @@ const MyPage: React.FC = () => {
     setCurrentUser(loginUser);
     setNotificationsEnabled(loginUser.notificationsEnabled ?? true);
     setEditingProfile(false);
-    setEditingGrade(false);
     setEditingJoinDate(false);
     setEditingIntro(false);
 
@@ -329,7 +330,6 @@ const MyPage: React.FC = () => {
           setUser({ ...userData, uid: targetUid });
           setEditNickname(userData.nickname || '');
           setEditIntro(userData.intro || '');
-          setSelectedGrade(userData.grade || GRADE_SYSTEM.CHERRY);
           setNotificationsEnabled(userData.notificationsEnabled ?? true);
           // 본인 여부 판별
           let isMe = loginUser.uid === targetUid;
@@ -358,7 +358,6 @@ const MyPage: React.FC = () => {
         setUser(loginUser);
         setEditNickname(loginUser.nickname || '');
         setEditIntro(loginUser.intro || '');
-        setSelectedGrade(loginUser.grade || GRADE_SYSTEM.CHERRY);
         setNotificationsEnabled(loginUser.notificationsEnabled ?? true);
         setIsOwner(true);
         // Firestore에서 내 정보가 있으면 덮어씌우고, 없으면 fallback
@@ -402,7 +401,6 @@ const MyPage: React.FC = () => {
       setUser(userData);
       setEditNickname(userData.nickname || '');
       setEditIntro(userData.intro || '');
-      setSelectedGrade(userData.grade || GRADE_SYSTEM.CHERRY);
       if (isOwner) {
         localStorage.setItem('veryus_user', JSON.stringify(userData));
       }
@@ -711,24 +709,6 @@ const MyPage: React.FC = () => {
     }
   };
 
-  const syncUserGradeInAllDocuments = useCallback(async (targetUid: string, newGrade: string) => {
-    const batch = writeBatch(db);
-
-    const postsQuery = query(collection(db, 'posts'), where('writerUid', '==', targetUid));
-    const postsSnapshot = await getDocs(postsQuery);
-    postsSnapshot.forEach((snapshotDoc) => {
-      batch.update(snapshotDoc.ref, { writerGrade: newGrade });
-    });
-
-    const commentsQuery = query(collection(db, 'comments'), where('writerUid', '==', targetUid));
-    const commentsSnapshot = await getDocs(commentsQuery);
-    commentsSnapshot.forEach((snapshotDoc) => {
-      batch.update(snapshotDoc.ref, { writerGrade: newGrade });
-    });
-
-    await batch.commit();
-  }, []);
-
   const handleSaveIntro = useCallback(async () => {
     if (!user) return;
 
@@ -853,31 +833,6 @@ const MyPage: React.FC = () => {
     [user, currentUser, isOwner, guestMessages]
   );
 
-  const handleGradeChange = useCallback(async (newGrade: string) => {
-    if (!user || !isOwner) return;
-
-    try {
-      await updateDoc(doc(db, 'users', user.uid), {
-        grade: newGrade
-      });
-      await syncUserGradeInAllDocuments(user.uid, newGrade);
-
-      const updatedUser = { ...user, grade: newGrade };
-      setUser(updatedUser);
-      setCurrentUser((prev) => (prev ? { ...prev, grade: newGrade } : prev));
-      setSelectedGrade(newGrade);
-
-      const localUser = localStorage.getItem('veryus_user');
-      if (localUser) {
-        const parsed = JSON.parse(localUser);
-        localStorage.setItem('veryus_user', JSON.stringify({ ...parsed, grade: newGrade }));
-      }
-    } catch (error) {
-      console.error('Error changing grade:', error);
-      setError('등급 변경 중 오류가 발생했습니다.');
-    }
-  }, [user, isOwner, syncUserGradeInAllDocuments]);
-
   const handleNotificationToggle = useCallback(async () => {
     if (!user || !isOwner || notificationUpdating) return;
 
@@ -978,6 +933,13 @@ const MyPage: React.FC = () => {
     if (!timestamp) return '';
     const date = timestamp.seconds ? new Date(timestamp.seconds * 1000) : new Date(timestamp);
     return date.toLocaleDateString('ko-KR');
+  };
+
+  const getCreatedDate = (timestamp: any): Date | null => {
+    if (!timestamp) return null;
+    if (timestamp?.seconds) return new Date(timestamp.seconds * 1000);
+    const d = new Date(timestamp);
+    return Number.isNaN(d.getTime()) ? null : d;
   };
 
   type MypageTabId = 'stats' | 'posts' | 'evaluations' | 'recordings' | 'approved' | 'guestbook';
@@ -1573,9 +1535,35 @@ const MyPage: React.FC = () => {
           <div style={{ marginTop: 12, color: 'rgba(255, 255, 255, 0.9)', fontWeight: 600, fontSize: 15 }}>
             등급: {getGradeEmoji(user?.grade || GRADE_SYSTEM.CHERRY)} {getGradeName(user?.grade || GRADE_SYSTEM.CHERRY)}
           </div>
+          {user?.pendingGrade && user.pendingGrade !== user.grade && (
+            <div
+              style={{
+                marginTop: 8,
+                fontSize: 13,
+                fontWeight: 600,
+                color: 'rgba(255, 255, 255, 0.95)',
+                background: 'rgba(127, 95, 255, 0.25)',
+                border: '1px solid rgba(255,255,255,0.35)',
+                borderRadius: 10,
+                padding: '8px 12px',
+                maxWidth: 360,
+                textAlign: 'center'
+              }}
+            >
+              승인 대기: {getGradeEmoji(user.pendingGrade)} {getGradeName(user.pendingGrade)} — 설정에서 요청한 등급입니다.
+            </div>
+          )}
           <div style={{ marginTop: 8, fontSize: 14, color: 'rgba(255, 255, 255, 0.75)' }}>
-            가입일: {user?.createdAt && (new Date(user.createdAt.seconds * 1000)).toLocaleDateString('ko-KR')}
+            가입일: {getCreatedDate(user?.createdAt)?.toLocaleDateString('ko-KR') || '-'}
           </div>
+          <div style={{ marginTop: 4, fontSize: 14, color: 'rgba(255, 255, 255, 0.75)' }}>
+            활동기간: {Math.max(0, Math.floor(((Date.now()) - (getCreatedDate(user?.createdAt)?.getTime() || Date.now())) / (1000 * 60 * 60 * 24)))}일
+          </div>
+          {isOwner && user?.pendingCreatedAt && (
+            <div style={{ marginTop: 6, fontSize: 12, color: 'rgba(255,255,255,0.9)' }}>
+              가입일 변경 승인 대기: {getCreatedDate(user.pendingCreatedAt)?.toLocaleDateString('ko-KR')}
+            </div>
+          )}
           {isOwner && (
             <button
               onClick={() => navigate('/settings')}

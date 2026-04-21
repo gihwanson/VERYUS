@@ -20,7 +20,9 @@ interface Notification {
     | 'partnership'
     | 'partnership_closed'
     | 'partnership_confirmed'
-    | 'grade_request_pending';
+    | 'grade_request_pending'
+    | 'grade_change_approved'
+    | 'grade_change_rejected';
   postId?: string;
   postTitle?: string;
   postType?: string;
@@ -51,6 +53,10 @@ const Notifications: React.FC = () => {
 
     if (notification.type === 'grade_request_pending') {
       return '/admin';
+    }
+
+    if (notification.type === 'grade_change_approved' || notification.type === 'grade_change_rejected') {
+      return '/settings';
     }
 
     if (
@@ -162,6 +168,10 @@ const Notifications: React.FC = () => {
         return <CheckCircle size={18} className="text-blue-500" style={{ color: '#3B82F6' }} />;
       case 'grade_request_pending':
         return <Shield size={18} className="text-violet-600" style={{ color: '#7f5fff' }} />;
+      case 'grade_change_approved':
+        return <CheckCircle size={18} style={{ color: '#10b981' }} />;
+      case 'grade_change_rejected':
+        return <XCircle size={18} style={{ color: '#f97316' }} />;
       default:
         return <Bell size={18} className="text-gray-500" style={{ color: '#8A55CC' }} />;
     }

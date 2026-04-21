@@ -4,12 +4,7 @@ import { collection, getDocs, query, where, orderBy, addDoc, serverTimestamp, li
 import { List } from 'lucide-react';
 import { db } from '../firebase';
 import './AnonymousNoteBubble.css';
-
-// 관리자 권한 체크 함수 (너래만 접근 가능)
-const checkAdminAccess = (user: any): boolean => {
-  if (!user) return false;
-  return user.nickname === '너래';
-};
+import { canManageAnonymousNotes } from './AdminTypes';
 
 // 욕설 필터링 기본 금칙어 배열
 const PROFANITY_FILTER = [
@@ -193,7 +188,7 @@ const AnonymousNoteBubble: React.FC = () => {
       try {
         const userData = JSON.parse(userString);
         setUser(userData);
-        setIsAdmin(checkAdminAccess(userData));
+        setIsAdmin(canManageAnonymousNotes(userData));
       } catch (err) {
         console.error('사용자 정보 파싱 실패:', err);
       }

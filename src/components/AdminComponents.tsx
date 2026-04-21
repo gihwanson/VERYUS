@@ -8,7 +8,7 @@ import { Timestamp } from 'firebase/firestore';
 // 로딩 컴포넌트
 export const LoadingSpinner: React.FC = () => (
   <div className="loading-container">
-    <div className="loading-spinner">
+    <div className="loading-spinner" aria-busy="true" aria-live="polite">
       <div className="orbital-loading">
         <div className="loading-sun">☀️</div>
         <div className="loading-planet loading-planet-1">🍎</div>
@@ -19,8 +19,8 @@ export const LoadingSpinner: React.FC = () => (
         <div className="loading-planet loading-planet-6">🍒</div>
       </div>
     </div>
-    <h2>관리자 패널 로딩 중...</h2>
-    <p>사용자 데이터를 불러오고 있습니다.</p>
+    <h2>불러오는 중</h2>
+    <p>회원 목록과 설정을 준비하고 있어요.</p>
   </div>
 );
 

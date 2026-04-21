@@ -15,7 +15,9 @@ export interface NotificationData {
     | 'partnership'
     | 'partnership_closed'
     | 'partnership_confirmed'
-    | 'grade_request_pending';
+    | 'grade_request_pending'
+    | 'grade_change_approved'
+    | 'grade_change_rejected';
   toUid: string;
   /** 알림을 보낸 사람의 uid (있으면 자기 자신에게 보내기 방지에 사용) */
   fromUid?: string;
@@ -127,7 +129,9 @@ export class NotificationService {
       'partnership': '파트너 신청이 있습니다.',
       'partnership_closed': '지원한 파트너 모집이 완료되었습니다.',
       'partnership_confirmed': '파트너로 확정되셨습니다!',
-      grade_request_pending: '등급 변경 승인 요청이 있습니다.'
+      grade_request_pending: '등급 변경 승인 요청이 있습니다.',
+      grade_change_approved: '등급 변경 요청이 승인되었습니다.',
+      grade_change_rejected: '등급 변경 요청이 반려되었습니다.'
     };
     return messages[type] || '새 알림이 있습니다.';
   }
@@ -408,7 +412,7 @@ export class NotificationService {
       staffSnap.docs.forEach((d) => uidSet.add(d.id));
       neraeSnap.docs.forEach((d) => uidSet.add(d.id));
 
-      const message = `${requesterNickname}님이 등급 변경을 요청했습니다. 관리자 패널의 「승인」 탭에서 처리해 주세요.`;
+      const message = `${requesterNickname}님이 등급 변경을 요청했습니다. 관리자 패널의 「등급 승인」 탭에서 처리해 주세요.`;
       const postTitle = `요청 등급: ${requestedGrade}`;
 
       await Promise.all(
@@ -426,6 +430,33 @@ export class NotificationService {
       );
     } catch (error) {
       console.error('등급 승인 요청 알림(운영진) 전송 실패:', error);
+    }
+  }
+
+  /** 회원에게 등급 승인·반려 결과 알림 */
+  static async notifyUserGradeRequestResolved(params: {
+    toUid: string;
+    approved: boolean;
+    gradeEmoji?: string;
+    gradeName?: string;
+  }): Promise<void> {
+    const { toUid, approved, gradeEmoji, gradeName } = params;
+    const label =
+      gradeEmoji && gradeName ? `${gradeEmoji} ${gradeName}` : gradeEmoji || gradeName || '';
+    const message = approved
+      ? label
+        ? `요청하신 등급으로 변경되었습니다. (${label})`
+        : '요청하신 등급으로 변경되었습니다.'
+      : '등급 변경 요청이 반려되었습니다. 프로필에 반영된 등급이 유지됩니다.';
+    try {
+      await this.createNotification({
+        type: approved ? 'grade_change_approved' : 'grade_change_rejected',
+        toUid,
+        fromNickname: 'VERYUS 운영',
+        message
+      });
+    } catch (e) {
+      console.error('등급 승인 결과 알림 실패:', e);
     }
   }
 } 

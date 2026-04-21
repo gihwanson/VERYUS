@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, Bell, User, ChevronUp, Search, Grid3x3, ChevronDown, Menu, Settings } from 'lucide-react';
 import './BottomNavigation.css';
 import MemberNicknameSearch from './MemberNicknameSearch';
+import { checkAdminAccess } from './AdminTypes';
 
 // Types
 interface User {
@@ -45,23 +46,14 @@ interface DragOffset {
   y: number;
 }
 
-// Constants
-const ADMIN_USERS = ['너래'];
-const ADMIN_ROLES = ['리더', '운영진'];
-
 const BOARD_ITEMS: BoardItem[] = [
   { name: '통합 검색', path: 'search', icon: Search, isSearch: true },
   { name: '연습실예약', path: '/practice-room-booking', icon: () => <span style={{fontSize:16}}>📅</span>, emoji: '📅' },
   { name: '합격곡', path: '/approved-songs', icon: () => <span style={{fontSize:16}}>🏆</span>, emoji: '🏆' },
   { name: '셋리스트', path: '/setlist', icon: () => <span style={{fontSize:16}}>🎵</span>, emoji: '🎵' },
+  { name: '익명채팅', path: '/anonymous-chat', icon: () => <span style={{fontSize:16}}>😷</span>, emoji: '😷' },
   { name: '콘테스트', path: '/contests', icon: () => <span style={{fontSize:16}}>🎤</span>, emoji: '🎤' },
 ];
-
-// Utility functions
-const checkAdminAccess = (user: User | null): boolean => {
-  if (!user) return false;
-  return ADMIN_USERS.includes(user.nickname) || Boolean(user.role && ADMIN_ROLES.includes(user.role));
-};
 
 const getCurrentUser = (): User | null => {
   try {
@@ -139,7 +131,8 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
       isActive: location.pathname.includes('/approved-songs') || 
                 location.pathname.includes('/setlist') || 
                 location.pathname.includes('/contests') ||
-                location.pathname.includes('/practice-room-booking'),
+                location.pathname.includes('/practice-room-booking') ||
+                location.pathname.includes('/anonymous-chat'),
       hasSubmenu: true
     },
     {

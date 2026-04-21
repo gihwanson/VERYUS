@@ -11,9 +11,12 @@ import {
   query,
   where,
   getDocs,
-  writeBatch
+  writeBatch,
+  serverTimestamp,
+  deleteField
 } from 'firebase/firestore';
 import { auth, db } from '../firebase';
+import { NotificationService } from '../utils/notificationService';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { GRADE_NAMES, GRADE_SYSTEM } from './AdminTypes';
 import { 
@@ -33,6 +36,10 @@ interface User {
   intro?: string;
   role?: string;
   grade?: string;
+  pendingGrade?: string;
+  pendingGradeRequestedAt?: unknown;
+  pendingCreatedAt?: any;
+  pendingCreatedAtRequestedAt?: unknown;
   profileImageUrl?: string;
   createdAt?: any;
   notificationsEnabled?: boolean;
@@ -64,7 +71,7 @@ const Settings: React.FC = () => {
       setUser(userData);
       setNewNickname(userData.nickname || '');
       setNewIntro(userData.intro || '');
-      setNewGrade(userData.grade || GRADE_SYSTEM.CHERRY);
+      setNewGrade(userData.pendingGrade || userData.grade || GRADE_SYSTEM.CHERRY);
 
       const createdAt = userData.createdAt;
       const date = createdAt?.seconds
@@ -97,6 +104,10 @@ const Settings: React.FC = () => {
             intro: (dbUser.intro as string) || '',
             role: (dbUser.role as string) || profile?.role || localUser?.role,
             grade: (dbUser.grade as string) || GRADE_SYSTEM.CHERRY,
+            pendingGrade: dbUser.pendingGrade as string | undefined,
+            pendingGradeRequestedAt: dbUser.pendingGradeRequestedAt,
+            pendingCreatedAt: dbUser.pendingCreatedAt,
+            pendingCreatedAtRequestedAt: dbUser.pendingCreatedAtRequestedAt,
             profileImageUrl: (dbUser.profileImageUrl as string) || profile?.profileImageUrl || localUser?.profileImageUrl,
             notificationsEnabled:
               typeof dbUser.notificationsEnabled === 'boolean'
@@ -178,22 +189,93 @@ const Settings: React.FC = () => {
 
     try {
       setSavingProfileMeta(true);
-      const payload = {
-        intro: newIntro.trim(),
-        grade: newGrade || GRADE_SYSTEM.CHERRY,
-        createdAt: new Date(`${newJoinDate}T00:00:00`)
+      const joinDate = new Date(`${newJoinDate}T00:00:00`);
+      const currentJoinDate = user.createdAt?.seconds
+        ? new Date(user.createdAt.seconds * 1000)
+        : user.createdAt
+          ? new Date(user.createdAt)
+          : null;
+      const currentJoinDateKey = currentJoinDate
+        ? toLocalDateInputValue(currentJoinDate)
+        : '';
+      const requestedJoinDateKey = toLocalDateInputValue(joinDate);
+      const joinDateChanged = currentJoinDateKey !== requestedJoinDateKey;
+      const chosenGrade = newGrade || GRADE_SYSTEM.CHERRY;
+      const samePendingRequest =
+        chosenGrade !== user.grade && user.pendingGrade === chosenGrade;
+
+      const updates: {
+        intro: string;
+        pendingCreatedAt?: Date | ReturnType<typeof deleteField>;
+        pendingCreatedAtRequestedAt?: ReturnType<typeof serverTimestamp> | ReturnType<typeof deleteField>;
+        pendingGrade?: string | ReturnType<typeof deleteField>;
+        pendingGradeRequestedAt?: ReturnType<typeof serverTimestamp> | ReturnType<typeof deleteField>;
+      } = {
+        intro: newIntro.trim()
       };
 
-      await updateDoc(doc(db, 'users', user.uid), payload);
+      let toastExtra = '';
 
-      const updatedUser = {
+      if (chosenGrade === user.grade) {
+        if (user.pendingGrade) {
+          updates.pendingGrade = deleteField();
+          updates.pendingGradeRequestedAt = deleteField();
+          toastExtra = ' 등급 승인 요청을 취소했습니다.';
+        }
+      } else if (!samePendingRequest) {
+        updates.pendingGrade = chosenGrade;
+        updates.pendingGradeRequestedAt = serverTimestamp();
+      }
+
+      if (!joinDateChanged) {
+        if (user.pendingCreatedAt) {
+          updates.pendingCreatedAt = deleteField();
+          updates.pendingCreatedAtRequestedAt = deleteField();
+          toastExtra += ' 가입일 수정 요청을 취소했습니다.';
+        }
+      } else {
+        updates.pendingCreatedAt = joinDate;
+        updates.pendingCreatedAtRequestedAt = serverTimestamp();
+        toastExtra += ' 가입일 변경 요청이 접수되었습니다.';
+      }
+
+      await updateDoc(doc(db, 'users', user.uid), updates);
+
+      if (chosenGrade !== user.grade && !samePendingRequest) {
+        await NotificationService.notifyStaffOfPendingGradeRequest({
+          requesterUid: user.uid,
+          requesterNickname: user.nickname || '회원',
+          requestedGrade: chosenGrade
+        });
+        toastExtra = ' 등급 변경 요청이 접수되었습니다. 운영진 승인 후 반영됩니다.';
+      }
+
+      const updatedUser: User = {
         ...user,
-        ...payload,
-        createdAt: { seconds: Math.floor(new Date(`${newJoinDate}T00:00:00`).getTime() / 1000) }
+        intro: newIntro.trim()
       };
+
+      if (chosenGrade === user.grade) {
+        delete updatedUser.pendingGrade;
+        delete updatedUser.pendingGradeRequestedAt;
+      } else {
+        updatedUser.pendingGrade = chosenGrade;
+        if (!samePendingRequest) {
+          updatedUser.pendingGradeRequestedAt = new Date();
+        }
+      }
+
+      if (!joinDateChanged) {
+        delete updatedUser.pendingCreatedAt;
+        delete updatedUser.pendingCreatedAtRequestedAt;
+      } else {
+        updatedUser.pendingCreatedAt = { seconds: Math.floor(joinDate.getTime() / 1000) };
+        updatedUser.pendingCreatedAtRequestedAt = new Date();
+      }
+
       setUser(updatedUser);
       localStorage.setItem('veryus_user', JSON.stringify(updatedUser));
-      toast.success('프로필 정보(소개/등급/가입일)가 저장되었습니다.');
+      toast.success(`프로필 정보가 저장되었습니다.${toastExtra}`);
     } catch (error) {
       console.error('프로필 정보 저장 에러:', error);
       toast.error('프로필 정보 저장에 실패했습니다.');
@@ -386,6 +468,28 @@ const Settings: React.FC = () => {
             />
 
             <label style={{ fontSize: 13, color: 'rgba(255,255,255,0.88)', fontWeight: 700 }}>등급</label>
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', margin: '0 0 8px' }}>
+              변경 후 저장하면 <strong>운영진 승인</strong>을 거쳐 반영됩니다. 현재 표시 등급은{' '}
+              <strong>
+                {user.grade} {GRADE_NAMES[user.grade || ''] || ''}
+              </strong>
+              입니다.
+            </p>
+            {user.pendingGrade && user.pendingGrade !== user.grade && (
+              <div
+                style={{
+                  fontSize: 13,
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  marginBottom: 10,
+                  background: 'rgba(127, 95, 255, 0.2)',
+                  border: '1px solid rgba(127, 95, 255, 0.35)',
+                  color: 'rgba(255,255,255,0.95)'
+                }}
+              >
+                승인 대기 중: {user.pendingGrade} {GRADE_NAMES[user.pendingGrade] || ''}
+              </div>
+            )}
             <select
               value={newGrade}
               onChange={(e) => setNewGrade(e.target.value)}
@@ -397,8 +501,31 @@ const Settings: React.FC = () => {
                 </option>
               ))}
             </select>
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', margin: '6px 0 0' }}>
+              승인 대기를 취소하려면 현재 반영 등급과 동일한 항목을 선택한 뒤 저장하세요.
+            </p>
 
             <label style={{ fontSize: 13, color: 'rgba(255,255,255,0.88)', fontWeight: 700 }}>가입일</label>
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', margin: '0 0 8px' }}>
+              가입일 변경은 <strong>운영진 승인</strong> 후 반영됩니다.
+            </p>
+            {user.pendingCreatedAt && (
+              <div
+                style={{
+                  fontSize: 13,
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  marginBottom: 10,
+                  background: 'rgba(59, 130, 246, 0.2)',
+                  border: '1px solid rgba(59, 130, 246, 0.35)',
+                  color: 'rgba(255,255,255,0.95)'
+                }}
+              >
+                가입일 변경 승인 대기: {user.pendingCreatedAt?.seconds
+                  ? new Date(user.pendingCreatedAt.seconds * 1000).toLocaleDateString('ko-KR')
+                  : ''}
+              </div>
+            )}
             <input
               type="date"
               value={newJoinDate}

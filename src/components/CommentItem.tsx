@@ -13,6 +13,7 @@ import { Heart, MessageCircle, Edit, Trash2, Send, Clock } from 'lucide-react';
 import { getPublicRoleBadge } from '../utils/publicRoleBadge';
 import './CommentItem.css';
 import { NotificationService } from '../utils/notificationService';
+import { checkAdminAccess } from './AdminTypes';
 
 // Types
 interface Comment {
@@ -57,10 +58,6 @@ interface CommentItemProps {
   depth?: number;
 }
 
-// Constants
-const ADMIN_ROLES = ['운영진', '리더'];
-const ADMIN_USERS = ['너래'];
-
 // Utility functions
 const formatDate = (timestamp: any): string => {
   if (!timestamp) return '';
@@ -83,12 +80,6 @@ const formatDate = (timestamp: any): string => {
   } else {
     return date.toLocaleDateString('ko-KR');
   }
-};
-
-const checkAdminAccess = (user: User | null): boolean => {
-  if (!user) return false;
-  return ADMIN_USERS.includes(user.nickname || '') || 
-         Boolean(user.role && ADMIN_ROLES.includes(user.role));
 };
 
 const CommentItem: React.FC<CommentItemProps> = ({

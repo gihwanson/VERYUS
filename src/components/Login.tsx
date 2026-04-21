@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
@@ -29,7 +29,6 @@ const Login: React.FC = () => {
   });
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const composingRef = useRef<Record<string, boolean>>({});
 
   // 이미 로그인된 사용자 체크
   useEffect(() => {
@@ -45,25 +44,11 @@ const Login: React.FC = () => {
   // 입력값 변경 핸들러
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    if (composingRef.current[name]) return;
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
     setError(''); // 입력 시 에러 메시지 초기화
-  }, []);
-
-  const handleCompositionStart = useCallback((e: React.CompositionEvent<HTMLInputElement>) => {
-    composingRef.current[e.currentTarget.name] = true;
-  }, []);
-
-  const handleCompositionEnd = useCallback((e: React.CompositionEvent<HTMLInputElement>) => {
-    const { name, value } = e.currentTarget;
-    composingRef.current[name] = false;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
   }, []);
 
   /** 로그인에 쓸 이메일: 닉네임이면 Firestore 조회, 이메일 형식이면 정규화(프로필 없어도 Auth 시도 가능) */
@@ -206,8 +191,6 @@ const Login: React.FC = () => {
               name="nickname"
               value={formData.nickname}
               onChange={handleInputChange}
-              onCompositionStart={handleCompositionStart}
-              onCompositionEnd={handleCompositionEnd}
               placeholder="닉네임 또는 이메일"
               className="login-input"
               autoComplete="username"
@@ -222,8 +205,6 @@ const Login: React.FC = () => {
               name="password"
               value={formData.password}
               onChange={handleInputChange}
-              onCompositionStart={handleCompositionStart}
-              onCompositionEnd={handleCompositionEnd}
               placeholder="비밀번호를 입력해주세요"
               className="login-input"
               autoComplete="current-password"

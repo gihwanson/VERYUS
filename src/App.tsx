@@ -15,8 +15,66 @@ import SearchSystem from './components/SearchSystem';
 import { subscribeToAnnouncementUnreadCount } from './utils/readStatusService';
 import { initPushNotifications, removeCurrentPushToken } from './utils/pushNotificationService';
 import { mergeVeryusUserFromAuth, readVeryusUserFromStorage, writeVeryusUserToStorage } from './utils/veryusUserStorage';
+import { subscribeAdminVerification } from './utils/adminSessionVerify';
 import { UserProfileProvider } from './contexts/UserProfileContext';
 import './App.css';
+
+class AppErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; message: string }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, message: '' };
+  }
+
+  static getDerivedStateFromError(error: unknown) {
+    const message = error instanceof Error ? error.message : '알 수 없는 오류';
+    return { hasError: true, message };
+  }
+
+  componentDidCatch(error: unknown) {
+    console.error('전역 렌더링 오류:', error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+          color: '#fff',
+          padding: 20,
+          textAlign: 'center'
+        }}>
+          <div>
+            <h2 style={{ marginBottom: 10 }}>앱을 불러오지 못했습니다</h2>
+            <p style={{ opacity: 0.9, marginBottom: 16 }}>
+              새로고침 후 다시 시도해주세요.
+            </p>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              style={{
+                border: 'none',
+                borderRadius: 8,
+                padding: '10px 14px',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              다시 시도
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const AdminPanel = lazy(() => import('./components/AdminPanel'));
 const MyPage = lazy(() => import('./components/MyPage'));
@@ -40,6 +98,7 @@ const ContestParticipate = lazy(() => import('./components/ContestParticipate'))
 const ContestResults = lazy(() => import('./components/ContestResults'));
 const ApprovedSongs = lazy(() => import('./components/ApprovedSongs'));
 const SetList = lazy(() => import('./components/SetList'));
+const AnonymousChatRoom = lazy(() => import('./components/AnonymousChatRoom'));
 const PartnerPostList = lazy(() => import('./components/PartnerPostList'));
 const PartnerPostWrite = lazy(() => import('./components/PartnerPostWrite'));
 const PartnerPostDetail = lazy(() => import('./components/PartnerPostDetail'));
@@ -73,25 +132,30 @@ const GRADE_ORDER = [
   '🍒'
 ];
 
-// 관리자 권한 체크 함수
-const checkAdminAccess = (user: any): boolean => {
-  if (!user) return false;
-  return user.nickname === '너래' || user.role === '리더' || user.role === '운영진';
-};
-
-// 관리자 전용 라우트 컴포넌트
+// 관리자 전용 라우트: Firebase Auth + Firestore users 문서로 권한 확인 (localStorage만으로는 통과 불가)
 const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const userString = localStorage.getItem('veryus_user');
-  const user = userString ? JSON.parse(userString) : null;
+  const [gate, setGate] = useState<'loading' | 'allow' | 'login' | 'deny'>('loading');
 
-  if (!user) {
+  useEffect(() => {
+    const unsub = subscribeAdminVerification(({ ok, authUser }) => {
+      if (!authUser) {
+        setGate('login');
+        return;
+      }
+      setGate(ok ? 'allow' : 'deny');
+    });
+    return () => unsub();
+  }, []);
+
+  if (gate === 'loading') {
+    return <PageLoader />;
+  }
+  if (gate === 'login') {
     return <Navigate to="/login" replace />;
   }
-
-  if (!checkAdminAccess(user)) {
+  if (gate === 'deny') {
     return <Navigate to="/" replace />;
   }
-
   return <>{children}</>;
 };
 
@@ -246,6 +310,23 @@ const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(und
 export const useAudioPlayer = () => useContext(AudioPlayerContext)!;
 
 const AudioPlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
+  const safeStorageGet = (key: string) => {
+    try {
+      return localStorage.getItem(key);
+    } catch (error) {
+      console.warn('localStorage getItem 실패:', key, error);
+      return null;
+    }
+  };
+
+  const safeStorageSet = (key: string, value: string) => {
+    try {
+      localStorage.setItem(key, value);
+    } catch (error) {
+      console.warn('localStorage setItem 실패:', key, error);
+    }
+  };
+
   const [playlist, setPlaylist] = useState<PlaylistSong[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -269,13 +350,17 @@ const AudioPlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }
   const [isDragReady, setIsDragReady] = useState(false);
   const [position, setPosition] = useState(() => {
     if (typeof window === 'undefined') return { x: 0, y: 0 };
-    const saved = localStorage.getItem('audioPlayerPosition');
+    const saved = safeStorageGet('audioPlayerPosition');
     if (saved) {
-      const parsed = JSON.parse(saved);
-      return {
-        x: Math.min(parsed.x, window.innerWidth - 50),
-        y: Math.min(parsed.y, window.innerHeight - 50)
-      };
+      try {
+        const parsed = JSON.parse(saved);
+        return {
+          x: Math.min(parsed.x, window.innerWidth - 50),
+          y: Math.min(parsed.y, window.innerHeight - 50)
+        };
+      } catch (error) {
+        console.warn('audioPlayerPosition 파싱 실패:', error);
+      }
     }
     return { 
       x: window.innerWidth / 2, 
@@ -285,8 +370,16 @@ const AudioPlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }
   const playerRef = useRef<HTMLDivElement>(null);
 
   // 리더/운영진 권한 체크
-  const userString = typeof window !== 'undefined' ? localStorage.getItem('veryus_user') : null;
-  const user = userString ? JSON.parse(userString) : null;
+  const userString = typeof window !== 'undefined' ? safeStorageGet('veryus_user') : null;
+  let user: any = null;
+  if (userString) {
+    try {
+      user = JSON.parse(userString);
+    } catch (error) {
+      console.warn('veryus_user 파싱 실패:', error);
+      user = null;
+    }
+  }
   const isLeaderOrAdmin = user && (user.role === '리더' || user.role === '운영진');
 
   // 화면 크기 감지
@@ -449,7 +542,7 @@ const AudioPlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }
 
   // 위치 변경 시 localStorage에 저장
   useEffect(() => {
-    localStorage.setItem('audioPlayerPosition', JSON.stringify(position));
+    safeStorageSet('audioPlayerPosition', JSON.stringify(position));
   }, [position]);
   
   // 플레이리스트가 로드되면 첫 번째 곡을 선택하지만 자동재생하지 않음
@@ -694,6 +787,10 @@ function App() {
   const [showSearchSystem, setShowSearchSystem] = useState(false);
   
   useEffect(() => {
+    const loadingGuard = window.setTimeout(() => {
+      setLoading(false);
+    }, 8000);
+
     // Firebase Auth 상태 변화 감지
     // 주의: 홈화면(PWA) 등에서 initPushNotifications(getToken/SW 등록)이 지연·정지되면
     // await로 UI를 막으면 무한 로딩·빈 화면처럼 보일 수 있어 푸시는 비동기로만 실행합니다.
@@ -724,10 +821,14 @@ function App() {
         }
       } finally {
         setLoading(false);
+        window.clearTimeout(loadingGuard);
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      window.clearTimeout(loadingGuard);
+      unsubscribe();
+    };
   }, []);
 
   // 알림 개수 실시간 업데이트
@@ -880,7 +981,7 @@ function App() {
   }
 
   return (
-    <>
+    <AppErrorBoundary>
       <UserProfileProvider authUser={user}>
         <AudioPlayerProvider>
           <Router>
@@ -1050,6 +1151,7 @@ function App() {
               
               {/* 셋리스트 관리 페이지 */}
               <Route path="/setlist" element={<ProtectedRoute><SetList /></ProtectedRoute>} />
+              <Route path="/anonymous-chat" element={<ProtectedRoute><AnonymousChatRoom /></ProtectedRoute>} />
               
               {/* 파트너모집 게시판 라우트들 */}
               <Route path="/boards/partner" element={<PartnerPostList />} />
@@ -1122,7 +1224,7 @@ function App() {
         </Router>
       </AudioPlayerProvider>
       </UserProfileProvider>
-    </>
+    </AppErrorBoundary>
   );
 }
 

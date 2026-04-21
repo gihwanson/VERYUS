@@ -35,6 +35,7 @@ import {
   Activity,
   Shield,
   CheckCircle,
+  XCircle,
   Edit3,
   Trash2,
   User,
@@ -101,7 +102,6 @@ import {
   NotificationTemplates
 } from './AdminComponents';
 import { 
-  checkAdminAccess, 
   GRADE_SYSTEM, 
   ROLE_SYSTEM, 
   GRADE_ORDER, 
@@ -111,7 +111,6 @@ import {
   USER_STATUS_LABELS,
   type AdminUser,
   type TabType,
-  type SortBy,
   type UserStatus,
   type UserActivitySummary,
   type AdminLog,
@@ -124,6 +123,9 @@ import {
 import './AdminUserPanel.css';
 import { FaUsers, FaUserShield, FaChartPie, FaFire } from "react-icons/fa";
 import type { UserActivitySummary as UserActivitySummaryType, NotificationStats as NotificationStatsType } from './AdminTypes';
+import { subscribeAdminVerification } from '../utils/adminSessionVerify';
+import type { VeryusUser } from '../utils/veryusUserStorage';
+import { NotificationService } from '../utils/notificationService';
 
 interface UserActivitySummaryProps {
   summary: UserActivitySummaryType;
@@ -154,7 +156,7 @@ const NotificationStats: React.FC<{ stats: NotificationStatsType }> = ({ stats }
 const AdminPanel: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<VeryusUser | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('users');
@@ -171,14 +173,8 @@ const AdminPanel: React.FC = () => {
     }
   }, [location.search, location.state]);
 
-  // 검색 및 필터링
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterRole, setFilterRole] = useState<string>('all');
-  const [filterGrade, setFilterGrade] = useState<string>('all');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<SortBy>('createdAt');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  
+
   // 편집 상태
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
@@ -264,52 +260,66 @@ const AdminPanel: React.FC = () => {
     }
   }, []);
 
-  // 사용자 목록 필터링 및 정렬 (성능 최적화)
   const filteredUsers = useMemo(() => {
     if (!users || users.length === 0) return [];
-    
+
     let filtered = filterUsers(users, {
-      search: searchTerm,
-      grade: filterGrade !== 'all' ? filterGrade : undefined,
-      role: filterRole !== 'all' ? filterRole : undefined,
-      status: filterStatus !== 'all' ? filterStatus : undefined
+      search: searchTerm
     });
 
-    // 정렬 적용
-    filtered = sortUsers(filtered, sortBy, sortOrder);
+    filtered = sortUsers(filtered, 'createdAt', 'desc');
 
     return filtered;
-  }, [users, searchTerm, filterRole, filterGrade, filterStatus, sortBy, sortOrder]);
+  }, [users, searchTerm]);
 
-  // 초기화 및 권한 체크
+  const pendingGradeRequests = useMemo(
+    () =>
+      users.filter(
+        (u) => Boolean(u.pendingGrade?.trim()) || Boolean(u.pendingCreatedAt)
+      ),
+    [users]
+  );
+
+  const adminLogName = (u: VeryusUser) => u.nickname?.trim() || '관리자';
+
+  // Auth + Firestore users 문서로 권한 재확인 (라우트 통과 후에도 역할 변경·조작 방지)
   useEffect(() => {
-    const userString = localStorage.getItem('veryus_user');
-    if (userString) {
-      try {
-        const user = JSON.parse(userString);
-        setCurrentUser(user);
+    let cancelled = false;
+    const unsub = subscribeAdminVerification(
+      ({ ok, user: verifiedUser, authUser, verificationFailed }) => {
+        if (cancelled) return;
 
-        if (!checkAdminAccess(user)) {
-          alert('관리자 권한이 필요합니다.');
+        if (!authUser) {
+          setLoading(false);
+          navigate('/login');
+          return;
+        }
+
+        if (!ok) {
+          if (verificationFailed) {
+            alert('권한을 확인할 수 없습니다. 네트워크 상태를 확인한 뒤 다시 시도해 주세요.');
+          } else {
+            alert('관리자 권한이 필요합니다.');
+          }
           setLoading(false);
           navigate('/');
           return;
+        }
+
+        if (verifiedUser) {
+          setCurrentUser(verifiedUser);
         }
 
         fetchUsers().catch(error => {
           console.error('사용자 목록 가져오기 실패:', error);
           setLoading(false);
         });
-      } catch (error) {
-        console.error('사용자 정보 파싱 에러:', error);
-        setLoading(false);
-        navigate('/');
       }
-    } else {
-      alert('로그인이 필요합니다.');
-      setLoading(false);
-      navigate('/login');
-    }
+    );
+    return () => {
+      cancelled = true;
+      unsub();
+    };
   }, [navigate, fetchUsers]);
 
   // 선택된 사용자 버스킹심사곡 업로드 횟수 및 제한 로드
@@ -441,12 +451,24 @@ const AdminPanel: React.FC = () => {
       if (editingUser.grade !== user.grade) {
         changes.grade = { before: user.grade, after: editingUser.grade };
       }
-      
-      await updateDoc(userRef, {
+
+      const userPatch: {
+        nickname: string;
+        role: string;
+        grade: string;
+        pendingGrade?: ReturnType<typeof deleteField>;
+        pendingGradeRequestedAt?: ReturnType<typeof deleteField>;
+      } = {
         nickname: editingUser.nickname,
         role: editingUser.role,
         grade: editingUser.grade
-      });
+      };
+      if (changes.grade) {
+        userPatch.pendingGrade = deleteField();
+        userPatch.pendingGradeRequestedAt = deleteField();
+      }
+
+      await updateDoc(userRef, userPatch);
       
       // 닉네임 변경 시 관련 게시물 업데이트
       if (changes.nickname) {
@@ -463,7 +485,7 @@ const AdminPanel: React.FC = () => {
       
       await logAdminAction(
         currentUser.uid,
-        currentUser.nickname,
+        adminLogName(currentUser),
         'user_update',
         `${user.nickname}님의 정보를 수정했습니다. (${changeDetails})`,
         user.uid,
@@ -513,7 +535,7 @@ const AdminPanel: React.FC = () => {
 
       await logAdminAction(
         currentUser.uid,
-        currentUser.nickname,
+        adminLogName(currentUser),
         'user_update',
         `${selectedUser.nickname}님의 버스킹 주간 업로드 제한을 ${newLimitValue ?? '기본값(2)'}으로 설정했습니다.`,
         selectedUser.uid,
@@ -561,7 +583,7 @@ const AdminPanel: React.FC = () => {
       // 로그 기록
       await logAdminAction(
         currentUser.uid,
-        currentUser.nickname,
+        adminLogName(currentUser),
         'user_delete',
         `${user.nickname}님의 계정을 삭제했습니다.`,
         user.uid,
@@ -595,7 +617,7 @@ const AdminPanel: React.FC = () => {
 
       await logAdminAction(
         currentUser.uid,
-        currentUser.nickname,
+        adminLogName(currentUser),
         'user_update',
         `${targetUser.nickname}님 비밀번호 초기화 메일을 발송했습니다.`,
         targetUser.uid,
@@ -647,14 +669,16 @@ const AdminPanel: React.FC = () => {
       const auth = getAuth();
       
       // 현재 관리자 정보 저장 (자동 로그인 방지용)
-      const currentAdminInfo = currentUser ? {
-        uid: currentUser.uid,
-        email: currentUser.email,
-        nickname: currentUser.nickname,
-        role: currentUser.role,
-        grade: currentUser.grade,
-        profileImageUrl: currentUser.profileImageUrl
-      } : null;
+      const currentAdminInfo = currentUser
+        ? {
+            uid: currentUser.uid,
+            email: currentUser.email,
+            nickname: adminLogName(currentUser),
+            role: currentUser.role,
+            grade: currentUser.grade,
+            profileImageUrl: currentUser.profileImageUrl
+          }
+        : null;
       
       // 닉네임 기반 내부 이메일 생성
       const sanitizedNickname = newUser.nickname
@@ -843,7 +867,7 @@ const AdminPanel: React.FC = () => {
         // 로그 기록
         await logAdminAction(
           currentUser.uid,
-          currentUser.nickname,
+          adminLogName(currentUser),
           'grade_change',
           `${user.nickname}님의 등급을 ${GRADE_NAMES[bulkGrade]}로 일괄 변경했습니다.`,
           uid,
@@ -873,7 +897,7 @@ const AdminPanel: React.FC = () => {
     if (success > 0 && currentUser) {
       await logAdminAction(
         currentUser.uid,
-        currentUser.nickname,
+        adminLogName(currentUser),
         'bulk_action',
         `${selectedUserUids.length}명의 등급을 일괄 변경했습니다. (성공: ${success}, 실패: ${failed})`,
         undefined,
@@ -909,7 +933,7 @@ const AdminPanel: React.FC = () => {
         // 로그 기록
         await logAdminAction(
           currentUser.uid,
-          currentUser.nickname,
+          adminLogName(currentUser),
           'role_change',
           `${user.nickname}님의 역할을 ${bulkRole}로 일괄 변경했습니다.`,
           uid,
@@ -939,7 +963,7 @@ const AdminPanel: React.FC = () => {
     if (success > 0 && currentUser) {
       await logAdminAction(
         currentUser.uid,
-        currentUser.nickname,
+        adminLogName(currentUser),
         'bulk_action',
         `${selectedUserUids.length}명의 역할을 일괄 변경했습니다. (성공: ${success}, 실패: ${failed})`,
         undefined,
@@ -975,7 +999,7 @@ const AdminPanel: React.FC = () => {
         // 로그 기록
         await logAdminAction(
           currentUser.uid,
-          currentUser.nickname,
+          adminLogName(currentUser),
           'status_change',
           `${user.nickname}님을 비활성화했습니다.`,
           uid,
@@ -1004,7 +1028,7 @@ const AdminPanel: React.FC = () => {
     if (success > 0 && currentUser) {
       await logAdminAction(
         currentUser.uid,
-        currentUser.nickname,
+        adminLogName(currentUser),
         'bulk_action',
         `${selectedUserUids.length}명을 일괄 비활성화했습니다. (성공: ${success}, 실패: ${failed})`,
         undefined,
@@ -1045,7 +1069,7 @@ const AdminPanel: React.FC = () => {
       // 로그 기록
       await logAdminAction(
         currentUser.uid,
-        currentUser.nickname,
+        adminLogName(currentUser),
         'status_change',
         `${statusChangeUser.nickname}님의 상태를 ${USER_STATUS_LABELS[newStatus]}로 변경했습니다.${suspensionReason ? ` 사유: ${suspensionReason}` : ''}`,
         statusChangeUser.uid,
@@ -1176,13 +1200,13 @@ const AdminPanel: React.FC = () => {
         notificationData.type,
         notificationData.targetUsers,
         currentUser.uid,
-        currentUser.nickname || currentUser.displayName || '관리자'
+        adminLogName(currentUser)
       );
 
       // 로그 기록
       await logAdminAction(
         currentUser.uid,
-        currentUser.nickname || currentUser.displayName || '관리자',
+        adminLogName(currentUser),
         'notification_sent',
         `알림 발송: ${notificationData.title}`,
         undefined,
@@ -1233,8 +1257,7 @@ const AdminPanel: React.FC = () => {
 
   // 사용자 관리 섹션 함수 분리
   const renderUserFilters = () => (
-    <div className="controls-section">
-      {/* 검색 */}
+    <div className="controls-section controls-section--search-only">
       <div className="search-box">
         <Search size={20} />
         <input
@@ -1244,66 +1267,10 @@ const AdminPanel: React.FC = () => {
           onChange={(e) => setSearchTerm(e.target.value)}
         />
         {searchTerm && (
-          <button className="clear-search" onClick={() => setSearchTerm('')}>
+          <button type="button" className="clear-search" onClick={() => setSearchTerm('')}>
             <X size={16} />
           </button>
         )}
-      </div>
-      
-      {/* 필터 - 가로 배치 */}
-      <div className="filter-controls-inline">
-        <select
-          className="filter-select-inline"
-          value={filterRole}
-          onChange={(e) => setFilterRole(e.target.value)}
-        >
-          <option value="all">역할: 전체</option>
-          {ROLE_OPTIONS.map(role => (
-            <option key={role} value={role}>역할: {role}</option>
-          ))}
-        </select>
-        
-        <select
-          className="filter-select-inline"
-          value={filterGrade}
-          onChange={(e) => setFilterGrade(e.target.value)}
-        >
-          <option value="all">등급: 전체</option>
-          {GRADE_ORDER.map(grade => (
-            <option key={grade} value={grade}>등급: {grade} {GRADE_NAMES[grade]}</option>
-          ))}
-        </select>
-        
-        <select
-          className="filter-select-inline"
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-        >
-          <option value="all">상태: 전체</option>
-          {Object.entries(USER_STATUS_LABELS).map(([status, label]) => (
-            <option key={status} value={status}>상태: {label}</option>
-          ))}
-        </select>
-        
-        <select
-          className="filter-select-inline"
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as SortBy)}
-        >
-          <option value="createdAt">정렬: 가입일</option>
-          <option value="nickname">정렬: 닉네임</option>
-          <option value="role">정렬: 역할</option>
-          <option value="grade">정렬: 등급</option>
-        </select>
-
-        <select
-          className="filter-select-inline"
-          value={sortOrder}
-          onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
-        >
-          <option value="desc">순서: 내림차순</option>
-          <option value="asc">순서: 오름차순</option>
-        </select>
       </div>
     </div>
   );
@@ -1436,7 +1403,7 @@ const AdminPanel: React.FC = () => {
     </div>
   );
 
-  // 등급 관리 상태
+  // 등급 승인 / 활동 기준 승급 도우미 상태
   const [gradeFilter, setGradeFilter] = useState<string>('all');
   const [promotionFilter, setPromotionFilter] = useState<string>('all'); // all, eligible, waiting
   const [gradeStats, setGradeStats] = useState<Record<string, number>>({});
@@ -1452,11 +1419,91 @@ const AdminPanel: React.FC = () => {
     setGradeStats(stats);
   }, [filteredUsers]);
 
-  // 등급 관리 섹션 함수 분리
+  const renderPendingGradeSection = () => (
+    <div className="grade-approval-pending">
+      <h3 className="grade-approval-pending-title">
+        승인 대기{' '}
+        <span className="grade-approval-count">{pendingGradeRequests.length}</span>
+      </h3>
+      {pendingGradeRequests.length === 0 ? (
+        <p className="grade-approval-empty">설정에서 등급 변경을 요청한 회원이 없습니다.</p>
+      ) : (
+        <div className="grade-approval-card-grid">
+          {pendingGradeRequests.map((u) => (
+            <div key={u.uid} className="grade-approval-card">
+              <div className="grade-approval-card-head">
+                <div className="grade-approval-user">
+                  {u.profileImageUrl ? (
+                    <img src={u.profileImageUrl} alt="" className="grade-approval-avatar" />
+                  ) : (
+                    <div className="grade-approval-avatar-fallback">
+                      <User size={18} />
+                    </div>
+                  )}
+                  <div>
+                    <div className="grade-approval-nick">{u.nickname}</div>
+                    <div className="grade-approval-meta">
+                      요청일{' '}
+                      {(u.pendingGradeRequestedAt || u.pendingCreatedAtRequestedAt)
+                        ? formatDate(u.pendingGradeRequestedAt || u.pendingCreatedAtRequestedAt)
+                        : '—'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {u.pendingGrade && (
+                <div className="grade-approval-diff">
+                  <span className="grade-approval-from">
+                    {u.grade} {GRADE_NAMES[u.grade] || ''}
+                  </span>
+                  <span className="grade-approval-arrow">→</span>
+                  <span className="grade-approval-to">
+                    {u.pendingGrade} {GRADE_NAMES[u.pendingGrade || ''] || ''}
+                  </span>
+                </div>
+              )}
+              {u.pendingCreatedAt && (
+                <div className="grade-approval-diff">
+                  <span className="grade-approval-from">
+                    가입일 {formatDate(u.createdAt)}
+                  </span>
+                  <span className="grade-approval-arrow">→</span>
+                  <span className="grade-approval-to">
+                    가입일 {formatDate(u.pendingCreatedAt)}
+                  </span>
+                </div>
+              )}
+              <div className="grade-approval-actions">
+                <button
+                  type="button"
+                  className="grade-approval-btn grade-approval-btn-approve"
+                  onClick={() => void handleApprovePendingGrade(u)}
+                >
+                  <CheckCircle size={16} />
+                  승인
+                </button>
+                <button
+                  type="button"
+                  className="grade-approval-btn grade-approval-btn-reject"
+                  onClick={() => void handleRejectPendingGrade(u)}
+                >
+                  <XCircle size={16} />
+                  반려
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   const renderGradesHeader = () => (
-    <div className="grades-header">
-      <h2>등급 관리</h2>
-      <p>멤버들의 활동 기간과 현재 등급을 확인하고 관리할 수 있습니다.</p>
+    <div className="grades-header grade-approval-header">
+      <h2>등급/가입일 승인</h2>
+      <p>
+        회원이 <strong>설정</strong>에서 요청한 등급 또는 가입일 변경을 승인하거나 반려합니다.
+      </p>
     </div>
   );
 
@@ -1541,7 +1588,7 @@ const AdminPanel: React.FC = () => {
         if (currentUser) {
           await logAdminAction(
             currentUser.uid,
-            currentUser.nickname,
+            adminLogName(currentUser),
             'grade_change',
             `${user.nickname}님을 ${GRADE_NAMES[nextGrade]}로 승급했습니다.`,
             user.uid,
@@ -1575,7 +1622,7 @@ const AdminPanel: React.FC = () => {
       if (currentUser) {
         await logAdminAction(
           currentUser.uid,
-          currentUser.nickname,
+          adminLogName(currentUser),
           'grade_change',
           `${user.nickname}님을 ${GRADE_NAMES[nextGrade]}로 승급했습니다.${reason ? ` 사유: ${reason}` : ''}`,
           user.uid,
@@ -1592,6 +1639,98 @@ const AdminPanel: React.FC = () => {
     } catch (error) {
       console.error('등급 변경 중 오류:', error);
       alert('등급 변경 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleApprovePendingGrade = async (target: AdminUser) => {
+    if (!currentUser) return;
+    if (!target.pendingGrade && !target.pendingCreatedAt) return;
+    const nextGrade = target.pendingGrade;
+    try {
+      const updates: Record<string, any> = {
+        pendingGrade: deleteField(),
+        pendingGradeRequestedAt: deleteField(),
+        pendingCreatedAt: deleteField(),
+        pendingCreatedAtRequestedAt: deleteField()
+      };
+
+      if (target.pendingGrade) {
+        updates.grade = target.pendingGrade;
+      }
+      if (target.pendingCreatedAt) {
+        updates.createdAt = target.pendingCreatedAt;
+      }
+
+      await updateDoc(doc(db, 'users', target.uid), {
+        ...updates
+      });
+      if (target.pendingGrade) {
+        await syncUserGradeInDocuments(target.uid, target.pendingGrade);
+        await NotificationService.notifyUserGradeRequestResolved({
+          toUid: target.uid,
+          approved: true,
+          gradeEmoji: target.pendingGrade,
+          gradeName: GRADE_NAMES[target.pendingGrade] || ''
+        });
+      }
+      await logAdminAction(
+        currentUser.uid,
+        adminLogName(currentUser),
+        'user_update',
+        `${target.nickname}님의 승인 요청을 반영했습니다.`,
+        target.uid,
+        target.nickname,
+        {
+          grade: target.grade,
+          pendingGrade: target.pendingGrade,
+          createdAt: target.createdAt,
+          pendingCreatedAt: target.pendingCreatedAt
+        },
+        {
+          grade: target.pendingGrade || target.grade,
+          createdAt: target.pendingCreatedAt || target.createdAt
+        }
+      );
+      await fetchUsers();
+      alert('승인되었습니다.');
+    } catch (error) {
+      console.error(error);
+      alert('승인 처리 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleRejectPendingGrade = async (target: AdminUser) => {
+    if (!currentUser) return;
+    if (!target.pendingGrade && !target.pendingCreatedAt) return;
+    if (!window.confirm(`${target.nickname}님의 변경 요청을 반려할까요?`)) return;
+    try {
+      await updateDoc(doc(db, 'users', target.uid), {
+        pendingGrade: deleteField(),
+        pendingGradeRequestedAt: deleteField(),
+        pendingCreatedAt: deleteField(),
+        pendingCreatedAtRequestedAt: deleteField()
+      });
+      if (target.pendingGrade) {
+        await NotificationService.notifyUserGradeRequestResolved({
+          toUid: target.uid,
+          approved: false
+        });
+      }
+      await logAdminAction(
+        currentUser.uid,
+        adminLogName(currentUser),
+        'user_update',
+        `${target.nickname}님의 변경 요청을 반려했습니다.`,
+        target.uid,
+        target.nickname,
+        { pendingGrade: target.pendingGrade, pendingCreatedAt: target.pendingCreatedAt },
+        {}
+      );
+      await fetchUsers();
+      alert('반려 처리되었습니다.');
+    } catch (error) {
+      console.error(error);
+      alert('반려 처리 중 오류가 발생했습니다.');
     }
   };
 
@@ -1735,56 +1874,9 @@ const AdminPanel: React.FC = () => {
   };
 
   const renderGradesPanel = () => (
-    <div className="grades-panel">
+    <div className="grades-panel grade-approval-panel">
       {renderGradesHeader()}
-      {renderGradeStats()}
-      {renderGradeFilters()}
-      {renderGradesTable()}
-      
-      {/* 승급 모달 */}
-      {promotionModalUser && (
-        <div className="modal-overlay" onClick={() => setPromotionModalUser(null)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>등급 승급</h2>
-              <button className="close-btn" onClick={() => setPromotionModalUser(null)}>
-                <X size={20} />
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="user-info-display">
-                <h3>{promotionModalUser.nickname}</h3>
-                <p>현재 등급: {promotionModalUser.grade} {GRADE_NAMES[promotionModalUser.grade]}</p>
-                <p>승급 예정: {getNextGrade(promotionModalUser.grade)} {GRADE_NAMES[getNextGrade(promotionModalUser.grade)]}</p>
-              </div>
-              <div className="form-group">
-                <label>승급 사유 (선택사항)</label>
-                <textarea
-                  value={promotionReason}
-                  onChange={(e) => setPromotionReason(e.target.value)}
-                  className="filter-select"
-                  rows={3}
-                  placeholder="승급 사유를 입력하세요..."
-                />
-              </div>
-              <div className="modal-actions">
-                <button 
-                  onClick={() => handlePromoteUser(promotionModalUser, promotionReason)} 
-                  className="save-btn"
-                >
-                  승급하기
-                </button>
-                <button 
-                  onClick={() => setPromotionModalUser(null)} 
-                  className="cancel-btn"
-                >
-                  취소
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {renderPendingGradeSection()}
     </div>
   );
 
@@ -1989,81 +2081,82 @@ const AdminPanel: React.FC = () => {
   if (loading) {
     return (
       <div className="admin-container">
-        <LoadingSpinner />
+        <div className="admin-loading-screen">
+          <LoadingSpinner />
+        </div>
       </div>
     );
   }
 
   return (
     <div className="admin-container">
-      {/* 헤더(관리자 패널 문구) 화면 최상단 */}
-      <div className="admin-header" style={{marginBottom: 0, paddingTop: 32, paddingBottom: 16}}>
-        <h1 className="admin-title" style={{fontSize: '2.4rem', fontWeight: 900, color: '#7f5fff', letterSpacing: '-1px', margin: 0, textAlign: 'center'}}>
-          <Shield size={32} style={{verticalAlign: 'middle', marginRight: 8}} />
-          관리자 패널
-        </h1>
-      </div>
-      {/* 탭 버튼 헤더 바로 아래로 이동 */}
-      <div className="admin-tabs" style={{marginTop: 12, marginBottom: 24}}>
-        <button 
-          className={`tab-button ${activeTab === 'users' ? 'active' : ''}`}
-          onClick={() => setActiveTab('users')}
-        >
-          <Users size={20} />
-          <span>사용자 관리</span>
-        </button>
-        <button 
-          className={`tab-button ${activeTab === 'activity' ? 'active' : ''}`}
-          onClick={() => setActiveTab('activity')}
-        >
-          <Activity size={20} />
-          <span>활동 현황</span>
-        </button>
-        <button 
-          className={`tab-button ${activeTab === 'grades' ? 'active' : ''}`}
-          onClick={() => setActiveTab('grades')}
-        >
-          <Crown size={20} />
-          <span>등급 관리</span>
-        </button>
-        <button 
-          className={`tab-button ${activeTab === 'analytics' ? 'active' : ''}`}
-          onClick={() => setActiveTab('analytics')}
-        >
-          <TrendingUp size={20} />
-          <span>활동 분석</span>
-        </button>
-        <button 
-          className={`tab-button ${activeTab === 'logs' ? 'active' : ''}`}
-          onClick={() => {
-            setActiveTab('logs');
-            fetchLogs();
-          }}
-        >
-          <History size={20} />
-          <span>관리자 로그</span>
-        </button>
-        <button 
-          className={`tab-button ${activeTab === 'notifications' ? 'active' : ''}`}
-          onClick={() => {
-            setActiveTab('notifications');
-            loadNotifications();
-            loadNotificationTemplates();
-          }}
-        >
-          <Bell size={20} />
-          <span>공지/알림</span>
-        </button>
-      </div>
-      {/* 주요 콘텐츠(tab-content)는 컨테이너 박스/배경을 줄이고, 여백을 충분히 */}
-      <div className="tab-content" style={{background: 'none', boxShadow: 'none', padding: '0 0 48px 0', margin: '0 auto', maxWidth: 1400}}>
+      <header className="admin-hero">
+        <div className="admin-hero-inner">
+          <div className="admin-hero-top">
+            <button type="button" className="admin-back-link" onClick={() => navigate('/')}>
+              <ArrowLeft size={18} aria-hidden />
+              홈으로
+            </button>
+            <span className="admin-hero-badge">Admin</span>
+          </div>
+          <div className="admin-hero-title-row">
+            <h1 className="admin-title">
+              <Shield size={28} aria-hidden />
+              관리자 패널
+            </h1>
+          </div>
+          <p className="admin-hero-subtitle">
+            회원·등급·활동·로그·알림을 한곳에서 관리합니다.
+          </p>
+        </div>
+      </header>
+
+      <nav className="admin-tab-strip" aria-label="관리자 메뉴">
+        <div className="admin-tab-scroll">
+          <button
+            type="button"
+            className={`tab-button ${activeTab === 'users' ? 'active' : ''}`}
+            onClick={() => setActiveTab('users')}
+          >
+            <Users size={18} />
+            <span>사용자 관리</span>
+          </button>
+          <button
+            type="button"
+            className={`tab-button ${activeTab === 'activity' ? 'active' : ''}`}
+            onClick={() => setActiveTab('activity')}
+          >
+            <Activity size={18} />
+            <span>활동 현황</span>
+          </button>
+          <button
+            type="button"
+            className={`tab-button ${activeTab === 'grades' ? 'active' : ''}`}
+            onClick={() => setActiveTab('grades')}
+          >
+            <Crown size={18} />
+            <span>등급 승인</span>
+          </button>
+          <button
+            type="button"
+            className={`tab-button ${activeTab === 'logs' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('logs');
+              fetchLogs();
+            }}
+          >
+            <History size={18} />
+            <span>관리자 로그</span>
+          </button>
+        </div>
+      </nav>
+
+      <main className="admin-main tab-content">
         {activeTab === 'users' && renderUsersPanel()}
         {activeTab === 'activity' && renderActivityPanel()}
         {activeTab === 'grades' && renderGradesPanel()}
-        {activeTab === 'analytics' && renderAnalyticsPanel()}
         {activeTab === 'logs' && renderLogsPanel()}
-        {activeTab === 'notifications' && renderNotificationsPanel()}
-      </div>
+      </main>
 
       {/* 사용자 상세 모달 */}
       {selectedUser && (

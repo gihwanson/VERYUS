@@ -1,4 +1,5 @@
 import type { User as FirebaseUser } from 'firebase/auth';
+import { checkAdminAccess } from '../components/AdminTypes';
 
 export interface VeryusUser {
   uid: string;
@@ -50,7 +51,7 @@ export const mergeVeryusUserFromAuth = (
   const position = (userData.position as string | undefined) ?? previous?.position;
   const notificationsEnabled =
     (userData.notificationsEnabled as boolean | undefined) ?? previous?.notificationsEnabled ?? false;
-  const isAdmin = nickname === '너래' || role === '리더' || role === '운영진';
+  const isAdmin = checkAdminAccess({ nickname, role });
 
   return {
     uid: authUser.uid,
