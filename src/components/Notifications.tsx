@@ -32,6 +32,7 @@ interface Notification {
   guestbookOwnerUid?: string;
   createdAt: any;
   isRead: boolean;
+  route?: string;
 }
 
 const Notifications: React.FC = () => {
@@ -40,6 +41,18 @@ const Notifications: React.FC = () => {
   const navigate = useNavigate();
   const userString = localStorage.getItem('veryus_user');
   const user = userString ? JSON.parse(userString) : null;
+
+  const isChatNotification = (noti: Notification) => {
+    const type = (noti.type || '').toLowerCase();
+    const postType = (noti.postType || '').toLowerCase();
+    const route = (noti.route || '').toLowerCase();
+    return (
+      type.includes('chat') ||
+      postType.includes('chat') ||
+      route.startsWith('/anonymous-chat') ||
+      route.startsWith('/chat')
+    );
+  };
 
   const getNotificationRoute = (notification: Notification): string | null => {
     if (notification.postId && notification.postType) {
@@ -85,7 +98,8 @@ const Notifications: React.FC = () => {
       orderBy('createdAt', 'desc')
     );
     const unsub = onSnapshot(q, (snap) => {
-      setNotifications(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Notification[]);
+      const all = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Notification[];
+      setNotifications(all.filter((noti) => !isChatNotification(noti)));
       setLoading(false);
     });
     return () => unsub();
@@ -114,31 +128,31 @@ const Notifications: React.FC = () => {
 
   const handleMarkAllAsRead = async () => {
     if (!user) return;
-    
-    const unreadNotifications = notifications.filter(noti => !noti.isRead);
-    
-    if (unreadNotifications.length === 0) {
-      alert('읽지 않은 알림이 없습니다.');
+
+    if (notifications.length === 0) {
+      alert('삭제할 알림이 없습니다.');
       return;
     }
 
-    if (!window.confirm(`${unreadNotifications.length}개의 읽지 않은 알림을 모두 읽음 처리하시겠습니까?`)) {
+    if (!window.confirm(`${notifications.length}개의 알림을 모두 삭제하시겠습니까?`)) {
       return;
     }
 
     try {
-      const batch = writeBatch(db);
-      
-      unreadNotifications.forEach(noti => {
-        const notificationRef = doc(db, 'notifications', noti.id);
-        batch.update(notificationRef, { isRead: true });
-      });
-
-      await batch.commit();
-      alert('모든 알림이 읽음 처리되었습니다.');
+      const chunkSize = 450;
+      for (let i = 0; i < notifications.length; i += chunkSize) {
+        const chunk = notifications.slice(i, i + chunkSize);
+        const batch = writeBatch(db);
+        chunk.forEach((noti) => {
+          const notificationRef = doc(db, 'notifications', noti.id);
+          batch.delete(notificationRef);
+        });
+        await batch.commit();
+      }
+      alert('모든 알림이 삭제되었습니다.');
     } catch (error) {
-      console.error('모두 읽음 처리 중 오류:', error);
-      alert('알림 처리 중 오류가 발생했습니다.');
+      console.error('모두 삭제 중 오류:', error);
+      alert('알림 삭제 중 오류가 발생했습니다.');
     }
   };
 
@@ -286,7 +300,7 @@ const Notifications: React.FC = () => {
                 </span>
               )}
             </h2>
-            {unreadCount > 0 && (
+            {visibleNotifications.length > 0 && (
               <button 
                 onClick={handleMarkAllAsRead}
                 style={{ 
@@ -304,7 +318,7 @@ const Notifications: React.FC = () => {
                   gap: '8px',
                   transition: 'all 0.3s ease'
                 }}
-                title="모든 알림 읽음 처리"
+                title="모든 알림 삭제"
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = 'rgba(16, 185, 129, 0.9)';
                   e.currentTarget.style.transform = 'translateY(-2px)';

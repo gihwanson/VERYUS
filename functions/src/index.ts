@@ -17,6 +17,11 @@ const getRouteByPostType = (postType: string, postId: string): string => {
 };
 
 const getNotificationRoute = (data: FirebaseFirestore.DocumentData): string => {
+  const directRoute = (data.route as string | undefined) || '';
+  if (directRoute) {
+    return directRoute;
+  }
+
   const postId = (data.postId as string | undefined) || '';
   const postType = (data.postType as string | undefined) || '';
   const notificationType = (data.type as string | undefined) || '';

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, Search, Phone, Video, Menu, Plus, Smile, FileText } from 'lucide-react';
+import { ChevronLeft, Search, Phone, Bell, BellOff, Menu, Plus, Smile, FileText } from 'lucide-react';
 import {
   addDoc,
   collection,
@@ -12,7 +12,10 @@ import {
   orderBy,
   query,
   runTransaction,
+  setDoc,
   serverTimestamp,
+  Timestamp,
+  updateDoc,
   where,
   writeBatch
 } from 'firebase/firestore';
@@ -33,6 +36,10 @@ type AnonymousMessage = {
   senderLabel: string;
   profileNickname?: string;
   content: string;
+  systemText?: string;
+  replyToId?: string;
+  replyPreviewSender?: string;
+  replyPreviewContent?: string;
   createdAt: any;
   createdAtClient?: number;
 };
@@ -46,6 +53,10 @@ type AnonymousRoom = {
   title: string;
   createdByUid: string;
   createdByNickname: string;
+  coHostUids?: string[];
+  notificationMutedUids?: string[];
+  isFrozen?: boolean;
+  lastCleanupAt?: any;
   requiredActiveDays?: number;
   createdAt: any;
 };
@@ -55,6 +66,14 @@ type RoomParticipant = {
   nickname: string;
   profileNickname?: string;
   joinedAt?: any;
+  lastReadAt?: any;
+  chatMutedUntil?: any;
+};
+
+type ReplyTarget = {
+  id: string;
+  senderLabel: string;
+  content: string;
 };
 
 const NERAE_NICKNAME = '너래';
@@ -114,6 +133,21 @@ const getMessageSortNanos = (message: AnonymousMessage) => {
   return 0;
 };
 
+const toUnixMillis = (value: any) => {
+  if (!value) return 0;
+  if (typeof value?.toDate === 'function') {
+    const dateValue = value.toDate();
+    if (dateValue instanceof Date && !Number.isNaN(dateValue.getTime())) return dateValue.getTime();
+  }
+  if (typeof value?.seconds === 'number') {
+    const nanos = typeof value?.nanoseconds === 'number' ? value.nanoseconds : 0;
+    return value.seconds * 1000 + Math.floor(nanos / 1_000_000);
+  }
+  if (typeof value === 'number') return value > 1_000_000_000_000 ? value : value * 1000;
+  const parsed = new Date(value).getTime();
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
 const AnonymousChatRoom: React.FC = () => {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<AnonymousProfile | null>(null);
@@ -136,9 +170,15 @@ const AnonymousChatRoom: React.FC = () => {
   const [creatingNickname, setCreatingNickname] = useState(false);
   const [creatingRoom, setCreatingRoom] = useState(false);
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
+  const [pendingDeleteRoom, setPendingDeleteRoom] = useState<AnonymousRoom | null>(null);
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
+  const [messageActionMenu, setMessageActionMenu] = useState<{ message: AnonymousMessage; x: number; y: number } | null>(null);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const messageItemRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const scrollRetryTimeoutRef = useRef<number | null>(null);
   const shouldAutoScrollRef = useRef(true);
 
@@ -163,6 +203,13 @@ const AnonymousChatRoom: React.FC = () => {
       scrollToLatestMessage();
     });
   }, [scrollToLatestMessage]);
+
+  useEffect(() => {
+    setIsTouchDevice(
+      'ontouchstart' in window ||
+      navigator.maxTouchPoints > 0
+    );
+  }, []);
 
   useEffect(() => {
     const userRaw = localStorage.getItem('veryus_user');
@@ -255,7 +302,8 @@ const AnonymousChatRoom: React.FC = () => {
           uid: user.uid,
           nickname: profile.customNickname,
           profileNickname: profile.profileNickname || '',
-          joinedAt: serverTimestamp()
+          joinedAt: serverTimestamp(),
+          lastReadAt: serverTimestamp()
         });
       });
     };
@@ -293,6 +341,17 @@ const AnonymousChatRoom: React.FC = () => {
       unsubMyParticipant();
     };
   }, [selectedRoomId, profile, user?.uid]);
+
+  const markRoomAsRead = useCallback(async () => {
+    if (!selectedRoomId || !user?.uid) return;
+    try {
+      await updateDoc(doc(db, 'anonymousChatRooms', selectedRoomId, 'participants', user.uid), {
+        lastReadAt: serverTimestamp()
+      });
+    } catch (error) {
+      // ignore
+    }
+  }, [selectedRoomId, user?.uid]);
 
   const sortedMessages = useMemo(() => {
     const joinedAtSec = roomJoinedAt?.seconds || 0;
@@ -377,14 +436,45 @@ const AnonymousChatRoom: React.FC = () => {
     if (shouldAutoScrollRef.current || isNearBottom()) {
       forceScrollToLatest();
       shouldAutoScrollRef.current = false;
+      void markRoomAsRead();
     };
-  }, [latestTimelineToken, selectedRoomId, forceScrollToLatest, isNearBottom]);
+  }, [latestTimelineToken, selectedRoomId, forceScrollToLatest, isNearBottom, markRoomAsRead]);
 
   useEffect(() => {
     if (!selectedRoomId) return;
     shouldAutoScrollRef.current = true;
     forceScrollToLatest();
-  }, [selectedRoomId, forceScrollToLatest]);
+    void markRoomAsRead();
+  }, [selectedRoomId, forceScrollToLatest, markRoomAsRead]);
+
+  useEffect(() => {
+    if (!selectedRoomId) return;
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const onScroll = () => {
+      if (isNearBottom()) void markRoomAsRead();
+    };
+    container.addEventListener('scroll', onScroll, { passive: true });
+    return () => container.removeEventListener('scroll', onScroll);
+  }, [selectedRoomId, isNearBottom, markRoomAsRead]);
+
+  useEffect(() => {
+    if (!selectedRoomId) return;
+    const onFocus = () => void markRoomAsRead();
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void markRoomAsRead();
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void markRoomAsRead();
+    }, 2000);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.clearInterval(interval);
+    };
+  }, [selectedRoomId, markRoomAsRead]);
 
   useEffect(() => {
     return () => {
@@ -394,11 +484,38 @@ const AnonymousChatRoom: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (!messageActionMenu) return;
+    const close = () => setMessageActionMenu(null);
+    window.addEventListener('mousedown', close);
+    window.addEventListener('touchstart', close, { passive: true });
+    window.addEventListener('scroll', close, { passive: true });
+    return () => {
+      window.removeEventListener('mousedown', close);
+      window.removeEventListener('touchstart', close);
+      window.removeEventListener('scroll', close);
+    };
+  }, [messageActionMenu]);
+
   const myDisplayName = getDisplayName(profile?.customNickname, profile?.profileNickname);
 
   const canEnterRoom = (room: AnonymousRoom) => {
     const required = room.requiredActiveDays || 0;
     return userActiveDays >= required;
+  };
+
+  const handleEnterRoom = async (room: AnonymousRoom) => {
+    if (!user?.uid) return;
+    const participantRef = doc(db, 'anonymousChatRooms', room.id, 'participants', user.uid);
+    const participantSnap = await getDoc(participantRef);
+    const isExistingMember = participantSnap.exists();
+
+    if (!isExistingMember && !canEnterRoom(room)) {
+      alert(`${getRoomRestrictionLabel(room)}\n현재 내 활동일: ${userActiveDays}일`);
+      return;
+    }
+
+    setSelectedRoomId(room.id);
   };
 
   const getRoomRestrictionLabel = (room?: AnonymousRoom) => {
@@ -529,6 +646,9 @@ const AnonymousChatRoom: React.FC = () => {
         createdByUid: user.uid,
         // 채팅방 목록의 방장 닉네임은 생성 시점 값을 고정한다.
         createdByNickname: profile.customNickname,
+        coHostUids: [],
+        notificationMutedUids: [],
+        isFrozen: false,
         requiredActiveDays: 0,
         createdAt: serverTimestamp()
       });
@@ -544,7 +664,12 @@ const AnonymousChatRoom: React.FC = () => {
 
   const handleDeleteRoom = async (room: AnonymousRoom) => {
     if (!user?.uid || room.createdByUid !== user.uid) return;
-    if (!window.confirm('이 채팅방을 삭제하시겠습니까?')) return;
+    setPendingDeleteRoom(room);
+  };
+
+  const confirmDeleteRoom = async () => {
+    const room = pendingDeleteRoom;
+    if (!room || !user?.uid || room.createdByUid !== user.uid) return;
 
     setDeletingRoomId(room.id);
     try {
@@ -559,6 +684,7 @@ const AnonymousChatRoom: React.FC = () => {
       alert('채팅방 삭제 중 오류가 발생했습니다.');
     } finally {
       setDeletingRoomId(null);
+      setPendingDeleteRoom(null);
     }
   };
 
@@ -582,9 +708,161 @@ const AnonymousChatRoom: React.FC = () => {
     }
   };
 
+  const handleToggleRoomNotifications = async () => {
+    if (!selectedRoomId || !selectedRoom || !user?.uid) return;
+    const muted = selectedRoom.notificationMutedUids || [];
+    const isMuted = muted.includes(user.uid);
+    const nextMuted = isMuted ? muted.filter((uid) => uid !== user.uid) : [...muted, user.uid];
+    try {
+      await updateDoc(doc(db, 'anonymousChatRooms', selectedRoomId), {
+        notificationMutedUids: nextMuted
+      });
+    } catch (error) {
+      console.error('채팅 알림 설정 변경 실패:', error);
+      alert('채팅 알림 설정 변경에 실패했습니다.');
+    }
+  };
+
+  const handleToggleCoHost = async (memberUid: string) => {
+    if (!selectedRoomId || !selectedRoom || !user?.uid) return;
+    if (selectedRoom.createdByUid !== user.uid) return;
+    if (memberUid === selectedRoom.createdByUid) return;
+
+    const currentCoHosts = selectedRoom.coHostUids || [];
+    const alreadyAssigned = currentCoHosts.includes(memberUid);
+    const selectedMember = roomParticipants.find((member) => member.uid === memberUid);
+    const selectedMemberName = selectedMember?.nickname || '익명';
+
+    try {
+      const roomRef = doc(db, 'anonymousChatRooms', selectedRoomId);
+      await updateDoc(roomRef, {
+        coHostUids: alreadyAssigned
+          ? currentCoHosts.filter((uid) => uid !== memberUid)
+          : [...currentCoHosts, memberUid]
+      });
+
+      await addDoc(collection(db, 'anonymousChatRooms', selectedRoomId, 'messages'), {
+        uid: '__system__',
+        senderLabel: 'system',
+        content: alreadyAssigned
+          ? `"${selectedMemberName}"님이 권력을 잃으셨습니다`
+          : `"${selectedMemberName}"님이 권력을 얻으셨습니다`,
+        systemText: alreadyAssigned
+          ? `"${selectedMemberName}"님이 권력을 잃으셨습니다`
+          : `"${selectedMemberName}"님이 권력을 얻으셨습니다`,
+        createdAtClient: Date.now(),
+        createdAt: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('부방장 설정 실패:', error);
+      alert('부방장 설정 중 오류가 발생했습니다.');
+    }
+  };
+
+  const openMessageActionMenu = (message: AnonymousMessage, x: number, y: number) => {
+    setMessageActionMenu({ message, x, y });
+  };
+
+  const scrollToMessageById = (messageId?: string) => {
+    if (!messageId) return;
+    const target = messageItemRefs.current[messageId];
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setHighlightedMessageId(messageId);
+    window.setTimeout(() => setHighlightedMessageId((prev) => (prev === messageId ? null : prev)), 1400);
+  };
+
+  const handleMuteParticipant = async (targetMessage: AnonymousMessage) => {
+    if (!selectedRoomId || !selectedRoom || !user?.uid) return;
+    if (selectedRoom.createdByUid !== user.uid) return;
+    const targetUid = targetMessage.uid;
+    if (!targetUid || targetUid === '__system__' || targetUid === user.uid) return;
+    const targetName = targetMessage.senderLabel || '익명';
+    try {
+      const participantRef = doc(db, 'anonymousChatRooms', selectedRoomId, 'participants', targetUid);
+      const noticeRef = doc(collection(db, 'anonymousChatRooms', selectedRoomId, 'messages'));
+      const noticeText = `"${targetName}"님이 채팅정지(30초간) 되었습니다`;
+      await runTransaction(db, async (transaction) => {
+        transaction.set(participantRef, { chatMutedUntil: Timestamp.fromMillis(Date.now() + 30_000) }, { merge: true });
+        transaction.set(noticeRef, {
+          uid: '__system__',
+          senderLabel: 'system',
+          content: noticeText,
+          systemText: noticeText,
+          createdAtClient: Date.now(),
+          createdAt: serverTimestamp()
+        });
+      });
+    } catch (error) {
+      console.error('채팅정지 설정 실패:', error);
+      alert('채팅정지 처리 중 오류가 발생했습니다.');
+    }
+  };
+
   const handleSendMessage = async () => {
     const trimmed = input.trim();
     if (!trimmed || !profile || !user?.uid || !selectedRoomId) return;
+    const isRoomFrozen = Boolean(selectedRoom?.isFrozen);
+    const myParticipant = roomParticipants.find((member) => member.uid === user.uid);
+    const myMuteUntilMs = toUnixMillis(myParticipant?.chatMutedUntil);
+    if (myMuteUntilMs > Date.now()) {
+      const remainSec = Math.max(1, Math.ceil((myMuteUntilMs - Date.now()) / 1000));
+      alert(`채팅정지 상태입니다. ${remainSec}초 후 다시 시도해주세요.`);
+      return;
+    }
+
+    if (trimmed === '/청소') {
+      if (!canModerateChat) {
+        alert('방장/부방장만 사용할 수 있습니다.');
+        return;
+      }
+      const lastCleanupMs = toUnixMillis(selectedRoom?.lastCleanupAt);
+      if (lastCleanupMs > 0 && Date.now() - lastCleanupMs < 24 * 60 * 60 * 1000) {
+        alert('청소도우미는 하루에 한 번만 사용할 수 있습니다.');
+        return;
+      }
+
+      setSending(true);
+      try {
+        const roomRef = doc(db, 'anonymousChatRooms', selectedRoomId);
+        await updateDoc(roomRef, { isFrozen: true });
+        await addDoc(collection(db, 'anonymousChatRooms', selectedRoomId, 'messages'), {
+          uid: '__system__',
+          senderLabel: 'system',
+          content: '청소도우미: 채팅방 청소를 시작합니다',
+          systemText: '청소도우미: 채팅방 청소를 시작합니다',
+          createdAtClient: Date.now(),
+          createdAt: serverTimestamp()
+        });
+
+        const messageSnap = await getDocs(collection(db, 'anonymousChatRooms', selectedRoomId, 'messages'));
+        const deleteTargets = messageSnap.docs.filter((d) => (d.data()?.uid || '') !== '__system__');
+        await Promise.all(deleteTargets.map((d) => deleteDoc(d.ref)));
+
+        await addDoc(collection(db, 'anonymousChatRooms', selectedRoomId, 'messages'), {
+          uid: '__system__',
+          senderLabel: 'system',
+          content: '청소도우미: 청소가 완료되었습니다',
+          systemText: '청소도우미: 청소가 완료되었습니다',
+          createdAtClient: Date.now(),
+          createdAt: serverTimestamp()
+        });
+        await updateDoc(roomRef, { isFrozen: false, lastCleanupAt: serverTimestamp() });
+        setInput('');
+      } catch (error) {
+        console.error('채팅방 청소 실패:', error);
+        alert('청소 중 오류가 발생했습니다.');
+        await updateDoc(doc(db, 'anonymousChatRooms', selectedRoomId), { isFrozen: false }).catch(() => undefined);
+      } finally {
+        setSending(false);
+      }
+      return;
+    }
+
+    if (isRoomFrozen) {
+      alert('현재 채팅방 청소 중입니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
 
     setSending(true);
     try {
@@ -595,10 +873,41 @@ const AnonymousChatRoom: React.FC = () => {
         senderLabel: profile.customNickname,
         profileNickname: profile.profileNickname || user.nickname || '',
         content: trimmed,
+        replyToId: replyTarget?.id || null,
+        replyPreviewSender: replyTarget?.senderLabel || '',
+        replyPreviewContent: (replyTarget?.content || '').trim().slice(0, 80),
         createdAtClient: Date.now(),
         createdAt: serverTimestamp()
       });
+
+      const targetUids = roomParticipants
+        .map((member) => member.uid)
+        .filter((uid) => uid && uid !== user.uid);
+
+      if (targetUids.length > 0) {
+        await Promise.all(
+          targetUids.map((targetUid) =>
+            addDoc(collection(db, 'notifications'), {
+              toUid: targetUid,
+              type: 'anonymous_chat',
+              postType: 'anonymous_chat',
+              postId: selectedRoomId,
+              postTitle: `익명채팅 - ${selectedRoom?.title || '채팅방'}`,
+              message: `${profile.customNickname}: ${trimmed.slice(0, 80)}`,
+              route: '/anonymous-chat',
+              roomId: selectedRoomId,
+              fromUid: user.uid,
+              fromNickname: profile.customNickname,
+              hiddenFromInbox: true,
+              isRead: true,
+              createdAt: serverTimestamp()
+            })
+          )
+        );
+      }
       setInput('');
+      setReplyTarget(null);
+      void markRoomAsRead();
     } catch (error) {
       console.error('메시지 전송 실패:', error);
       alert('메시지 전송에 실패했습니다.');
@@ -710,11 +1019,7 @@ const AnonymousChatRoom: React.FC = () => {
               <button
                 className="anonymous-chat-room-enter"
                 onClick={() => {
-                  if (!canEnterRoom(room)) {
-                    alert(`${getRoomRestrictionLabel(room)}\n현재 내 활동일: ${userActiveDays}일`);
-                    return;
-                  }
-                  setSelectedRoomId(room.id);
+                  void handleEnterRoom(room);
                 }}
                 type="button"
               >
@@ -737,12 +1042,39 @@ const AnonymousChatRoom: React.FC = () => {
             </div>
           ))}
         </div>
+        {pendingDeleteRoom && (
+          <div className="anonymous-chat-members-overlay" onClick={() => setPendingDeleteRoom(null)}>
+            <div className="anonymous-chat-members-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="anonymous-chat-members-title">채팅방 삭제</div>
+              <div className="anonymous-chat-members-empty">"{pendingDeleteRoom.title}" 채팅방을 삭제하시겠습니까?</div>
+              <button
+                type="button"
+                className="anonymous-chat-members-close"
+                onClick={() => void confirmDeleteRoom()}
+                disabled={deletingRoomId === pendingDeleteRoom.id}
+              >
+                {deletingRoomId === pendingDeleteRoom.id ? '삭제 중...' : '삭제하기'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
   const selectedRoom = rooms.find((room) => room.id === selectedRoomId);
   const myUid = user.uid;
+  const isRoomNotificationMuted = (selectedRoom?.notificationMutedUids || []).includes(myUid);
+  const canManageCoHost = selectedRoom?.createdByUid === user.uid;
+  const managerUids = new Set<string>([
+    selectedRoom?.createdByUid || '',
+    ...((selectedRoom?.coHostUids || []) as string[])
+  ]);
+  const canModerateChat = managerUids.has(user.uid);
+  const myParticipant = roomParticipants.find((member) => member.uid === myUid);
+  const myMuteUntilMs = toUnixMillis(myParticipant?.chatMutedUntil);
+  const isMyChatMuted = myMuteUntilMs > Date.now();
+  const isRoomFrozen = Boolean(selectedRoom?.isFrozen);
 
   return (
     <div className="anonymous-chat-room-screen">
@@ -763,11 +1095,21 @@ const AnonymousChatRoom: React.FC = () => {
         <div className="anonymous-chat-topbar-actions">
           <button type="button" aria-label="검색"><Search size={19} /></button>
           <button type="button" aria-label="통화"><Phone size={19} /></button>
-          <button type="button" aria-label="영상"><Video size={19} /></button>
+          <button
+            type="button"
+            aria-label={isRoomNotificationMuted ? '채팅 푸시 켜기' : '채팅 푸시 끄기'}
+            title={isRoomNotificationMuted ? '채팅 푸시 켜기' : '채팅 푸시 끄기'}
+            onClick={() => void handleToggleRoomNotifications()}
+          >
+            {isRoomNotificationMuted ? <BellOff size={19} /> : <Bell size={19} />}
+          </button>
           <button type="button" aria-label="메뉴" onClick={() => setShowRoomMenu((prev) => !prev)}><Menu size={19} /></button>
         </div>
       </div>
       <div className="anonymous-chat-room-rule-banner">{getRoomRestrictionLabel(selectedRoom)}</div>
+      {isRoomFrozen && (
+        <div className="anonymous-chat-room-rule-banner">청소도우미가 채팅방을 정리 중입니다.</div>
+      )}
 
       {showRoomMenu && (
         <div className="anonymous-chat-room-menu">
@@ -813,7 +1155,28 @@ const AnonymousChatRoom: React.FC = () => {
           }
 
           const message = item.message;
+          const isSystemMessage =
+            message.uid === '__system__' ||
+            message.uid === 'system' ||
+            (message.senderLabel || '').toLowerCase() === 'system';
+          const systemNoticeText = isSystemMessage
+            ? (message.systemText || message.content || '').trim()
+            : '';
+          if (systemNoticeText) {
+            return (
+              <div key={message.id} className="anonymous-chat-system-notice">
+                {systemNoticeText}
+              </div>
+            );
+          }
           const isMine = message.uid === myUid;
+          const messageMs = toUnixMillis(message.createdAt) || (message.createdAtClient || 0);
+          const eligibleParticipants = roomParticipants.filter((member) => member.uid !== message.uid);
+          const readCount = eligibleParticipants.filter((member) => {
+            const readMs = toUnixMillis(member.lastReadAt);
+            return readMs > 0 && readMs >= messageMs;
+          }).length;
+          const unreadCount = Math.max(0, eligibleParticipants.length - readCount);
           const createdAtText = getMessageSortSeconds(message)
             ? new Date(getMessageSortSeconds(message) * 1000).toLocaleTimeString('ko-KR', {
                 hour: '2-digit',
@@ -824,6 +1187,18 @@ const AnonymousChatRoom: React.FC = () => {
           return (
             <div
               key={message.id}
+              ref={(el) => {
+                messageItemRefs.current[message.id] = el;
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                openMessageActionMenu(message, e.clientX, e.clientY);
+              }}
+              onClick={(e) => {
+                if (!isTouchDevice) return;
+                const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                openMessageActionMenu(message, rect.left + rect.width * 0.7, rect.top + rect.height * 0.5);
+              }}
               className={`anonymous-chat-message-row ${isMine ? 'mine' : 'other'}`}
             >
               {!isMine && <div className="anonymous-chat-avatar">{message.senderLabel.slice(0, 1)}</div>}
@@ -834,10 +1209,28 @@ const AnonymousChatRoom: React.FC = () => {
                   </div>
                 )}
                 <div className="anonymous-chat-bubble-row">
-                  <div className={`anonymous-chat-bubble ${isMine ? 'mine' : 'other'}`}>
+                  <div className={`anonymous-chat-bubble ${isMine ? 'mine' : 'other'} ${highlightedMessageId === message.id ? 'target-highlight' : ''}`}>
+                    {message.replyToId && (
+                      <button
+                        type="button"
+                        className="anonymous-chat-replied-block"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          scrollToMessageById(message.replyToId);
+                        }}
+                      >
+                        <strong>{message.replyPreviewSender || '익명'}</strong>
+                        <span>{message.replyPreviewContent || '원본 메시지'}</span>
+                      </button>
+                    )}
                     {message.content}
                   </div>
-                  <span className="anonymous-chat-time">{createdAtText}</span>
+                  <div className="anonymous-chat-meta-stack">
+                    {unreadCount > 0 && (
+                      <span className="anonymous-chat-unread-count">{unreadCount}</span>
+                    )}
+                    <span className="anonymous-chat-time">{createdAtText}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -845,7 +1238,67 @@ const AnonymousChatRoom: React.FC = () => {
         })}
       </div>
 
+      {messageActionMenu && (
+        <div
+          className="anonymous-chat-message-menu"
+          style={{ left: `${messageActionMenu.x}px`, top: `${messageActionMenu.y}px` }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={() => {
+              setReplyTarget({
+                id: messageActionMenu.message.id,
+                senderLabel: messageActionMenu.message.senderLabel || '익명',
+                content: messageActionMenu.message.content || ''
+              });
+              setMessageActionMenu(null);
+            }}
+          >
+            답장
+          </button>
+          {canModerateChat && messageActionMenu.message.uid !== myUid && (
+            <button
+              type="button"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={() => {
+                void handleMuteParticipant(messageActionMenu.message);
+                setMessageActionMenu(null);
+              }}
+            >
+              채팅정지(30초)
+            </button>
+          )}
+          <button type="button" onMouseDown={(e) => e.stopPropagation()} onClick={() => setMessageActionMenu(null)}>
+            닫기
+          </button>
+        </div>
+      )}
+
       <div className="anonymous-chat-input kakao-style">
+        {replyTarget && (
+          <button
+            type="button"
+            className="anonymous-chat-reply-preview"
+            onClick={() => scrollToMessageById(replyTarget.id)}
+          >
+            <div className="anonymous-chat-reply-preview-text">
+              <strong>{replyTarget.senderLabel}</strong>
+              <span>{replyTarget.content || '메시지'}</span>
+            </div>
+            <span
+              className="anonymous-chat-reply-preview-close"
+              onClick={(e) => {
+                e.stopPropagation();
+                setReplyTarget(null);
+              }}
+            >
+              ×
+            </span>
+          </button>
+        )}
         <div className="anonymous-chat-input-top">
           <input
             type="text"
@@ -858,7 +1311,8 @@ const AnonymousChatRoom: React.FC = () => {
               }
             }}
             maxLength={300}
-            placeholder="메시지 입력"
+            placeholder={isRoomFrozen ? '채팅방 청소 중입니다' : isMyChatMuted ? '채팅정지 상태입니다' : '메시지 입력'}
+            disabled={isMyChatMuted || isRoomFrozen}
           />
         </div>
         <div className="anonymous-chat-input-bottom">
@@ -869,7 +1323,7 @@ const AnonymousChatRoom: React.FC = () => {
           </div>
           <div className="anonymous-chat-input-right">
             <div className="anonymous-chat-voice-slider" />
-            <button className="anonymous-chat-send-btn" onClick={handleSendMessage} disabled={sending || !input.trim()}>
+            <button className="anonymous-chat-send-btn" onClick={handleSendMessage} disabled={sending || !input.trim() || isMyChatMuted || isRoomFrozen}>
               전송
             </button>
           </div>
@@ -885,12 +1339,24 @@ const AnonymousChatRoom: React.FC = () => {
                 <div className="anonymous-chat-members-empty">현재 입장 멤버가 없습니다.</div>
               )}
               {sortedParticipants.map((member) => (
-                <div key={member.uid} className="anonymous-chat-members-item">
+                <div
+                  key={member.uid}
+                  className={`anonymous-chat-members-item ${canManageCoHost && member.uid !== selectedRoom?.createdByUid ? 'can-toggle-cohost' : ''}`}
+                  onClick={() => {
+                    if (!canManageCoHost) return;
+                    if (member.uid === selectedRoom?.createdByUid) return;
+                    void handleToggleCoHost(member.uid);
+                  }}
+                >
                   <div className="anonymous-chat-members-name-row">
                     <span>{getDisplayName(member.nickname, member.profileNickname)}</span>
                     {member.uid === selectedRoom?.createdByUid && (
                       <span className="anonymous-chat-members-badge">방장</span>
                     )}
+                    {member.uid !== selectedRoom?.createdByUid &&
+                      selectedRoom?.coHostUids?.includes(member.uid) && (
+                        <span className="anonymous-chat-members-badge cohost">부방장</span>
+                      )}
                   </div>
                   <div className="anonymous-chat-members-joined">
                     입장: {member.joinedAt?.seconds

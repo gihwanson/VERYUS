@@ -848,7 +848,19 @@ function App() {
     const unsubscribeNotifications = onSnapshot(
       notificationsQuery,
       (snapshot) => {
-        setUnreadNotificationCount(snapshot.size);
+        const visibleUnread = snapshot.docs.filter((snap) => {
+          const data = snap.data() as Record<string, any>;
+          const type = String(data.type || '').toLowerCase();
+          const postType = String(data.postType || '').toLowerCase();
+          const route = String(data.route || '').toLowerCase();
+          const isChat =
+            type.includes('chat') ||
+            postType.includes('chat') ||
+            route.startsWith('/anonymous-chat') ||
+            route.startsWith('/chat');
+          return !isChat;
+        }).length;
+        setUnreadNotificationCount(visibleUnread);
       },
       (error) => {
         console.error('알림 개수 구독 에러:', error);
