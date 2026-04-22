@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, Timestamp, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useNavigate } from 'react-router-dom';
-import { collection as fbCollection, getDocs as fbGetDocs } from 'firebase/firestore';
 import { GRADE_ORDER, GRADE_NAMES, type AdminUser } from './AdminTypes';
 import type { ApprovedSong, UserMap, SongType, TabType } from './ApprovedSongsUtils';
 import { Play, Pause } from 'lucide-react';
@@ -23,6 +22,7 @@ import {
   MemberInput,
   ActionButtons
 } from './ApprovedSongsComponents';
+import GlobalLoadingScreen from './GlobalLoadingScreen';
 import './ApprovedSongs.css';
 
 const ApprovedSongs: React.FC = () => {
@@ -44,6 +44,7 @@ const ApprovedSongs: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [userMap, setUserMap] = useState<UserMap>({});
   const [allNicknames, setAllNicknames] = useState<string[]>([]);
+  const [hasLoadedUsers, setHasLoadedUsers] = useState(false);
   const [buskingTab, setBuskingTab] = useState<TabType>('all');
   const [manageTab, setManageTab] = useState<TabType>('all');
   const [audioMap, setAudioMap] = useState<Record<string, { audioUrl: string; duration?: number }>>({});
@@ -68,23 +69,39 @@ const ApprovedSongs: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
+  const shouldLoadUsers = activeTab === 'busking' || manageTab === 'manage' || buskingTab === 'grade';
+
   useEffect(() => {
-    // 유저 등급 정보도 fetch
-    const unsubscribe = onSnapshot(fbCollection(db, 'users'), (snap) => {
-      const map: UserMap = {};
-      const nicknames: string[] = [];
-      snap.docs.forEach(doc => {
-        const d = doc.data();
-        if (d.nickname) {
-          map[d.nickname] = { grade: d.grade };
-          nicknames.push(d.nickname);
-        }
-      });
-      setUserMap(map);
-      setAllNicknames(nicknames);
-    });
-    return () => unsubscribe();
-  }, []);
+    if (!shouldLoadUsers || hasLoadedUsers) return;
+
+    let cancelled = false;
+    const loadUsers = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'users'));
+        if (cancelled) return;
+
+        const map: UserMap = {};
+        const nicknames: string[] = [];
+        snap.docs.forEach((snapshotDoc) => {
+          const data = snapshotDoc.data();
+          if (data.nickname) {
+            map[data.nickname] = { grade: data.grade };
+            nicknames.push(data.nickname);
+          }
+        });
+        setUserMap(map);
+        setAllNicknames(nicknames);
+        setHasLoadedUsers(true);
+      } catch (error) {
+        console.error('유저 정보 로딩 실패:', error);
+      }
+    };
+
+    void loadUsers();
+    return () => {
+      cancelled = true;
+    };
+  }, [shouldLoadUsers, hasLoadedUsers]);
 
   const handleSave = async () => {
     if (!validateSongForm(form)) {
@@ -113,10 +130,6 @@ const ApprovedSongs: React.FC = () => {
       }
       setForm({ title: '', members: [''] });
       setEditId(null);
-      // 목록 새로고침
-      const q = query(collection(db, 'approvedSongs'), orderBy('title'));
-      const snap = await getDocs(q);
-      setSongs(snap.docs.map(convertFirestoreData));
       // 저장 성공 메시지
       alert(isEdit ? '수정되었습니다.' : '등록되었습니다.');
     } catch (err) {
@@ -146,9 +159,7 @@ const ApprovedSongs: React.FC = () => {
   const handleDeleteMember = async (nickname: string) => {
     if (!window.confirm(`${nickname}의 모든 합격곡을 삭제할까요?`)) return;
     const toDelete = songs.filter(song => (song.members || []).includes(nickname));
-    for (const song of toDelete) {
-      await deleteDoc(doc(db, 'approvedSongs', song.id));
-    }
+    await Promise.all(toDelete.map(song => deleteDoc(doc(db, 'approvedSongs', song.id))));
     setSongs(songs => songs.filter(song => !toDelete.some(s => s.id === song.id)));
   };
 
@@ -324,21 +335,36 @@ const ApprovedSongs: React.FC = () => {
   };
 
   // 필터링된 곡 리스트
-  const displayedSongs = filterSongsBySearch(
-    filterSongsByType(songs, songType), 
-    searchTerm
+  const displayedSongs = useMemo(
+    () => filterSongsBySearch(filterSongsByType(songs, songType), searchTerm),
+    [songs, songType, searchTerm]
   );
 
-  // 중복 없는 닉네임 추출
-  const uniqueMembers = getUniqueMembers(songs).sort((a, b) => a.localeCompare(b, 'ko'));
-  const uniqueMembersText = uniqueMembers.join('\n');
-  const otherMembers = allNicknames
-    .filter(nickname => !uniqueMembers.includes(nickname))
-    .sort((a, b) => a.localeCompare(b, 'ko'));
-  const otherMembersText = otherMembers.join('\n');
+  const buskingDisplayedSongs = useMemo(
+    () => filterSongsByType(filteredSongs, buskingTab as SongType),
+    [filteredSongs, buskingTab]
+  );
+
+  // 관리 탭에서만 닉네임 집계 계산
+  const uniqueMembers = useMemo(() => {
+    if (manageTab !== 'manage') return [];
+    return getUniqueMembers(songs).sort((a, b) => a.localeCompare(b, 'ko'));
+  }, [songs, manageTab]);
+
+  const uniqueMembersText = useMemo(() => uniqueMembers.join('\n'), [uniqueMembers]);
+
+  const otherMembers = useMemo(() => {
+    if (manageTab !== 'manage') return [];
+    const uniqueSet = new Set(uniqueMembers);
+    return allNicknames
+      .filter(nickname => !uniqueSet.has(nickname))
+      .sort((a, b) => a.localeCompare(b, 'ko'));
+  }, [allNicknames, uniqueMembers, manageTab]);
+
+  const otherMembersText = useMemo(() => otherMembers.join('\n'), [otherMembers]);
 
   if (loading) {
-    return <div className="approved-songs-container">로딩 중...</div>;
+    return <GlobalLoadingScreen message="합격곡을 불러오는 중..." />;
   }
 
   return (
@@ -625,7 +651,7 @@ const ApprovedSongs: React.FC = () => {
                 
                 {/* 곡 리스트 */}
                 <SongList
-                  songs={filterSongsByType(filteredSongs, buskingTab as SongType)}
+                  songs={buskingDisplayedSongs}
                   isAdmin={false}
                   onEdit={() => {}}
                   onDelete={() => {}}

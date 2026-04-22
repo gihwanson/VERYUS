@@ -4,24 +4,11 @@ import type { AdminUser, UserActivity, ActivityStats, UserActivitySummary, Admin
 import { NOTIFICATION_TYPE_LABELS, NOTIFICATION_TYPE_COLORS, ADMIN_ACTION_LABELS, ADMIN_ACTION_COLORS } from './AdminTypes';
 import { formatDate, getGradeDisplay, calculateActivityDays, createRoleDisplay, createRoleIcon, getUserStatus, createStatusDisplay, getSuspensionTimeLeft, getActivityIcon, formatActivityTime, getActivityLevel, getLogActionIcon, formatLogTime, calculateStats, calculateActivityScore, calculateActivityStats, changeUserStatus, isUserSuspended, executeBulkAction, generateUserAnalytics, logAdminAction, fetchAdminLogs, calculateLogStats, getNotificationTypeIcon, getNotificationStatusDisplay, getDefaultTemplates, createNotificationTargets, fetchNotificationTemplates, toggleAllTargets } from './AdminUtils';
 import { Timestamp } from 'firebase/firestore';
+import GlobalLoadingScreen from './GlobalLoadingScreen';
 
 // 로딩 컴포넌트
 export const LoadingSpinner: React.FC = () => (
-  <div className="loading-container">
-    <div className="loading-spinner" aria-busy="true" aria-live="polite">
-      <div className="orbital-loading">
-        <div className="loading-sun">☀️</div>
-        <div className="loading-planet loading-planet-1">🍎</div>
-        <div className="loading-planet loading-planet-2">🍈</div>
-        <div className="loading-planet loading-planet-3">🍉</div>
-        <div className="loading-planet loading-planet-4">🥝</div>
-        <div className="loading-planet loading-planet-5">🫐</div>
-        <div className="loading-planet loading-planet-6">🍒</div>
-      </div>
-    </div>
-    <h2>불러오는 중</h2>
-    <p>회원 목록과 설정을 준비하고 있어요.</p>
-  </div>
+  <GlobalLoadingScreen message="관리자 데이터를 불러오는 중..." fullScreen={false} />
 );
 
 // 통계 카드 컴포넌트

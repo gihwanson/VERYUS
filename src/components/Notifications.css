@@ -219,3 +219,279 @@
   padding: 40px 0;
   font-size: 18px;
 } 
+
+/* PracticeRoomBooking 톤 통일 */
+.notifications-container {
+  background: rgba(255, 255, 255, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 12px 30px rgba(65, 30, 110, 0.16);
+}
+
+.notification-item,
+.notification-post-title {
+  background: rgba(255, 255, 255, 0.84);
+  border-color: rgba(138, 85, 204, 0.2);
+}
+
+.notification-item.unread {
+  background: rgba(245, 243, 255, 0.95);
+  border-color: #8a55cc;
+}
+
+.notification-icon {
+  background: rgba(245, 243, 255, 0.92);
+}
+
+/* Lightweight class-based layout (inline style replacement) */
+.notifications-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-attachment: fixed;
+  position: relative;
+  overflow: hidden;
+}
+
+.notifications-page-pattern {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 40% 80%, rgba(120, 119, 198, 0.2) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.notifications-page-inner {
+  position: relative;
+  z-index: 1;
+  padding: 20px;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notifications-glass-panel {
+  max-width: 800px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border-radius: 24px;
+  padding: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.notifications-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 24px;
+  gap: 16px;
+}
+
+.notifications-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 28px;
+  margin: 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.notifications-unread-badge {
+  background-color: #ef4444;
+  color: #ffffff;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 4px 10px;
+  margin-left: 12px;
+  min-width: 24px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+}
+
+.notifications-mark-all-btn {
+  background: rgba(16, 185, 129, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
+  padding: 10px 18px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+}
+
+.notifications-mark-all-btn:hover {
+  background: rgba(16, 185, 129, 0.9);
+  transform: translateY(-2px);
+}
+
+.notifications-empty-state {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.7);
+  padding: 60px 20px;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.notifications-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.notifications-card {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.notifications-card.is-read {
+  opacity: 0.76;
+}
+
+.notifications-card:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.notifications-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.notifications-card-icon {
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  flex-shrink: 0;
+}
+
+.notifications-icon-comment { color: #8a55cc; }
+.notifications-icon-reply { color: #7c4dbc; }
+.notifications-icon-like { color: #ff4757; }
+.notifications-icon-approval { color: #2ed573; }
+.notifications-icon-rejection { color: #ff3838; }
+.notifications-icon-guestbook { color: #a55eea; }
+.notifications-icon-guestbook-reply { color: #b794f4; }
+.notifications-icon-mention { color: #ffa726; }
+.notifications-icon-partnership { color: #ffe66d; }
+.notifications-icon-partnership-closed { color: #10b981; }
+.notifications-icon-partnership-confirmed { color: #3b82f6; }
+.notifications-icon-grade-request-pending { color: #7f5fff; }
+.notifications-icon-grade-change-approved { color: #10b981; }
+.notifications-icon-grade-change-rejected { color: #f97316; }
+
+.notifications-card-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.notifications-card-message {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 8px;
+  line-height: 1.4;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.notifications-card-tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.notifications-post-badge {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.notifications-unread-dot {
+  color: #ff4757;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.notifications-delete-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 6px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.7);
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.notifications-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.8);
+  color: #ffffff;
+}
+
+.notifications-post-title {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin: 12px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notifications-card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.notifications-author {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+}
+
+.notifications-date {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+}

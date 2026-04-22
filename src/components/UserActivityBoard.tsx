@@ -119,10 +119,12 @@ const UserActivityBoard: React.FC = React.memo(() => {
       setLoading(true);
       setError(null);
 
-      const usersSnap = await getDocs(collection(db, 'users'));
+      const [usersSnap, postsSnap, commentsSnap] = await Promise.all([
+        getDocs(collection(db, 'users')),
+        getDocs(collection(db, 'posts')),
+        getDocs(collection(db, 'comments'))
+      ]);
       const users: User[] = usersSnap.docs.map(doc => ({ uid: doc.id, ...doc.data() })) as User[];
-
-      const postsSnap = await getDocs(collection(db, 'posts'));
       const postCounts: Record<string, number> = {};
       const likeGivenCounts: Record<string, number> = {};
 
@@ -140,7 +142,6 @@ const UserActivityBoard: React.FC = React.memo(() => {
         }
       });
 
-      const commentsSnap = await getDocs(collection(db, 'comments'));
       const commentCounts: Record<string, number> = {};
       const commentLikeGivenCounts: Record<string, number> = {};
 

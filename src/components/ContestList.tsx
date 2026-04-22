@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, orderBy, getDocs, setDoc, doc, getDoc, doc as firestoreDoc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, setDoc, doc, getDoc, doc as firestoreDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Trophy, Plus } from 'lucide-react';
 import '../styles/variables.css';
 import '../styles/components.css';
 
@@ -206,14 +205,6 @@ const ContestList: React.FC = () => {
     }
   }, []);
 
-  const handleCreateClick = useCallback(() => {
-    navigate('/contests/create');
-  }, [navigate]);
-
-  const handleDetailClick = useCallback((contestId: string) => {
-    navigate(`/contests/${contestId}`);
-  }, [navigate]);
-
   const formatDeadline = useCallback((deadline: any): string => {
     if (!deadline) return '';
     return deadline.seconds ? new Date(deadline.seconds * 1000).toLocaleDateString('ko-KR') : '';
@@ -230,11 +221,22 @@ const ContestList: React.FC = () => {
 
   // Effects
   useEffect(() => {
-    const q = query(collection(db, 'contests'), orderBy('deadline', 'desc'));
-    const unsub = onSnapshot(q, (snap) => {
-      setContests(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Contest[]);
-    });
-    return () => unsub();
+    let cancelled = false;
+    const loadContests = async () => {
+      try {
+        const q = query(collection(db, 'contests'), orderBy('deadline', 'desc'));
+        const snap = await getDocs(q);
+        if (cancelled) return;
+        setContests(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Contest[]);
+      } catch (error) {
+        console.error('콘테스트 목록 로딩 실패:', error);
+      }
+    };
+
+    void loadContests();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (

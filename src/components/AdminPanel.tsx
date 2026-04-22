@@ -174,6 +174,8 @@ const AdminPanel: React.FC = () => {
   }, [location.search, location.state]);
 
   const [searchTerm, setSearchTerm] = useState('');
+  const USERS_PAGE_SIZE = 30;
+  const [visibleUsersCount, setVisibleUsersCount] = useState(USERS_PAGE_SIZE);
 
   // 편집 상태
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
@@ -272,12 +274,26 @@ const AdminPanel: React.FC = () => {
     return filtered;
   }, [users, searchTerm]);
 
+  const visibleFilteredUsers = useMemo(
+    () => filteredUsers.slice(0, visibleUsersCount),
+    [filteredUsers, visibleUsersCount]
+  );
+
+  useEffect(() => {
+    setVisibleUsersCount(USERS_PAGE_SIZE);
+  }, [searchTerm]);
+
   const pendingGradeRequests = useMemo(
     () =>
       users.filter(
         (u) => Boolean(u.pendingGrade?.trim()) || Boolean(u.pendingCreatedAt)
       ),
     [users]
+  );
+  const selectedUserUidSet = useMemo(() => new Set(selectedUserUids), [selectedUserUids]);
+  const selectedUsersForBulkExport = useMemo(
+    () => users.filter((user) => selectedUserUidSet.has(user.uid)),
+    [users, selectedUserUidSet]
   );
 
   const adminLogName = (u: VeryusUser) => u.nickname?.trim() || '관리자';
@@ -1041,9 +1057,8 @@ const AdminPanel: React.FC = () => {
 
   // 선택된 사용자만 엑셀 내보내기
   const handleBulkExport = () => {
-    const selectedUsers = users.filter(user => selectedUserUids.includes(user.uid));
-    exportToExcel(selectedUsers);
-    alert(`${selectedUsers.length}명의 정보를 엑셀로 내보냈습니다.`);
+    exportToExcel(selectedUsersForBulkExport);
+    alert(`${selectedUsersForBulkExport.length}명의 정보를 엑셀로 내보냈습니다.`);
   };
 
   // 상태 변경 처리 (로그 포함)
@@ -1355,36 +1370,49 @@ const AdminPanel: React.FC = () => {
       {filteredUsers.length === 0 ? (
         <EmptyState message="검색 조건에 맞는 사용자가 없습니다." />
       ) : (
-        <div className="users-grid">
-          {filteredUsers.map(user => (
-            <div key={user.uid} className="user-card-wrapper">
-              <div className="checkbox-wrapper">
-                <input
-                  type="checkbox"
-                  checked={selectedUserUids.includes(user.uid)}
-                  onChange={() => handleToggleUserSelect(user.uid)}
-                  title="선택"
+        <>
+          <div className="users-grid">
+            {visibleFilteredUsers.map(user => (
+              <div key={user.uid} className="user-card-wrapper">
+                <div className="checkbox-wrapper">
+                  <input
+                    type="checkbox"
+                    checked={selectedUserUids.includes(user.uid)}
+                    onChange={() => handleToggleUserSelect(user.uid)}
+                    title="선택"
+                  />
+                </div>
+                <UserCard
+                  user={user}
+                  isEditing={editingUser?.uid === user.uid}
+                  onEdit={() => setEditingUser(user)}
+                  onSave={() => handleUpdateUser(user)}
+                  onCancel={() => setEditingUser(null)}
+                  onDelete={() => handleDeleteUser(user)}
+                  onView={() => setSelectedUser(user)}
+                  onStatusChange={() => openStatusModal(user)}
+                  editingUser={editingUser || undefined}
+                  onEditChange={(field, value) => {
+                    if (editingUser) {
+                      setEditingUser({ ...editingUser, [field]: value });
+                    }
+                  }}
                 />
               </div>
-              <UserCard
-                user={user}
-                isEditing={editingUser?.uid === user.uid}
-                onEdit={() => setEditingUser(user)}
-                onSave={() => handleUpdateUser(user)}
-                onCancel={() => setEditingUser(null)}
-                onDelete={() => handleDeleteUser(user)}
-                onView={() => setSelectedUser(user)}
-                onStatusChange={() => openStatusModal(user)}
-                editingUser={editingUser || undefined}
-                onEditChange={(field, value) => {
-                  if (editingUser) {
-                    setEditingUser({ ...editingUser, [field]: value });
-                  }
-                }}
-              />
+            ))}
+          </div>
+          {visibleUsersCount < filteredUsers.length && (
+            <div className="admin-load-more-wrap">
+              <button
+                type="button"
+                className="admin-load-more-btn"
+                onClick={() => setVisibleUsersCount((prev) => prev + USERS_PAGE_SIZE)}
+              >
+                사용자 더 보기 ({filteredUsers.length - visibleUsersCount}명 남음)
+              </button>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -1735,7 +1763,7 @@ const AdminPanel: React.FC = () => {
   };
 
   // 필터링된 사용자 목록
-  const getFilteredGradesUsers = () => {
+  const filteredGradesUsers = useMemo(() => {
     let filtered = filteredUsers;
     
     // 등급 필터
@@ -1754,10 +1782,10 @@ const AdminPanel: React.FC = () => {
     }
     
     return filtered;
-  };
+  }, [filteredUsers, gradeFilter, promotionFilter]);
 
   const renderGradesTable = () => {
-    const displayUsers = getFilteredGradesUsers();
+    const displayUsers = filteredGradesUsers;
     
     return (
       <div className="grades-list">

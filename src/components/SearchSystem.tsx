@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, memo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Search, 
@@ -100,9 +100,11 @@ const SearchSystem: React.FC<SearchSystemProps> = memo(({
   const [userResults, setUserResults] = useState<UserSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [popularTags, setPopularTags] = useState<string[]>(POPULAR_TAGS);
 
   const [tagInput, setTagInput] = useState('');
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+  const searchRequestIdRef = useRef(0);
   
   // 디바운스된 검색어
   const debouncedQuery = useDebounce(query, 300);
@@ -142,6 +144,7 @@ const SearchSystem: React.FC<SearchSystemProps> = memo(({
       return;
     }
     
+    const requestId = ++searchRequestIdRef.current;
     setLoading(true);
     try {
       // 병렬로 게시글 검색과 사용자 검색 실행
@@ -152,6 +155,7 @@ const SearchSystem: React.FC<SearchSystemProps> = memo(({
         searchQuery.trim() ? searchUsers(searchQuery) : Promise.resolve([])
       ]);
       
+      if (requestId !== searchRequestIdRef.current) return;
       setResults(searchResults);
       setUserResults(userSearchResults);
       
@@ -161,11 +165,14 @@ const SearchSystem: React.FC<SearchSystemProps> = memo(({
       }
       
     } catch (error) {
+      if (requestId !== searchRequestIdRef.current) return;
       showErrorToast(error, 'Search');
       setResults([]);
       setUserResults([]);
     } finally {
-      setLoading(false);
+      if (requestId === searchRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   };
   
@@ -180,8 +187,9 @@ const SearchSystem: React.FC<SearchSystemProps> = memo(({
   useEffect(() => {
     // 인기 태그 동적 로드 (기본 태그 대신)
     getPopularTags().then(tags => {
-      // POPULAR_TAGS를 동적으로 업데이트할 수 있지만, 
-      // 여기서는 tagSuggestions에서 처리됩니다.
+      if (Array.isArray(tags) && tags.length > 0) {
+        setPopularTags(tags);
+      }
     }).catch(error => {
       console.error('인기 태그 로드 실패:', error);
     });
@@ -228,12 +236,15 @@ const SearchSystem: React.FC<SearchSystemProps> = memo(({
   
   // 태그 제안 필터링
   const tagSuggestions = useMemo(() => {
-    if (!tagInput) return POPULAR_TAGS;
-    return POPULAR_TAGS.filter(tag => 
+    if (!tagInput) return popularTags;
+    return popularTags.filter(tag => 
       tag.toLowerCase().includes(tagInput.toLowerCase()) &&
       !filters.tags.includes(tag)
     );
-  }, [tagInput, filters.tags]);
+  }, [tagInput, filters.tags, popularTags]);
+
+  const visibleUserResults = useMemo(() => userResults.slice(0, 10), [userResults]);
+  const visiblePostResults = useMemo(() => results.slice(0, 30), [results]);
   
   // 검색 결과 하이라이팅
   const highlightText = (text: string | undefined | null, query: string) => {
@@ -242,9 +253,10 @@ const SearchSystem: React.FC<SearchSystemProps> = memo(({
     
     const regex = new RegExp(`(${query})`, 'gi');
     const parts = text.split(regex);
+    const lowerQuery = query.toLowerCase();
     
     return parts.map((part, index) => 
-      regex.test(part) ? (
+      part.toLowerCase() === lowerQuery ? (
         <mark key={index} className="search-highlight">{part}</mark>
       ) : part
     );
@@ -442,7 +454,7 @@ const SearchSystem: React.FC<SearchSystemProps> = memo(({
                     <span>사용자 ({userResults.length})</span>
                   </div>
                   
-                  {userResults.map(user => (
+                  {visibleUserResults.map(user => (
                     <div 
                       key={user.uid}
                       className="user-result-item"
@@ -479,7 +491,7 @@ const SearchSystem: React.FC<SearchSystemProps> = memo(({
                     <span>게시글 ({results.length})</span>
                   </div>
                   
-                  {results.map(result => (
+                  {visiblePostResults.map(result => (
                     <div 
                       key={result.id}
                       className="result-item"
@@ -528,6 +540,13 @@ const SearchSystem: React.FC<SearchSystemProps> = memo(({
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+              {(userResults.length > visibleUserResults.length || results.length > visiblePostResults.length) && (
+                <div className="results-header">
+                  <span className="results-count">
+                    결과가 많아 일부만 표시 중입니다. 검색어/필터를 더 좁혀보세요.
+                  </span>
                 </div>
               )}
             </div>

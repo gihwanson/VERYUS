@@ -174,7 +174,7 @@ const SimpleAudioPlayer: React.FC<SimpleAudioPlayerProps> = ({
           {formatTime(audioDuration || duration || 0)}
         </span>
       </div>
-      <audio ref={audioRef} src={audioUrl} preload="metadata" />
+      <audio ref={audioRef} src={audioUrl} preload="none" />
     </div>
   );
 };
@@ -208,6 +208,7 @@ export const SongListItem: React.FC<SongListItemProps> = ({
   onPlayChange
 }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [showPlayer, setShowPlayer] = useState(false);
 
   const handleLoadAudio = async () => {
     if (!onLoadAudio || audioUrl) return;
@@ -267,13 +268,30 @@ export const SongListItem: React.FC<SongListItemProps> = ({
         )}
       </div>
       {audioUrl && (
-        <SimpleAudioPlayer
-          playerId={song.id}
-          audioUrl={audioUrl}
-          duration={audioDuration}
-          currentPlayingId={currentPlayingId}
-          onPlayChange={onPlayChange}
-        />
+        <div style={{ width: '100%', marginTop: '8px' }}>
+          {!showPlayer ? (
+            <button
+              className="approved-songs-btn"
+              onClick={() => setShowPlayer(true)}
+              style={{
+                background: 'rgba(255, 255, 255, 0.16)',
+                borderRadius: '8px',
+                padding: '6px 12px',
+                fontSize: '13px'
+              }}
+            >
+              ▶ 플레이어 열기
+            </button>
+          ) : (
+            <SimpleAudioPlayer
+              playerId={song.id}
+              audioUrl={audioUrl}
+              duration={audioDuration}
+              currentPlayingId={currentPlayingId}
+              onPlayChange={onPlayChange}
+            />
+          )}
+        </div>
       )}
     </li>
   );
@@ -322,7 +340,7 @@ export const SongList: React.FC<SongListProps> = ({
         const audioInfo = audioMap[song.id] || (song.audioUrl ? { audioUrl: song.audioUrl, duration: song.duration } : undefined);
         
         return (
-          <SongListItem
+          <MemoizedSongListItem
             key={song.id}
             song={song}
             isAdmin={isAdmin}
@@ -341,6 +359,8 @@ export const SongList: React.FC<SongListProps> = ({
     </ul>
   </div>
 );
+
+const MemoizedSongListItem = React.memo(SongListItem);
 
 // 검색 입력 컴포넌트
 interface SearchInputProps {

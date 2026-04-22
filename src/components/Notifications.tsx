@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { collection, query, where, orderBy, onSnapshot, updateDoc, doc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Bell, MessageCircle, X, Heart, CheckCircle, XCircle, Users, AtSign, UserPlus, CheckCheck, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { NotificationService } from '../utils/notificationService';
+import './Notifications.css';
 
 interface Notification {
   id: string;
@@ -42,10 +43,18 @@ const Notifications: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const userString = localStorage.getItem('veryus_user');
-  const user = userString ? JSON.parse(userString) : null;
+  const user = useMemo(() => {
+    const userString = localStorage.getItem('veryus_user');
+    if (!userString) return null;
+    try {
+      return JSON.parse(userString);
+    } catch (error) {
+      console.error('사용자 정보 파싱 실패:', error);
+      return null;
+    }
+  }, []);
 
-  const isChatNotification = (noti: Notification) => {
+  const isChatNotification = useCallback((noti: Notification) => {
     const type = (noti.type || '').toLowerCase();
     const postType = (noti.postType || '').toLowerCase();
     const route = (noti.route || '').toLowerCase();
@@ -55,12 +64,12 @@ const Notifications: React.FC = () => {
       route.startsWith('/anonymous-chat') ||
       route.startsWith('/chat')
     );
-  };
+  }, []);
 
-  const isHiddenInInbox = (noti: Notification) => {
+  const isHiddenInInbox = useCallback((noti: Notification) => {
     if (noti.hiddenFromInbox === true) return true;
     return isChatNotification(noti);
-  };
+  }, [isChatNotification]);
 
   const getNotificationRoute = (notification: Notification): string | null => {
     if (notification.type === 'grade_change_approved' || notification.type === 'grade_change_rejected') {
@@ -82,7 +91,7 @@ const Notifications: React.FC = () => {
       setLoading(false);
     });
     return () => unsub();
-  }, [user]);
+  }, [isHiddenInInbox, user]);
 
   const handleNotificationClick = async (notification: Notification) => {
     const route = getNotificationRoute(notification);
@@ -135,38 +144,73 @@ const Notifications: React.FC = () => {
     }
   };
 
+  const getNotificationIconClass = (type: string) => {
+    switch (type) {
+      case 'reply':
+        return 'notifications-icon-reply';
+      case 'like':
+        return 'notifications-icon-like';
+      case 'approval':
+        return 'notifications-icon-approval';
+      case 'rejection':
+        return 'notifications-icon-rejection';
+      case 'guestbook':
+        return 'notifications-icon-guestbook';
+      case 'guestbook_reply':
+        return 'notifications-icon-guestbook-reply';
+      case 'mention':
+        return 'notifications-icon-mention';
+      case 'partnership':
+        return 'notifications-icon-partnership';
+      case 'partnership_closed':
+        return 'notifications-icon-partnership-closed';
+      case 'partnership_confirmed':
+        return 'notifications-icon-partnership-confirmed';
+      case 'grade_request_pending':
+        return 'notifications-icon-grade-request-pending';
+      case 'grade_change_approved':
+        return 'notifications-icon-grade-change-approved';
+      case 'grade_change_rejected':
+        return 'notifications-icon-grade-change-rejected';
+      case 'comment':
+      default:
+        return 'notifications-icon-comment';
+    }
+  };
+
   const getNotificationIcon = (type: string) => {
+    const iconClass = getNotificationIconClass(type);
     switch (type) {
       case 'comment':
-        return <MessageCircle size={18} className="text-blue-500" style={{ color: '#8A55CC' }} />;
+        return <MessageCircle size={18} className={iconClass} />;
       case 'reply':
-        return <MessageCircle size={18} className="text-green-500" style={{ color: '#7C4DBC' }} />;
+        return <MessageCircle size={18} className={iconClass} />;
       case 'like':
-        return <Heart size={18} className="text-red-500" style={{ color: '#FF4757' }} />;
+        return <Heart size={18} className={iconClass} />;
       case 'approval':
-        return <CheckCircle size={18} className="text-green-600" style={{ color: '#2ED573' }} />;
+        return <CheckCircle size={18} className={iconClass} />;
       case 'rejection':
-        return <XCircle size={18} className="text-red-600" style={{ color: '#FF3838' }} />;
+        return <XCircle size={18} className={iconClass} />;
       case 'guestbook':
-        return <Users size={18} className="text-purple-500" style={{ color: '#A55EEA' }} />;
+        return <Users size={18} className={iconClass} />;
       case 'guestbook_reply':
-        return <MessageCircle size={18} className="text-purple-500" style={{ color: '#B794F4' }} />;
+        return <MessageCircle size={18} className={iconClass} />;
       case 'mention':
-        return <AtSign size={18} className="text-orange-500" style={{ color: '#FFA726' }} />;
+        return <AtSign size={18} className={iconClass} />;
       case 'partnership':
-        return <UserPlus size={18} className="text-yellow-500" style={{ color: '#FFE66D' }} />;
+        return <UserPlus size={18} className={iconClass} />;
       case 'partnership_closed':
-        return <CheckCircle size={18} className="text-green-500" style={{ color: '#10B981' }} />;
+        return <CheckCircle size={18} className={iconClass} />;
       case 'partnership_confirmed':
-        return <CheckCircle size={18} className="text-blue-500" style={{ color: '#3B82F6' }} />;
+        return <CheckCircle size={18} className={iconClass} />;
       case 'grade_request_pending':
-        return <Shield size={18} className="text-violet-600" style={{ color: '#7f5fff' }} />;
+        return <Shield size={18} className={iconClass} />;
       case 'grade_change_approved':
-        return <CheckCircle size={18} style={{ color: '#10b981' }} />;
+        return <CheckCircle size={18} className={iconClass} />;
       case 'grade_change_rejected':
-        return <XCircle size={18} style={{ color: '#f97316' }} />;
+        return <XCircle size={18} className={iconClass} />;
       default:
-        return <Bell size={18} className="text-gray-500" style={{ color: '#8A55CC' }} />;
+        return <Bell size={18} className={iconClass} />;
     }
   };
 
@@ -187,238 +231,90 @@ const Notifications: React.FC = () => {
 
   const getPostTypeBadge = (postType?: string) => {
     const badges = {
-      'free': { label: '자유', color: '#8A55CC', bg: '#F6F2FF' },
-      'recording': { label: '녹음', color: '#FF6B6B', bg: '#FFF0F0' },
-      'evaluation': { label: '평가', color: '#4ECDC4', bg: '#F0FFFF' },
-      'balance': { label: '밸런스', color: '#EC4899', bg: '#FDF2F8' },
-      'partner': { label: '파트너', color: '#FFE66D', bg: '#FFFEF0' },
-      'notice': { label: '공지', color: '#95A5A6', bg: '#F8F9FA' }
+      'free': { label: '자유' },
+      'recording': { label: '녹음' },
+      'evaluation': { label: '평가' },
+      'balance': { label: '밸런스' },
+      'partner': { label: '파트너' },
+      'notice': { label: '공지' }
     };
     
     if (!postType || !badges[postType as keyof typeof badges]) {
-      return { label: '게시판', color: '#8A55CC', bg: '#F6F2FF' };
+      return { label: '게시판' };
     }
     
     return badges[postType as keyof typeof badges];
   };
 
+  const unreadCount = useMemo(() => notifications.filter(noti => !noti.isRead).length, [notifications]);
+
   if (!user) return <div className="notifications-container">로그인이 필요합니다.</div>;
   if (loading) return <div className="notifications-container">로딩 중...</div>;
 
-  const unreadCount = notifications.filter(noti => !noti.isRead).length;
-  const visibleNotifications = notifications;
-
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      backgroundAttachment: 'fixed',
-      position: 'relative',
-      overflow: 'hidden'
-    }}>
+    <div className="notifications-page">
       {/* 배경 패턴 */}
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: `
-          radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-          radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-          radial-gradient(circle at 40% 80%, rgba(120, 119, 198, 0.2) 0%, transparent 50%)
-        `,
-        pointerEvents: 'none'
-      }} />
+      <div className="notifications-page-pattern" />
       
-      <div style={{
-        position: 'relative',
-        zIndex: 1,
-        padding: '20px',
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
-        <div style={{
-          maxWidth: '800px',
-          width: '100%',
-          background: 'rgba(255, 255, 255, 0.1)',
-          backdropFilter: 'blur(15px)',
-          borderRadius: '24px',
-          padding: '32px',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
-        }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 24, gap: '16px' }}>
-            <h2 style={{ 
-              display: 'flex', 
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontWeight: 700,
-              fontSize: '28px',
-              margin: 0,
-              textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
-            }}>
+      <div className="notifications-page-inner">
+        <div className="notifications-glass-panel">
+          <div className="notifications-header">
+            <h2 className="notifications-title">
               🔔 알림
               {unreadCount > 0 && (
-                <span style={{ 
-                  backgroundColor: '#ef4444', 
-                  color: 'white', 
-                  borderRadius: '12px', 
-                  fontSize: '14px', 
-                  fontWeight: '700', 
-                  padding: '4px 10px', 
-                  marginLeft: '12px',
-                  minWidth: '24px',
-                  textAlign: 'center',
-                  boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)'
-                }}>
+                <span className="notifications-unread-badge">
                   {unreadCount}
                 </span>
               )}
             </h2>
-            {visibleNotifications.length > 0 && (
+            {notifications.length > 0 && (
               <button 
                 onClick={handleMarkAllAsRead}
-                style={{ 
-                  background: 'rgba(16, 185, 129, 0.8)', 
-                  backdropFilter: 'blur(10px)',
-                  color: 'white', 
-                  border: '1px solid rgba(255, 255, 255, 0.3)', 
-                  borderRadius: '12px', 
-                  padding: '10px 18px', 
-                  fontWeight: 600, 
-                  cursor: 'pointer', 
-                  fontSize: 14,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  transition: 'all 0.3s ease'
-                }}
+                className="notifications-mark-all-btn"
                 title="모든 알림 삭제"
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(16, 185, 129, 0.9)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(16, 185, 129, 0.8)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
               >
                 <CheckCheck size={16} />
                 모두 읽음
               </button>
             )}
           </div>
-          {visibleNotifications.length === 0 ? (
-            <div style={{
-              textAlign: 'center',
-              color: 'rgba(255, 255, 255, 0.7)',
-              padding: '60px 20px',
-              fontSize: '18px',
-              fontWeight: 500
-            }}>
+          {notifications.length === 0 ? (
+            <div className="notifications-empty-state">
               🔕 새 알림이 없습니다
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {visibleNotifications.map(noti => {
+            <div className="notifications-list">
+              {notifications.map(noti => {
                 const postBadge = getPostTypeBadge(noti.postType);
                 return (
                   <div
                     key={noti.id}
                     onClick={() => handleNotificationClick(noti)}
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.15)',
-                      backdropFilter: 'blur(10px)',
-                      borderRadius: '16px',
-                      padding: '20px',
-                      border: '1px solid rgba(255, 255, 255, 0.2)',
-                      cursor: 'pointer',
-                      transition: 'all 0.3s ease',
-                      opacity: noti.isRead ? 0.76 : 1
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                    }}
+                    className={`notifications-card ${noti.isRead ? 'is-read' : 'is-unread'}`}
                   >
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '12px' }}>
-                      <div style={{
-                        width: '40px',
-                        height: '40px',
-                        background: 'rgba(255, 255, 255, 0.2)',
-                        backdropFilter: 'blur(5px)',
-                        borderRadius: '12px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        border: '1px solid rgba(255, 255, 255, 0.3)',
-                        flexShrink: 0
-                      }}>
+                    <div className="notifications-card-header">
+                      <div className="notifications-card-icon">
                         {getNotificationIcon(noti.type)}
                       </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{
-                          fontSize: '16px',
-                          fontWeight: 600,
-                          color: 'white',
-                          marginBottom: '8px',
-                          lineHeight: 1.4,
-                          textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-                        }}>
+                      <div className="notifications-card-main">
+                        <div className="notifications-card-message">
                           {getNotificationMessage(noti)}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <div className="notifications-card-tags">
                           {noti.postType && (
-                            <span style={{ 
-                              background: 'rgba(255, 255, 255, 0.2)',
-                              color: 'white',
-                              border: '1px solid rgba(255, 255, 255, 0.3)',
-                              padding: '4px 10px',
-                              borderRadius: '12px',
-                              fontSize: '12px',
-                              fontWeight: 600
-                            }}>
+                            <span className="notifications-post-badge">
                               {postBadge.label}
                             </span>
                           )}
                           {!noti.isRead && (
-                            <span style={{
-                              color: '#FF4757',
-                              fontSize: '16px',
-                              fontWeight: 'bold'
-                            }}>●</span>
+                            <span className="notifications-unread-dot">●</span>
                           )}
                         </div>
                       </div>
                       <button
                         onClick={e => { e.stopPropagation(); handleDeleteNotification(noti.id); }}
-                        style={{
-                          background: 'rgba(255, 255, 255, 0.1)',
-                          border: '1px solid rgba(255, 255, 255, 0.2)',
-                          borderRadius: '8px',
-                          padding: '6px',
-                          cursor: 'pointer',
-                          color: 'rgba(255, 255, 255, 0.7)',
-                          transition: 'all 0.2s ease',
-                          flexShrink: 0
-                        }}
+                        className="notifications-delete-btn"
                         title="알림 삭제"
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = 'rgba(239, 68, 68, 0.8)';
-                          e.currentTarget.style.color = 'white';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                          e.currentTarget.style.color = 'rgba(255, 255, 255, 0.7)';
-                        }}
                       >
                         <X size={16} />
                       </button>
@@ -426,44 +322,17 @@ const Notifications: React.FC = () => {
                     
                     {/* 게시글 제목 */}
                     {noti.postTitle && (
-                      <div style={{
-                        background: 'rgba(255, 255, 255, 0.1)',
-                        border: '1px solid rgba(255, 255, 255, 0.2)',
-                        borderRadius: '12px',
-                        padding: '12px 16px',
-                        margin: '12px 0',
-                        fontSize: '14px',
-                        fontWeight: 500,
-                        color: 'rgba(255, 255, 255, 0.9)',
-                        lineHeight: 1.4,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                      }}>
+                      <div className="notifications-post-title">
                         📝 {noti.postTitle}
                       </div>
                     )}
                     
                     {/* 메타 정보 */}
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginTop: '12px',
-                      paddingTop: '12px',
-                      borderTop: '1px solid rgba(255, 255, 255, 0.1)'
-                    }}>
-                      <span style={{
-                        fontSize: '14px',
-                        color: 'rgba(255, 255, 255, 0.8)',
-                        fontWeight: 500
-                      }}>
+                    <div className="notifications-card-meta">
+                      <span className="notifications-author">
                         👤 {noti.fromNickname}
                       </span>
-                      <span style={{
-                        fontSize: '13px',
-                        color: 'rgba(255, 255, 255, 0.6)'
-                      }}>
+                      <span className="notifications-date">
                         🕐 {noti.createdAt && (noti.createdAt.seconds ? 
                           new Date(noti.createdAt.seconds * 1000).toLocaleDateString('ko-KR', {
                             month: 'short',

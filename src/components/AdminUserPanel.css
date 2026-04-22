@@ -1,13 +1,13 @@
 /* Modern, Trendy Admin Panel - Notion/Linear/Framer Inspired */
 :root {
-  --main-gradient: linear-gradient(90deg, #7f5fff 0%, #5df2f5 100%);
-  --main-gradient-rev: linear-gradient(90deg, #5df2f5 0%, #7f5fff 100%);
-  --card-shadow: 0 8px 32px rgba(127,95,255,0.10), 0 1.5px 8px rgba(93,242,245,0.08);
+  --main-gradient: linear-gradient(135deg, #8a55cc 0%, #764ba2 100%);
+  --main-gradient-rev: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --card-shadow: 0 12px 32px rgba(65, 30, 110, 0.16);
   --card-radius: 22px;
-  --tab-active-bar: linear-gradient(90deg, #7f5fff 0%, #5df2f5 100%);
-  --glass-bg: rgba(255,255,255,0.75);
-  --glass-blur: blur(12px);
-  --badge-shadow: 0 2px 8px rgba(127,95,255,0.10);
+  --tab-active-bar: linear-gradient(135deg, #8a55cc 0%, #764ba2 100%);
+  --glass-bg: rgba(255, 255, 255, 0.24);
+  --glass-blur: blur(16px);
+  --badge-shadow: 0 6px 16px rgba(124, 58, 237, 0.2);
   --transition: 0.18s cubic-bezier(.4,0,.2,1);
   --number-font: 'Inter', 'SUIT', 'Pretendard', sans-serif;
 }
@@ -17,17 +17,35 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(165deg, #f1f5f9 0%, #e8eefe 38%, #f8fafc 100%);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   font-family: var(--number-font);
+  position: relative;
+}
+
+.admin-container::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.12) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 48%);
+  z-index: 0;
+}
+
+.admin-container > * {
+  position: relative;
+  z-index: 1;
 }
 
 .admin-hero,
 .admin-header {
-  background: linear-gradient(135deg, #6d4ce6 0%, #7f5fff 45%, #4ec8e8 100%);
+  background: rgba(255, 255, 255, 0.2);
   color: #fff;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.32);
   border-radius: 0 0 28px 28px;
-  box-shadow: 0 12px 40px rgba(109, 76, 230, 0.22);
+  box-shadow: 0 12px 36px rgba(65, 30, 110, 0.2);
+  backdrop-filter: blur(16px);
   padding: 20px 0 28px;
   margin-bottom: 0;
   position: relative;
@@ -109,9 +127,9 @@
   z-index: 25;
   margin: -12px 0 0;
   padding: 12px 0 16px;
-  background: linear-gradient(180deg, rgba(248, 250, 252, 0.97) 0%, rgba(248, 250, 252, 0.88) 70%, transparent 100%);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: linear-gradient(180deg, rgba(112, 74, 170, 0.42) 0%, rgba(112, 74, 170, 0.18) 70%, transparent 100%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 
 .admin-tab-scroll {
@@ -289,16 +307,16 @@
   gap: 8px;
   flex-shrink: 0;
   border-radius: 999px;
-  background: #fff;
-  color: #5b4ab8;
+  background: rgba(255, 255, 255, 0.9);
+  color: #6d3e9e;
   font-weight: 600;
   font-size: 0.92rem;
   padding: 10px 18px;
-  border: 1px solid rgba(127, 95, 255, 0.2);
+  border: 1px solid rgba(138, 85, 204, 0.24);
   margin: 0;
   transition: background var(--transition), color var(--transition), box-shadow var(--transition), border-color var(--transition), transform 0.15s ease;
   position: relative;
-  box-shadow: 0 2px 10px rgba(127, 95, 255, 0.06);
+  box-shadow: 0 8px 18px rgba(65, 30, 110, 0.14);
   cursor: pointer;
 }
 
@@ -312,7 +330,7 @@
 }
 
 .tab-button:focus-visible {
-  outline: 2px solid #7f5fff;
+  outline: 2px solid #8a55cc;
   outline-offset: 2px;
 }
 
@@ -320,18 +338,48 @@
   background: var(--tab-active-bar);
   color: #fff;
   border-color: transparent;
-  box-shadow: 0 6px 20px rgba(127, 95, 255, 0.28);
+  box-shadow: 0 10px 20px rgba(124, 58, 237, 0.28);
 }
 
 .tab-button:hover:not(.active) {
-  background: #eef2ff;
-  color: #4c1d95;
-  border-color: rgba(127, 95, 255, 0.35);
+  background: rgba(245, 243, 255, 0.96);
+  color: #5b21b6;
+  border-color: rgba(138, 85, 204, 0.35);
 }
 
 .tab-button.active:hover {
   filter: brightness(1.04);
   color: #fff;
+}
+
+.admin-load-more-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.admin-load-more-btn {
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  background: linear-gradient(135deg, rgba(138, 85, 204, 0.92) 0%, rgba(118, 75, 162, 0.92) 100%);
+  color: #fff;
+  border-radius: 12px;
+  padding: 10px 18px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(65, 30, 110, 0.24);
+  backdrop-filter: blur(12px);
+  transition: transform var(--transition), box-shadow var(--transition), filter var(--transition);
+}
+
+.admin-load-more-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 26px rgba(65, 30, 110, 0.3);
+  filter: brightness(1.04);
+}
+
+.admin-load-more-btn:active {
+  transform: translateY(0);
 }
 
 .tab-content {
@@ -452,7 +500,7 @@
   box-shadow: var(--card-shadow);
   padding: 20px 24px;
   margin-bottom: 24px;
-  border: 1px solid rgba(127, 95, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   backdrop-filter: var(--glass-blur);
 }
 
@@ -715,7 +763,7 @@
   border-radius: var(--card-radius);
   box-shadow: var(--card-shadow);
   overflow: hidden;
-  border: 1px solid rgba(127, 95, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   margin-bottom: 32px;
   backdrop-filter: var(--glass-blur);
   min-height: calc(100vh - 320px);
@@ -797,7 +845,7 @@
   transform: translateY(-4px);
 }
 .user-card {
-  background: #fff;
+  background: rgba(255, 255, 255, 0.9);
   border-radius: var(--card-radius);
   box-shadow: var(--card-shadow);
   padding: 24px;
@@ -1408,7 +1456,7 @@
 }
 
 /* 다크모드 */
-@media (prefers-color-scheme: dark) {
+@media not all and (prefers-color-scheme: dark) {
   .admin-container {
     background: linear-gradient(165deg, #141824 0%, #1a1f2e 45%, #151926 100%);
   }
@@ -1585,18 +1633,27 @@
 }
 
 /* 모달 개선 */
-.modal-overlay {
+.admin-container .modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 4000;
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(8px);
 }
 
-.modal-content {
+.admin-container .modal-content {
+  position: relative;
   background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
   border-radius: 24px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.2);
   max-width: 500px;
   width: 90%;
+  max-height: min(86vh, 900px);
+  overflow-y: auto;
 }
 
 .modal-header {
@@ -2161,7 +2218,7 @@
 }
 
 .logs-list {
-  background: #fff;
+  background: rgba(255, 255, 255, 0.88);
   border-radius: 16px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   overflow: hidden;
@@ -2173,7 +2230,7 @@
   align-items: center;
   padding: 24px;
   border-bottom: 1px solid #f1f5f9;
-  background: #f8fafc;
+  background: rgba(255, 255, 255, 0.65);
 }
 
 .logs-list-header h3 {
@@ -2293,7 +2350,7 @@
 
 /* 로그 필터 */
 .log-filter {
-  background: #fff;
+  background: rgba(255, 255, 255, 0.88);
   border-radius: 16px;
   padding: 24px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
@@ -2757,13 +2814,13 @@
   gap: 20px;
 }
 
-.stats-grid {
+.notification-stats .stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
 }
 
-.stat-card {
+.notification-stats .stat-card {
   display: flex;
   align-items: center;
   gap: 16px;
@@ -2774,11 +2831,11 @@
   transition: all 0.2s;
 }
 
-.stat-card:hover {
+.notification-stats .stat-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.stat-icon {
+.notification-stats .stat-icon {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2789,14 +2846,14 @@
   color: white;
 }
 
-.stat-content h4 {
+.notification-stats .stat-content h4 {
   margin: 0;
   font-size: 24px;
   font-weight: 700;
   color: var(--text-primary);
 }
 
-.stat-content p {
+.notification-stats .stat-content p {
   margin: 4px 0 0 0;
   font-size: 14px;
   color: var(--text-secondary);
@@ -3205,23 +3262,34 @@
   border-top: 1px solid rgba(127, 95, 255, 0.1);
 }
 
-/* 다크모드 지원 */
-@media (prefers-color-scheme: dark) {
-  .notification-card,
-  .template-card,
-  .stat-card,
-  .type-distribution {
-    background: var(--bg-secondary);
-    border-color: var(--border-color-dark);
-  }
-  
-  .target-selection {
-    background: var(--bg-secondary);
-    border-color: var(--border-color-dark);
-  }
-  
-  .content-text,
-  .stat-item {
-    background: var(--bg-primary);
-  }
-} 
+/* Final admin glass lock layer (do not remove)
+   Ensures admin cards stay glass even when other CSS loads later. */
+.admin-container .users-list,
+.admin-container .user-card,
+.admin-container .user-card.edit-mode,
+.admin-container .stat-card,
+.admin-container .activity-stats-card,
+.admin-container .user-activity-summary,
+.admin-container .activity-chart,
+.admin-container .log-stats-card,
+.admin-container .logs-list,
+.admin-container .log-filter,
+.admin-container .notification-card,
+.admin-container .template-card,
+.admin-container .user-select-card,
+.admin-container .notifications-section,
+.admin-container .templates-section,
+.admin-container .grade-approval-card,
+.admin-container .grade-approval-pending,
+.admin-container .modal-content,
+.admin-container .notification-send-modal,
+.admin-container .notification-detail-modal,
+.admin-container .template-create-modal {
+  background: rgba(255, 255, 255, 0.16) !important;
+  background-color: rgba(255, 255, 255, 0.16) !important;
+  background-image: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.34) !important;
+  backdrop-filter: blur(18px) !important;
+  -webkit-backdrop-filter: blur(18px) !important;
+  box-shadow: 0 14px 32px rgba(65, 30, 110, 0.2) !important;
+}

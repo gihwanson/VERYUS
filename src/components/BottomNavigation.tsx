@@ -95,11 +95,23 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
   const [isCollapsed, setIsCollapsed] = useState(getSavedCollapsedState);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isHiddenByScroll, setIsHiddenByScroll] = useState(false);
-  const [lastScrollY, setLastScrollY] = useState(0);
-  const [scrollDirection, setScrollDirection] = useState<'up' | 'down' | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState<DragOffset>({ x: 0, y: 0 });
   const [position, setPosition] = useState<Position>(getSavedTogglePosition);
+  const shouldAutoCollapse = location.pathname.startsWith('/anonymous-chat');
+  const lastScrollYRef = React.useRef(0);
+  const scrollDirectionRef = React.useRef<'up' | 'down' | null>(null);
+  const isTickingRef = React.useRef(false);
+
+  // 채팅방 진입 시 하단 네비 자동 접기
+  useEffect(() => {
+    if (!shouldAutoCollapse) return;
+
+    setIsCollapsed(true);
+    setShowBoardsMenu(false);
+    setIsHiddenByScroll(false);
+    localStorage.setItem('bottomNavCollapsed', JSON.stringify(true));
+  }, [shouldAutoCollapse]);
 
   // Get current user on mount
   useEffect(() => {
@@ -268,35 +280,44 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
 
   // Scroll-based navigation visibility
   useEffect(() => {
+    lastScrollYRef.current = window.scrollY;
     let lastTouchY = 0;
     let touchScrolling = false;
     let touchStartTime = 0;
-    let lastScrollY = window.scrollY;
 
-    const handleScroll = () => {
+    const updateByScroll = () => {
       const currentScrollY = window.scrollY;
       const scrollThreshold = 50;
       
       if (!isCollapsed && !isDragging) {
-        if (Math.abs(currentScrollY - lastScrollY) > 3) {
-          if (currentScrollY > lastScrollY && currentScrollY > scrollThreshold) {
-            if (scrollDirection !== 'down') {
-              setScrollDirection('down');
+        if (Math.abs(currentScrollY - lastScrollYRef.current) > 3) {
+          if (currentScrollY > lastScrollYRef.current && currentScrollY > scrollThreshold) {
+            if (scrollDirectionRef.current !== 'down') {
+              scrollDirectionRef.current = 'down';
               setIsHiddenByScroll(true);
               setShowBoardsMenu(false);
             }
-          } else if (currentScrollY < lastScrollY) {
-            if (scrollDirection !== 'up') {
-              setScrollDirection('up');
+          } else if (currentScrollY < lastScrollYRef.current) {
+            if (scrollDirectionRef.current !== 'up') {
+              scrollDirectionRef.current = 'up';
               setIsHiddenByScroll(false);
             }
           }
           if (currentScrollY < 50) {
             setIsHiddenByScroll(false);
           }
-          setLastScrollY(currentScrollY);
+          lastScrollYRef.current = currentScrollY;
         }
       }
+    };
+
+    const handleScroll = () => {
+      if (isTickingRef.current) return;
+      isTickingRef.current = true;
+      requestAnimationFrame(() => {
+        updateByScroll();
+        isTickingRef.current = false;
+      });
     };
 
     const handleWheel = (e: WheelEvent) => {
@@ -358,7 +379,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [lastScrollY, scrollDirection, isCollapsed, isDragging]);
+  }, [isCollapsed, isDragging]);
 
   // Resize handler
   useEffect(() => {

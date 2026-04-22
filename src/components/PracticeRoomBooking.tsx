@@ -1279,7 +1279,7 @@ const PracticeRoomBooking: React.FC = () => {
   return (
     <div className="practice-room-booking">
       <div className="booking-header">
-        <button className="back-button" onClick={() => navigate(-1)}>
+        <button className="booking-back-button" onClick={() => navigate(-1)}>
           <ChevronLeft size={24} />
         </button>
         <h1>🎹 연습실 예약</h1>

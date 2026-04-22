@@ -474,7 +474,7 @@
   }
 }
 
-@media (prefers-color-scheme: dark) {
+@media not all and (prefers-color-scheme: dark) {
   .uab-root {
     background: rgba(30, 34, 54, 0.92);
     border-color: rgba(167, 139, 250, 0.2);
@@ -559,4 +559,56 @@
   .uab-empty {
     color: #64748b;
   }
+}
+
+/* PracticeRoomBooking 톤 통일 오버라이드 */
+.uab-root {
+  background: rgba(255, 255, 255, 0.24);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  box-shadow: 0 12px 30px rgba(65, 30, 110, 0.16);
+}
+
+.uab-title {
+  background: linear-gradient(135deg, #8a55cc 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.uab-stat-card,
+.uab-table-shell,
+.uab-mobile-card {
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(138, 85, 204, 0.18);
+}
+
+.uab-sort-pill.active,
+.uab-retry-btn {
+  background: linear-gradient(135deg, #8a55cc 0%, #764ba2 100%);
+  color: #fff;
+}
+
+.uab-sort-pill,
+.uab-order-btn,
+.uab-refresh {
+  border-color: rgba(138, 85, 204, 0.24);
+  color: #5b21b6;
+}
+
+.uab-sort-pill:hover,
+.uab-order-btn:hover,
+.uab-refresh:hover,
+.uab-table tbody tr:hover,
+.uab-table tbody tr:nth-child(even):hover {
+  background: rgba(245, 243, 255, 0.88);
+}
+
+.uab-table-head {
+  background: rgba(245, 243, 255, 0.82);
+}
+
+.uab-table tbody td.uab-score,
+.uab-mobile-score {
+  color: #6d3e9e;
 }

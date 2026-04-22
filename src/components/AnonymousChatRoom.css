@@ -144,6 +144,10 @@
   font-weight: 600;
 }
 
+.anonymous-chat-setup-note-tight {
+  margin-top: -2px;
+}
+
 .anonymous-chat-header {
   background: rgba(255, 255, 255, 0.9);
   border-radius: 14px;
@@ -162,6 +166,29 @@
   margin: 6px 0 0;
   color: #5f6f80;
   font-size: 13px;
+}
+
+.anonymous-chat-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.anonymous-chat-header-display-name {
+  margin: 0;
+}
+
+.anonymous-chat-nickname-toggle-btn {
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #304457;
+  cursor: pointer;
 }
 
 .anonymous-chat-me {
@@ -780,4 +807,41 @@
   color: #fff;
   font-size: 13px;
   font-weight: 700;
+}
+
+/* PracticeRoomBooking 톤 통일 */
+.anonymous-chat-page,
+.anonymous-chat-room-screen {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.anonymous-chat-topbar,
+.anonymous-chat-header,
+.anonymous-chat-room-create,
+.anonymous-chat-room-enter,
+.anonymous-chat-nickname,
+.anonymous-chat-setup-card,
+.anonymous-chat-members-modal,
+.anonymous-chat-room-menu,
+.anonymous-chat-input {
+  background: rgba(255, 255, 255, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 12px 30px rgba(65, 30, 110, 0.16);
+}
+
+.anonymous-chat-bubble.other,
+.anonymous-chat-system-notice,
+.anonymous-chat-reply-preview,
+.anonymous-chat-members-item {
+  background: rgba(255, 255, 255, 0.86);
+  color: #2a3b4e;
+}
+
+.anonymous-chat-bubble.mine,
+.anonymous-chat-send-btn:not(:disabled),
+.anonymous-chat-room-create button,
+.anonymous-chat-nickname-row button {
+  background: linear-gradient(135deg, #8a55cc 0%, #764ba2 100%);
+  color: #fff;
 }

@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 import { User, LogOut } from 'lucide-react';
 import './Home.css';
 import AnonymousNoteBubble from './AnonymousNoteBubble';
+import GlobalLoadingScreen from './GlobalLoadingScreen';
 import { auth } from '../firebase';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { 
@@ -159,14 +160,7 @@ const Home: React.FC = () => {
   }, [user?.uid]);
 
   if (loading) {
-    return (
-      <div className="home-container">
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
-          <p>로딩 중...</p>
-        </div>
-      </div>
-    );
+    return <GlobalLoadingScreen message="홈 화면을 불러오는 중..." />;
   }
 
   return (

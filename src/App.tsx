@@ -17,6 +17,7 @@ import { initPushNotifications, removeCurrentPushToken } from './utils/pushNotif
 import { mergeVeryusUserFromAuth, readVeryusUserFromStorage, writeVeryusUserToStorage } from './utils/veryusUserStorage';
 import { subscribeAdminVerification } from './utils/adminSessionVerify';
 import { UserProfileProvider } from './contexts/UserProfileContext';
+import GlobalLoadingScreen from './components/GlobalLoadingScreen';
 import './App.css';
 
 const APP_BUILD =
@@ -163,21 +164,7 @@ const BalancePostDetail = lazy(() => import('./components/BalancePostDetail'));
 const PracticeRoomBooking = lazy(() => import('./components/PracticeRoomBooking'));
 const PracticeRoomManagement = lazy(() => import('./components/PracticeRoomManagement'));
 
-const PageLoader = () => (
-  <div
-    style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: '40vh',
-      color: '#6B7280',
-      fontSize: 15,
-      fontWeight: 600
-    }}
-  >
-    페이지를 불러오는 중…
-  </div>
-);
+const PageLoader = () => <GlobalLoadingScreen message="페이지를 불러오는 중..." fullScreen={false} />;
 
 const GRADE_ORDER = [
   '🍒'
@@ -212,129 +199,7 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 // 보호된 라우트 컴포넌트
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // 파티클 데이터를 메모이제이션하여 렌더링마다 변경되지 않도록
-  const particles = useMemo(() => {
-    return Array.from({ length: 20 }, (_, i) => ({
-      id: i,
-      size: (i * 7 + 13) % 6 + 2, // 고정된 크기 패턴
-      left: (i * 23 + 17) % 100, // 고정된 위치 패턴
-      top: (i * 31 + 41) % 100,
-      duration: (i % 3) + 2.5,
-      delay: (i % 2) * 1.2
-    }));
-  }, []);
-
-  if (loading) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
-        fontFamily: 'Pretendard, sans-serif',
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
-        {/* 배경 파티클 효과 */}
-        <div style={{
-          position: 'absolute',
-          width: '100%',
-          height: '100%',
-          top: 0,
-          left: 0,
-          zIndex: 0
-        }}>
-          {particles.map((particle) => (
-            <div
-              key={particle.id}
-              style={{
-                position: 'absolute',
-                width: `${particle.size}px`,
-                height: `${particle.size}px`,
-                background: 'rgba(255, 255, 255, 0.3)',
-                borderRadius: '50%',
-                left: `${particle.left}%`,
-                top: `${particle.top}%`,
-                animation: `float ${particle.duration}s ease-in-out infinite`,
-                animationDelay: `${particle.delay}s`
-              }}
-            />
-          ))}
-        </div>
-
-        {/* 유리 모피즘 카드 */}
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.15)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          padding: '56px 48px',
-          borderRadius: '32px',
-          boxShadow: '0 8px 32px rgba(138, 85, 204, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
-          textAlign: 'center',
-          position: 'relative',
-          zIndex: 1,
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          animation: 'fadeInUp 0.6s ease-out'
-        }}>
-          {/* 네온 글로우 로고 */}
-          <h2 style={{ 
-            color: '#ffffff', 
-            margin: '0 0 48px 0', 
-            fontWeight: 800, 
-            fontSize: 48,
-            letterSpacing: '3px',
-            textShadow: '0 0 20px rgba(255, 255, 255, 0.5), 0 0 40px rgba(138, 85, 204, 0.3)',
-            animation: 'none'
-          }}>
-            VERYUS
-          </h2>
-          
-          {/* 프로그레스 바 */}
-          <div style={{
-            marginTop: '32px',
-            width: '200px',
-            height: '4px',
-            background: 'rgba(255, 255, 255, 0.2)',
-            borderRadius: '2px',
-            overflow: 'hidden',
-            margin: '32px auto 0'
-          }}>
-            <div style={{
-              height: '100%',
-              width: '100%',
-              background: 'linear-gradient(90deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.4) 100%)',
-              borderRadius: '2px',
-              animation: 'progress 2s ease-in-out infinite'
-            }} />
-          </div>
-          
-          <p style={{ 
-            color: 'rgba(255, 255, 255, 0.9)', 
-            margin: '20px 0 0 0', 
-            fontSize: '15px',
-            fontWeight: 500,
-            letterSpacing: '0.5px'
-          }}>
-            로딩 중...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  return user ? <>{children}</> : <Navigate to="/login" replace />;
+  return auth.currentUser ? <>{children}</> : <Navigate to="/login" replace />;
 };
 
 // 오디오 플레이어 Context
@@ -973,116 +838,8 @@ function App() {
   }, [user]);
 
 
-  // 파티클 데이터를 메모이제이션하여 렌더링마다 변경되지 않도록
-  const particles = useMemo(() => {
-    return Array.from({ length: 20 }, (_, i) => ({
-      id: i,
-      size: (i * 7 + 13) % 6 + 2, // 고정된 크기 패턴
-      left: (i * 23 + 17) % 100, // 고정된 위치 패턴
-      top: (i * 31 + 41) % 100,
-      duration: (i % 3) + 2.5,
-      delay: (i % 2) * 1.2
-    }));
-  }, []);
-
-  // 로딩 중일 때 표시할 화면
   if (loading) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
-        fontFamily: 'Pretendard, sans-serif',
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
-        {/* 배경 파티클 효과 */}
-        <div style={{
-          position: 'absolute',
-          width: '100%',
-          height: '100%',
-          top: 0,
-          left: 0,
-          zIndex: 0
-        }}>
-          {particles.map((particle) => (
-            <div
-              key={particle.id}
-              style={{
-                position: 'absolute',
-                width: `${particle.size}px`,
-                height: `${particle.size}px`,
-                background: 'rgba(255, 255, 255, 0.3)',
-                borderRadius: '50%',
-                left: `${particle.left}%`,
-                top: `${particle.top}%`,
-                animation: `float ${particle.duration}s ease-in-out infinite`,
-                animationDelay: `${particle.delay}s`
-              }}
-            />
-          ))}
-        </div>
-
-        {/* 유리 모피즘 카드 */}
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.15)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          padding: '56px 48px',
-          borderRadius: '32px',
-          boxShadow: '0 8px 32px rgba(138, 85, 204, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
-          textAlign: 'center',
-          position: 'relative',
-          zIndex: 1,
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          animation: 'fadeInUp 0.6s ease-out'
-        }}>
-          {/* 네온 글로우 로고 */}
-          <h2 style={{ 
-            color: '#ffffff', 
-            margin: '0 0 48px 0', 
-            fontWeight: 800, 
-            fontSize: 48,
-            letterSpacing: '3px',
-            textShadow: '0 0 20px rgba(255, 255, 255, 0.5), 0 0 40px rgba(138, 85, 204, 0.3)',
-            animation: 'none'
-          }}>
-            VERYUS
-          </h2>
-          
-          {/* 프로그레스 바 */}
-          <div style={{
-            marginTop: '32px',
-            width: '200px',
-            height: '4px',
-            background: 'rgba(255, 255, 255, 0.2)',
-            borderRadius: '2px',
-            overflow: 'hidden',
-            margin: '32px auto 0'
-          }}>
-            <div style={{
-              height: '100%',
-              width: '100%',
-              background: 'linear-gradient(90deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.4) 100%)',
-              borderRadius: '2px',
-              animation: 'progress 2s ease-in-out infinite'
-            }} />
-          </div>
-          
-          <p style={{ 
-            color: 'rgba(255, 255, 255, 0.9)', 
-            margin: '20px 0 0 0', 
-            fontSize: '15px',
-            fontWeight: 500,
-            letterSpacing: '0.5px'
-          }}>
-            로딩 중...
-          </p>
-        </div>
-      </div>
-    );
+    return <GlobalLoadingScreen message="앱을 준비하고 있어요" />;
   }
 
   return (

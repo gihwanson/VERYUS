@@ -17,7 +17,7 @@
 /* 다크모드 관련 CSS 전체 삭제 */
 
 /* 다크모드 지원 */
-@media (prefers-color-scheme: dark) {
+@media not all and (prefers-color-scheme: dark) {
   .bottom-navigation {
     background: var(--nav-bg);
     border-top-color: var(--nav-border);

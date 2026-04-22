@@ -287,10 +287,14 @@ const MyPage: React.FC = () => {
   });
   const [approvedSongLeaderboard, setApprovedSongLeaderboard] = useState<ApprovedSongRankRow[]>([]);
   const [approvedSongLeaderboardLoading, setApprovedSongLeaderboardLoading] = useState(true);
+  const [hasLoadedApprovedSongLeaderboard, setHasLoadedApprovedSongLeaderboard] = useState(false);
   const [guestMessages, setGuestMessages] = useState<GuestbookMessage[]>([]);
   const [myEvaluationPosts, setMyEvaluationPosts] = useState<Post[]>([]);
   const [myRecordings, setMyRecordings] = useState<Post[]>([]);
   const [approvedSongs, setApprovedSongs] = useState<ApprovedSong[]>([]);
+  const [hasLoadedEvaluationPosts, setHasLoadedEvaluationPosts] = useState(false);
+  const [hasLoadedRecordings, setHasLoadedRecordings] = useState(false);
+  const [hasLoadedApprovedSongs, setHasLoadedApprovedSongs] = useState(false);
 
   // Cleanup subscriptions
   const unsubscribeRef = useRef<(() => void) | null>(null);
@@ -301,6 +305,7 @@ const MyPage: React.FC = () => {
 
   // 유저 등급 정보 fetch
   const [userMap, setUserMap] = useState<Record<string, {grade?: string}>>({});
+  const [hasLoadedUserMap, setHasLoadedUserMap] = useState(false);
   const [showAllSongs, setShowAllSongs] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [notificationUpdating, setNotificationUpdating] = useState(false);
@@ -339,9 +344,6 @@ const MyPage: React.FC = () => {
           loadMyPosts(userData.nickname);
           loadActivityStats(userData.nickname);
           setupGuestMessagesListener(userData.nickname);
-          loadMyEvaluationPosts(userData.nickname);
-          loadMyRecordings(userData.nickname);
-          loadApprovedSongs(userData.nickname);
         } else {
           setError('존재하지 않는 유저입니다.');
         }
@@ -368,9 +370,6 @@ const MyPage: React.FC = () => {
         loadMyPosts(loginUser.nickname);
         loadActivityStats(loginUser.nickname);
         setupGuestMessagesListener(loginUser.nickname);
-        loadMyEvaluationPosts(loginUser.nickname);
-        loadMyRecordings(loginUser.nickname);
-        loadApprovedSongs(loginUser.nickname);
         setLoading(false); // Firestore 실패해도 localStorage 정보로 렌더링
       }
     } catch (error) {
@@ -388,6 +387,9 @@ const MyPage: React.FC = () => {
 
   useEffect(() => {
     setActiveTab('guestbook');
+    setHasLoadedEvaluationPosts(false);
+    setHasLoadedRecordings(false);
+    setHasLoadedApprovedSongs(false);
   }, [uid]);
 
   const loadUserData = useCallback(async (uid: string, isOwner: boolean) => {
@@ -610,6 +612,9 @@ const MyPage: React.FC = () => {
         loadMyPosts(nextNickname);
         loadActivityStats(nextNickname);
         setupGuestMessagesListener(nextNickname);
+        setHasLoadedEvaluationPosts(false);
+        setHasLoadedRecordings(false);
+        setHasLoadedApprovedSongs(false);
         // 평가 게시글과 녹음 다시 로드
         const loadEvalPosts = async () => {
           try {
@@ -1174,21 +1179,72 @@ const MyPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    void loadApprovedSongLeaderboard();
-  }, [loadApprovedSongLeaderboard]);
+    const nickname = user?.nickname?.trim();
+    if (!nickname) return;
+
+    if (activeTab === 'evaluations' && !hasLoadedEvaluationPosts) {
+      void loadMyEvaluationPosts(nickname).then(() => {
+        setHasLoadedEvaluationPosts(true);
+      });
+    }
+
+    if (activeTab === 'recordings' && !hasLoadedRecordings) {
+      void loadMyRecordings(nickname).then(() => {
+        setHasLoadedRecordings(true);
+      });
+    }
+
+    if (activeTab === 'approved' && !hasLoadedApprovedSongs) {
+      void loadApprovedSongs(nickname).then(() => {
+        setHasLoadedApprovedSongs(true);
+      });
+    }
+  }, [
+    activeTab,
+    hasLoadedApprovedSongs,
+    hasLoadedEvaluationPosts,
+    hasLoadedRecordings,
+    loadApprovedSongs,
+    loadMyEvaluationPosts,
+    loadMyRecordings,
+    user?.nickname
+  ]);
+
+  useEffect(() => {
+    if (hasLoadedApprovedSongLeaderboard) return;
+    if (activeTab !== 'stats' && activeTab !== 'approved' && activeTab !== 'guestbook') return;
+    void loadApprovedSongLeaderboard().then(() => {
+      setHasLoadedApprovedSongLeaderboard(true);
+    });
+  }, [activeTab, hasLoadedApprovedSongLeaderboard, loadApprovedSongLeaderboard]);
 
   // 유저 등급 정보 fetch
   useEffect(() => {
-    (async () => {
-      const snap = await getDocs(collection(db, 'users'));
-      const map: Record<string, {grade?: string}> = {};
-      snap.docs.forEach(doc => {
-        const d = doc.data();
-        if (d.nickname) map[d.nickname] = { grade: d.grade };
-      });
-      setUserMap(map);
-    })();
-  }, []);
+    if (hasLoadedUserMap) return;
+    if (activeTab !== 'guestbook' && activeTab !== 'approved') return;
+
+    let cancelled = false;
+    const loadUserMap = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'users'));
+        if (cancelled) return;
+        const map: Record<string, {grade?: string}> = {};
+        snap.docs.forEach(doc => {
+          const d = doc.data();
+          if (d.nickname) map[d.nickname] = { grade: d.grade };
+        });
+        setUserMap(map);
+        setHasLoadedUserMap(true);
+      } catch (error) {
+        console.error('유저 등급 정보 로딩 실패:', error);
+      }
+    };
+
+    void loadUserMap();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, hasLoadedUserMap]);
 
   // 합격곡 등급 계산 함수
   const getSongGrade = (song: ApprovedSong) => {

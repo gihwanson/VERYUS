@@ -692,3 +692,35 @@
   border-radius: 12px;
   display: inline-block;
 }
+
+/* PracticeRoomBooking 톤 통일 */
+.search-system-modal {
+  background: rgba(255, 255, 255, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 12px 30px rgba(65, 30, 110, 0.16);
+}
+
+.search-header,
+.search-filters,
+.result-item,
+.user-result-item,
+.search-input-container,
+.filter-toggle,
+.date-filter,
+.author-filter,
+.tag-input,
+.sort-select,
+.sort-order,
+.tag-suggestions {
+  background: rgba(255, 255, 255, 0.86);
+  border-color: rgba(138, 85, 204, 0.2);
+}
+
+.filter-toggle.active,
+.sort-order.active,
+.selected-tag {
+  background: linear-gradient(135deg, #8a55cc 0%, #764ba2 100%);
+  border-color: transparent;
+  color: #fff;
+}

@@ -775,7 +775,7 @@ body {
 }
 
 /* 주요 UI 요소 다크모드 개선 */
-@media (prefers-color-scheme: dark) {
+@media not all and (prefers-color-scheme: dark) {
   .mypage-container, .mypage-content, .profile-card, .stats-grid, .intro-card, .guestbook-section, .grade-section {
     background: var(--bg-card) !important;
     color: var(--text-primary) !important;
