@@ -148,6 +148,11 @@ const toUnixMillis = (value: any) => {
   return Number.isNaN(parsed) ? 0 : parsed;
 };
 
+const getRoomIdFromSearch = () => {
+  if (typeof window === 'undefined') return '';
+  return new URLSearchParams(window.location.search).get('roomId') || '';
+};
+
 const AnonymousChatRoom: React.FC = () => {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<AnonymousProfile | null>(null);
@@ -177,6 +182,7 @@ const AnonymousChatRoom: React.FC = () => {
   const [messageActionMenu, setMessageActionMenu] = useState<{ message: AnonymousMessage; x: number; y: number } | null>(null);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+  const [enteredByPushLink, setEnteredByPushLink] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const messageItemRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const scrollRetryTimeoutRef = useRef<number | null>(null);
@@ -203,6 +209,16 @@ const AnonymousChatRoom: React.FC = () => {
       scrollToLatestMessage();
     });
   }, [scrollToLatestMessage]);
+
+  const clearDeepLinkRoomIdFromUrl = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('roomId')) return;
+    url.searchParams.delete('roomId');
+    const nextQuery = url.searchParams.toString();
+    const nextUrl = `${url.pathname}${nextQuery ? `?${nextQuery}` : ''}${url.hash}`;
+    window.history.replaceState(null, '', nextUrl);
+  }, []);
 
   useEffect(() => {
     setIsTouchDevice(
@@ -354,6 +370,9 @@ const AnonymousChatRoom: React.FC = () => {
   }, [selectedRoomId, user?.uid]);
 
   const sortedMessages = useMemo(() => {
+    if (enteredByPushLink) {
+      return messages;
+    }
     const joinedAtSec = roomJoinedAt?.seconds || 0;
     return messages.filter((msg) => {
       const sec = getMessageSortSeconds(msg);
@@ -362,7 +381,7 @@ const AnonymousChatRoom: React.FC = () => {
       }
       return sec >= joinedAtSec;
     });
-  }, [messages, roomJoinedAt?.seconds, user?.uid]);
+  }, [messages, roomJoinedAt?.seconds, user?.uid, enteredByPushLink]);
 
   const sortedParticipants = useMemo(() => {
     return [...roomParticipants].sort((a, b) => {
@@ -504,7 +523,7 @@ const AnonymousChatRoom: React.FC = () => {
     return userActiveDays >= required;
   };
 
-  const handleEnterRoom = async (room: AnonymousRoom) => {
+  const handleEnterRoom = async (room: AnonymousRoom, options?: { fromPushLink?: boolean }) => {
     if (!user?.uid) return;
     const participantRef = doc(db, 'anonymousChatRooms', room.id, 'participants', user.uid);
     const participantSnap = await getDoc(participantRef);
@@ -514,9 +533,18 @@ const AnonymousChatRoom: React.FC = () => {
       alert(`${getRoomRestrictionLabel(room)}\n현재 내 활동일: ${userActiveDays}일`);
       return;
     }
-
+    setEnteredByPushLink(Boolean(options?.fromPushLink));
     setSelectedRoomId(room.id);
   };
+
+  useEffect(() => {
+    if (!user?.uid || !profile || selectedRoomId) return;
+    const deepLinkRoomId = getRoomIdFromSearch();
+    if (!deepLinkRoomId) return;
+    setEnteredByPushLink(true);
+    setSelectedRoomId(deepLinkRoomId);
+    clearDeepLinkRoomIdFromUrl();
+  }, [user?.uid, profile, selectedRoomId, clearDeepLinkRoomIdFromUrl]);
 
   const getRoomRestrictionLabel = (room?: AnonymousRoom) => {
     const required = room?.requiredActiveDays || 0;
@@ -898,7 +926,7 @@ const AnonymousChatRoom: React.FC = () => {
               postId: selectedRoomId,
               postTitle: `익명채팅 - ${selectedRoom?.title || '채팅방'}`,
               message: `${profile.customNickname}: ${trimmed.slice(0, 80)}`,
-              route: '/anonymous-chat',
+              route: `/anonymous-chat?roomId=${encodeURIComponent(selectedRoomId)}`,
               roomId: selectedRoomId,
               fromUid: user.uid,
               fromNickname: profile.customNickname,
@@ -1023,7 +1051,7 @@ const AnonymousChatRoom: React.FC = () => {
               <button
                 className="anonymous-chat-room-enter"
                 onClick={() => {
-                  void handleEnterRoom(room);
+                  void handleEnterRoom(room, { fromPushLink: false });
                 }}
                 type="button"
               >
@@ -1083,7 +1111,14 @@ const AnonymousChatRoom: React.FC = () => {
   return (
     <div className="anonymous-chat-room-screen">
       <div className="anonymous-chat-topbar">
-        <button className="anonymous-chat-topbar-back" onClick={() => setSelectedRoomId(null)} type="button">
+        <button
+          className="anonymous-chat-topbar-back"
+          onClick={() => {
+            setSelectedRoomId(null);
+            setEnteredByPushLink(false);
+          }}
+          type="button"
+        >
           <ChevronLeft size={24} />
         </button>
         <div className="anonymous-chat-topbar-center">
@@ -1246,11 +1281,13 @@ const AnonymousChatRoom: React.FC = () => {
         <div
           className="anonymous-chat-message-menu"
           style={{ left: `${messageActionMenu.x}px`, top: `${messageActionMenu.y}px` }}
+          onTouchStart={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
         >
           <button
             type="button"
+            onTouchStart={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
             onClick={() => {
               setReplyTarget({
@@ -1266,6 +1303,7 @@ const AnonymousChatRoom: React.FC = () => {
           {canModerateChat && messageActionMenu.message.uid !== myUid && (
             <button
               type="button"
+              onTouchStart={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.stopPropagation()}
               onClick={() => {
                 void handleMuteParticipant(messageActionMenu.message);
@@ -1275,7 +1313,12 @@ const AnonymousChatRoom: React.FC = () => {
               채팅정지(30초)
             </button>
           )}
-          <button type="button" onMouseDown={(e) => e.stopPropagation()} onClick={() => setMessageActionMenu(null)}>
+          <button
+            type="button"
+            onTouchStart={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={() => setMessageActionMenu(null)}
+          >
             닫기
           </button>
         </div>

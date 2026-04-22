@@ -17,8 +17,12 @@ const getRouteByPostType = (postType: string, postId: string): string => {
 };
 
 const getNotificationRoute = (data: FirebaseFirestore.DocumentData): string => {
+  const roomId = (data.roomId as string | undefined) || '';
   const directRoute = (data.route as string | undefined) || '';
   if (directRoute) {
+    if (directRoute === '/anonymous-chat' && roomId) {
+      return `/anonymous-chat?roomId=${encodeURIComponent(roomId)}`;
+    }
     return directRoute;
   }
 
@@ -41,6 +45,10 @@ const getNotificationRoute = (data: FirebaseFirestore.DocumentData): string => {
     notificationType === 'partnership_confirmed'
   ) {
     return postId ? `/boards/partner/${postId}` : '/boards/partner';
+  }
+
+  if (notificationType === 'anonymous_chat') {
+    return roomId ? `/anonymous-chat?roomId=${encodeURIComponent(roomId)}` : '/anonymous-chat';
   }
 
   if (postId) {
@@ -151,8 +159,10 @@ export const sendPushOnNotificationCreated = onDocumentCreated(
     const postId = (data.postId as string | undefined) || '';
     const postType = (data.postType as string | undefined) || '';
     const notificationType = (data.type as string | undefined) || '';
+    const roomId = (data.roomId as string | undefined) || '';
     const route = getNotificationRoute(data);
     const absoluteRoute = `${WEB_APP_ORIGIN}${route}`;
+    const chatRoomTag = roomId ? `anonymous-chat-${roomId}` : '';
 
     const payload: admin.messaging.MulticastMessage = {
       tokens,
@@ -164,6 +174,7 @@ export const sendPushOnNotificationCreated = onDocumentCreated(
         postId,
         postType,
         type: notificationType,
+        roomId,
         route,
         notificationId: snapshot.id
       },
@@ -171,7 +182,8 @@ export const sendPushOnNotificationCreated = onDocumentCreated(
         priority: 'high',
         notification: {
           channelId: 'veryus-notifications',
-          clickAction: 'FLUTTER_NOTIFICATION_CLICK'
+          clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+          tag: notificationType === 'anonymous_chat' ? chatRoomTag : undefined
         }
       },
       webpush: {
@@ -183,7 +195,9 @@ export const sendPushOnNotificationCreated = onDocumentCreated(
         },
         notification: {
           icon: '/apple-touch-icon.png',
-          badge: '/apple-touch-icon.png'
+          badge: '/apple-touch-icon.png',
+          tag: notificationType === 'anonymous_chat' ? chatRoomTag : undefined,
+          renotify: notificationType === 'anonymous_chat'
         }
       }
     };

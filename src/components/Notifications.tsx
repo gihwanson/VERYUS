@@ -34,6 +34,7 @@ interface Notification {
   createdAt: any;
   isRead: boolean;
   route?: string;
+  roomId?: string;
   hiddenFromInbox?: boolean;
 }
 
@@ -62,39 +63,10 @@ const Notifications: React.FC = () => {
   };
 
   const getNotificationRoute = (notification: Notification): string | null => {
-    if (notification.postId && notification.postType) {
-      return NotificationService.getRouteByPostType(notification.postType, notification.postId);
-    }
-
-    if (notification.type === 'guestbook' || notification.type === 'guestbook_reply') {
-      const uid = notification.guestbookOwnerUid;
-      return uid ? `/mypage/${uid}` : '/mypage';
-    }
-
-    if (notification.type === 'grade_request_pending') {
-      return '/admin';
-    }
-
     if (notification.type === 'grade_change_approved' || notification.type === 'grade_change_rejected') {
       return '/settings';
     }
-
-    if (
-      notification.type === 'partnership' ||
-      notification.type === 'partnership_closed' ||
-      notification.type === 'partnership_confirmed'
-    ) {
-      if (notification.postId) {
-        return `/boards/partner/${notification.postId}`;
-      }
-      return '/boards/partner';
-    }
-
-    if (notification.postId) {
-      return `/free/${notification.postId}`;
-    }
-
-    return null;
+    return NotificationService.resolveNotificationRoute(notification);
   };
 
   useEffect(() => {

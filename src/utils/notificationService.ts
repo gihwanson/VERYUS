@@ -27,11 +27,62 @@ export interface NotificationData {
   postType?: 'free' | 'recording' | 'evaluation' | 'balance' | 'partner';
   commentId?: string;
   message?: string;
+  route?: string;
+  roomId?: string;
   /** 방명록이 달린 마이페이지 주인 uid — 알림 탭/푸시에서 /mypage/:uid 로 이동 */
   guestbookOwnerUid?: string;
 }
 
 export class NotificationService {
+  static resolveNotificationRoute(data: {
+    type?: string;
+    postId?: string;
+    postType?: string;
+    route?: string;
+    roomId?: string;
+    guestbookOwnerUid?: string;
+  }): string {
+    const type = String(data.type || '');
+    const postId = String(data.postId || '');
+    const postType = String(data.postType || '');
+    const roomId = String(data.roomId || '');
+    const route = String(data.route || '');
+
+    if (route) {
+      if (route === '/anonymous-chat' && roomId) {
+        return `/anonymous-chat?roomId=${encodeURIComponent(roomId)}`;
+      }
+      return route;
+    }
+
+    if (type === 'anonymous_chat') {
+      return roomId ? `/anonymous-chat?roomId=${encodeURIComponent(roomId)}` : '/anonymous-chat';
+    }
+
+    if (type === 'grade_request_pending') {
+      return '/admin?tab=approvals';
+    }
+
+    if (type === 'guestbook' || type === 'guestbook_reply') {
+      const uid = String(data.guestbookOwnerUid || '');
+      return uid ? `/mypage/${uid}` : '/mypage';
+    }
+
+    if (type === 'partnership' || type === 'partnership_closed' || type === 'partnership_confirmed') {
+      return postId ? `/boards/partner/${postId}` : '/boards/partner';
+    }
+
+    if (postId && postType) {
+      return this.getRouteByPostType(postType, postId);
+    }
+
+    if (postId) {
+      return `/free/${postId}`;
+    }
+
+    return '/notifications';
+  }
+
   /** 푸시/알림 목록에 쓰는 게시판 짧은 이름 */
   static boardLabel(postType?: string): string {
     const labels: Record<string, string> = {
@@ -198,6 +249,7 @@ export class NotificationService {
       // 알림 데이터 생성
       const notificationDoc = {
         ...data,
+        route: data.route || this.resolveNotificationRoute(data),
         message: data.message || this.getNotificationMessage(data.type),
         createdAt: serverTimestamp(),
         isRead: false

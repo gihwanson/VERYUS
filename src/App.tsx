@@ -358,7 +358,18 @@ interface AudioPlayerContextType {
   setPlaylist: (songs: PlaylistSong[]) => void;
 }
 const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(undefined);
-export const useAudioPlayer = () => useContext(AudioPlayerContext)!;
+const audioPlayerFallback: AudioPlayerContextType = {
+  playlist: [],
+  currentIdx: 0,
+  isPlaying: false,
+  play: () => undefined,
+  pause: () => undefined,
+  playNext: () => undefined,
+  playPrev: () => undefined,
+  setPlaylist: () => undefined
+};
+
+export const useAudioPlayer = () => useContext(AudioPlayerContext) ?? audioPlayerFallback;
 
 const AudioPlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
   const safeStorageGet = (key: string) => {
@@ -1277,7 +1288,7 @@ function App() {
                 </Routes>
               </Suspense>
             {/* 모바일 하단 네비게이션 바 */}
-            {user && (
+            {user && window.location.pathname !== '/anonymous-chat' && (
               <BottomNavigation 
                 unreadNotificationCount={unreadNotificationCount}
                 onSearchOpen={() => setShowSearchSystem(true)}
