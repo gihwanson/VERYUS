@@ -1105,7 +1105,9 @@ const AnonymousChatRoom: React.FC = () => {
           fromUid: user.uid,
           fromNickname: profile.customNickname,
           hiddenFromInbox: true,
-          isRead: true,
+          // 푸시 트리거(구버전 함수 포함) 호환을 위해 unread 상태로 생성
+          // hiddenFromInbox=true 이므로 알림함/배지에는 노출되지 않음
+          isRead: false,
           createdAt: serverTimestamp()
         }));
 
