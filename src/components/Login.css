@@ -27,15 +27,6 @@
   box-shadow: 0 4px 20px var(--shadow-color);
 }
 
-.dark .login-container {
-  background: var(--primary-bg);
-}
-
-.dark .login-card {
-  background: var(--card-bg);
-  box-shadow: 0 4px 20px var(--shadow-color);
-}
-
 .login-header {
   margin-bottom: var(--space-3xl);
 }

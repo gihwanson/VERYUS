@@ -20,6 +20,11 @@
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   font-family: var(--number-font);
   position: relative;
+  /* 알림/폼 등에서 쓰는 변수 — OS 다크모드와 무관하게 항상 동일 */
+  --bg-primary: rgba(255, 255, 255, 0.92);
+  --bg-secondary: rgba(255, 255, 255, 0.2);
+  --bg-hover: rgba(255, 255, 255, 0.32);
+  --border-color: rgba(255, 255, 255, 0.38);
 }
 
 .admin-container::before {
@@ -1453,62 +1458,6 @@
   .stat-card { padding: 18px 10px 18px 10px; }
   .users-list-header { padding: 10px 10px 0 10px; }
   .users-grid { padding: 10px; }
-}
-
-/* 다크모드 */
-@media not all and (prefers-color-scheme: dark) {
-  .admin-container {
-    background: linear-gradient(165deg, #141824 0%, #1a1f2e 45%, #151926 100%);
-  }
-  .admin-hero,
-  .admin-header {
-    background: linear-gradient(135deg, #3d2b8a 0%, #5c3ecf 50%, #2a7a9a 100%);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
-  }
-  .admin-tab-strip {
-    background: linear-gradient(180deg, rgba(20, 24, 36, 0.96) 0%, rgba(20, 24, 36, 0.85) 65%, transparent 100%);
-  }
-  .tab-button {
-    background: rgba(35, 41, 70, 0.95);
-    color: #c4b5fd;
-    border-color: rgba(167, 139, 250, 0.25);
-  }
-  .tab-button:hover:not(.active) {
-    background: rgba(55, 62, 100, 0.95);
-    color: #e9d5ff;
-  }
-  .admin-loading-screen h2 {
-    color: #e2e8f0;
-  }
-  .admin-loading-screen p {
-    color: #94a3b8;
-  }
-  .stat-card, .controls-section, .users-list, .user-card {
-    background: rgba(30,34,54,0.85);
-    color: #fff;
-    border: none;
-  }
-  .stat-card::before, .grade-badge, .stat-icon, .distribution-item {
-    filter: brightness(1.1);
-  }
-  .user-meta, .empty-state, .user-actions .action-btn.cancel-btn {
-    color: #b4b4e0;
-  }
-  .user-card.edit-mode {
-    background: #232946;
-    border: 2px solid #7f5fff;
-  }
-  .profile-avatar {
-    background: var(--main-gradient-rev);
-    color: #fff;
-  }
-  .role-badge.일반 {
-    background: #232946;
-    color: #7f5fff;
-  }
-  .users-list-header h3, .controls-title {
-    color: #5df2f5;
-  }
 }
 
 .bulk-action-bar {
@@ -3292,4 +3241,17 @@
   backdrop-filter: blur(18px) !important;
   -webkit-backdrop-filter: blur(18px) !important;
   box-shadow: 0 14px 32px rgba(65, 30, 110, 0.2) !important;
+}
+
+/* 알림 카드 본문: 글라스 배경 위 가독성 (OS 설정과 무관) */
+.admin-container .notification-content h5,
+.admin-container .notification-content p,
+.admin-container .list-header h4,
+.admin-container .notifications-header h2 {
+  color: rgba(255, 255, 255, 0.96) !important;
+}
+
+.admin-container .notification-meta,
+.admin-container .notification-meta span {
+  color: rgba(255, 255, 255, 0.78) !important;
 }

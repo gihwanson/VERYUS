@@ -2447,7 +2447,7 @@ const MyPage: React.FC = () => {
         )}
 
         {activeTab === 'guestbook' && (
-          <div className="guestbook-section mypage-guestbook-dark">
+          <div className="guestbook-section mypage-guestbook-glass">
             <div className="guestbook-list">
               {guestMessages.length === 0 ? (
                 <div

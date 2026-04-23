@@ -873,6 +873,16 @@
   animation: fadeIn 0.2s;
 }
 
+/* createPortal로 body에 붙인 연습실 모달: 상위 transform과 무관하게 화면 중앙 */
+.practice-booking-modal-overlay {
+  z-index: 10050;
+  min-height: 100vh;
+  min-height: 100dvh;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;

@@ -23,6 +23,7 @@ interface AnonymousNote {
   isActive: boolean;
   authorUid?: string;
   authorNickname?: string;
+  publicNickname?: string;
 }
 
 /** 활성(24시간 이내)·비활성 쪽지 목록 — 만료 쪽지는 DB에서 비활성화 처리 */
@@ -158,8 +159,8 @@ async function loadNotesCatalogWithFallback(): Promise<{
 }
 
 const AnonymousNoteBubble: React.FC = () => {
-  const [currentNote, setCurrentNote] = useState<string>('');
-  const [allNotes, setAllNotes] = useState<string[]>([]);
+  const [currentNote, setCurrentNote] = useState<AnonymousNote | null>(null);
+  const [allNotes, setAllNotes] = useState<AnonymousNote[]>([]);
   const [currentNoteIndex, setCurrentNoteIndex] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [showModal, setShowModal] = useState<boolean>(false);
@@ -253,10 +254,8 @@ const AnonymousNoteBubble: React.FC = () => {
         
         // 24시간 이내의 쪽지들을 배열로 저장
         if (allNotes.length > 0) {
-          // 쪽지 텍스트만 추출하여 배열로 저장
-          const noteTexts = allNotes.map(note => note.text);
           // 배열을 랜덤하게 섞기
-          const shuffledNotes = noteTexts.sort(() => Math.random() - 0.5);
+          const shuffledNotes = [...allNotes].sort(() => Math.random() - 0.5);
           setAllNotes(shuffledNotes);
           setCurrentNoteIndex(0);
           setCurrentNote(shuffledNotes[0]);
@@ -264,7 +263,7 @@ const AnonymousNoteBubble: React.FC = () => {
           // 기본 문구
           setAllNotes([]);
           setCurrentNoteIndex(0);
-          setCurrentNote('익명 쪽지 남겨줘 🙂');
+          setCurrentNote(null);
         }
       } catch (err: any) {
         console.error('익명 쪽지 가져오기 실패:', err);
@@ -298,22 +297,21 @@ const AnonymousNoteBubble: React.FC = () => {
             });
             
             if (notes.length > 0) {
-              const noteTexts = notes.map(note => note.text);
-              const shuffledNotes = noteTexts.sort(() => Math.random() - 0.5);
+              const shuffledNotes = [...notes].sort(() => Math.random() - 0.5);
               setAllNotes(shuffledNotes);
               setCurrentNoteIndex(0);
               setCurrentNote(shuffledNotes[0]);
             } else {
               setAllNotes([]);
               setCurrentNoteIndex(0);
-              setCurrentNote('익명 쪽지 남겨줘 🙂');
+              setCurrentNote(null);
             }
           } catch (err2) {
             console.error('간단 쿼리도 실패:', err2);
-            setCurrentNote('익명 쪽지 남겨줘 🙂');
+            setCurrentNote(null);
           }
         } else {
-          setCurrentNote('익명 쪽지 남겨줘 🙂');
+          setCurrentNote(null);
         }
       } finally {
         setLoading(false);
@@ -465,6 +463,8 @@ const AnonymousNoteBubble: React.FC = () => {
       if (user?.uid && user?.nickname) {
         noteData.authorUid = user.uid;
         noteData.authorNickname = user.nickname;
+        // 기존 쪽지와 구분하기 위해 신규 등록분만 공개 닉네임 필드를 기록한다.
+        noteData.publicNickname = user.nickname;
       }
 
       await addDoc(collection(db, 'anonymousNotes'), noteData);
@@ -509,8 +509,7 @@ const AnonymousNoteBubble: React.FC = () => {
         });
 
         if (validNotes.length > 0) {
-          const noteTexts = validNotes.map(note => note.text);
-          const shuffledNotes = noteTexts.sort(() => Math.random() - 0.5);
+          const shuffledNotes = [...validNotes].sort(() => Math.random() - 0.5);
           setAllNotes(shuffledNotes);
           setCurrentNoteIndex(0);
           setCurrentNote(shuffledNotes[0]);
@@ -542,22 +541,14 @@ const AnonymousNoteBubble: React.FC = () => {
       
       // allNotes에서도 제거 (표시 중인 쪽지 목록)
       setAllNotes(prevNotes => {
-        const updated = prevNotes.filter((_, index) => {
-          // 현재 표시 중인 쪽지가 삭제된 경우를 확인
-          const deletedNote = adminNotes.find(n => n.id === noteId);
-          if (deletedNote) {
-            // 삭제된 쪽지의 텍스트와 일치하는 항목 제거
-            return prevNotes[index] !== deletedNote.text;
-          }
-          return true;
-        });
+        const updated = prevNotes.filter((note) => note.id !== noteId);
         
         // 현재 표시 중인 쪽지가 삭제된 경우 다음 쪽지로 변경
-        if (updated.length > 0 && currentNote === adminNotes.find(n => n.id === noteId)?.text) {
+        if (updated.length > 0 && currentNote?.id === noteId) {
           setCurrentNoteIndex(0);
           setCurrentNote(updated[0]);
         } else if (updated.length === 0) {
-          setCurrentNote('익명 쪽지 남겨줘 🙂');
+          setCurrentNote(null);
         }
         
         return updated;
@@ -685,15 +676,15 @@ const AnonymousNoteBubble: React.FC = () => {
               handleAdminModalOpen();
             }
           }}
-          title={isAdmin ? "클릭: 쪽지 남기기 | 우클릭: 관리자 뷰" : "익명 쪽지 남기기"}
+          title={isAdmin ? "클릭: 쪽지 남기기 | 우클릭: 관리자 뷰" : "쪽지 남기기"}
         >
           <div className="bubble-content">
             {loading ? (
               <span className="bubble-loading">...</span>
             ) : (
               <>
-                <span className="bubble-label">익명이 보낸 쪽지입니다</span>
-                <span className="bubble-text">{currentNote}</span>
+                <span className="bubble-label">{currentNote?.publicNickname ? `${currentNote.publicNickname} 님이 보낸 쪽지입니다` : '익명이 보낸 쪽지입니다'}</span>
+                <span className="bubble-text">{currentNote?.text || '익명 쪽지 남겨줘 🙂'}</span>
                 <span className="bubble-hint">&lt;말풍선을 클릭하여 쪽지를 작성하세요&gt;</span>
               </>
             )}
@@ -718,7 +709,7 @@ const AnonymousNoteBubble: React.FC = () => {
         <div className="anonymous-note-modal-overlay" onClick={handleCloseModal}>
           <div className="anonymous-note-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>익명 쪽지 남기기</h3>
+              <h3>쪽지 남기기</h3>
               <button 
                 className="modal-close-btn"
                 onClick={handleCloseModal}
@@ -736,7 +727,7 @@ const AnonymousNoteBubble: React.FC = () => {
                   value={inputText}
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
-                  placeholder="익명으로 남기고 싶은 말을 적어주세요 (최대 50자)"
+                  placeholder="남기고 싶은 말을 적어주세요 (최대 50자)"
                   maxLength={50}
                   className="note-input"
                   disabled={submitting}
@@ -823,7 +814,7 @@ const AnonymousNoteBubble: React.FC = () => {
                           <li key={note.id} className="user-note-li user-note-li--active">
                             <p className="user-note-text">{note.text}</p>
                             <div className="user-note-footer">
-                              <span className="user-note-anon">익명</span>
+                              <span className="user-note-anon">{note.publicNickname || '익명'}</span>
                             </div>
                           </li>
                         ))}
@@ -843,7 +834,7 @@ const AnonymousNoteBubble: React.FC = () => {
                           <li key={note.id} className="user-note-li user-note-li--inactive">
                             <p className="user-note-text">{note.text}</p>
                             <div className="user-note-footer">
-                              <span className="user-note-anon">익명</span>
+                              <span className="user-note-anon">{note.publicNickname || '익명'}</span>
                             </div>
                           </li>
                         ))}

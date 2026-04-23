@@ -767,63 +767,6 @@ button:hover::before,
   box-shadow: none !important;
 }
 
-/* 다크 모드 */
-.dark .back-to-main-button {
-  background: var(--button-bg);
-  color: var(--text-secondary);
-  border-color: var(--border-color);
-}
-
-.dark .back-to-main-button:hover {
-  color: var(--primary-light);
-  border-color: var(--primary-light);
-  background: rgba(124, 58, 237, 0.1);
-}
-
-.dark .board-title {
-  color: var(--text-primary);
-}
-
-.dark .post-card {
-  background: #2d2d2d;
-  border-color: rgba(187, 134, 252, 0.1);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-}
-
-.dark .post-card:hover {
-  background: #333;
-  box-shadow: 0 6px 20px rgba(187, 134, 252, 0.2);
-}
-
-.dark .post-card.notice {
-  background: linear-gradient(to right, rgba(236, 72, 153, 0.1) 0%, rgba(236, 72, 153, 0.05) 100%);
-}
-
-.dark .like-button, .dark .stat-button {
-  background: transparent;
-  color: var(--primary-light);
-  border: none;
-}
-
-.dark .like-button svg, .dark .stat-button svg {
-  stroke: var(--primary-light);
-  fill: none;
-}
-
-.dark .like-button.liked svg, .dark .stat-button.liked svg {
-  stroke: var(--primary-light);
-  fill: var(--primary-light);
-}
-
-.dark .like-button:hover svg, .dark .stat-button:hover svg {
-  stroke: #fff;
-}
-
-.dark .like-button.liked:hover svg, .dark .stat-button.liked:hover svg {
-  stroke: #fff;
-  fill: #fff;
-}
-
 /* Bottom Navigation Component Styles */
 .bottom-navigation.collapsed {
   transform: translateY(100%);

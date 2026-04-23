@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, Search, Phone, Bell, BellOff, Menu, Plus, Smile, FileText } from 'lucide-react';
+import { AppWindow, ChevronLeft, Search, Phone, Bell, BellOff, Menu, Plus, Smile, FileText } from 'lucide-react';
 import {
   addDoc,
   collection,
@@ -58,6 +58,7 @@ type AnonymousRoom = {
   isFrozen?: boolean;
   lastCleanupAt?: any;
   requiredActiveDays?: number;
+  entryCode?: string;
   createdAt: any;
 };
 
@@ -153,6 +154,9 @@ const getRoomIdFromSearch = () => {
   return new URLSearchParams(window.location.search).get('roomId') || '';
 };
 
+const CHAT_THEME_STORAGE_KEY = 'veryus_anonymous_chat_theme';
+const ROOM_TITLE_OVERRIDE_STORAGE_KEY_PREFIX = 'veryus_anonymous_room_title_override';
+
 const AnonymousChatRoom: React.FC = () => {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<AnonymousProfile | null>(null);
@@ -170,8 +174,13 @@ const AnonymousChatRoom: React.FC = () => {
   const [roomTitleInput, setRoomTitleInput] = useState('');
   const [userActiveDays, setUserActiveDays] = useState(0);
   const [showRoomMenu, setShowRoomMenu] = useState(false);
+  const [isKakaoTheme, setIsKakaoTheme] = useState(true);
   const [roomRequirementInput, setRoomRequirementInput] = useState(0);
   const [savingRoomRequirement, setSavingRoomRequirement] = useState(false);
+  const [roomEntryCodeInput, setRoomEntryCodeInput] = useState('');
+  const [savingRoomEntryCode, setSavingRoomEntryCode] = useState(false);
+  const [pendingEntryCodeRoom, setPendingEntryCodeRoom] = useState<{ room: AnonymousRoom; fromPushLink?: boolean } | null>(null);
+  const [entryCodeInput, setEntryCodeInput] = useState('');
   const [creatingNickname, setCreatingNickname] = useState(false);
   const [creatingRoom, setCreatingRoom] = useState(false);
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
@@ -183,6 +192,9 @@ const AnonymousChatRoom: React.FC = () => {
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const [enteredByPushLink, setEnteredByPushLink] = useState(false);
+  const [roomTitleOverrides, setRoomTitleOverrides] = useState<Record<string, string>>({});
+  const [editingRoomTitle, setEditingRoomTitle] = useState(false);
+  const [roomTitleDraft, setRoomTitleDraft] = useState('');
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const messageItemRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const scrollRetryTimeoutRef = useRef<number | null>(null);
@@ -227,6 +239,35 @@ const AnonymousChatRoom: React.FC = () => {
       navigator.maxTouchPoints > 0
     );
   }, []);
+
+  useEffect(() => {
+    const storedTheme = localStorage.getItem(CHAT_THEME_STORAGE_KEY);
+    if (storedTheme === 'classic') {
+      setIsKakaoTheme(false);
+      return;
+    }
+    setIsKakaoTheme(true);
+  }, []);
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setRoomTitleOverrides({});
+      return;
+    }
+    const storageKey = `${ROOM_TITLE_OVERRIDE_STORAGE_KEY_PREFIX}_${user.uid}`;
+    try {
+      const stored = localStorage.getItem(storageKey);
+      setRoomTitleOverrides(stored ? JSON.parse(stored) : {});
+    } catch {
+      setRoomTitleOverrides({});
+    }
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    const storageKey = `${ROOM_TITLE_OVERRIDE_STORAGE_KEY_PREFIX}_${user.uid}`;
+    localStorage.setItem(storageKey, JSON.stringify(roomTitleOverrides));
+  }, [user?.uid, roomTitleOverrides]);
 
   useEffect(() => {
     const userRaw = localStorage.getItem('veryus_user');
@@ -291,9 +332,13 @@ const AnonymousChatRoom: React.FC = () => {
         ...(item.data() as Omit<AnonymousRoom, 'id'>)
       }));
       setRooms(nextRooms);
-      setSelectedRoomId((prev) =>
-        prev && !nextRooms.some((room) => room.id === prev) ? null : prev
-      );
+      // 첫 스냅샷이 빈 배열이면(캐시/네트워크 지연) 딥링크로 잡힌 방이 잘못 지워지는 것을 막는다
+      setSelectedRoomId((prev) => {
+        if (!prev) return null;
+        if (nextRooms.some((room) => room.id === prev)) return prev;
+        if (nextRooms.length === 0) return prev;
+        return null;
+      });
     });
 
     return () => unsubRooms();
@@ -486,7 +531,13 @@ const AnonymousChatRoom: React.FC = () => {
     if (!selectedRoomId) return;
     const room = roomById.get(selectedRoomId);
     setRoomRequirementInput(room?.requiredActiveDays || 0);
+    setRoomEntryCodeInput(room?.entryCode || '');
   }, [selectedRoomId, roomById]);
+
+  useEffect(() => {
+    setEditingRoomTitle(false);
+    setRoomTitleDraft('');
+  }, [selectedRoomId]);
 
   useLayoutEffect(() => {
     if (!selectedRoomId) return;
@@ -552,12 +603,26 @@ const AnonymousChatRoom: React.FC = () => {
 
   const myDisplayName = getDisplayName(profile?.customNickname, profile?.profileNickname);
 
+  const getRoomRestrictionLabel = useCallback((room?: AnonymousRoom) => {
+    const required = room?.requiredActiveDays || 0;
+    if (required <= 0) return '누구나 입장 가능';
+    return `활동 ${required}일 이후 입장가능`;
+  }, []);
+
   const canEnterRoom = useCallback((room: AnonymousRoom) => {
     const required = room.requiredActiveDays || 0;
     return userActiveDays >= required;
   }, [userActiveDays]);
 
-  const handleEnterRoom = useCallback(async (room: AnonymousRoom, options?: { fromPushLink?: boolean }) => {
+  const finalizeEnterRoom = useCallback((room: AnonymousRoom, fromPushLink?: boolean) => {
+    setEnteredByPushLink(Boolean(fromPushLink));
+    setSelectedRoomId(room.id);
+  }, []);
+
+  const handleEnterRoom = useCallback(async (
+    room: AnonymousRoom,
+    options?: { fromPushLink?: boolean; skipEntryCodeCheck?: boolean }
+  ) => {
     if (!user?.uid) return;
     const participantRef = doc(db, 'anonymousChatRooms', room.id, 'participants', user.uid);
     const participantSnap = await getDoc(participantRef);
@@ -567,29 +632,36 @@ const AnonymousChatRoom: React.FC = () => {
       alert(`${getRoomRestrictionLabel(room)}\n현재 내 활동일: ${userActiveDays}일`);
       return;
     }
-    setEnteredByPushLink(Boolean(options?.fromPushLink));
-    setSelectedRoomId(room.id);
-  }, [user?.uid, canEnterRoom, userActiveDays]);
+
+    const expectedCode = (room.entryCode || '').trim();
+    if (expectedCode && !options?.skipEntryCodeCheck) {
+      setPendingEntryCodeRoom({ room, fromPushLink: options?.fromPushLink });
+      setEntryCodeInput('');
+      return;
+    }
+
+    finalizeEnterRoom(room, options?.fromPushLink);
+  }, [user?.uid, canEnterRoom, userActiveDays, finalizeEnterRoom, getRoomRestrictionLabel]);
 
   useEffect(() => {
     if (!user?.uid || !profile || selectedRoomId) return;
     const deepLinkRoomId = getRoomIdFromSearch();
     if (!deepLinkRoomId) return;
-    setEnteredByPushLink(true);
-    setSelectedRoomId(deepLinkRoomId);
+    const room = roomById.get(deepLinkRoomId);
+    if (!room) return;
+    void handleEnterRoom(room, { fromPushLink: true });
     clearDeepLinkRoomIdFromUrl();
-  }, [user?.uid, profile, selectedRoomId, clearDeepLinkRoomIdFromUrl]);
-
-  const getRoomRestrictionLabel = useCallback((room?: AnonymousRoom) => {
-    const required = room?.requiredActiveDays || 0;
-    if (required <= 0) return '누구나 입장 가능';
-    return `활동 ${required}일 이후 입장가능`;
-  }, []);
+  }, [user?.uid, profile, selectedRoomId, roomById, handleEnterRoom, clearDeepLinkRoomIdFromUrl]);
 
   const selectedRoom = useMemo(
     () => (selectedRoomId ? roomById.get(selectedRoomId) : undefined),
     [selectedRoomId, roomById]
   );
+  const selectedRoomDisplayTitle = useMemo(() => {
+    if (!selectedRoom) return '익명 채팅방';
+    const overrideTitle = (roomTitleOverrides[selectedRoom.id] || '').trim();
+    return overrideTitle || selectedRoom.title || '익명 채팅방';
+  }, [selectedRoom, roomTitleOverrides]);
   const myUid = user?.uid || '';
   const roomManagerUids = useMemo(
     () =>
@@ -746,6 +818,7 @@ const AnonymousChatRoom: React.FC = () => {
         notificationMutedUids: [],
         isFrozen: false,
         requiredActiveDays: 0,
+        entryCode: '',
         createdAt: serverTimestamp()
       });
       setRoomTitleInput('');
@@ -803,6 +876,48 @@ const AnonymousChatRoom: React.FC = () => {
       setSavingRoomRequirement(false);
     }
   }, [selectedRoomId, user?.uid, roomRequirementInput]);
+
+  const handleSetRoomEntryCode = useCallback(async (selectedRoom: AnonymousRoom) => {
+    if (!selectedRoomId) return;
+    if (selectedRoom.createdByUid !== user?.uid) return;
+    const trimmedCode = roomEntryCodeInput.trim();
+    if (trimmedCode.length > 20) {
+      alert('입장 코드는 20자 이하로 입력해주세요.');
+      return;
+    }
+    setSavingRoomEntryCode(true);
+    try {
+      await runTransaction(db, async (transaction) => {
+        const roomRef = doc(db, 'anonymousChatRooms', selectedRoomId);
+        transaction.update(roomRef, { entryCode: trimmedCode });
+      });
+      alert(trimmedCode ? '입장 코드가 설정되었습니다.' : '입장 코드가 해제되었습니다.');
+      setShowRoomMenu(false);
+    } catch (error) {
+      console.error('입장 코드 설정 실패:', error);
+      alert('입장 코드 설정 중 오류가 발생했습니다.');
+    } finally {
+      setSavingRoomEntryCode(false);
+    }
+  }, [selectedRoomId, user?.uid, roomEntryCodeInput]);
+
+  const handleConfirmEntryCode = useCallback(async () => {
+    if (!pendingEntryCodeRoom) return;
+    const expectedCode = (pendingEntryCodeRoom.room.entryCode || '').trim();
+    if (!expectedCode) {
+      setPendingEntryCodeRoom(null);
+      return;
+    }
+    if (entryCodeInput.trim() !== expectedCode) {
+      alert('입장 코드가 올바르지 않습니다.');
+      return;
+    }
+    const roomToEnter = pendingEntryCodeRoom.room;
+    const fromPushLink = Boolean(pendingEntryCodeRoom.fromPushLink);
+    setPendingEntryCodeRoom(null);
+    setEntryCodeInput('');
+    await handleEnterRoom(roomToEnter, { fromPushLink, skipEntryCodeCheck: true });
+  }, [pendingEntryCodeRoom, entryCodeInput, handleEnterRoom]);
 
   const handleToggleRoomNotifications = useCallback(async () => {
     if (!selectedRoomId || !selectedRoom || !user?.uid) return;
@@ -919,8 +1034,12 @@ const AnonymousChatRoom: React.FC = () => {
       setSending(true);
       try {
         const roomRef = doc(db, 'anonymousChatRooms', selectedRoomId);
+        const messagesCol = collection(db, 'anonymousChatRooms', selectedRoomId, 'messages');
         await updateDoc(roomRef, { isFrozen: true });
-        await addDoc(collection(db, 'anonymousChatRooms', selectedRoomId, 'messages'), {
+        // 과거 권한/채팅정지 등 __system__ 메시지도 모두 제거한 뒤, 청소 안내만 남깁니다.
+        const messageSnap = await getDocs(messagesCol);
+        await Promise.all(messageSnap.docs.map((d) => deleteDoc(d.ref)));
+        await addDoc(messagesCol, {
           uid: '__system__',
           senderLabel: 'system',
           content: '청소도우미: 채팅방 청소를 시작합니다',
@@ -928,12 +1047,7 @@ const AnonymousChatRoom: React.FC = () => {
           createdAtClient: Date.now(),
           createdAt: serverTimestamp()
         });
-
-        const messageSnap = await getDocs(collection(db, 'anonymousChatRooms', selectedRoomId, 'messages'));
-        const deleteTargets = messageSnap.docs.filter((d) => (d.data()?.uid || '') !== '__system__');
-        await Promise.all(deleteTargets.map((d) => deleteDoc(d.ref)));
-
-        await addDoc(collection(db, 'anonymousChatRooms', selectedRoomId, 'messages'), {
+        await addDoc(messagesCol, {
           uid: '__system__',
           senderLabel: 'system',
           content: '청소도우미: 청소가 완료되었습니다',
@@ -1032,7 +1146,35 @@ const AnonymousChatRoom: React.FC = () => {
   const handleBackToRoomList = useCallback(() => {
     setSelectedRoomId(null);
     setEnteredByPushLink(false);
+    setEditingRoomTitle(false);
+    setRoomTitleDraft('');
   }, []);
+
+  const startRoomTitleEdit = useCallback(() => {
+    if (!selectedRoom) return;
+    setRoomTitleDraft(selectedRoomDisplayTitle);
+    setEditingRoomTitle(true);
+  }, [selectedRoom, selectedRoomDisplayTitle]);
+
+  const cancelRoomTitleEdit = useCallback(() => {
+    setEditingRoomTitle(false);
+    setRoomTitleDraft('');
+  }, []);
+
+  const saveRoomTitleOverride = useCallback(() => {
+    if (!selectedRoom) return;
+    const trimmed = roomTitleDraft.trim().slice(0, 30);
+    setRoomTitleOverrides((prev) => {
+      const next = { ...prev };
+      if (!trimmed || trimmed === selectedRoom.title) {
+        delete next[selectedRoom.id];
+      } else {
+        next[selectedRoom.id] = trimmed;
+      }
+      return next;
+    });
+    setEditingRoomTitle(false);
+  }, [selectedRoom, roomTitleDraft]);
 
   const handleInputKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -1063,6 +1205,14 @@ const AnonymousChatRoom: React.FC = () => {
 
   const toggleRoomMenu = useCallback(() => {
     setShowRoomMenu((prev) => !prev);
+  }, []);
+
+  const handleThemeToggle = useCallback(() => {
+    setIsKakaoTheme((prev) => {
+      const next = !prev;
+      localStorage.setItem(CHAT_THEME_STORAGE_KEY, next ? 'kakao' : 'classic');
+      return next;
+    });
   }, []);
 
   const closeMessageActionMenu = useCallback(() => {
@@ -1121,6 +1271,25 @@ const AnonymousChatRoom: React.FC = () => {
     setReplyTarget(null);
   }, []);
 
+  const openChatInNewWindow = useCallback(() => {
+    const path = selectedRoomId
+      ? `/anonymous-chat?roomId=${encodeURIComponent(selectedRoomId)}`
+      : '/anonymous-chat';
+    const url = `${window.location.origin}${path}`;
+    const features = [
+      'width=420',
+      'height=760',
+      'left=60',
+      'top=40',
+      'menubar=no',
+      'toolbar=no',
+      'location=yes',
+      'resizable=yes',
+      'scrollbars=yes'
+    ].join(',');
+    window.open(url, 'veryus-anonymous-chat', `${features},noopener,noreferrer`);
+  }, [selectedRoomId]);
+
   if (loading) {
     return <div className="anonymous-chat-page">로딩 중...</div>;
   }
@@ -1157,7 +1326,18 @@ const AnonymousChatRoom: React.FC = () => {
     return (
       <div className="anonymous-chat-page">
         <div className="anonymous-chat-header">
-          <h2>익명 채팅방 목록</h2>
+          <div className="anonymous-chat-header-title-row">
+            <h2>익명 채팅방 목록</h2>
+            <button
+              type="button"
+              className="anonymous-chat-open-window-btn"
+              aria-label="익명채팅을 별도 창으로"
+              title="별도 창에서 열기 (PC 권장)"
+              onClick={openChatInNewWindow}
+            >
+              <AppWindow size={20} />
+            </button>
+          </div>
           <div className="anonymous-chat-header-row">
             <p className="anonymous-chat-header-display-name">내 표시명: {myDisplayName}</p>
             <button
@@ -1232,6 +1412,9 @@ const AnonymousChatRoom: React.FC = () => {
                   방장: {getDisplayName(room.createdByNickname, '')}
                 </span>
                 <span className="anonymous-chat-room-rule">{getRoomRestrictionLabel(room)}</span>
+                {(room.entryCode || '').trim() && (
+                  <span className="anonymous-chat-room-rule">입장코드 필요</span>
+                )}
               </button>
               {room.createdByUid === user.uid && (
                 <button
@@ -1267,7 +1450,7 @@ const AnonymousChatRoom: React.FC = () => {
   }
 
   return (
-    <div className="anonymous-chat-room-screen">
+    <div className={`anonymous-chat-room-screen ${isKakaoTheme ? 'theme-kakao' : 'theme-classic'}`}>
       <div className="anonymous-chat-topbar">
         <button
           className="anonymous-chat-topbar-back"
@@ -1277,7 +1460,36 @@ const AnonymousChatRoom: React.FC = () => {
           <ChevronLeft size={24} />
         </button>
         <div className="anonymous-chat-topbar-center">
-          <strong>{selectedRoom?.title || '익명 채팅방'}</strong>
+          {editingRoomTitle ? (
+            <input
+              type="text"
+              value={roomTitleDraft}
+              maxLength={30}
+              className="anonymous-chat-room-title-edit-input"
+              onChange={(e) => setRoomTitleDraft(e.target.value)}
+              onBlur={saveRoomTitleOverride}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  saveRoomTitleOverride();
+                }
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  cancelRoomTitleEdit();
+                }
+              }}
+              autoFocus
+            />
+          ) : (
+            <button
+              type="button"
+              className="anonymous-chat-room-title-edit-trigger"
+              title="방제 별칭 수정"
+              onClick={startRoomTitleEdit}
+            >
+              {selectedRoomDisplayTitle}
+            </button>
+          )}
           <button
             type="button"
             className="anonymous-chat-members-btn"
@@ -1287,6 +1499,14 @@ const AnonymousChatRoom: React.FC = () => {
           </button>
         </div>
         <div className="anonymous-chat-topbar-actions">
+          <button
+            type="button"
+            aria-label="익명채팅을 별도 창으로"
+            title="별도 창에서 열기 (PC 권장)"
+            onClick={openChatInNewWindow}
+          >
+            <AppWindow size={19} />
+          </button>
           <button type="button" aria-label="검색"><Search size={19} /></button>
           <button type="button" aria-label="통화"><Phone size={19} /></button>
           <button
@@ -1307,8 +1527,47 @@ const AnonymousChatRoom: React.FC = () => {
 
       {showRoomMenu && (
         <div className="anonymous-chat-room-menu">
+          <div className="anonymous-chat-room-menu-title">테마</div>
+          <label className="anonymous-chat-theme-toggle">
+            <span>카톡 테마</span>
+            <input
+              type="checkbox"
+              checked={isKakaoTheme}
+              onChange={handleThemeToggle}
+            />
+          </label>
+          <div className="anonymous-chat-room-menu-divider" />
           {selectedRoom?.createdByUid === user?.uid ? (
             <>
+              <div className="anonymous-chat-room-menu-title">입장 코드 설정</div>
+              <div className="anonymous-chat-room-menu-row">
+                <input
+                  type="text"
+                  maxLength={20}
+                  placeholder="코드 입력 (최대 20자)"
+                  value={roomEntryCodeInput}
+                  onChange={(e) => setRoomEntryCodeInput(e.target.value)}
+                />
+              </div>
+              <div className="anonymous-chat-room-menu-actions">
+                <button
+                  type="button"
+                  className="anonymous-chat-room-menu-save"
+                  onClick={() => selectedRoom && handleSetRoomEntryCode(selectedRoom)}
+                  disabled={savingRoomEntryCode}
+                >
+                  {savingRoomEntryCode ? '저장 중...' : '코드 저장'}
+                </button>
+                <button
+                  type="button"
+                  className="anonymous-chat-room-menu-save secondary"
+                  onClick={() => setRoomEntryCodeInput('')}
+                  disabled={savingRoomEntryCode}
+                >
+                  코드 해제
+                </button>
+              </div>
+              <div className="anonymous-chat-room-menu-divider" />
               <div className="anonymous-chat-room-menu-title">입장 제한 설정</div>
               <div className="anonymous-chat-room-menu-row">
                 <input
@@ -1335,7 +1594,7 @@ const AnonymousChatRoom: React.FC = () => {
         </div>
       )}
 
-      <div className="anonymous-chat-messages kakao-style" ref={messagesContainerRef}>
+      <div className={`anonymous-chat-messages ${isKakaoTheme ? 'kakao-style' : 'classic-style'}`} ref={messagesContainerRef}>
         {chatTimeline.length === 0 && (
           <div className="anonymous-chat-empty">첫 메시지를 남겨보세요.</div>
         )}
@@ -1467,7 +1726,40 @@ const AnonymousChatRoom: React.FC = () => {
         </div>
       )}
 
-      <div className="anonymous-chat-input kakao-style">
+      {pendingEntryCodeRoom && (
+        <div className="anonymous-chat-members-overlay" onClick={() => setPendingEntryCodeRoom(null)}>
+          <div className="anonymous-chat-members-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="anonymous-chat-members-title">입장 코드 입력</div>
+            <div className="anonymous-chat-members-empty">"{pendingEntryCodeRoom.room.title}" 방 입장을 위해 코드가 필요합니다.</div>
+            <div className="anonymous-chat-room-menu-row">
+              <input
+                type="password"
+                maxLength={20}
+                autoFocus
+                value={entryCodeInput}
+                placeholder="입장 코드 입력"
+                onChange={(e) => setEntryCodeInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    void handleConfirmEntryCode();
+                  }
+                }}
+              />
+            </div>
+            <div className="anonymous-chat-room-menu-actions">
+              <button type="button" className="anonymous-chat-members-close" onClick={() => void handleConfirmEntryCode()}>
+                입장하기
+              </button>
+              <button type="button" className="anonymous-chat-members-close secondary" onClick={() => setPendingEntryCodeRoom(null)}>
+                취소
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className={`anonymous-chat-input ${isKakaoTheme ? 'kakao-style' : 'classic-style'}`}>
         {replyTarget && (
           <button
             type="button"

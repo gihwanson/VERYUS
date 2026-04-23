@@ -51,7 +51,8 @@ html, body {
   padding: var(--space-xs) var(--space-sm);
   border-radius: var(--radius-md);
   transition: all var(--transition-fast);
-  min-width: 60px;
+  min-width: 0;
+  flex: 1;
   position: relative;
 }
 
@@ -241,7 +242,7 @@ body, html {
 /* 검색 섹션 */
 .search-section {
   flex: 1;
-  min-width: 200px;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);

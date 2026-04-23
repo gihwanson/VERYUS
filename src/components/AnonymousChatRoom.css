@@ -60,6 +60,36 @@
   margin-bottom: -3px;
 }
 
+.anonymous-chat-room-title-edit-trigger {
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  font-size: 22px;
+  font-weight: 600;
+  font-family: "Pretendard", "Noto Sans KR", sans-serif;
+  letter-spacing: -0.2px;
+  color: #1f2f41;
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: -3px;
+  cursor: pointer;
+}
+
+.anonymous-chat-room-title-edit-input {
+  width: min(220px, 58vw);
+  max-width: 220px;
+  border: 1px solid rgba(33, 53, 74, 0.28);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 2px 8px;
+  font-size: 17px;
+  font-weight: 600;
+  color: #1f2f41;
+}
+
 .anonymous-chat-members-btn {
   margin-top: -4px;
   font-size: 13px;
@@ -154,6 +184,37 @@
   padding: 14px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
   position: relative;
+}
+
+.anonymous-chat-header-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.anonymous-chat-header-title-row h2 {
+  flex: 1;
+  min-width: 0;
+}
+
+.anonymous-chat-open-window-btn {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  background: rgba(111, 66, 193, 0.12);
+  color: #5b3a9e;
+  cursor: pointer;
+}
+
+.anonymous-chat-open-window-btn:hover {
+  background: rgba(111, 66, 193, 0.2);
 }
 
 .anonymous-chat-header h2 {
@@ -720,10 +781,42 @@
   font-size: 12px;
 }
 
+.anonymous-chat-room-menu-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.anonymous-chat-room-menu-save.secondary {
+  background: #e8edf3;
+  color: #334b63;
+}
+
 .anonymous-chat-room-menu-readonly {
   font-size: 12px;
   color: #556a7f;
   line-height: 1.4;
+}
+
+.anonymous-chat-theme-toggle {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  color: #33485f;
+}
+
+.anonymous-chat-theme-toggle input {
+  width: 16px;
+  height: 16px;
+}
+
+.anonymous-chat-room-menu-divider {
+  height: 1px;
+  margin: 10px 0;
+  background: rgba(47, 67, 87, 0.18);
 }
 
 .anonymous-chat-members-modal {
@@ -809,6 +902,11 @@
   font-weight: 700;
 }
 
+.anonymous-chat-members-close.secondary {
+  background: #dfe6ee;
+  color: #324a61;
+}
+
 /* PracticeRoomBooking 톤 통일 */
 .anonymous-chat-page,
 .anonymous-chat-room-screen {
@@ -844,4 +942,44 @@
 .anonymous-chat-nickname-row button {
   background: linear-gradient(135deg, #8a55cc 0%, #764ba2 100%);
   color: #fff;
+}
+
+/* 카톡 테마 선택 시 기본 톤으로 복원 */
+.anonymous-chat-room-screen.theme-kakao {
+  background: #b2c7d9;
+}
+
+.anonymous-chat-room-screen.theme-kakao .anonymous-chat-topbar {
+  background: #9fb3c8;
+  border: none;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
+  backdrop-filter: none;
+}
+
+.anonymous-chat-room-screen.theme-kakao .anonymous-chat-room-rule-banner {
+  background: rgba(245, 250, 255, 0.55);
+  color: #2e455c;
+}
+
+.anonymous-chat-room-screen.theme-kakao .anonymous-chat-messages.kakao-style {
+  padding: 10px 8px;
+}
+
+.anonymous-chat-room-screen.theme-kakao .anonymous-chat-input.kakao-style {
+  background: #f2f2f2;
+  border: 1px solid #d9d9d9;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+
+.anonymous-chat-room-screen.theme-kakao .anonymous-chat-system-notice {
+  background: rgba(232, 239, 247, 0.95);
+}
+
+.anonymous-chat-room-screen.theme-kakao .anonymous-chat-bubble.mine {
+  background: #fee500;
+  color: #2a1a1a;
 }

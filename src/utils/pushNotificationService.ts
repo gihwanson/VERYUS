@@ -97,32 +97,58 @@ export const removeAllPushTokens = async (uid: string) => {
   }
 };
 
-const handlePushRoute = (postType?: string, postId?: string, route?: string) => {
-  if (route) {
-    window.location.href = route;
-    return;
+const hasPushRoutingHints = (data?: Record<string, string | undefined> | null): boolean => {
+  if (!data) return false;
+  return Boolean(
+    (data.route && String(data.route).trim()) ||
+      (data.type && String(data.type).trim()) ||
+      (data.roomId && String(data.roomId).trim()) ||
+      (data.postId && String(data.postId).trim()) ||
+      (data.postType && String(data.postType).trim()) ||
+      (data.guestbookOwnerUid && String(data.guestbookOwnerUid).trim())
+  );
+};
+
+/** 네이티브/웹 푸시 data — route 필드가 OS에서 비어도 type·roomId 등으로 복구 */
+const navigateFromPushData = (data?: Record<string, string | undefined> | null) => {
+  if (!hasPushRoutingHints(data)) return;
+
+  const target = NotificationService.resolveNotificationRoute({
+    type: data?.type,
+    postId: data?.postId,
+    postType: data?.postType,
+    route: data?.route,
+    roomId: data?.roomId,
+    guestbookOwnerUid: data?.guestbookOwnerUid
+  });
+
+  if (!target) return;
+
+  if (target.startsWith('http://') || target.startsWith('https://')) {
+    try {
+      const next = new URL(target);
+      if (next.origin === window.location.origin) {
+        window.location.assign(`${next.pathname}${next.search}${next.hash}`);
+        return;
+      }
+    } catch {
+      return;
+    }
   }
-  if (!postType || !postId) return;
-  const routes: Record<string, string> = {
-    free: `/free/${postId}`,
-    recording: `/recording/${postId}`,
-    evaluation: `/evaluation/${postId}`,
-    balance: `/balance/${postId}`,
-    partner: `/boards/partner/${postId}`
-  };
-  const target = routes[postType];
-  if (target) window.location.href = target;
+
+  window.location.assign(target);
 };
 
 const showForegroundPushToast = (params: {
   title?: string;
   body?: string;
+  data?: Record<string, string | undefined> | null;
   route?: string;
   postType?: string;
   postId?: string;
 }) => {
-  const route =
-    params.route ||
+  const legacyRoute =
+    (params.route && String(params.route).trim() ? String(params.route) : undefined) ||
     (params.postType && params.postId
       ? NotificationService.getRouteByPostType(params.postType, params.postId)
       : undefined);
@@ -131,8 +157,11 @@ const showForegroundPushToast = (params: {
   toast.info(`${title}\n${message}`, {
     autoClose: 4500,
     onClick: () => {
-      if (!route) return;
-      window.location.href = route;
+      if (params.data && hasPushRoutingHints(params.data)) {
+        navigateFromPushData(params.data);
+        return;
+      }
+      if (legacyRoute) window.location.assign(legacyRoute);
     }
   });
 };
@@ -168,20 +197,20 @@ const registerNativePush = async (uid: string, permission?: PermissionStatus) =>
 
   PushNotifications.addListener('pushNotificationReceived', (notification) => {
     console.log('푸시 수신:', notification);
+    const d = (notification.data || {}) as Record<string, string | undefined>;
     showForegroundPushToast({
       title: notification.title,
       body: notification.body,
-      route: notification.data?.route,
-      postType: notification.data?.postType,
-      postId: notification.data?.postId
+      data: d,
+      route: d?.route,
+      postType: d?.postType,
+      postId: d?.postId
     });
   });
 
   PushNotifications.addListener('pushNotificationActionPerformed', (action: ActionPerformed) => {
-    const postType = action.notification.data?.postType;
-    const postId = action.notification.data?.postId;
-    const route = action.notification.data?.route;
-    handlePushRoute(postType, postId, route);
+    const d = (action.notification.data || {}) as Record<string, string | undefined>;
+    navigateFromPushData(d);
   });
 };
 
@@ -218,12 +247,14 @@ const registerWebPush = async (uid: string, forcePermissionRequest: boolean): Pr
   if (!webForegroundListenerAttached) {
     onMessage(messaging, (payload) => {
       console.log('웹 포그라운드 푸시 수신:', payload);
+      const d = (payload.data || {}) as Record<string, string | undefined>;
       showForegroundPushToast({
         title: payload.notification?.title || payload.data?.title,
         body: payload.notification?.body || payload.data?.body,
-        route: payload.data?.route,
-        postType: payload.data?.postType,
-        postId: payload.data?.postId
+        data: d,
+        route: d?.route,
+        postType: d?.postType,
+        postId: d?.postId
       });
     });
     webForegroundListenerAttached = true;

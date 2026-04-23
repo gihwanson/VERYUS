@@ -40,9 +40,6 @@
   gap: 24px;
   margin-top: 32px;
 }
-body {
-  background: #F9FAFB;
-}
 /* glassmorphism + gradient + 중앙정렬 + 컬러풀 아이콘 + 등급 분포 개선 */
 .stat-card.glass {
   background: rgba(255,255,255,0.7);

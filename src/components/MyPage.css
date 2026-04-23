@@ -774,54 +774,6 @@ body {
   box-shadow: 0 2px 8px rgba(209, 213, 219, 0.08) !important;
 }
 
-/* 주요 UI 요소 다크모드 개선 */
-@media not all and (prefers-color-scheme: dark) {
-  .mypage-container, .mypage-content, .profile-card, .stats-grid, .intro-card, .guestbook-section, .grade-section {
-    background: var(--bg-card) !important;
-    color: var(--text-primary) !important;
-    border-color: var(--border-light) !important;
-    box-shadow: 0 4px 24px var(--shadow-md) !important;
-  }
-  .profile-image, .profile-avatar, .edit-input, .edit-textarea, .guestbook-textarea, .grade-select, .tab-button, .send-btn {
-    background: #232136 !important;
-    color: #F4F4F5 !important;
-    border-color: #393552 !important;
-  }
-  .edit-input:focus, .edit-textarea:focus, .guestbook-textarea:focus, .grade-select:focus {
-    border-color: #A78BFA !important;
-    box-shadow: 0 0 0 2px #A78BFA44 !important;
-  }
-  .edit-btn, .save-btn, .cancel-btn, .send-btn {
-    background: #A78BFA !important;
-    color: #fff !important;
-    border: none !important;
-  }
-  .edit-btn:hover, .save-btn:hover, .cancel-btn:hover, .send-btn:hover {
-    background: #7C3AED !important;
-  }
-  .profile-name, .user-name, .grade-emoji {
-    color: #A78BFA !important;
-  }
-  .stat-label, .profile-role, .grade-name {
-    color: var(--text-secondary) !important;
-  }
-  .tab-button.active {
-    background: #393552 !important;
-    color: #A78BFA !important;
-  }
-  .mypage-content, .profile-card, .stat-item, .grade-section, .intro-card, .guestbook-section {
-    background: #232136 !important;
-    color: #F4F4F5 !important;
-    box-shadow: 0 4px 18px rgba(124,58,237,0.13) !important;
-  }
-  .profile-name, .user-name, .stat-number, .grade-emoji, .grade-name {
-    color: #F4F4F5 !important;
-  }
-  .stat-label, .profile-role, .grade-section h3, .guestbook-item .message-date {
-    color: #B5BFE2 !important;
-  }
-} 
-
 /* 마이페이지 알림 토글 */
 .mypage-notification-card {
   background: rgba(255, 255, 255, 0.1);
@@ -1085,61 +1037,61 @@ body {
 }
 
 /* 글래스 배경 안 방명록 */
-.mypage-guestbook-dark .guestbook-textarea {
+.mypage-guestbook-glass .guestbook-textarea {
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.28);
   color: #fff;
 }
 
-.mypage-guestbook-dark .guestbook-textarea::placeholder {
+.mypage-guestbook-glass .guestbook-textarea::placeholder {
   color: rgba(255, 255, 255, 0.45);
 }
 
-.mypage-guestbook-dark .guestbook-textarea:focus {
+.mypage-guestbook-glass .guestbook-textarea:focus {
   border-color: rgba(255, 255, 255, 0.45);
   outline: none;
 }
 
-.mypage-guestbook-dark .send-btn {
+.mypage-guestbook-glass .send-btn {
   background: rgba(255, 255, 255, 0.25);
   border: 1px solid rgba(255, 255, 255, 0.35);
 }
 
-.mypage-guestbook-dark .send-btn:hover {
+.mypage-guestbook-glass .send-btn:hover {
   background: rgba(255, 255, 255, 0.35);
 }
 
-.mypage-guestbook-dark .guestbook-item {
+.mypage-guestbook-glass .guestbook-item {
   background: rgba(255, 255, 255, 0.1);
   border-left-color: rgba(255, 255, 255, 0.5);
 }
 
-.mypage-guestbook-dark .guestbook-item:hover {
+.mypage-guestbook-glass .guestbook-item:hover {
   background: rgba(255, 255, 255, 0.14);
 }
 
-.mypage-guestbook-dark .message-author {
+.mypage-guestbook-glass .message-author {
   color: #e9d5ff;
 }
 
-.mypage-guestbook-dark .message-author-grade {
+.mypage-guestbook-glass .message-author-grade {
   color: rgba(255, 255, 255, 0.9);
 }
 
-.mypage-guestbook-dark .message-date {
+.mypage-guestbook-glass .message-date {
   color: rgba(255, 255, 255, 0.55);
 }
 
-.mypage-guestbook-dark .message-content {
+.mypage-guestbook-glass .message-content {
   color: rgba(255, 255, 255, 0.92);
 }
 
-.mypage-guestbook-dark .delete-btn {
+.mypage-guestbook-glass .delete-btn {
   background: rgba(254, 202, 202, 0.25);
   color: #fecaca;
 }
 
-.mypage-guestbook-dark .delete-btn:hover {
+.mypage-guestbook-glass .delete-btn:hover {
   background: #dc2626;
   color: #fff;
 }

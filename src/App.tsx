@@ -1,5 +1,5 @@
 import React, { useEffect, useState, createContext, useContext, useRef, useMemo, lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, getDocs, query, where, orderBy, addDoc, deleteDoc, doc, onSnapshot, getDoc } from 'firebase/firestore';
 import { uploadBytes, getDownloadURL, ref as storageRef } from 'firebase/storage';
@@ -18,6 +18,7 @@ import { mergeVeryusUserFromAuth, readVeryusUserFromStorage, writeVeryusUserToSt
 import { subscribeAdminVerification } from './utils/adminSessionVerify';
 import { UserProfileProvider } from './contexts/UserProfileContext';
 import GlobalLoadingScreen from './components/GlobalLoadingScreen';
+import RouteLoadShell from './components/RouteLoadShell';
 import './App.css';
 
 const APP_BUILD =
@@ -164,7 +165,25 @@ const BalancePostDetail = lazy(() => import('./components/BalancePostDetail'));
 const PracticeRoomBooking = lazy(() => import('./components/PracticeRoomBooking'));
 const PracticeRoomManagement = lazy(() => import('./components/PracticeRoomManagement'));
 
-const PageLoader = () => <GlobalLoadingScreen message="페이지를 불러오는 중..." fullScreen={false} />;
+/** 경로 변경 시 본문 전환 애니메이션 (useLocation은 Router 안에서만 사용) */
+const RouteTransition: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const location = useLocation();
+  const transitionKey = `${location.pathname}${location.search}`;
+
+  useEffect(() => {
+    try {
+      window.scrollTo(0, 0);
+    } catch {
+      // ignore
+    }
+  }, [transitionKey]);
+
+  return (
+    <div className="app-route-transition" key={transitionKey}>
+      {children}
+    </div>
+  );
+};
 
 const GRADE_ORDER = [
   '🍒'
@@ -186,7 +205,7 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   }, []);
 
   if (gate === 'loading') {
-    return <PageLoader />;
+    return <RouteLoadShell />;
   }
   if (gate === 'login') {
     return <Navigate to="/login" replace />;
@@ -848,7 +867,8 @@ function App() {
         <AudioPlayerProvider>
           <Router>
             <div className="App">
-              <Suspense fallback={<PageLoader />}>
+              <RouteTransition>
+              <Suspense fallback={<RouteLoadShell />}>
                 <Routes>
               {/* 로그인 페이지 - 이미 로그인되어 있으면 메인으로 */}
               <Route 
@@ -1044,6 +1064,7 @@ function App() {
               />
                 </Routes>
               </Suspense>
+              </RouteTransition>
             {/* 모바일 하단 네비게이션 바 */}
             {user && window.location.pathname !== '/anonymous-chat' && (
               <BottomNavigation 

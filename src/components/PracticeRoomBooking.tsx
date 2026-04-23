@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { collection, query, where, getDocs, addDoc, deleteDoc, doc, Timestamp, orderBy, serverTimestamp, onSnapshot, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -92,6 +93,7 @@ const PracticeRoomBooking: React.FC = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const isBookingInProgress = useRef(false); // 예약 진행 중 플래그
+  const lastSlotInteractionAtRef = useRef(0); // 터치/클릭 중복 실행 방지
   const [isAdmin, setIsAdmin] = useState(false);
   const [dailyUsedHours, setDailyUsedHours] = useState(0);
   const [checkedInMembers, setCheckedInMembers] = useState<CheckIn[]>([]);
@@ -682,6 +684,21 @@ const PracticeRoomBooking: React.FC = () => {
       setSelectedTimeSlot(slot);
       setShowDetailModal(true);
     }
+  };
+
+  const handleSlotActivate = (slot: TimeSlot, date: Date, e?: React.MouseEvent | React.TouchEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    const now = Date.now();
+    // 모바일에서 touchend + click 이 연속 발생하는 케이스를 1회로 합친다.
+    if (now - lastSlotInteractionAtRef.current < 250) return;
+    lastSlotInteractionAtRef.current = now;
+
+    if (slot.isPast) return;
+    void handleTimeSlotClick(slot, date);
   };
 
   const calculateEndTime = (startTime: string, durationHours: number): string => {
@@ -1470,7 +1487,8 @@ const PracticeRoomBooking: React.FC = () => {
                   className={`mobile-time-slot ${
                     slot.isPast ? 'past' : slot.isBlocked ? 'blocked' : slot.isAvailable ? 'available' : 'reserved'
                   } ${isMyReservation ? 'my-reservation' : ''} ${slot.isException ? 'exception' : ''}`}
-                  onClick={() => !slot.isPast && handleTimeSlotClick(slot, selectedDate)}
+                  onClick={(e) => handleSlotActivate(slot, selectedDate, e)}
+                  onTouchEnd={(e) => handleSlotActivate(slot, selectedDate, e)}
                 >
                   <div className="mobile-slot-time">
                     <span className="time-label-large">{slot.time}</span>
@@ -1577,7 +1595,8 @@ const PracticeRoomBooking: React.FC = () => {
                       className={`time-slot ${
                         slot.isPast ? 'past' : slot.isBlocked ? 'blocked' : slot.isAvailable ? 'available' : 'reserved'
                       } ${isMyReservation ? 'my-reservation' : ''} ${slot.isException ? 'exception' : ''}`}
-                      onClick={() => !slot.isPast && handleTimeSlotClick(slot, date)}
+                      onClick={(e) => handleSlotActivate(slot, date, e)}
+                      onTouchEnd={(e) => handleSlotActivate(slot, date, e)}
                       style={{ cursor: slot.isPast ? 'not-allowed' : 'pointer' }}
                     >
                       {slot.isBlocked ? (
@@ -1657,9 +1676,9 @@ const PracticeRoomBooking: React.FC = () => {
         </div>
       )}
 
-      {/* 예약 모달 */}
-      {showBookingModal && selectedTimeSlot && (
-        <div className="modal-overlay" onClick={() => setShowBookingModal(false)}>
+      {/* 예약 모달 — body로 포털(라우트 transform 때문에 fixed가 맨 위에 붙는 문제 방지) */}
+      {showBookingModal && selectedTimeSlot && typeof document !== 'undefined' && createPortal(
+        <div className="modal-overlay practice-booking-modal-overlay" onClick={() => setShowBookingModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>연습실 예약</h3>
@@ -1803,12 +1822,13 @@ const PracticeRoomBooking: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* 예약 상세 모달 */}
-      {showDetailModal && selectedTimeSlot?.reservation && (
-        <div className="modal-overlay" onClick={() => setShowDetailModal(false)}>
+      {showDetailModal && selectedTimeSlot?.reservation && typeof document !== 'undefined' && createPortal(
+        <div className="modal-overlay practice-booking-modal-overlay" onClick={() => setShowDetailModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>예약 상세 정보</h3>
@@ -1873,12 +1893,13 @@ const PracticeRoomBooking: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* 관리자 액션 선택 모달 (예약 또는 차단) */}
-      {showAdminActionModal && selectedTimeSlot && bookingDate && (
-        <div className="modal-overlay" onClick={() => setShowAdminActionModal(false)}>
+      {showAdminActionModal && selectedTimeSlot && bookingDate && typeof document !== 'undefined' && createPortal(
+        <div className="modal-overlay practice-booking-modal-overlay" onClick={() => setShowAdminActionModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>🔧 관리자 액션 선택</h3>
@@ -1937,12 +1958,13 @@ const PracticeRoomBooking: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* 시간대 차단/해제 모달 */}
-      {showBlockModal && selectedTimeSlot && bookingDate && (
-        <div className="modal-overlay" onClick={() => setShowBlockModal(false)}>
+      {showBlockModal && selectedTimeSlot && bookingDate && typeof document !== 'undefined' && createPortal(
+        <div className="modal-overlay practice-booking-modal-overlay" onClick={() => setShowBlockModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{selectedTimeSlot.isBlocked ? '🔓 차단 해제' : '🚫 시간대 차단'}</h3>
@@ -2062,7 +2084,8 @@ const PracticeRoomBooking: React.FC = () => {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

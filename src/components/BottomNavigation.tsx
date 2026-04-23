@@ -113,6 +113,14 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
     localStorage.setItem('bottomNavCollapsed', JSON.stringify(true));
   }, [shouldAutoCollapse]);
 
+  // 홈 화면으로 돌아오면 네비게이션을 즉시 펼쳐 접근성을 유지
+  useEffect(() => {
+    if (location.pathname !== '/') return;
+    setIsCollapsed(false);
+    setIsHiddenByScroll(false);
+    localStorage.setItem('bottomNavCollapsed', JSON.stringify(false));
+  }, [location.pathname]);
+
   // Get current user on mount
   useEffect(() => {
     setCurrentUser(getCurrentUser());

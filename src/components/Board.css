@@ -61,7 +61,7 @@
   border: 1px solid rgba(139, 92, 246, 0.2);
   border-radius: 16px;
   padding: 0.3rem 1.2rem;
-  min-width: 320px;
+  min-width: 0;
   max-width: 400px;
   flex: 1;
   box-shadow: 
