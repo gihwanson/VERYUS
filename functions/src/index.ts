@@ -70,6 +70,11 @@ export const sendPushOnNotificationCreated = onDocumentCreated(
     const data = snapshot.data();
     const toUid = data.toUid as string | undefined;
     if (!toUid) return;
+    logger.info('푸시 처리 시작', {
+      notificationId: snapshot.id,
+      eventId: event.id,
+      toUid
+    });
     const notificationRef = admin.firestore().collection('notifications').doc(snapshot.id);
     const userRef = admin.firestore().collection('users').doc(toUid);
 
@@ -204,6 +209,13 @@ export const sendPushOnNotificationCreated = onDocumentCreated(
 
     try {
       const response = await admin.messaging().sendEachForMulticast(payload);
+      logger.info('푸시 전송 결과', {
+        notificationId: snapshot.id,
+        toUid,
+        tokenCount: tokens.length,
+        successCount: response.successCount,
+        failureCount: response.failureCount
+      });
 
       if (response.failureCount > 0) {
         const invalidTokenDocIds: string[] = [];

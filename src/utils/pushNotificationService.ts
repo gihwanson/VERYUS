@@ -12,6 +12,19 @@ let initializedForUid: string | null = null;
 let activeUid: string | null = null;
 let currentTokenDocId: string | null = null;
 let webForegroundListenerAttached = false;
+let missingVapidKeyLogged = false;
+
+const isNonFatalWebPushError = (error: unknown): boolean => {
+  if (!error) return false;
+  const maybeError = error as { name?: string; message?: string };
+  const name = (maybeError.name || '').toLowerCase();
+  const message = (maybeError.message || '').toLowerCase();
+  return (
+    name === 'aborterror' ||
+    message.includes('push service not available') ||
+    message.includes('messaging/unsupported-browser')
+  );
+};
 
 const getTokenDocId = (token: string) => encodeURIComponent(token);
 const WEB_PUSH_VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY as string | undefined;
@@ -216,6 +229,7 @@ const registerNativePush = async (uid: string, permission?: PermissionStatus) =>
 
 const registerWebPush = async (uid: string, forcePermissionRequest: boolean): Promise<boolean> => {
   if (!('Notification' in window) || !('serviceWorker' in navigator)) return false;
+  if (!('PushManager' in window)) return false;
   if (!window.isSecureContext) return false;
 
   const supported = await isSupported().catch(() => false);
@@ -231,18 +245,40 @@ const registerWebPush = async (uid: string, forcePermissionRequest: boolean): Pr
     return false;
   }
 
-  const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+  // 과거 루트 scope로 등록된 FCM SW가 남아 있으면 PWA SW와 충돌해 재로딩 루프를 유발할 수 있다.
+  // 감지 시 제거하고, 아래에서 전용 scope로 다시 등록한다.
+  try {
+    const rootRegistration = await navigator.serviceWorker.getRegistration('/');
+    const activeScriptUrl = rootRegistration?.active?.scriptURL || rootRegistration?.waiting?.scriptURL || '';
+    if (activeScriptUrl.includes('/firebase-messaging-sw.js')) {
+      await rootRegistration?.unregister();
+    }
+  } catch (error) {
+    console.warn('기존 루트 FCM 서비스워커 정리 실패:', error);
+  }
+
+  // PWA(sw.js)와 충돌하지 않도록 FCM SW를 전용 scope로 분리한다.
+  const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+    scope: '/firebase-cloud-messaging-push-scope'
+  });
   const messaging = getMessaging(app);
   const tokenOptions: { vapidKey?: string; serviceWorkerRegistration: ServiceWorkerRegistration } = {
     serviceWorkerRegistration: registration
   };
   if (WEB_PUSH_VAPID_KEY?.trim()) {
     tokenOptions.vapidKey = WEB_PUSH_VAPID_KEY.trim();
-  } else {
+  } else if (!missingVapidKeyLogged) {
     // 환경변수 누락 시에도 Firebase 프로젝트 기본 Web Push 인증서로 등록을 시도한다.
-    console.warn('VITE_FIREBASE_VAPID_KEY가 없어 기본 Web Push 키로 토큰 등록을 시도합니다.');
+    console.info('VITE_FIREBASE_VAPID_KEY가 없어 기본 Web Push 키로 토큰 등록을 시도합니다.');
+    missingVapidKeyLogged = true;
   }
-  const token = await getToken(messaging, tokenOptions);
+  let token: string | null = null;
+  try {
+    token = await getToken(messaging, tokenOptions);
+  } catch (error) {
+    if (isNonFatalWebPushError(error)) return false;
+    throw error;
+  }
 
   if (!token) return false;
   await savePushToken(uid, token, getWebPlatform());
@@ -284,6 +320,10 @@ export const initPushNotifications = async (uid: string) => {
       }
     }
   } catch (error) {
+    if (isNonFatalWebPushError(error)) {
+      console.info('웹 푸시를 사용할 수 없는 환경입니다. 푸시 초기화를 건너뜁니다.');
+      return;
+    }
     console.error('푸시 초기화 실패:', error);
   }
 };

@@ -266,7 +266,14 @@ const AnonymousNoteBubble: React.FC = () => {
           setCurrentNote(null);
         }
       } catch (err: any) {
-        console.error('익명 쪽지 가져오기 실패:', err);
+        const isIndexBuilding =
+          err?.code === 'failed-precondition' &&
+          String(err?.message || '').toLowerCase().includes('index is currently building');
+        if (isIndexBuilding) {
+          console.info('익명 쪽지 인덱스 생성 중입니다. 임시 쿼리로 재시도합니다.');
+        } else {
+          console.error('익명 쪽지 가져오기 실패:', err);
+        }
         // 인덱스 에러인 경우 createdAt 없이 시도
         if (err?.code === 'failed-precondition') {
           try {
@@ -306,8 +313,15 @@ const AnonymousNoteBubble: React.FC = () => {
               setCurrentNoteIndex(0);
               setCurrentNote(null);
             }
-          } catch (err2) {
-            console.error('간단 쿼리도 실패:', err2);
+          } catch (err2: any) {
+            const simpleQueryIndexBuilding =
+              err2?.code === 'failed-precondition' &&
+              String(err2?.message || '').toLowerCase().includes('index is currently building');
+            if (simpleQueryIndexBuilding) {
+              console.info('익명 쪽지 인덱스 생성이 아직 진행 중입니다. 잠시 후 다시 시도됩니다.');
+            } else {
+              console.error('간단 쿼리도 실패:', err2);
+            }
             setCurrentNote(null);
           }
         } else {

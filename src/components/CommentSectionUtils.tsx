@@ -194,7 +194,13 @@ export const submitComment = async (
   if (user.uid !== post.writerUid) {
     try {
       const postType = getPostTypeFromPath();
-      await NotificationService.createCommentNotification(
+      console.info('[comment] notify:attempt', {
+        postId: post.id,
+        postType,
+        fromUid: user.uid,
+        toUid: post.writerUid
+      });
+      const created = await NotificationService.createCommentNotification(
         post.writerUid,
         user.uid,
         writerNickname,
@@ -203,6 +209,11 @@ export const submitComment = async (
         postType,
         { commentPreview: content.trim(), isSecret }
       );
+      console.info('[comment] notify:result', {
+        postId: post.id,
+        toUid: post.writerUid,
+        created
+      });
     } catch (err) {
       console.error('알림 생성 실패:', err);
     }

@@ -233,8 +233,15 @@ export class NotificationService {
   // 알림 생성
   static async createNotification(data: NotificationData): Promise<boolean> {
     try {
+      console.info('[notify] createNotification:start', {
+        type: data.type,
+        toUid: data.toUid,
+        fromUid: data.fromUid,
+        postId: data.postId
+      });
       // 자기 자신에게는 알림 보내지 않음
       if (data.fromUid && data.toUid === data.fromUid) {
+        console.info('[notify] skipped:self-notification', { toUid: data.toUid, fromUid: data.fromUid });
         return false;
       }
 
@@ -242,6 +249,12 @@ export class NotificationService {
       if (['reply', 'like'].includes(data.type)) {
         const isDuplicate = await this.checkDuplicateNotification(data);
         if (isDuplicate) {
+          console.info('[notify] skipped:duplicate', {
+            type: data.type,
+            toUid: data.toUid,
+            postId: data.postId,
+            commentId: data.commentId
+          });
           return false;
         }
       }
@@ -256,6 +269,11 @@ export class NotificationService {
       };
 
       await addDoc(collection(db, 'notifications'), notificationDoc);
+      console.info('[notify] createNotification:success', {
+        type: data.type,
+        toUid: data.toUid,
+        postId: data.postId
+      });
       return true;
     } catch (error) {
       console.error('알림 생성 실패:', error);
