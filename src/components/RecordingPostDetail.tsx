@@ -40,7 +40,6 @@ import '../styles/BoardLayout.css';
 import CommentSection from './CommentSection';
 import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
 import { useAudioPlayer } from '../App';
-import { addLurkingScore } from '../utils/simpleBoardNotification';
 
 // 전역 변수로 중복 방지
 declare global {
@@ -176,7 +175,6 @@ const RecordingPostDetail: React.FC = () => {
     } else {
       // 녹음 오디오 재생 전 글로벌 상태 저장
       globalStateRef.current = { idx: globalIdx, wasPlaying: isGlobalPlaying };
-      if (user?.uid) addLurkingScore(user.uid, 'audio_play.recording_detail');
       audioRef.current.play();
       setIsPlaying(true);
       if (isGlobalPlaying) pauseGlobal();

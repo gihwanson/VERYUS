@@ -16,6 +16,7 @@ import { subscribeToAnnouncementUnreadCount } from './utils/readStatusService';
 import { initPushNotifications, removeCurrentPushToken } from './utils/pushNotificationService';
 import { mergeVeryusUserFromAuth, readVeryusUserFromStorage, writeVeryusUserToStorage } from './utils/veryusUserStorage';
 import { subscribeAdminVerification } from './utils/adminSessionVerify';
+import { addLurkingScore } from './utils/simpleBoardNotification';
 import { UserProfileProvider } from './contexts/UserProfileContext';
 import GlobalLoadingScreen from './components/GlobalLoadingScreen';
 import RouteLoadShell from './components/RouteLoadShell';
@@ -823,6 +824,17 @@ function App() {
       unsubscribeAnnouncement();
     };
   }, [user]);
+
+  // 앱 전역 클릭 이벤트를 눈팅 점수(+0.1)로 집계
+  useEffect(() => {
+    if (!user?.uid) return;
+    const handleGlobalClick = () => {
+      const routeKey = window.location.pathname.replace(/\//g, '_') || 'root';
+      addLurkingScore(user.uid, `global_click.${routeKey}`);
+    };
+    document.addEventListener('click', handleGlobalClick);
+    return () => document.removeEventListener('click', handleGlobalClick);
+  }, [user?.uid]);
 
 
   if (loading) {

@@ -39,7 +39,7 @@ const ACTIVITY_PERIOD_LOAD_MORE_STEP = 30;
 const DEFAULT_SCORE_WEIGHTS: ScoreWeights = {
   post: 10,
   comment: 5,
-  lurking: 1
+  lurking: 0.1
 };
 
 const HallOfFame: React.FC = () => {
@@ -308,11 +308,12 @@ const HallOfFame: React.FC = () => {
     [activePeriodRanking, activePeriodVisibleCount]
   );
   const remainingActivePeriodCount = Math.max(0, activePeriodRanking.length - visibleActivePeriodRanking.length);
+  const formatWeight = (value: number) => (Number.isInteger(value) ? `${value}` : value.toFixed(1));
 
   const sections = useMemo(() => ([
     {
       title: '종합 활동 순위',
-      subtitle: `게시글(${scoreWeights.post}점) + 댓글(${scoreWeights.comment}점) + 눈팅(${scoreWeights.lurking}점) 합산`,
+      subtitle: `게시글(${formatWeight(scoreWeights.post)}점) + 댓글(${formatWeight(scoreWeights.comment)}점) + 눈팅(${formatWeight(scoreWeights.lurking)}점/행동) 합산`,
       ranking: activityRanking,
       unit: '점'
     },
@@ -321,7 +322,7 @@ const HallOfFame: React.FC = () => {
     { title: '게시글 작성 순위', subtitle: '작성한 게시글 누적 수', ranking: postRanking, unit: '개' },
     { title: '눈팅 순위', subtitle: '게시판 진입/게시글 진입/녹음 재생 누적 점수', ranking: visitRanking, unit: '점' },
     { title: '활동기간 순위', subtitle: '가입일 기준 활동 경과 기간', ranking: visibleActivePeriodRanking, unit: '일' }
-  ]), [activityRanking, approvedSongRanking, commentRanking, postRanking, visitRanking, visibleActivePeriodRanking, scoreWeights]);
+  ]), [activityRanking, approvedSongRanking, commentRanking, postRanking, visitRanking, visibleActivePeriodRanking, scoreWeights, formatWeight]);
 
   if (loading) {
     return <GlobalLoadingScreen message="명예의전당을 불러오는 중..." />;
@@ -339,7 +340,7 @@ const HallOfFame: React.FC = () => {
           </div>
           <div className="hall-score-guide">
             <span>
-              종합 점수: 게시글 {scoreWeights.post}점 + 댓글 {scoreWeights.comment}점 + 눈팅 {scoreWeights.lurking}점
+              종합 점수: 게시글 {formatWeight(scoreWeights.post)}점 + 댓글 {formatWeight(scoreWeights.comment)}점 + 눈팅 {formatWeight(scoreWeights.lurking)}점/행동
               (합격곡 미반영)
             </span>
             <span>동점 시 닉네임 오름차순으로 정렬</span>

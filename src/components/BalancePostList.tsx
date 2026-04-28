@@ -4,7 +4,6 @@ import { collection, doc as firestoreDoc, getDoc, getDocs, limit, orderBy, query
 import { Loader, Plus, Scale } from 'lucide-react';
 import { db } from '../firebase';
 import { getGradeEmoji } from '../utils/gradeDisplay';
-import { addLurkingScore } from '../utils/simpleBoardNotification';
 import '../styles/PostList.css';
 import '../styles/BoardLayout.css';
 
@@ -123,7 +122,6 @@ const BalancePostList: React.FC = () => {
                 key={post.id}
                 className="post-item"
                 onClick={() => {
-                  if (user?.uid) addLurkingScore(user.uid, 'post_enter.balance');
                   navigate(`/balance/${post.id}`);
                 }}
               >

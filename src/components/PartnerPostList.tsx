@@ -34,7 +34,6 @@ import {
 } from 'lucide-react';
 import '../styles/PostList.css';
 import '../styles/BoardLayout.css';
-import { addLurkingScore } from '../utils/simpleBoardNotification';
 import { getGradeEmoji } from '../utils/gradeDisplay';
 
 interface Post {
@@ -216,7 +215,6 @@ const PartnerPostList: React.FC = () => {
   };
 
   const handlePostClick = (postId: string) => {
-    if (user?.uid) addLurkingScore(user.uid, 'post_enter.partner');
     navigate(`/boards/partner/${postId}`);
   };
 

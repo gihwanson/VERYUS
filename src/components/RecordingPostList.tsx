@@ -34,7 +34,6 @@ import {
 } from 'lucide-react';
 import '../styles/PostList.css';
 import '../styles/BoardLayout.css';
-import { addLurkingScore } from '../utils/simpleBoardNotification';
 
 interface RecordingPost {
   id: string;
@@ -237,7 +236,6 @@ const RecordingPostList: React.FC = () => {
   };
 
   const handlePostClick = (postId: string) => {
-    if (user?.uid) addLurkingScore(user.uid, 'post_enter.recording');
     navigate(`/recording/${postId}`);
   };
 
@@ -285,7 +283,6 @@ const RecordingPostList: React.FC = () => {
       audioRef.current?.pause();
       setCurrentlyPlaying(null);
     } else {
-      if (user?.uid) addLurkingScore(user.uid, 'audio_play.recording');
       if (audioRef.current) {
         audioRef.current.pause();
       }

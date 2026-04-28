@@ -36,9 +36,6 @@ export const markBoardAsVisited = (userId: string, boardType: string) => {
     visits[boardType] = Date.now();
     localStorage.setItem(key, JSON.stringify(visits));
 
-    // 게시판 진입은 눈팅 점수 0.1점으로 반영한다.
-    addLurkingScore(userId, `board_enter.${boardType}`);
-
     // 방문 집계용 카운터는 별도로 누적 저장한다.
     void setDoc(
       doc(db, 'boardVisits', userId),

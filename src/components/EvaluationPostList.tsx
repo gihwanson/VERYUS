@@ -31,7 +31,6 @@ import {
 } from 'lucide-react';
 import '../styles/PostList.css';
 import '../styles/BoardLayout.css';
-import { addLurkingScore } from '../utils/simpleBoardNotification';
 
 interface EvaluationPost {
   id: string;
@@ -465,7 +464,6 @@ const EvaluationPostList: React.FC = () => {
   };
 
   const handlePostClick = (postId: string) => {
-    if (user?.uid) addLurkingScore(user.uid, 'post_enter.evaluation');
     navigate(`/evaluation/${postId}`);
   };
 

@@ -35,7 +35,6 @@ import {
 } from 'lucide-react';
 import '../styles/PostList.css';
 import '../styles/BoardLayout.css';
-import { addLurkingScore } from '../utils/simpleBoardNotification';
 
 interface Post {
   id: string;
@@ -326,7 +325,6 @@ const FreePostList: React.FC = () => {
   };
 
   const handlePostClick = (postId: string) => {
-    if (user?.uid) addLurkingScore(user.uid, 'post_enter.free');
     navigate(`/free/${postId}`);
   };
 
