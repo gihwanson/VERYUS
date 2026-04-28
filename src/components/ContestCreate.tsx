@@ -27,7 +27,7 @@ const ContestCreate: React.FC = () => {
   // State
   const [formData, setFormData] = useState<ContestFormData>({
     title: '',
-    type: '정규등급전',
+    type: '경연',
     deadline: ''
   });
 
@@ -143,9 +143,7 @@ const ContestCreate: React.FC = () => {
               value={formData.type} 
               onChange={e => handleInputChange('type', e.target.value as ContestType)} 
             >
-              <option value="정규등급전">정규등급전 - 정식 등급 평가 콘테스트</option>
-              <option value="세미등급전">세미등급전 - 연습용 등급 평가 콘테스트</option>
-              <option value="경연">경연 - 참가자 상호 평가 콘테스트</option>
+              <option value="경연">등급전/경연 - 참가자 상호 평가 콘테스트</option>
             </select>
             {/* 유형별 설명 */}
             <div style={{ 
@@ -180,7 +178,7 @@ const ContestCreate: React.FC = () => {
               )}
               {formData.type === '경연' && (
                 <div>
-                  <strong>🎭 경연</strong>
+                  <strong>🎭 등급전/경연</strong>
                   <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
                     <li>참가자들이 서로 평가하는 콘테스트입니다</li>
                     <li>솔로 참가 또는 듀엣 팀 구성이 가능합니다</li>
@@ -197,7 +195,7 @@ const ContestCreate: React.FC = () => {
                     color: '#9A3412',
                     fontSize: '13px'
                   }}>
-                    <strong>💡 참고사항:</strong> 경연은 참가자 상호 평가 방식이므로, 참가자들이 모두 평가를 완료할 수 있도록 충분한 마감일을 설정해주세요.
+                    <strong>💡 참고사항:</strong> 등급전/경연은 참가자 상호 평가 방식이므로, 참가자들이 모두 평가를 완료할 수 있도록 충분한 마감일을 설정해주세요.
                   </div>
                   <div style={{ 
                     marginTop: '8px', 

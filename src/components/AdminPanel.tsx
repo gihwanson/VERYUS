@@ -14,7 +14,8 @@ import {
   serverTimestamp,
   Timestamp,
   getDoc,
-  deleteField
+  deleteField,
+  type DocumentReference
 } from 'firebase/firestore';
 import { 
   createUserWithEmailAndPassword,
@@ -432,21 +433,23 @@ const AdminPanel: React.FC = () => {
   };
 
   const syncUserGradeInDocuments = async (targetUid: string, grade: string) => {
-    const batch = writeBatch(db);
+    const CHUNK = 450;
+    const commitRefs = async (refs: DocumentReference[]) => {
+      for (let i = 0; i < refs.length; i += CHUNK) {
+        const batch = writeBatch(db);
+        refs.slice(i, i + CHUNK).forEach((ref) => batch.update(ref, { writerGrade: grade }));
+        await batch.commit();
+      }
+    };
 
-    const postsQuery = query(collection(db, 'posts'), where('writerUid', '==', targetUid));
-    const postsSnapshot = await getDocs(postsQuery);
-    postsSnapshot.forEach((snapshotDoc) => {
-      batch.update(snapshotDoc.ref, { writerGrade: grade });
-    });
-
-    const commentsQuery = query(collection(db, 'comments'), where('writerUid', '==', targetUid));
-    const commentsSnapshot = await getDocs(commentsQuery);
-    commentsSnapshot.forEach((snapshotDoc) => {
-      batch.update(snapshotDoc.ref, { writerGrade: grade });
-    });
-
-    await batch.commit();
+    const postsSnapshot = await getDocs(
+      query(collection(db, 'posts'), where('writerUid', '==', targetUid))
+    );
+    const commentsSnapshot = await getDocs(
+      query(collection(db, 'comments'), where('writerUid', '==', targetUid))
+    );
+    await commitRefs(postsSnapshot.docs.map((d) => d.ref));
+    await commitRefs(commentsSnapshot.docs.map((d) => d.ref));
   };
 
   // 사용자 업데이트 (로그 포함)

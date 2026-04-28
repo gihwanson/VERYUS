@@ -5,6 +5,7 @@ import { db } from '../firebase';
 import { v4 as uuidv4 } from 'uuid';
 import '../styles/variables.css';
 import '../styles/components.css';
+import '../styles/contest-ui-refresh.css';
 
 type ContestType = '정규등급전' | '세미등급전' | '경연';
 
@@ -549,7 +550,7 @@ const ContestDetail: React.FC = () => {
   }
 
   return (
-    <div className="contest-detail-container">
+    <div className="contest-detail-container contest-ui-refresh">
       <div className="contest-detail-pattern" />
       <div className="contest-detail-content">
         {/* 상단 요약 카드 */}

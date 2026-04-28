@@ -9,12 +9,14 @@ import {
   setDoc, 
   onSnapshot,
   where,
-  Timestamp 
+  Timestamp,
+  increment
 } from 'firebase/firestore';
 import { db } from '../firebase';
 
 export interface BoardVisitData {
   userId: string;
+  totalVisitCount?: number;
   lastVisited: {
     free?: Timestamp;
     recording?: Timestamp;
@@ -54,6 +56,8 @@ export const updateBoardVisitTime = async (userId: string, boardType: keyof type
     const visitDocRef = doc(db, 'boardVisits', userId);
     const visitData = {
       userId,
+      totalVisitCount: increment(1),
+      [`visitCountByBoard.${boardType}`]: increment(1),
       [`lastVisited.${boardType}`]: Timestamp.now(),
       lastUpdated: Timestamp.now() // 변경 감지를 위한 필드 추가
     };

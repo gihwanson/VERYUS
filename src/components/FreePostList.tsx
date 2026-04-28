@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import type { DocumentData } from 'firebase/firestore';
 import { db } from '../firebase';
+import { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
 import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
 import { 
   ArrowLeft, 
@@ -34,6 +35,7 @@ import {
 } from 'lucide-react';
 import '../styles/PostList.css';
 import '../styles/BoardLayout.css';
+import { addLurkingScore } from '../utils/simpleBoardNotification';
 
 interface Post {
   id: string;
@@ -115,14 +117,6 @@ const FreePostList: React.FC = () => {
       default:
         return [orderBy('createdAt', 'desc')];
     }
-  };
-
-  const getGradeEmoji = (grade: string) => {
-    return '🍒';
-  };
-
-  const getGradeName = (emoji: string) => {
-    return '체리';
   };
 
   const setupUserInfoListener = (post: Post) => {
@@ -332,6 +326,7 @@ const FreePostList: React.FC = () => {
   };
 
   const handlePostClick = (postId: string) => {
+    if (user?.uid) addLurkingScore(user.uid, 'post_enter.free');
     navigate(`/free/${postId}`);
   };
 

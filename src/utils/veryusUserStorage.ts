@@ -50,7 +50,7 @@ export const mergeVeryusUserFromAuth = (
     undefined;
   const position = (userData.position as string | undefined) ?? previous?.position;
   const notificationsEnabled =
-    (userData.notificationsEnabled as boolean | undefined) ?? previous?.notificationsEnabled ?? false;
+    (userData.notificationsEnabled as boolean | undefined) ?? previous?.notificationsEnabled ?? true;
   const isAdmin = checkAdminAccess({ nickname, role });
 
   return {

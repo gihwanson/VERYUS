@@ -1,0 +1,303 @@
+.contest-ui-refresh {
+  --cu-bg: linear-gradient(135deg, #5f6ee8 0%, #7a4fc2 55%, #a855f7 100%);
+  --cu-card: rgba(255, 255, 255, 0.14);
+  --cu-card-border: rgba(255, 255, 255, 0.24);
+  --cu-text: #ffffff;
+  --cu-text-soft: rgba(255, 255, 255, 0.86);
+  --cu-shadow: 0 10px 30px rgba(30, 20, 70, 0.25);
+}
+
+.contest-ui-refresh .contest-list-content,
+.contest-ui-refresh .contest-detail-content {
+  max-width: 1040px;
+  padding: 28px 20px 36px;
+}
+
+.contest-ui-refresh .contest-card,
+.contest-ui-refresh .contest-detail-section,
+.contest-ui-refresh .contest-detail-summary-card {
+  box-shadow: var(--cu-shadow);
+}
+
+.contest-ui-refresh .contest-title,
+.contest-ui-refresh .contest-detail-title {
+  letter-spacing: -0.02em;
+}
+
+.contest-ui-refresh .contest-card {
+  border-radius: 18px;
+  padding: 20px;
+}
+
+.contest-ui-refresh .contest-card-title {
+  font-size: 22px;
+}
+
+.contest-ui-refresh .contest-buttons {
+  gap: 10px;
+}
+
+.contest-ui-refresh .contest-button {
+  border-radius: 12px;
+  padding: 10px 16px;
+}
+
+.contest-ui-refresh .contest-detail-summary-card {
+  background: var(--cu-card);
+  border: 1px solid var(--cu-card-border);
+  border-radius: 20px;
+  padding: 22px;
+  margin-bottom: 20px;
+  backdrop-filter: blur(14px);
+}
+
+.contest-ui-refresh .contest-detail-summary-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.contest-ui-refresh .contest-detail-status-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.contest-ui-refresh .contest-detail-summary-actions {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.contest-ui-refresh .contest-results-content {
+  position: relative;
+  z-index: 1;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 24px 18px 40px;
+}
+
+.contest-ui-refresh .contest-results-panel {
+  background: var(--cu-card);
+  border: 1px solid var(--cu-card-border);
+  border-radius: 20px;
+  padding: 22px;
+  backdrop-filter: blur(14px);
+  box-shadow: var(--cu-shadow);
+  margin-bottom: 18px;
+}
+
+.contest-ui-refresh .contest-results-title {
+  color: var(--cu-text);
+  font-size: 30px;
+  font-weight: 800;
+  margin: 0 0 8px;
+  text-align: center;
+}
+
+.contest-ui-refresh .contest-results-subtitle {
+  color: var(--cu-text-soft);
+  font-size: 16px;
+  text-align: center;
+  margin: 0;
+}
+
+.contest-ui-refresh .contest-results-back {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  border-radius: 12px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.contest-ui-refresh .contest-table {
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.contest-ui-refresh .contest-table th,
+.contest-ui-refresh .contest-table td {
+  font-size: 14px;
+}
+
+.contest-ui-refresh .contest-results-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: center;
+  justify-content: center;
+}
+
+.contest-ui-refresh .contest-results-filter select {
+  border-radius: 8px;
+  border: 1px solid #d9c9f5;
+  padding: 6px 10px;
+}
+
+/* ---- UX polish pass (strong override) ---- */
+.contest-ui-refresh .contest-list-content {
+  padding-top: 10px !important;
+  align-items: stretch !important;
+  max-width: 980px !important;
+}
+
+.contest-ui-refresh .contest-title {
+  margin-bottom: 14px !important;
+  font-size: 34px !important;
+  text-align: left !important;
+}
+
+.contest-ui-refresh .contest-card {
+  background: rgba(255, 255, 255, 0.22) !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  border-radius: 22px !important;
+  padding: 24px !important;
+}
+
+.contest-ui-refresh .contest-card-content {
+  min-width: 260px !important;
+}
+
+.contest-ui-refresh .contest-card-title {
+  font-size: 30px !important;
+  font-weight: 800 !important;
+  margin-bottom: 14px !important;
+}
+
+.contest-ui-refresh .contest-tags {
+  gap: 10px !important;
+}
+
+.contest-ui-refresh .contest-tag {
+  padding: 8px 12px !important;
+  border-radius: 999px !important;
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  border: 1px solid transparent !important;
+}
+
+.contest-ui-refresh .contest-tag.type {
+  background: rgba(79, 70, 229, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+}
+
+.contest-ui-refresh .contest-tag.waiting {
+  background: rgba(245, 158, 11, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+}
+
+.contest-ui-refresh .contest-tag.started {
+  background: rgba(16, 185, 129, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+}
+
+.contest-ui-refresh .contest-date {
+  color: rgba(255, 255, 255, 0.96) !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+}
+
+.contest-ui-refresh .contest-buttons {
+  gap: 10px !important;
+}
+
+.contest-ui-refresh .contest-button {
+  border-radius: 12px !important;
+  padding: 12px 18px !important;
+  font-size: 16px !important;
+  font-weight: 800 !important;
+  border-width: 1px !important;
+}
+
+.contest-ui-refresh .contest-button.detail {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border-color: rgba(255, 255, 255, 0.45) !important;
+  color: #fff !important;
+}
+
+.contest-ui-refresh .contest-button.participate {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%) !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+  color: #fff !important;
+  box-shadow: 0 6px 16px rgba(22, 163, 74, 0.35) !important;
+}
+
+.contest-ui-refresh .contest-button.end {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+  color: #fff !important;
+}
+
+.contest-ui-refresh .contest-detail-content {
+  max-width: 1040px !important;
+  padding-top: 12px !important;
+}
+
+.contest-ui-refresh .contest-detail-summary-card,
+.contest-ui-refresh .contest-detail-section {
+  background: rgba(255, 255, 255, 0.22) !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+}
+
+.contest-ui-refresh .contest-results-panel {
+  background: rgba(255, 255, 255, 0.22) !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+}
+
+.contest-participate-refresh input,
+.contest-participate-refresh textarea {
+  background: rgba(255, 255, 255, 0.92) !important;
+  color: #1f2937 !important;
+  border: 1px solid rgba(94, 74, 196, 0.28) !important;
+}
+
+.contest-participate-refresh input::placeholder,
+.contest-participate-refresh textarea::placeholder {
+  color: #6b7280 !important;
+}
+
+/* 결과표에서 심사코멘트 칸이 남는 폭까지 사용하도록 확장 */
+.contest-ui-refresh .contest-results-panel .contest-table {
+  table-layout: auto !important;
+}
+
+.contest-ui-refresh .contest-results-panel .contest-table th,
+.contest-ui-refresh .contest-results-panel .contest-table td {
+  max-width: none !important;
+}
+
+.contest-ui-refresh .contest-results-panel .contest-table th:last-child,
+.contest-ui-refresh .contest-results-panel .contest-table td:last-child {
+  width: 100% !important;
+}
+
+/* 닉네임/점수/등급 컬럼 가독성 개선 (글자 단위 줄바꿈 방지) */
+.contest-ui-refresh .contest-results-panel .contest-table th:nth-child(2),
+.contest-ui-refresh .contest-results-panel .contest-table td:nth-child(2),
+.contest-ui-refresh .contest-results-panel .contest-table th:nth-child(3),
+.contest-ui-refresh .contest-results-panel .contest-table td:nth-child(3),
+.contest-ui-refresh .contest-results-panel .contest-table th:nth-child(4),
+.contest-ui-refresh .contest-results-panel .contest-table td:nth-child(4) {
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+}
+
+.contest-ui-refresh .contest-results-panel .contest-table th:nth-child(2),
+.contest-ui-refresh .contest-results-panel .contest-table td:nth-child(2) {
+  min-width: 90px !important;
+}
+
+.contest-ui-refresh .contest-results-panel .contest-table th:nth-child(3),
+.contest-ui-refresh .contest-results-panel .contest-table td:nth-child(3) {
+  min-width: 96px !important;
+}
+
+.contest-ui-refresh .contest-results-panel .contest-table th:nth-child(4),
+.contest-ui-refresh .contest-results-panel .contest-table td:nth-child(4) {
+  min-width: 84px !important;
+}

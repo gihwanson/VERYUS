@@ -34,7 +34,8 @@ import {
 } from 'lucide-react';
 import '../styles/PostList.css';
 import '../styles/BoardLayout.css';
-import { markBoardAsVisited } from '../utils/simpleBoardNotification';
+import { addLurkingScore } from '../utils/simpleBoardNotification';
+import { getGradeEmoji } from '../utils/gradeDisplay';
 
 interface Post {
   id: string;
@@ -202,10 +203,6 @@ const PartnerPostList: React.FC = () => {
         const userData = JSON.parse(userString);
         setUser(userData);
         
-        // 게시판 방문 기록 저장
-        if (userData.uid) {
-          markBoardAsVisited(userData.uid, 'partner');
-        }
       } catch (error) {
         console.error('사용자 정보 파싱 에러:', error);
       }
@@ -219,6 +216,7 @@ const PartnerPostList: React.FC = () => {
   };
 
   const handlePostClick = (postId: string) => {
+    if (user?.uid) addLurkingScore(user.uid, 'post_enter.partner');
     navigate(`/boards/partner/${postId}`);
   };
 
@@ -365,7 +363,7 @@ const PartnerPostList: React.FC = () => {
                 <div className="post-meta">
                   <div className="post-author">
                     <span className="author-grade-emoji" style={{ fontSize: '1.1rem', marginRight: '0.3rem' }}>
-                      {post.writerGrade}
+                      {getGradeEmoji(post.writerGrade)}
                     </span>
                     <span className="author-info" style={{ fontSize: '1.1rem', color: '#FFFFFF', fontWeight: 600, textDecoration: 'none' }}>
                       {post.writerNickname}

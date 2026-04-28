@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import type { DocumentData } from 'firebase/firestore';
 import { db } from '../firebase';
+import { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
 import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
 import { 
   ArrowLeft, 
@@ -33,7 +34,7 @@ import {
 } from 'lucide-react';
 import '../styles/PostList.css';
 import '../styles/BoardLayout.css';
-import { markBoardAsVisited } from '../utils/simpleBoardNotification';
+import { addLurkingScore } from '../utils/simpleBoardNotification';
 
 interface RecordingPost {
   id: string;
@@ -77,17 +78,6 @@ const RecordingPostList: React.FC = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const observer = useRef<IntersectionObserver | null>(null);
   const lastPostElementRef = useRef<HTMLDivElement | null>(null);
-
-  // 등급 이모지 매핑 함수 - 체리만 사용
-  const gradeEmojis = ['🍒'];
-  const gradeToEmoji: { [key: string]: string } = {
-    '체리': '🍒', '블루베리': '🍒', '키위': '🍒', '사과': '🍒', '멜론': '🍒', '수박': '🍒', '지구': '🍒', '토성': '🍒', '태양': '🍒', '은하': '🍒', '맥주': '🍒', '번개': '🍒', '별': '🍒', '달': '🍒'
-  };
-  const emojiToGrade: { [key: string]: string } = {
-    '🍒': '체리', '🫐': '체리', '🥝': '체리', '🍎': '체리', '🍈': '체리', '🍉': '체리', '🌍': '체리', '🪐': '체리', '☀️': '체리', '🌌': '체리', '🍺': '체리', '⚡': '체리', '⭐': '체리', '🌙': '체리'
-  };
-  const getGradeEmoji = (grade: string) => '🍒';
-  const getGradeName = (emoji: string) => '체리';
 
   const fetchPosts = useCallback(async (isInitial: boolean = false) => {
     try {
@@ -193,10 +183,6 @@ const RecordingPostList: React.FC = () => {
         const userData = JSON.parse(userString);
         setUser(userData);
         
-        // 게시판 방문 기록 저장
-        if (userData.uid) {
-          markBoardAsVisited(userData.uid, 'recording');
-        }
       } catch (error) {
         console.error('사용자 정보 파싱 에러:', error);
       }
@@ -251,6 +237,7 @@ const RecordingPostList: React.FC = () => {
   };
 
   const handlePostClick = (postId: string) => {
+    if (user?.uid) addLurkingScore(user.uid, 'post_enter.recording');
     navigate(`/recording/${postId}`);
   };
 
@@ -298,6 +285,7 @@ const RecordingPostList: React.FC = () => {
       audioRef.current?.pause();
       setCurrentlyPlaying(null);
     } else {
+      if (user?.uid) addLurkingScore(user.uid, 'audio_play.recording');
       if (audioRef.current) {
         audioRef.current.pause();
       }

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { collection, doc as firestoreDoc, getDoc, getDocs, limit, orderBy, query, where } from 'firebase/firestore';
 import { Loader, Plus, Scale } from 'lucide-react';
 import { db } from '../firebase';
+import { getGradeEmoji } from '../utils/gradeDisplay';
+import { addLurkingScore } from '../utils/simpleBoardNotification';
 import '../styles/PostList.css';
 import '../styles/BoardLayout.css';
 
@@ -21,25 +23,6 @@ interface Post {
   votesA?: number;
   votesB?: number;
 }
-
-const GRADE_TO_EMOJI: Record<string, string> = {
-  체리: '🍒',
-  블루베리: '🫐',
-  키위: '🥝',
-  사과: '🍎',
-  멜론: '🍈',
-  수박: '🍉',
-  지구: '🌍',
-  토성: '🪐',
-  태양: '☀️',
-  초승달: '🌙',
-  은하: '🌌'
-};
-
-const toGradeEmoji = (grade?: string) => {
-  if (!grade) return '🍒';
-  return GRADE_TO_EMOJI[grade] || grade;
-};
 
 const BalancePostList: React.FC = () => {
   const navigate = useNavigate();
@@ -136,7 +119,14 @@ const BalancePostList: React.FC = () => {
             const ratioA = totalVotes > 0 ? Math.round(((post.votesA || 0) / totalVotes) * 100) : 0;
             const ratioB = totalVotes > 0 ? 100 - ratioA : 0;
             return (
-              <article key={post.id} className="post-item" onClick={() => navigate(`/balance/${post.id}`)}>
+              <article
+                key={post.id}
+                className="post-item"
+                onClick={() => {
+                  if (user?.uid) addLurkingScore(user.uid, 'post_enter.balance');
+                  navigate(`/balance/${post.id}`);
+                }}
+              >
                 <div className="post-header">
                   <div className="post-main-info balance-post-main-info">
                     <div className="post-category-title">
@@ -174,7 +164,7 @@ const BalancePostList: React.FC = () => {
                 </div>
                 <div className="post-footer balance-post-footer">
                   <span className="balance-post-author">
-                    <span className="balance-post-author-grade">{toGradeEmoji(post.writerGrade)}</span>
+                    <span className="balance-post-author-grade">{getGradeEmoji(post.writerGrade)}</span>
                     <span className="balance-post-author-name">{post.writerNickname || '익명'}</span>
                   </span>
                   <span className="balance-meta-item">투표 {totalVotes}</span>

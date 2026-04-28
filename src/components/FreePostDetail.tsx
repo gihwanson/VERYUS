@@ -14,6 +14,7 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
 import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
 import CommentSection from './CommentSection';
 import { 
@@ -76,42 +77,6 @@ const categories: Category[] = [
   { id: 'request', name: '신청곡' },
 ];
 
-// 등급 이모지 매핑 - 체리만 사용
-const gradeEmojis = ['🍒'];
-const gradeToEmoji: { [key: string]: string } = {
-  '체리': '🍒',
-  '블루베리': '🍒',
-  '키위': '🍒',
-  '사과': '🍒',
-  '멜론': '🍒',
-  '수박': '🍒',
-  '지구': '🍒',
-  '토성': '🍒',
-  '태양': '🍒',
-  '은하': '🍒',
-  '맥주': '🍒',
-  '번개': '🍒',
-  '별': '🍒',
-  '달': '🍒'
-};
-
-const emojiToGrade: { [key: string]: string } = {
-  '🍒': '체리',
-  '🫐': '체리',
-  '🥝': '체리',
-  '🍎': '체리',
-  '🍈': '체리',
-  '🍉': '체리',
-  '🌍': '체리',
-  '🪐': '체리',
-  '☀️': '체리',
-  '🌌': '체리',
-  '🍺': '체리',
-  '⚡': '체리',
-  '⭐': '체리',
-  '🌙': '체리'
-};
-
 const FreePostDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -124,19 +89,6 @@ const FreePostDetail: React.FC = () => {
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [messageContent, setMessageContent] = useState('');
-
-  // 등급 이모지 매핑 함수
-  const getGradeEmoji = (grade: string) => {
-    if (gradeEmojis.includes(grade)) {
-      return grade;
-    }
-    return gradeToEmoji[grade] || '🍒';
-  };
-
-  // 등급 이름 가져오기
-  const getGradeName = (emoji: string) => {
-    return emojiToGrade[emoji] || '체리';
-  };
 
   // 사용자 정보 로드
   useEffect(() => {
@@ -202,12 +154,18 @@ const FreePostDetail: React.FC = () => {
           return;
         }
         const data = docSnapshot.data();
+        const { writerGrade, writerRole, writerPosition, ...rest } = data;
         setPost(prev => {
+          const p = (prev || {}) as Post;
           return {
-            ...(prev || {}),
-            ...data,
+            ...p,
+            ...rest,
             id: docSnapshot.id,
             likes: Array.isArray(data.likes) ? data.likes : [],
+            // users 구독에서 갱신한 값이 posts 문서(비정규화)보다 우선 — 조회수 등 갱신 시 등급이 되돌아가지 않게 함
+            writerGrade: p.writerGrade ?? writerGrade,
+            writerRole: p.writerRole ?? writerRole,
+            writerPosition: p.writerPosition ?? writerPosition,
           } as Post;
         });
         setLoading(false);

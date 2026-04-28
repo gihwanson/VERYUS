@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { arrayRemove, arrayUnion, deleteDoc, deleteField, doc, increment, onSnapshot, updateDoc } from 'firebase/firestore';
 import { AlertTriangle, ArrowLeft, Clock, Eye, Loader, Scale, Trash2 } from 'lucide-react';
 import { db } from '../firebase';
+import { getGradeEmoji } from '../utils/gradeDisplay';
 import { getPublicRoleBadge } from '../utils/publicRoleBadge';
 import CommentSection from './CommentSection';
 import '../styles/PostDetail.css';
@@ -27,25 +28,6 @@ interface Post {
   votedUserNicknames?: Record<string, string>;
   isAnonymousVote?: boolean;
 }
-
-const GRADE_TO_EMOJI: Record<string, string> = {
-  체리: '🍒',
-  블루베리: '🫐',
-  키위: '🥝',
-  사과: '🍎',
-  멜론: '🍈',
-  수박: '🍉',
-  지구: '🌍',
-  토성: '🪐',
-  태양: '☀️',
-  초승달: '🌙',
-  은하: '🌌'
-};
-
-const toGradeEmoji = (grade?: string) => {
-  if (!grade) return '🍒';
-  return GRADE_TO_EMOJI[grade] || grade;
-};
 
 const BalancePostDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -80,7 +62,19 @@ const BalancePostDetail: React.FC = () => {
         setLoading(false);
         return;
       }
-      setPost({ id: snap.id, ...(snap.data() as any) });
+      const data = snap.data() as any;
+      const { writerGrade, writerRole, writerPosition, ...rest } = data;
+      setPost((prev) => {
+        const p = (prev || {}) as any;
+        return {
+          ...p,
+          ...rest,
+          id: snap.id,
+          writerGrade: p.writerGrade ?? writerGrade,
+          writerRole: p.writerRole ?? writerRole,
+          writerPosition: p.writerPosition ?? writerPosition,
+        };
+      });
       setLoading(false);
     });
 
@@ -237,7 +231,7 @@ const BalancePostDetail: React.FC = () => {
             <div className="post-detail-author balance-post-detail-author">
               <div className="author-section">
                 <span className="author-info balance-static-author">
-                  <span className="author-grade-emoji">{toGradeEmoji(post.writerGrade)}</span>
+                  <span className="author-grade-emoji">{getGradeEmoji(post.writerGrade)}</span>
                   {post.writerNickname}
                 </span>
                 <span className={`role-badge ${getPublicRoleBadge(post.writerRole)}`}>

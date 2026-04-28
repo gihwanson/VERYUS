@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, collection, addDoc, getDocs, query, where, onSnapshot, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import '../styles/contest-ui-refresh.css';
 
 const ContestParticipate: React.FC = () => {
   const { id } = useParams();
@@ -25,6 +26,7 @@ const ContestParticipate: React.FC = () => {
   const [gradeInputs, setGradeInputs] = useState<Record<string, { score: string; comment: string }>>({});
   const [grading, setGrading] = useState<Record<string, boolean>>({});
   const [successMsgMap, setSuccessMsgMap] = useState<Record<string, string>>({});
+  const [editingSubmittedTargets, setEditingSubmittedTargets] = useState<Record<string, boolean>>({});
   const [allSubmitted, setAllSubmitted] = useState(false);
   const [showSubmitMsg, setShowSubmitMsg] = useState(false);
   const [entryRestricted, setEntryRestricted] = useState(false);
@@ -126,9 +128,7 @@ const ContestParticipate: React.FC = () => {
 
   useEffect(() => {
     if (!id || !user) return;
-    // "너래"는 예외로 모두 평가 가능
-    if (user.nickname === '너래') return;
-    // 실시간 구독으로 변경 - 이미 제출한 평가의 점수와 코멘트도 불러오기
+    // 실시간 구독 - 이미 제출한 평가의 점수와 코멘트 복원
     const unsub = onSnapshot(
       query(collection(db, 'contests', id, 'grades'), where('evaluator', '==', user.nickname)),
       (snap) => {
@@ -146,11 +146,14 @@ const ContestParticipate: React.FC = () => {
           };
         });
         
-        setGradedTargets(prev => Array.from(new Set([...prev, ...targets])));
+        // 재입장 시에도 DB 기준으로 정확히 복원
+        setGradedTargets(Array.from(new Set(targets)));
         // 이미 제출한 평가의 점수와 코멘트를 입력 필드에 표시
         setGradeInputs(prev => {
           const updated = { ...prev };
           Object.keys(submittedGrades).forEach(targetId => {
+            // "제출취소"로 수정 중인 항목은 사용자의 입력값을 보존
+            if (editingSubmittedTargets[targetId]) return;
             updated[targetId] = submittedGrades[targetId];
           });
           return updated;
@@ -158,7 +161,7 @@ const ContestParticipate: React.FC = () => {
       }
     );
     return () => unsub();
-  }, [id, user]);
+  }, [id, user, editingSubmittedTargets]);
 
   // 점수에 따른 등급 계산 함수
   const getGradeFromScore = (score: number) => {
@@ -322,24 +325,28 @@ const ContestParticipate: React.FC = () => {
       return;
     }
     setGrading(g => ({ ...g, [targetId]: true }));
-    // 중복 평가 방지: 이미 평가한 경우 DB에 추가하지 않음
     const q = query(collection(db, 'contests', id, 'grades'), where('evaluator', '==', user.nickname), where('target', '==', targetId));
     const snap = await getDocs(q);
     if (!snap.empty) {
-      setGrading(g => ({ ...g, [targetId]: false }));
-      setSuccessMsgMap(msgs => ({ ...msgs, [targetId]: '이미 제출하셨습니다.' }));
-      return;
+      const gradeDocRef = snap.docs[0].ref;
+      await updateDoc(gradeDocRef, {
+        score: numScore,
+        comment: comment ?? '',
+        updatedAt: new Date()
+      });
+    } else {
+      await addDoc(collection(db, 'contests', id, 'grades'), {
+        evaluator: user.nickname,
+        evaluatorRole: user.role,
+        target: targetId,
+        score: numScore,
+        comment: comment ?? '',
+        createdAt: new Date()
+      });
     }
-    await addDoc(collection(db, 'contests', id, 'grades'), {
-      evaluator: user.nickname,
-      evaluatorRole: user.role,
-      target: targetId,
-      score: numScore,
-      comment: comment ?? '',
-      createdAt: new Date()
-    });
     setGrading(g => ({ ...g, [targetId]: false }));
-    setSuccessMsgMap(msgs => ({ ...msgs, [targetId]: '✅ 제출완료' }));
+    setSuccessMsgMap(msgs => ({ ...msgs, [targetId]: snap.empty ? '✅ 제출완료' : '✅ 수정완료' }));
+    setEditingSubmittedTargets(prev => ({ ...prev, [targetId]: false }));
     setGradedTargets(prev => Array.from(new Set([...prev, targetId])));
     
     // 성공 메시지 3초 후 자동 제거
@@ -711,7 +718,7 @@ const ContestParticipate: React.FC = () => {
   }
 
   return (
-    <div style={{
+    <div className="contest-ui-refresh contest-participate-refresh" style={{
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       backgroundAttachment: 'fixed',
@@ -736,8 +743,8 @@ const ContestParticipate: React.FC = () => {
       <div style={{
         position: 'relative',
         zIndex: 1,
-        padding: '20px',
-        maxWidth: '800px',
+        padding: '24px clamp(16px, 4vw, 40px) 40px',
+        maxWidth: '1160px',
         margin: '0 auto'
       }}>
         {/* 뒤로가기 버튼 */}
@@ -770,13 +777,7 @@ const ContestParticipate: React.FC = () => {
         </div>
 
         {/* 메인 콘텐츠 */}
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.15)',
-          backdropFilter: 'blur(15px)',
-          borderRadius: '20px',
-          padding: '30px',
-          border: '1px solid rgba(255, 255, 255, 0.2)'
-        }}>
+        <>
           <h2 style={{ 
             color: 'white', 
             fontWeight: 700, 
@@ -947,7 +948,7 @@ const ContestParticipate: React.FC = () => {
               </form>
             ) : contest.type === '경연' ? (
               <>
-                <div style={{ color: '#8A55CC', fontWeight: 700, fontSize: 20, marginBottom: 24, textAlign: 'center' }}>경연 참가자/팀 평가</div>
+                <div style={{ color: 'white', fontWeight: 800, fontSize: 24, marginBottom: 24, textAlign: 'center', textShadow: '0 2px 8px rgba(0,0,0,0.25)' }}>경연 참가자/팀 평가</div>
                 {/* 평가받는 대상이 없을 때 안내 */}
                 {teams.length === 0 && uniqueEvaluationTargets.filter(t => !teams.some(team => Array.isArray(team.members) && team.members.includes(t.uid))).length === 0 && (
                   <div style={{
@@ -969,8 +970,8 @@ const ContestParticipate: React.FC = () => {
                 )}
                 {/* 듀엣 팀 */}
                 {teams.length > 0 && (
-                  <div style={{ marginBottom: 32, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <div style={{ fontWeight: 600, color: '#7C4DBC', marginBottom: 8, textAlign: 'center' }}>듀엣 팀</div>
+                  <div style={{ marginBottom: 32, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
+                    <div style={{ fontWeight: 700, color: 'rgba(255,255,255,0.95)', marginBottom: 10, textAlign: 'center', fontSize: 18 }}>듀엣 팀</div>
                     {teams
                       .sort((a, b) => {
                         // order 기준으로 정렬 (order가 없으면 createdAt 기준)
@@ -986,6 +987,7 @@ const ContestParticipate: React.FC = () => {
                           )
                         );
                         const alreadyGraded = gradedTargets.includes(team.id);
+                        const isEditingSubmitted = !!editingSubmittedTargets[team.id];
                         return (
                           <div key={team.id} style={{ 
                             background: alreadyGraded 
@@ -1093,15 +1095,17 @@ const ContestParticipate: React.FC = () => {
                                   <span style={{ color: '#F43F5E', fontWeight: 600, fontSize: 16 }}>본인이 속한 팀은 평가할 수 없습니다.</span>
                                   <span style={{ color: '#9CA3AF', fontSize: 14 }}>자기 평가는 금지되어 있습니다.</span>
                                 </div>
-                              ) : alreadyGraded ? (
+                              ) : alreadyGraded && !isEditingSubmitted ? (
                                 <div style={{ 
                                   display: 'flex', 
                                   flexDirection: 'column', 
-                                  alignItems: 'center', 
+                                  alignItems: 'center',
                                   gap: 8,
-                                  padding: '16px',
-                                  background: 'rgba(255, 255, 255, 0.5)',
-                                  borderRadius: 8
+                                  padding: '18px',
+                                  background: 'rgba(255, 255, 255, 0.75)',
+                                  borderRadius: 12,
+                                  border: '1px solid rgba(138, 85, 204, 0.2)',
+                                  width: '100%'
                                 }}>
                                   <div style={{ color: '#6B7280', fontWeight: 600, fontSize: 16, textAlign: 'center' }}>
                                     평가 제출 완료
@@ -1121,6 +1125,23 @@ const ContestParticipate: React.FC = () => {
                                       "{gradeInputs[team.id].comment}"
                                     </div>
                                   )}
+                                  <button
+                                    style={{
+                                      marginTop: 8,
+                                      background: 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)',
+                                      color: '#fff',
+                                      borderRadius: 12,
+                                      padding: '10px 16px',
+                                      fontWeight: 700,
+                                      fontSize: 15,
+                                      border: 'none',
+                                      cursor: 'pointer',
+                                      boxShadow: '0 6px 16px rgba(225,29,72,0.25)'
+                                    }}
+                                    onClick={() => setEditingSubmittedTargets(prev => ({ ...prev, [team.id]: true }))}
+                                  >
+                                    제출취소
+                                  </button>
                                 </div>
                               ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
@@ -1167,25 +1188,44 @@ const ContestParticipate: React.FC = () => {
                                       color: '#1F2937'
                                     }}
                                   />
-                                  <button
-                                    style={{
-                                      background: '#8A55CC',
-                                      color: '#fff',
-                                      borderRadius: 12,
-                                      padding: '14px 24px',
-                                      fontWeight: 600,
-                                      fontSize: 16,
-                                      border: 'none',
-                                      cursor: grading[team.id] ? 'not-allowed' : 'pointer',
-                                      transition: 'all 0.2s',
-                                      boxShadow: '0 4px 12px rgba(138, 85, 204, 0.3)',
-                                      width: '100%'
-                                    }}
-                                    onClick={() => handleSubmitGrade(team.id)}
-                                    disabled={grading[team.id]}
-                                  >
-                                    제출
-                                  </button>
+                                  <div style={{ display: 'flex', gap: 8 }}>
+                                    <button
+                                      style={{
+                                        background: '#8A55CC',
+                                        color: '#fff',
+                                        borderRadius: 12,
+                                        padding: '14px 24px',
+                                        fontWeight: 600,
+                                        fontSize: 16,
+                                        border: 'none',
+                                        cursor: grading[team.id] ? 'not-allowed' : 'pointer',
+                                        transition: 'all 0.2s',
+                                        boxShadow: '0 4px 12px rgba(138, 85, 204, 0.3)',
+                                        width: '100%'
+                                      }}
+                                      onClick={() => handleSubmitGrade(team.id)}
+                                      disabled={grading[team.id]}
+                                    >
+                                      {alreadyGraded ? '수정제출' : '제출'}
+                                    </button>
+                                    {alreadyGraded && (
+                                      <button
+                                        style={{
+                                          background: '#9CA3AF',
+                                          color: '#fff',
+                                          borderRadius: 12,
+                                          padding: '14px 20px',
+                                          fontWeight: 600,
+                                          fontSize: 15,
+                                          border: 'none',
+                                          cursor: 'pointer'
+                                        }}
+                                        onClick={() => setEditingSubmittedTargets(prev => ({ ...prev, [team.id]: false }))}
+                                      >
+                                        취소
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
                               )}
                             </div>
@@ -1200,8 +1240,8 @@ const ContestParticipate: React.FC = () => {
                   if (soloTargets.length === 0) return null;
                   
                   return (
-                    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', maxHeight: 600, minHeight: 180, overflowY: 'auto', marginBottom: 24, paddingRight: 4 }}>
-                      <div style={{ fontWeight: 600, color: '#7C4DBC', marginBottom: 8, textAlign: 'center' }}>솔로 참가자</div>
+                    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch', maxHeight: 600, minHeight: 180, overflowY: 'auto', marginBottom: 24, paddingRight: 4 }}>
+                    <div style={{ fontWeight: 700, color: 'rgba(255,255,255,0.95)', marginBottom: 10, textAlign: 'center', fontSize: 18 }}>솔로 참가자</div>
                       {soloTargets
                         .sort((a, b) => {
                           // createdAt 기준으로 정렬 (오래된 순)
@@ -1214,6 +1254,7 @@ const ContestParticipate: React.FC = () => {
                           // 닉네임 기반으로도 본인인지 확인
                           const isMeByNickname = user && t.nickname && user.nickname && t.nickname.toLowerCase().trim() === user.nickname.toLowerCase().trim();
                           const alreadyGraded = gradedTargets.includes(t.uid);
+                          const isEditingSubmitted = !!editingSubmittedTargets[t.uid];
                       return (
                         <div
                           key={t.uid}
@@ -1325,15 +1366,17 @@ const ContestParticipate: React.FC = () => {
                                 <span style={{ color: '#F43F5E', fontWeight: 600, fontSize: 16 }}>본인은 평가할 수 없습니다.</span>
                                 <span style={{ color: '#9CA3AF', fontSize: 14 }}>자기 평가는 금지되어 있습니다.</span>
                               </div>
-                            ) : alreadyGraded ? (
+                            ) : alreadyGraded && !isEditingSubmitted ? (
                               <div style={{ 
                                 display: 'flex', 
                                 flexDirection: 'column', 
                                 alignItems: 'center', 
                                 gap: 8,
-                                padding: '16px',
-                                background: 'rgba(255, 255, 255, 0.5)',
-                                borderRadius: 8
+                                padding: '18px',
+                                background: 'rgba(255, 255, 255, 0.75)',
+                                borderRadius: 12,
+                                border: '1px solid rgba(138, 85, 204, 0.2)',
+                                width: '100%'
                               }}>
                                 <div style={{ color: '#6B7280', fontWeight: 600, fontSize: 16, textAlign: 'center' }}>
                                   평가 제출 완료
@@ -1353,6 +1396,23 @@ const ContestParticipate: React.FC = () => {
                                     "{gradeInputs[t.uid].comment}"
                                   </div>
                                 )}
+                                <button
+                                  style={{
+                                    marginTop: 8,
+                                    background: 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)',
+                                    color: '#fff',
+                                    borderRadius: 12,
+                                    padding: '10px 16px',
+                                    fontWeight: 700,
+                                    fontSize: 15,
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 6px 16px rgba(225,29,72,0.25)'
+                                  }}
+                                  onClick={() => setEditingSubmittedTargets(prev => ({ ...prev, [t.uid]: true }))}
+                                >
+                                  제출취소
+                                </button>
                               </div>
                             ) : (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
@@ -1399,25 +1459,44 @@ const ContestParticipate: React.FC = () => {
                                     color: '#1F2937'
                                   }}
                                 />
-                                <button
-                                  style={{
-                                    background: '#8A55CC',
-                                    color: '#fff',
-                                    borderRadius: 12,
-                                    padding: '14px 24px',
-                                    fontWeight: 600,
-                                    fontSize: 16,
-                                    border: 'none',
-                                    cursor: grading[t.uid] ? 'not-allowed' : 'pointer',
-                                    transition: 'all 0.2s',
-                                    boxShadow: '0 4px 12px rgba(138, 85, 204, 0.3)',
-                                    width: '100%'
-                                  }}
-                                  onClick={() => handleSubmitGrade(t.uid)}
-                                  disabled={grading[t.uid]}
-                                >
-                                  제출
-                                </button>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                  <button
+                                    style={{
+                                      background: '#8A55CC',
+                                      color: '#fff',
+                                      borderRadius: 12,
+                                      padding: '14px 24px',
+                                      fontWeight: 600,
+                                      fontSize: 16,
+                                      border: 'none',
+                                      cursor: grading[t.uid] ? 'not-allowed' : 'pointer',
+                                      transition: 'all 0.2s',
+                                      boxShadow: '0 4px 12px rgba(138, 85, 204, 0.3)',
+                                      width: '100%'
+                                    }}
+                                    onClick={() => handleSubmitGrade(t.uid)}
+                                    disabled={grading[t.uid]}
+                                  >
+                                    {alreadyGraded ? '수정제출' : '제출'}
+                                  </button>
+                                  {alreadyGraded && (
+                                    <button
+                                      style={{
+                                        background: '#9CA3AF',
+                                        color: '#fff',
+                                        borderRadius: 12,
+                                        padding: '14px 20px',
+                                        fontWeight: 600,
+                                        fontSize: 15,
+                                        border: 'none',
+                                        cursor: 'pointer'
+                                      }}
+                                      onClick={() => setEditingSubmittedTargets(prev => ({ ...prev, [t.uid]: false }))}
+                                    >
+                                      취소
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             )}
                           </div>
@@ -1562,7 +1641,7 @@ const ContestParticipate: React.FC = () => {
               </>
             ) : null
           )}
-        </div>
+        </>
       </div>
     </div>
   );

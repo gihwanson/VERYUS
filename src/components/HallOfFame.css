@@ -1,0 +1,168 @@
+.hall-of-fame-page {
+  min-height: 100vh;
+  padding: 10px 10px 86px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 55%, #8b5cf6 100%);
+}
+
+.hall-of-fame-content {
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hall-header {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 14px;
+  padding: 12px 14px;
+  color: #fff;
+  backdrop-filter: blur(14px);
+}
+
+.hall-header h2 {
+  margin: 0 0 4px;
+  font-size: 21px;
+}
+
+.hall-header p {
+  margin: 0 0 8px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+}
+
+.hall-header-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.hall-header-actions button {
+  border: none;
+  border-radius: 8px;
+  padding: 5px 9px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #5b3ba8;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.hall-score-guide {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.28);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 11px;
+}
+
+.hall-sections-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.hall-section {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
+  padding: 10px;
+  backdrop-filter: blur(14px);
+}
+
+.hall-section-head h3 {
+  margin: 0 0 2px;
+  color: #fff;
+  font-size: 16px;
+}
+
+.hall-section-head p {
+  margin: 0 0 8px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 11px;
+}
+
+.hall-table-wrap {
+  overflow-x: auto;
+}
+
+.hall-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 350px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.hall-table th,
+.hall-table td {
+  padding: 6px 8px;
+  border: 1px solid #e5daf5;
+  text-align: left;
+  color: #2d1b50;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.hall-table th {
+  background: #f4ecff;
+  color: #7a41cf;
+}
+
+.hall-name {
+  font-weight: 700;
+}
+
+.hall-name-with-grade {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hall-grade-inline {
+  font-size: 13px;
+}
+
+.hall-role {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #efe6ff;
+  color: #6b3cbc;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.hall-empty {
+  text-align: center !important;
+  color: #8a8a8a !important;
+}
+
+.hall-load-more-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.hall-load-more-btn {
+  border: none;
+  border-radius: 9px;
+  padding: 7px 11px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #5b3ba8;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+@media (max-width: 860px) {
+  .hall-sections-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -15,6 +15,7 @@ import {
 import type { DocumentData } from 'firebase/firestore';
 import { db } from '../firebase';
 import { NotificationService } from '../utils/notificationService';
+export { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
 
 export interface Comment {
   id: string;
@@ -59,43 +60,6 @@ export interface Post {
   writerNickname: string;
 }
 
-// 등급 이모지 매핑 - 체리만 사용
-export const gradeEmojis = ['🍒'];
-
-export const gradeToEmoji: { [key: string]: string } = {
-  '체리': '🍒',
-  '블루베리': '🍒',
-  '키위': '🍒',
-  '사과': '🍒',
-  '멜론': '🍒',
-  '수박': '🍒',
-  '지구': '🍒',
-  '토성': '🍒',
-  '태양': '🍒',
-  '은하': '🍒',
-  '맥주': '🍒',
-  '번개': '🍒',
-  '별': '🍒',
-  '달': '🍒'
-};
-
-export const emojiToGrade: { [key: string]: string } = {
-  '🍒': '체리',
-  '🫐': '체리',
-  '🥝': '체리',
-  '🍎': '체리',
-  '🍈': '체리',
-  '🍉': '체리',
-  '🌍': '체리',
-  '🪐': '체리',
-  '☀️': '체리',
-  '🌌': '체리',
-  '🍺': '체리',
-  '⚡': '체리',
-  '⭐': '체리',
-  '🌙': '체리'
-};
-
 // URL 경로로부터 게시판 타입 결정
 export const getPostTypeFromPath = (): string => {
   const path = window.location.pathname;
@@ -105,16 +69,6 @@ export const getPostTypeFromPath = (): string => {
   if (path.includes('/balance/')) return 'balance';
   if (path.includes('/boards/partner/')) return 'partner';
   return 'free'; // 기본값
-};
-
-// 등급 이모지 매핑 함수 - 항상 체리 반환
-export const getGradeEmoji = (grade: string): string => {
-  return '🍒';
-};
-
-// 등급 이름 가져오기 - 항상 체리 반환
-export const getGradeName = (emoji: string): string => {
-  return '체리';
 };
 
 // 날짜 포맷팅

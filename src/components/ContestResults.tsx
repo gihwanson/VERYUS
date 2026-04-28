@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
+import '../styles/components.css';
+import '../styles/contest-ui-refresh.css';
 
 const ContestResults: React.FC = () => {
   const { id } = useParams();
@@ -281,7 +283,7 @@ const ContestResults: React.FC = () => {
   };
 
   return (
-    <div style={{
+    <div className="contest-ui-refresh" style={{
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       backgroundAttachment: 'fixed',
@@ -303,85 +305,33 @@ const ContestResults: React.FC = () => {
         pointerEvents: 'none'
       }} />
       
-      <div style={{
-        position: 'relative',
-        zIndex: 1,
-        padding: '20px',
-        maxWidth: '1200px',
-        margin: '0 auto'
-      }}>
+      <div className="contest-results-content">
         {/* 뒤로가기 버튼 */}
         <div style={{ marginBottom: '20px' }}>
           <button
-            style={{ 
-              background: 'rgba(255, 255, 255, 0.2)',
-              backdropFilter: 'blur(10px)',
-              color: 'white', 
-              borderRadius: '12px', 
-              padding: '12px 24px', 
-              fontWeight: 600, 
-              fontSize: 16, 
-              border: '1px solid rgba(255, 255, 255, 0.3)', 
-              cursor: 'pointer',
-              transition: 'all 0.3s ease'
-            }}
+            className="contest-results-back"
             onClick={() => id && window.history.back()}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-              e.currentTarget.style.transform = 'translateY(-2px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
           >
             ← 이전
           </button>
         </div>
 
         {/* 헤더 */}
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.15)',
-          backdropFilter: 'blur(15px)',
-          borderRadius: '20px',
-          padding: '30px',
-          marginBottom: '20px',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          textAlign: 'center'
-        }}>
-          <h2 style={{ 
-            color: 'white', 
-            fontWeight: 700, 
-            fontSize: 32, 
-            marginBottom: 16,
-            textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
-          }}>
+        <div className="contest-results-panel">
+          <h2 className="contest-results-title">
             🏆 최종 결과
           </h2>
-          <div style={{ 
-            color: 'white', 
-            fontWeight: 700, 
-            fontSize: 24, 
-            marginBottom: 8
-          }}>
+          <div className="contest-results-title" style={{ fontSize: 24, marginBottom: 8 }}>
             {contest.title} 결과
           </div>
-          <div style={{ 
-            color: 'rgba(255, 255, 255, 0.9)', 
-            fontWeight: 500, 
-            marginBottom: 12,
-            fontSize: '18px'
-          }}>
+          <div className="contest-results-subtitle" style={{ marginBottom: 12, fontSize: 18 }}>
             {contest.type}
           </div>
-          <div style={{ 
-            color: 'rgba(255, 255, 255, 0.8)', 
-            fontSize: 16
-          }}>
+          <div className="contest-results-subtitle">
             📅 마감: {contest.deadline && (contest.deadline.seconds ? new Date(contest.deadline.seconds * 1000).toLocaleDateString('ko-KR') : '')}
           </div>
         </div>
-      <div style={{ marginBottom: 32 }}>
+      <div className="contest-results-panel">
         <h3 style={{ color: '#8A55CC', fontWeight: 700, fontSize: 20, marginBottom: 12, textAlign: 'center' }}>🏆 최종 등급 결과 (점수순 순위)</h3>
         <table className="contest-table">
           <thead>
@@ -481,11 +431,11 @@ const ContestResults: React.FC = () => {
         )}
       </div>
       {grades.length > 0 && (
-        <div style={{ marginBottom: 32 }}>
+        <div className="contest-results-panel">
           <h3 style={{ color: '#7C4DBC', fontWeight: 700, fontSize: 18, marginBottom: 12, textAlign: 'center', borderTop: '2px solid #E5DAF5', paddingTop: 16 }}>전체 심사결과</h3>
           
           {/* 필터링 UI */}
-          <div style={{ display: 'flex', gap: 16, marginBottom: 16, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <div className="contest-results-filter" style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <label style={{ fontWeight: 600, color: '#7C4DBC', minWidth: 60 }}>평가자:</label>
               <select

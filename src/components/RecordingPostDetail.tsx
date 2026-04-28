@@ -17,6 +17,7 @@ import {
   deleteDoc
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
 import { 
   ArrowLeft,
   Heart,
@@ -39,6 +40,7 @@ import '../styles/BoardLayout.css';
 import CommentSection from './CommentSection';
 import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
 import { useAudioPlayer } from '../App';
+import { addLurkingScore } from '../utils/simpleBoardNotification';
 
 // 전역 변수로 중복 방지
 declare global {
@@ -79,16 +81,6 @@ interface RecordingPost {
   writerRole?: string;
   fileName?: string;
 }
-
-const gradeEmojis = ['🍒'];
-const gradeToEmoji: { [key: string]: string } = {
-  '체리': '🍒', '블루베리': '🍒', '키위': '🍒', '사과': '🍒', '멜론': '🍒', '수박': '🍒', '지구': '🍒', '토성': '🍒', '태양': '🍒', '은하': '🍒', '맥주': '🍒', '번개': '🍒', '별': '🍒', '달': '🍒'
-};
-const emojiToGrade: { [key: string]: string } = {
-  '🍒': '체리', '🫐': '체리', '🥝': '체리', '🍎': '체리', '🍈': '체리', '🍉': '체리', '🌍': '체리', '🪐': '체리', '☀️': '체리', '🌌': '체리', '🍺': '체리', '⚡': '체리', '⭐': '체리', '🌙': '체리'
-};
-const getGradeEmoji = (grade: string) => '🍒';
-const getGradeName = (emoji: string) => '체리';
 
 const RecordingPostDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -141,13 +133,17 @@ const RecordingPostDetail: React.FC = () => {
         return;
       }
       const data = docSnapshot.data();
+      const { writerGrade, writerRole, writerPosition, ...rest } = data;
       setPost(prev => {
+        const p = (prev || {}) as RecordingPost;
         return {
-          ...(prev || {}),
-          ...data,
+          ...p,
+          ...rest,
           id: docSnapshot.id,
           likes: Array.isArray(data.likes) ? data.likes : [],
-          // writerGrade는 여기서 set하지 않음
+          writerGrade: p.writerGrade ?? writerGrade,
+          writerRole: p.writerRole ?? writerRole,
+          writerPosition: p.writerPosition ?? writerPosition,
         } as RecordingPost;
       });
       setLoading(false);
@@ -180,6 +176,7 @@ const RecordingPostDetail: React.FC = () => {
     } else {
       // 녹음 오디오 재생 전 글로벌 상태 저장
       globalStateRef.current = { idx: globalIdx, wasPlaying: isGlobalPlaying };
+      if (user?.uid) addLurkingScore(user.uid, 'audio_play.recording_detail');
       audioRef.current.play();
       setIsPlaying(true);
       if (isGlobalPlaying) pauseGlobal();

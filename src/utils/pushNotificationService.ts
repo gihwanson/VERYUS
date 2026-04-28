@@ -217,9 +217,6 @@ const registerNativePush = async (uid: string, permission?: PermissionStatus) =>
 const registerWebPush = async (uid: string, forcePermissionRequest: boolean): Promise<boolean> => {
   if (!('Notification' in window) || !('serviceWorker' in navigator)) return false;
   if (!window.isSecureContext) return false;
-  if (!WEB_PUSH_VAPID_KEY) {
-    throw new Error('missing-web-vapid-key');
-  }
 
   const supported = await isSupported().catch(() => false);
   if (!supported) return false;
@@ -236,10 +233,16 @@ const registerWebPush = async (uid: string, forcePermissionRequest: boolean): Pr
 
   const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
   const messaging = getMessaging(app);
-  const token = await getToken(messaging, {
-    vapidKey: WEB_PUSH_VAPID_KEY,
+  const tokenOptions: { vapidKey?: string; serviceWorkerRegistration: ServiceWorkerRegistration } = {
     serviceWorkerRegistration: registration
-  });
+  };
+  if (WEB_PUSH_VAPID_KEY?.trim()) {
+    tokenOptions.vapidKey = WEB_PUSH_VAPID_KEY.trim();
+  } else {
+    // 환경변수 누락 시에도 Firebase 프로젝트 기본 Web Push 인증서로 등록을 시도한다.
+    console.warn('VITE_FIREBASE_VAPID_KEY가 없어 기본 Web Push 키로 토큰 등록을 시도합니다.');
+  }
+  const token = await getToken(messaging, tokenOptions);
 
   if (!token) return false;
   await savePushToken(uid, token, getWebPlatform());

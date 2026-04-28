@@ -159,9 +159,7 @@ const EvaluationPostList = lazy(() => import('./components/EvaluationPostList'))
 const EvaluationPostWrite = lazy(() => import('./components/EvaluationPostWrite'));
 const EvaluationPostDetail = lazy(() => import('./components/EvaluationPostDetail'));
 const EvaluationPostEdit = lazy(() => import('./components/EvaluationPostEdit'));
-const BalancePostList = lazy(() => import('./components/BalancePostList'));
-const BalancePostWrite = lazy(() => import('./components/BalancePostWrite'));
-const BalancePostDetail = lazy(() => import('./components/BalancePostDetail'));
+const HallOfFame = lazy(() => import('./components/HallOfFame'));
 const PracticeRoomBooking = lazy(() => import('./components/PracticeRoomBooking'));
 const PracticeRoomManagement = lazy(() => import('./components/PracticeRoomManagement'));
 
@@ -733,36 +731,6 @@ function App() {
   const [showSearchSystem, setShowSearchSystem] = useState(false);
   
   useEffect(() => {
-    if (!('serviceWorker' in navigator)) return;
-
-    let reloadingForSw = false;
-    const onControllerChange = () => {
-      if (reloadingForSw) return;
-      reloadingForSw = true;
-      const reloadKey = 'veryus_sw_reload_once';
-      try {
-        if (sessionStorage.getItem(reloadKey) === '1') {
-          sessionStorage.removeItem(reloadKey);
-          return;
-        }
-        sessionStorage.setItem(reloadKey, '1');
-      } catch {
-        // 저장소 접근 실패 시에도 1회 재로딩은 진행
-      }
-      window.location.reload();
-    };
-
-    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
-    navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js')
-      .then((registration) => registration?.update().catch(() => undefined))
-      .catch(() => undefined);
-
-    return () => {
-      navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
-    };
-  }, []);
-
-  useEffect(() => {
     const loadingGuard = window.setTimeout(() => {
       setLoading(false);
     }, 8000);
@@ -1047,11 +1015,10 @@ function App() {
               <Route path="/evaluation/:id" element={<EvaluationPostDetail />} />
               <Route path="/evaluation/edit/:id" element={<EvaluationPostEdit />} />
               
-              {/* 밸런스게시판 라우트들 */}
-              <Route path="/balance" element={<BalancePostList />} />
-              <Route path="/balance/write" element={<BalancePostWrite />} />
-              <Route path="/balance/:id" element={<BalancePostDetail />} />
-              <Route path="/balance/edit/:id" element={<BalancePostWrite />} />
+              {/* 명예의전당 라우트 */}
+              <Route path="/hall-of-fame" element={<ProtectedRoute><HallOfFame /></ProtectedRoute>} />
+              {/* 밸런스게시판 제거: 기존 링크 호환을 위해 명예의전당으로 리다이렉트 */}
+              <Route path="/balance/*" element={<Navigate to="/hall-of-fame" replace />} />
               
               {/* 연습실 예약 라우트 */}
               <Route path="/practice-room-booking" element={<ProtectedRoute><PracticeRoomBooking /></ProtectedRoute>} />

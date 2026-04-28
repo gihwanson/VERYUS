@@ -1,3 +1,6 @@
+import { doc, increment, setDoc, Timestamp } from 'firebase/firestore';
+import { db } from '../firebase';
+
 // 간단한 localStorage 기반 게시판 알림 시스템
 
 interface VisitRecord {
@@ -5,6 +8,23 @@ interface VisitRecord {
 }
 
 const VISIT_STORAGE_KEY = 'veryus_board_visits';
+const LURKING_POINT_PER_ACTION = 0.1;
+
+export const addLurkingScore = (userId: string, actionKey: string) => {
+  if (!userId) return;
+  void setDoc(
+    doc(db, 'boardVisits', userId),
+    {
+      userId,
+      lurkingScore: increment(LURKING_POINT_PER_ACTION),
+      [`lurkingActionCount.${actionKey}`]: increment(1),
+      lastUpdated: Timestamp.now()
+    },
+    { merge: true }
+  ).catch((error) => {
+    console.error('눈팅 점수 저장 에러:', error);
+  });
+};
 
 // 게시판 방문 기록 저장
 export const markBoardAsVisited = (userId: string, boardType: string) => {
@@ -15,6 +35,24 @@ export const markBoardAsVisited = (userId: string, boardType: string) => {
     
     visits[boardType] = Date.now();
     localStorage.setItem(key, JSON.stringify(visits));
+
+    // 게시판 진입은 눈팅 점수 0.1점으로 반영한다.
+    addLurkingScore(userId, `board_enter.${boardType}`);
+
+    // 방문 집계용 카운터는 별도로 누적 저장한다.
+    void setDoc(
+      doc(db, 'boardVisits', userId),
+      {
+        userId,
+        totalVisitCount: increment(1),
+        [`visitCountByBoard.${boardType}`]: increment(1),
+        [`lastVisited.${boardType}`]: Timestamp.now(),
+        lastUpdated: Timestamp.now()
+      },
+      { merge: true }
+    ).catch((error) => {
+      console.error('Firestore 방문 기록 저장 에러:', error);
+    });
     
     console.log(`${boardType} 게시판 방문 기록 저장됨`);
   } catch (error) {
@@ -42,7 +80,7 @@ export const hasNewPosts = (userId: string, boardType: string): boolean => {
 
 // 모든 게시판 알림 상태 가져오기
 export const getAllBoardNotificationStatus = (userId: string) => {
-  const boardTypes = ['free', 'recording', 'evaluation', 'balance', 'partner'];
+  const boardTypes = ['free', 'recording', 'evaluation', 'hallOfFame', 'partner'];
   
   return boardTypes.map(boardType => ({
     boardType,

@@ -14,6 +14,7 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
 import CommentSection from './CommentSection';
 import { NotificationService } from '../utils/notificationService';
 import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
@@ -80,40 +81,6 @@ const categories: Category[] = [
   { id: 'etc2', name: '기타' }
 ];
 
-const gradeEmojis = ['🍒'];
-const gradeToEmoji: { [key: string]: string } = {
-  '체리': '🍒',
-  '블루베리': '🍒',
-  '키위': '🍒',
-  '사과': '🍒',
-  '멜론': '🍒',
-  '수박': '🍒',
-  '지구': '🍒',
-  '토성': '🍒',
-  '태양': '🍒',
-  '은하': '🍒',
-  '맥주': '🍒',
-  '번개': '🍒',
-  '별': '🍒',
-  '달': '🍒'
-};
-const emojiToGrade: { [key: string]: string } = {
-  '🍒': '체리',
-  '🫐': '체리',
-  '🥝': '체리',
-  '🍎': '체리',
-  '🍈': '체리',
-  '🍉': '체리',
-  '🌍': '체리',
-  '🪐': '체리',
-  '☀️': '체리',
-  '🌌': '체리',
-  '🍺': '체리',
-  '⚡': '체리',
-  '⭐': '체리',
-  '🌙': '체리'
-};
-
 const categoryNameMap: { [key: string]: string } = {
   'vocal': '보컬',
   'etc': '세션',
@@ -139,14 +106,6 @@ const PartnerPostDetail: React.FC = () => {
   const [showApplicantsModal, setShowApplicantsModal] = useState(false);
   const [isBumping, setIsBumping] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-
-  const getGradeEmoji = (grade: string) => {
-    return '🍒';
-  };
-
-  const getGradeName = (emoji: string) => {
-    return '체리';
-  };
 
   useEffect(() => {
     const userString = localStorage.getItem('veryus_user');
@@ -209,12 +168,17 @@ const PartnerPostDetail: React.FC = () => {
         return;
       }
       const data = docSnapshot.data();
+      const { writerGrade, writerRole, writerPosition, ...rest } = data;
       setPost(prev => {
+        const p = (prev || {}) as Post;
         return {
-          ...(prev || {}),
-          ...data,
+          ...p,
+          ...rest,
           id: docSnapshot.id,
           likes: Array.isArray(data.likes) ? data.likes : [],
+          writerGrade: p.writerGrade ?? writerGrade,
+          writerRole: p.writerRole ?? writerRole,
+          writerPosition: p.writerPosition ?? writerPosition,
         } as Post;
       });
       setApplicants(data.applicants || []);

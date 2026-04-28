@@ -46,6 +46,7 @@ import { auth } from '../firebase';
 import { NotificationService } from '../utils/notificationService';
 import { enablePushNotifications, removeAllPushTokens } from '../utils/pushNotificationService';
 import { GRADE_NAMES, GRADE_SYSTEM } from './AdminTypes';
+import { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
 
 interface User {
   uid: string;
@@ -240,16 +241,6 @@ const GRADE_OPTIONS: GradeOption[] = [
   { value: GRADE_SYSTEM.CRESCENT, emoji: GRADE_SYSTEM.CRESCENT, category: '예외' },
   { value: GRADE_SYSTEM.GALAXY, emoji: GRADE_SYSTEM.GALAXY, category: '예외' }
 ];
-
-const GRADE_NAME_TO_EMOJI: Record<string, string> = GRADE_OPTIONS.reduce((acc, option) => {
-  acc[option.value] = option.emoji;
-  return acc;
-}, {} as Record<string, string>);
-
-const GRADE_EMOJI_TO_NAME: Record<string, string> = GRADE_OPTIONS.reduce((acc, option) => {
-  acc[option.emoji] = option.value;
-  return acc;
-}, {} as Record<string, string>);
 
 const GRADE_ORDER = GRADE_OPTIONS.map((option) => option.emoji);
 
@@ -975,24 +966,8 @@ const MyPage: React.FC = () => {
     if (activeTab !== tab) e.currentTarget.style.background = 'transparent';
   };
 
-  const getGradeEmoji = (grade: string) => {
-    if (!grade) return GRADE_SYSTEM.CHERRY;
-    if (GRADE_EMOJI_TO_NAME[grade]) return grade;
-    return GRADE_NAME_TO_EMOJI[grade] || GRADE_SYSTEM.CHERRY;
-  };
-
   const handleProfileImageClick = () => {
     fileInputRef.current?.click();
-  };
-
-  const getGradeDisplay = (grade: string) => {
-    return getGradeEmoji(grade);
-  };
-
-  const getGradeName = (grade: string) => {
-    if (!grade) return GRADE_NAMES[GRADE_SYSTEM.CHERRY];
-    const emoji = getGradeEmoji(grade);
-    return GRADE_NAMES[emoji] || GRADE_NAMES[GRADE_SYSTEM.CHERRY];
   };
 
   const getGuestbookGradeLabel = useCallback(

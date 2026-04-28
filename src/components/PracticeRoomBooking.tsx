@@ -686,9 +686,8 @@ const PracticeRoomBooking: React.FC = () => {
     }
   };
 
-  const handleSlotActivate = (slot: TimeSlot, date: Date, e?: React.MouseEvent | React.TouchEvent) => {
+  const handleSlotActivate = (slot: TimeSlot, date: Date, e?: React.MouseEvent) => {
     if (e) {
-      e.preventDefault();
       e.stopPropagation();
     }
 
@@ -1488,7 +1487,6 @@ const PracticeRoomBooking: React.FC = () => {
                     slot.isPast ? 'past' : slot.isBlocked ? 'blocked' : slot.isAvailable ? 'available' : 'reserved'
                   } ${isMyReservation ? 'my-reservation' : ''} ${slot.isException ? 'exception' : ''}`}
                   onClick={(e) => handleSlotActivate(slot, selectedDate, e)}
-                  onTouchEnd={(e) => handleSlotActivate(slot, selectedDate, e)}
                 >
                   <div className="mobile-slot-time">
                     <span className="time-label-large">{slot.time}</span>
@@ -1596,7 +1594,6 @@ const PracticeRoomBooking: React.FC = () => {
                         slot.isPast ? 'past' : slot.isBlocked ? 'blocked' : slot.isAvailable ? 'available' : 'reserved'
                       } ${isMyReservation ? 'my-reservation' : ''} ${slot.isException ? 'exception' : ''}`}
                       onClick={(e) => handleSlotActivate(slot, date, e)}
-                      onTouchEnd={(e) => handleSlotActivate(slot, date, e)}
                       style={{ cursor: slot.isPast ? 'not-allowed' : 'pointer' }}
                     >
                       {slot.isBlocked ? (

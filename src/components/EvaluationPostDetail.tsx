@@ -42,6 +42,7 @@ import CommentSection from './CommentSection';
 import { useAudioPlayer } from '../App';
 import { NotificationService } from '../utils/notificationService';
 import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
+import { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
 
 interface User {
   uid: string;
@@ -90,16 +91,6 @@ interface EvaluationPost {
   votedUserNicknames?: Record<string, string>;
   isAnonymousVote?: boolean;
 }
-
-const gradeEmojis = ['🍒'];
-const gradeToEmoji: { [key: string]: string } = {
-  '체리': '🍒', '블루베리': '🍒', '키위': '🍒', '사과': '🍒', '멜론': '🍒', '수박': '🍒', '지구': '🍒', '토성': '🍒', '태양': '🍒', '은하': '🍒', '맥주': '🍒', '번개': '🍒', '별': '🍒', '달': '🍒'
-};
-const emojiToGrade: { [key: string]: string } = {
-  '🍒': '체리', '🫐': '체리', '🥝': '체리', '🍎': '체리', '🍈': '체리', '🍉': '체리', '🌍': '체리', '🪐': '체리', '☀️': '체리', '🌌': '체리', '🍺': '체리', '⚡': '체리', '⭐': '체리', '🌙': '체리'
-};
-const getGradeEmoji = (grade: string) => '🍒';
-const getGradeName = (emoji: string) => '체리';
 
 // 타입 선언 추가
 declare global {
@@ -207,12 +198,17 @@ const EvaluationPostDetail: React.FC = () => {
         return;
       }
       const data = docSnapshot.data();
+      const { writerGrade, writerRole, writerPosition, ...rest } = data;
       setPost(prev => {
+        const p = (prev || {}) as EvaluationPost;
         return {
-          ...(prev || {}),
-          ...data,
+          ...p,
+          ...rest,
           id: docSnapshot.id,
           likes: Array.isArray(data.likes) ? data.likes : [],
+          writerGrade: p.writerGrade ?? writerGrade,
+          writerRole: p.writerRole ?? writerRole,
+          writerPosition: p.writerPosition ?? writerPosition,
         } as EvaluationPost;
       });
       setLoading(false);
@@ -222,6 +218,26 @@ const EvaluationPostDetail: React.FC = () => {
     });
     return () => unsubscribe();
   }, [id]);
+
+  // 작성자 프로필(등급) — 댓글과 동일하게 users 문서를 기준으로 표시
+  useEffect(() => {
+    if (!post?.writerUid) return;
+    const userRef = doc(db, 'users', post.writerUid);
+    const unsubscribe = onSnapshot(userRef, (userDoc) => {
+      if (!userDoc.exists()) return;
+      const userData = userDoc.data();
+      setPost((prevPost) => {
+        if (!prevPost) return null;
+        return {
+          ...prevPost,
+          writerGrade: userData.grade || prevPost.writerGrade || '🍒',
+          writerRole: userData.role || prevPost.writerRole || '일반',
+          writerPosition: userData.position || prevPost.writerPosition || '',
+        };
+      });
+    });
+    return () => unsubscribe();
+  }, [post?.writerUid]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

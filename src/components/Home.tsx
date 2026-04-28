@@ -37,7 +37,7 @@ interface BoardItem {
 const BOARDS: BoardItem[] = [
   { name: '자유게시판', icon: () => <span style={{fontSize: 36}}>💬</span>, path: '/free', color: '#667eea' },
   { name: '녹음게시판', icon: () => <span style={{fontSize: 36}}>🎙️</span>, path: '/recording', color: '#f093fb' },
-  { name: '밸런스게시판', icon: () => <span style={{fontSize: 28, fontWeight: 800}}>VS</span>, path: '/balance', color: '#ff9ff3' },
+  { name: '명예의전당', icon: () => <span style={{fontSize: 34}}>🏅</span>, path: '/hall-of-fame', color: '#ff9ff3' },
   { name: '평가게시판', icon: () => <span style={{fontSize: 36}}>📝</span>, path: '/evaluation', color: '#ffeaa7' },
   { name: '파트너모집', icon: () => <span style={{fontSize: 36}}>🤝</span>, path: '/boards/partner', color: '#55efc4' }
 ];
@@ -81,7 +81,7 @@ const Home: React.FC = () => {
       if (path === '/free') boardType = 'free';
       else if (path === '/recording') boardType = 'recording';
       else if (path === '/evaluation') boardType = 'evaluation';
-      else if (path === '/balance') boardType = 'balance';
+      else if (path === '/hall-of-fame') boardType = 'hallOfFame';
       else if (path === '/boards/partner') boardType = 'partner';
       
       // 게시판 방문 기록 저장
@@ -249,15 +249,15 @@ const Home: React.FC = () => {
         <div className="boards-section">
           <div className="boards-cross-layout">
             {BOARDS.map((board, index) => {
-              let boardType: 'free' | 'recording' | 'evaluation' | 'balance' | 'partner' | null = null;
+              let boardType: 'free' | 'recording' | 'evaluation' | 'hallOfFame' | 'partner' | null = null;
               if (board.path === '/free') boardType = 'free';
               else if (board.path === '/recording') boardType = 'recording';
               else if (board.path === '/evaluation') boardType = 'evaluation';
-              else if (board.path === '/balance') boardType = 'balance';
+              else if (board.path === '/hall-of-fame') boardType = 'hallOfFame';
               else if (board.path === '/boards/partner') boardType = 'partner';
 
               const hasNewPosts = boardType ? getBoardNotification(boardType) : false;
-              const boardClass = board.path === '/balance'
+              const boardClass = board.path === '/hall-of-fame'
                 ? 'bubble-center'
                 : board.path === '/free'
                   ? 'bubble-top-left'

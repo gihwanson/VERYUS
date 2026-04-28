@@ -4,6 +4,7 @@ import { collection, query, orderBy, getDocs, setDoc, doc, getDoc, doc as firest
 import { db } from '../firebase';
 import '../styles/variables.css';
 import '../styles/components.css';
+import '../styles/contest-ui-refresh.css';
 
 type ContestType = '정규등급전' | '세미등급전' | '경연';
 
@@ -240,7 +241,7 @@ const ContestList: React.FC = () => {
   }, []);
 
   return (
-    <div className="contest-list-container">
+    <div className="contest-list-container contest-ui-refresh">
       <div className="contest-list-pattern" />
       <div className="contest-list-content">
         <h2 className="contest-title">
