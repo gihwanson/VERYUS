@@ -730,6 +730,7 @@ function App() {
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [announcementUnreadCount, setAnnouncementUnreadCount] = useState(0);
   const [showSearchSystem, setShowSearchSystem] = useState(false);
+  const lastLurkingClickAtRef = useRef<Record<string, number>>({});
   
   useEffect(() => {
     const loadingGuard = window.setTimeout(() => {
@@ -828,9 +829,17 @@ function App() {
   // 앱 전역 클릭 이벤트를 눈팅 점수(+0.1)로 집계
   useEffect(() => {
     if (!user?.uid) return;
-    const handleGlobalClick = () => {
+    const LURKING_CLICK_COOLDOWN_MS = 2000;
+    const handleGlobalClick = (e: MouseEvent) => {
       const routeKey = window.location.pathname.replace(/\//g, '_') || 'root';
-      addLurkingScore(user.uid, `global_click.${routeKey}`);
+      const actionKey = `global_click.${routeKey}`;
+      const now = Date.now();
+      const lastClickAt = lastLurkingClickAtRef.current[actionKey] || 0;
+      if (now - lastClickAt < LURKING_CLICK_COOLDOWN_MS) {
+        return;
+      }
+      lastLurkingClickAtRef.current[actionKey] = now;
+      addLurkingScore(user.uid, actionKey);
     };
     document.addEventListener('click', handleGlobalClick);
     return () => document.removeEventListener('click', handleGlobalClick);

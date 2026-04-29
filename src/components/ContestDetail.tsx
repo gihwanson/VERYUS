@@ -54,6 +54,8 @@ interface User {
   role?: string;
 }
 
+type AdminTab = 'participants' | 'targets' | 'teams';
+
 const ContestDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [contest, setContest] = useState<Contest | null>(null);
@@ -73,6 +75,7 @@ const ContestDetail: React.FC = () => {
   const [isStarted, setIsStarted] = useState(false);
   const [submittedUids, setSubmittedUids] = useState<string[]>([]);
   const [entryRestricted, setEntryRestricted] = useState(false);
+  const [adminTab, setAdminTab] = useState<AdminTab>('participants');
   const soloListRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -417,6 +420,13 @@ const ContestDetail: React.FC = () => {
     });
   }, [teams]);
 
+  const hasTeamItems = useMemo(
+    () =>
+      teams.length > 0 ||
+      evaluationTargets.filter((t) => !teams.some((team) => Array.isArray(team.members) && team.members.includes(t.uid))).length > 0,
+    [teams, evaluationTargets]
+  );
+
   // 팀 순서 변경 함수
   const handleMoveTeam = useCallback(async (teamId: string, direction: 'up' | 'down') => {
     if (!id) return;
@@ -539,6 +549,13 @@ const ContestDetail: React.FC = () => {
     }
   }, [participants.length]);
 
+  useEffect(() => {
+    if (!isAdmin) return;
+    if (contest?.type !== '경연' && adminTab !== 'participants') {
+      setAdminTab('participants');
+    }
+  }, [contest?.type, adminTab, isAdmin]);
+
   if (!contest) {
     return (
       <div className="contest-loading">
@@ -576,9 +593,8 @@ const ContestDetail: React.FC = () => {
             <button className="btn btn-secondary" onClick={() => navigate(`/contests/${contest.id}/results`)}>결과 보기</button>
             {isLeader && !contest.isStarted && !ended && (
               <button 
-                className="btn btn-success" 
+                className="btn btn-success contest-start-btn" 
                 onClick={handleStartContest}
-                style={{ background: '#10B981', color: '#fff' }}
               >
                 🚀 콘테스트 개최
               </button>
@@ -591,24 +607,12 @@ const ContestDetail: React.FC = () => {
 
         {/* 경연 유형 안내 */}
         {contest.type === '경연' && (
-          <section className="contest-detail-section" style={{ marginBottom: '24px' }}>
-            <div style={{
-              background: 'linear-gradient(135deg, #F6F2FF 0%, #F0F4FF 100%)',
-              borderRadius: '12px',
-              padding: '20px',
-              border: '1px solid rgba(138, 85, 204, 0.2)',
-              marginBottom: '16px'
-            }}>
-              <h3 style={{ color: '#8A55CC', fontWeight: 700, fontSize: '18px', marginBottom: '12px', textAlign: 'center' }}>
+          <section className="contest-detail-section contest-info-section">
+            <div className="contest-info-card">
+              <h3 className="contest-info-title">
                 🎭 경연 유형 안내
               </h3>
-              <ul style={{ 
-                color: '#6B21A8', 
-                fontSize: '14px', 
-                lineHeight: '1.8',
-                margin: 0,
-                paddingLeft: '20px'
-              }}>
+              <ul className="contest-info-list">
                 <li>경연은 참가자들이 서로 평가하는 콘테스트입니다</li>
                 <li>솔로 참가 또는 듀엣 팀 구성이 가능합니다</li>
                 <li>각 참가자는 다른 참가자/팀을 평가합니다 (본인/본인 팀 제외)</li>
@@ -618,8 +622,40 @@ const ContestDetail: React.FC = () => {
           </section>
         )}
 
-        {/* 참가자현황 섹션 (평가하는 인원) */}
         {isAdmin && (
+          <section className="contest-detail-section">
+            <div className="contest-admin-tabs">
+              <button
+                type="button"
+                className={`contest-admin-tab-btn ${adminTab === 'participants' ? 'active' : ''}`}
+                onClick={() => setAdminTab('participants')}
+              >
+                참가자현황
+              </button>
+              {contest.type === '경연' && (
+                <>
+                  <button
+                    type="button"
+                    className={`contest-admin-tab-btn ${adminTab === 'targets' ? 'active' : ''}`}
+                    onClick={() => setAdminTab('targets')}
+                  >
+                    참가자 관리
+                  </button>
+                  <button
+                    type="button"
+                    className={`contest-admin-tab-btn ${adminTab === 'teams' ? 'active' : ''}`}
+                    onClick={() => setAdminTab('teams')}
+                  >
+                    팀 목록
+                  </button>
+                </>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* 참가자현황 섹션 (평가하는 인원) */}
+        {isAdmin && adminTab === 'participants' && (
           <section className="contest-detail-section">
             <h3 className="contest-detail-section-title">👥 참가자현황</h3>
             <hr className="contest-detail-section-divider" />
@@ -627,13 +663,7 @@ const ContestDetail: React.FC = () => {
             {/* 경연 유형: 입장 제한/허용 토글 버튼 */}
             {contest.type === '경연' && (
               <>
-                <div style={{
-                  display: 'flex',
-                  gap: '12px',
-                  marginBottom: '16px',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
+                <div className="contest-entry-toggle-row">
                   <button
                     onClick={async () => {
                       if (!id) return;
@@ -642,37 +672,15 @@ const ContestDetail: React.FC = () => {
                       setEntryRestricted(newStatus);
                       alert(newStatus ? '입장이 제한되었습니다.' : '입장이 가능해졌습니다.');
                     }}
-                    style={{
-                      background: entryRestricted ? '#F43F5E' : '#10B981',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: '8px',
-                      padding: '12px 24px',
-                      fontWeight: 600,
-                      fontSize: '16px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }}
+                    className={`contest-entry-toggle-btn ${entryRestricted ? 'restricted' : 'opened'}`}
                   >
                     {entryRestricted ? '🔒 입장제한' : '✅ 입장가능'}
                   </button>
-                  <div style={{
-                    color: entryRestricted ? '#F43F5E' : '#10B981',
-                    fontWeight: 600,
-                    fontSize: '14px'
-                  }}>
+                  <div className={`contest-entry-toggle-status ${entryRestricted ? 'restricted' : 'opened'}`}>
                     {entryRestricted ? '현재 입장이 제한된 상태입니다.' : '현재 입장이 가능한 상태입니다.'}
                   </div>
                 </div>
-                <div style={{
-                  background: 'rgba(138, 85, 204, 0.1)',
-                  borderRadius: '8px',
-                  padding: '12px',
-                  marginBottom: '16px',
-                  fontSize: '14px',
-                  color: '#6B21A8',
-                  textAlign: 'center'
-                }}>
+                <div className="contest-helper-box">
                   💡 경연은 자유 참가 방식입니다. 참가 버튼을 누른 사용자들이 실시간으로 표시됩니다.
                 </div>
               </>
@@ -702,18 +710,8 @@ const ContestDetail: React.FC = () => {
             )}
 
             {/* 실시간 참가자 명단 */}
-            <div style={{
-              background: 'rgba(138, 85, 204, 0.05)',
-              borderRadius: '8px',
-              padding: '12px',
-              marginBottom: '12px'
-            }}>
-              <div style={{
-                fontWeight: 600,
-                color: '#8A55CC',
-                marginBottom: '8px',
-                fontSize: '14px'
-              }}>
+            <div className="contest-list-header-box">
+              <div className="contest-list-header-title">
                 📋 실시간 참가자 명단 ({uniqueParticipants.length}명)
               </div>
             </div>
@@ -726,22 +724,13 @@ const ContestDetail: React.FC = () => {
                   return (
                     <div 
                       key={p.uid} 
-                      className={`contest-detail-participant-item ${selectedSolo.includes(p.uid) ? 'selected' : ''}`}
+                      className={`contest-detail-participant-item ${selectedSolo.includes(p.uid) ? 'selected' : ''} ${isInTeam ? 'in-team' : ''}`}
                       onClick={() => handleParticipantClick(p.uid)}
-                      style={{
-                        opacity: isInTeam ? 0.8 : 1,
-                        background: isInTeam ? 'rgba(138, 85, 204, 0.1)' : undefined
-                      }}
                     >
                       <span className="contest-detail-participant-name">
                         {p.nickname}
                         {isInTeam && teamInfo && (
-                          <span style={{ 
-                            marginLeft: '8px', 
-                            fontSize: '12px', 
-                            color: '#8A55CC',
-                            fontWeight: 500
-                          }}>
+                          <span className="contest-team-member-badge">
                             (팀 소속)
                           </span>
                         )}
@@ -750,7 +739,7 @@ const ContestDetail: React.FC = () => {
                         {isSubmitted ? '✅ 제출완료' : '⏳ 대기중'}
                       </span>
                       <button 
-                        className="contest-detail-team-button break"
+                        className={`contest-detail-team-button break ${contest.type === '경연' ? 'danger' : ''}`}
                         onClick={(e) => {
                           e.stopPropagation();
                           if (contest.type === '경연') {
@@ -761,9 +750,6 @@ const ContestDetail: React.FC = () => {
                             handleDeleteParticipant(p.uid);
                           }
                         }}
-                        style={{
-                          background: contest.type === '경연' ? '#F43F5E' : undefined
-                        }}
                       >
                         {contest.type === '경연' ? '강퇴' : '삭제'}
                       </button>
@@ -771,12 +757,7 @@ const ContestDetail: React.FC = () => {
                   );
                 })}
               {uniqueParticipants.length === 0 && (
-                <div style={{
-                  textAlign: 'center',
-                  padding: '20px',
-                  color: '#9CA3AF',
-                  fontSize: '14px'
-                }}>
+                <div className="contest-empty-message">
                   {contest.type === '경연' ? '아직 참가한 사람이 없습니다.' : '참가자가 없습니다.'}
                 </div>
               )}
@@ -795,19 +776,11 @@ const ContestDetail: React.FC = () => {
         )}
 
         {/* 참가자 관리 섹션 (평가받는 대상) - 경연 유형만 */}
-        {isAdmin && contest.type === '경연' && (
+        {isAdmin && contest.type === '경연' && adminTab === 'targets' && (
           <section className="contest-detail-section">
             <h3 className="contest-detail-section-title">🎯 참가자 관리</h3>
             <hr className="contest-detail-section-divider" />
-            <div style={{
-              background: 'rgba(138, 85, 204, 0.05)',
-              borderRadius: '8px',
-              padding: '12px',
-              marginBottom: '16px',
-              fontSize: '14px',
-              color: '#6B21A8',
-              textAlign: 'center'
-            }}>
+            <div className="contest-helper-box">
               💡 평가받는 대상들을 관리합니다. 이 인원들이 평가 페이지에 표시됩니다.
             </div>
             
@@ -831,39 +804,17 @@ const ContestDetail: React.FC = () => {
             </div>
 
             {/* 평가받는 대상 목록 */}
-            <div style={{
-              background: 'rgba(138, 85, 204, 0.05)',
-              borderRadius: '8px',
-              padding: '12px',
-              marginBottom: '12px'
-            }}>
-              <div style={{
-                fontWeight: 600,
-                color: '#8A55CC',
-                marginBottom: '8px',
-                fontSize: '14px'
-              }}>
+            <div className="contest-list-header-box">
+              <div className="contest-list-header-title">
                 📋 평가받는 대상 목록 ({evaluationTargets.length}명)
               </div>
               {selectedEvaluationTargets.length > 0 && (
-                <div style={{
-                  marginTop: '8px',
-                  padding: '8px',
-                  background: 'rgba(138, 85, 204, 0.1)',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  color: '#6B21A8'
-                }}>
+                <div className="contest-selection-hint selected">
                   ✅ {selectedEvaluationTargets.length}명 선택됨 {selectedEvaluationTargets.length >= 2 && '(팀 만들기 가능)'}
                 </div>
               )}
               {selectedEvaluationTargets.length === 0 && (
-                <div style={{
-                  marginTop: '8px',
-                  fontSize: '12px',
-                  color: '#9CA3AF',
-                  fontStyle: 'italic'
-                }}>
+                <div className="contest-selection-hint">
                   💡 팀으로 묶을 인원을 클릭하여 선택하세요 (2명 이상 선택 시 팀 만들기 가능)
                 </div>
               )}
@@ -874,15 +825,8 @@ const ContestDetail: React.FC = () => {
                 .map(t => (
                   <div 
                     key={t.uid} 
-                    className={`contest-detail-participant-item ${selectedEvaluationTargets.includes(t.uid) ? 'selected' : ''}`}
+                    className={`contest-detail-participant-item ${selectedEvaluationTargets.includes(t.uid) ? 'selected' : ''} ${editingEvaluationTargetId === t.uid ? 'editing' : ''}`}
                     onClick={() => handleEvaluationTargetClick(t.uid)}
-                    style={{
-                      cursor: editingEvaluationTargetId === t.uid ? 'default' : 'pointer',
-                      background: selectedEvaluationTargets.includes(t.uid) ? 'rgba(138, 85, 204, 0.15)' : undefined,
-                      border: selectedEvaluationTargets.includes(t.uid) ? '2px solid #8A55CC' : undefined,
-                      transform: selectedEvaluationTargets.includes(t.uid) ? 'scale(1.02)' : undefined,
-                      transition: 'all 0.2s ease'
-                    }}
                   >
                     {editingEvaluationTargetId === t.uid ? (
                       <input
@@ -900,7 +844,7 @@ const ContestDetail: React.FC = () => {
                       </span>
                     )}
                     {editingEvaluationTargetId === t.uid ? (
-                      <div style={{ display: 'flex', gap: '8px' }}>
+                      <div className="contest-inline-actions">
                         <button 
                           className="contest-detail-team-button edit"
                           onClick={(e) => {
@@ -922,7 +866,7 @@ const ContestDetail: React.FC = () => {
                         </button>
                       </div>
                     ) : (
-                      <div style={{ display: 'flex', gap: '8px' }}>
+                      <div className="contest-inline-actions">
                         <button 
                           className="contest-detail-team-button edit"
                           onClick={(e) => {
@@ -946,71 +890,25 @@ const ContestDetail: React.FC = () => {
                   </div>
                 ))}
               {evaluationTargets.filter(t => !teams.some(team => Array.isArray(team.members) && team.members.includes(t.uid))).length === 0 && (
-                <div style={{
-                  textAlign: 'center',
-                  padding: '20px',
-                  color: '#9CA3AF',
-                  fontSize: '14px'
-                }}>
+                <div className="contest-empty-message">
                   아직 평가받는 대상이 없습니다.
                 </div>
               )}
             </div>
             {selectedEvaluationTargets.length >= 2 && (
-              <div className="contest-detail-duet-actions" style={{
-                marginTop: '16px',
-                padding: '16px',
-                background: 'linear-gradient(135deg, #F6F2FF 0%, #F0F4FF 100%)',
-                borderRadius: '12px',
-                border: '2px solid #8A55CC',
-                textAlign: 'center'
-              }}>
-                <div style={{
-                  marginBottom: '12px',
-                  color: '#6B21A8',
-                  fontWeight: 600,
-                  fontSize: '14px'
-                }}>
+              <div className="contest-targets-action-panel">
+                <div className="contest-targets-action-title">
                   {selectedEvaluationTargets.length}명이 선택되었습니다
                 </div>
                 <button 
-                  className="btn btn-primary"
+                  className="btn btn-primary contest-targets-create-btn"
                   onClick={handleMakeTeamFromTargets}
-                  style={{
-                    background: 'linear-gradient(135deg, #8A55CC 0%, #7C4DBC 100%)',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '8px',
-                    padding: '12px 32px',
-                    fontWeight: 700,
-                    fontSize: '16px',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 12px rgba(138, 85, 204, 0.3)',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(138, 85, 204, 0.4)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(138, 85, 204, 0.3)';
-                  }}
                 >
                   🎭 팀 만들기
                 </button>
                 <button
                   onClick={() => setSelectedEvaluationTargets([])}
-                  style={{
-                    marginTop: '8px',
-                    background: 'transparent',
-                    color: '#9CA3AF',
-                    border: '1px solid #D1D5DB',
-                    borderRadius: '6px',
-                    padding: '6px 16px',
-                    fontSize: '13px',
-                    cursor: 'pointer'
-                  }}
+                  className="contest-targets-cancel-btn"
                 >
                   선택 취소
                 </button>
@@ -1020,7 +918,7 @@ const ContestDetail: React.FC = () => {
         )}
 
         {/* 팀 목록 섹션 - 관리자만 표시 (팀 + evaluationTargets의 솔로참가자만 포함) */}
-        {isAdmin && (teams.length > 0 || evaluationTargets.filter(t => !teams.some(team => Array.isArray(team.members) && team.members.includes(t.uid))).length > 0) && (
+        {isAdmin && contest.type === '경연' && adminTab === 'teams' && hasTeamItems && (
           <section className="contest-detail-section">
             <h3 className="contest-detail-section-title">🎭 팀 목록</h3>
             <hr className="contest-detail-section-divider" />
@@ -1039,13 +937,8 @@ const ContestDetail: React.FC = () => {
                 const canMoveDown = index < sortedTeams.length - 1;
                 return (
                   <div key={team.id} className="contest-detail-team-item">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                      <div className="contest-detail-team-members" style={{
-                        fontWeight: 700,
-                        fontSize: '18px',
-                        color: '#8A55CC',
-                        flex: 1
-                      }}>
+                    <div className="contest-team-head">
+                      <div className="contest-detail-team-members contest-team-members-strong">
                         {Array.isArray(team.members) ? team.members.map((uid: string) => {
                           // 평가받는 대상에서만 찾기 (participants는 사용하지 않음)
                           const target = evaluationTargets.find(tt => tt.uid === uid);
@@ -1053,21 +946,11 @@ const ContestDetail: React.FC = () => {
                         }).join(' & ') : ''}
                       </div>
                       {isAdmin && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div className="contest-team-move-controls">
                           <button
                             onClick={() => handleMoveTeam(team.id, 'up')}
                             disabled={!canMoveUp}
-                            style={{
-                              background: canMoveUp ? '#8A55CC' : '#D1D5DB',
-                              color: '#fff',
-                              border: 'none',
-                              borderRadius: '4px',
-                              padding: '4px 8px',
-                              cursor: canMoveUp ? 'pointer' : 'not-allowed',
-                              fontSize: '12px',
-                              minWidth: '32px',
-                              opacity: canMoveUp ? 1 : 0.5
-                            }}
+                            className={`contest-team-move-btn ${canMoveUp ? 'enabled' : 'disabled'}`}
                             title="위로 이동"
                           >
                             ↑
@@ -1075,17 +958,7 @@ const ContestDetail: React.FC = () => {
                           <button
                             onClick={() => handleMoveTeam(team.id, 'down')}
                             disabled={!canMoveDown}
-                            style={{
-                              background: canMoveDown ? '#8A55CC' : '#D1D5DB',
-                              color: '#fff',
-                              border: 'none',
-                              borderRadius: '4px',
-                              padding: '4px 8px',
-                              cursor: canMoveDown ? 'pointer' : 'not-allowed',
-                              fontSize: '12px',
-                              minWidth: '32px',
-                              opacity: canMoveDown ? 1 : 0.5
-                            }}
+                            className={`contest-team-move-btn ${canMoveDown ? 'enabled' : 'disabled'}`}
                             title="아래로 이동"
                           >
                             ↓
@@ -1094,7 +967,7 @@ const ContestDetail: React.FC = () => {
                       )}
                     </div>
                     {isAdmin && (
-                      <div className="contest-detail-team-actions" style={{ display: 'flex', gap: '8px' }}>
+                      <div className="contest-detail-team-actions contest-inline-actions">
                         <button 
                           className="contest-detail-team-button break"
                           onClick={() => handleBreakDuet(team.id)}
@@ -1102,18 +975,14 @@ const ContestDetail: React.FC = () => {
                           팀 해제
                         </button>
                         <button 
-                          className="contest-detail-team-button break"
+                          className="contest-detail-team-button break danger"
                           onClick={() => handleDeleteTeam(team.id)}
-                          style={{
-                            background: '#F43F5E',
-                            color: '#fff'
-                          }}
                         >
                           삭제
                         </button>
                       </div>
                     )}
-                    <div style={{ marginTop: '8px' }}>
+                    <div className="contest-team-status-wrap">
                       <span className={`contest-detail-participant-status ${teamSubmitted ? 'submitted' : 'pending'}`}>
                         {teamSubmitted ? '✅ 제출완료' : '⏳ 대기중'}
                       </span>
@@ -1130,29 +999,20 @@ const ContestDetail: React.FC = () => {
                   const isSubmitted = p ? isParticipantSubmitted(p.nickname) : false;
                   return (
                     <div key={t.uid} className="contest-detail-team-item">
-                      <div className="contest-detail-team-members" style={{
-                        fontWeight: 700,
-                        fontSize: '18px',
-                        color: '#8A55CC',
-                        marginBottom: '8px'
-                      }}>
+                      <div className="contest-detail-team-members contest-team-members-strong contest-team-members-solo">
                         {t.nickname}
                       </div>
                       {isAdmin && (
-                        <div className="contest-detail-team-actions" style={{ display: 'flex', gap: '8px' }}>
+                        <div className="contest-detail-team-actions contest-inline-actions">
                           <button 
-                            className="contest-detail-team-button break"
+                            className="contest-detail-team-button break danger"
                             onClick={() => handleDeleteEvaluationTarget(t.uid)}
-                            style={{
-                              background: '#F43F5E',
-                              color: '#fff'
-                            }}
                           >
                             삭제
                           </button>
                         </div>
                       )}
-                      <div style={{ marginTop: '8px' }}>
+                      <div className="contest-team-status-wrap">
                         <span className={`contest-detail-participant-status ${isSubmitted ? 'submitted' : 'pending'}`}>
                           {isSubmitted ? '✅ 제출완료' : '⏳ 대기중'}
                         </span>

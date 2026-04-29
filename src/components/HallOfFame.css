@@ -150,6 +150,10 @@
   justify-content: center;
 }
 
+.hall-load-more-wrap.hall-load-more-inline {
+  margin-top: 10px;
+}
+
 .hall-load-more-btn {
   border: none;
   border-radius: 9px;

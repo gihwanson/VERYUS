@@ -34,8 +34,19 @@ type HallCachePayload = {
 const MEDALS = ['🥇', '🥈', '🥉'];
 const SHOW_HALL_DEBUG_LOG = Boolean(import.meta.env.DEV);
 const HALL_CACHE_KEY = 'veryus_hall_of_fame_cache_v1';
-const ACTIVITY_PERIOD_INITIAL_VISIBLE = 30;
-const ACTIVITY_PERIOD_LOAD_MORE_STEP = 30;
+const RANKING_INITIAL_VISIBLE = 30;
+const RANKING_LOAD_MORE_STEP = 30;
+
+type HallSectionKey = 'activity' | 'approvedSong' | 'comment' | 'post' | 'visit' | 'activePeriod';
+
+const initialVisibleCounts = (): Record<HallSectionKey, number> => ({
+  activity: RANKING_INITIAL_VISIBLE,
+  approvedSong: RANKING_INITIAL_VISIBLE,
+  comment: RANKING_INITIAL_VISIBLE,
+  post: RANKING_INITIAL_VISIBLE,
+  visit: RANKING_INITIAL_VISIBLE,
+  activePeriod: RANKING_INITIAL_VISIBLE
+});
 const DEFAULT_SCORE_WEIGHTS: ScoreWeights = {
   post: 10,
   comment: 5,
@@ -52,7 +63,7 @@ const HallOfFame: React.FC = () => {
   const [visitRanking, setVisitRanking] = useState<RankEntry[]>([]);
   const [activePeriodRanking, setActivePeriodRanking] = useState<RankEntry[]>([]);
   const [activityRanking, setActivityRanking] = useState<RankEntry[]>([]);
-  const [activePeriodVisibleCount, setActivePeriodVisibleCount] = useState(ACTIVITY_PERIOD_INITIAL_VISIBLE);
+  const [visibleCountBySection, setVisibleCountBySection] = useState<Record<HallSectionKey, number>>(initialVisibleCounts);
 
   const toSortedEntries = (counter: Map<string, number>, userMap: UserMap, topLimit = 20): RankEntry[] => {
     const sorted = Array.from(counter.entries())
@@ -90,7 +101,7 @@ const HallOfFame: React.FC = () => {
       setVisitRanking(parsed.visitRanking || []);
       setActivePeriodRanking(parsed.activePeriodRanking || []);
       setActivityRanking(parsed.activityRanking || []);
-      setActivePeriodVisibleCount(ACTIVITY_PERIOD_INITIAL_VISIBLE);
+      setVisibleCountBySection(initialVisibleCounts());
       return true;
     } catch (error) {
       console.warn('명예의전당 캐시 로드 실패:', error);
@@ -262,12 +273,13 @@ const HallOfFame: React.FC = () => {
         console.groupEnd();
       }
 
-      const nextPostRanking = toSortedEntries(filteredPostCounter, userMap);
-      const nextCommentRanking = toSortedEntries(filteredCommentCounter, userMap);
-      const nextVisitRanking = toSortedEntries(filteredVisitCounter, userMap);
+      // 상위 20명 자르면 더보기(30명 초기) 의미 없음 → 전체 정렬 후 UI에서 페이징
+      const nextPostRanking = toSortedEntries(filteredPostCounter, userMap, 0);
+      const nextCommentRanking = toSortedEntries(filteredCommentCounter, userMap, 0);
+      const nextVisitRanking = toSortedEntries(filteredVisitCounter, userMap, 0);
       const nextActivePeriodRanking = toSortedEntries(activePeriodCounter, userMap, 0);
-      const nextApprovedSongRanking = toSortedEntries(filteredApprovedSongCounter, userMap);
-      const nextActivityRanking = toSortedEntries(activityCounter, userMap);
+      const nextApprovedSongRanking = toSortedEntries(filteredApprovedSongCounter, userMap, 0);
+      const nextActivityRanking = toSortedEntries(activityCounter, userMap, 0);
       const nextUpdatedAt = new Date().toLocaleString('ko-KR');
 
       setPostRanking(nextPostRanking);
@@ -277,7 +289,7 @@ const HallOfFame: React.FC = () => {
       setApprovedSongRanking(nextApprovedSongRanking);
       setActivityRanking(nextActivityRanking);
       setUpdatedAt(nextUpdatedAt);
-      setActivePeriodVisibleCount(ACTIVITY_PERIOD_INITIAL_VISIBLE);
+      setVisibleCountBySection(initialVisibleCounts());
 
       writeHallCache({
         updatedAt: nextUpdatedAt,
@@ -303,26 +315,62 @@ const HallOfFame: React.FC = () => {
     void loadRanking(!hasCache);
   }, []);
 
-  const visibleActivePeriodRanking = useMemo(
-    () => activePeriodRanking.slice(0, activePeriodVisibleCount),
-    [activePeriodRanking, activePeriodVisibleCount]
-  );
-  const remainingActivePeriodCount = Math.max(0, activePeriodRanking.length - visibleActivePeriodRanking.length);
   const formatWeight = (value: number) => (Number.isInteger(value) ? `${value}` : value.toFixed(1));
 
-  const sections = useMemo(() => ([
-    {
-      title: '종합 활동 순위',
-      subtitle: `게시글(${formatWeight(scoreWeights.post)}점) + 댓글(${formatWeight(scoreWeights.comment)}점) + 눈팅(${formatWeight(scoreWeights.lurking)}점/행동) 합산`,
-      ranking: activityRanking,
-      unit: '점'
-    },
-    { title: '합격곡 순위', subtitle: '합격곡 멤버로 등재된 횟수', ranking: approvedSongRanking, unit: '개 합격곡' },
-    { title: '댓글 작성 순위', subtitle: '작성한 댓글 누적 수', ranking: commentRanking, unit: '개' },
-    { title: '게시글 작성 순위', subtitle: '작성한 게시글 누적 수', ranking: postRanking, unit: '개' },
-    { title: '눈팅 순위', subtitle: '게시판 진입/게시글 진입/녹음 재생 누적 점수', ranking: visitRanking, unit: '점' },
-    { title: '활동기간 순위', subtitle: '가입일 기준 활동 경과 기간', ranking: visibleActivePeriodRanking, unit: '일' }
-  ]), [activityRanking, approvedSongRanking, commentRanking, postRanking, visitRanking, visibleActivePeriodRanking, scoreWeights, formatWeight]);
+  const sections = useMemo(
+    () =>
+      [
+        {
+          key: 'activity' as const,
+          title: '종합 활동 순위',
+          subtitle: `게시글(${formatWeight(scoreWeights.post)}점) + 댓글(${formatWeight(scoreWeights.comment)}점) + 눈팅(${formatWeight(scoreWeights.lurking)}점/행동) 합산`,
+          ranking: activityRanking,
+          unit: '점'
+        },
+        {
+          key: 'approvedSong' as const,
+          title: '합격곡 순위',
+          subtitle: '합격곡 멤버로 등재된 횟수',
+          ranking: approvedSongRanking,
+          unit: '개 합격곡'
+        },
+        {
+          key: 'comment' as const,
+          title: '댓글 작성 순위',
+          subtitle: '작성한 댓글 누적 수',
+          ranking: commentRanking,
+          unit: '개'
+        },
+        {
+          key: 'post' as const,
+          title: '게시글 작성 순위',
+          subtitle: '작성한 게시글 누적 수',
+          ranking: postRanking,
+          unit: '개'
+        },
+        {
+          key: 'visit' as const,
+          title: '눈팅 순위',
+          subtitle: '게시판 진입/게시글 진입/녹음 재생 누적 점수',
+          ranking: visitRanking,
+          unit: '점'
+        },
+        {
+          key: 'activePeriod' as const,
+          title: '활동기간 순위',
+          subtitle: '가입일 기준 활동 경과 기간',
+          ranking: activePeriodRanking,
+          unit: '일'
+        }
+      ] satisfies Array<{
+        key: HallSectionKey;
+        title: string;
+        subtitle: string;
+        ranking: RankEntry[];
+        unit: string;
+      }>,
+    [activityRanking, approvedSongRanking, commentRanking, postRanking, visitRanking, activePeriodRanking, scoreWeights]
+  );
 
   if (loading) {
     return <GlobalLoadingScreen message="명예의전당을 불러오는 중..." />;
@@ -348,58 +396,71 @@ const HallOfFame: React.FC = () => {
         </div>
 
         <div className="hall-sections-grid">
-          {sections.map((section) => (
-            <section key={section.title} className="hall-section">
-              <div className="hall-section-head">
-                <h3>{section.title}</h3>
-                <p>{section.subtitle}</p>
-              </div>
-              <div className="hall-table-wrap">
-                <table className="hall-table">
-                  <thead>
-                    <tr>
-                      <th>순위</th>
-                      <th>닉네임</th>
-                      <th>활동량</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {section.ranking.length === 0 ? (
+          {sections.map((section) => {
+            const limit = visibleCountBySection[section.key];
+            const visibleRows = section.ranking.slice(0, limit);
+            const remaining = Math.max(0, section.ranking.length - visibleRows.length);
+
+            return (
+              <section key={section.key} className="hall-section">
+                <div className="hall-section-head">
+                  <h3>{section.title}</h3>
+                  <p>{section.subtitle}</p>
+                </div>
+                <div className="hall-table-wrap">
+                  <table className="hall-table">
+                    <thead>
                       <tr>
-                        <td colSpan={3} className="hall-empty">데이터가 아직 없습니다.</td>
+                        <th>순위</th>
+                        <th>닉네임</th>
+                        <th>활동량</th>
                       </tr>
-                    ) : section.ranking.map((entry, idx) => (
-                      <tr key={`${section.title}-${entry.uid}-${idx}`}>
-                        <td>{MEDALS[idx] || `${idx + 1}`}</td>
-                        <td>
-                          <span className="hall-name-with-grade">
-                            <span className="hall-grade-inline">{getGradeEmoji(entry.grade)}</span>
-                            <span className="hall-name">{entry.nickname}</span>
-                          </span>
-                          {entry.role && entry.role !== '일반' && entry.role !== '평가자' && (
-                            <span className="hall-role">{entry.role}</span>
-                          )}
-                        </td>
-                        <td>{Number.isInteger(entry.score) ? entry.score : entry.score.toFixed(1)}{section.unit}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          ))}
+                    </thead>
+                    <tbody>
+                      {visibleRows.length === 0 ? (
+                        <tr>
+                          <td colSpan={3} className="hall-empty">데이터가 아직 없습니다.</td>
+                        </tr>
+                      ) : (
+                        visibleRows.map((entry, idx) => (
+                          <tr key={`${section.key}-${entry.uid}-${idx}`}>
+                            <td>{MEDALS[idx] || `${idx + 1}`}</td>
+                            <td>
+                              <span className="hall-name-with-grade">
+                                <span className="hall-grade-inline">{getGradeEmoji(entry.grade)}</span>
+                                <span className="hall-name">{entry.nickname}</span>
+                              </span>
+                              {entry.role && entry.role !== '일반' && entry.role !== '평가자' && (
+                                <span className="hall-role">{entry.role}</span>
+                              )}
+                            </td>
+                            <td>{Number.isInteger(entry.score) ? entry.score : entry.score.toFixed(1)}{section.unit}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                {remaining > 0 && (
+                  <div className="hall-load-more-wrap hall-load-more-inline">
+                    <button
+                      type="button"
+                      className="hall-load-more-btn"
+                      onClick={() =>
+                        setVisibleCountBySection((prev) => ({
+                          ...prev,
+                          [section.key]: prev[section.key] + RANKING_LOAD_MORE_STEP
+                        }))
+                      }
+                    >
+                      {section.title} 더보기 ({remaining}명 남음)
+                    </button>
+                  </div>
+                )}
+              </section>
+            );
+          })}
         </div>
-        {remainingActivePeriodCount > 0 && (
-          <div className="hall-load-more-wrap">
-            <button
-              type="button"
-              className="hall-load-more-btn"
-              onClick={() => setActivePeriodVisibleCount((prev) => prev + ACTIVITY_PERIOD_LOAD_MORE_STEP)}
-            >
-              활동기간 순위 더보기 ({remainingActivePeriodCount}명 남음)
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );

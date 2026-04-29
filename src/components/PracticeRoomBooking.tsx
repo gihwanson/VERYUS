@@ -96,14 +96,17 @@ const PracticeRoomBooking: React.FC = () => {
   const lastSlotInteractionAtRef = useRef(0); // 터치/클릭 중복 실행 방지
   const [isAdmin, setIsAdmin] = useState(false);
   const [dailyUsedHours, setDailyUsedHours] = useState(0);
+  const [weeklyReservationCount, setWeeklyReservationCount] = useState(0);
   const [checkedInMembers, setCheckedInMembers] = useState<CheckIn[]>([]);
   const [myCheckIn, setMyCheckIn] = useState<CheckIn | null>(null);
+  const isUnlimitedUser = currentUser?.nickname === '너래';
 
   // 연습실 운영 시간 설정 (09:00 ~ 22:00, 1시간 단위)
   const OPEN_TIME = 9;
   const CLOSE_TIME = 22;
   const SLOT_DURATION = 60; // 분
   const MAX_DAILY_HOURS = 3; // 1인당 하루 최대 예약 시간
+  const MAX_WEEKLY_RESERVATIONS = 1; // 1인당 주간 최대 예약 횟수
   const AUTO_CHECKOUT_MS = 4 * 60 * 60 * 1000; // 4시간 자동 퇴실
 
   useEffect(() => {
@@ -134,6 +137,7 @@ const PracticeRoomBooking: React.FC = () => {
       loadReservations();
       loadMyReservations();
       calculateDailyUsedHours();
+      calculateWeeklyReservationCount();
       loadBlockedSlots();
       loadBlockingRules();
     }
@@ -239,6 +243,7 @@ const PracticeRoomBooking: React.FC = () => {
         loadReservations();
         loadMyReservations();
         calculateDailyUsedHours();
+        calculateWeeklyReservationCount();
         loadBlockedSlots();
       } else {
         console.log('예약 처리 중이라 자동 새로고침 생략');
@@ -451,6 +456,49 @@ const PracticeRoomBooking: React.FC = () => {
     }
   };
 
+  const calculateWeeklyReservationCount = async (targetDate?: Date) => {
+    if (!currentUser) return 0;
+
+    try {
+      const dateToCheck = targetDate || selectedDate;
+      const weekStartStr = formatDate(getWeekStart(dateToCheck));
+      const weekEndStr = formatDate(getWeekEnd(dateToCheck));
+
+      const q = query(
+        collection(db, 'practiceRoomReservations'),
+        where('userId', '==', currentUser.uid)
+      );
+
+      const snapshot = await getDocs(q);
+      const weeklyReservations = snapshot.docs.filter((item) => {
+        const data = item.data() as Record<string, any>;
+        if (data.status !== 'confirmed') return false;
+        const dateStr = String(data.date || '');
+        return dateStr >= weekStartStr && dateStr <= weekEndStr;
+      });
+
+      // 1~3시간 연속 예약은 같은 reservationGroup으로 묶여 1회로 계산
+      const uniqueGroups = new Set<string>();
+      weeklyReservations.forEach((item) => {
+        const data = item.data() as Record<string, any>;
+        const groupKey =
+          typeof data.reservationGroup === 'string' && data.reservationGroup.trim()
+            ? data.reservationGroup.trim()
+            : `${String(data.date || '')}_${String(data.startTime || '')}`;
+        uniqueGroups.add(groupKey);
+      });
+
+      const total = uniqueGroups.size;
+      if (formatDate(dateToCheck) === formatDate(selectedDate)) {
+        setWeeklyReservationCount(total);
+      }
+      return total;
+    } catch (error) {
+      console.error('주간 예약 횟수 계산 실패:', error);
+      return 0;
+    }
+  };
+
   const formatDate = (date: Date): string => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -637,6 +685,19 @@ const PracticeRoomBooking: React.FC = () => {
       console.log('🖱️ ========== 시간대 클릭 ==========');
       console.log('📅 클릭한 날짜:', formatDate(date));
       console.log('🕐 선택한 시간:', slot.time);
+
+      // 먼저 화면 상태값으로 즉시 차단/알림
+      if (!isUnlimitedUser && weeklyReservationCount >= MAX_WEEKLY_RESERVATIONS) {
+        alert('주에 1회만 예약이 가능합니다.');
+        return;
+      }
+
+      // 이어서 DB 재조회로 재검증 (동시성/다중 탭 대비)
+      const weeklyCount = await calculateWeeklyReservationCount(date);
+      if (!isUnlimitedUser && weeklyCount >= MAX_WEEKLY_RESERVATIONS) {
+        alert('주에 1회만 예약이 가능합니다.');
+        return;
+      }
       
       // 관리자는 예약/차단/예외취소 선택 모달 표시
       if (isAdmin && !slot.isException) {
@@ -697,6 +758,10 @@ const PracticeRoomBooking: React.FC = () => {
     lastSlotInteractionAtRef.current = now;
 
     if (slot.isPast) return;
+    if (!isUnlimitedUser && slot.isAvailable && weeklyReservationCount >= MAX_WEEKLY_RESERVATIONS) {
+      window.alert('주에 1회만 예약이 가능합니다.');
+      return;
+    }
     void handleTimeSlotClick(slot, date);
   };
 
@@ -727,6 +792,15 @@ const PracticeRoomBooking: React.FC = () => {
       console.log('📅 예약 날짜:', dateStr);
       console.log('🕐 시작 시간:', selectedTimeSlot.time);
       console.log('⏱️  예약 시간:', duration, '시간');
+
+      const weeklyCount = await calculateWeeklyReservationCount(bookingDate);
+      if (!isUnlimitedUser && weeklyCount >= MAX_WEEKLY_RESERVATIONS) {
+        alert('주에 1회만 예약이 가능합니다.');
+        isBookingInProgress.current = false;
+        setLoading(false);
+        setShowBookingModal(false);
+        return;
+      }
       
       // 예약 직전 일일 한도 재확인 (관리자 제외)
       if (!isAdmin) {
@@ -854,16 +928,20 @@ const PracticeRoomBooking: React.FC = () => {
       await loadReservations();
       await loadMyReservations();
       const newUsedHours = await calculateDailyUsedHours(reservedDate);
+      const newWeeklyCount = await calculateWeeklyReservationCount(reservedDate);
       
       console.log('');
       console.log('✅ ========== 예약 완료! ==========');
       console.log('📅 날짜:', dateStr);
       console.log('⏱️  예약 시간:', reservedDuration, '시간');
       console.log('📊 총 사용 시간:', newUsedHours, '/', MAX_DAILY_HOURS, '시간');
+      console.log('📊 주간 예약:', newWeeklyCount, '/', MAX_WEEKLY_RESERVATIONS, '회');
       console.log('✅ ================================');
       console.log('');
       
-      alert(`${reservedDuration}시간 예약 완료!\n\n${dateStr}\n사용: ${newUsedHours}/${MAX_DAILY_HOURS}시간`);
+      alert(
+        `${reservedDuration}시간 예약 완료!\n\n${dateStr}\n일일 사용: ${newUsedHours}/${MAX_DAILY_HOURS}시간\n주간 예약: ${newWeeklyCount}/${MAX_WEEKLY_RESERVATIONS}회`
+      );
       console.log('🔓 잠금 해제');
     } catch (error) {
       console.error('❌ 예약 실패:', error);
@@ -939,6 +1017,7 @@ const PracticeRoomBooking: React.FC = () => {
       await loadReservations();
       await loadMyReservations();
       const newUsedHours = await calculateDailyUsedHours(canceledDate);
+      await calculateWeeklyReservationCount(canceledDate);
       console.log('새로고침 완료. 총 사용 시간:', newUsedHours, '/', MAX_DAILY_HOURS);
       
       alert('예약이 취소되었습니다.');
@@ -1151,6 +1230,7 @@ const PracticeRoomBooking: React.FC = () => {
       await loadReservations();
       await loadMyReservations();
       await calculateDailyUsedHours();
+      await calculateWeeklyReservationCount();
       await loadBlockedSlots();
       console.log('수동 새로고침 완료');
     } finally {
@@ -1465,9 +1545,9 @@ const PracticeRoomBooking: React.FC = () => {
             <span className="limit-text">
               오늘 사용: <strong>{dailyUsedHours}</strong> / {MAX_DAILY_HOURS}시간
             </span>
-            {dailyUsedHours >= MAX_DAILY_HOURS && (
-              <span className="limit-warning">⚠️ 오늘 예약 한도 도달</span>
-            )}
+            <span className="limit-text">
+              이번 주 예약: <strong>{weeklyReservationCount}</strong> / {MAX_WEEKLY_RESERVATIONS}회
+            </span>
           </div>
         )}
       </div>
