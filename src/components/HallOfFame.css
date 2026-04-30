@@ -1,6 +1,8 @@
 .hall-of-fame-page {
   min-height: 100vh;
-  padding: 10px 10px 86px;
+  min-height: 100dvh;
+  /* 고정 하단 네비 + 노치/홈바: index.css 모바일에서 App padding이 0으로 덮이므로 페이지에서 반드시 확보 */
+  padding: 10px 10px calc(96px + env(safe-area-inset-bottom, 0px));
   background: linear-gradient(135deg, #667eea 0%, #764ba2 55%, #8b5cf6 100%);
 }
 
@@ -152,6 +154,10 @@
 
 .hall-load-more-wrap.hall-load-more-inline {
   margin-top: 10px;
+  margin-bottom: 4px;
+  position: relative;
+  z-index: 2;
+  scroll-margin-bottom: 24px;
 }
 
 .hall-load-more-btn {
@@ -163,10 +169,37 @@
   font-weight: 700;
   font-size: 12px;
   cursor: pointer;
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 2px 14px rgba(45, 30, 90, 0.22);
+}
+
+.hall-load-more-btn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 2px;
 }
 
 @media (max-width: 860px) {
   .hall-sections-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .hall-of-fame-page {
+    padding: 10px 10px calc(112px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .hall-load-more-wrap.hall-load-more-inline {
+    margin-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* 좁은 화면에서 긴 라벨이 한 줄 버튼 밖으로 잘리지 않게 */
+  .hall-load-more-btn {
+    white-space: normal;
+    font-size: 11px;
+    line-height: 1.35;
+    max-width: 100%;
+    padding: 10px 12px;
   }
 }

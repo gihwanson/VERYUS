@@ -335,19 +335,20 @@
 .contest-ui-refresh .contest-results-content {
   position: relative;
   z-index: 1;
-  max-width: 1160px;
+  max-width: min(1160px, 100%);
   margin: 0 auto;
-  padding: 24px 18px 40px;
+  /* 바깥 그라데이션을 조금 더 보이게 — 안쪽은 덜 빽빽하게 */
+  padding: 22px clamp(14px, 4vw, 32px) 48px;
 }
 
 .contest-ui-refresh .contest-results-panel {
   background: var(--cu-card);
   border: 1px solid var(--cu-card-border);
-  border-radius: 20px;
-  padding: 22px;
+  border-radius: 18px;
+  padding: 18px 16px 20px;
   backdrop-filter: blur(14px);
   box-shadow: var(--cu-shadow);
-  margin-bottom: 18px;
+  margin-bottom: 22px;
 }
 
 .contest-ui-refresh .contest-results-title {
@@ -506,8 +507,14 @@
 }
 
 .contest-ui-refresh .contest-results-panel {
-  background: rgba(255, 255, 255, 0.22) !important;
-  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  background: rgba(255, 255, 255, 0.18) !important;
+  border: 1px solid rgba(255, 255, 255, 0.28) !important;
+  box-shadow: 0 8px 32px rgba(45, 30, 90, 0.12) !important;
+}
+
+/* 표가 있는 패널: 아래쪽 여백만 살짝 넉넉히 */
+.contest-ui-refresh .contest-results-panel:has(.contest-results-table-scroll) {
+  padding-bottom: 22px;
 }
 
 .contest-participate-refresh input,
@@ -522,8 +529,28 @@
   color: #6b7280 !important;
 }
 
-/* 결과표에서 심사코멘트 칸이 남는 폭까지 사용하도록 확장 */
+/* 결과표 가로 스크롤 — 래퍼는 투명(이중 흰 박스 제거), 표만 한 겹 배경 */
+.contest-ui-refresh .contest-results-table-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+  margin-top: 4px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.contest-ui-refresh .contest-results-table-scroll .contest-table {
+  overflow: visible !important;
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.45) inset;
+}
+
+/* results: components.css 의 display:block 테이블 해제 — 정상 표 레이아웃 필요 */
 .contest-ui-refresh .contest-results-panel .contest-table {
+  display: table !important;
+  width: 100%;
   table-layout: auto !important;
 }
 
@@ -537,29 +564,219 @@
   width: 100% !important;
 }
 
-/* 닉네임/점수/등급 컬럼 가독성 개선 (글자 단위 줄바꿈 방지) */
-.contest-ui-refresh .contest-results-panel .contest-table th:nth-child(2),
-.contest-ui-refresh .contest-results-panel .contest-table td:nth-child(2),
-.contest-ui-refresh .contest-results-panel .contest-table th:nth-child(3),
-.contest-ui-refresh .contest-results-panel .contest-table td:nth-child(3),
-.contest-ui-refresh .contest-results-panel .contest-table th:nth-child(4),
-.contest-ui-refresh .contest-results-panel .contest-table td:nth-child(4) {
+/* 닉네임/점수/등급(4번째)만 nowrap — 클래스로 한정하면 등급 숨김 후 5열 구조와 혼동 없음 */
+.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table) th:nth-child(2),
+.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table) td:nth-child(2),
+.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table) th:nth-child(3),
+.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table) td:nth-child(3),
+.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table) th:nth-child(4),
+.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table) td:nth-child(4) {
   white-space: nowrap !important;
   word-break: keep-all !important;
   overflow-wrap: normal !important;
 }
 
-.contest-ui-refresh .contest-results-panel .contest-table th:nth-child(2),
-.contest-ui-refresh .contest-results-panel .contest-table td:nth-child(2) {
+.contest-ui-refresh .contest-results-panel .contest-results-compact-table th:nth-child(1),
+.contest-ui-refresh .contest-results-panel .contest-results-compact-table td:nth-child(1),
+.contest-ui-refresh .contest-results-panel .contest-results-compact-table th:nth-child(2),
+.contest-ui-refresh .contest-results-panel .contest-results-compact-table td:nth-child(2),
+.contest-ui-refresh .contest-results-panel .contest-results-compact-table th:nth-child(3),
+.contest-ui-refresh .contest-results-panel .contest-results-compact-table td:nth-child(3) {
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+}
+
+.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table) th:nth-child(2),
+.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table) td:nth-child(2) {
   min-width: 90px !important;
 }
 
-.contest-ui-refresh .contest-results-panel .contest-table th:nth-child(3),
-.contest-ui-refresh .contest-results-panel .contest-table td:nth-child(3) {
+.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table) th:nth-child(3),
+.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table) td:nth-child(3) {
   min-width: 96px !important;
 }
 
-.contest-ui-refresh .contest-results-panel .contest-table th:nth-child(4),
-.contest-ui-refresh .contest-results-panel .contest-table td:nth-child(4) {
+.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table):not(.contest-results-detail-table) th:nth-child(4),
+.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table):not(.contest-results-detail-table) td:nth-child(4) {
   min-width: 84px !important;
+}
+
+.contest-ui-refresh .contest-results-panel .contest-results-detail-table {
+  min-width: 760px !important;
+  table-layout: fixed !important;
+}
+
+.contest-ui-refresh .contest-results-panel .contest-results-detail-table th:last-child,
+.contest-ui-refresh .contest-results-panel .contest-results-detail-table td:last-child {
+  min-width: 360px !important;
+  width: auto !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+}
+
+/* 상세 심사표: 앞 3열은 고정폭, 심사코멘트 열에 폭 우선 배정 */
+.contest-ui-refresh .contest-results-panel .contest-results-detail-table th:nth-child(1),
+.contest-ui-refresh .contest-results-panel .contest-results-detail-table td:nth-child(1) {
+  width: 9% !important;
+  min-width: 64px !important;
+  white-space: nowrap !important;
+}
+
+.contest-ui-refresh .contest-results-panel .contest-results-detail-table th:nth-child(2),
+.contest-ui-refresh .contest-results-panel .contest-results-detail-table td:nth-child(2) {
+  width: 14% !important;
+  min-width: 92px !important;
+  white-space: nowrap !important;
+}
+
+.contest-ui-refresh .contest-results-panel .contest-results-detail-table th:nth-child(3),
+.contest-ui-refresh .contest-results-panel .contest-results-detail-table td:nth-child(3) {
+  width: 12% !important;
+  min-width: 88px !important;
+  white-space: nowrap !important;
+  text-align: center;
+}
+
+.contest-ui-refresh .contest-results-panel .contest-results-compact-table th.contest-results-col-comment,
+.contest-ui-refresh .contest-results-panel .contest-results-compact-table td.contest-results-col-comment {
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+  overflow: visible !important;
+}
+
+.contest-ui-refresh .contest-results-compact-table th:nth-child(1),
+.contest-ui-refresh .contest-results-compact-table td:nth-child(1) {
+  width: 56px !important;
+  min-width: 56px !important;
+}
+
+.contest-ui-refresh .contest-results-compact-table th:nth-child(3),
+.contest-ui-refresh .contest-results-compact-table td:nth-child(3) {
+  min-width: 76px !important;
+}
+
+.contest-ui-refresh .contest-results-count-badge {
+  margin-left: 4px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.contest-ui-refresh .contest-results-inline-grade {
+  margin-left: 6px;
+  font-size: 0.95em;
+  vertical-align: baseline;
+}
+
+@media (max-width: 768px) {
+  .contest-ui-refresh .contest-results-content {
+    padding: 16px 12px 40px;
+  }
+
+  .contest-ui-refresh .contest-results-panel {
+    padding: 14px 12px 16px;
+    margin-bottom: 16px;
+    border-radius: 16px;
+  }
+
+  .contest-ui-refresh .contest-results-compact-table th,
+  .contest-ui-refresh .contest-results-compact-table td {
+    padding: 6px !important;
+    font-size: 13px !important;
+  }
+
+  .contest-ui-refresh .contest-results-compact-table th:nth-child(1),
+  .contest-ui-refresh .contest-results-compact-table td:nth-child(1) {
+    width: 44px !important;
+    min-width: 44px !important;
+    font-size: 14px !important;
+  }
+
+  .contest-ui-refresh .contest-results-compact-table th:nth-child(2),
+  .contest-ui-refresh .contest-results-compact-table td:nth-child(2) {
+    min-width: 72px !important;
+    max-width: 92px !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .contest-ui-refresh .contest-results-compact-table th:nth-child(3),
+  .contest-ui-refresh .contest-results-compact-table td:nth-child(3) {
+    min-width: 62px !important;
+  }
+
+  /* 모바일: 인라인 maxWidth 등과 무관하게 코멘트 열이 잘리지 않게 */
+  .contest-ui-refresh .contest-results-panel .contest-table th:last-child,
+  .contest-ui-refresh .contest-results-panel .contest-table td:last-child {
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+    overflow: visible !important;
+  }
+
+  .contest-ui-refresh .contest-results-panel .contest-results-compact-table th.contest-results-col-comment,
+  .contest-ui-refresh .contest-results-panel .contest-results-compact-table td.contest-results-col-comment {
+    min-width: 0 !important;
+    max-width: none !important;
+  }
+
+  .contest-ui-refresh .contest-results-panel .contest-results-detail-table {
+    min-width: 0 !important;
+    width: 100% !important;
+    table-layout: fixed !important;
+  }
+
+  .contest-ui-refresh .contest-results-panel .contest-results-detail-table th,
+  .contest-ui-refresh .contest-results-panel .contest-results-detail-table td {
+    font-size: 12px !important;
+    padding: 6px 4px !important;
+  }
+
+  .contest-ui-refresh .contest-results-panel .contest-results-detail-table th:nth-child(1),
+  .contest-ui-refresh .contest-results-panel .contest-results-detail-table td:nth-child(1) {
+    width: 13% !important;
+    min-width: 44px !important;
+    white-space: nowrap !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .contest-ui-refresh .contest-results-panel .contest-results-detail-table th:nth-child(2),
+  .contest-ui-refresh .contest-results-panel .contest-results-detail-table td:nth-child(2) {
+    width: 19% !important;
+    min-width: 64px !important;
+    white-space: nowrap !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .contest-ui-refresh .contest-results-panel .contest-results-detail-table th:nth-child(3),
+  .contest-ui-refresh .contest-results-panel .contest-results-detail-table td:nth-child(3) {
+    width: 14% !important;
+    min-width: 62px !important;
+    white-space: nowrap !important;
+  }
+
+  .contest-ui-refresh .contest-results-panel .contest-results-detail-table th:last-child,
+  .contest-ui-refresh .contest-results-panel .contest-results-detail-table td:last-child {
+    width: 54% !important;
+    min-width: 0 !important;
+    white-space: normal !important;
+  }
+
+  /* 평균 열 과대 폭 줄이고 코멘트에 우선 폭 할당 */
+  .contest-ui-refresh .contest-results-compact-table th:nth-child(3),
+  .contest-ui-refresh .contest-results-compact-table td:nth-child(3) {
+    max-width: 88px !important;
+  }
+
+  .contest-ui-refresh .contest-results-count-badge {
+    font-size: 11px;
+    margin-left: 2px;
+  }
 }

@@ -196,6 +196,7 @@ const AnonymousChatRoom: React.FC = () => {
   const [editingRoomTitle, setEditingRoomTitle] = useState(false);
   const [roomTitleDraft, setRoomTitleDraft] = useState('');
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const messageInputRef = useRef<HTMLInputElement | null>(null);
   const messageItemRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const scrollRetryTimeoutRef = useRef<number | null>(null);
   const shouldAutoScrollRef = useRef(true);
@@ -205,6 +206,23 @@ const AnonymousChatRoom: React.FC = () => {
     const container = messagesContainerRef.current;
     if (!container) return;
     container.scrollTo({ top: container.scrollHeight, behavior });
+  }, []);
+
+  /** 모바일: 전송·자동 스크롤 후에도 입력 포커스를 유지해 키보드가 접히지 않게 함 */
+  const refocusComposerInput = useCallback(() => {
+    const el = messageInputRef.current;
+    if (!el || el.disabled) return;
+    const run = () => {
+      try {
+        el.focus({ preventScroll: true });
+      } catch {
+        el.focus();
+      }
+    };
+    queueMicrotask(run);
+    requestAnimationFrame(run);
+    window.setTimeout(run, 0);
+    window.setTimeout(run, 80);
   }, []);
 
   const isNearBottom = useCallback(() => {
@@ -542,11 +560,32 @@ const AnonymousChatRoom: React.FC = () => {
   useLayoutEffect(() => {
     if (!selectedRoomId) return;
     if (shouldAutoScrollRef.current || isNearBottom()) {
-      forceScrollToLatest();
+      const composer = messageInputRef.current;
+      const keepKeyboardOpen =
+        isTouchDevice && !!composer && document.activeElement === composer;
+
       shouldAutoScrollRef.current = false;
       markRoomAsReadThrottled();
-    };
-  }, [latestTimelineToken, selectedRoomId, forceScrollToLatest, isNearBottom, markRoomAsReadThrottled]);
+
+      if (keepKeyboardOpen) {
+        requestAnimationFrame(() => {
+          scrollToLatestMessage();
+          refocusComposerInput();
+        });
+      } else {
+        forceScrollToLatest();
+      }
+    }
+  }, [
+    latestTimelineToken,
+    selectedRoomId,
+    forceScrollToLatest,
+    scrollToLatestMessage,
+    refocusComposerInput,
+    isNearBottom,
+    markRoomAsReadThrottled,
+    isTouchDevice
+  ]);
 
   useEffect(() => {
     if (!selectedRoomId) return;
@@ -1063,6 +1102,10 @@ const AnonymousChatRoom: React.FC = () => {
         await updateDoc(doc(db, 'anonymousChatRooms', selectedRoomId), { isFrozen: false }).catch(() => undefined);
       } finally {
         setSending(false);
+        requestAnimationFrame(() => {
+          forceScrollToLatest();
+          refocusComposerInput();
+        });
       }
       return;
     }
@@ -1075,7 +1118,6 @@ const AnonymousChatRoom: React.FC = () => {
     setSending(true);
     try {
       shouldAutoScrollRef.current = true;
-      forceScrollToLatest();
       await addDoc(collection(db, 'anonymousChatRooms', selectedRoomId, 'messages'), {
         uid: user.uid,
         senderLabel: profile.customNickname,
@@ -1126,7 +1168,10 @@ const AnonymousChatRoom: React.FC = () => {
       alert('메시지 전송에 실패했습니다.');
     } finally {
       setSending(false);
-      forceScrollToLatest();
+      requestAnimationFrame(() => {
+        forceScrollToLatest();
+        refocusComposerInput();
+      });
     }
   }, [
     input,
@@ -1142,7 +1187,8 @@ const AnonymousChatRoom: React.FC = () => {
     replyTarget,
     roomParticipants,
     forceScrollToLatest,
-    markRoomAsReadThrottled
+    markRoomAsReadThrottled,
+    refocusComposerInput
   ]);
 
   const handleBackToRoomList = useCallback(() => {
@@ -1782,7 +1828,9 @@ const AnonymousChatRoom: React.FC = () => {
         )}
         <div className="anonymous-chat-input-top">
           <input
+            ref={messageInputRef}
             type="text"
+            enterKeyHint="send"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleInputKeyDown}
@@ -1799,7 +1847,13 @@ const AnonymousChatRoom: React.FC = () => {
           </div>
           <div className="anonymous-chat-input-right">
             <div className="anonymous-chat-voice-slider" />
-            <button className="anonymous-chat-send-btn" onClick={handleSendMessage} disabled={sending || !input.trim() || isMyChatMuted || isRoomFrozen}>
+            <button
+              type="button"
+              className="anonymous-chat-send-btn"
+              disabled={sending || !input.trim() || isMyChatMuted || isRoomFrozen}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => void handleSendMessage()}
+            >
               전송
             </button>
           </div>

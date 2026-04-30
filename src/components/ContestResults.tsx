@@ -101,6 +101,11 @@ const ContestResults: React.FC = () => {
     return '';
   };
 
+  const getGradeEmoji = (avg: number) => {
+    const full = getGrade(avg);
+    return full ? full.split(' ')[0] : '';
+  };
+
   // 피평가자 표시 함수
   const getTargetDisplay = (target: string) => {
     const team = teams.find(t => t.id === target);
@@ -246,13 +251,19 @@ const ContestResults: React.FC = () => {
         userSelect: 'text',
         WebkitUserSelect: 'text',
         MozUserSelect: 'text',
-        msUserSelect: 'text'
+        msUserSelect: 'text',
+        minWidth: 0,
+        overflow: 'visible',
       }}>
         {shown.map((c, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
-            <span style={{ color: '#8A55CC', fontWeight: 'bold', fontSize: 16 }}>•</span>
+          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 4, minWidth: 0 }}>
+            <span style={{ color: '#8A55CC', fontWeight: 'bold', fontSize: 16, flexShrink: 0 }}>•</span>
             <span style={{ 
               color: 'var(--text-primary, #333)',
+              flex: '1 1 auto',
+              minWidth: 0,
+              overflowWrap: 'anywhere',
+              wordBreak: 'break-word',
               userSelect: 'text',
               WebkitUserSelect: 'text',
               MozUserSelect: 'text',
@@ -333,14 +344,14 @@ const ContestResults: React.FC = () => {
         </div>
       <div className="contest-results-panel">
         <h3 style={{ color: '#8A55CC', fontWeight: 700, fontSize: 20, marginBottom: 12, textAlign: 'center' }}>🏆 최종 등급 결과 (점수순 순위)</h3>
-        <table className="contest-table">
+        <div className="contest-results-table-scroll">
+        <table className="contest-table contest-results-compact-table">
           <thead>
             <tr style={{ background: '#F6F2FF', color: '#8A55CC' }}>
               <th style={{ padding: 8, border: '1px solid #E5DAF5', textAlign: 'center' }}>순위</th>
               <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>닉네임</th>
-              <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>평균점수</th>
-              <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>등급</th>
-              <th style={{ padding: 8, border: '1px solid #E5DAF5', maxWidth: 320, wordBreak: 'break-all', whiteSpace: 'pre-line' }}>심사코멘트</th>
+              <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>평균</th>
+              <th className="contest-results-col-comment" style={{ padding: 8, border: '1px solid #E5DAF5', maxWidth: 320, wordBreak: 'break-all', whiteSpace: 'pre-line' }}>심사코멘트</th>
             </tr>
           </thead>
           <tbody>
@@ -373,7 +384,8 @@ const ContestResults: React.FC = () => {
                     fontWeight: isTop3 ? 'bold' : 'normal',
                     color: 'var(--text-primary, #333)'
                   }}>
-                    {display}
+                    <span>{display}</span>
+                    <span className="contest-results-inline-grade" title={grade}>{getGradeEmoji(avg)}</span>
                   </td>
                   <td style={{ 
                     padding: 8, 
@@ -381,17 +393,14 @@ const ContestResults: React.FC = () => {
                     fontWeight: isTop3 ? 'bold' : 'normal',
                     color: isTop3 ? '#2E7D32' : 'var(--text-primary, #333)'
                   }}>
-                    {avg ? `${avg.toFixed(1)} (${count})` : '-'}
+                    {avg ? (
+                      <>
+                        <strong>{avg.toFixed(1)}</strong>
+                        <span className="contest-results-count-badge">/{count}</span>
+                      </>
+                    ) : '-'}
                   </td>
-                  <td style={{ 
-                    padding: 8, 
-                    border: '1px solid #E5DAF5',
-                    fontWeight: isTop3 ? 'bold' : 'normal',
-                    color: 'var(--text-primary, #333)'
-                  }}>
-                    {grade}
-                  </td>
-                  <td style={{ 
+                  <td className="contest-results-col-comment" style={{ 
                     padding: 8, 
                     border: '1px solid #E5DAF5', 
                     maxWidth: 320, 
@@ -411,6 +420,7 @@ const ContestResults: React.FC = () => {
             })}
           </tbody>
         </table>
+        </div>
         {contest.type === '경연' && (
           <div style={{
             background: 'rgba(138, 85, 204, 0.1)',
@@ -494,13 +504,13 @@ const ContestResults: React.FC = () => {
             </div>
           )}
 
-          <table className="contest-table">
+          <div className="contest-results-table-scroll">
+          <table className="contest-table contest-results-detail-table">
             <thead>
               <tr style={{ background: '#F6F2FF', color: '#8A55CC' }}>
                 <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>평가자</th>
                 <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>피평가자</th>
                 <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>점수</th>
-                <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>등급</th>
                 <th style={{ padding: 8, border: '1px solid #E5DAF5', maxWidth: 320, wordBreak: 'break-all', whiteSpace: 'pre-line' }}>심사코멘트</th>
               </tr>
             </thead>
@@ -509,8 +519,10 @@ const ContestResults: React.FC = () => {
                 <tr key={i}>
                   <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>{g.evaluator}</td>
                   <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>{getTargetDisplay(g.target)}</td>
-                  <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>{g.score}</td>
-                  <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>{getGrade(Number(g.score))}</td>
+                  <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>
+                    <span>{g.score}</span>
+                    <span className="contest-results-inline-grade" title={getGrade(Number(g.score))}>{getGradeEmoji(Number(g.score))}</span>
+                  </td>
                   <td style={{ padding: 8, border: '1px solid #E5DAF5', maxWidth: 320, wordBreak: 'break-all', whiteSpace: 'pre-line', color: 'var(--text-primary, #333)', userSelect: 'text', WebkitUserSelect: 'text', MozUserSelect: 'text', msUserSelect: 'text' }}>
                     <BulletedComments comments={g.comment ? g.comment.split(',').map((s: string) => s.trim()).filter(Boolean) : []} />
                   </td>
@@ -518,24 +530,25 @@ const ContestResults: React.FC = () => {
               ))}
               {filteredGrades.length === 0 && (
                 <tr>
-                  <td colSpan={5} style={{ padding: 16, textAlign: 'center', color: '#9CA3AF', fontStyle: 'italic' }}>
+                  <td colSpan={4} style={{ padding: 16, textAlign: 'center', color: '#9CA3AF', fontStyle: 'italic' }}>
                     선택한 조건에 맞는 평가 결과가 없습니다.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
+          </div>
           {/* 부운영진 평가 결과 별도 표 */}
           {subAdmins.length > 0 && (
             <div style={{ marginTop: 40 }}>
               <h3 style={{ color: '#F43F5E', fontWeight: 700, fontSize: 18, marginBottom: 12, textAlign: 'center', borderTop: '2px solid #F43F5E', paddingTop: 16 }}>부운영진 평가 결과</h3>
-              <table className="contest-table">
+              <div className="contest-results-table-scroll">
+              <table className="contest-table contest-results-detail-table">
                 <thead>
                   <tr style={{ background: '#F6F2FF', color: '#F43F5E' }}>
                     <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>부운영진</th>
                     <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>피평가자</th>
                     <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>점수</th>
-                    <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>등급</th>
                     <th style={{ padding: 8, border: '1px solid #E5DAF5', maxWidth: 320, wordBreak: 'break-all', whiteSpace: 'pre-line' }}>심사코멘트</th>
                   </tr>
                 </thead>
@@ -544,8 +557,10 @@ const ContestResults: React.FC = () => {
                     <tr key={i}>
                       <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>{g.evaluator}</td>
                       <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>{getTargetDisplay(g.target)}</td>
-                      <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>{g.score}</td>
-                      <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>{getGrade(Number(g.score))}</td>
+                      <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>
+                        <span>{g.score}</span>
+                        <span className="contest-results-inline-grade" title={getGrade(Number(g.score))}>{getGradeEmoji(Number(g.score))}</span>
+                      </td>
                       <td style={{ padding: 8, border: '1px solid #E5DAF5', maxWidth: 320, wordBreak: 'break-all', whiteSpace: 'pre-line', color: 'var(--text-primary, #333)', userSelect: 'text', WebkitUserSelect: 'text', MozUserSelect: 'text', msUserSelect: 'text' }}>
                         <BulletedComments comments={g.comment ? g.comment.split(',').map((s: string) => s.trim()).filter(Boolean) : []} />
                       </td>
@@ -553,16 +568,17 @@ const ContestResults: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+              </div>
               {/* 부운영진 기준 최종 등급 결과 표 */}
               <h3 style={{ color: '#F43F5E', fontWeight: 700, fontSize: 18, marginBottom: 12, textAlign: 'center', borderTop: '2px solid #F43F5E', paddingTop: 16 }}>🏆 부운영진 기준 최종 등급 결과 (점수순 순위)</h3>
-              <table className="contest-table">
+              <div className="contest-results-table-scroll">
+              <table className="contest-table contest-results-compact-table">
                 <thead>
                   <tr style={{ background: '#F6F2FF', color: '#F43F5E' }}>
                     <th style={{ padding: 8, border: '1px solid #E5DAF5', textAlign: 'center' }}>순위</th>
                     <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>닉네임</th>
-                    <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>평균점수</th>
-                    <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>등급</th>
-                    <th style={{ padding: 8, border: '1px solid #E5DAF5', maxWidth: 320, wordBreak: 'break-all', whiteSpace: 'pre-line' }}>심사코멘트</th>
+                    <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>평균</th>
+                    <th className="contest-results-col-comment" style={{ padding: 8, border: '1px solid #E5DAF5', maxWidth: 320, wordBreak: 'break-all', whiteSpace: 'pre-line' }}>심사코멘트</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -595,7 +611,8 @@ const ContestResults: React.FC = () => {
                           fontWeight: isTop3 ? 'bold' : 'normal',
                           color: 'var(--text-primary, #333)'
                         }}>
-                          {display}
+                          <span>{display}</span>
+                          <span className="contest-results-inline-grade" title={grade}>{getGradeEmoji(avg)}</span>
                         </td>
                         <td style={{ 
                           padding: 8, 
@@ -603,17 +620,14 @@ const ContestResults: React.FC = () => {
                           fontWeight: isTop3 ? 'bold' : 'normal',
                           color: isTop3 ? '#2E7D32' : 'var(--text-primary, #333)'
                         }}>
-                          {avg ? `${avg.toFixed(1)} (${count})` : '-'}
+                          {avg ? (
+                            <>
+                              <strong>{avg.toFixed(1)}</strong>
+                              <span className="contest-results-count-badge">/{count}</span>
+                            </>
+                          ) : '-'}
                         </td>
-                        <td style={{ 
-                          padding: 8, 
-                          border: '1px solid #E5DAF5',
-                          fontWeight: isTop3 ? 'bold' : 'normal',
-                          color: 'var(--text-primary, #333)'
-                        }}>
-                          {grade}
-                        </td>
-                        <td style={{ 
+                        <td className="contest-results-col-comment" style={{ 
                           padding: 8, 
                           border: '1px solid #E5DAF5', 
                           maxWidth: 320, 
@@ -633,6 +647,7 @@ const ContestResults: React.FC = () => {
                   })}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </div>
