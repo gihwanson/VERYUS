@@ -72,9 +72,10 @@ interface UserData {
   grade?: string;
 }
 
-type SortOption = 'latest' | 'likes' | 'comments' | 'views';
+type SortOption = 'latest' | 'oldest' | 'likes' | 'comments' | 'views';
 
 const POSTS_PER_PAGE = 10;
+const PARTNER_LIST_STATE_KEY = 'veryus_partner_list_state_v1';
 
 const categoryNameMap: { [key: string]: string } = {
   'vocal': '보컬',
@@ -84,12 +85,22 @@ const categoryNameMap: { [key: string]: string } = {
 
 const PartnerPostList: React.FC = () => {
   const navigate = useNavigate();
+  const persistedStateRef = useRef<{ searchTerm?: string; sortBy?: SortOption; scrollY?: number } | null>(null);
+  const restoredScrollYRef = useRef<number | null>(null);
+  if (persistedStateRef.current === null) {
+    try {
+      const raw = sessionStorage.getItem(PARTNER_LIST_STATE_KEY);
+      persistedStateRef.current = raw ? JSON.parse(raw) : {};
+    } catch {
+      persistedStateRef.current = {};
+    }
+  }
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState<SortOption>('latest');
+  const [searchTerm, setSearchTerm] = useState(() => persistedStateRef.current?.searchTerm || '');
+  const [sortBy, setSortBy] = useState<SortOption>(() => persistedStateRef.current?.sortBy || 'latest');
   const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -111,6 +122,8 @@ const PartnerPostList: React.FC = () => {
         return [orderBy('commentCount', 'desc'), orderBy('createdAt', 'desc')];
       case 'views':
         return [orderBy('views', 'desc'), orderBy('createdAt', 'desc')];
+      case 'oldest':
+        return [orderBy('createdAt', 'asc')];
       default:
         return [orderBy('createdAt', 'desc')];
     }
@@ -146,7 +159,7 @@ const PartnerPostList: React.FC = () => {
         baseQuery = query(
           collection(db, 'posts'),
           where('type', '==', 'partner'),
-          orderBy('createdAt', 'desc'),
+          ...getSortOptions(sortBy),
           startAfter(lastVisible),
           limit(POSTS_PER_PAGE)
         );
@@ -154,14 +167,22 @@ const PartnerPostList: React.FC = () => {
         baseQuery = query(
           collection(db, 'posts'),
           where('type', '==', 'partner'),
-          orderBy('createdAt', 'desc'),
+          ...getSortOptions(sortBy),
           limit(POSTS_PER_PAGE)
         );
       }
       const snapshot = await getDocs(baseQuery);
-      const newPosts: Post[] = snapshot.docs
+      let newPosts: Post[] = snapshot.docs
         .map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Post))
         .filter(post => !post.isHidden); // 숨김처리된 게시글 필터링
+      if (searchTerm.trim()) {
+        const keyword = searchTerm.trim().toLowerCase();
+        newPosts = newPosts.filter((post) => {
+          const title = String(post.title || '').toLowerCase();
+          const content = String(post.content || '').toLowerCase();
+          return title.includes(keyword) || content.includes(keyword);
+        });
+      }
       if (isInitial) {
         setPosts(newPosts);
       } else {
@@ -182,12 +203,12 @@ const PartnerPostList: React.FC = () => {
       setLoading(false);
       setIsLoadingMore(false);
     }
-  }, [isLoadingMore, lastVisible, clearUserInfoListeners]);
+  }, [isLoadingMore, lastVisible, clearUserInfoListeners, sortBy, searchTerm]);
 
   useEffect(() => {
     fetchPosts(true);
     // eslint-disable-next-line
-  }, []);
+  }, [sortBy, searchTerm]);
 
   useEffect(() => {
     return () => {
@@ -208,13 +229,53 @@ const PartnerPostList: React.FC = () => {
     }
   }, []);
 
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        PARTNER_LIST_STATE_KEY,
+        JSON.stringify({
+          searchTerm,
+          sortBy,
+          scrollY: window.scrollY
+        })
+      );
+    } catch {
+      // ignore
+    }
+  }, [searchTerm, sortBy]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (restoredScrollYRef.current !== null) return;
+    const savedY = persistedStateRef.current?.scrollY;
+    if (typeof savedY !== 'number' || savedY <= 0) return;
+    restoredScrollYRef.current = savedY;
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: savedY, behavior: 'auto' });
+    });
+  }, [loading, posts.length]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // 검색 로직 (제목/내용 등)
-    // 필요시 구현
+    setPosts([]);
+    setLastVisible(null);
+    setHasMore(true);
+    fetchPosts(true);
   };
 
   const handlePostClick = (postId: string) => {
+    try {
+      sessionStorage.setItem(
+        PARTNER_LIST_STATE_KEY,
+        JSON.stringify({
+          searchTerm,
+          sortBy,
+          scrollY: window.scrollY
+        })
+      );
+    } catch {
+      // ignore
+    }
     navigate(`/boards/partner/${postId}`);
   };
 
@@ -313,6 +374,26 @@ const PartnerPostList: React.FC = () => {
           </form>
         </div>
         <div className="action-buttons">
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortOption)}
+            style={{
+              background: 'rgba(255,255,255,0.18)',
+              color: '#FFFFFF',
+              border: '1px solid rgba(255,255,255,0.3)',
+              borderRadius: 8,
+              padding: '6px 8px',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              marginRight: '0.4rem'
+            }}
+          >
+            <option value="latest" style={{ color: '#1f2937' }}>최신순</option>
+            <option value="oldest" style={{ color: '#1f2937' }}>오래된순</option>
+            <option value="likes" style={{ color: '#1f2937' }}>좋아요순</option>
+            <option value="comments" style={{ color: '#1f2937' }}>댓글순</option>
+            <option value="views" style={{ color: '#1f2937' }}>조회순</option>
+          </select>
           <button 
             className="write-button" 
             onClick={handleWritePost}

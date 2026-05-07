@@ -288,7 +288,7 @@ const PartnerPostDetail: React.FC = () => {
 
   const isLiked = post.likes.includes(user?.uid || '');
   const canEdit = user && user.uid === post.writerUid;
-  const canDelete = user && (user.uid === post.writerUid || user.nickname === '너래' || user.role === '운영진' || user.role === '리더');
+  const canDelete = user && (user.uid === post.writerUid || user.nickname === '너래' || user.role === '리더');
   const canBump = !!(user && user.uid === post.writerUid && !isClosed);
 
   const BUMP_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000;
@@ -420,7 +420,7 @@ const PartnerPostDetail: React.FC = () => {
 
   const handleDelete = async () => {
     if (!post || !user) return;
-    if (user.uid !== post.writerUid && user.nickname !== '너래' && user.role !== '운영진' && user.role !== '리더') {
+    if (user.uid !== post.writerUid && user.nickname !== '너래' && user.role !== '리더') {
       alert('삭제 권한이 없습니다.');
       return;
     }

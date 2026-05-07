@@ -62,14 +62,27 @@ interface User {
 }
 
 const POSTS_PER_PAGE = 10;
+const RECORDING_LIST_STATE_KEY = 'veryus_recording_list_state_v1';
+type SortOrder = 'newest' | 'oldest';
 
 const RecordingPostList: React.FC = () => {
   const navigate = useNavigate();
+  const persistedStateRef = useRef<{ searchTerm?: string; sortOrder?: SortOrder; scrollY?: number } | null>(null);
+  const restoredScrollYRef = useRef<number | null>(null);
+  if (persistedStateRef.current === null) {
+    try {
+      const raw = sessionStorage.getItem(RECORDING_LIST_STATE_KEY);
+      persistedStateRef.current = raw ? JSON.parse(raw) : {};
+    } catch {
+      persistedStateRef.current = {};
+    }
+  }
   const [posts, setPosts] = useState<RecordingPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(() => persistedStateRef.current?.searchTerm || '');
+  const [sortOrder, setSortOrder] = useState<SortOrder>(() => persistedStateRef.current?.sortOrder || 'newest');
   const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -86,12 +99,13 @@ const RecordingPostList: React.FC = () => {
       setError(null);
       
       let baseQuery;
+      const sortDirection = sortOrder === 'oldest' ? 'asc' : 'desc';
       
       if (!isInitial && lastVisible) {
         baseQuery = query(
           collection(db, 'posts'),
           where('type', '==', 'recording'),
-          orderBy('createdAt', 'desc'),
+          orderBy('createdAt', sortDirection),
           startAfter(lastVisible),
           limit(POSTS_PER_PAGE)
         );
@@ -99,7 +113,7 @@ const RecordingPostList: React.FC = () => {
         baseQuery = query(
           collection(db, 'posts'),
           where('type', '==', 'recording'),
-          orderBy('createdAt', 'desc'),
+          orderBy('createdAt', sortDirection),
           limit(POSTS_PER_PAGE)
         );
       }
@@ -173,7 +187,7 @@ const RecordingPostList: React.FC = () => {
       setLoading(false);
       setIsLoadingMore(false);
     }
-  }, [isLoadingMore, lastVisible, searchTerm]);
+  }, [isLoadingMore, lastVisible, searchTerm, sortOrder]);
 
   useEffect(() => {
     const userString = localStorage.getItem('veryus_user');
@@ -195,7 +209,33 @@ const RecordingPostList: React.FC = () => {
     setLoading(true);
     setError(null);
     fetchPosts(true);
-  }, [searchTerm]);
+  }, [searchTerm, sortOrder]);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        RECORDING_LIST_STATE_KEY,
+        JSON.stringify({
+          searchTerm,
+          sortOrder,
+          scrollY: window.scrollY
+        })
+      );
+    } catch {
+      // ignore
+    }
+  }, [searchTerm, sortOrder]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (restoredScrollYRef.current !== null) return;
+    const savedY = persistedStateRef.current?.scrollY;
+    if (typeof savedY !== 'number' || savedY <= 0) return;
+    restoredScrollYRef.current = savedY;
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: savedY, behavior: 'auto' });
+    });
+  }, [loading, posts.length]);
 
   useEffect(() => {
     const options = {
@@ -236,6 +276,18 @@ const RecordingPostList: React.FC = () => {
   };
 
   const handlePostClick = (postId: string) => {
+    try {
+      sessionStorage.setItem(
+        RECORDING_LIST_STATE_KEY,
+        JSON.stringify({
+          searchTerm,
+          sortOrder,
+          scrollY: window.scrollY
+        })
+      );
+    } catch {
+      // ignore
+    }
     navigate(`/recording/${postId}`);
   };
 
@@ -338,6 +390,23 @@ const RecordingPostList: React.FC = () => {
           </form>
         </div>
         <div className="action-buttons">
+          <select
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value as SortOrder)}
+            style={{
+              background: 'rgba(255,255,255,0.18)',
+              color: '#FFFFFF',
+              border: '1px solid rgba(255,255,255,0.3)',
+              borderRadius: 8,
+              padding: '6px 8px',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              marginRight: '0.4rem'
+            }}
+          >
+            <option value="newest" style={{ color: '#1f2937' }}>최신순</option>
+            <option value="oldest" style={{ color: '#1f2937' }}>오래된순</option>
+          </select>
           <button 
             className="write-button" 
             onClick={handleWritePost}

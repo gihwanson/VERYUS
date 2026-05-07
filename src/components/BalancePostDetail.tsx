@@ -186,7 +186,7 @@ const BalancePostDetail: React.FC = () => {
   const handleDelete = async () => {
     if (!post || !user) return;
     const isOwner = user.uid === post.writerUid;
-    const isAdmin = user.nickname === '너래' || user.role === '운영진' || user.role === '리더';
+    const isAdmin = user.nickname === '너래' || user.role === '리더';
     if (!isOwner && !isAdmin) {
       alert('삭제 권한이 없습니다.');
       return;
@@ -353,7 +353,7 @@ const BalancePostDetail: React.FC = () => {
             <button className="message-btn">
               <Scale size={18} /> 밸런스 게임
             </button>
-            {(user?.uid === post.writerUid || user?.nickname === '너래' || user?.role === '운영진' || user?.role === '리더') && (
+            {(user?.uid === post.writerUid || user?.nickname === '너래' || user?.role === '리더') && (
               <button className="action-button" onClick={handleDelete}>
                 <Trash2 size={16} /> 삭제
               </button>

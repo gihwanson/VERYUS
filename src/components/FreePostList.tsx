@@ -70,22 +70,33 @@ interface UserData {
   grade?: string;
 }
 
-type SortOption = 'latest' | 'likes' | 'comments' | 'views';
+type SortOption = 'latest' | 'oldest' | 'likes' | 'comments' | 'views';
 
 const POSTS_PER_PAGE = 10;
+const FREE_LIST_STATE_KEY = 'veryus_free_list_state_v1';
 
 const FreePostList: React.FC = () => {
   const navigate = useNavigate();
+  const persistedStateRef = useRef<{ searchTerm?: string; sortBy?: SortOption; selectedCategory?: string; scrollY?: number } | null>(null);
+  const restoredScrollYRef = useRef<number | null>(null);
+  if (persistedStateRef.current === null) {
+    try {
+      const raw = sessionStorage.getItem(FREE_LIST_STATE_KEY);
+      persistedStateRef.current = raw ? JSON.parse(raw) : {};
+    } catch {
+      persistedStateRef.current = {};
+    }
+  }
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState<SortOption>('latest');
+  const [searchTerm, setSearchTerm] = useState(() => persistedStateRef.current?.searchTerm || '');
+  const [sortBy, setSortBy] = useState<SortOption>(() => persistedStateRef.current?.sortBy || 'latest');
   const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>(() => persistedStateRef.current?.selectedCategory || 'all');
   const observer = useRef<IntersectionObserver | null>(null);
   const lastPostElementRef = useRef<HTMLDivElement | null>(null);
   const userInfoUnsubscribersRef = useRef<Array<() => void>>([]);
@@ -113,6 +124,8 @@ const FreePostList: React.FC = () => {
         return [orderBy('commentCount', 'desc'), orderBy('createdAt', 'desc')];
       case 'views':
         return [orderBy('views', 'desc'), orderBy('createdAt', 'desc')];
+      case 'oldest':
+        return [orderBy('createdAt', 'asc')];
       default:
         return [orderBy('createdAt', 'desc')];
     }
@@ -151,7 +164,7 @@ const FreePostList: React.FC = () => {
         baseQuery = query(
           collection(db, 'posts'),
           where('type', '==', 'free'),
-          orderBy('createdAt', 'desc'),
+          ...getSortOptions(sortBy),
           startAfter(lastVisible),
           limit(POSTS_PER_PAGE)
         );
@@ -159,7 +172,7 @@ const FreePostList: React.FC = () => {
         baseQuery = query(
           collection(db, 'posts'),
           where('type', '==', 'free'),
-          orderBy('createdAt', 'desc'),
+          ...getSortOptions(sortBy),
           limit(POSTS_PER_PAGE)
         );
       }
@@ -214,7 +227,7 @@ const FreePostList: React.FC = () => {
         userInfoUnsubscribersRef.current.push(unsubscribe);
       });
 
-      if (sortBy !== 'latest') {
+      if (sortBy === 'likes' || sortBy === 'comments' || sortBy === 'views') {
         postsData.sort((a, b) => {
           switch (sortBy) {
             case 'likes':
@@ -281,6 +294,33 @@ const FreePostList: React.FC = () => {
   }, [sortBy, searchTerm, selectedCategory, clearUserInfoListeners]);
 
   useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        FREE_LIST_STATE_KEY,
+        JSON.stringify({
+          searchTerm,
+          sortBy,
+          selectedCategory,
+          scrollY: window.scrollY
+        })
+      );
+    } catch {
+      // ignore
+    }
+  }, [searchTerm, sortBy, selectedCategory]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (restoredScrollYRef.current !== null) return;
+    const savedY = persistedStateRef.current?.scrollY;
+    if (typeof savedY !== 'number' || savedY <= 0) return;
+    restoredScrollYRef.current = savedY;
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: savedY, behavior: 'auto' });
+    });
+  }, [loading, posts.length]);
+
+  useEffect(() => {
     return () => {
       clearUserInfoListeners();
     };
@@ -325,6 +365,19 @@ const FreePostList: React.FC = () => {
   };
 
   const handlePostClick = (postId: string) => {
+    try {
+      sessionStorage.setItem(
+        FREE_LIST_STATE_KEY,
+        JSON.stringify({
+          searchTerm,
+          sortBy,
+          selectedCategory,
+          scrollY: window.scrollY
+        })
+      );
+    } catch {
+      // ignore
+    }
     navigate(`/free/${postId}`);
   };
 
@@ -409,6 +462,26 @@ const FreePostList: React.FC = () => {
           </form>
         </div>
         <div className="action-buttons">
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortOption)}
+            style={{
+              background: 'rgba(255,255,255,0.18)',
+              color: '#FFFFFF',
+              border: '1px solid rgba(255,255,255,0.3)',
+              borderRadius: 8,
+              padding: '6px 8px',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              marginRight: '0.4rem'
+            }}
+          >
+            <option value="latest" style={{ color: '#1f2937' }}>최신순</option>
+            <option value="oldest" style={{ color: '#1f2937' }}>오래된순</option>
+            <option value="likes" style={{ color: '#1f2937' }}>좋아요순</option>
+            <option value="comments" style={{ color: '#1f2937' }}>댓글순</option>
+            <option value="views" style={{ color: '#1f2937' }}>조회순</option>
+          </select>
           <button 
             className="write-button" 
             onClick={handleWritePost}

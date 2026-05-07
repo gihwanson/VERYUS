@@ -268,7 +268,7 @@ const EvaluationPostDetail: React.FC = () => {
   };
 
   const handleDelete = async () => {
-    if (!post || !user || (user.uid !== post.writerUid && user.role !== '리더' && user.role !== '운영진')) {
+    if (!post || !user || (user.uid !== post.writerUid && user.role !== '리더' && user.nickname !== '너래')) {
       alert('삭제 권한이 없습니다.');
       return;
     }

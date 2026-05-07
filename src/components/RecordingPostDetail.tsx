@@ -197,7 +197,7 @@ const RecordingPostDetail: React.FC = () => {
   };
 
   const handleDelete = async () => {
-    if (!post || !user || (user.uid !== post.writerUid && user.role !== '리더' && user.role !== '운영진')) {
+    if (!post || !user || (user.uid !== post.writerUid && user.role !== '리더' && user.nickname !== '너래')) {
       alert('삭제 권한이 없습니다.');
       return;
     }
@@ -463,7 +463,7 @@ const RecordingPostDetail: React.FC = () => {
               <MessageSquare size={18} /> 쪽지
             </button>
             
-            {user && (user.uid === post.writerUid || user.role === '운영진' || user.role === '리더') && (
+            {user && (user.uid === post.writerUid || user.role === '리더' || user.nickname === '너래') && (
               <button onClick={handleDelete} className="action-button">
                 <Trash size={20} />
                 삭제

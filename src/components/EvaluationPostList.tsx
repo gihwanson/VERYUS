@@ -61,16 +61,45 @@ interface User {
   isLoggedIn: boolean;
 }
 
+type SortOrder = 'newest' | 'oldest';
+
 const POSTS_PER_PAGE = 10;
 const HIDDEN_COMPLETED_PER_PAGE = 10;
+const EVALUATION_LIST_STATE_KEY = 'veryus_evaluation_list_state_v1';
+
+const getCreatedAtMs = (value: any): number => {
+  if (!value) return 0;
+  if (value instanceof Date) return value.getTime();
+  if (typeof value?.toDate === 'function') {
+    const d = value.toDate();
+    return d instanceof Date ? d.getTime() : 0;
+  }
+  if (typeof value?.seconds === 'number') {
+    const nanos = typeof value?.nanoseconds === 'number' ? value.nanoseconds : 0;
+    return value.seconds * 1000 + Math.floor(nanos / 1_000_000);
+  }
+  const parsed = new Date(value).getTime();
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
 
 const EvaluationPostList: React.FC = () => {
   const navigate = useNavigate();
+  const persistedStateRef = useRef<{ searchTerm?: string; sortOrder?: SortOrder; scrollY?: number } | null>(null);
+  const restoredScrollYRef = useRef<number | null>(null);
+  if (persistedStateRef.current === null) {
+    try {
+      const raw = sessionStorage.getItem(EVALUATION_LIST_STATE_KEY);
+      persistedStateRef.current = raw ? JSON.parse(raw) : {};
+    } catch {
+      persistedStateRef.current = {};
+    }
+  }
   const [posts, setPosts] = useState<EvaluationPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(() => persistedStateRef.current?.searchTerm || '');
+  const [sortOrder, setSortOrder] = useState<SortOrder>(() => persistedStateRef.current?.sortOrder || 'newest');
   const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -86,17 +115,19 @@ const EvaluationPostList: React.FC = () => {
       setIsLoadingMore(!isInitial);
       setError(null);
       
-      // 검색어가 있으면 모든 게시글을 가져와서 필터링, 없으면 페이지네이션
+      // 검색어가 있거나 오래된순이면 전체를 가져와 필터링(페이지네이션 비활성화)
       const hasSearchTerm = searchTerm && searchTerm.trim().length > 0;
+      const shouldLoadAll = hasSearchTerm || sortOrder === 'oldest';
+      const sortDirection = sortOrder === 'oldest' ? 'asc' : 'desc';
       
       let baseQuery;
       
-      if (hasSearchTerm) {
+      if (shouldLoadAll) {
         // 검색어가 있을 때는 모든 게시글 가져오기 (페이지네이션 없음)
         baseQuery = query(
           collection(db, 'posts'),
           where('type', '==', 'evaluation'),
-          orderBy('createdAt', 'desc')
+          orderBy('createdAt', sortDirection)
         );
       } else {
         // 검색어가 없을 때는 페이지네이션 사용
@@ -104,7 +135,7 @@ const EvaluationPostList: React.FC = () => {
           baseQuery = query(
             collection(db, 'posts'),
             where('type', '==', 'evaluation'),
-            orderBy('createdAt', 'desc'),
+            orderBy('createdAt', sortDirection),
             startAfter(lastVisible),
             limit(POSTS_PER_PAGE * 3) // 필터링으로 인해 일부가 제외될 수 있으므로 더 많이 가져오기
           );
@@ -112,7 +143,7 @@ const EvaluationPostList: React.FC = () => {
           baseQuery = query(
             collection(db, 'posts'),
             where('type', '==', 'evaluation'),
-            orderBy('createdAt', 'desc'),
+            orderBy('createdAt', sortDirection),
             limit(POSTS_PER_PAGE * 3) // 필터링으로 인해 일부가 제외될 수 있으므로 더 많이 가져오기
           );
         }
@@ -123,7 +154,7 @@ const EvaluationPostList: React.FC = () => {
       let rawPosts = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date()
+        createdAt: getCreatedAtMs(doc.data().createdAt)
       })) as EvaluationPost[];
 
       // lastCommentAt 누락된 피드백 게시글은 최신 댓글 기준으로 보정
@@ -161,68 +192,84 @@ const EvaluationPostList: React.FC = () => {
         }));
       }
 
-      // 합격/불합격 완료된 게시물은 별도 리스트로 보관
-      const completedHiddenCandidates = rawPosts.filter(post =>
-        post.category === 'busking' && (post.status === '합격' || post.status === '불합격')
-      );
+      // 오래된순에서는 숨김/분리 없이 전체 글을 보여준다.
+      const shouldIncludeAllForOldest = sortOrder === 'oldest';
+      // 합격/불합격 완료된 게시물은 별도 리스트로 보관(최신순 전용)
+      const completedHiddenCandidates = shouldIncludeAllForOldest
+        ? []
+        : rawPosts.filter(post =>
+            post.category === 'busking' && (post.status === '합격' || post.status === '불합격')
+          );
 
       // 합격/불합격 완료된 게시물 및 댓글이 달린 피드백 요청 게시물 숨김 처리
       const now = new Date().getTime();
       const twoDaysInMs = 2 * 24 * 60 * 60 * 1000; // 2일을 밀리초로 변환
       
-      let newPosts = rawPosts.filter(post => {
-        // 피드백 요청 카테고리 처리
-        if (post.category === 'feedback') {
-          // 피드백 요청: 마지막 댓글 기준 2일 경과 시 숨김 (commentCount와 무관하게 lastCommentAt 우선)
-          if (post.lastCommentAt) {
-            const lastCommentTime = post.lastCommentAt?.toDate 
-              ? post.lastCommentAt.toDate().getTime() 
-              : (post.lastCommentAt instanceof Date 
-                ? post.lastCommentAt.getTime() 
-                : new Date(post.lastCommentAt).getTime());
-            const daysSinceLastComment = now - lastCommentTime;
-            if (daysSinceLastComment >= twoDaysInMs) {
-              return false; // 숨김 처리
+      let newPosts = shouldIncludeAllForOldest
+        ? [...rawPosts]
+        : rawPosts.filter(post => {
+            // 피드백 요청 카테고리 처리
+            if (post.category === 'feedback') {
+              // 피드백 요청: 마지막 댓글 기준 2일 경과 시 숨김 (commentCount와 무관하게 lastCommentAt 우선)
+              if (post.lastCommentAt) {
+                const lastCommentTime = post.lastCommentAt?.toDate 
+                  ? post.lastCommentAt.toDate().getTime() 
+                  : (post.lastCommentAt instanceof Date 
+                    ? post.lastCommentAt.getTime() 
+                    : new Date(post.lastCommentAt).getTime());
+                const daysSinceLastComment = now - lastCommentTime;
+                if (daysSinceLastComment >= twoDaysInMs) {
+                  return false; // 숨김 처리
+                }
+              }
+              // 댓글이 없거나 2일이 지나지 않았으면 표시
+              return true;
             }
-          }
-          // 댓글이 없거나 2일이 지나지 않았으면 표시
-          return true;
-        }
-        
-        // 버스킹 심사곡 처리
-        // 합격/불합격 처리된 경우
-        if (post.status === '합격' || post.status === '불합격') {
-          // 기존 데이터: statusUpdatedAt이 없으면 즉시 숨김
-          if (!post.statusUpdatedAt) {
-            return false; // 기존 데이터는 즉시 숨김
-          }
-          // 새로 올라온 데이터: 평가 완료 후 2일 이상 지났으면 숨김
-          const statusUpdateTime = post.statusUpdatedAt?.toDate 
-            ? post.statusUpdatedAt.toDate().getTime() 
-            : (post.statusUpdatedAt instanceof Date 
-              ? post.statusUpdatedAt.getTime() 
-              : new Date(post.statusUpdatedAt).getTime());
-          const daysSinceStatusUpdate = now - statusUpdateTime;
-          if (daysSinceStatusUpdate >= twoDaysInMs) {
-            return false; // 숨김 처리
-          }
-          // 2일이 지나지 않았으면 표시
-          return true;
-        }
-        
-        // 대기 상태인 경우 표시
-        return !post.status || post.status === '대기';
-      });
+            
+            // 버스킹 심사곡 처리
+            // 합격/불합격 처리된 경우
+            if (post.status === '합격' || post.status === '불합격') {
+              // 기존 데이터: statusUpdatedAt이 없으면 즉시 숨김
+              if (!post.statusUpdatedAt) {
+                return false; // 기존 데이터는 즉시 숨김
+              }
+              // 새로 올라온 데이터: 평가 완료 후 2일 이상 지났으면 숨김
+              const statusUpdateTime = post.statusUpdatedAt?.toDate 
+                ? post.statusUpdatedAt.toDate().getTime() 
+                : (post.statusUpdatedAt instanceof Date 
+                  ? post.statusUpdatedAt.getTime() 
+                  : new Date(post.statusUpdatedAt).getTime());
+              const daysSinceStatusUpdate = now - statusUpdateTime;
+              if (daysSinceStatusUpdate >= twoDaysInMs) {
+                return false; // 숨김 처리
+              }
+              // 2일이 지나지 않았으면 표시
+              return true;
+            }
+            
+            // 대기 상태인 경우 표시
+            return !post.status || post.status === '대기';
+          });
 
-      const completedHiddenPosts = completedHiddenCandidates.filter(post => {
-        if (!post.statusUpdatedAt) return true;
-        const statusUpdateTime = post.statusUpdatedAt?.toDate
-          ? post.statusUpdatedAt.toDate().getTime()
-          : (post.statusUpdatedAt instanceof Date
-            ? post.statusUpdatedAt.getTime()
-            : new Date(post.statusUpdatedAt).getTime());
-        return now - statusUpdateTime >= twoDaysInMs;
-      });
+      const completedHiddenPosts = shouldIncludeAllForOldest
+        ? []
+        : completedHiddenCandidates.filter(post => {
+            if (!post.statusUpdatedAt) return true;
+            const statusUpdateTime = post.statusUpdatedAt?.toDate
+              ? post.statusUpdatedAt.toDate().getTime()
+              : (post.statusUpdatedAt instanceof Date
+                ? post.statusUpdatedAt.getTime()
+                : new Date(post.statusUpdatedAt).getTime());
+            return now - statusUpdateTime >= twoDaysInMs;
+          });
+
+      const sortByCreatedAt = (arr: EvaluationPost[]) => {
+        return [...arr].sort((a, b) => {
+          const aTime = getCreatedAtMs(a.createdAt);
+          const bTime = getCreatedAtMs(b.createdAt);
+          return sortOrder === 'oldest' ? aTime - bTime : bTime - aTime;
+        });
+      };
 
       // 페이지네이션을 위해 필터링된 결과가 POSTS_PER_PAGE보다 적으면 더 가져오기
       if (!hasSearchTerm && newPosts.length < POSTS_PER_PAGE && snapshot.docs.length === POSTS_PER_PAGE * 3) {
@@ -290,11 +337,11 @@ const EvaluationPostList: React.FC = () => {
           return matchesTitleOrDescription || matchesWriter || matchesMembers;
         });
         
-        // 검색 결과에서도 합격/불합격 완료된 게시물 및 댓글이 달린 피드백 요청 게시물 숨김 처리
+        // 최신순 검색에서만 합격/불합격 완료된 게시물 및 댓글이 달린 피드백 요청 게시물 숨김 처리
         const searchNow = new Date().getTime();
         const searchTwoDaysInMs = 2 * 24 * 60 * 60 * 1000; // 2일을 밀리초로 변환
-        
-        newPosts = newPosts.filter(post => {
+        if (!shouldIncludeAllForOldest) {
+          newPosts = newPosts.filter(post => {
           // 피드백 요청 카테고리 처리
           if (post.category === 'feedback') {
             // 피드백 요청: 마지막 댓글 기준 2일 경과 시 숨김 (commentCount와 무관하게 lastCommentAt 우선)
@@ -336,7 +383,8 @@ const EvaluationPostList: React.FC = () => {
           
           // 대기 상태인 경우 표시
           return !post.status || post.status === '대기';
-        });
+          });
+        }
       }
 
       // 작성자 등급/역할/포지션 최신화
@@ -365,12 +413,12 @@ const EvaluationPostList: React.FC = () => {
         post.writerPosition = userInfo?.position || '';
       }));
 
-      // 검색어가 있을 때는 페이지네이션 없음
-      if (hasSearchTerm) {
+      // 검색어/오래된순은 전체 조회이므로 페이지네이션 없음
+      if (shouldLoadAll) {
         setHasMore(false);
         setLastVisible(null);
-        setPosts(newPosts);
-        setHiddenCompletedPosts(completedHiddenPosts);
+        setPosts(sortByCreatedAt(newPosts));
+        setHiddenCompletedPosts(sortByCreatedAt(completedHiddenPosts));
         setHiddenCompletedVisibleCount(HIDDEN_COMPLETED_PER_PAGE);
       } else {
         // 원본 snapshot의 길이를 기준으로 hasMore 결정
@@ -380,7 +428,7 @@ const EvaluationPostList: React.FC = () => {
         
         if (isInitial) {
           setPosts(newPosts);
-          setHiddenCompletedPosts(completedHiddenPosts);
+          setHiddenCompletedPosts(sortByCreatedAt(completedHiddenPosts));
           setHiddenCompletedVisibleCount(HIDDEN_COMPLETED_PER_PAGE);
         } else {
           setPosts(prev => [...prev, ...newPosts]);
@@ -388,7 +436,7 @@ const EvaluationPostList: React.FC = () => {
             const merged = [...prev, ...completedHiddenPosts];
             const uniqueById = new Map<string, EvaluationPost>();
             merged.forEach(post => uniqueById.set(post.id, post));
-            return Array.from(uniqueById.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+            return sortByCreatedAt(Array.from(uniqueById.values()));
           });
         }
       }
@@ -401,7 +449,7 @@ const EvaluationPostList: React.FC = () => {
       setLoading(false);
       setIsLoadingMore(false);
     }
-  }, [isLoadingMore, lastVisible, searchTerm]);
+  }, [isLoadingMore, lastVisible, searchTerm, sortOrder]);
 
   useEffect(() => {
     const userString = localStorage.getItem('veryus_user');
@@ -415,6 +463,32 @@ const EvaluationPostList: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        EVALUATION_LIST_STATE_KEY,
+        JSON.stringify({
+          searchTerm,
+          sortOrder,
+          scrollY: window.scrollY
+        })
+      );
+    } catch {
+      // ignore
+    }
+  }, [searchTerm, sortOrder]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (restoredScrollYRef.current !== null) return;
+    const savedY = persistedStateRef.current?.scrollY;
+    if (typeof savedY !== 'number' || savedY <= 0) return;
+    restoredScrollYRef.current = savedY;
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: savedY, behavior: 'auto' });
+    });
+  }, [loading, posts.length]);
+
+  useEffect(() => {
     setPosts([]);
     setHiddenCompletedPosts([]);
     setHiddenCompletedVisibleCount(HIDDEN_COMPLETED_PER_PAGE);
@@ -423,7 +497,7 @@ const EvaluationPostList: React.FC = () => {
     setLoading(true);
     setError(null);
     fetchPosts(true);
-  }, [searchTerm]);
+  }, [searchTerm, sortOrder]);
 
   useEffect(() => {
     const options = {
@@ -464,6 +538,18 @@ const EvaluationPostList: React.FC = () => {
   };
 
   const handlePostClick = (postId: string) => {
+    try {
+      sessionStorage.setItem(
+        EVALUATION_LIST_STATE_KEY,
+        JSON.stringify({
+          searchTerm,
+          sortOrder,
+          scrollY: window.scrollY
+        })
+      );
+    } catch {
+      // ignore
+    }
     navigate(`/evaluation/${postId}`);
   };
 
@@ -490,9 +576,11 @@ const EvaluationPostList: React.FC = () => {
     setHiddenCompletedVisibleCount(prev => prev + HIDDEN_COMPLETED_PER_PAGE);
   };
 
-  const formatDate = (date: Date) => {
+  const formatDate = (date: any) => {
+    const targetMs = getCreatedAtMs(date);
+    if (!targetMs) return '-';
     const now = new Date();
-    const diffTime = now.getTime() - date.getTime();
+    const diffTime = now.getTime() - targetMs;
     const diffMinutes = Math.floor(diffTime / (1000 * 60));
     const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
@@ -512,6 +600,18 @@ const EvaluationPostList: React.FC = () => {
     } else {
       return `${diffYears}년 전`;
     }
+  };
+
+  const formatExactDateTime = (date: any) => {
+    const targetMs = getCreatedAtMs(date);
+    if (!targetMs) return '-';
+    const target = new Date(targetMs);
+    const yyyy = target.getFullYear();
+    const mm = String(target.getMonth() + 1).padStart(2, '0');
+    const dd = String(target.getDate()).padStart(2, '0');
+    const hh = String(target.getHours()).padStart(2, '0');
+    const mi = String(target.getMinutes()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
   };
 
   return (
@@ -539,6 +639,28 @@ const EvaluationPostList: React.FC = () => {
           </form>
         </div>
         <div className="action-buttons">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <label htmlFor="evaluation-sort-order" style={{ color: '#FFFFFF', fontSize: '0.85rem', fontWeight: 600 }}>
+              정렬
+            </label>
+            <select
+              id="evaluation-sort-order"
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value as SortOrder)}
+              style={{
+                background: 'rgba(255,255,255,0.18)',
+                color: '#FFFFFF',
+                border: '1px solid rgba(255,255,255,0.3)',
+                borderRadius: 8,
+                padding: '6px 8px',
+                fontSize: '0.85rem',
+                fontWeight: 600
+              }}
+            >
+              <option value="newest" style={{ color: '#1f2937' }}>최신순</option>
+              <option value="oldest" style={{ color: '#1f2937' }}>오래된순</option>
+            </select>
+          </div>
           <button 
             className="write-button" 
             onClick={handleWritePost}
@@ -617,6 +739,9 @@ const EvaluationPostList: React.FC = () => {
                 <span className="post-date" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#FFFFFF' }}>
                   <Clock size={16} style={{ color: '#FFFFFF' }} />
                   {formatDate(post.createdAt)}
+                  <span style={{ opacity: 0.85, fontSize: '0.78rem' }}>
+                    ({formatExactDateTime(post.createdAt)})
+                  </span>
                 </span>
                 <span className="post-views" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#FFFFFF' }}>
                   <Eye size={16} style={{ color: '#FFFFFF' }} />
@@ -679,6 +804,9 @@ const EvaluationPostList: React.FC = () => {
                 <span className="post-date" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#FFFFFF' }}>
                   <Clock size={16} style={{ color: '#FFFFFF' }} />
                   {formatDate(post.createdAt)}
+                  <span style={{ opacity: 0.85, fontSize: '0.78rem' }}>
+                    ({formatExactDateTime(post.createdAt)})
+                  </span>
                 </span>
                 <span className="post-views" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#FFFFFF' }}>
                   <Eye size={16} style={{ color: '#FFFFFF' }} />
