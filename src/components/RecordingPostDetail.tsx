@@ -209,7 +209,7 @@ const RecordingPostDetail: React.FC = () => {
     try {
       await deleteDoc(doc(db, 'posts', post.id));
       alert('게시글이 삭제되었습니다.');
-      navigate('/recording');
+      navigate('/recording', { state: { preserveScroll: true } });
     } catch (error) {
       console.error('게시글 삭제 오류:', error);
       alert('게시글 삭제 중 오류가 발생했습니다.');
@@ -322,7 +322,7 @@ const RecordingPostDetail: React.FC = () => {
     return (
       <div className="post-detail-container">
         <div className="post-navigation">
-          <button className="back-button" onClick={() => navigate('/recording')}>
+          <button className="back-button" onClick={() => navigate('/recording', { state: { preserveScroll: true } })}>
             <ArrowLeft size={20} />
             목록으로
           </button>
@@ -330,7 +330,7 @@ const RecordingPostDetail: React.FC = () => {
         <div className="error-container">
           <AlertTriangle size={48} />
           <h3>{error}</h3>
-          <button className="back-button" onClick={() => navigate('/recording')}>목록으로 돌아가기</button>
+          <button className="back-button" onClick={() => navigate('/recording', { state: { preserveScroll: true } })}>목록으로 돌아가기</button>
         </div>
       </div>
     );
@@ -340,7 +340,7 @@ const RecordingPostDetail: React.FC = () => {
     return (
       <div className="post-detail-container">
         <div className="post-navigation">
-          <button className="back-button" onClick={() => navigate('/recording')}>
+          <button className="back-button" onClick={() => navigate('/recording', { state: { preserveScroll: true } })}>
             <ArrowLeft size={20} />
             목록으로
           </button>
@@ -362,7 +362,7 @@ const RecordingPostDetail: React.FC = () => {
             if (audioRef.current && !audioRef.current.paused) {
               audioRef.current.pause();
             }
-            navigate('/recording');
+            navigate('/recording', { state: { preserveScroll: true } });
           }}
         >
           <ArrowLeft size={20} />

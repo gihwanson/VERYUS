@@ -43,7 +43,7 @@ const BalancePostDetail: React.FC = () => {
 
   useEffect(() => {
     if (!id) {
-      navigate('/balance');
+      navigate('/balance', { state: { preserveScroll: true } });
       return;
     }
 
@@ -193,7 +193,7 @@ const BalancePostDetail: React.FC = () => {
     }
     if (!window.confirm('이 밸런스 글을 삭제하시겠습니까?\n삭제 후에는 복구할 수 없습니다.')) return;
     await deleteDoc(doc(db, 'posts', post.id));
-    navigate('/balance');
+    navigate('/balance', { state: { preserveScroll: true } });
   };
 
   if (loading) {
@@ -218,7 +218,7 @@ const BalancePostDetail: React.FC = () => {
   return (
     <div className="post-detail-container">
       <div className="post-navigation glassmorphism">
-        <button className="back-button glassmorphism" onClick={() => navigate('/balance')}>
+        <button className="back-button glassmorphism" onClick={() => navigate('/balance', { state: { preserveScroll: true } })}>
           <ArrowLeft size={20} />
           목록으로
         </button>

@@ -128,7 +128,7 @@ const FreePostDetail: React.FC = () => {
   // 게시글 데이터 로드 및 구독
   useEffect(() => {
     if (!id) {
-      navigate('/free');
+      navigate('/free', { state: { preserveScroll: true } });
       return;
     }
 
@@ -327,7 +327,7 @@ const FreePostDetail: React.FC = () => {
       try {
         await deleteDoc(doc(db, 'posts', post.id));
         alert('게시글이 삭제되었습니다.');
-        navigate('/free');
+        navigate('/free', { state: { preserveScroll: true } });
       } catch (error) {
         console.error('게시글 삭제 에러:', error);
         alert('게시글 삭제 중 오류가 발생했습니다.');
@@ -354,7 +354,7 @@ const FreePostDetail: React.FC = () => {
           <h3>게시글을 찾을 수 없습니다.</h3>
           <button 
             className="back-button"
-            onClick={() => navigate('/free')}
+            onClick={() => navigate('/free', { state: { preserveScroll: true } })}
           >
             목록으로 돌아가기
           </button>
@@ -400,7 +400,7 @@ const FreePostDetail: React.FC = () => {
   return (
     <div className="post-detail-container">
       <div className="post-navigation glassmorphism">
-        <button className="back-button glassmorphism" onClick={() => navigate('/free')}>
+        <button className="back-button glassmorphism" onClick={() => navigate('/free', { state: { preserveScroll: true } })}>
           <ArrowLeft size={20} />
           목록으로
         </button>

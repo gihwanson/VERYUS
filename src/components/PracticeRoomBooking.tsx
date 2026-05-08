@@ -521,6 +521,11 @@ const PracticeRoomBooking: React.FC = () => {
   const isBlockedByRule = (date: Date): { blocked: boolean; reason?: string } => {
     const dateStr = formatDate(date);
     const weekday = date.getDay(); // 0=일, 1=월, ..., 6=토
+
+    // 운영 정책 변경: 일요일은 정기 차단 규칙에서 제외하여 예약 가능
+    if (weekday === 0) {
+      return { blocked: false };
+    }
     
     for (const rule of blockingRules) {
       // 활성화되지 않은 규칙은 건너뛰기

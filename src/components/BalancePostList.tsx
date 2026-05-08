@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { collection, doc as firestoreDoc, getDoc, getDocs, limit, orderBy, query, where } from 'firebase/firestore';
 import { Loader, Plus, Scale } from 'lucide-react';
 import { db } from '../firebase';
@@ -25,9 +25,26 @@ interface Post {
 
 const BalancePostList: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const shouldRestoreOnMountRef = useRef(Boolean((location.state as { preserveScroll?: boolean } | null)?.preserveScroll));
+  const BALANCE_LIST_STATE_KEY = 'veryus_balance_list_state_v1';
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [lastViewedPostId, setLastViewedPostId] = useState('');
+  const anchorRestoredRef = useRef(false);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(BALANCE_LIST_STATE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { lastViewedPostId?: string; scrollY?: number };
+        if (parsed.lastViewedPostId) setLastViewedPostId(parsed.lastViewedPostId);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   useEffect(() => {
     const userString = localStorage.getItem('veryus_user');
@@ -69,6 +86,47 @@ const BalancePostList: React.FC = () => {
     })();
   }, []);
 
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        BALANCE_LIST_STATE_KEY,
+        JSON.stringify({
+          lastViewedPostId,
+          scrollY: window.scrollY
+        })
+      );
+    } catch {
+      // ignore
+    }
+  }, [lastViewedPostId]);
+
+  useEffect(() => {
+    if (loading || anchorRestoredRef.current) return;
+    if (shouldRestoreOnMountRef.current && lastViewedPostId) {
+      const target = document.querySelector(`[data-post-id="${lastViewedPostId}"]`) as HTMLElement | null;
+      if (target) {
+        requestAnimationFrame(() => {
+          target.scrollIntoView({ block: 'center', behavior: 'auto' });
+          anchorRestoredRef.current = true;
+        });
+        return;
+      }
+    }
+    try {
+      const raw = sessionStorage.getItem(BALANCE_LIST_STATE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { scrollY?: number };
+      if (typeof parsed.scrollY === 'number' && parsed.scrollY > 0) {
+        requestAnimationFrame(() => {
+          window.scrollTo({ top: parsed.scrollY || 0, behavior: 'auto' });
+          anchorRestoredRef.current = true;
+        });
+      }
+    } catch {
+      // ignore
+    }
+  }, [loading, posts.length, lastViewedPostId]);
+
   const formatDate = (timestamp: any) => {
     if (!timestamp) return '';
     const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
@@ -82,6 +140,22 @@ const BalancePostList: React.FC = () => {
       return;
     }
     navigate('/balance/write');
+  };
+
+  const handlePostClick = (postId: string) => {
+    try {
+      setLastViewedPostId(postId);
+      sessionStorage.setItem(
+        BALANCE_LIST_STATE_KEY,
+        JSON.stringify({
+          lastViewedPostId: postId,
+          scrollY: window.scrollY
+        })
+      );
+    } catch {
+      // ignore
+    }
+    navigate(`/balance/${postId}`);
   };
 
   return (
@@ -121,9 +195,8 @@ const BalancePostList: React.FC = () => {
               <article
                 key={post.id}
                 className="post-item"
-                onClick={() => {
-                  navigate(`/balance/${post.id}`);
-                }}
+                data-post-id={post.id}
+                onClick={() => handlePostClick(post.id)}
               >
                 <div className="post-header">
                   <div className="post-main-info balance-post-main-info">

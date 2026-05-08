@@ -358,7 +358,7 @@ const EvaluationPostDetail: React.FC = () => {
     return (
       <div className="error-container">
         <p>{error}</p>
-        <button onClick={() => navigate('/evaluation')}>목록으로 돌아가기</button>
+        <button onClick={() => navigate('/evaluation', { state: { preserveScroll: true } })}>목록으로 돌아가기</button>
       </div>
     );
   }
@@ -380,7 +380,7 @@ const EvaluationPostDetail: React.FC = () => {
               if (window.audioPlayerRef && !window.audioPlayerRef.paused) {
                 window.audioPlayerRef.pause();
               }
-              navigate('/evaluation');
+              navigate('/evaluation', { state: { preserveScroll: true } });
             }}
           >
             <ArrowLeft size={20} />

@@ -171,11 +171,13 @@ const RouteTransition: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
   useEffect(() => {
     try {
+      const preserveScroll = Boolean((location.state as { preserveScroll?: boolean } | null)?.preserveScroll);
+      if (preserveScroll) return;
       window.scrollTo(0, 0);
     } catch {
       // ignore
     }
-  }, [transitionKey]);
+  }, [transitionKey, location.state]);
 
   return (
     <div className="app-route-transition" key={transitionKey}>

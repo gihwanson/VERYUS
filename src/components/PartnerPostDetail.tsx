@@ -137,7 +137,7 @@ const PartnerPostDetail: React.FC = () => {
 
   useEffect(() => {
     if (!id) {
-      navigate('/boards/partner');
+      navigate('/boards/partner', { state: { preserveScroll: true } });
       return;
     }
     setLoadError(null);
@@ -225,7 +225,7 @@ const PartnerPostDetail: React.FC = () => {
           <h3>{loadError || '게시글을 찾을 수 없습니다.'}</h3>
           <button
             className="back-button"
-            onClick={() => navigate('/boards/partner')}
+            onClick={() => navigate('/boards/partner', { state: { preserveScroll: true } })}
           >
             목록으로 돌아가기
           </button>
@@ -277,7 +277,7 @@ const PartnerPostDetail: React.FC = () => {
           <h3>게시글을 찾을 수 없습니다.</h3>
           <button 
             className="back-button"
-            onClick={() => navigate('/boards/partner')}
+            onClick={() => navigate('/boards/partner', { state: { preserveScroll: true } })}
           >
             목록으로 돌아가기
           </button>
@@ -428,7 +428,7 @@ const PartnerPostDetail: React.FC = () => {
       try {
         await deleteDoc(doc(db, 'posts', post.id));
         alert('게시글이 삭제되었습니다.');
-        navigate('/boards/partner');
+        navigate('/boards/partner', { state: { preserveScroll: true } });
       } catch (error) {
         console.error('게시글 삭제 에러:', error);
         alert('게시글 삭제 중 오류가 발생했습니다.');
@@ -486,7 +486,7 @@ const PartnerPostDetail: React.FC = () => {
   return (
     <div className="post-detail-container">
       <div className="post-navigation glassmorphism">
-        <button className="back-button glassmorphism" onClick={() => navigate('/boards/partner')}>
+        <button className="back-button glassmorphism" onClick={() => navigate('/boards/partner', { state: { preserveScroll: true } })}>
           <ArrowLeft size={20} />
           목록으로
         </button>

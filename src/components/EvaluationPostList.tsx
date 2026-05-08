@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   collection, 
   query, 
@@ -84,8 +84,14 @@ const getCreatedAtMs = (value: any): number => {
 
 const EvaluationPostList: React.FC = () => {
   const navigate = useNavigate();
-  const persistedStateRef = useRef<{ searchTerm?: string; sortOrder?: SortOrder; scrollY?: number } | null>(null);
+  const location = useLocation();
+  const persistedStateRef = useRef<{ searchTerm?: string; sortOrder?: SortOrder; scrollY?: number; lastViewedPostId?: string } | null>(null);
   const restoredScrollYRef = useRef<number | null>(null);
+  const pendingRestoreScrollYRef = useRef<number | null>(null);
+  const restoreAttemptCountRef = useRef(0);
+  const anchorRestoredRef = useRef(false);
+  const shouldRestoreOnMountRef = useRef(Boolean((location.state as { preserveScroll?: boolean } | null)?.preserveScroll));
+  const allowPersistRef = useRef(false);
   if (persistedStateRef.current === null) {
     try {
       const raw = sessionStorage.getItem(EVALUATION_LIST_STATE_KEY);
@@ -100,6 +106,7 @@ const EvaluationPostList: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState(() => persistedStateRef.current?.searchTerm || '');
   const [sortOrder, setSortOrder] = useState<SortOrder>(() => persistedStateRef.current?.sortOrder || 'newest');
+  const [lastViewedPostId, setLastViewedPostId] = useState(() => persistedStateRef.current?.lastViewedPostId || '');
   const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -464,29 +471,77 @@ const EvaluationPostList: React.FC = () => {
 
   useEffect(() => {
     try {
+      if (!allowPersistRef.current) return;
       sessionStorage.setItem(
         EVALUATION_LIST_STATE_KEY,
         JSON.stringify({
           searchTerm,
           sortOrder,
-          scrollY: window.scrollY
+          scrollY: window.scrollY,
+          lastViewedPostId
         })
       );
     } catch {
       // ignore
     }
-  }, [searchTerm, sortOrder]);
+  }, [searchTerm, sortOrder, lastViewedPostId]);
+
+  useEffect(() => {
+    if (!shouldRestoreOnMountRef.current || loading || anchorRestoredRef.current || !lastViewedPostId) return;
+    const target = document.querySelector(`[data-post-id="${lastViewedPostId}"]`) as HTMLElement | null;
+    if (target) {
+      requestAnimationFrame(() => {
+        target.scrollIntoView({ block: 'center', behavior: 'auto' });
+        anchorRestoredRef.current = true;
+        restoredScrollYRef.current = window.scrollY;
+        pendingRestoreScrollYRef.current = null;
+        allowPersistRef.current = true;
+      });
+      return;
+    }
+    if (!hasMore) {
+      anchorRestoredRef.current = true;
+      allowPersistRef.current = true;
+    }
+  }, [loading, posts.length, hiddenCompletedPosts.length, hasMore, lastViewedPostId]);
 
   useEffect(() => {
     if (loading) return;
+
+    if (pendingRestoreScrollYRef.current === null) {
+      const savedY = persistedStateRef.current?.scrollY;
+      if (typeof savedY !== 'number' || savedY <= 0) {
+        allowPersistRef.current = true;
+        return;
+      }
+      pendingRestoreScrollYRef.current = savedY;
+    }
+
     if (restoredScrollYRef.current !== null) return;
-    const savedY = persistedStateRef.current?.scrollY;
-    if (typeof savedY !== 'number' || savedY <= 0) return;
-    restoredScrollYRef.current = savedY;
+
+    const targetY = pendingRestoreScrollYRef.current;
+    if (typeof targetY !== 'number') {
+      allowPersistRef.current = true;
+      return;
+    }
+
     requestAnimationFrame(() => {
-      window.scrollTo({ top: savedY, behavior: 'auto' });
+      window.scrollTo({ top: targetY, behavior: 'auto' });
+
+      const currentY = window.scrollY || window.pageYOffset || 0;
+      const reachedTarget = currentY >= targetY - 24;
+      const exhausted = !hasMore || restoreAttemptCountRef.current >= 12;
+
+      if (reachedTarget || exhausted) {
+        restoredScrollYRef.current = targetY;
+        pendingRestoreScrollYRef.current = null;
+        allowPersistRef.current = true;
+        return;
+      }
+
+      restoreAttemptCountRef.current += 1;
     });
-  }, [loading, posts.length]);
+  }, [loading, posts.length, hasMore]);
 
   useEffect(() => {
     setPosts([]);
@@ -496,6 +551,11 @@ const EvaluationPostList: React.FC = () => {
     setHasMore(true);
     setLoading(true);
     setError(null);
+    restoredScrollYRef.current = null;
+    pendingRestoreScrollYRef.current = null;
+    restoreAttemptCountRef.current = 0;
+    anchorRestoredRef.current = false;
+    allowPersistRef.current = false;
     fetchPosts(true);
   }, [searchTerm, sortOrder]);
 
@@ -539,12 +599,14 @@ const EvaluationPostList: React.FC = () => {
 
   const handlePostClick = (postId: string) => {
     try {
+      setLastViewedPostId(postId);
       sessionStorage.setItem(
         EVALUATION_LIST_STATE_KEY,
         JSON.stringify({
           searchTerm,
           sortOrder,
-          scrollY: window.scrollY
+          scrollY: window.scrollY,
+          lastViewedPostId: postId
         })
       );
     } catch {
@@ -699,6 +761,7 @@ const EvaluationPostList: React.FC = () => {
             <article
               key={post.id}
               className="post-card"
+              data-post-id={post.id}
               onClick={() => handlePostClick(post.id)}
               ref={index === posts.length - 1 ? lastPostElementRef : null}
             >
@@ -764,6 +827,7 @@ const EvaluationPostList: React.FC = () => {
             <article
               key={`hidden-${post.id}`}
               className="post-card"
+              data-post-id={post.id}
               onClick={() => handlePostClick(post.id)}
               style={{ opacity: 0.88 }}
             >

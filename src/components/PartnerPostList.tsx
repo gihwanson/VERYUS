@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   collection, 
   query, 
@@ -85,8 +85,11 @@ const categoryNameMap: { [key: string]: string } = {
 
 const PartnerPostList: React.FC = () => {
   const navigate = useNavigate();
-  const persistedStateRef = useRef<{ searchTerm?: string; sortBy?: SortOption; scrollY?: number } | null>(null);
+  const location = useLocation();
+  const persistedStateRef = useRef<{ searchTerm?: string; sortBy?: SortOption; scrollY?: number; lastViewedPostId?: string } | null>(null);
   const restoredScrollYRef = useRef<number | null>(null);
+  const anchorRestoredRef = useRef(false);
+  const shouldRestoreOnMountRef = useRef(Boolean((location.state as { preserveScroll?: boolean } | null)?.preserveScroll));
   if (persistedStateRef.current === null) {
     try {
       const raw = sessionStorage.getItem(PARTNER_LIST_STATE_KEY);
@@ -101,6 +104,7 @@ const PartnerPostList: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState(() => persistedStateRef.current?.searchTerm || '');
   const [sortBy, setSortBy] = useState<SortOption>(() => persistedStateRef.current?.sortBy || 'latest');
+  const [lastViewedPostId, setLastViewedPostId] = useState(() => persistedStateRef.current?.lastViewedPostId || '');
   const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -236,13 +240,30 @@ const PartnerPostList: React.FC = () => {
         JSON.stringify({
           searchTerm,
           sortBy,
-          scrollY: window.scrollY
+          scrollY: window.scrollY,
+          lastViewedPostId
         })
       );
     } catch {
       // ignore
     }
-  }, [searchTerm, sortBy]);
+  }, [searchTerm, sortBy, lastViewedPostId]);
+
+  useEffect(() => {
+    if (!shouldRestoreOnMountRef.current || loading || anchorRestoredRef.current || !lastViewedPostId) return;
+    const target = document.querySelector(`[data-post-id="${lastViewedPostId}"]`) as HTMLElement | null;
+    if (target) {
+      requestAnimationFrame(() => {
+        target.scrollIntoView({ block: 'center', behavior: 'auto' });
+        anchorRestoredRef.current = true;
+        restoredScrollYRef.current = window.scrollY;
+      });
+      return;
+    }
+    if (!hasMore) {
+      anchorRestoredRef.current = true;
+    }
+  }, [loading, posts.length, hasMore, lastViewedPostId]);
 
   useEffect(() => {
     if (loading) return;
@@ -265,12 +286,14 @@ const PartnerPostList: React.FC = () => {
 
   const handlePostClick = (postId: string) => {
     try {
+      setLastViewedPostId(postId);
       sessionStorage.setItem(
         PARTNER_LIST_STATE_KEY,
         JSON.stringify({
           searchTerm,
           sortBy,
-          scrollY: window.scrollY
+          scrollY: window.scrollY,
+          lastViewedPostId: postId
         })
       );
     } catch {
@@ -429,6 +452,7 @@ const PartnerPostList: React.FC = () => {
             <article 
               key={post.id}
               className="post-item"
+              data-post-id={post.id}
               onClick={() => handlePostClick(post.id)}
               ref={index === posts.length - 1 ? lastPostElementRef : null}
             >
