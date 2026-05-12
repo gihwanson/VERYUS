@@ -24,6 +24,10 @@ import {
 } from './ApprovedSongsComponents';
 import GlobalLoadingScreen from './GlobalLoadingScreen';
 import './ApprovedSongs.css';
+import {
+  approvedSongCountsByNicknameFromDocs,
+  notifyStaffOnApprovedSongCountMilestones
+} from '../utils/approvedSongMilestone';
 
 const ApprovedSongs: React.FC = () => {
   type RepairFailureItem = {
@@ -110,6 +114,15 @@ const ApprovedSongs: React.FC = () => {
     }
     try {
       const isEdit = !!editId;
+      const approvedSongsBeforeSnap = await getDocs(collection(db, 'approvedSongs'));
+      const countsBeforeMilestone = approvedSongCountsByNicknameFromDocs(approvedSongsBeforeSnap.docs);
+      const prevMembers =
+        editId != null
+          ? (songs.find((s) => s.id === editId)?.members || [])
+              .map((m) => String(m || '').trim())
+              .filter(Boolean)
+          : [];
+
       if (editId) {
         await updateDoc(doc(db, 'approvedSongs', editId), {
           title: form.title,
@@ -128,6 +141,17 @@ const ApprovedSongs: React.FC = () => {
           createdByRole: user?.role || '',
         });
       }
+
+      const approvedSongsAfterSnap = await getDocs(collection(db, 'approvedSongs'));
+      const countsAfterMilestone = approvedSongCountsByNicknameFromDocs(approvedSongsAfterSnap.docs);
+      const newMembers = form.members.map((m) => m.trim()).filter(Boolean);
+      const affectedNicknames = [...new Set([...prevMembers, ...newMembers])];
+      void notifyStaffOnApprovedSongCountMilestones({
+        countsByNicknameBefore: countsBeforeMilestone,
+        countsByNicknameAfter: countsAfterMilestone,
+        affectedNicknames
+      }).catch((err) => console.error('합격곡 마일스톤 알림 실패:', err));
+
       setForm({ title: '', members: [''] });
       setEditId(null);
       // 저장 성공 메시지

@@ -118,7 +118,7 @@ const EvaluationPostEdit: React.FC = () => {
 
   return (
     <div className="board-container">
-      <div className="board-header glassmorphism">
+      <div className="board-header glassmorphism evaluation-post-edit-header">
         <button className="back-button glassmorphism" onClick={() => navigate(-1)}>
           <ArrowLeft size={20} /> 돌아가기
         </button>

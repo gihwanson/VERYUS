@@ -41,6 +41,10 @@ import '../styles/BoardLayout.css';
 import CommentSection from './CommentSection';
 import { useAudioPlayer } from '../App';
 import { NotificationService } from '../utils/notificationService';
+import {
+  approvedSongCountsByNicknameFromDocs,
+  notifyStaffOnApprovedSongCountMilestones
+} from '../utils/approvedSongMilestone';
 import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
 import { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
 
@@ -596,6 +600,9 @@ const EvaluationPostDetail: React.FC = () => {
                         if (!window.confirm('정말 합격 처리하시겠습니까?')) return;
                         
                         try {
+                          const approvedSongsBeforeSnap = await getDocs(collection(db, 'approvedSongs'));
+                          const countsBeforeMilestone = approvedSongCountsByNicknameFromDocs(approvedSongsBeforeSnap.docs);
+
                           // 게시글 상태 업데이트
                           await updateDoc(doc(db, 'posts', post.id), { 
                             status: '합격',
@@ -638,6 +645,14 @@ const EvaluationPostDetail: React.FC = () => {
                               fileName: post.fileName || '',
                             });
                           }
+
+                          const approvedSongsAfterSnap = await getDocs(collection(db, 'approvedSongs'));
+                          const countsAfterMilestone = approvedSongCountsByNicknameFromDocs(approvedSongsAfterSnap.docs);
+                          void notifyStaffOnApprovedSongCountMilestones({
+                            countsByNicknameBefore: countsBeforeMilestone,
+                            countsByNicknameAfter: countsAfterMilestone,
+                            affectedNicknames: allMembers
+                          }).catch((err) => console.error('합격곡 마일스톤 알림 실패:', err));
 
                           // 게시글 작성자에게 합격 알림 전송
                           await NotificationService.createApprovalNotification(
@@ -737,6 +752,9 @@ const EvaluationPostDetail: React.FC = () => {
                         setPost(p=>p ? { ...p, status: nextStatus } : p);
 
                         if (nextStatus === '합격') {
+                          const approvedSongsBeforeSnap = await getDocs(collection(db, 'approvedSongs'));
+                          const countsBeforeMilestone = approvedSongCountsByNicknameFromDocs(approvedSongsBeforeSnap.docs);
+
                           const members = Array.isArray(post.members) ? post.members.filter(Boolean) : [];
                           const allMembers = [...members, post.writerNickname].filter((v, i, arr) => !!v && arr.indexOf(v) === i);
                           const approvedQuery = query(
@@ -771,6 +789,14 @@ const EvaluationPostDetail: React.FC = () => {
                               fileName: post.fileName || '',
                             });
                           }
+
+                          const approvedSongsAfterSnap = await getDocs(collection(db, 'approvedSongs'));
+                          const countsAfterMilestone = approvedSongCountsByNicknameFromDocs(approvedSongsAfterSnap.docs);
+                          void notifyStaffOnApprovedSongCountMilestones({
+                            countsByNicknameBefore: countsBeforeMilestone,
+                            countsByNicknameAfter: countsAfterMilestone,
+                            affectedNicknames: allMembers
+                          }).catch((err) => console.error('합격곡 마일스톤 알림 실패:', err));
 
                           await NotificationService.createApprovalNotification(
                             post.writerUid,

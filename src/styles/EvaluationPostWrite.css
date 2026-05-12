@@ -1,0 +1,390 @@
+/* 평가글 작성 — VERYUS 보라 톤과 맞춘 전용 레이아웃 */
+
+.eval-post-write-page {
+  --eval-violet: #7c3aed;
+  --eval-violet-soft: #8b5cf6;
+  --eval-surface: rgba(255, 255, 255, 0.92);
+  --eval-border: rgba(139, 92, 246, 0.22);
+  --eval-text: #1e1b2e;
+  --eval-muted: #64748b;
+}
+
+.eval-post-write {
+  max-width: 32rem;
+  margin: 0 auto;
+  padding: 0 0.75rem 2.5rem;
+}
+
+.eval-post-write__top {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.eval-post-write__back {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.15s ease;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.eval-post-write__back:hover {
+  background: rgba(255, 255, 255, 0.32);
+  transform: translateX(-2px);
+}
+
+.eval-post-write__title-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 1rem 1.15rem;
+  border-radius: 1.125rem;
+  background: var(--eval-surface);
+  border: 1px solid var(--eval-border);
+  box-shadow: 0 10px 40px rgba(30, 27, 46, 0.08);
+}
+
+.eval-post-write__title-icon {
+  flex-shrink: 0;
+  color: var(--eval-violet-soft);
+  margin-top: 2px;
+}
+
+.eval-post-write__title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--eval-text);
+  line-height: 1.25;
+}
+
+.eval-post-write__subtitle {
+  margin: 0.35rem 0 0;
+  font-size: 0.875rem;
+  color: var(--eval-muted);
+  line-height: 1.45;
+  font-weight: 500;
+}
+
+/* 폼 카드: 기존 write-form 위에 폭·여백 보정 */
+.eval-post-write__form {
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 1.5rem 1.35rem 1.75rem !important;
+}
+
+.eval-post-write__section {
+  margin-bottom: 1.35rem;
+}
+
+.eval-post-write__section:last-of-type {
+  margin-bottom: 0;
+}
+
+.eval-post-write__section-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--eval-violet);
+  margin-bottom: 0.5rem;
+}
+
+.eval-post-write__optional {
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.8rem;
+  color: var(--eval-muted);
+}
+
+/* 카테고리 세그먼트 */
+.eval-post-write__segment {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  border-radius: 0.875rem;
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+}
+
+.eval-post-write__segment-btn {
+  flex: 1;
+  min-height: 2.75rem;
+  border: none;
+  border-radius: 0.65rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #5b21b6;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.eval-post-write__segment-btn:hover {
+  background: rgba(139, 92, 246, 0.08);
+}
+
+.eval-post-write__segment-btn--active {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
+}
+
+.eval-post-write__segment-btn:focus-visible {
+  outline: 2px solid #c4b5fd;
+  outline-offset: 2px;
+}
+
+.eval-post-write__title-input {
+  border-radius: 14px !important;
+}
+
+.eval-post-write__textarea {
+  min-height: 8.5rem !important;
+  max-height: 22rem;
+  resize: none !important;
+  border-radius: 16px !important;
+  line-height: 1.55 !important;
+}
+
+/* 멤버 */
+.eval-post-write__hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--eval-text);
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  background: rgba(139, 92, 246, 0.08);
+  border: 1px solid rgba(139, 92, 246, 0.12);
+}
+
+.eval-post-write__hint strong {
+  color: var(--eval-violet);
+  font-weight: 700;
+}
+
+.eval-post-write__member-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.eval-post-write__member-row:last-child {
+  margin-bottom: 0;
+}
+
+.eval-post-write__member-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.65rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  font-size: 0.95rem;
+  background: rgba(255, 255, 255, 0.75);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.eval-post-write__member-input:focus {
+  border-color: rgba(124, 58, 237, 0.55);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+}
+
+.eval-post-write__member-btn {
+  flex-shrink: 0;
+  padding: 0.45rem 0.75rem;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.eval-post-write__member-btn:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.eval-post-write__member-btn--add {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  color: #fff;
+}
+
+.eval-post-write__member-btn--remove {
+  background: #f43f5e;
+  color: #fff;
+}
+
+/* 오디오 업로드 */
+.eval-post-write__upload {
+  display: block;
+  cursor: pointer;
+  border-radius: 1rem;
+  border: 2px dashed rgba(139, 92, 246, 0.42);
+  background: rgba(255, 255, 255, 0.35);
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+}
+
+.eval-post-write__upload:hover:not(.eval-post-write__upload--busy) {
+  border-color: rgba(124, 58, 237, 0.65);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.eval-post-write__upload--busy {
+  cursor: wait;
+  opacity: 0.85;
+}
+
+.eval-post-write__upload-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 1.35rem 1rem;
+  text-align: center;
+}
+
+.eval-post-write__upload-icon {
+  color: var(--eval-violet-soft);
+  opacity: 0.9;
+}
+
+.eval-post-write__upload-inner strong {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--eval-text);
+}
+
+.eval-post-write__upload-inner span {
+  font-size: 0.8rem;
+  color: var(--eval-muted);
+  line-height: 1.4;
+  max-width: 16rem;
+}
+
+.eval-post-write__file-status {
+  margin-top: 0.85rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(139, 92, 246, 0.18);
+  box-shadow: 0 4px 16px rgba(30, 27, 46, 0.06);
+}
+
+.eval-post-write__file-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--eval-text);
+  text-align: center;
+  word-break: break-all;
+}
+
+.eval-post-write__file-meta {
+  margin-top: 0.35rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--eval-muted);
+}
+
+.eval-post-write__progress-track {
+  width: 100%;
+  height: 8px;
+  margin-top: 0.65rem;
+  border-radius: 999px;
+  background: rgba(139, 92, 246, 0.12);
+  overflow: hidden;
+}
+
+.eval-post-write__progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #8b5cf6, #7c3aed);
+  transition: width 0.2s ease;
+}
+
+.eval-post-write__uploading-label {
+  display: block;
+  margin-top: 0.5rem;
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--eval-violet);
+}
+
+/* 하단 버튼 */
+.eval-post-write__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(139, 92, 246, 0.12);
+}
+
+.eval-post-write__submit,
+.eval-post-write__cancel {
+  width: 100%;
+  justify-content: center;
+  min-height: 3rem;
+  border-radius: 14px !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.eval-post-write__submit:disabled {
+  opacity: 0.55;
+}
+
+@media (min-width: 480px) {
+  .eval-post-write__actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .eval-post-write__submit {
+    flex: 2;
+    min-width: 10rem;
+  }
+
+  .eval-post-write__cancel {
+    flex: 1;
+    min-width: 6rem;
+  }
+}
+
+@media (min-width: 640px) {
+  .eval-post-write {
+    max-width: 36rem;
+    padding: 0 1rem 3rem;
+  }
+
+  .eval-post-write__form {
+    padding: 1.75rem 1.6rem 2rem !important;
+  }
+
+  .eval-post-write__title {
+    font-size: 1.5rem;
+  }
+}

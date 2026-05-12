@@ -17,7 +17,8 @@ export interface NotificationData {
     | 'partnership_confirmed'
     | 'grade_request_pending'
     | 'grade_change_approved'
-    | 'grade_change_rejected';
+    | 'grade_change_rejected'
+    | 'approved_song_milestone';
   toUid: string;
   /** 알림을 보낸 사람의 uid (있으면 자기 자신에게 보내기 방지에 사용) */
   fromUid?: string;
@@ -61,6 +62,10 @@ export class NotificationService {
 
     if (type === 'grade_request_pending') {
       return '/admin?tab=approvals';
+    }
+
+    if (type === 'approved_song_milestone') {
+      return '/hall-of-fame';
     }
 
     if (type === 'guestbook' || type === 'guestbook_reply') {
@@ -182,7 +187,8 @@ export class NotificationService {
       'partnership_confirmed': '파트너로 확정되셨습니다!',
       grade_request_pending: '등급 변경 승인 요청이 있습니다.',
       grade_change_approved: '등급 변경 요청이 승인되었습니다.',
-      grade_change_rejected: '등급 변경 요청이 반려되었습니다.'
+      grade_change_rejected: '등급 변경 요청이 반려되었습니다.',
+      approved_song_milestone: '회원이 합격곡 마일스톤을 달성했습니다.'
     };
     return messages[type] || '새 알림이 있습니다.';
   }

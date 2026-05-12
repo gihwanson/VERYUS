@@ -1,12 +1,13 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, addDoc, serverTimestamp, getDoc, doc as firestoreDoc, query, where, getDocs } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL, uploadBytesResumable } from 'firebase/storage';
 import { db, storage } from '../firebase';
-import { ArrowLeft, Mic, StopCircle, Save, X, Upload, Play, Pause } from 'lucide-react';
+import { ArrowLeft, Mic, X, FileAudio, Send } from 'lucide-react';
 import { startOfWeek, endOfWeek, format as formatDate } from 'date-fns';
 import '../styles/PostWrite.css';
 import '../styles/BoardLayout.css';
+import '../styles/EvaluationPostWrite.css';
 
 interface User {
   uid: string;
@@ -22,10 +23,7 @@ const EvaluationPostWrite: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -34,10 +32,6 @@ const EvaluationPostWrite: React.FC = () => {
   const [fileName, setFileName] = useState<string | null>(null);
   const [category, setCategory] = useState('busking');
   const [members, setMembers] = useState<string[]>(['']);
-
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const categoryOptions = [
     { id: 'busking', name: '버스킹심사곡' },
@@ -53,61 +47,6 @@ const EvaluationPostWrite: React.FC = () => {
     }
     setUser(JSON.parse(userString));
   }, [navigate]);
-
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream);
-      audioChunksRef.current = [];
-      mediaRecorderRef.current.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-      mediaRecorderRef.current.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-        const url = URL.createObjectURL(audioBlob);
-        setAudioBlob(audioBlob);
-        setAudioUrl(url);
-        extractDuration(url);
-        // 파일명 생성 및 표시
-        const now = new Date();
-        const y = now.getFullYear();
-        const m = String(now.getMonth() + 1).padStart(2, '0');
-        const d = String(now.getDate()).padStart(2, '0');
-        const hh = String(now.getHours()).padStart(2, '0');
-        const mm = String(now.getMinutes()).padStart(2, '0');
-        const ss = String(now.getSeconds()).padStart(2, '0');
-        const filename = `${y}${m}${d}_${hh}${mm}${ss}.wav`;
-        setDisplayFileName(filename);
-        setFileName(filename);
-      };
-      mediaRecorderRef.current.start();
-      setIsRecording(true);
-    } catch (error) {
-      console.error('녹음 시작 오류:', error);
-      alert('마이크 접근 권한이 필요합니다.');
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      // 스트림 정지
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-    }
-  };
-
-  const handlePlayPause = () => {
-    if (!audioRef.current || !audioUrl) return;
-    if (isPlaying) {
-      audioRef.current.pause();
-    } else {
-      audioRef.current.play();
-    }
-    setIsPlaying(!isPlaying);
-  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -163,8 +102,8 @@ const EvaluationPostWrite: React.FC = () => {
         },
         async () => {
           const url = await getDownloadURL(uploadTask.snapshot.ref);
-          setAudioUrl(url);
           setAudioBlob(file);
+          setFileName(file.name);
           setUploading(false);
           setUploadProgress(null);
           setDisplayFileName(file.name);
@@ -176,25 +115,6 @@ const EvaluationPostWrite: React.FC = () => {
       setUploading(false);
       setUploadProgress(null);
     }
-  };
-
-  useEffect(() => {
-    if (audioUrl) {
-      audioRef.current = new Audio(audioUrl);
-      audioRef.current.onended = () => setIsPlaying(false);
-    }
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-    };
-  }, [audioUrl]);
-
-  const formatDuration = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
   // 오디오 길이 계산 (재시도 로직 추가)
@@ -209,6 +129,12 @@ const EvaluationPostWrite: React.FC = () => {
         setDuration(0); // 실패 시 0으로 저장
       }
     });
+  };
+
+  const formatDurationLabel = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
   const handleSubmit = async () => {
@@ -369,182 +295,181 @@ const EvaluationPostWrite: React.FC = () => {
   };
 
   return (
-    <div className="board-container">
-      <div className="board-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '1rem', width: '100%' }}>
-        <button 
-          className="back-button" 
-          onClick={() => navigate('/evaluation')}
-          style={{ position: 'static' }}
-        >
-          <ArrowLeft size={20} />
-          목록으로
-        </button>
-        <h1 className="board-title" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0 }}>
-          <Mic size={28} />
-          평가글 작성
-        </h1>
-      </div>
-
-      <div className="write-form recording-form">
-        {/* 카테고리 선택 - 버튼 그룹, 가운데 정렬 */}
-        <div className="form-group" style={{ marginBottom: 12, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <label className="form-label" style={{ marginBottom: 6, textAlign: 'center' }}>카테고리</label>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-            {categoryOptions.map(opt => (
-              <button
-                key={opt.id}
-                type="button"
-                className={`category-button${category === opt.id ? ' active' : ''}`}
-                onClick={() => setCategory(opt.id)}
-                style={{
-                  minWidth: 90,
-                  padding: '7px 16px',
-                  fontSize: '1rem',
-                  borderRadius: 10,
-                  fontWeight: 600,
-                  background: category === opt.id ? '#8A55CC' : '#f6f2ff',
-                  color: category === opt.id ? 'white' : '#8A55CC',
-                  border: category === opt.id ? '2px solid #8A55CC' : '2px solid #e3d0ff',
-                  transition: 'all 0.15s'
-                }}
-              >
-                {opt.name}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="form-group">
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="곡제목(곡제목만 써주세요!)"
-            className="title-input"
-          />
-        </div>
-
-        <div className="form-group">
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="녹음에 대한 설명을 입력하세요 (Shift+Enter로 줄바꿈)"
-            className="content-input"
-            rows={4}
-            style={{
-              resize: 'none',
-              overflow: 'hidden',
-              minHeight: '100px',
-              maxHeight: '400px',
-              lineHeight: '1.4'
-            }}
-            onInput={(e) => {
-              const target = e.target as HTMLTextAreaElement;
-              target.style.height = 'auto';
-              target.style.height = Math.min(Math.max(target.scrollHeight, 100), 400) + 'px';
-            }}
-          />
-        </div>
-
-        {/* 듀엣/합창 멤버 입력 (버스킹심사곡 선택 시만) */}
-        {category === 'busking' && (
-          <div className="form-group" style={{ marginBottom: 12 }}>
-            <label className="form-label" style={{ marginBottom: 6, textAlign: 'center', whiteSpace: 'normal' }}>
-               듀엣/합창멤버 닉네임기입 필수!(본인포함)<br/>
-               <span style={{ color: '#8A55CC', fontWeight: 500 }}>*솔로인 경우 본인 닉네임만 적어주세요.</span>
-             </label>
-            {members.map((member, idx) => (
-              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                <input
-                  value={member}
-                  onChange={e => setMembers(members => members.map((m, i) => i === idx ? e.target.value : m))}
-                  style={{ flex: 1, padding: 8, borderRadius: 8, border: '1px solid #E5DAF5' }}
-                  placeholder={`멤버 닉네임 ${idx + 1}`}
-                />
-                {members.length > 1 && (
-                  <button type="button" onClick={() => setMembers(members => members.filter((_, i) => i !== idx))} style={{ background: '#F43F5E', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontWeight: 600, cursor: 'pointer' }}>삭제</button>
-                )}
-                {idx === members.length - 1 && (
-                  <button type="button" onClick={() => setMembers(members => [...members, ''])} style={{ background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontWeight: 600, cursor: 'pointer' }}>추가</button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="recording-controls" style={{ display: 'flex', flexDirection: 'row', gap: '12px', justifyContent: 'center', marginTop: '24px' }}>
-          <button
-            type="button"
-            className={`record-button${isRecording ? ' recording' : ''}`}
-            onClick={isRecording ? stopRecording : startRecording}
-            style={{ minWidth: '160px' }}
-          >
-            {isRecording ? (
-              <>
-                <StopCircle size={24} /> 녹음 중지
-              </>
-            ) : (
-              <>
-                <Mic size={24} /> 녹음 시작
-              </>
-            )}
+    <div className="board-container eval-post-write-page">
+      <div className="eval-post-write">
+        <header className="eval-post-write__top">
+          <button type="button" className="eval-post-write__back" onClick={() => navigate('/evaluation')}>
+            <ArrowLeft size={20} strokeWidth={2.25} aria-hidden />
+            목록으로
           </button>
-          <label className="record-button upload-audio-label" style={{ minWidth: '160px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: uploading ? 'not-allowed' : 'pointer' }}>
+          <div className="eval-post-write__title-wrap">
+            <Mic className="eval-post-write__title-icon" size={26} strokeWidth={2} aria-hidden />
+            <div>
+              <h1 className="eval-post-write__title">평가글 작성</h1>
+              <p className="eval-post-write__subtitle">오디오 파일과 곡 정보를 입력한 뒤 등록하면 심사 대기 상태로 올라갑니다.</p>
+            </div>
+          </div>
+        </header>
+
+        <main className="write-form eval-post-write__form">
+          <section className="eval-post-write__section" aria-labelledby="eval-type-label">
+            <span id="eval-type-label" className="eval-post-write__section-label">
+              유형
+            </span>
+            <div className="eval-post-write__segment" role="tablist" aria-label="평가 유형">
+              {categoryOptions.map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={category === opt.id}
+                  className={`eval-post-write__segment-btn${category === opt.id ? ' eval-post-write__segment-btn--active' : ''}`}
+                  onClick={() => setCategory(opt.id)}
+                >
+                  {opt.name}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="eval-post-write__section">
+            <label htmlFor="eval-post-title" className="eval-post-write__section-label">
+              곡 제목
+            </label>
             <input
-              type="file"
-              accept="audio/*,.mp3,.m4a,.wav,.aac,.caf,.amr,.flac,.ogg,.wma"
-              style={{ display: 'none' }}
-              onChange={handleFileUpload}
-              disabled={uploading}
+              id="eval-post-title"
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="곡 제목만 입력해 주세요"
+              className="title-input eval-post-write__title-input"
+              autoComplete="off"
             />
-            <Upload size={20} style={{ marginRight: 4 }} /> 파일 업로드
-          </label>
-        </div>
+          </section>
 
-        <div className="form-actions" style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '32px' }}>
-          <button 
-            className="submit-button" 
-            onClick={handleSubmit}
-            disabled={loading || !audioBlob}
-          >
-            {loading ? (
-              '업로드 중...'
-            ) : (
-              <>
-                <Upload size={16} />
-                작성하기
-              </>
-            )}
-          </button>
-          <button 
-            className="cancel-button"
-            onClick={() => navigate('/evaluation')}
-            disabled={loading}
-          >
-            <X size={16} />
-            취소
-          </button>
-        </div>
+          <section className="eval-post-write__section">
+            <label htmlFor="eval-post-desc" className="eval-post-write__section-label">
+              설명 <span className="eval-post-write__optional">(선택)</span>
+            </label>
+            <textarea
+              id="eval-post-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="곡이나 녹음에 대해 짧게 적어 주세요. (Shift+Enter로 줄바꿈)"
+              className="content-textarea eval-post-write__textarea"
+              rows={4}
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement;
+                target.style.height = 'auto';
+                target.style.height = Math.min(Math.max(target.scrollHeight, 120), 360) + 'px';
+              }}
+            />
+          </section>
 
-        {/* 파일명/진행률 표시 영역 */}
-        {(displayFileName || (uploadProgress !== null && uploading)) && (
-          <div style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            background: '#F6F2FF', color: '#8A55CC', borderRadius: '12px', padding: '12px 24px', margin: '0 auto 18px auto', maxWidth: 340, minWidth: 220
-          }}>
-            {displayFileName && (
-              <div style={{ fontWeight: 600, fontSize: '1rem', marginBottom: uploadProgress !== null && uploading ? 8 : 0, textAlign: 'center' }}>
-                파일명: {displayFileName}
+          {category === 'busking' && (
+            <section className="eval-post-write__section" aria-labelledby="eval-members-label">
+              <span id="eval-members-label" className="eval-post-write__section-label">
+                참여 멤버
+              </span>
+              <p className="eval-post-write__hint">
+                듀엣·합창은 <strong>모든 멤버 닉네임</strong>을 적어 주세요. 솔로는 <strong>본인 닉네임만</strong> 입력하면 됩니다.
+              </p>
+              {members.map((member, idx) => (
+                <div key={idx} className="eval-post-write__member-row">
+                  <input
+                    className="eval-post-write__member-input"
+                    value={member}
+                    onChange={(e) => setMembers((prev) => prev.map((m, i) => (i === idx ? e.target.value : m)))}
+                    placeholder={`멤버 닉네임 ${idx + 1}`}
+                    autoComplete="off"
+                  />
+                  {members.length > 1 && (
+                    <button
+                      type="button"
+                      className="eval-post-write__member-btn eval-post-write__member-btn--remove"
+                      onClick={() => setMembers((prev) => prev.filter((_, i) => i !== idx))}
+                    >
+                      삭제
+                    </button>
+                  )}
+                  {idx === members.length - 1 && (
+                    <button
+                      type="button"
+                      className="eval-post-write__member-btn eval-post-write__member-btn--add"
+                      onClick={() => setMembers((prev) => [...prev, ''])}
+                    >
+                      추가
+                    </button>
+                  )}
+                </div>
+              ))}
+            </section>
+          )}
+
+          <section className="eval-post-write__section">
+            <span className="eval-post-write__section-label">오디오 파일</span>
+            <label
+              className={`eval-post-write__upload${uploading ? ' eval-post-write__upload--busy' : ''}`}
+            >
+              <input
+                type="file"
+                accept="audio/*,.mp3,.m4a,.wav,.aac,.caf,.amr,.flac,.ogg,.wma"
+                style={{ display: 'none' }}
+                onChange={handleFileUpload}
+                disabled={uploading}
+              />
+              <div className="eval-post-write__upload-inner">
+                <FileAudio className="eval-post-write__upload-icon" size={36} strokeWidth={1.5} aria-hidden />
+                <strong>탭하여 오디오 파일 선택</strong>
+                <span>MP3 · M4A · WAV 등 (영상 파일은 업로드할 수 없습니다)</span>
+              </div>
+            </label>
+
+            {(displayFileName || (uploading && uploadProgress !== null)) && (
+              <div className="eval-post-write__file-status">
+                {displayFileName && (
+                  <div className="eval-post-write__file-name">{displayFileName}</div>
+                )}
+                {duration > 0 && displayFileName && !uploading && (
+                  <div className="eval-post-write__file-meta">재생 길이 약 {formatDurationLabel(duration)}</div>
+                )}
+                {uploading && uploadProgress !== null && (
+                  <div className="eval-post-write__progress-track" role="progressbar" aria-valuenow={Math.round(uploadProgress)} aria-valuemin={0} aria-valuemax={100}>
+                    <div className="eval-post-write__progress-fill" style={{ width: `${uploadProgress}%` }} />
+                  </div>
+                )}
+                {uploading && <span className="eval-post-write__uploading-label">업로드 중…</span>}
               </div>
             )}
-            {uploadProgress !== null && uploading && (
-              <div style={{ width: '100%', maxWidth: 280, height: 12, background: '#e9dfff', borderRadius: 6, overflow: 'hidden', marginTop: 2 }}>
-                <div style={{ width: `${uploadProgress}%`, height: '100%', background: '#8A55CC', borderRadius: 6, transition: 'width 0.2s' }} />
-              </div>
-            )}
-            {/* 업로드 중... 문구를 파일명/진행률 아래에만 표시 */}
-            {uploading && <span className="uploading-text" style={{ marginTop: 8, color: '#8A55CC', fontWeight: 500 }}>업로드 중...</span>}
+          </section>
+
+          <div className="eval-post-write__actions">
+            <button
+              type="button"
+              className="submit-button eval-post-write__submit"
+              onClick={handleSubmit}
+              disabled={loading || !audioBlob}
+            >
+              {loading ? (
+                '처리 중…'
+              ) : (
+                <>
+                  <Send size={18} aria-hidden />
+                  등록하기
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              className="cancel-button eval-post-write__cancel"
+              onClick={() => navigate('/evaluation')}
+              disabled={loading}
+            >
+              <X size={18} aria-hidden />
+              취소
+            </button>
           </div>
-        )}
+        </main>
       </div>
     </div>
   );

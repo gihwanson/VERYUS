@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { collection, query, where, orderBy, onSnapshot, updateDoc, doc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Bell, MessageCircle, X, Heart, CheckCircle, XCircle, Users, AtSign, UserPlus, CheckCheck, Shield } from 'lucide-react';
+import { Bell, MessageCircle, X, Heart, CheckCircle, XCircle, Users, AtSign, UserPlus, CheckCheck, Shield, Award } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { NotificationService } from '../utils/notificationService';
 import './Notifications.css';
@@ -24,6 +24,7 @@ interface Notification {
     | 'grade_request_pending'
     | 'grade_change_approved'
     | 'grade_change_rejected'
+    | 'approved_song_milestone'
     | 'anonymous_chat';
   postId?: string;
   postTitle?: string;
@@ -172,6 +173,8 @@ const Notifications: React.FC = () => {
         return 'notifications-icon-grade-change-approved';
       case 'grade_change_rejected':
         return 'notifications-icon-grade-change-rejected';
+      case 'approved_song_milestone':
+        return 'notifications-icon-grade-request-pending';
       case 'comment':
       default:
         return 'notifications-icon-comment';
@@ -209,6 +212,8 @@ const Notifications: React.FC = () => {
         return <CheckCircle size={18} className={iconClass} />;
       case 'grade_change_rejected':
         return <XCircle size={18} className={iconClass} />;
+      case 'approved_song_milestone':
+        return <Award size={18} className={iconClass} />;
       default:
         return <Bell size={18} className={iconClass} />;
     }

@@ -34,6 +34,10 @@ const getNotificationRoute = (data: FirebaseFirestore.DocumentData): string => {
     return '/admin?tab=approvals';
   }
 
+  if (notificationType === 'approved_song_milestone') {
+    return '/hall-of-fame';
+  }
+
   if (notificationType === 'guestbook' || notificationType === 'guestbook_reply') {
     const ownerUid = (data.guestbookOwnerUid as string | undefined) || '';
     return ownerUid ? `/mypage/${ownerUid}` : '/mypage';
