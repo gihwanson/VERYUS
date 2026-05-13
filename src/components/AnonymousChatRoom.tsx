@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { AppWindow, ChevronLeft, Search, Phone, Bell, BellOff, Menu, Plus, Smile, FileText } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { AppWindow, ChevronLeft, Home, Search, Phone, Bell, BellOff, Menu, Plus, Smile, FileText } from 'lucide-react';
 import {
   addDoc,
   collection,
@@ -158,6 +159,7 @@ const CHAT_THEME_STORAGE_KEY = 'veryus_anonymous_chat_theme';
 const ROOM_TITLE_OVERRIDE_STORAGE_KEY_PREFIX = 'veryus_anonymous_room_title_override';
 
 const AnonymousChatRoom: React.FC = () => {
+  const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<AnonymousProfile | null>(null);
   const [rooms, setRooms] = useState<AnonymousRoom[]>([]);
@@ -1375,6 +1377,15 @@ const AnonymousChatRoom: React.FC = () => {
       <div className="anonymous-chat-page">
         <div className="anonymous-chat-header">
           <div className="anonymous-chat-header-title-row">
+            <button
+              type="button"
+              className="anonymous-chat-back-to-home-btn"
+              aria-label="메인보드로 돌아가기"
+              title="메인보드로 돌아가기"
+              onClick={() => navigate('/')}
+            >
+              <ChevronLeft size={22} />
+            </button>
             <h2>익명 채팅방 목록</h2>
             <button
               type="button"

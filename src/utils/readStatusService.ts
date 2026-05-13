@@ -260,4 +260,92 @@ export const subscribeToAnnouncementUnreadCount = (
     const count = await getAnnouncementUnreadCount(userId);
     callback(count);
   });
+};
+
+// ── 익명채팅 안 읽은 메시지 수 ──
+
+const toMillis = (v: any): number => {
+  if (!v) return 0;
+  if (typeof v?.toDate === 'function') return v.toDate().getTime();
+  if (typeof v?.seconds === 'number') {
+    const nanos = typeof v?.nanoseconds === 'number' ? v.nanoseconds : 0;
+    return v.seconds * 1000 + Math.floor(nanos / 1_000_000);
+  }
+  if (typeof v === 'number') return v > 1_000_000_000_000 ? v : v * 1000;
+  const parsed = new Date(v).getTime();
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
+/**
+ * 사용자가 참여 중인 모든 익명채팅 방의 안 읽은 메시지 총합을 실시간 구독합니다.
+ * 각 방의 `participants/{uid}.lastReadAt`과 `messages.createdAt`을 비교하여 계산합니다.
+ */
+export const subscribeToAnonymousChatUnreadCount = (
+  userId: string,
+  callback: (count: number) => void
+): (() => void) => {
+  const roomsRef = collection(db, 'anonymousChatRooms');
+  const unsubscribers: (() => void)[] = [];
+
+  let roomUnreadMap: Record<string, number> = {};
+
+  const emitTotal = () => {
+    const total = Object.values(roomUnreadMap).reduce((s, n) => s + n, 0);
+    callback(total);
+  };
+
+  const unsubRooms = onSnapshot(roomsRef, (roomsSnap) => {
+    // 기존 방별 구독 해제
+    unsubscribers.forEach((fn) => fn());
+    unsubscribers.length = 0;
+    roomUnreadMap = {};
+
+    if (roomsSnap.empty) {
+      emitTotal();
+      return;
+    }
+
+    for (const roomDoc of roomsSnap.docs) {
+      const roomId = roomDoc.id;
+
+      const participantRef = doc(db, 'anonymousChatRooms', roomId, 'participants', userId);
+      const messagesRef = collection(db, 'anonymousChatRooms', roomId, 'messages');
+
+      let lastReadMs = 0;
+      let msgs: { uid: string; createdAtMs: number }[] = [];
+      let hasParticipant = false;
+
+      const recalc = () => {
+        if (!hasParticipant) {
+          roomUnreadMap[roomId] = 0;
+        } else {
+          roomUnreadMap[roomId] = msgs.filter(
+            (m) => m.uid !== userId && m.createdAtMs > lastReadMs
+          ).length;
+        }
+        emitTotal();
+      };
+
+      const unsubParticipant = onSnapshot(participantRef, (snap) => {
+        hasParticipant = snap.exists();
+        lastReadMs = hasParticipant ? toMillis(snap.data()?.lastReadAt) : 0;
+        recalc();
+      });
+
+      const unsubMsgs = onSnapshot(messagesRef, (msgsSnap) => {
+        msgs = msgsSnap.docs.map((d) => {
+          const data = d.data();
+          return { uid: data.uid || '', createdAtMs: toMillis(data.createdAt) };
+        });
+        recalc();
+      });
+
+      unsubscribers.push(unsubParticipant, unsubMsgs);
+    }
+  });
+
+  return () => {
+    unsubRooms();
+    unsubscribers.forEach((fn) => fn());
+  };
 }; 

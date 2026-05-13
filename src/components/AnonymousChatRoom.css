@@ -198,6 +198,27 @@
   min-width: 0;
 }
 
+.anonymous-chat-back-to-home-btn {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  background: rgba(100, 116, 139, 0.1);
+  color: #475569;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.anonymous-chat-back-to-home-btn:hover {
+  background: rgba(100, 116, 139, 0.2);
+  color: #334155;
+}
+
 .anonymous-chat-open-window-btn {
   display: flex;
   flex-shrink: 0;

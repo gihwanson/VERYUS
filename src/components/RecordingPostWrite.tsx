@@ -1,26 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  collection, 
-  addDoc,
-  serverTimestamp,
-  getDoc,
-  doc as firestoreDoc
-} from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDoc, doc as firestoreDoc } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL, uploadBytesResumable } from 'firebase/storage';
 import { db, storage } from '../firebase';
-import { 
-  ArrowLeft, 
-  Mic,
-  StopCircle,
-  Save,
-  X,
-  Upload,
-  Play,
-  Pause
-} from 'lucide-react';
+import { ArrowLeft, Mic, X, FileAudio, Send } from 'lucide-react';
 import '../styles/PostWrite.css';
 import '../styles/BoardLayout.css';
+import '../styles/RecordingPostWrite.css';
 
 interface User {
   uid: string;
@@ -36,20 +22,13 @@ const RecordingPostWrite: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [displayFileName, setDisplayFileName] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
-  
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     const userString = localStorage.getItem('veryus_user');
@@ -61,61 +40,119 @@ const RecordingPostWrite: React.FC = () => {
     setUser(JSON.parse(userString));
   }, [navigate]);
 
-  const startRecording = async () => {
+  const extractDuration = (url: string, tryCount = 0) => {
+    const audio = new Audio(url);
+    audio.addEventListener('loadedmetadata', () => {
+      if (audio.duration && isFinite(audio.duration) && !isNaN(audio.duration) && audio.duration > 0) {
+        setDuration(audio.duration);
+      } else if (tryCount < 5) {
+        setTimeout(() => extractDuration(url, tryCount + 1), 200);
+      } else {
+        setDuration(0);
+      }
+    });
+  };
+
+  const formatDurationLabel = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    const audioMimeTypes = [
+      'audio/mpeg',
+      'audio/mp3',
+      'audio/mp4',
+      'audio/m4a',
+      'audio/wav',
+      'audio/wave',
+      'audio/x-wav',
+      'audio/aac',
+      'audio/x-aac',
+      'audio/flac',
+      'audio/x-flac',
+      'audio/ogg',
+      'audio/x-ogg',
+      'audio/webm',
+      'audio/x-ms-wma',
+      'audio/caf',
+      'audio/amr',
+      'audio/x-amr',
+      'audio/3gpp',
+      'audio/x-3gpp'
+    ];
+    const videoMimeTypes = [
+      'video/mp4',
+      'video/quicktime',
+      'video/x-msvideo',
+      'video/x-ms-wmv',
+      'video/webm',
+      'video/ogg',
+      'video/3gpp',
+      'video/x-flv',
+      'video/x-matroska'
+    ];
+
+    const fileType = file.type.toLowerCase();
+    const isAudio = audioMimeTypes.some((type) => fileType.includes(type));
+    const isVideo = videoMimeTypes.some((type) => fileType.includes(type));
+
+    const lowerName = file.name.toLowerCase();
+    const audioExtensions = ['.mp3', '.m4a', '.wav', '.aac', '.caf', '.amr', '.flac', '.ogg', '.wma', '.webm', '.3gp'];
+    const videoExtensions = ['.mp4', '.mov', '.avi', '.wmv', '.flv', '.mkv', '.webm', '.3gp'];
+
+    const hasAudioExt = audioExtensions.some((ext) => lowerName.endsWith(ext));
+    const hasVideoExt = videoExtensions.some((ext) => lowerName.endsWith(ext));
+
+    if (isVideo || hasVideoExt) {
+      alert('영상 파일은 업로드할 수 없습니다. 오디오 파일만 업로드 가능합니다.');
+      e.target.value = '';
+      return;
+    }
+
+    if (!isAudio && !hasAudioExt) {
+      alert('오디오 파일만 업로드 가능합니다. (mp3, m4a, wav, aac, caf, amr, flac, ogg, wma 등)');
+      e.target.value = '';
+      return;
+    }
+
+    setUploading(true);
+    setUploadProgress(0);
+    setDisplayFileName(null);
+    setFileName(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream);
-      audioChunksRef.current = [];
-      mediaRecorderRef.current.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
+      const fileRef = storageRef(storage, `recordings/${user.uid}/${Date.now()}_${file.name}`);
+      const uploadTask = uploadBytesResumable(fileRef, file);
+      uploadTask.on(
+        'state_changed',
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setUploadProgress(progress);
+        },
+        () => {
+          alert('파일 업로드 중 오류가 발생했습니다.');
+          setUploading(false);
+          setUploadProgress(null);
+        },
+        async () => {
+          const url = await getDownloadURL(uploadTask.snapshot.ref);
+          setAudioBlob(file);
+          setFileName(file.name);
+          setUploading(false);
+          setUploadProgress(null);
+          setDisplayFileName(file.name);
+          extractDuration(url);
         }
-      };
-      mediaRecorderRef.current.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-        const url = URL.createObjectURL(audioBlob);
-        setAudioBlob(audioBlob);
-        setAudioUrl(url);
-        extractDuration(url);
-        // 파일명 생성 및 표시
-        const now = new Date();
-        const y = now.getFullYear();
-        const m = String(now.getMonth() + 1).padStart(2, '0');
-        const d = String(now.getDate()).padStart(2, '0');
-        const hh = String(now.getHours()).padStart(2, '0');
-        const mm = String(now.getMinutes()).padStart(2, '0');
-        const ss = String(now.getSeconds()).padStart(2, '0');
-        const filename = `${y}${m}${d}_${hh}${mm}${ss}.wav`;
-        setDisplayFileName(filename);
-        setFileName(filename);
-      };
-      mediaRecorderRef.current.start();
-      setIsRecording(true);
-    } catch (error) {
-      console.error('녹음 시작 오류:', error);
-      alert('마이크 접근 권한이 필요합니다.');
+      );
+    } catch {
+      alert('파일 업로드 중 오류가 발생했습니다.');
+      setUploading(false);
+      setUploadProgress(null);
     }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      
-      // 스트림 정지
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-    }
-  };
-
-  const handlePlayPause = () => {
-    if (!audioRef.current || !audioUrl) return;
-
-    if (isPlaying) {
-      audioRef.current.pause();
-    } else {
-      audioRef.current.play();
-    }
-    setIsPlaying(!isPlaying);
   };
 
   const handleSubmit = async () => {
@@ -139,12 +176,12 @@ const RecordingPostWrite: React.FC = () => {
         const hh = String(now.getHours()).padStart(2, '0');
         const mm = String(now.getMinutes()).padStart(2, '0');
         const ss = String(now.getSeconds()).padStart(2, '0');
-        const filename = `${y}${m}${d}_${hh}${mm}${ss}.wav`;
-        const fileRef = storageRef(storage, `recordings/${user.uid}/${filename}`);
+        const wavName = `${y}${m}${d}_${hh}${mm}${ss}.wav`;
+        const fileRef = storageRef(storage, `recordings/${user.uid}/${wavName}`);
         await uploadBytes(fileRef, audioBlob);
         audioDownloadUrl = await getDownloadURL(fileRef);
       }
-      // 작성자 정보 보강: users 컬렉션에서 최신 정보 fetch
+
       let writerGrade = user.grade;
       let writerRole = user.role;
       let writerPosition = user.position;
@@ -157,7 +194,7 @@ const RecordingPostWrite: React.FC = () => {
           writerPosition = userData.position || writerPosition;
         }
       }
-      // Firestore에 게시글 저장
+
       await addDoc(collection(db, 'posts'), {
         type: 'recording',
         title,
@@ -186,232 +223,129 @@ const RecordingPostWrite: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    // 오디오 요소 생성
-    if (audioUrl) {
-      audioRef.current = new Audio(audioUrl);
-      audioRef.current.onended = () => setIsPlaying(false);
-    }
-
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-    };
-  }, [audioUrl]);
-
-  const formatDuration = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
-  // 오디오 길이 계산 (재시도 로직 추가)
-  const extractDuration = (url: string, tryCount = 0) => {
-    const audio = new Audio(url);
-    audio.addEventListener('loadedmetadata', () => {
-      if (audio.duration && isFinite(audio.duration) && !isNaN(audio.duration) && audio.duration > 0) {
-        setDuration(audio.duration);
-      } else if (tryCount < 5) {
-        setTimeout(() => extractDuration(url, tryCount + 1), 200);
-      } else {
-        setDuration(0); // 실패 시 0으로 저장
-      }
-    });
-  };
-
-  // 파일 업로드 핸들러
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-
-    // 오디오 파일만 허용 (영상 파일 차단)
-    const audioMimeTypes = ['audio/mpeg', 'audio/mp3', 'audio/mp4', 'audio/m4a', 'audio/wav', 'audio/wave', 'audio/x-wav', 'audio/aac', 'audio/x-aac', 'audio/flac', 'audio/x-flac', 'audio/ogg', 'audio/x-ogg', 'audio/webm', 'audio/x-ms-wma', 'audio/caf', 'audio/amr', 'audio/x-amr', 'audio/3gpp', 'audio/x-3gpp'];
-    const videoMimeTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-ms-wmv', 'video/webm', 'video/ogg', 'video/3gpp', 'video/x-flv', 'video/x-matroska'];
-    
-    // MIME 타입 확인
-    const fileType = file.type.toLowerCase();
-    const isAudio = audioMimeTypes.some(type => fileType.includes(type));
-    const isVideo = videoMimeTypes.some(type => fileType.includes(type));
-    
-    // 확장자 확인 (MIME 타입이 없는 경우 대비)
-    const fileName = file.name.toLowerCase();
-    const audioExtensions = ['.mp3', '.m4a', '.wav', '.aac', '.caf', '.amr', '.flac', '.ogg', '.wma', '.webm', '.3gp'];
-    const videoExtensions = ['.mp4', '.mov', '.avi', '.wmv', '.flv', '.mkv', '.webm', '.3gp'];
-    
-    const hasAudioExt = audioExtensions.some(ext => fileName.endsWith(ext));
-    const hasVideoExt = videoExtensions.some(ext => fileName.endsWith(ext));
-    
-    // 영상 파일이면 차단
-    if (isVideo || hasVideoExt) {
-      alert('영상 파일은 업로드할 수 없습니다. 오디오 파일만 업로드 가능합니다.');
-      e.target.value = ''; // input 초기화
-      return;
-    }
-    
-    // 오디오 파일이 아니면 차단
-    if (!isAudio && !hasAudioExt) {
-      alert('오디오 파일만 업로드 가능합니다. (mp3, m4a, wav, aac, caf, amr, flac, ogg, wma 등)');
-      e.target.value = ''; // input 초기화
-      return;
-    }
-
-    setUploading(true);
-    setUploadProgress(0);
-    setDisplayFileName(null);
-    setFileName(null);
-    try {
-      const fileRef = storageRef(storage, `recordings/${user.uid}/${Date.now()}_${file.name}`);
-      const uploadTask = uploadBytesResumable(fileRef, file);
-      uploadTask.on('state_changed',
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          setUploadProgress(progress);
-        },
-        (error) => {
-          alert('파일 업로드 중 오류가 발생했습니다.');
-          setUploading(false);
-          setUploadProgress(null);
-        },
-        async () => {
-          const url = await getDownloadURL(uploadTask.snapshot.ref);
-          setAudioUrl(url);
-          setAudioBlob(file);
-          setUploading(false);
-          setUploadProgress(null);
-          setDisplayFileName(file.name);
-          setFileName(file.name);
-          extractDuration(url);
-        }
-      );
-    } catch (err) {
-      alert('파일 업로드 중 오류가 발생했습니다.');
-      setUploading(false);
-      setUploadProgress(null);
-    }
-  };
-
   return (
-    <div className="board-container">
-
-      <div className="board-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '1rem', width: '100%' }}>
-        <h1 className="board-title" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0 }}>
-
-          <Mic size={28} />
-          녹음하기
-        </h1>
-      </div>
-
-      <div className="write-form recording-form">
-        <div className="form-group">
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="제목을 입력하세요"
-            className="title-input"
-          />
-        </div>
-
-        <div className="form-group">
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="녹음에 대한 설명을 입력하세요 (Shift+Enter로 줄바꿈)"
-            className="content-input"
-            rows={4}
-            style={{
-              resize: 'none',
-              overflow: 'hidden',
-              minHeight: '100px',
-              maxHeight: '400px',
-              lineHeight: '1.4'
-            }}
-            onInput={(e) => {
-              const target = e.target as HTMLTextAreaElement;
-              target.style.height = 'auto';
-              target.style.height = Math.min(Math.max(target.scrollHeight, 100), 400) + 'px';
-            }}
-          />
-        </div>
-
-        <div className="recording-controls" style={{ display: 'flex', flexDirection: 'row', gap: '12px', justifyContent: 'center', marginTop: '24px' }}>
-          <button
-            type="button"
-            className={`record-button${isRecording ? ' recording' : ''}`}
-            onClick={isRecording ? stopRecording : startRecording}
-            style={{ minWidth: '160px' }}
-          >
-            {isRecording ? (
-              <>
-                <StopCircle size={24} /> 녹음 중지
-              </>
-            ) : (
-              <>
-                <Mic size={24} /> 녹음 시작
-              </>
-            )}
+    <div className="board-container rec-post-write-page">
+      <div className="rec-post-write">
+        <header className="rec-post-write__top">
+          <button type="button" className="rec-post-write__back" onClick={() => navigate('/recording')}>
+            <ArrowLeft size={20} strokeWidth={2.25} aria-hidden />
+            목록으로
           </button>
-          <label className="record-button upload-audio-label" style={{ minWidth: '160px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: uploading ? 'not-allowed' : 'pointer' }}>
-            <input
-              type="file"
-              accept="audio/*,.mp3,.m4a,.wav,.aac,.caf,.amr,.flac,.ogg,.wma"
-              style={{ display: 'none' }}
-              onChange={handleFileUpload}
-              disabled={uploading}
-            />
-            <Upload size={20} style={{ marginRight: 4 }} /> 파일 업로드
-          </label>
-          {uploading && <span className="uploading-text">업로드 중...</span>}
-        </div>
-
-        <div className="form-actions" style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '32px' }}>
-          <button 
-            className="submit-button" 
-            onClick={handleSubmit}
-            disabled={loading || !audioBlob}
-          >
-            {loading ? (
-              '업로드 중...'
-            ) : (
-              <>
-                <Upload size={16} />
-                업로드
-              </>
-            )}
-          </button>
-          <button 
-            className="cancel-button"
-            onClick={() => navigate('/recording')}
-            disabled={loading}
-          >
-            <X size={16} />
-            취소
-          </button>
-        </div>
-
-        {/* 파일명/진행률 표시 영역 */}
-        {(displayFileName || (uploadProgress !== null && uploading)) && (
-          <div style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            background: '#F6F2FF', color: '#8A55CC', borderRadius: '12px', padding: '12px 24px', margin: '0 auto 18px auto', maxWidth: 340, minWidth: 220
-          }}>
-            {displayFileName && (
-              <div style={{ fontWeight: 600, fontSize: '1rem', marginBottom: uploadProgress !== null && uploading ? 8 : 0, textAlign: 'center' }}>
-                파일명: {displayFileName}
-              </div>
-            )}
-            {uploadProgress !== null && uploading && (
-              <div style={{ width: '100%', maxWidth: 280, height: 12, background: '#e9dfff', borderRadius: 6, overflow: 'hidden', marginTop: 2 }}>
-                <div style={{ width: `${uploadProgress}%`, height: '100%', background: '#8A55CC', borderRadius: 6, transition: 'width 0.2s' }} />
-              </div>
-            )}
+          <div className="rec-post-write__title-wrap">
+            <Mic className="rec-post-write__title-icon" size={26} strokeWidth={2} aria-hidden />
+            <div>
+              <h1 className="rec-post-write__title">녹음하기</h1>
+              <p className="rec-post-write__subtitle">
+                오디오 파일을 선택한 뒤 제목과 설명을 입력하고 등록하면 녹음 게시판에 올라갑니다.
+              </p>
+            </div>
           </div>
-        )}
+        </header>
+
+        <main className="write-form rec-post-write__form">
+          <section className="rec-post-write__section">
+            <label htmlFor="rec-post-title" className="rec-post-write__section-label">
+              제목
+            </label>
+            <input
+              id="rec-post-title"
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="제목을 입력하세요"
+              className="title-input rec-post-write__title-input"
+              autoComplete="off"
+            />
+          </section>
+
+          <section className="rec-post-write__section">
+            <label htmlFor="rec-post-desc" className="rec-post-write__section-label">
+              설명 <span className="rec-post-write__optional">(선택)</span>
+            </label>
+            <textarea
+              id="rec-post-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="곡이나 녹음에 대해 짧게 적어 주세요. (Shift+Enter로 줄바꿈)"
+              className="content-textarea rec-post-write__textarea"
+              rows={4}
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement;
+                target.style.height = 'auto';
+                target.style.height = Math.min(Math.max(target.scrollHeight, 120), 360) + 'px';
+              }}
+            />
+          </section>
+
+          <section className="rec-post-write__section">
+            <span className="rec-post-write__section-label">오디오 파일</span>
+            <label className={`rec-post-write__upload${uploading ? ' rec-post-write__upload--busy' : ''}`}>
+              <input
+                type="file"
+                accept="audio/*,.mp3,.m4a,.wav,.aac,.caf,.amr,.flac,.ogg,.wma"
+                style={{ display: 'none' }}
+                onChange={handleFileUpload}
+                disabled={uploading}
+              />
+              <div className="rec-post-write__upload-inner">
+                <FileAudio className="rec-post-write__upload-icon" size={36} strokeWidth={1.5} aria-hidden />
+                <strong>탭하여 오디오 파일 선택</strong>
+                <span>MP3 · M4A · WAV 등 (영상 파일은 업로드할 수 없습니다)</span>
+              </div>
+            </label>
+
+            {(displayFileName || (uploading && uploadProgress !== null)) && (
+              <div className="rec-post-write__file-status">
+                {displayFileName && <div className="rec-post-write__file-name">{displayFileName}</div>}
+                {duration > 0 && displayFileName && !uploading && (
+                  <div className="rec-post-write__file-meta">재생 길이 약 {formatDurationLabel(duration)}</div>
+                )}
+                {uploading && uploadProgress !== null && (
+                  <div
+                    className="rec-post-write__progress-track"
+                    role="progressbar"
+                    aria-valuenow={Math.round(uploadProgress)}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                  >
+                    <div className="rec-post-write__progress-fill" style={{ width: `${uploadProgress}%` }} />
+                  </div>
+                )}
+                {uploading && <span className="rec-post-write__uploading-label">업로드 중…</span>}
+              </div>
+            )}
+          </section>
+
+          <div className="rec-post-write__actions">
+            <button
+              type="button"
+              className="submit-button rec-post-write__submit"
+              onClick={handleSubmit}
+              disabled={loading || !audioBlob}
+            >
+              {loading ? (
+                '처리 중…'
+              ) : (
+                <>
+                  <Send size={18} aria-hidden />
+                  등록하기
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              className="cancel-button rec-post-write__cancel"
+              onClick={() => navigate('/recording')}
+              disabled={loading}
+            >
+              <X size={18} aria-hidden />
+              취소
+            </button>
+          </div>
+        </main>
       </div>
     </div>
   );
 };
 
-export default RecordingPostWrite; 
+export default RecordingPostWrite;

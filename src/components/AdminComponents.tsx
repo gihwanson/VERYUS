@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Crown, Shield, User, Users, Activity, CheckCircle, X, Edit3, AlertCircle, MessageSquare, Heart, FileText, Clock, TrendingUp, History, Eye, Search, Filter, Award, Plus, Target, Mail, Send } from 'lucide-react';
+import { Crown, Shield, User, Users, Activity, X, Edit3, AlertCircle, MessageSquare, Heart, FileText, Clock, TrendingUp, History, Eye, Search, Filter, Award, Plus, Target, Mail, Send, Trash2 } from 'lucide-react';
 import type { AdminUser, UserActivity, ActivityStats, UserActivitySummary, AdminLog, AdminAction, LogStats, ExtendedUserStats, UserAnalytics, BulkAction, Notification, NotificationType, NotificationTemplate, NotificationStats, NotificationTarget } from './AdminTypes';
 import { NOTIFICATION_TYPE_LABELS, NOTIFICATION_TYPE_COLORS, ADMIN_ACTION_LABELS, ADMIN_ACTION_COLORS } from './AdminTypes';
 import { formatDate, getGradeDisplay, calculateActivityDays, createRoleDisplay, createRoleIcon, getUserStatus, createStatusDisplay, getSuspensionTimeLeft, getActivityIcon, formatActivityTime, getActivityLevel, getLogActionIcon, formatLogTime, calculateStats, calculateActivityScore, calculateActivityStats, changeUserStatus, isUserSuspended, executeBulkAction, generateUserAnalytics, logAdminAction, fetchAdminLogs, calculateLogStats, getNotificationTypeIcon, getNotificationStatusDisplay, getDefaultTemplates, createNotificationTargets, fetchNotificationTemplates, toggleAllTargets } from './AdminUtils';
@@ -96,29 +96,29 @@ export const UserCard: React.FC<UserCardProps> = ({
       <div className="user-actions">
         {!isEditing ? (
           <>
-            <button className="action-btn view-btn" onClick={onView}>
-              <CheckCircle size={14}/>
+            <button type="button" className="action-btn view-btn" onClick={onView}>
+              <Eye size={14} aria-hidden />
               상세
             </button>
-            <button className="action-btn edit-btn" onClick={onEdit}>
-              <Edit3 size={14}/>
+            <button type="button" className="action-btn edit-btn" onClick={onEdit}>
+              <Edit3 size={14} aria-hidden />
               수정
             </button>
             {onStatusChange && (
-              <button className="action-btn status-btn" onClick={onStatusChange}>
-                <AlertCircle size={14}/>
+              <button type="button" className="action-btn status-btn" onClick={onStatusChange}>
+                <AlertCircle size={14} aria-hidden />
                 상태
               </button>
             )}
-            <button className="action-btn delete-btn" onClick={onDelete}>
-              <X size={14}/>
+            <button type="button" className="action-btn delete-btn" onClick={onDelete}>
+              <Trash2 size={14} aria-hidden />
               삭제
             </button>
           </>
         ) : (
           <>
-            <button className="action-btn save-btn" onClick={onSave}>저장</button>
-            <button className="action-btn cancel-btn" onClick={onCancel}>취소</button>
+            <button type="button" className="action-btn save-btn" onClick={onSave}>저장</button>
+            <button type="button" className="action-btn cancel-btn" onClick={onCancel}>취소</button>
           </>
         )}
       </div>

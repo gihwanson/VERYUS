@@ -841,7 +841,16 @@ const MyPage: React.FC = () => {
         const granted = await enablePushNotifications(user.uid);
         if (!granted) {
           setNotificationsEnabled(false);
-          alert('푸시 권한이 허용되지 않았거나 설정이 완료되지 않았습니다.');
+          const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+          const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+            || (navigator as any).standalone === true;
+          if (isIOS && !isStandalone) {
+            alert('아이폰에서 푸시 알림을 받으려면 Safari에서 "홈 화면에 추가"로 앱을 설치한 뒤 다시 시도해주세요.');
+          } else if (isIOS) {
+            alert('설정 > Safari > 알림에서 VERYUS 알림을 허용해주세요.');
+          } else {
+            alert('브라우저에서 알림 권한을 허용해주세요.\n(브라우저 설정 > 사이트 설정 > 알림)');
+          }
           return;
         }
       } else {

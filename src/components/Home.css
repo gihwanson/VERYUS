@@ -51,6 +51,7 @@
   100% { transform: rotate(360deg); }
 }
 
+
 /* 우측 상단 고정 헤더 */
 .fixed-header {
   position: fixed;

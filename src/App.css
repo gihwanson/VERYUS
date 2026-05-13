@@ -371,6 +371,58 @@ body {
   box-shadow: var(--button-shadow);
 }
 
+/* 플로팅 고객센터 버튼 */
+.floating-cs-btn {
+  position: fixed;
+  bottom: 90px;
+  right: 18px;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7c3aed, #6366f1);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+  text-decoration: none;
+  transition: all 0.25s ease;
+  animation: floating-cs-pulse 3s ease-in-out infinite;
+}
+
+.floating-cs-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 24px rgba(99, 102, 241, 0.5);
+}
+
+@keyframes floating-cs-pulse {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.floating-cs-btn:hover {
+  animation: none;
+  transform: scale(1.1);
+}
+
+.floating-cs-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 2px solid #4338ca;
+  animation: floating-cs-badge-pulse 2s ease-in-out infinite;
+}
+
+@keyframes floating-cs-badge-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
 /* 모바일에서 하단 네비게이션을 위한 여백 확보 */
 @media (max-width: 768px) {
   .App {
@@ -379,5 +431,12 @@ body {
   
   .app-container {
     padding-bottom: 80px;
+  }
+
+  .floating-cs-btn {
+    bottom: 85px;
+    right: 14px;
+    width: 48px;
+    height: 48px;
   }
 }

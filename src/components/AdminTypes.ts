@@ -72,7 +72,7 @@ export interface BulkAction {
   parameters?: Record<string, any>;
 }
 
-export type TabType = 'users' | 'activity' | 'grades' | 'analytics' | 'bulk_actions' | 'logs' | 'notifications';
+export type TabType = 'users' | 'grades' | 'logs';
 export type SortBy = 'nickname' | 'grade' | 'role' | 'createdAt' | 'lastLoginAt' | 'activityScore';
 export type SortOrder = 'asc' | 'desc';
 

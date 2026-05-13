@@ -31,19 +31,12 @@ import {
   X,
   Download,
   UserPlus,
-  Database,
   Crown,
-  Activity,
   Shield,
   CheckCircle,
   XCircle,
-  Edit3,
-  Trash2,
   User,
-  TrendingUp,
   History,
-  Bell,
-  Send,
   Copy,
   Check,
   Eye,
@@ -52,7 +45,6 @@ import {
 import { db } from '../firebase';
 import { startOfWeek, endOfWeek } from 'date-fns';
 import { migrateExistingMessages } from '../utils/chatService';
-import UserActivityBoard from './UserActivityBoard';
 import { 
   formatDate, 
   calculateActivityDays, 
@@ -66,18 +58,10 @@ import {
   createStatusDisplay,
   changeUserStatus,
   getSuspensionTimeLeft,
-  generateUserActivitySummary,
   logAdminAction,
   fetchAdminLogs,
   calculateLogStats,
   exportLogsToExcel,
-  sendNotification,
-  fetchNotifications,
-  fetchNotificationTemplates,
-  saveNotificationTemplate,
-  calculateNotificationStats,
-  getDefaultTemplates,
-  getActivityLevel,
   getDaysUntilPromotion,
   checkPromotionEligibility,
   getExpectedGrade,
@@ -90,17 +74,10 @@ import {
   UserCard, 
   EmptyState,
   RoleDisplay,
-  RoleIcon,
-  ActivityItem,
-  ActivityStatsCard,
-  ActivityChart,
   LogItem,
   LogStatsCard,
   LogDetailModal,
-  LogFilter,
-  NotificationSendModal,
-  NotificationList,
-  NotificationTemplates
+  LogFilter
 } from './AdminComponents';
 import { 
   GRADE_SYSTEM, 
@@ -113,46 +90,15 @@ import {
   type AdminUser,
   type TabType,
   type UserStatus,
-  type UserActivitySummary,
   type AdminLog,
   type AdminAction,
-  type LogStats,
-  type Notification,
-  type NotificationTemplate,
-  type NotificationType
+  type LogStats
 } from './AdminTypes';
 import './AdminUserPanel.css';
 import { FaUsers, FaUserShield, FaChartPie, FaFire } from "react-icons/fa";
-import type { UserActivitySummary as UserActivitySummaryType, NotificationStats as NotificationStatsType } from './AdminTypes';
 import { subscribeAdminVerification } from '../utils/adminSessionVerify';
 import type { VeryusUser } from '../utils/veryusUserStorage';
 import { NotificationService } from '../utils/notificationService';
-
-interface UserActivitySummaryProps {
-  summary: UserActivitySummaryType;
-}
-const UserActivitySummary: React.FC<UserActivitySummaryProps> = ({ summary }) => {
-  const activityLevel = getActivityLevel(summary.totalActivityScore);
-  return (
-    <div className="user-activity-summary">
-      <h3>활동 요약</h3>
-      <div>총 활동 점수: {summary.totalActivityScore} ({activityLevel.level})</div>
-      <div>주간 활동 점수: {summary.weeklyActivityScore}</div>
-      <div>월간 활동 점수: {summary.monthlyActivityScore}</div>
-      {/* 기타 표시 내용 필요시 추가 */}
-    </div>
-  );
-};
-
-const NotificationStats: React.FC<{ stats: NotificationStatsType }> = ({ stats }) => (
-  <div className="notification-stats">
-    <h3>알림 통계</h3>
-    <div>총 발송: {stats.totalSent}</div>
-    <div>총 읽음: {stats.totalRead}</div>
-    <div>평균 읽음률: {stats.averageReadRate.toFixed(1)}%</div>
-    {/* 기타 표시 내용 필요시 추가 */}
-  </div>
-);
 
 const AdminPanel: React.FC = () => {
   const navigate = useNavigate();
@@ -218,11 +164,6 @@ const AdminPanel: React.FC = () => {
   const [suspensionDays, setSuspensionDays] = useState(1);
   const [suspensionReason, setSuspensionReason] = useState('');
 
-  // 활동 분석 상태
-  const [selectedUserForActivity, setSelectedUserForActivity] = useState<AdminUser | null>(null);
-  const [userActivitySummary, setUserActivitySummary] = useState<UserActivitySummary | null>(null);
-  const [activityLoading, setActivityLoading] = useState(false);
-
   // 로그 관련 상태
   const [logs, setLogs] = useState<AdminLog[]>([]);
   const [filteredLogs, setFilteredLogs] = useState<AdminLog[]>([]);
@@ -235,9 +176,6 @@ const AdminPanel: React.FC = () => {
     dateRange: null as { start: Date; end: Date } | null
   });
 
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [notificationTemplates, setNotificationTemplates] = useState<NotificationTemplate[]>([]);
-  const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [passwordResetLoadingUid, setPasswordResetLoadingUid] = useState<string | null>(null);
   const [passwordResetMessage, setPasswordResetMessage] = useState<string>('');
 
@@ -1118,22 +1056,6 @@ const AdminPanel: React.FC = () => {
     setShowStatusModal(true);
   };
 
-  // 사용자 활동 분석 열기
-  const openUserActivity = async (user: AdminUser) => {
-    setSelectedUserForActivity(user);
-    setActivityLoading(true);
-    
-    try {
-      const summary = await generateUserActivitySummary(user);
-      setUserActivitySummary(summary);
-    } catch (error) {
-      console.error('활동 분석 실패:', error);
-      alert('활동 분석을 불러오는데 실패했습니다.');
-    } finally {
-      setActivityLoading(false);
-    }
-  };
-
   // 로그 가져오기
   const fetchLogs = async () => {
     setLogLoading(true);
@@ -1182,96 +1104,6 @@ const AdminPanel: React.FC = () => {
     
     setFilteredLogs(filtered);
   }, [logs, logFilters]);
-
-
-  // 공지/알림 관련 함수들
-  const loadNotifications = async () => {
-    try {
-      const fetchedNotifications = await fetchNotifications();
-      setNotifications(fetchedNotifications);
-    } catch (error) {
-      console.error('알림 로드 실패:', error);
-    }
-  };
-
-  const loadNotificationTemplates = async () => {
-    try {
-      const fetchedTemplates = await fetchNotificationTemplates();
-      setNotificationTemplates(fetchedTemplates);
-    } catch (error) {
-      console.error('템플릿 로드 실패:', error);
-    }
-  };
-
-  const handleSendNotification = async (notificationData: {
-    title: string;
-    content: string;
-    type: NotificationType;
-    targetUsers: string[];
-  }) => {
-    if (!currentUser) return;
-
-    try {
-      await sendNotification(
-        notificationData.title,
-        notificationData.content,
-        notificationData.type,
-        notificationData.targetUsers,
-        currentUser.uid,
-        adminLogName(currentUser)
-      );
-
-      // 로그 기록
-      await logAdminAction(
-        currentUser.uid,
-        adminLogName(currentUser),
-        'notification_sent',
-        `알림 발송: ${notificationData.title}`,
-        undefined,
-        undefined,
-        undefined,
-        { type: notificationData.type, targetCount: notificationData.targetUsers.length }
-      );
-
-      // 알림 목록 새로고침
-      await loadNotifications();
-      alert('알림이 성공적으로 발송되었습니다.');
-    } catch (error) {
-      console.error('알림 발송 실패:', error);
-      alert('알림 발송에 실패했습니다.');
-    }
-  };
-
-  const handleSaveTemplate = async (templateData: {
-    name: string;
-    title: string;
-    content: string;
-    type: NotificationType;
-  }) => {
-    if (!currentUser) return;
-
-    try {
-      await saveNotificationTemplate(
-        templateData.name,
-        templateData.title,
-        templateData.content,
-        templateData.type,
-        currentUser.uid
-      );
-
-      // 템플릿 목록 새로고침
-      await loadNotificationTemplates();
-      alert('템플릿이 저장되었습니다.');
-    } catch (error) {
-      console.error('템플릿 저장 실패:', error);
-      alert('템플릿 저장에 실패했습니다.');
-    }
-  };
-
-  const handleUseTemplate = (template: NotificationTemplate) => {
-    setShowNotificationModal(true);
-    // 템플릿 데이터를 모달에 전달하는 로직은 모달 컴포넌트에서 처리
-  };
 
   // 사용자 관리 섹션 함수 분리
   const renderUserFilters = () => (
@@ -1425,12 +1257,6 @@ const AdminPanel: React.FC = () => {
       {renderUserFilters()}
       {renderBulkActionBar()}
       {renderUserList()}
-    </div>
-  );
-
-  const renderActivityPanel = () => (
-    <div className="activity-panel">
-      <UserActivityBoard />
     </div>
   );
 
@@ -1808,7 +1634,7 @@ const AdminPanel: React.FC = () => {
             <tbody>
               {displayUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '40px' }}>
+                  <td colSpan={7} className="grades-table-empty-cell">
                     <EmptyState message="검색 조건에 맞는 사용자가 없습니다." />
                   </td>
                 </tr>
@@ -1911,82 +1737,6 @@ const AdminPanel: React.FC = () => {
     </div>
   );
 
-  // 활동 분석 섹션 함수 분리
-  const renderAnalyticsHeader = () => (
-    <div className="analytics-header">
-      <h2>사용자 활동 분석</h2>
-      <p>사용자를 선택하여 상세한 활동 내역과 통계를 확인할 수 있습니다.</p>
-    </div>
-  );
-
-  const renderUserSelection = () => (
-    <div className="user-selection">
-      <h3>분석할 사용자 선택</h3>
-      <div className="users-grid">
-        {filteredUsers.slice(0, 12).map(user => (
-          <div key={user.uid} className="user-select-card" onClick={() => openUserActivity(user)}>
-            <div className="profile-avatar">
-              {user.profileImageUrl ? (
-                <img src={user.profileImageUrl} alt="프로필" />
-              ) : (
-                <User size={24} />
-              )}
-            </div>
-            <div className="user-info">
-              <div className="user-name">{user.nickname}</div>
-              <div className="user-grade">{user.grade}</div>
-              <div className="user-role">{user.role}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  const renderActivityAnalysis = () => (
-    <div className="activity-analysis">
-      <div className="analysis-header">
-        <button 
-          className="back-button"
-          onClick={() => {
-            setSelectedUserForActivity(null);
-            setUserActivitySummary(null);
-          }}
-        >
-          ← 목록으로 돌아가기
-        </button>
-      </div>
-      {activityLoading ? (
-        <div className="loading-container">
-          <LoadingSpinner />
-        </div>
-      ) : userActivitySummary ? (
-        <div className="analysis-content">
-          <UserActivitySummary summary={userActivitySummary} />
-          <div className="analysis-charts">
-            <ActivityChart activities={userActivitySummary.recentActivities} />
-            <ActivityStatsCard
-              stats={userActivitySummary.activityStats}
-              title="활동 통계"
-              icon={<TrendingUp size={24} />}
-            />
-          </div>
-        </div>
-      ) : (
-        <div className="error-state">
-          <p>활동 데이터를 불러올 수 없습니다.</p>
-        </div>
-      )}
-    </div>
-  );
-
-  const renderAnalyticsPanel = () => (
-    <div className="analytics-panel">
-      {renderAnalyticsHeader()}
-      {!selectedUserForActivity ? renderUserSelection() : renderActivityAnalysis()}
-    </div>
-  );
-
   // 관리자 로그 섹션 함수 분리
   const renderLogsHeader = () => (
     <div className="logs-header">
@@ -2061,54 +1811,6 @@ const AdminPanel: React.FC = () => {
     </div>
   );
 
-  // 공지/알림 섹션 함수 분리
-  const renderNotificationsHeader = () => (
-    <div className="notifications-header">
-      <h2>공지/알림 관리</h2>
-      <button 
-        onClick={() => setShowNotificationModal(true)}
-        className="btn btn-primary"
-      >
-        <Send size={16} />
-        새 알림 발송
-      </button>
-    </div>
-  );
-
-  const renderNotificationsStats = () => (
-    <div className="notifications-stats">
-      <NotificationStats stats={calculateNotificationStats(notifications)} />
-    </div>
-  );
-
-  const renderNotificationsMain = () => (
-    <div className="notifications-main">
-      <div className="notifications-section">
-        <NotificationList
-          notifications={notifications}
-          onRefresh={loadNotifications}
-        />
-      </div>
-      <div className="templates-section">
-        <NotificationTemplates
-          templates={notificationTemplates}
-          onSaveTemplate={handleSaveTemplate}
-          onUseTemplate={handleUseTemplate}
-        />
-      </div>
-    </div>
-  );
-
-  const renderNotificationsPanel = () => (
-    <div className="notifications-panel">
-      {renderNotificationsHeader()}
-      <div className="notifications-content">
-        {renderNotificationsStats()}
-        {renderNotificationsMain()}
-      </div>
-    </div>
-  );
-
   if (loading) {
     return (
       <div className="admin-container">
@@ -2137,7 +1839,7 @@ const AdminPanel: React.FC = () => {
             </h1>
           </div>
           <p className="admin-hero-subtitle">
-            회원·등급·활동·로그·알림을 한곳에서 관리합니다.
+            회원·등급·로그를 한곳에서 관리합니다.
           </p>
         </div>
       </header>
@@ -2151,14 +1853,6 @@ const AdminPanel: React.FC = () => {
           >
             <Users size={18} />
             <span>사용자 관리</span>
-          </button>
-          <button
-            type="button"
-            className={`tab-button ${activeTab === 'activity' ? 'active' : ''}`}
-            onClick={() => setActiveTab('activity')}
-          >
-            <Activity size={18} />
-            <span>활동 현황</span>
           </button>
           <button
             type="button"
@@ -2184,7 +1878,6 @@ const AdminPanel: React.FC = () => {
 
       <main className="admin-main tab-content">
         {activeTab === 'users' && renderUsersPanel()}
-        {activeTab === 'activity' && renderActivityPanel()}
         {activeTab === 'grades' && renderGradesPanel()}
         {activeTab === 'logs' && renderLogsPanel()}
       </main>
@@ -2211,7 +1904,7 @@ const AdminPanel: React.FC = () => {
                 <div className="user-detail-info">
                   <h3>{selectedUser.nickname}</h3>
                   <div className="detail-badges">
-                    <span style={{ marginLeft: 6, fontSize: '1.2em' }}>{selectedUser.grade}</span>
+                    <span className="detail-badge-grade">{selectedUser.grade}</span>
                     <RoleDisplay role={selectedUser.role} />
                   </div>
                 </div>
@@ -2222,9 +1915,9 @@ const AdminPanel: React.FC = () => {
                   <strong>이메일:</strong> 
                   <span>{selectedUser.email}</span>
                 </div>
-                <div className="detail-row" style={{ alignItems: 'center' }}>
+                <div className="detail-row detail-row--align-center">
                   <strong>비밀번호 초기화:</strong>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div className="detail-row__actions">
                     <button
                       className="action-btn save-btn"
                       onClick={() => handleAdminPasswordReset(selectedUser)}
@@ -2234,7 +1927,7 @@ const AdminPanel: React.FC = () => {
                     </button>
                   </div>
                   {passwordResetMessage && (
-                    <span style={{ fontSize: '0.9rem', color: '#334155' }}>{passwordResetMessage}</span>
+                    <span className="password-reset-feedback">{passwordResetMessage}</span>
                   )}
                 </div>
                 <div className="detail-row">
@@ -2257,17 +1950,16 @@ const AdminPanel: React.FC = () => {
                       : `${selectedUserBuskingCount ?? 0} / ${selectedUser.evaluationBuskingWeeklyLimit ?? 2}`}
                   </span>
                 </div>
-                <div className="detail-row" style={{ alignItems: 'center' }}>
+                <div className="detail-row detail-row--align-center">
                   <strong>업로드 제한 설정:</strong>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div className="detail-row__actions">
                     <input
                       type="number"
                       min={0}
                       placeholder="기본값: 2"
                       value={buskingLimitInput}
                       onChange={(e) => setBuskingLimitInput(e.target.value)}
-                      className="edit-input"
-                      style={{ maxWidth: 140 }}
+                      className="edit-input busking-limit-input--narrow"
                     />
                     <button
                       className="action-btn save-btn"
@@ -2310,7 +2002,7 @@ const AdminPanel: React.FC = () => {
             </div>
             <div className="modal-body">
               <div className="form-group">
-                <label>닉네임 <span style={{color: '#ef4444'}}>*</span></label>
+                <label>닉네임 <span className="form-required">*</span></label>
                 <input
                   type="text"
                   value={newUser.nickname}
@@ -2320,36 +2012,24 @@ const AdminPanel: React.FC = () => {
                 />
               </div>
               <div className="form-group">
-                <label>비밀번호 <span style={{color: '#ef4444'}}>*</span></label>
-                <div style={{ position: 'relative' }}>
+                <label>비밀번호 <span className="form-required">*</span></label>
+                <div className="password-field">
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={newUser.password}
                     onChange={(e) => setNewUser({...newUser, password: e.target.value})}
                     placeholder="비밀번호를 입력하세요 (최소 6자)"
-                    style={{ paddingRight: '40px' }}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    style={{
-                      position: 'absolute',
-                      right: '10px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      color: '#7f5fff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '4px'
-                    }}
+                    className="admin-password-toggle"
+                    aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
-                <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '4px', marginBottom: 0 }}>
+                <p className="form-hint">
                   최소 6자 이상 입력해주세요
                 </p>
               </div>
@@ -2559,16 +2239,6 @@ const AdminPanel: React.FC = () => {
         log={selectedLog}
         onClose={() => setSelectedLog(null)}
       />
-
-      {/* 알림 발송 모달 */}
-      {showNotificationModal && (
-        <NotificationSendModal
-          isOpen={showNotificationModal}
-          onClose={() => setShowNotificationModal(false)}
-          users={users}
-          onSend={handleSendNotification}
-        />
-      )}
     </div>
   );
 };

@@ -1,31 +1,22 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { 
-  collection, 
-  addDoc, 
-  doc, 
-  getDoc, 
-  updateDoc, 
+import {
+  collection,
+  addDoc,
+  doc,
+  getDoc,
+  updateDoc,
   serverTimestamp,
-  setDoc,
   query,
   where,
   getDocs
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { NotificationService } from '../utils/notificationService';
-import { 
-  ArrowLeft, 
-  PenTool, 
-  Image as ImageIcon, 
-  Eye, 
-  Save,
-  Loader,
-  X,
-  Hash
-} from 'lucide-react';
+import { ArrowLeft, PenTool, Save, Loader, X } from 'lucide-react';
 import '../styles/PostWrite.css';
 import '../styles/BoardLayout.css';
+import '../styles/FreePostWrite.css';
 
 interface User {
   uid: string;
@@ -34,22 +25,13 @@ interface User {
   isLoggedIn: boolean;
 }
 
-interface DraftPost {
-  title: string;
-  content: string;
-  category: string;
-  lastSaved: Date;
-}
-
 const categories = [
   { id: 'general', name: '일반', icon: '💬' },
   { id: 'question', name: '질문', icon: '❓' },
   { id: 'share', name: '정보공유', icon: '📢' },
   { id: 'discussion', name: '토론', icon: '💭' },
-  { id: 'request', name: '신청곡', icon: '🎵' },
+  { id: 'request', name: '신청곡', icon: '🎵' }
 ];
-
-const AUTO_SAVE_INTERVAL = 30000; // 30초
 
 const FreePostWrite: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -65,37 +47,10 @@ const FreePostWrite: React.FC = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [requestTargets, setRequestTargets] = useState<string[]>(['']);
 
-  // 컴포넌트 마운트 시 body 배경 설정
-  useEffect(() => {
-    console.log('🎨 FreePostWrite 컴포넌트가 마운트되었습니다!');
-    const originalBodyBackground = document.body.style.background;
-    const originalHtmlBackground = document.documentElement.style.background;
-    const originalBodyMargin = document.body.style.margin;
-    const originalBodyPadding = document.body.style.padding;
-    
-    // body와 html 모두에 배경 적용
-    document.body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-    document.documentElement.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-    document.body.style.minHeight = '100vh';
-    document.body.style.margin = '0';
-    document.body.style.padding = '0';
-    console.log('🌈 배경이 설정되었습니다:', document.body.style.background);
-    
-    return () => {
-      document.body.style.background = originalBodyBackground;
-      document.documentElement.style.background = originalHtmlBackground;
-      document.body.style.margin = originalBodyMargin;
-      document.body.style.padding = originalBodyPadding;
-      document.body.style.minHeight = '';
-      console.log('🔄 배경이 복원되었습니다');
-    };
-  }, []);
-
-  // 수정 모드일 때 게시글 불러오기
   useEffect(() => {
     if (id) {
       setIsEditMode(true);
-      (async () => {
+      void (async () => {
         const postDoc = await getDoc(doc(db, 'posts', id));
         if (postDoc.exists()) {
           const data = postDoc.data();
@@ -130,7 +85,10 @@ const FreePostWrite: React.FC = () => {
     }
   }, [id, navigate]);
 
-  // 게시글 작성/수정 핸들러
+  const handleBack = () => {
+    navigate(isEditMode && id ? `/free/${id}` : '/free');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
@@ -138,30 +96,28 @@ const FreePostWrite: React.FC = () => {
       navigate('/login');
       return;
     }
-    const hasRequestTarget = requestTargets.some(target => target.trim());
+    const hasRequestTarget = requestTargets.some((target) => target.trim());
     if (!title.trim() || !content.trim() || (category === 'request' && !hasRequestTarget)) {
       alert('제목, 내용을 모두 입력해주시고, 신청곡은 대상도 입력해주세요.');
       return;
     }
     let finalContent = content;
     if (category === 'request' && hasRequestTarget) {
-      const targetsText = requestTargets.map(t => t.trim()).filter(Boolean).join(', ');
+      const targetsText = requestTargets.map((t) => t.trim()).filter(Boolean).join(', ');
       finalContent = `신청 대상: ${targetsText}\n` + content;
     }
     try {
       setIsSubmitting(true);
       if (isEditMode && id) {
-        // 수정
         await updateDoc(doc(db, 'posts', id), {
           title,
           content: finalContent,
           category,
-          updatedAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
         });
         alert('게시글이 수정되었습니다.');
         navigate(`/free/${id}`);
       } else {
-        // 새 글 작성
         const postRef = collection(db, 'posts');
         const newPost = {
           title,
@@ -175,39 +131,39 @@ const FreePostWrite: React.FC = () => {
           views: 0,
           likesCount: 0,
           commentCount: 0,
-          likes: [],
+          likes: []
         };
         const createdPostRef = await addDoc(postRef, newPost);
 
-        // 신청곡 카테고리면 대상 멤버들에게 알림 전송
-        if (category === 'request' && requestTargets.some(target => target.trim())) {
+        if (category === 'request' && requestTargets.some((target) => target.trim())) {
           try {
-            const rawTargets = requestTargets.map(target => target.trim()).filter(Boolean);
+            const rawTargets = requestTargets.map((target) => target.trim()).filter(Boolean);
             const uniqueTargets = Array.from(new Set(rawTargets));
 
-            await Promise.all(uniqueTargets.map(async (targetNickname) => {
-              const q = query(
-                collection(db, 'users'),
-                where('nickname', '==', targetNickname)
-              );
-              const snapshot = await getDocs(q);
-              if (snapshot.empty) return;
+            await Promise.all(
+              uniqueTargets.map(async (targetNickname) => {
+                const q = query(collection(db, 'users'), where('nickname', '==', targetNickname));
+                const snapshot = await getDocs(q);
+                if (snapshot.empty) return;
 
-              await Promise.all(snapshot.docs.map(async (targetUserDoc) => {
-                const targetUid = targetUserDoc.id;
-                if (targetUid === user.uid) return;
+                await Promise.all(
+                  snapshot.docs.map(async (targetUserDoc) => {
+                    const targetUid = targetUserDoc.id;
+                    if (targetUid === user.uid) return;
 
-                await NotificationService.createNotification({
-                  type: 'new_post',
-                  toUid: targetUid,
-                  fromNickname: user.nickname || '익명',
-                  postId: createdPostRef.id,
-                  postTitle: title,
-                  postType: 'free',
-                  message: `"${targetNickname}"님에게 신청곡 요청이 도착했습니다.`
-                });
-              }));
-            }));
+                    await NotificationService.createNotification({
+                      type: 'new_post',
+                      toUid: targetUid,
+                      fromNickname: user.nickname || '익명',
+                      postId: createdPostRef.id,
+                      postTitle: title,
+                      postType: 'free',
+                      message: `"${targetNickname}"님에게 신청곡 요청이 도착했습니다.`
+                    });
+                  })
+                );
+              })
+            );
           } catch (notifyError) {
             console.error('신청곡 알림 전송 실패:', notifyError);
           }
@@ -223,150 +179,154 @@ const FreePostWrite: React.FC = () => {
   };
 
   return (
-    <div 
-      className="write-page"
-      style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        minHeight: '100vh',
-        width: '100vw',
-        position: 'relative',
-        left: '50%',
-        right: '50%',
-        marginLeft: '-50vw',
-        marginRight: '-50vw',
-        padding: '2rem',
-        boxSizing: 'border-box'
-      }}
-    >
-      <div className="write-form">
-        <div className="write-form-header">
-          <PenTool size={24} />
-          <h1 className="write-form-title">{isEditMode ? '게시글 수정' : '새 글 작성'}</h1>
-        </div>
-
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label">카테고리</label>
-            <div className="category-selector">
-              {categories.map(cat => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  className={`category-button ${category === cat.id ? 'active' : ''}`}
-                  onClick={() => setCategory(cat.id)}
-                >
-                  <span className="category-icon">{cat.icon}</span>
-                  {cat.name}
-                </button>
-              ))}
+    <div className="board-container free-post-write-page">
+      <div className="free-post-write">
+        <header className="free-post-write__top">
+          <button type="button" className="free-post-write__back" onClick={handleBack}>
+            <ArrowLeft size={20} strokeWidth={2.25} aria-hidden />
+            {isEditMode ? '글로 돌아가기' : '목록으로'}
+          </button>
+          <div className="free-post-write__title-wrap">
+            <PenTool className="free-post-write__title-icon" size={26} strokeWidth={2} aria-hidden />
+            <div>
+              <h1 className="free-post-write__title">{isEditMode ? '게시글 수정' : '새 글 작성'}</h1>
+              <p className="free-post-write__subtitle">
+                {isEditMode
+                  ? '내용을 고친 뒤 저장하면 게시글이 바로 반영됩니다.'
+                  : '카테고리를 고른 뒤 제목과 본문을 작성해 주세요. 신청곡은 대상 닉네임에게 알림이 갑니다.'}
+              </p>
             </div>
           </div>
+        </header>
 
-          {category === 'request' && (
-            <div className="form-group" style={{ marginTop: 12 }}>
-              <div style={{ fontWeight: 600, color: '#8A55CC', marginBottom: 6 }}>대상은?</div>
-              {requestTargets.map((target, idx) => (
-                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <input
-                    type="text"
-                    className="title-input"
-                    placeholder="누구에게 신청하고 싶나요?"
-                    value={target}
-                    onChange={e => setRequestTargets(prev => prev.map((t, i) => i === idx ? e.target.value : t))}
-                    maxLength={50}
-                    style={{ flex: 1 }}
-                  />
-                  {requestTargets.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => setRequestTargets(prev => prev.filter((_, i) => i !== idx))}
-                      style={{ background: '#F43F5E', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 10px', fontWeight: 600, cursor: 'pointer' }}
-                    >
-                      삭제
-                    </button>
-                  )}
-                  {idx === requestTargets.length - 1 && (
-                    <button
-                      type="button"
-                      onClick={() => setRequestTargets(prev => [...prev, ''])}
-                      style={{ background: '#8A55CC', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 10px', fontWeight: 600, cursor: 'pointer' }}
-                    >
-                      + 추가
-                    </button>
-                  )}
-                </div>
-              ))}
+        <main className="write-form free-post-write__form">
+          <form onSubmit={handleSubmit}>
+            <section className="free-post-write__section" aria-labelledby="free-cat-label">
+              <span id="free-cat-label" className="free-post-write__section-label">
+                카테고리
+              </span>
+              <div className="free-post-write__category-grid" role="listbox" aria-label="게시글 카테고리">
+                {categories.map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    role="option"
+                    aria-selected={category === cat.id}
+                    className={`free-post-write__category-btn${category === cat.id ? ' free-post-write__category-btn--active' : ''}`}
+                    onClick={() => setCategory(cat.id)}
+                  >
+                    <span className="free-post-write__category-emoji" aria-hidden>
+                      {cat.icon}
+                    </span>
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            {category === 'request' && (
+              <section className="free-post-write__section" aria-labelledby="free-request-label">
+                <span id="free-request-label" className="free-post-write__section-label">
+                  신청 대상
+                </span>
+                <p className="free-post-write__hint">
+                  <strong>정확한 닉네임</strong>을 적어 주세요. 저장 시 해당 회원에게 알림이 전송됩니다.
+                </p>
+                {requestTargets.map((target, idx) => (
+                  <div key={idx} className="free-post-write__target-row">
+                    <input
+                      type="text"
+                      className="title-input free-post-write__target-input"
+                      placeholder="누구에게 신청할까요?"
+                      value={target}
+                      onChange={(e) =>
+                        setRequestTargets((prev) => prev.map((t, i) => (i === idx ? e.target.value : t)))
+                      }
+                      maxLength={50}
+                      autoComplete="off"
+                    />
+                    {requestTargets.length > 1 && (
+                      <button
+                        type="button"
+                        className="free-post-write__mini-btn free-post-write__mini-btn--remove"
+                        onClick={() => setRequestTargets((prev) => prev.filter((_, i) => i !== idx))}
+                      >
+                        삭제
+                      </button>
+                    )}
+                    {idx === requestTargets.length - 1 && (
+                      <button
+                        type="button"
+                        className="free-post-write__mini-btn free-post-write__mini-btn--add"
+                        onClick={() => setRequestTargets((prev) => [...prev, ''])}
+                      >
+                        추가
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </section>
+            )}
+
+            <section className="free-post-write__section">
+              <label htmlFor="free-post-title" className="free-post-write__section-label">
+                제목
+              </label>
+              <input
+                id="free-post-title"
+                type="text"
+                className="title-input free-post-write__title-input"
+                placeholder="제목을 입력하세요"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                maxLength={100}
+                autoComplete="off"
+              />
+            </section>
+
+            <section className="free-post-write__section">
+              <label htmlFor="free-post-content" className="free-post-write__section-label">
+                내용
+              </label>
+              <textarea
+                id="free-post-content"
+                className="content-textarea free-post-write__textarea"
+                placeholder="내용을 입력하세요 (Shift+Enter로 줄바꿈)"
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                rows={6}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  target.style.height = Math.min(Math.max(target.scrollHeight, 150), 500) + 'px';
+                }}
+              />
+            </section>
+
+            <div className="free-post-write__actions">
+              <button type="submit" className="submit-button free-post-write__submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader className="loading-spinner" size={18} aria-hidden />
+                    저장 중…
+                  </>
+                ) : (
+                  <>
+                    <Save size={18} aria-hidden />
+                    {isEditMode ? '수정 완료' : '등록하기'}
+                  </>
+                )}
+              </button>
+              <button type="button" className="cancel-button free-post-write__cancel" onClick={handleBack} disabled={isSubmitting}>
+                <X size={18} aria-hidden />
+                취소
+              </button>
             </div>
-          )}
-
-          <div className="form-group">
-            <label htmlFor="title" className="form-label">제목</label>
-            <input
-              id="title"
-              type="text"
-              className="title-input"
-              placeholder="제목을 입력하세요"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              maxLength={100}
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="content" className="form-label">내용</label>
-            <textarea
-              id="content"
-              className="content-textarea"
-              placeholder="내용을 입력하세요 (Shift+Enter로 줄바꿈)"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              rows={6}
-              style={{
-                resize: 'none',
-                overflow: 'hidden',
-                minHeight: '150px',
-                maxHeight: '500px',
-                lineHeight: '1.4'
-              }}
-              onInput={(e) => {
-                const target = e.target as HTMLTextAreaElement;
-                target.style.height = 'auto';
-                target.style.height = Math.min(Math.max(target.scrollHeight, 150), 500) + 'px';
-              }}
-            />
-          </div>
-
-          <div className="form-footer">
-            <button
-              type="button"
-              className="cancel-button"
-              onClick={() => navigate(isEditMode && id ? `/free/${id}` : '/free')}
-            >
-              <X size={18} />
-              취소
-            </button>
-            <button
-              type="submit"
-              className="submit-button"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader className="loading-spinner" size={18} />
-                  저장 중...
-                </>
-              ) : (
-                <>
-                  <Save size={18} />
-                  {isEditMode ? '수정완료' : '작성완료'}
-                </>
-              )}
-            </button>
-          </div>
-        </form>
+          </form>
+        </main>
       </div>
     </div>
   );
 };
 
-export default FreePostWrite; 
+export default FreePostWrite;

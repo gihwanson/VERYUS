@@ -190,6 +190,9 @@ const HallOfFame: React.FC = () => {
 
       commentsSnap.forEach((commentDoc) => {
         const data = commentDoc.data() as Record<string, any>;
+        if (data.isEvaluatorAliasComment === true) return;
+        const wNick = String(data.writerNickname || '').trim();
+        if (wNick === '평가자') return;
         const uid = String(data.writerUid || '').trim();
         if (!uid) return;
         commentCounter.set(uid, (commentCounter.get(uid) || 0) + 1);

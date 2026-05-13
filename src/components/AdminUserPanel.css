@@ -25,6 +25,8 @@
   --bg-secondary: rgba(255, 255, 255, 0.2);
   --bg-hover: rgba(255, 255, 255, 0.32);
   --border-color: rgba(255, 255, 255, 0.38);
+  --text-primary: #0f172a;
+  --text-muted: #64748b;
 }
 
 .admin-container::before {
@@ -963,10 +965,12 @@
   color: #7f5fff;
 }
 .user-meta {
-  color: #b4b4e0;
-  font-size: 1.01rem;
+  color: #334155;
+  font-size: 0.9rem;
+  font-weight: 500;
   margin: 0 0 0 2px;
   font-family: var(--number-font);
+  line-height: 1.45;
 }
 .user-actions {
   display: flex;
@@ -979,6 +983,7 @@
   flex: 1;
   min-width: 0;
   justify-content: center;
+  border-radius: 10px;
 }
 .action-btn {
   padding: 8px 18px;
@@ -987,7 +992,7 @@
   font-weight: 600;
   border: none;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s, border-color 0.2s, filter 0.2s, transform 0.2s;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1017,8 +1022,16 @@
   color: #7f5fff;
 }
 .action-btn:hover {
-  box-shadow: 0 4px 16px rgba(127,95,255,0.13);
-  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 4px 16px rgba(127, 95, 255, 0.18);
+  transform: translateY(-2px);
+  filter: brightness(1.03);
+}
+.user-actions .action-btn:hover {
+  transform: translateY(-1px);
+}
+.action-btn:focus-visible {
+  outline: 2px solid rgba(102, 126, 234, 0.65);
+  outline-offset: 2px;
 }
 .edit-controls {
   margin-top: 18px;
@@ -1723,12 +1736,12 @@
 }
 
 .action-btn.status-btn {
-  background: #f59e0b;
+  background: linear-gradient(90deg, #fbbf24 0%, #f97316 100%);
   color: #fff;
 }
 
 .action-btn.status-btn:hover {
-  background: #d97706;
+  background: linear-gradient(90deg, #fcd34d 0%, #fb923c 100%);
 }
 
 /* 사용자 정보 표시 */
@@ -2383,6 +2396,76 @@
 .detail-row span {
   color: #1e293b;
   font-size: 1rem;
+}
+
+.detail-row--align-center {
+  align-items: center;
+}
+
+.detail-row__actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.password-reset-feedback {
+  font-size: 0.9rem;
+  color: #334155;
+}
+
+.busking-limit-input--narrow {
+  max-width: 140px;
+}
+
+.detail-badge-grade {
+  margin-left: 6px;
+  font-size: 1.2em;
+}
+
+.grades-table-empty-cell {
+  text-align: center;
+  padding: 40px;
+}
+
+.form-required {
+  color: #ef4444;
+}
+
+.password-field {
+  position: relative;
+}
+
+.password-field > input {
+  padding-right: 40px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.admin-password-toggle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #7f5fff;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+}
+
+.admin-password-toggle:focus-visible {
+  outline: 2px solid #7f5fff;
+  outline-offset: 2px;
+}
+
+.form-hint {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-top: 4px;
+  margin-bottom: 0;
 }
 
 .value-display {

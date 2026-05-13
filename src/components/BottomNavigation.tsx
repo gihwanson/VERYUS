@@ -14,6 +14,7 @@ interface User {
 
 interface BottomNavigationProps {
   unreadNotificationCount: number;
+  anonymousChatUnreadCount?: number;
   onSearchOpen?: () => void;
 }
 
@@ -24,6 +25,7 @@ interface BoardItem {
   emoji?: string;
   isSearch?: boolean;
   isAdmin?: boolean;
+  badge?: number;
 }
 
 interface NavItem {
@@ -34,6 +36,7 @@ interface NavItem {
   isActive: boolean;
   hasSubmenu?: boolean;
   badge?: number;
+  hasDot?: boolean;
 }
 
 interface Position {
@@ -85,6 +88,7 @@ const getSavedTogglePosition = (): Position => {
 
 const BottomNavigation: React.FC<BottomNavigationProps> = memo(({ 
   unreadNotificationCount, 
+  anonymousChatUnreadCount = 0,
   onSearchOpen 
 }) => {
   const navigate = useNavigate();
@@ -126,9 +130,13 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
     setCurrentUser(getCurrentUser());
   }, []);
 
-  // Dynamic board items based on admin access
+  // Dynamic board items based on admin access + unread badges
   const boardItems: BoardItem[] = [
-    ...BOARD_ITEMS,
+    ...BOARD_ITEMS.map((item) =>
+      item.path === '/anonymous-chat' && anonymousChatUnreadCount > 0
+        ? { ...item, badge: anonymousChatUnreadCount }
+        : item
+    ),
     ...(checkAdminAccess(currentUser) ? [
       { name: '관리자 패널', path: '/admin', icon: Settings, emoji: '⚙️', isAdmin: true }
     ] : [])
@@ -153,7 +161,8 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
                 location.pathname.includes('/contests') ||
                 location.pathname.includes('/practice-room-booking') ||
                 location.pathname.includes('/anonymous-chat'),
-      hasSubmenu: true
+      hasSubmenu: true,
+      hasDot: anonymousChatUnreadCount > 0
     },
     {
       id: 'notifications',
@@ -416,6 +425,9 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
         <board.icon size={16} />
       )}
       <span>{board.name}</span>
+      {board.badge != null && board.badge > 0 && (
+        <span className="board-submenu-badge">{board.badge > 99 ? '99+' : board.badge}</span>
+      )}
     </button>
   );
 
@@ -432,6 +444,9 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
           className="bottom-nav-icon"
         />
         {item.badge && typeof item.badge === 'number' && item.badge > 0 && (
+          <span className="bottom-nav-badge-dot"></span>
+        )}
+        {item.hasDot && (
           <span className="bottom-nav-badge-dot"></span>
         )}
         {Boolean(item.hasSubmenu) && showBoardsMenu && (

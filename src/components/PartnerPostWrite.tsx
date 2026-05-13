@@ -1,40 +1,17 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { 
-  collection, 
-  addDoc, 
-  doc, 
-  getDoc, 
-  updateDoc, 
-  serverTimestamp,
-  setDoc
-} from 'firebase/firestore';
+import { collection, addDoc, doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
-import { 
-  ArrowLeft, 
-  UserPlus, 
-  PenTool, 
-  Eye, 
-  Save,
-  Loader,
-  X
-} from 'lucide-react';
+import { ArrowLeft, UserPlus, Save, Loader, X } from 'lucide-react';
 import '../styles/PostWrite.css';
 import '../styles/BoardLayout.css';
+import '../styles/PartnerPostWrite.css';
 
 interface User {
   uid: string;
   email: string;
   nickname?: string;
   isLoggedIn: boolean;
-  grade: string;
-}
-
-interface DraftPost {
-  title: string;
-  content: string;
-  category: string;
-  lastSaved: Date;
 }
 
 const categories = [
@@ -42,11 +19,6 @@ const categories = [
   { id: 'etc', name: '세션', icon: '🎹' },
   { id: 'etc2', name: '기타', icon: '❓' }
 ];
-
-const AUTO_SAVE_INTERVAL = 30000; // 30초
-
-// 세션 카테고리 등급 제한을 위한 등급 배열
-const sessionAllowedGrades = ['지구', '토성', '태양', '은하', '번개', '🌍', '🪐', '☀️', '🌌', '⚡'];
 
 const PartnerPostWrite: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -64,7 +36,7 @@ const PartnerPostWrite: React.FC = () => {
   useEffect(() => {
     if (id) {
       setIsEditMode(true);
-      (async () => {
+      void (async () => {
         const postDoc = await getDoc(doc(db, 'posts', id));
         if (postDoc.exists()) {
           const data = postDoc.data();
@@ -78,6 +50,10 @@ const PartnerPostWrite: React.FC = () => {
       })();
     }
   }, [id, navigate]);
+
+  const handleBack = () => {
+    navigate(isEditMode && id ? `/boards/partner/${id}` : '/boards/partner');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,12 +73,11 @@ const PartnerPostWrite: React.FC = () => {
           title,
           content,
           category,
-          updatedAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
         });
         alert('게시글이 수정되었습니다.');
         navigate(`/boards/partner/${id}`);
       } else {
-        const postRef = collection(db, 'posts');
         const newPost = {
           title,
           content,
@@ -116,9 +91,9 @@ const PartnerPostWrite: React.FC = () => {
           views: 0,
           likesCount: 0,
           commentCount: 0,
-          likes: [],
+          likes: []
         };
-        await addDoc(postRef, newPost);
+        await addDoc(collection(db, 'posts'), newPost);
         navigate('/boards/partner');
       }
     } catch (error) {
@@ -130,110 +105,114 @@ const PartnerPostWrite: React.FC = () => {
   };
 
   return (
-    <div className="write-page">
-      <div className="write-form">
-        <div className="write-form-header">
-          <UserPlus size={24} />
-          <h1 className="write-form-title">{isEditMode ? '파트너모집 글 수정' : '파트너모집 새 글 작성'}</h1>
-        </div>
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label">카테고리</label>
-            <div className="category-selector">
-              {categories.map(cat => {
-                let disabled = false;
-                if (cat.id === 'etc') {
-                  const userGrade = user?.grade || '';
-                  disabled = !sessionAllowedGrades.includes(userGrade);
-                }
-                const handleCategoryClick = () => {
-                  if (disabled) {
-                    alert('지구등급 이상만 선택할 수 있습니다');
-                    return;
-                  }
-                  setCategory(cat.id);
-                };
-                return (
+    <div className="board-container partner-post-write-page">
+      <div className="partner-post-write">
+        <header className="partner-post-write__top">
+          <button type="button" className="partner-post-write__back" onClick={handleBack}>
+            <ArrowLeft size={20} strokeWidth={2.25} aria-hidden />
+            {isEditMode ? '글로 돌아가기' : '목록으로'}
+          </button>
+          <div className="partner-post-write__title-wrap">
+            <UserPlus className="partner-post-write__title-icon" size={26} strokeWidth={2} aria-hidden />
+            <div>
+              <h1 className="partner-post-write__title">
+                {isEditMode ? '파트너모집 글 수정' : '파트너모집 새 글'}
+              </h1>
+              <p className="partner-post-write__subtitle">
+                {isEditMode
+                  ? '수정 후 저장하면 게시글이 바로 반영됩니다.'
+                  : '모집 유형을 고른 뒤 제목과 내용을 작성해 주세요.'}
+              </p>
+            </div>
+          </div>
+        </header>
+
+        <main className="write-form partner-post-write__form">
+          <form onSubmit={handleSubmit}>
+            <section className="partner-post-write__section" aria-labelledby="partner-cat-label">
+              <span id="partner-cat-label" className="partner-post-write__section-label">
+                모집 유형
+              </span>
+              <div className="partner-post-write__category-grid" role="listbox" aria-label="파트너 모집 유형">
+                {categories.map((cat) => (
                   <button
                     key={cat.id}
                     type="button"
-                    className={`category-button ${category === cat.id ? 'active' : ''}`}
-                    onClick={handleCategoryClick}
-                    disabled={false}
+                    role="option"
+                    aria-selected={category === cat.id}
+                    className={`partner-post-write__category-btn${
+                      category === cat.id ? ' partner-post-write__category-btn--active' : ''
+                    }`}
+                    onClick={() => setCategory(cat.id)}
                   >
-                    <span className="category-icon">{cat.icon}</span>
+                    <span className="partner-post-write__category-emoji" aria-hidden>
+                      {cat.icon}
+                    </span>
                     {cat.name}
-                    {cat.id === 'etc' && disabled && (
-                      <span style={{ color: 'red', fontSize: 12, marginLeft: 4 }}>(지구 등급 이상만)</span>
-                    )}
                   </button>
-                );
-              })}
+                ))}
+              </div>
+            </section>
+
+            <section className="partner-post-write__section">
+              <label htmlFor="partner-post-title" className="partner-post-write__section-label">
+                제목
+              </label>
+              <input
+                id="partner-post-title"
+                type="text"
+                className="title-input partner-post-write__title-input"
+                placeholder="제목을 입력하세요"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                maxLength={100}
+                autoComplete="off"
+              />
+            </section>
+
+            <section className="partner-post-write__section">
+              <label htmlFor="partner-post-content" className="partner-post-write__section-label">
+                내용
+              </label>
+              <textarea
+                id="partner-post-content"
+                className="content-textarea partner-post-write__textarea"
+                placeholder="모집 조건, 연락 방법 등을 적어 주세요. (Shift+Enter로 줄바꿈)"
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                rows={6}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  target.style.height = Math.min(Math.max(target.scrollHeight, 150), 500) + 'px';
+                }}
+              />
+            </section>
+
+            <div className="partner-post-write__actions">
+              <button type="submit" className="submit-button partner-post-write__submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader className="loading-spinner" size={18} aria-hidden />
+                    저장 중…
+                  </>
+                ) : (
+                  <>
+                    <Save size={18} aria-hidden />
+                    {isEditMode ? '수정 완료' : '등록하기'}
+                  </>
+                )}
+              </button>
+              <button type="button" className="cancel-button partner-post-write__cancel" onClick={handleBack} disabled={isSubmitting}>
+                <X size={18} aria-hidden />
+                취소
+              </button>
             </div>
-          </div>
-          <div className="form-group">
-            <label htmlFor="title" className="form-label">제목</label>
-            <input
-              id="title"
-              type="text"
-              className="title-input"
-              placeholder="제목을 입력하세요"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              maxLength={100}
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="content" className="form-label">내용</label>
-            <textarea
-              id="content"
-              className="content-textarea"
-              placeholder="내용을 입력하세요 (Shift+Enter로 줄바꿈)"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              rows={6}
-              style={{
-                resize: 'none',
-                overflow: 'hidden',
-                minHeight: '150px',
-                maxHeight: '500px',
-                lineHeight: '1.4'
-              }}
-              onInput={(e) => {
-                const target = e.target as HTMLTextAreaElement;
-                target.style.height = 'auto';
-                target.style.height = Math.min(Math.max(target.scrollHeight, 150), 500) + 'px';
-              }}
-            />
-          </div>
-          <div className="form-footer">
-            <button
-              type="button"
-              className="cancel-button"
-              onClick={() => navigate(isEditMode && id ? `/boards/partner/${id}` : '/boards/partner')}
-            >
-              <X size={18} />
-              취소
-            </button>
-            <button
-              type="submit"
-              className="submit-button"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader className="loading-spinner" size={18} />
-                  저장 중...
-                </>
-              ) : (
-                '저장'
-              )}
-            </button>
-          </div>
-        </form>
+          </form>
+        </main>
       </div>
     </div>
   );
 };
 
-export default PartnerPostWrite; 
+export default PartnerPostWrite;

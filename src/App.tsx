@@ -12,7 +12,7 @@ import { auth, db, storage } from './firebase';
 import BottomNavigation from './components/BottomNavigation';
 // @ts-ignore
 import SearchSystem from './components/SearchSystem';
-import { subscribeToAnnouncementUnreadCount } from './utils/readStatusService';
+import { subscribeToAnnouncementUnreadCount, subscribeToAnonymousChatUnreadCount } from './utils/readStatusService';
 import { initPushNotifications, removeCurrentPushToken } from './utils/pushNotificationService';
 import { mergeVeryusUserFromAuth, readVeryusUserFromStorage, writeVeryusUserToStorage } from './utils/veryusUserStorage';
 import { subscribeAdminVerification } from './utils/adminSessionVerify';
@@ -153,6 +153,7 @@ const ContestResults = lazy(() => import('./components/ContestResults'));
 const ApprovedSongs = lazy(() => import('./components/ApprovedSongs'));
 const SetList = lazy(() => import('./components/SetList'));
 const AnonymousChatRoom = lazy(() => import('./components/AnonymousChatRoom'));
+const CustomerCenter = lazy(() => import('./components/CustomerCenter'));
 const PartnerPostList = lazy(() => import('./components/PartnerPostList'));
 const PartnerPostWrite = lazy(() => import('./components/PartnerPostWrite'));
 const PartnerPostDetail = lazy(() => import('./components/PartnerPostDetail'));
@@ -183,6 +184,23 @@ const RouteTransition: React.FC<{ children: React.ReactNode }> = ({ children }) 
     <div className="app-route-transition" key={transitionKey}>
       {children}
     </div>
+  );
+};
+
+/** 플로팅 고객센터 버튼 (우측 하단 고정) */
+const FloatingCSButton: React.FC<{ hasUnread?: boolean }> = ({ hasUnread }) => {
+  const location = useLocation();
+  const hiddenPaths = ['/customer-center', '/anonymous-chat', '/login', '/signup'];
+  if (hiddenPaths.some((p) => location.pathname.startsWith(p))) return null;
+
+  return (
+    <a href="/customer-center" className="floating-cs-btn" title="고객센터">
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+        <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
+      </svg>
+      {hasUnread && <span className="floating-cs-badge" />}
+    </a>
   );
 };
 
@@ -592,8 +610,8 @@ const AudioPlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }
     <AudioPlayerContext.Provider value={{ playlist, currentIdx, isPlaying, play, pause, playNext, playPrev, setPlaylist }}>
       {/* 오디오 태그는 항상 렌더링 */}
       <audio ref={audioRef} src={playlist[currentIdx]?.url} onEnded={handleEnded} style={{ display: 'none' }} />
-      {/* 플레이어 UI는 collapsed에 따라 숨김 처리 */}
-      <div
+      {/* 플레이어 UI는 플레이리스트가 있을 때만 표시 */}
+      {playlist.length > 0 && <div
         ref={playerRef}
         onMouseDown={handleMouseDown}
         onTouchStart={handleTouchStart}
@@ -688,7 +706,7 @@ const AudioPlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }
             </div>
           </>
         )}
-      </div>
+      </div>}
       {/* 플레이리스트 모달 */}
       {showPlaylistModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.25)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowPlaylistModal(false)}>
@@ -731,6 +749,8 @@ function App() {
   const [loading, setLoading] = useState<boolean>(true);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [announcementUnreadCount, setAnnouncementUnreadCount] = useState(0);
+  const [anonymousChatUnreadCount, setAnonymousChatUnreadCount] = useState(0);
+  const [csHasUnread, setCsHasUnread] = useState(false);
   const [showSearchSystem, setShowSearchSystem] = useState(false);
   const lastLurkingClickAtRef = useRef<Record<string, number>>({});
   
@@ -784,6 +804,7 @@ function App() {
     if (!user) {
       setUnreadNotificationCount(0);
       setAnnouncementUnreadCount(0);
+      setAnonymousChatUnreadCount(0);
       return;
     }
 
@@ -822,9 +843,27 @@ function App() {
       setAnnouncementUnreadCount(count);
     });
 
+    // 익명채팅 안읽은 개수 구독
+    const unsubscribeAnonymousChat = subscribeToAnonymousChatUnreadCount(user.uid, (count) => {
+      setAnonymousChatUnreadCount(count);
+    });
+
+    // 고객센터 미확인 답변 구독
+    const userNickname = readVeryusUserFromStorage()?.nickname;
+    const isNeraeUser = userNickname === '너래';
+    const unreadField = isNeraeUser ? 'unreadByAdmin' : 'unreadByMember';
+    const csQuery = isNeraeUser
+      ? query(collection(db, 'customerInquiries'), where(unreadField, '==', true))
+      : query(collection(db, 'customerInquiries'), where('senderUid', '==', user.uid), where(unreadField, '==', true));
+    const unsubscribeCS = onSnapshot(csQuery, (snap) => {
+      setCsHasUnread(!snap.empty);
+    }, () => setCsHasUnread(false));
+
     return () => {
       unsubscribeNotifications();
       unsubscribeAnnouncement();
+      unsubscribeAnonymousChat();
+      unsubscribeCS();
     };
   }, [user]);
 
@@ -1025,6 +1064,7 @@ function App() {
               {/* 셋리스트 관리 페이지 */}
               <Route path="/setlist" element={<ProtectedRoute><SetList /></ProtectedRoute>} />
               <Route path="/anonymous-chat" element={<ProtectedRoute><AnonymousChatRoom /></ProtectedRoute>} />
+              <Route path="/customer-center" element={<ProtectedRoute><CustomerCenter /></ProtectedRoute>} />
               
               {/* 파트너모집 게시판 라우트들 */}
               <Route path="/boards/partner" element={<PartnerPostList />} />
@@ -1059,9 +1099,12 @@ function App() {
             {user && window.location.pathname !== '/anonymous-chat' && (
               <BottomNavigation 
                 unreadNotificationCount={unreadNotificationCount}
+                anonymousChatUnreadCount={anonymousChatUnreadCount}
                 onSearchOpen={() => setShowSearchSystem(true)}
               />
             )}
+            {/* 플로팅 고객센터 버튼 */}
+            {user && <FloatingCSButton hasUnread={csHasUnread} />}
           </div>
           
           {/* 통합 검색 시스템 */}

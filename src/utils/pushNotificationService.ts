@@ -335,8 +335,6 @@ export const enablePushNotifications = async (uid: string) => {
     if (Capacitor.isNativePlatform()) {
       await registerNativePush(uid);
     } else {
-      // iOS/Android PWA에서 권한 허용 체감 속도를 위해
-      // 권한 승인 직후 true를 반환하고 토큰 등록은 비동기로 이어간다.
       if (!('Notification' in window)) return false;
       let permission = Notification.permission;
       if (permission !== 'granted') {
@@ -344,7 +342,7 @@ export const enablePushNotifications = async (uid: string) => {
       }
       if (permission !== 'granted') return false;
 
-      const registered = await registerWebPush(uid, false);
+      const registered = await registerWebPush(uid, true);
       if (!registered) return false;
     }
     initialized = true;
