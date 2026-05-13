@@ -106,12 +106,11 @@ const CustomerCenter: React.FC = () => {
 
     let q;
     if (isNerae) {
-      q = query(collection(db, 'customerInquiries'), orderBy('lastMessageAt', 'desc'));
+      q = query(collection(db, 'customerInquiries'), orderBy('createdAt', 'desc'));
     } else {
       q = query(
         collection(db, 'customerInquiries'),
-        where('senderUid', '==', user.uid),
-        orderBy('lastMessageAt', 'desc')
+        where('senderUid', '==', user.uid)
       );
     }
 
@@ -120,7 +119,15 @@ const CustomerCenter: React.FC = () => {
         id: d.id,
         ...d.data(),
       })) as Inquiry[];
+      // 클라이언트 측에서 최신 메시지 순으로 정렬
+      list.sort((a, b) => {
+        const aTime = a.lastMessageAt?.seconds || a.createdAt?.seconds || 0;
+        const bTime = b.lastMessageAt?.seconds || b.createdAt?.seconds || 0;
+        return bTime - aTime;
+      });
       setInquiries(list);
+    }, (error) => {
+      console.error('문의 목록 구독 에러:', error);
     });
 
     return () => unsub();
