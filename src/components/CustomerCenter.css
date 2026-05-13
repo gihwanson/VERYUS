@@ -557,6 +557,53 @@
   cursor: not-allowed;
 }
 
+/* Closed inquiry */
+.cc-closed-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 16px;
+  background: rgba(34, 197, 94, 0.08);
+  border-top: 1px solid rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  font-size: 0.9rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.cc-closed-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #4ade80;
+  background: rgba(34, 197, 94, 0.12);
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+.cc-close-inquiry-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+  color: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.cc-close-inquiry-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 14px rgba(34, 197, 94, 0.35);
+}
+
 /* Mobile */
 @media (max-width: 480px) {
   .cc-category-chips {

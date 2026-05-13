@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { useUserProfile } from '../contexts/UserProfileContext';
-import { ChevronLeft, Send, Inbox, PenSquare, Eye, EyeOff, MessageCircle } from 'lucide-react';
+import { ChevronLeft, Send, Inbox, PenSquare, Eye, EyeOff, MessageCircle, CheckCircle, Lock } from 'lucide-react';
 import { toast } from 'react-toastify';
 import './CustomerCenter.css';
 
@@ -44,6 +44,7 @@ type Inquiry = {
   adminLastReadAt: any;
   unreadByMember: boolean;
   unreadByAdmin: boolean;
+  closed: boolean;
   createdAt: any;
 };
 
@@ -132,6 +133,15 @@ const CustomerCenter: React.FC = () => {
 
     return () => unsub();
   }, [user, isNerae]);
+
+  // selectedInquiry를 실시간 목록과 동기화 (closed 상태 등 반영)
+  useEffect(() => {
+    if (!selectedInquiry) return;
+    const updated = inquiries.find((i) => i.id === selectedInquiry.id);
+    if (updated && updated !== selectedInquiry) {
+      setSelectedInquiry(updated);
+    }
+  }, [inquiries, selectedInquiry]);
 
   // Subscribe to messages when a conversation is selected
   useEffect(() => {
@@ -261,6 +271,21 @@ const CustomerCenter: React.FC = () => {
       setChatSending(false);
     }
   }, [selectedInquiry, chatInput, user, isNerae]);
+
+  const handleCloseInquiry = useCallback(async () => {
+    if (!selectedInquiry || !isNerae) return;
+    if (!window.confirm('이 문의를 종료하시겠습니까? 종료 후에는 더 이상 대화할 수 없습니다.')) return;
+    try {
+      await updateDoc(doc(db, 'customerInquiries', selectedInquiry.id), {
+        closed: true,
+      });
+      toast.success('문의가 종료되었습니다.');
+      setSelectedInquiry(null);
+    } catch (err) {
+      console.error(err);
+      toast.error('문의 종료에 실패했습니다.');
+    }
+  }, [selectedInquiry, isNerae]);
 
   const formatDate = (ts: any) => {
     if (!ts) return '';
@@ -432,6 +457,11 @@ const CustomerCenter: React.FC = () => {
                             <span className="cc-inquiry-category-tag">
                               {getCategoryLabel(inq.category)}
                             </span>
+                            {inq.closed && (
+                              <span className="cc-closed-tag">
+                                <CheckCircle size={11} /> 완료
+                              </span>
+                            )}
                             <span className="cc-inquiry-date">{formatDate(inq.lastMessageAt)}</span>
                           </div>
                           <div className="cc-inquiry-card-body">
@@ -505,30 +535,47 @@ const CustomerCenter: React.FC = () => {
             <div ref={chatEndRef} />
           </div>
 
-          <div className="cc-chat-input-area">
-            <textarea
-              ref={chatInputRef}
-              className="cc-chat-input"
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              placeholder="메시지를 입력하세요..."
-              rows={1}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendChat();
-                }
-              }}
-            />
-            <button
-              type="button"
-              className="cc-chat-send-btn"
-              onClick={handleSendChat}
-              disabled={chatSending || !chatInput.trim()}
-            >
-              <Send size={18} />
-            </button>
-          </div>
+          {selectedInquiry.closed ? (
+            <div className="cc-closed-banner">
+              <Lock size={16} />
+              <span>처리가 완료되었습니다.</span>
+            </div>
+          ) : (
+            <div className="cc-chat-input-area">
+              <textarea
+                ref={chatInputRef}
+                className="cc-chat-input"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="메시지를 입력하세요..."
+                rows={1}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendChat();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="cc-chat-send-btn"
+                onClick={handleSendChat}
+                disabled={chatSending || !chatInput.trim()}
+              >
+                <Send size={18} />
+              </button>
+              {isNerae && (
+                <button
+                  type="button"
+                  className="cc-close-inquiry-btn"
+                  onClick={handleCloseInquiry}
+                  title="문의 종료"
+                >
+                  <CheckCircle size={18} />
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
