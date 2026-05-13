@@ -34,6 +34,7 @@ type Inquiry = {
   id: string;
   senderUid: string;
   senderNickname: string;
+  realNickname?: string;
   isAnonymous: boolean;
   category: string;
   lastMessage: string;
@@ -169,9 +170,11 @@ const CustomerCenter: React.FC = () => {
     }
     setSending(true);
     try {
+      const realNickname = user.nickname || '알 수 없음';
       const inquiryRef = await addDoc(collection(db, 'customerInquiries'), {
         senderUid: user.uid,
-        senderNickname: isAnonymous ? '익명' : (user.nickname || '알 수 없음'),
+        senderNickname: isAnonymous ? '익명' : realNickname,
+        realNickname,
         isAnonymous,
         category,
         lastMessage: content.trim(),
@@ -434,7 +437,9 @@ const CustomerCenter: React.FC = () => {
                           <div className="cc-inquiry-card-footer">
                             {isNerae && (
                               <span className="cc-inquiry-sender">
-                                {inq.isAnonymous ? '익명' : inq.senderNickname}
+                                {inq.isAnonymous
+                                  ? `익명 (${inq.realNickname || '알 수 없음'})`
+                                  : inq.senderNickname}
                               </span>
                             )}
                             {hasUnread && <span className="cc-unread-dot" />}
@@ -465,7 +470,9 @@ const CustomerCenter: React.FC = () => {
               <span className="cc-chat-header-category">{getCategoryLabel(selectedInquiry.category)}</span>
               {isNerae && (
                 <span className="cc-chat-header-sender">
-                  {selectedInquiry.isAnonymous ? '익명' : selectedInquiry.senderNickname}
+                  {selectedInquiry.isAnonymous
+                    ? `익명 (${selectedInquiry.realNickname || '알 수 없음'})`
+                    : selectedInquiry.senderNickname}
                 </span>
               )}
             </div>
