@@ -117,12 +117,17 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
     localStorage.setItem('bottomNavCollapsed', JSON.stringify(true));
   }, [shouldAutoCollapse]);
 
-  // 홈 화면으로 돌아오면 네비게이션을 즉시 펼쳐 접근성을 유지
+  // 페이지 이동 시 스크롤 숨김 상태 초기화 (접기 버튼이 사라지는 버그 방지)
   useEffect(() => {
-    if (location.pathname !== '/') return;
-    setIsCollapsed(false);
     setIsHiddenByScroll(false);
-    localStorage.setItem('bottomNavCollapsed', JSON.stringify(false));
+    setShowBoardsMenu(false);
+    scrollDirectionRef.current = null;
+    lastScrollYRef.current = 0;
+
+    if (location.pathname === '/') {
+      setIsCollapsed(false);
+      localStorage.setItem('bottomNavCollapsed', JSON.stringify(false));
+    }
   }, [location.pathname]);
 
   // Get current user on mount
