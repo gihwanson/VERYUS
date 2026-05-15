@@ -5,6 +5,7 @@ import { useSwipeGestures } from './hooks/useSwipeGestures';
 import type { Song, SetListItem, FlexibleCard, FlexibleSlot, SetListEntry, RequestSongCard, RequestSong, SetListData } from './types';
 import { isSongRegistrationPhase } from './types';
 import SetListParadeView from './SetListParadeView';
+import SetListChat from './SetListChat';
 import { buildParadeEntries } from './paradeUtils';
 import './styles.css';
 
@@ -27,6 +28,7 @@ const SetListCards: React.FC<SetListCardsProps> = ({
   /** 진행 탭은 멤버용 보기 전용 — 곡 등록·편집 없음 */
   const canLeaderModerateCards = false;
   const currentUserNickname = user?.nickname || '';
+  const currentUserUid = user?.uid || '';
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [participants, setParticipants] = useState<string[]>(['']);
   const [availableSongs, setAvailableSongs] = useState<Song[]>([]);
@@ -874,18 +876,28 @@ const SetListCards: React.FC<SetListCardsProps> = ({
         </div>
       )}
 
-      {/* 진행 탭 — 등급 이모지 퍼레이드 */}
+      {/* 진행 탭 — 등급 이모지 퍼레이드 + 모바일 멤버 채팅 */}
       {allItems.length > 0 && (
-        <SetListParadeView
-          entries={paradeEntries}
-          currentIndex={currentCardIndex}
-          onSelectIndex={setCurrentCardIndex}
-          currentUserNickname={currentUserNickname}
-          fullscreen={fullscreen}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-        />
+        <div className={fullscreen ? 'setlist-mobile-perform-layout' : ''}>
+          <SetListParadeView
+            entries={paradeEntries}
+            currentIndex={currentCardIndex}
+            onSelectIndex={setCurrentCardIndex}
+            currentUserNickname={currentUserNickname}
+            fullscreen={fullscreen}
+            withChat={fullscreen && Boolean(activeSetList?.id)}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          />
+          {fullscreen && activeSetList?.id && (
+            <SetListChat
+              setListId={activeSetList.id}
+              currentUserNickname={currentUserNickname}
+              currentUserUid={currentUserUid}
+            />
+          )}
+        </div>
       )}
 
       {/* 로딩 상태 */}

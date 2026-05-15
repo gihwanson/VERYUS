@@ -23,7 +23,7 @@ const SetList: React.FC = () => {
   const user = userString ? JSON.parse(userString) : null;
   const isLeader = Boolean(user && user.role === '리더');
 
-  const [viewMode, setViewMode] = useState<'manage' | 'cards'>('manage');
+  const [viewMode, setViewMode] = useState<'manage' | 'cards'>(isLeader ? 'manage' : 'cards');
   const { songs, setLists, activeSetList, loading } = useSetListData();
 
   const goToPerformView = useCallback(() => {
@@ -42,8 +42,15 @@ const SetList: React.FC = () => {
     return () => mq.removeEventListener('change', apply);
   }, []);
 
-  const isPerformFullscreen = isLeader && narrowScreen && viewMode === 'cards';
-  const title = viewMode === 'manage' ? '관리' : '진행';
+  useEffect(() => {
+    if (!isLeader && viewMode === 'manage') {
+      setViewMode('cards');
+    }
+  }, [isLeader, viewMode]);
+
+  const showManage = isLeader && viewMode === 'manage';
+  const isPerformFullscreen = narrowScreen && viewMode === 'cards';
+  const title = showManage ? '관리' : '진행';
 
   const tabBtnStyle = (active: boolean, flex?: boolean): React.CSSProperties => ({
     ...(flex ? { flex: 1, minWidth: 0 } : {}),
@@ -58,6 +65,19 @@ const SetList: React.FC = () => {
     cursor: 'pointer',
     transition: 'all 0.3s ease'
   });
+
+  const homeBtnStyle: React.CSSProperties = {
+    marginTop: narrowScreen && !isPerformFullscreen ? 10 : 0,
+    padding: narrowScreen && !isPerformFullscreen ? '8px 14px' : '10px 18px',
+    borderRadius: narrowScreen && !isPerformFullscreen ? 10 : 12,
+    border: '1px solid rgba(255,255,255,0.35)',
+    background: 'rgba(255,255,255,0.15)',
+    backdropFilter: 'blur(8px)',
+    color: 'white',
+    fontWeight: 600,
+    fontSize: narrowScreen && !isPerformFullscreen ? 13 : 14,
+    cursor: 'pointer'
+  };
 
   if (loading) {
     return (
@@ -106,154 +126,100 @@ const SetList: React.FC = () => {
         }}
       />
 
-      <div className={`setlist-page-inner${isPerformFullscreen ? ' setlist-page-inner' : ''}`} style={{ position: 'relative', zIndex: 1 }}>
-        {!isLeader ? (
-          <div className="setlist-member-denied">
-            <div>
-              <p style={{ fontSize: 40, margin: '0 0 16px' }}>🔒</p>
-              <p style={{ fontSize: 17, fontWeight: 700, margin: '0 0 10px' }}>리더 전용 기능입니다</p>
-              <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.75)', lineHeight: 1.55, margin: '0 0 20px' }}>
-                셋리스트 관리·진행은 리더만 이용할 수 있어요.
-              </p>
-              <button
-                type="button"
-                onClick={() => navigate('/')}
-                style={{
-                  padding: '10px 20px',
-                  borderRadius: 12,
-                  border: '1px solid rgba(255,255,255,0.35)',
-                  background: 'rgba(255,255,255,0.15)',
-                  color: 'white',
-                  fontWeight: 600,
-                  fontSize: 14,
-                  cursor: 'pointer'
-                }}
-              >
-                ← 메인으로
+      <div className="setlist-page-inner" style={{ position: 'relative', zIndex: 1 }}>
+        {isPerformFullscreen ? (
+          <div className="setlist-page-header--compact">
+            <h1 style={{ color: 'white', fontWeight: 700, textShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>
+              🎴 {isLeader ? '진행' : '셋리스트'}
+            </h1>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {isLeader && (
+                <button type="button" onClick={() => setViewMode('manage')} style={tabBtnStyle(false)}>
+                  관리
+                </button>
+              )}
+              <button type="button" onClick={() => navigate('/')} style={tabBtnStyle(false)}>
+                홈
               </button>
             </div>
           </div>
-        ) : (
-          <>
-            {isPerformFullscreen ? (
-              <div className="setlist-page-header--compact">
-                <h1 style={{ color: 'white', fontWeight: 700, textShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>
-                  🎴 진행
-                </h1>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button type="button" onClick={() => setViewMode('manage')} style={tabBtnStyle(false)}>
-                    관리
-                  </button>
-                  <button type="button" onClick={() => navigate('/')} style={tabBtnStyle(false)}>
-                    홈
-                  </button>
-                </div>
-              </div>
-            ) : narrowScreen ? (
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-                  <h1
-                    style={{
-                      color: 'white',
-                      fontWeight: 700,
-                      fontSize: 24,
-                      margin: 0,
-                      textShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                    }}
-                  >
-                    셋리스트 — {title}
-                  </h1>
-                  <button
-                    type="button"
-                    onClick={() => navigate('/')}
-                    style={{
-                      marginTop: 10,
-                      padding: '8px 14px',
-                      borderRadius: 10,
-                      border: '1px solid rgba(255,255,255,0.35)',
-                      background: 'rgba(255,255,255,0.15)',
-                      backdropFilter: 'blur(8px)',
-                      color: 'white',
-                      fontWeight: 600,
-                      fontSize: 13,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    ← 메인 메뉴
-                  </button>
-                </div>
-                <div style={{ display: 'flex', gap: 8, marginTop: 14, width: '100%', boxSizing: 'border-box' }}>
-                  <button type="button" onClick={() => setViewMode('manage')} style={tabBtnStyle(viewMode === 'manage', true)}>
-                    📋 관리
-                  </button>
-                  <button type="button" onClick={() => setViewMode('cards')} style={tabBtnStyle(viewMode === 'cards', true)}>
-                    🎴 진행
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div
+        ) : narrowScreen ? (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+              <h1
                 style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'flex-start',
-                  marginBottom: 16,
-                  flexWrap: 'wrap',
-                  gap: '16px'
+                  color: 'white',
+                  fontWeight: 700,
+                  fontSize: 24,
+                  margin: 0,
+                  textShadow: '0 2px 4px rgba(0,0,0,0.2)'
                 }}
               >
-                <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-                  <h1
-                    style={{
-                      color: 'white',
-                      fontWeight: 700,
-                      fontSize: 28,
-                      margin: 0,
-                      textShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                    }}
-                  >
-                    셋리스트 — {title}
-                  </h1>
-                  <button
-                    type="button"
-                    onClick={() => navigate('/')}
-                    style={{
-                      marginTop: 12,
-                      padding: '10px 18px',
-                      borderRadius: 12,
-                      border: '1px solid rgba(255,255,255,0.35)',
-                      background: 'rgba(255,255,255,0.15)',
-                      backdropFilter: 'blur(8px)',
-                      color: 'white',
-                      fontWeight: 600,
-                      fontSize: 14,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    ← 메인 메뉴
-                  </button>
-                </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <button type="button" onClick={() => setViewMode('manage')} style={tabBtnStyle(viewMode === 'manage')}>
-                    📋 관리
-                  </button>
-                  <button type="button" onClick={() => setViewMode('cards')} style={tabBtnStyle(viewMode === 'cards')}>
-                    🎴 진행
-                  </button>
-                </div>
+                {isLeader ? `셋리스트 — ${title}` : '셋리스트 — 진행'}
+              </h1>
+              <button type="button" onClick={() => navigate('/')} style={homeBtnStyle}>
+                ← 메인 메뉴
+              </button>
+            </div>
+            {isLeader && (
+              <div style={{ display: 'flex', gap: 8, marginTop: 14, width: '100%', boxSizing: 'border-box' }}>
+                <button type="button" onClick={() => setViewMode('manage')} style={tabBtnStyle(viewMode === 'manage', true)}>
+                  📋 관리
+                </button>
+                <button type="button" onClick={() => setViewMode('cards')} style={tabBtnStyle(viewMode === 'cards', true)}>
+                  🎴 진행
+                </button>
               </div>
             )}
-
-            {viewMode === 'cards' ? (
-              <SetListCards songs={songs} activeSetList={activeSetList} fullscreen={isPerformFullscreen} />
-            ) : (
-              <SetListManager
-                setLists={setLists}
-                activeSetList={activeSetList}
-                onAfterSessionActivated={goToPerformView}
-              />
+          </div>
+        ) : (
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              marginBottom: 16,
+              flexWrap: 'wrap',
+              gap: '16px'
+            }}
+          >
+            <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+              <h1
+                style={{
+                  color: 'white',
+                  fontWeight: 700,
+                  fontSize: 28,
+                  margin: 0,
+                  textShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                }}
+              >
+                {isLeader ? `셋리스트 — ${title}` : '셋리스트 — 진행'}
+              </h1>
+              <button type="button" onClick={() => navigate('/')} style={homeBtnStyle}>
+                ← 메인 메뉴
+              </button>
+            </div>
+            {isLeader && (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <button type="button" onClick={() => setViewMode('manage')} style={tabBtnStyle(viewMode === 'manage')}>
+                  📋 관리
+                </button>
+                <button type="button" onClick={() => setViewMode('cards')} style={tabBtnStyle(viewMode === 'cards')}>
+                  🎴 진행
+                </button>
+              </div>
             )}
-          </>
+          </div>
+        )}
+
+        {showManage ? (
+          <SetListManager
+            setLists={setLists}
+            activeSetList={activeSetList}
+            onAfterSessionActivated={goToPerformView}
+          />
+        ) : (
+          <SetListCards songs={songs} activeSetList={activeSetList} fullscreen={isPerformFullscreen} />
         )}
       </div>
     </div>

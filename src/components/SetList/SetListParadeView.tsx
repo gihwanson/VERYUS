@@ -9,6 +9,7 @@ interface SetListParadeViewProps {
   onSelectIndex: (index: number) => void;
   currentUserNickname?: string;
   fullscreen?: boolean;
+  withChat?: boolean;
   onTouchStart?: (e: React.TouchEvent) => void;
   onTouchMove?: (e: React.TouchEvent) => void;
   onTouchEnd?: () => void;
@@ -20,6 +21,7 @@ const SetListParadeView: React.FC<SetListParadeViewProps> = ({
   onSelectIndex,
   currentUserNickname = '',
   fullscreen = false,
+  withChat = false,
   onTouchStart,
   onTouchMove,
   onTouchEnd
@@ -48,7 +50,13 @@ const SetListParadeView: React.FC<SetListParadeViewProps> = ({
 
   return (
     <div
-      className={`setlist-parade-wrap${fullscreen ? ' setlist-parade-wrap--fullscreen' : ''}`}
+      className={[
+        'setlist-parade-wrap',
+        fullscreen ? 'setlist-parade-wrap--fullscreen' : '',
+        withChat ? 'setlist-parade-wrap--with-chat' : ''
+      ]
+        .filter(Boolean)
+        .join(' ')}
       role="region"
       aria-label="셋리스트 진행 순서"
       onTouchStart={onTouchStart}

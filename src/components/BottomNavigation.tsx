@@ -135,11 +135,9 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
     setCurrentUser(getCurrentUser());
   }, []);
 
-  const isLeader = currentUser?.role === '리더';
-
   // Dynamic board items based on admin access + unread badges
   const boardItems: BoardItem[] = [
-    ...BOARD_ITEMS.filter((item) => item.path !== '/setlist' || isLeader).map((item) =>
+    ...BOARD_ITEMS.map((item) =>
       item.path === '/anonymous-chat' && anonymousChatUnreadCount > 0
         ? { ...item, badge: anonymousChatUnreadCount }
         : item
