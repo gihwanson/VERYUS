@@ -1,5 +1,5 @@
 import React, { useEffect, useState, createContext, useContext, useRef, useMemo, lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, getDocs, query, where, orderBy, addDoc, deleteDoc, doc, onSnapshot, getDoc } from 'firebase/firestore';
 import { uploadBytes, getDownloadURL, ref as storageRef } from 'firebase/storage';
@@ -190,17 +190,18 @@ const RouteTransition: React.FC<{ children: React.ReactNode }> = ({ children }) 
 /** 플로팅 고객센터 버튼 (우측 하단 고정) */
 const FloatingCSButton: React.FC<{ hasUnread?: boolean }> = ({ hasUnread }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const hiddenPaths = ['/customer-center', '/anonymous-chat', '/login', '/signup'];
   if (hiddenPaths.some((p) => location.pathname.startsWith(p))) return null;
 
   return (
-    <a href="/customer-center" className="floating-cs-btn" title="고객센터">
+    <button onClick={() => navigate('/customer-center')} className="floating-cs-btn" title="고객센터">
       <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
         <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
       </svg>
       {hasUnread && <span className="floating-cs-badge" />}
-    </a>
+    </button>
   );
 };
 

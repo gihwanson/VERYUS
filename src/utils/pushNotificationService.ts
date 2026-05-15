@@ -328,6 +328,15 @@ export const initPushNotifications = async (uid: string) => {
   }
 };
 
+const requestPermissionWithTimeout = async (timeoutMs = 15000): Promise<NotificationPermission> => {
+  return Promise.race([
+    Notification.requestPermission(),
+    new Promise<NotificationPermission>((_, reject) =>
+      setTimeout(() => reject(new Error('permission-timeout')), timeoutMs)
+    )
+  ]);
+};
+
 export const enablePushNotifications = async (uid: string) => {
   if (!uid) return false;
   activeUid = uid;
@@ -335,10 +344,20 @@ export const enablePushNotifications = async (uid: string) => {
     if (Capacitor.isNativePlatform()) {
       await registerNativePush(uid);
     } else {
-      if (!('Notification' in window)) return false;
+      if (!('Notification' in window) || !('serviceWorker' in navigator)) return false;
+      if (!('PushManager' in window)) return false;
+
       let permission = Notification.permission;
+      if (permission === 'denied') {
+        return false;
+      }
       if (permission !== 'granted') {
-        permission = await Notification.requestPermission();
+        try {
+          permission = await requestPermissionWithTimeout();
+        } catch {
+          console.warn('알림 권한 요청 타임아웃');
+          return false;
+        }
       }
       if (permission !== 'granted') return false;
 

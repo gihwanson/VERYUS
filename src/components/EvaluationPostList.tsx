@@ -543,20 +543,28 @@ const EvaluationPostList: React.FC = () => {
     });
   }, [loading, posts.length, hasMore]);
 
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
-    setPosts([]);
-    setHiddenCompletedPosts([]);
-    setHiddenCompletedVisibleCount(HIDDEN_COMPLETED_PER_PAGE);
-    setLastVisible(null);
-    setHasMore(true);
-    setLoading(true);
-    setError(null);
-    restoredScrollYRef.current = null;
-    pendingRestoreScrollYRef.current = null;
-    restoreAttemptCountRef.current = 0;
-    anchorRestoredRef.current = false;
-    allowPersistRef.current = false;
-    fetchPosts(true);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+
+    searchDebounceRef.current = setTimeout(() => {
+      setPosts([]);
+      setHiddenCompletedPosts([]);
+      setHiddenCompletedVisibleCount(HIDDEN_COMPLETED_PER_PAGE);
+      setLastVisible(null);
+      setHasMore(true);
+      setLoading(true);
+      setError(null);
+      restoredScrollYRef.current = null;
+      pendingRestoreScrollYRef.current = null;
+      restoreAttemptCountRef.current = 0;
+      anchorRestoredRef.current = false;
+      allowPersistRef.current = false;
+      fetchPosts(true);
+    }, searchTerm ? 400 : 0);
+
+    return () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); };
   }, [searchTerm, sortOrder]);
 
   useEffect(() => {

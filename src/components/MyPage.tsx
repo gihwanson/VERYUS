@@ -829,27 +829,41 @@ const MyPage: React.FC = () => {
     [user, currentUser, isOwner, guestMessages]
   );
 
+  const notificationToggleBusyRef = useRef(false);
   const handleNotificationToggle = useCallback(async () => {
     if (!user || !isOwner || notificationUpdating) return;
+    if (notificationToggleBusyRef.current) return;
+    notificationToggleBusyRef.current = true;
 
     const nextEnabled = !notificationsEnabled;
     setNotificationUpdating(true);
     setNotificationsEnabled(nextEnabled);
+
+    const updateLocalStorage = (value: boolean) => {
+      try {
+        const localUser = localStorage.getItem('veryus_user');
+        if (localUser) {
+          const parsed = JSON.parse(localUser);
+          localStorage.setItem('veryus_user', JSON.stringify({ ...parsed, notificationsEnabled: value }));
+        }
+      } catch { /* ignore */ }
+    };
 
     try {
       if (nextEnabled) {
         const granted = await enablePushNotifications(user.uid);
         if (!granted) {
           setNotificationsEnabled(false);
+          updateLocalStorage(false);
           const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
           const isStandalone = window.matchMedia('(display-mode: standalone)').matches
             || (navigator as any).standalone === true;
           if (isIOS && !isStandalone) {
             alert('아이폰에서 푸시 알림을 받으려면 Safari에서 "홈 화면에 추가"로 앱을 설치한 뒤 다시 시도해주세요.');
           } else if (isIOS) {
-            alert('설정 > Safari > 알림에서 VERYUS 알림을 허용해주세요.');
+            alert('설정 > Safari > 알림에서 VERYUS 알림을 허용해주세요.\n\n이미 허용했는데 안 되면:\n설정 > 알림 > VERYUS에서 알림을 허용해주세요.');
           } else {
-            alert('브라우저에서 알림 권한을 허용해주세요.\n(브라우저 설정 > 사이트 설정 > 알림)');
+            alert('브라우저에서 알림 권한을 허용해주세요.\n\n이미 차단한 경우:\n브라우저 주소창 왼쪽 자물쇠 아이콘 > 알림 > 허용으로 변경');
           }
           return;
         }
@@ -864,24 +878,15 @@ const MyPage: React.FC = () => {
       setNotificationsEnabled(nextEnabled);
       setUser((prev) => (prev ? { ...prev, notificationsEnabled: nextEnabled } : prev));
       setCurrentUser((prev) => (prev ? { ...prev, notificationsEnabled: nextEnabled } : prev));
-
-      const localUser = localStorage.getItem('veryus_user');
-      if (localUser) {
-        const parsed = JSON.parse(localUser);
-        localStorage.setItem(
-          'veryus_user',
-          JSON.stringify({
-            ...parsed,
-            notificationsEnabled: nextEnabled
-          })
-        );
-      }
+      updateLocalStorage(nextEnabled);
     } catch (error) {
       console.error('마이페이지 알림 설정 변경 실패:', error);
       setNotificationsEnabled(!nextEnabled);
-      alert('알림 설정 변경 중 오류가 발생했습니다.');
+      updateLocalStorage(!nextEnabled);
+      alert('알림 설정 변경 중 오류가 발생했습니다. 다시 시도해주세요.');
     } finally {
       setNotificationUpdating(false);
+      notificationToggleBusyRef.current = false;
     }
   }, [user, isOwner, notificationUpdating, notificationsEnabled]);
 
@@ -1460,12 +1465,6 @@ const MyPage: React.FC = () => {
                 void handleNotificationToggle();
               }
             }}
-            onTouchEnd={(e) => {
-              e.preventDefault();
-              if (!notificationUpdating) {
-                void handleNotificationToggle();
-              }
-            }}
           >
             <div className="mypage-notification-info">
               {notificationsEnabled ? <Bell size={18} color="white" /> : <BellOff size={18} color="white" />}
@@ -1477,11 +1476,6 @@ const MyPage: React.FC = () => {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                void handleNotificationToggle();
-              }}
-              onTouchEnd={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
                 void handleNotificationToggle();
               }}
               disabled={notificationUpdating}
@@ -1930,7 +1924,18 @@ const MyPage: React.FC = () => {
                     padding: '16px',
                     marginBottom: '12px',
                     border: '1px solid rgba(255, 255, 255, 0.2)',
-                    transition: 'all 0.3s ease'
+                    transition: 'all 0.3s ease',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => {
+                    const typeRouteMap: Record<string, string> = {
+                      '자유': '/free',
+                      '녹음': '/recording',
+                      '평가': '/evaluation',
+                      '파트너': '/boards/partner',
+                    };
+                    const base = typeRouteMap[post.type] || '/free';
+                    navigate(`${base}/${post.id}`);
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';

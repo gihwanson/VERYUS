@@ -80,6 +80,18 @@ export interface SetListData {
   isActive: boolean;
   isCompleted?: boolean; // 완료 여부
   currentSongIndex?: number;
+  /** 관리 탭에서 참가자 확정(완료) 후 true — 그 전에는 진행 탭에서 곡 등록 UI를 쓰지 않음 */
+  participantRegistrationComplete?: boolean;
+}
+
+/** 참가자 단계가 끝나 곡·카드 등록 단계로 넘어갔는지 (Firestore 플래그 또는 레거시 데이터 존재 시 true) */
+export function isSongRegistrationPhase(list: SetListData | null): boolean {
+  if (!list) return false;
+  if (list.participantRegistrationComplete === true) return true;
+  if ((list.songs?.length ?? 0) > 0) return true;
+  if ((list.flexibleCards?.length ?? 0) > 0) return true;
+  if ((list.requestSongCards?.length ?? 0) > 0) return true;
+  return false;
 }
 
 export interface DragData {

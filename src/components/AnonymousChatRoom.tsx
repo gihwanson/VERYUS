@@ -547,6 +547,15 @@ const AnonymousChatRoom: React.FC = () => {
     return map;
   }, [roomParticipants]);
 
+  // uid → 현재 닉네임 매핑 (닉네임 변경 시 채팅에도 실시간 반영)
+  const participantNicknameMap = useMemo(() => {
+    const map = new Map<string, { nickname: string; profileNickname?: string }>();
+    roomParticipants.forEach((member) => {
+      map.set(member.uid, { nickname: member.nickname, profileNickname: member.profileNickname });
+    });
+    return map;
+  }, [roomParticipants]);
+
   useEffect(() => {
     if (!selectedRoomId) return;
     const room = roomById.get(selectedRoomId);
@@ -1713,11 +1722,14 @@ const AnonymousChatRoom: React.FC = () => {
               onClick={handleMessageTouchMenu}
               className={`anonymous-chat-message-row ${isMine ? 'mine' : 'other'}`}
             >
-              {!isMine && <div className="anonymous-chat-avatar">{message.senderLabel.slice(0, 1)}</div>}
+              {!isMine && <div className="anonymous-chat-avatar">{(participantNicknameMap.get(message.uid)?.nickname || message.senderLabel || '익명').slice(0, 1)}</div>}
               <div className="anonymous-chat-content">
                 {!isMine && (
                   <div className="anonymous-chat-message-meta">
-                    <span>{getDisplayName(message.senderLabel, message.profileNickname)}</span>
+                    <span>{getDisplayName(
+                      participantNicknameMap.get(message.uid)?.nickname || message.senderLabel,
+                      participantNicknameMap.get(message.uid)?.profileNickname || message.profileNickname
+                    )}</span>
                   </div>
                 )}
                 <div className="anonymous-chat-bubble-row">

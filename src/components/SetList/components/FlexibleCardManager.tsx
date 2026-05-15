@@ -69,14 +69,14 @@ const FlexibleCardManager: React.FC<FlexibleCardManagerProps> = ({
         updatedAt: Timestamp.now()
       });
       
-      alert(`"${flexibleCardNickname} ${flexibleCardCount}곡" 카드가 생성되었습니다! 🎵`);
+      alert(`"${flexibleCardNickname} ${flexibleCardCount}곡" 자유곡이 생성되었습니다! 🎵`);
       setFlexibleCardNickname('');
       setFlexibleCardCount(3);
       setShowFlexibleCardForm(false);
       onCardUpdated();
     } catch (error) {
       console.error('유연한 카드 생성 실패:', error);
-      alert('유연한 카드 생성에 실패했습니다.');
+      alert('자유곡 생성에 실패했습니다.');
     }
   }, [activeSetList, isLeader, flexibleCardNickname, flexibleCardCount, onCardUpdated]);
 
@@ -97,11 +97,11 @@ const FlexibleCardManager: React.FC<FlexibleCardManagerProps> = ({
         updatedAt: Timestamp.now()
       });
       
-      alert('유연한 카드가 삭제되었습니다.');
+      alert('자유곡이 삭제되었습니다.');
       onCardUpdated();
     } catch (error) {
       console.error('유연한 카드 삭제 실패:', error);
-      alert('유연한 카드 삭제에 실패했습니다.');
+      alert('자유곡 삭제에 실패했습니다.');
     }
   }, [activeSetList, isLeader, canEditFlexibleCard, onCardUpdated]);
 
@@ -130,11 +130,11 @@ const FlexibleCardManager: React.FC<FlexibleCardManagerProps> = ({
         updatedAt: Timestamp.now()
       });
       
-      alert(`"${cardToAdd.nickname}" 카드가 셋리스트에 추가되었습니다! 🎵`);
+      alert(`"${cardToAdd.nickname}" 자유곡이 셋리스트에 추가되었습니다! 🎵`);
       onCardUpdated();
     } catch (error) {
       console.error('유연한 카드 추가 실패:', error);
-      alert('유연한 카드 추가에 실패했습니다.');
+      alert('자유곡 추가에 실패했습니다.');
     }
   }, [activeSetList, isLeader, onCardUpdated]);
 
@@ -169,11 +169,11 @@ const FlexibleCardManager: React.FC<FlexibleCardManagerProps> = ({
         updatedAt: Timestamp.now()
       });
       
-      alert(`"${cardToComplete.nickname}" 카드가 완료되었습니다! 🎉`);
+      alert(`"${cardToComplete.nickname}" 자유곡이 완료되었습니다! 🎉`);
       onCardUpdated();
     } catch (error) {
       console.error('유연한 카드 완료 실패:', error);
-      alert('유연한 카드 완료에 실패했습니다.');
+      alert('자유곡 완료에 실패했습니다.');
     }
   }, [activeSetList, isLeader, onCardUpdated]);
 
@@ -191,7 +191,7 @@ const FlexibleCardManager: React.FC<FlexibleCardManagerProps> = ({
     }
     
     if (!canEditFlexibleCard(cardToUpdate)) {
-      alert('이 카드를 편집할 권한이 없습니다.');
+      alert('이 자유곡을 편집할 권한이 없습니다.');
       return;
     }
 
@@ -275,7 +275,7 @@ const FlexibleCardManager: React.FC<FlexibleCardManagerProps> = ({
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <h2 style={{ color: 'white', fontSize: 20, margin: 0, fontWeight: 700 }}>
-              🎭 유연한 카드 관리
+              🎵 자유곡 관리
             </h2>
             <button
               onClick={() => setShowFlexibleCardForm(!showFlexibleCardForm)}
@@ -351,7 +351,7 @@ const FlexibleCardManager: React.FC<FlexibleCardManagerProps> = ({
                   width: '100%'
                 }}
               >
-                🎭 유연한 카드 생성
+                🎵 자유곡 생성
               </button>
             </div>
           )}
@@ -369,7 +369,7 @@ const FlexibleCardManager: React.FC<FlexibleCardManagerProps> = ({
           border: '1px solid rgba(255, 255, 255, 0.2)'
         }}>
           <h3 style={{ color: 'white', fontSize: 18, marginBottom: 16, fontWeight: 700 }}>
-            🎭 사용 가능한 유연한 카드 ({getAvailableFlexibleCards().length}개)
+            🎵 사용 가능한 자유곡 ({getAvailableFlexibleCards().length}개)
           </h3>
           
           <div style={{ display: 'grid', gap: 12 }}>
@@ -386,7 +386,7 @@ const FlexibleCardManager: React.FC<FlexibleCardManagerProps> = ({
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <h4 style={{ color: 'white', fontSize: 16, margin: '0 0 8px 0', fontWeight: 700 }}>
-                      🎭 {card.nickname} ({card.totalSlots}곡)
+                      🎵 {card.nickname} 자유곡 ({card.totalSlots}곡)
                     </h4>
                     <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: 14, margin: 0 }}>
                       슬롯: {card.slots.length}개

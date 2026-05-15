@@ -696,7 +696,7 @@ const ContestDetail: React.FC = () => {
                     placeholder="참가자 닉네임을 입력하세요"
                     value={newParticipantNickname}
                     onChange={(e) => setNewParticipantNickname(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleAddParticipant()}
+                    onKeyDown={(e) => !e.nativeEvent.isComposing && e.key === 'Enter' && handleAddParticipant()}
                   />
                   <button 
                     className="contest-detail-add-button"
@@ -792,7 +792,7 @@ const ContestDetail: React.FC = () => {
                 placeholder="평가받는 대상 닉네임을 입력하세요"
                 value={newEvaluationTargetNickname}
                 onChange={(e) => setNewEvaluationTargetNickname(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleAddEvaluationTarget()}
+                onKeyDown={(e) => !e.nativeEvent.isComposing && e.key === 'Enter' && handleAddEvaluationTarget()}
               />
               <button 
                 className="contest-detail-add-button"
@@ -834,7 +834,7 @@ const ContestDetail: React.FC = () => {
                         className="contest-detail-add-input"
                         value={editingEvaluationTargetNickname}
                         onChange={(e) => setEditingEvaluationTargetNickname(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && handleSaveEvaluationTarget(t)}
+                        onKeyDown={(e) => !e.nativeEvent.isComposing && e.key === 'Enter' && handleSaveEvaluationTarget(t)}
                         onClick={(e) => e.stopPropagation()}
                         autoFocus
                       />

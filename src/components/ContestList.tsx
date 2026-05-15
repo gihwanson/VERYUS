@@ -244,98 +244,96 @@ const ContestList: React.FC = () => {
     <div className="contest-list-container contest-ui-refresh">
       <div className="contest-list-pattern" />
       <div className="contest-list-content">
-        <h2 className="contest-title">
-          🏆 콘테스트
-        </h2>
-        <button
-          className="btn btn-primary"
-          onClick={() => navigate('/contests/create')}
-        >
-          + 콘테스트 생성
-        </button>
-        {/* 카드만 바로 나열 */}
+        <div className="contest-header-row">
+          <h2 className="contest-title">
+            🏆 콘테스트
+          </h2>
+          {isAdmin && (
+            <button
+              className="btn btn-primary"
+              onClick={() => navigate('/contests/create')}
+            >
+              + 콘테스트 생성
+            </button>
+          )}
+        </div>
+
         {contests.length === 0 ? (
           <div className="contest-empty-state">
             <div className="contest-empty-icon">🏆</div>
             진행 중인 콘테스트가 없습니다.
           </div>
         ) : (
-          contests.map(contest => {
-            const isEnded = isContestEnded(contest);
-            return (
-              <div
-                key={contest.id}
-                className={`contest-card ${isEnded ? 'ended' : ''}`}
-              >
-                <div className="contest-card-content">
-                  <div className="contest-card-title">
-                    {contest.title}
-                  </div>
-                  {/* top3 표시 */}
-                  {isEnded && Array.isArray(contest.top3) && contest.top3.length > 0 && (
-                    <div className="contest-top3">
-                      {contest.top3.map((item) => (
-                        <span 
-                          key={item.rank} 
-                          className={`contest-top3-badge rank-${item.rank}`}
-                        >
-                          {getRankEmoji(item.rank)} {item.name} ({item.score ? item.score.toFixed(1) : '-'})
-                        </span>
-                      ))}
+          <>
+            {/* 진행중 콘테스트 */}
+            {contests.filter(c => !isContestEnded(c)).length > 0 && (
+              <div className="contest-section">
+                <h3 className="contest-section-label">🔥 진행중</h3>
+                {contests.filter(c => !isContestEnded(c)).map(contest => (
+                  <div key={contest.id} className="contest-card">
+                    <div className="contest-card-content">
+                      <div className="contest-card-title">{contest.title}</div>
+                      <div className="contest-tags">
+                        <span className="contest-tag type">{contest.type}</span>
+                        {contest.isStarted && (
+                          <span className="contest-tag started">✅ 개최됨</span>
+                        )}
+                        {!contest.isStarted && (
+                          <span className="contest-tag waiting">⏸️ 대기중</span>
+                        )}
+                        <span className="contest-date">📅 마감: {formatDeadline(contest.deadline)}</span>
+                      </div>
                     </div>
-                  )}
-                  <div className="contest-tags">
-                    <span className="contest-tag type">
-                      {contest.type}
-                    </span>
-                    {!isEnded && contest.isStarted && (
-                      <span className="contest-tag started">
-                        ✅ 개최됨
-                      </span>
-                    )}
-                    {!contest.isStarted && !isEnded && (
-                      <span className="contest-tag waiting">
-                        ⏸️ 대기중
-                      </span>
-                    )}
-                    <span className="contest-date">
-                      📅 마감: {formatDeadline(contest.deadline)}
-                    </span>
-                  </div>
-                </div>
-                <div className="contest-buttons">
-                  <button 
-                    className="contest-button detail"
-                    onClick={() => navigate(`/contests/${contest.id}`)}
-                  >
-                    📋 상세
-                  </button>
-                  {!isEnded && (
-                    <button 
-                      className="contest-button participate"
-                      onClick={() => handleParticipate(contest)}
-                    >
-                      🎯 참여
-                    </button>
-                  )}
-                  {isEnded ? (
-                    <span className="contest-tag ended">
-                      ❌ 종료됨
-                    </span>
-                  ) : (
-                    user && user.role === '리더' && user.nickname === '너래' && (
-                      <button 
-                        className="contest-button end"
-                        onClick={async () => await updateDoc(firestoreDoc(db, 'contests', contest.id), { ended: true })}
-                      >
-                        🛑 종료
+                    <div className="contest-buttons">
+                      <button className="contest-button detail" onClick={() => navigate(`/contests/${contest.id}`)}>
+                        📋 상세
                       </button>
-                    )
-                  )}
-                </div>
+                      <button className="contest-button participate" onClick={() => handleParticipate(contest)}>
+                        🎯 참여
+                      </button>
+                      {user && user.role === '리더' && user.nickname === '너래' && (
+                        <button className="contest-button end" onClick={async () => await updateDoc(firestoreDoc(db, 'contests', contest.id), { ended: true })}>
+                          🛑 종료
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
-            );
-          })
+            )}
+
+            {/* 종료된 콘테스트 */}
+            {contests.filter(c => isContestEnded(c)).length > 0 && (
+              <div className="contest-section">
+                <h3 className="contest-section-label">📁 종료됨</h3>
+                {contests.filter(c => isContestEnded(c)).map(contest => (
+                  <div key={contest.id} className="contest-card ended">
+                    <div className="contest-card-content">
+                      <div className="contest-card-title">{contest.title}</div>
+                      {Array.isArray(contest.top3) && contest.top3.length > 0 && (
+                        <div className="contest-top3">
+                          {contest.top3.map((item) => (
+                            <span key={item.rank} className={`contest-top3-badge rank-${item.rank}`}>
+                              {getRankEmoji(item.rank)} {item.name} ({item.score ? item.score.toFixed(1) : '-'})
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <div className="contest-tags">
+                        <span className="contest-tag type">{contest.type}</span>
+                        <span className="contest-tag ended">종료됨</span>
+                      </div>
+                    </div>
+                    <div className="contest-buttons">
+                      <button className="contest-button detail" onClick={() => navigate(`/contests/${contest.id}`)}>
+                        📋 상세
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

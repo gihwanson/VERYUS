@@ -1,14 +1,24 @@
-import React from 'react';
-import { useSetListData } from './hooks/useSetListData';
+import React, { useCallback } from 'react';
 import SetListForm from './components/SetListForm';
+import type { SetListData } from './types';
 
-const SetListManager: React.FC = () => {
+interface SetListManagerProps {
+  setLists: SetListData[];
+  activeSetList: SetListData | null;
+  onAfterSessionActivated?: () => void;
+}
+
+const SetListManager: React.FC<SetListManagerProps> = ({
+  setLists,
+  activeSetList,
+  onAfterSessionActivated
+}) => {
   const userString = localStorage.getItem('veryus_user');
   const user = userString ? JSON.parse(userString) : null;
   const isLeader = user && user.role === '리더';
-  const currentUserNickname = user?.nickname || '';
-  
-  const { setLists, activeSetList } = useSetListData();
+
+  const handleSetListDeleted = useCallback(() => {}, []);
+  const handleSetListActivated = useCallback(() => {}, []);
 
   return (
     <div style={{ 
@@ -23,9 +33,9 @@ const SetListManager: React.FC = () => {
         setLists={setLists}
         activeSetList={activeSetList}
         isLeader={isLeader}
-        onSetListCreated={() => {}}
-        onSetListDeleted={() => {}}
-        onSetListActivated={() => {}}
+        onSetListDeleted={handleSetListDeleted}
+        onSetListActivated={handleSetListActivated}
+        onAfterSessionActivated={onAfterSessionActivated}
       />
 
     </div>

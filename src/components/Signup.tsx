@@ -1,45 +1,74 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { createUserWithEmailAndPassword, updateProfile, deleteUser, type User } from 'firebase/auth';
-import { doc, setDoc, updateDoc, query, collection, where, getDocs, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, query, collection, where, getDocs, serverTimestamp, getDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { Eye, EyeOff } from 'lucide-react';
 import { auth, db, storage } from '../firebase';
 import { useNavigate } from 'react-router-dom';
-import './Login.css'; // 로그인과 같은 스타일 사용
+import './Login.css';
 
 const Signup: React.FC = () => {
   const [formData, setFormData] = useState({
+    inviteCode: '',
+    nickname: '',
     email: '',
     password: '',
-    confirmPassword: '',
-    nickname: '',
-    inviteCode: ''
+    confirmPassword: ''
   });
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [nicknameChecked, setNicknameChecked] = useState<boolean>(false);
-  const [nicknameAvailable, setNicknameAvailable] = useState<boolean>(false);
-  const [checkingNickname, setCheckingNickname] = useState<boolean>(false);
-  const [checkingEmail, setCheckingEmail] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [nicknameChecked, setNicknameChecked] = useState(false);
+  const [nicknameAvailable, setNicknameAvailable] = useState(false);
+  const [emailChecked, setEmailChecked] = useState(false);
+  const [emailAvailable, setEmailAvailable] = useState(false);
+  const [checkingNickname, setCheckingNickname] = useState(false);
+  const [checkingEmail, setCheckingEmail] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigate = useNavigate();
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    setSuccess('');
+  const nicknameInputRef = useRef<HTMLInputElement>(null);
+  const emailInputRef = useRef<HTMLInputElement>(null);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
+  const confirmPasswordInputRef = useRef<HTMLInputElement>(null);
+  const inviteCodeInputRef = useRef<HTMLInputElement>(null);
 
-    // 닉네임이 변경되면 중복확인 초기화
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, selectionStart } = e.target;
+    const cursorPos = selectionStart;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (error) setError('');
+    if (success) setSuccess('');
+
     if (name === 'nickname') {
       setNicknameChecked(false);
       setNicknameAvailable(false);
     }
-  };
+    if (name === 'email') {
+      setEmailChecked(false);
+      setEmailAvailable(false);
+    }
+
+    requestAnimationFrame(() => {
+      const refMap: Record<string, React.RefObject<HTMLInputElement | null>> = {
+        nickname: nicknameInputRef,
+        email: emailInputRef,
+        password: passwordInputRef,
+        confirmPassword: confirmPasswordInputRef,
+        inviteCode: inviteCodeInputRef,
+      };
+      const inputRef = refMap[name];
+      if (inputRef?.current && cursorPos !== null) {
+        inputRef.current.setSelectionRange(cursorPos, cursorPos);
+      }
+    });
+  }, [error, success]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // 파일 크기 제한 (5MB)
       if (file.size > 5 * 1024 * 1024) {
         setError('프로필 이미지는 5MB 이하로 선택해주세요.');
         return;
@@ -51,25 +80,17 @@ const Signup: React.FC = () => {
 
   const checkNicknameAvailability = async () => {
     const nick = formData.nickname.trim();
-    if (!nick) {
-      setError('닉네임을 입력해주세요.');
-      return;
-    }
-
+    if (!nick) { setError('닉네임을 입력해주세요.'); return; }
     if (nick.length < 2 || nick.length > 20) {
       setError('닉네임은 2자 이상 20자 이하로 입력해주세요.');
       return;
     }
-
     setCheckingNickname(true);
-    setError('');
-    setSuccess('');
-
+    setError(''); setSuccess('');
     try {
       const q = query(collection(db, 'users'), where('nickname', '==', nick));
-      const querySnapshot = await getDocs(q);
-      
-      if (querySnapshot.empty) {
+      const snap = await getDocs(q);
+      if (snap.empty) {
         setNicknameAvailable(true);
         setNicknameChecked(true);
         setSuccess('사용 가능한 닉네임입니다.');
@@ -78,8 +99,7 @@ const Signup: React.FC = () => {
         setNicknameChecked(false);
         setError('이미 사용 중인 닉네임입니다.');
       }
-    } catch (error) {
-      console.error('닉네임 중복 확인 에러:', error);
+    } catch {
       setError('닉네임 중복 확인 중 오류가 발생했습니다.');
     } finally {
       setCheckingNickname(false);
@@ -87,28 +107,25 @@ const Signup: React.FC = () => {
   };
 
   const checkEmailAvailability = async () => {
-    if (!formData.email.trim()) {
-      setError('이메일을 입력해주세요.');
-      return;
-    }
-    // 이메일 형식 검사
+    const email = formData.email.trim().toLowerCase();
+    if (!email) { setError('이메일을 입력해주세요.'); return; }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email.trim())) {
-      setError('올바른 이메일 형식이 아닙니다.');
-      return;
-    }
+    if (!emailRegex.test(email)) { setError('올바른 이메일 형식이 아닙니다.'); return; }
     setCheckingEmail(true);
-    setError('');
-    setSuccess('');
+    setError(''); setSuccess('');
     try {
-      const q = query(collection(db, 'users'), where('email', '==', formData.email.trim().toLowerCase()));
-      const querySnapshot = await getDocs(q);
-      if (querySnapshot.empty) {
+      const q = query(collection(db, 'users'), where('email', '==', email));
+      const snap = await getDocs(q);
+      if (snap.empty) {
+        setEmailAvailable(true);
+        setEmailChecked(true);
         setSuccess('사용 가능한 이메일입니다.');
       } else {
+        setEmailAvailable(false);
+        setEmailChecked(false);
         setError('이미 사용 중인 이메일입니다.');
       }
-    } catch (error) {
+    } catch {
       setError('이메일 중복 확인 중 오류가 발생했습니다.');
     } finally {
       setCheckingEmail(false);
@@ -117,95 +134,74 @@ const Signup: React.FC = () => {
 
   const uploadProfileImage = async (userId: string): Promise<string | null> => {
     if (!profileImage) return null;
-
     try {
       const safeName = profileImage.name.replace(/[^a-zA-Z0-9._-]/g, '_');
       const imageRef = ref(storage, `profile-images/${userId}/${Date.now()}_${safeName}`);
       await uploadBytes(imageRef, profileImage);
-      const downloadURL = await getDownloadURL(imageRef);
-      return downloadURL;
-    } catch (error) {
-      console.error('프로필 이미지 업로드 에러:', error);
+      return await getDownloadURL(imageRef);
+    } catch {
       throw new Error('프로필 이미지 업로드에 실패했습니다.');
+    }
+  };
+
+  const validateInviteCode = async (code: string): Promise<boolean> => {
+    try {
+      const configDoc = await getDoc(doc(db, 'appConfig', 'inviteCode'));
+      if (configDoc.exists()) {
+        const validCode = configDoc.data().code;
+        return code === validCode;
+      }
+      // Firestore에 설정이 없으면 기존 하드코딩 값으로 폴백
+      return code === '0924';
+    } catch {
+      return code === '0924';
     }
   };
 
   const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
+    setError(''); setSuccess('');
 
-    // 가입코드 확인
-    if (formData.inviteCode.trim() !== '0924') {
-      setError('가입코드가 올바르지 않습니다.');
-      return;
-    }
-
-    // 비밀번호 확인
-    if (formData.password !== formData.confirmPassword) {
-      setError('비밀번호가 일치하지 않습니다.');
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setError('비밀번호는 6자 이상이어야 합니다.');
-      return;
-    }
-
-    const emailTrim = formData.email.trim().toLowerCase();
+    const inviteCode = formData.inviteCode.trim();
     const nicknameTrim = formData.nickname.trim();
+    const emailTrim = formData.email.trim().toLowerCase();
 
-    // 닉네임 중복확인 체크
+    if (!inviteCode) { setError('가입코드를 입력해주세요.'); return; }
+
+    const isValidCode = await validateInviteCode(inviteCode);
+    if (!isValidCode) { setError('가입코드가 올바르지 않습니다.'); return; }
+
+    if (!nicknameTrim || nicknameTrim.length < 2 || nicknameTrim.length > 20) {
+      setError('닉네임은 2자 이상 20자 이하로 입력해주세요.'); return;
+    }
     if (!nicknameChecked || !nicknameAvailable) {
-      setError('닉네임 중복확인을 완료해주세요.');
-      return;
+      setError('닉네임 중복확인을 완료해주세요.'); return;
     }
 
-    if (nicknameTrim.length < 2 || nicknameTrim.length > 20) {
-      setError('닉네임은 2자 이상 20자 이하로 입력해주세요.');
-      return;
-    }
-
-    // 이메일 필수 입력 및 유효성 검사
-    if (!emailTrim) {
-      setError('이메일을 입력해주세요.');
-      return;
-    }
+    if (!emailTrim) { setError('이메일을 입력해주세요.'); return; }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(emailTrim)) {
-      setError('올바른 이메일 형식이 아닙니다.');
-      return;
+    if (!emailRegex.test(emailTrim)) { setError('올바른 이메일 형식이 아닙니다.'); return; }
+    if (!emailChecked || !emailAvailable) {
+      setError('이메일 중복확인을 완료해주세요.'); return;
     }
 
-    // 가입 직전 닉네임 재확인 (타인이 먼저 가입한 경우)
-    const nicknameQuery = query(collection(db, 'users'), where('nickname', '==', nicknameTrim));
-    let nicknameSnapshot;
+    if (formData.password.length < 6) { setError('비밀번호는 6자 이상이어야 합니다.'); return; }
+    if (formData.password !== formData.confirmPassword) { setError('비밀번호가 일치하지 않습니다.'); return; }
+
+    // 가입 직전 닉네임/이메일 재확인
     try {
-      nicknameSnapshot = await getDocs(nicknameQuery);
-    } catch {
-      setError('닉네임 확인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
-      return;
-    }
-    if (!nicknameSnapshot.empty) {
-      setError('이미 사용 중인 닉네임입니다. 닉네임 중복확인을 다시 해주세요.');
-      setNicknameChecked(false);
-      setNicknameAvailable(false);
-      return;
-    }
+      const nickSnap = await getDocs(query(collection(db, 'users'), where('nickname', '==', nicknameTrim)));
+      if (!nickSnap.empty) {
+        setError('이미 사용 중인 닉네임입니다. 닉네임 중복확인을 다시 해주세요.');
+        setNicknameChecked(false); setNicknameAvailable(false); return;
+      }
+    } catch { setError('닉네임 확인 중 오류가 발생했습니다.'); return; }
 
     setIsLoading(true);
-
     let createdUser: User | null = null;
     let userDocCreated = false;
 
     try {
-      const sanitizedNickname = nicknameTrim
-        .toLowerCase()
-        .replace(/[^a-z0-9가-힣]/g, '');
-      const internalLocal =
-        sanitizedNickname.length > 0 ? sanitizedNickname : `user_${Date.now()}`;
-      const internalEmail = `${internalLocal}@veryus.internal`;
-
       const userCredential = await createUserWithEmailAndPassword(auth, emailTrim, formData.password);
       const user = userCredential.user;
       createdUser = user;
@@ -214,11 +210,9 @@ const Signup: React.FC = () => {
       const userGrade = '🍒';
       const isAdmin = userRole === '리더';
 
-      // Firestore 먼저 저장 → 이후 단계 실패 시 Auth 계정만 정리 가능
       await setDoc(doc(db, 'users', user.uid), {
         uid: user.uid,
         nickname: nicknameTrim,
-        internalEmail,
         email: emailTrim,
         role: userRole,
         grade: userGrade,
@@ -231,8 +225,7 @@ const Signup: React.FC = () => {
       if (profileImage) {
         try {
           profileImageUrl = await uploadProfileImage(user.uid);
-        } catch (uploadErr) {
-          console.error('프로필 이미지 업로드 실패(계정은 생성됨):', uploadErr);
+        } catch {
           setSuccess('가입은 완료되었으나 프로필 이미지 업로드에 실패했습니다. 마이페이지에서 다시 등록해 주세요.');
         }
       }
@@ -246,38 +239,27 @@ const Signup: React.FC = () => {
         await updateDoc(doc(db, 'users', user.uid), { profileImageUrl });
       }
 
-      localStorage.setItem(
-        'veryus_user',
-        JSON.stringify({
-          uid: user.uid,
-          email: emailTrim,
-          nickname: nicknameTrim,
-          role: userRole,
-          grade: userGrade,
-          profileImageUrl: profileImageUrl || undefined,
-          isAdmin,
-          isLoggedIn: true
-        })
-      );
+      localStorage.setItem('veryus_user', JSON.stringify({
+        uid: user.uid,
+        email: emailTrim,
+        nickname: nicknameTrim,
+        role: userRole,
+        grade: userGrade,
+        profileImageUrl: profileImageUrl || undefined,
+        isAdmin,
+        isLoggedIn: true
+      }));
 
-      if (!profileImage || profileImageUrl) {
-        setSuccess('회원가입이 완료되었습니다! 메인 페이지로 이동합니다.');
-      }
-      window.location.replace('/');
+      setSuccess('회원가입이 완료되었습니다! 메인 페이지로 이동합니다.');
+      setTimeout(() => navigate('/'), 800);
     } catch (error: unknown) {
       console.error('회원가입 에러:', error);
       if (createdUser && !userDocCreated) {
-        try {
-          await deleteUser(createdUser);
-        } catch (delErr) {
-          console.error('가입 롤백(계정 삭제) 실패 — 관리자에게 문의해 주세요.', delErr);
-        }
+        try { await deleteUser(createdUser); } catch { /* ignore */ }
       }
       const err = error as { code?: string; message?: string };
       if (err.code === 'auth/email-already-in-use') {
-        setError(
-          '이미 Firebase에 등록된 이메일입니다. 로그인 화면에서 가입 시 사용한 닉네임(또는 해당 이메일)과 비밀번호로 로그인해 주세요. 비밀번호를 모르면 「비밀번호 찾기」를 이용해 주세요. 가입이 끝나지 않은 계정이면 관리자에게 문의해 주세요.'
-        );
+        setError('이미 등록된 이메일입니다. 로그인 화면에서 시도하거나 비밀번호 찾기를 이용해주세요.');
       } else {
         setError(getErrorMessage(err.code));
       }
@@ -288,123 +270,164 @@ const Signup: React.FC = () => {
 
   const getErrorMessage = (errorCode?: string): string => {
     switch (errorCode) {
-      case 'auth/email-already-in-use':
-        return '이미 사용 중인 이메일입니다.';
-      case 'auth/invalid-email':
-        return '올바른 이메일 형식이 아닙니다.';
-      case 'auth/weak-password':
-        return '비밀번호가 너무 약합니다. 6자 이상으로 설정해주세요.';
-      case 'auth/network-request-failed':
-        return '네트워크 연결을 확인해주세요.';
-      default:
-        return '회원가입 중 오류가 발생했습니다. 다시 시도해주세요.';
+      case 'auth/email-already-in-use': return '이미 사용 중인 이메일입니다.';
+      case 'auth/invalid-email': return '올바른 이메일 형식이 아닙니다.';
+      case 'auth/weak-password': return '비밀번호가 너무 약합니다. 6자 이상으로 설정해주세요.';
+      case 'auth/network-request-failed': return '네트워크 연결을 확인해주세요.';
+      default: return '회원가입 중 오류가 발생했습니다. 다시 시도해주세요.';
     }
   };
+
+  const passwordStrength = formData.password.length === 0 ? null
+    : formData.password.length < 6 ? 'weak'
+    : formData.password.length < 10 ? 'medium' : 'strong';
 
   return (
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
           <h1 className="app-title">VERYUS</h1>
-          <p className="app-subtitle">닉네임으로 간편하게 가입하세요</p>
+          <p className="app-subtitle">베리어스에 오신 것을 환영합니다</p>
         </div>
 
         <form onSubmit={handleSignup} className="login-form">
+          {/* 가입코드 */}
           <div className="input-group">
             <input
+              ref={inviteCodeInputRef}
               type="text"
               name="inviteCode"
+              dir="ltr"
               value={formData.inviteCode}
               onChange={handleInputChange}
-              placeholder="가입코드를 입력해주세요"
+              placeholder="가입코드"
               className="login-input"
               required
+              disabled={isLoading}
             />
           </div>
 
-          <div className="input-group" style={{ marginBottom: 8 }}>
-            <div style={{ color: '#F43F5E', fontSize: 13, marginBottom: 4, textAlign: 'left', fontWeight: 600 }}>
-              ※ 반드시 닉네임은 카카오톡 오픈채팅방과 같은 닉네임으로 가입 부탁드리겠습니다.
-            </div>
+          {/* 닉네임 안내 + 입력 */}
+          <div className="signup-notice">
+            ※ 카카오톡 오픈채팅방과 동일한 닉네임으로 가입해주세요.
           </div>
-
-          <div className="input-group" style={{ marginBottom: 8 }}>
+          <div className="input-group signup-nickname-row">
             <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleInputChange}
-              placeholder="이메일 (비밀번호 찾기용, 필수)"
-              className="login-input"
-              required
-              autoComplete="email"
-            />
-          </div>
-          <div className="input-group signup-email-check-row" style={{ marginBottom: 8 }}>
-            <button
-              type="button"
-              onClick={checkEmailAvailability}
-              disabled={checkingEmail || checkingNickname || isLoading || !formData.email.trim()}
-              className="nickname-check-button"
-            >
-              {checkingEmail ? '이메일 확인 중...' : '이메일 중복 확인 (선택)'}
-            </button>
-          </div>
-
-          <div className="input-group" style={{ marginBottom: 8 }}>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleInputChange}
-              placeholder="비밀번호 (6자 이상)"
-              className="login-input"
-              required
-              autoComplete="new-password"
-            />
-          </div>
-
-          <div className="input-group" style={{ marginBottom: 8 }}>
-            <input
-              type="password"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleInputChange}
-              placeholder="비밀번호 확인"
-              className="login-input"
-              required
-              autoComplete="new-password"
-            />
-          </div>
-
-          <div className="input-group signup-nickname-row" style={{ marginBottom: 8 }}>
-            <input
+              ref={nicknameInputRef}
               type="text"
               name="nickname"
+              dir="ltr"
               value={formData.nickname}
               onChange={handleInputChange}
               placeholder="닉네임 (2-20자)"
               className="login-input"
               required
               maxLength={20}
+              disabled={isLoading}
             />
             <button
               type="button"
               onClick={checkNicknameAvailability}
-              disabled={checkingNickname || checkingEmail || isLoading || !formData.nickname.trim()}
+              disabled={checkingNickname || isLoading || !formData.nickname.trim()}
               className="nickname-check-button"
             >
-              {checkingNickname ? '확인중...' : '닉네임 중복확인'}
+              {checkingNickname ? '확인중...' : nicknameChecked && nicknameAvailable ? '✓ 확인완료' : '중복확인'}
             </button>
           </div>
 
-          <div className="file-upload-container" style={{ marginBottom: 24 }}>
+          {/* 이메일 + 중복확인 */}
+          <div className="input-group signup-nickname-row">
+            <input
+              ref={emailInputRef}
+              type="email"
+              name="email"
+              dir="ltr"
+              value={formData.email}
+              onChange={handleInputChange}
+              placeholder="이메일 (비밀번호 찾기용)"
+              className="login-input"
+              required
+              autoComplete="email"
+              disabled={isLoading}
+              style={{ flex: '1 1 auto', width: '100%' }}
+            />
+            <button
+              type="button"
+              onClick={checkEmailAvailability}
+              disabled={checkingEmail || isLoading || !formData.email.trim()}
+              className="nickname-check-button"
+            >
+              {checkingEmail ? '확인중...' : emailChecked && emailAvailable ? '✓ 확인완료' : '중복확인'}
+            </button>
+          </div>
+
+          {/* 비밀번호 */}
+          <div className="input-group password-group">
+            <input
+              ref={passwordInputRef}
+              type={showPassword ? 'text' : 'password'}
+              name="password"
+              dir="ltr"
+              value={formData.password}
+              onChange={handleInputChange}
+              placeholder="비밀번호 (6자 이상)"
+              className="login-input"
+              required
+              autoComplete="new-password"
+              disabled={isLoading}
+            />
+            <button
+              type="button"
+              className="password-toggle-btn"
+              onClick={() => setShowPassword(prev => !prev)}
+              tabIndex={-1}
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+          {passwordStrength && (
+            <div className={`password-strength password-strength--${passwordStrength}`}>
+              {passwordStrength === 'weak' ? '⚠️ 6자 이상 입력해주세요' : passwordStrength === 'medium' ? '보통 강도' : '✓ 안전한 비밀번호'}
+            </div>
+          )}
+
+          {/* 비밀번호 확인 */}
+          <div className="input-group password-group">
+            <input
+              ref={confirmPasswordInputRef}
+              type={showConfirmPassword ? 'text' : 'password'}
+              name="confirmPassword"
+              dir="ltr"
+              value={formData.confirmPassword}
+              onChange={handleInputChange}
+              placeholder="비밀번호 확인"
+              className="login-input"
+              required
+              autoComplete="new-password"
+              disabled={isLoading}
+            />
+            <button
+              type="button"
+              className="password-toggle-btn"
+              onClick={() => setShowConfirmPassword(prev => !prev)}
+              tabIndex={-1}
+            >
+              {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+          {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+            <div className="password-strength password-strength--weak">비밀번호가 일치하지 않습니다</div>
+          )}
+
+          {/* 프로필 이미지 */}
+          <div className="file-upload-container">
             <label className="file-upload-label">
               <input
                 type="file"
                 accept="image/*"
                 onChange={handleFileChange}
                 className="file-upload-input"
+                disabled={isLoading}
               />
               📷 {profileImage ? profileImage.name : '프로필 이미지 선택 (선택사항)'}
             </label>
@@ -413,11 +436,10 @@ const Signup: React.FC = () => {
           {error && <div className="error-message">{error}</div>}
           {success && <div className="success-message">{success}</div>}
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             className="login-button"
             disabled={isLoading || checkingNickname || checkingEmail}
-            style={{ marginTop: 12, marginBottom: 8 }}
           >
             {isLoading ? '가입 중...' : '회원가입'}
           </button>
@@ -425,13 +447,11 @@ const Signup: React.FC = () => {
 
         <div className="login-footer">
           <div className="footer-links">
-            <div style={{ color: '#8A55CC', fontSize: 13, marginBottom: 8, textAlign: 'center' }}>
-              비밀번호를 잊어버렸을 때 이메일로 찾을 수 있습니다.
-            </div>
-            <button 
-              type="button" 
+            <button
+              type="button"
               className="link-button"
               onClick={() => navigate('/login')}
+              disabled={isLoading}
             >
               이미 계정이 있으신가요? 로그인
             </button>
@@ -442,4 +462,4 @@ const Signup: React.FC = () => {
   );
 };
 
-export default Signup; 
+export default Signup;

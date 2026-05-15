@@ -150,7 +150,7 @@ const SetListItems: React.FC<SetListItemsProps> = ({
     const cardToComplete = activeSetList.flexibleCards?.find(card => card.id === cardId);
     if (!cardToComplete) return;
     
-    if (!confirm(`"${cardToComplete.nickname}" 카드를 완료 처리하시겠습니까?`)) return;
+    if (!confirm(`"${cardToComplete.nickname}" 자유곡을 완료 처리하시겠습니까?`)) return;
 
     try {
       const completedCard = {
@@ -173,11 +173,11 @@ const SetListItems: React.FC<SetListItemsProps> = ({
         updatedAt: Timestamp.now()
       });
       
-      alert(`"${cardToComplete.nickname}" 카드가 완료되었습니다! 🎉`);
+      alert(`"${cardToComplete.nickname}" 자유곡이 완료되었습니다! 🎉`);
       onItemUpdated();
     } catch (error) {
       console.error('유연한 카드 완료 실패:', error);
-      alert('유연한 카드 완료에 실패했습니다.');
+      alert('자유곡 완료에 실패했습니다.');
     }
   };
 
@@ -357,7 +357,7 @@ const SetListItems: React.FC<SetListItemsProps> = ({
             <div style={{ fontSize: 48, marginBottom: 16 }}>🎵</div>
             <p style={{ fontSize: 16, margin: 0 }}>셋리스트가 비어있습니다.</p>
             <p style={{ fontSize: 14, margin: '8px 0 0 0', color: 'rgba(255, 255, 255, 0.6)' }}>
-              곡을 추가하거나 유연한 카드를 생성해보세요.
+              곡을 추가하거나 자유곡을 생성해보세요.
             </p>
           </div>
         ) : (
@@ -404,7 +404,7 @@ const SetListItems: React.FC<SetListItemsProps> = ({
                     {isFlexibleCard(item) && (
                       <>
                         <h4 style={{ color: 'white', fontSize: 16, margin: '0 0 8px 0', fontWeight: 700 }}>
-                          🎭 {item.nickname} ({item.totalSlots}곡)
+                          🎵 {item.nickname} 자유곡 ({item.totalSlots}곡)
                         </h4>
                         <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: 14, margin: 0 }}>
                           슬롯: {item.slots.length}개

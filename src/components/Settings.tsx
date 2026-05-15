@@ -149,26 +149,36 @@ const Settings: React.FC = () => {
       return;
     }
 
-    if (newNickname === user.nickname) {
+    const trimmed = newNickname.trim();
+    if (trimmed === user.nickname) {
       setEditingNickname(false);
       return;
     }
 
+    if (trimmed.length < 2 || trimmed.length > 20) {
+      toast.warning('닉네임은 2자 이상 20자 이하로 입력해주세요.');
+      return;
+    }
+
     try {
-      const oldNickname = user.nickname || '';
-
-      // Firestore users 컬렉션 업데이트
-      await updateDoc(doc(db, 'users', user.uid), {
-        nickname: newNickname.trim()
-      });
-
-      // 다른 컬렉션의 nickname도 일괄 업데이트
-      if (oldNickname) {
-        await updateNicknameInCollections(oldNickname, newNickname.trim());
+      const nickQuery = query(collection(db, 'users'), where('nickname', '==', trimmed));
+      const nickSnap = await getDocs(nickQuery);
+      if (!nickSnap.empty) {
+        toast.error('이미 사용 중인 닉네임입니다. 다른 닉네임을 입력해주세요.');
+        return;
       }
 
-      // localStorage 업데이트
-      const updatedUser = { ...user, nickname: newNickname.trim() };
+      const oldNickname = user.nickname || '';
+
+      await updateDoc(doc(db, 'users', user.uid), {
+        nickname: trimmed
+      });
+
+      if (oldNickname) {
+        await updateNicknameInCollections(oldNickname, trimmed);
+      }
+
+      const updatedUser = { ...user, nickname: trimmed };
       localStorage.setItem('veryus_user', JSON.stringify(updatedUser));
       setUser(updatedUser);
 

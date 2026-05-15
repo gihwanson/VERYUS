@@ -258,34 +258,6 @@ const PartnerPostDetail: React.FC = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="board-container">
-        <div className="loading-container">
-          <Loader className="loading-spinner" />
-          게시글을 불러오는 중...
-        </div>
-      </div>
-    );
-  }
-
-  if (!post) {
-    return (
-      <div className="board-container">
-        <div className="error-container">
-          <AlertTriangle size={48} />
-          <h3>게시글을 찾을 수 없습니다.</h3>
-          <button 
-            className="back-button"
-            onClick={() => navigate('/boards/partner', { state: { preserveScroll: true } })}
-          >
-            목록으로 돌아가기
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   const isLiked = post.likes.includes(user?.uid || '');
   const canEdit = user && user.uid === post.writerUid;
   const canDelete = user && (user.uid === post.writerUid || user.nickname === '너래' || user.role === '리더');
@@ -645,7 +617,7 @@ const PartnerPostDetail: React.FC = () => {
       {/* 지원자 모달 */}
       {showApplicantsModal && (
         <div className="modal-overlay" style={{position:'fixed',top:0,left:0,width:'100vw',height:'100vh',background:'rgba(0,0,0,0.25)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center'}}>
-          <div className="modal-content" style={{background:'#fff',borderRadius:12,padding:'2rem',minWidth:400,maxWidth:500,boxShadow:'0 4px 24px rgba(0,0,0,0.12)',position:'relative'}}>
+          <div className="modal-content" style={{background:'#fff',borderRadius:12,padding:'1.5rem',width:'90%',maxWidth:440,boxShadow:'0 4px 24px rgba(0,0,0,0.12)',position:'relative'}}>
             <button style={{position:'absolute',top:12,right:12,background:'none',border:'none',fontSize:20,cursor:'pointer'}} onClick={()=>setShowApplicantsModal(false)}><X size={24}/></button>
             <h3 style={{marginBottom:16,fontWeight:700,fontSize:'1.15rem'}}>지원자 목록</h3>
             {applicantUsers.length === 0 ? (

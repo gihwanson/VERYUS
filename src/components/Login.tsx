@@ -1,6 +1,8 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { useNavigate } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import { auth, db } from '../firebase';
 import './Login.css';
 
@@ -29,6 +31,10 @@ const Login: React.FC = () => {
   });
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const nicknameRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
 
   // 이미 로그인된 사용자 체크
   useEffect(() => {
@@ -41,15 +47,22 @@ const Login: React.FC = () => {
     }
   }, []);
 
-  // 입력값 변경 핸들러
+  // 입력값 변경 핸들러 - 커서 위치 보존으로 모바일 역순 입력 방지
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+    const { name, value, selectionStart } = e.target;
+    const cursorPos = selectionStart;
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
-    setError(''); // 입력 시 에러 메시지 초기화
-  }, []);
+    if (error) setError('');
+    requestAnimationFrame(() => {
+      const ref = name === 'password' ? passwordRef : nicknameRef;
+      if (ref.current && cursorPos !== null) {
+        ref.current.setSelectionRange(cursorPos, cursorPos);
+      }
+    });
+  }, [error]);
 
   /** 로그인에 쓸 이메일: 닉네임이면 Firestore 조회, 이메일 형식이면 정규화(프로필 없어도 Auth 시도 가능) */
   const resolveEmailForSignIn = useCallback(async (raw: string): Promise<string | null> => {
@@ -187,8 +200,10 @@ const Login: React.FC = () => {
         <form onSubmit={handleLogin} className="login-form">
           <div className="input-group">
             <input
+              ref={nicknameRef}
               type="text"
               name="nickname"
+              dir="ltr"
               value={formData.nickname}
               onChange={handleInputChange}
               placeholder="닉네임 또는 이메일"
@@ -196,22 +211,37 @@ const Login: React.FC = () => {
               autoComplete="username"
               maxLength={254}
               disabled={isLoading}
+              required
             />
           </div>
 
-          <div className="input-group">
+          <div className="input-group password-group">
             <input
-              type="password"
+              ref={passwordRef}
+              type={showPassword ? 'text' : 'password'}
               name="password"
+              dir="ltr"
               value={formData.password}
               onChange={handleInputChange}
               placeholder="비밀번호를 입력해주세요"
               className="login-input"
               autoComplete="current-password"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
               maxLength={30}
               disabled={isLoading}
               required
             />
+            <button
+              type="button"
+              className="password-toggle-btn"
+              onClick={() => setShowPassword(prev => !prev)}
+              tabIndex={-1}
+              aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
 
           {error && <div className="error-message" role="alert">{error}</div>}
@@ -230,7 +260,7 @@ const Login: React.FC = () => {
             <button 
               type="button" 
               className="link-button"
-              onClick={() => window.location.replace('/signup')}
+              onClick={() => navigate('/signup')}
               disabled={isLoading}
             >
               회원가입
@@ -239,7 +269,7 @@ const Login: React.FC = () => {
             <button 
               type="button" 
               className="link-button"
-              onClick={() => window.location.replace('/forgot-password')}
+              onClick={() => navigate('/forgot-password')}
               disabled={isLoading}
             >
               비밀번호 찾기

@@ -63,7 +63,7 @@ interface User {
 
 const POSTS_PER_PAGE = 10;
 const RECORDING_LIST_STATE_KEY = 'veryus_recording_list_state_v1';
-type SortOrder = 'newest' | 'oldest';
+type SortOrder = 'newest' | 'oldest' | 'likes' | 'comments';
 
 const RecordingPostList: React.FC = () => {
   const navigate = useNavigate();
@@ -103,9 +103,16 @@ const RecordingPostList: React.FC = () => {
       setError(null);
       
       let baseQuery;
+      const isClientSort = sortOrder === 'likes' || sortOrder === 'comments';
       const sortDirection = sortOrder === 'oldest' ? 'asc' : 'desc';
       
-      if (!isInitial && lastVisible) {
+      if (isClientSort) {
+        baseQuery = query(
+          collection(db, 'posts'),
+          where('type', '==', 'recording'),
+          orderBy('createdAt', 'desc')
+        );
+      } else if (!isInitial && lastVisible) {
         baseQuery = query(
           collection(db, 'posts'),
           where('type', '==', 'recording'),
@@ -133,7 +140,11 @@ const RecordingPostList: React.FC = () => {
       }
 
       const lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
-      setLastVisible(lastVisibleDoc);
+      if (!isClientSort) {
+        setLastVisible(lastVisibleDoc);
+      } else {
+        setHasMore(false);
+      }
 
       let newPosts = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -141,12 +152,19 @@ const RecordingPostList: React.FC = () => {
         createdAt: doc.data().createdAt?.toDate() || new Date()
       })) as RecordingPost[];
 
-      // 검색어로 필터링 (클라이언트 사이드)
       if (searchTerm) {
         newPosts = newPosts.filter(post => 
           post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
           post.description.toLowerCase().includes(searchTerm.toLowerCase())
         );
+      }
+
+      if (isClientSort) {
+        if (sortOrder === 'likes') {
+          newPosts.sort((a, b) => (b.likesCount || 0) - (a.likesCount || 0));
+        } else if (sortOrder === 'comments') {
+          newPosts.sort((a, b) => (b.commentCount || 0) - (a.commentCount || 0));
+        }
       }
 
       // 작성자 등급/역할/포지션 최신화
@@ -206,13 +224,21 @@ const RecordingPostList: React.FC = () => {
     }
   }, []);
 
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
-    setPosts([]);
-    setLastVisible(null);
-    setHasMore(true);
-    setLoading(true);
-    setError(null);
-    fetchPosts(true);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+
+    searchDebounceRef.current = setTimeout(() => {
+      setPosts([]);
+      setLastVisible(null);
+      setHasMore(true);
+      setLoading(true);
+      setError(null);
+      fetchPosts(true);
+    }, searchTerm ? 400 : 0);
+
+    return () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); };
   }, [searchTerm, sortOrder]);
 
   useEffect(() => {
@@ -429,6 +455,8 @@ const RecordingPostList: React.FC = () => {
           >
             <option value="newest" style={{ color: '#1f2937' }}>최신순</option>
             <option value="oldest" style={{ color: '#1f2937' }}>오래된순</option>
+            <option value="likes" style={{ color: '#1f2937' }}>좋아요순</option>
+            <option value="comments" style={{ color: '#1f2937' }}>댓글순</option>
           </select>
           <button 
             className="write-button" 

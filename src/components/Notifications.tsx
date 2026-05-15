@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { collection, query, where, orderBy, onSnapshot, updateDoc, doc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Bell, MessageCircle, X, Heart, CheckCircle, XCircle, Users, AtSign, UserPlus, CheckCheck, Shield, Award } from 'lucide-react';
+import { Bell, MessageCircle, X, Heart, CheckCircle, XCircle, Users, AtSign, UserPlus, CheckCheck, Shield, Award, Trash2, Filter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { NotificationService } from '../utils/notificationService';
 import './Notifications.css';
@@ -40,9 +40,21 @@ interface Notification {
   hiddenFromInbox?: boolean;
 }
 
+type FilterType = 'all' | 'unread' | 'comment' | 'like' | 'system';
+
+const FILTER_OPTIONS: { key: FilterType; label: string }[] = [
+  { key: 'all', label: '전체' },
+  { key: 'unread', label: '안읽음' },
+  { key: 'comment', label: '댓글/답글' },
+  { key: 'like', label: '좋아요' },
+  { key: 'system', label: '시스템' },
+];
+
 const Notifications: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<FilterType>('all');
+  const [showConfirmModal, setShowConfirmModal] = useState<'read' | 'delete' | null>(null);
   const navigate = useNavigate();
   const user = useMemo(() => {
     const userString = localStorage.getItem('veryus_user');
@@ -87,19 +99,38 @@ const Notifications: React.FC = () => {
       orderBy('createdAt', 'desc')
     );
     const unsub = onSnapshot(q, (snap) => {
-      const all = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Notification[];
+      const all = snap.docs.map(d => ({ id: d.id, ...d.data() })) as Notification[];
       setNotifications(all.filter((noti) => !isHiddenInInbox(noti)));
       setLoading(false);
     });
     return () => unsub();
   }, [isHiddenInInbox, user]);
 
+  const filteredNotifications = useMemo(() => {
+    switch (filter) {
+      case 'unread':
+        return notifications.filter(n => !n.isRead);
+      case 'comment':
+        return notifications.filter(n => ['comment', 'reply', 'mention', 'guestbook', 'guestbook_reply'].includes(n.type));
+      case 'like':
+        return notifications.filter(n => n.type === 'like');
+      case 'system':
+        return notifications.filter(n => ['approval', 'rejection', 'grade_request_pending', 'grade_change_approved', 'grade_change_rejected', 'approved_song_milestone', 'partnership', 'partnership_closed', 'partnership_confirmed'].includes(n.type));
+      default:
+        return notifications;
+    }
+  }, [notifications, filter]);
+
   const handleNotificationClick = async (notification: Notification) => {
     const route = getNotificationRoute(notification);
     if (!route) return;
 
     if (!notification.isRead) {
-      await updateDoc(doc(db, 'notifications', notification.id), { isRead: true });
+      try {
+        await updateDoc(doc(db, 'notifications', notification.id), { isRead: true });
+      } catch (err) {
+        console.error('읽음 처리 실패:', err);
+      }
     }
 
     if (notification.type === 'grade_request_pending') {
@@ -110,132 +141,108 @@ const Notifications: React.FC = () => {
     navigate(route);
   };
 
-  const handleDeleteNotification = async (id: string) => {
-    if (!window.confirm('이 알림을 삭제하시겠습니까?')) return;
-    await deleteDoc(doc(db, 'notifications', id));
+  const handleDeleteNotification = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await deleteDoc(doc(db, 'notifications', id));
+    } catch (err) {
+      console.error('알림 삭제 실패:', err);
+    }
   };
 
   const handleMarkAllAsRead = async () => {
     if (!user) return;
+    const unread = notifications.filter(n => !n.isRead);
+    if (unread.length === 0) return;
 
-    if (notifications.length === 0) {
-      alert('삭제할 알림이 없습니다.');
-      return;
+    setShowConfirmModal(null);
+    try {
+      const chunkSize = 450;
+      for (let i = 0; i < unread.length; i += chunkSize) {
+        const chunk = unread.slice(i, i + chunkSize);
+        const batch = writeBatch(db);
+        chunk.forEach((noti) => {
+          batch.update(doc(db, 'notifications', noti.id), { isRead: true });
+        });
+        await batch.commit();
+      }
+    } catch (error) {
+      console.error('모두 읽음 처리 중 오류:', error);
     }
+  };
 
-    if (!window.confirm(`${notifications.length}개의 알림을 모두 삭제하시겠습니까?`)) {
-      return;
-    }
+  const handleDeleteAll = async () => {
+    if (!user) return;
+    if (notifications.length === 0) return;
 
+    setShowConfirmModal(null);
     try {
       const chunkSize = 450;
       for (let i = 0; i < notifications.length; i += chunkSize) {
         const chunk = notifications.slice(i, i + chunkSize);
         const batch = writeBatch(db);
         chunk.forEach((noti) => {
-          const notificationRef = doc(db, 'notifications', noti.id);
-          batch.delete(notificationRef);
+          batch.delete(doc(db, 'notifications', noti.id));
         });
         await batch.commit();
       }
-      alert('모든 알림이 삭제되었습니다.');
     } catch (error) {
       console.error('모두 삭제 중 오류:', error);
-      alert('알림 삭제 중 오류가 발생했습니다.');
     }
   };
 
   const getNotificationIconClass = (type: string) => {
     switch (type) {
-      case 'reply':
-        return 'notifications-icon-reply';
-      case 'like':
-        return 'notifications-icon-like';
-      case 'approval':
-        return 'notifications-icon-approval';
-      case 'rejection':
-        return 'notifications-icon-rejection';
-      case 'guestbook':
-        return 'notifications-icon-guestbook';
-      case 'guestbook_reply':
-        return 'notifications-icon-guestbook-reply';
-      case 'mention':
-        return 'notifications-icon-mention';
-      case 'partnership':
-        return 'notifications-icon-partnership';
-      case 'partnership_closed':
-        return 'notifications-icon-partnership-closed';
-      case 'partnership_confirmed':
-        return 'notifications-icon-partnership-confirmed';
-      case 'grade_request_pending':
-        return 'notifications-icon-grade-request-pending';
-      case 'grade_change_approved':
-        return 'notifications-icon-grade-change-approved';
-      case 'grade_change_rejected':
-        return 'notifications-icon-grade-change-rejected';
-      case 'approved_song_milestone':
-        return 'notifications-icon-grade-request-pending';
+      case 'reply': return 'notifications-icon-reply';
+      case 'like': return 'notifications-icon-like';
+      case 'approval': return 'notifications-icon-approval';
+      case 'rejection': return 'notifications-icon-rejection';
+      case 'guestbook': return 'notifications-icon-guestbook';
+      case 'guestbook_reply': return 'notifications-icon-guestbook-reply';
+      case 'mention': return 'notifications-icon-mention';
+      case 'partnership': return 'notifications-icon-partnership';
+      case 'partnership_closed': return 'notifications-icon-partnership-closed';
+      case 'partnership_confirmed': return 'notifications-icon-partnership-confirmed';
+      case 'grade_request_pending': return 'notifications-icon-grade-request-pending';
+      case 'grade_change_approved': return 'notifications-icon-grade-change-approved';
+      case 'grade_change_rejected': return 'notifications-icon-grade-change-rejected';
+      case 'approved_song_milestone': return 'notifications-icon-grade-request-pending';
       case 'comment':
-      default:
-        return 'notifications-icon-comment';
+      default: return 'notifications-icon-comment';
     }
   };
 
   const getNotificationIcon = (type: string) => {
     const iconClass = getNotificationIconClass(type);
     switch (type) {
-      case 'comment':
-        return <MessageCircle size={18} className={iconClass} />;
-      case 'reply':
-        return <MessageCircle size={18} className={iconClass} />;
-      case 'like':
-        return <Heart size={18} className={iconClass} />;
-      case 'approval':
-        return <CheckCircle size={18} className={iconClass} />;
-      case 'rejection':
-        return <XCircle size={18} className={iconClass} />;
-      case 'guestbook':
-        return <Users size={18} className={iconClass} />;
-      case 'guestbook_reply':
-        return <MessageCircle size={18} className={iconClass} />;
-      case 'mention':
-        return <AtSign size={18} className={iconClass} />;
-      case 'partnership':
-        return <UserPlus size={18} className={iconClass} />;
-      case 'partnership_closed':
-        return <CheckCircle size={18} className={iconClass} />;
-      case 'partnership_confirmed':
-        return <CheckCircle size={18} className={iconClass} />;
-      case 'grade_request_pending':
-        return <Shield size={18} className={iconClass} />;
-      case 'grade_change_approved':
-        return <CheckCircle size={18} className={iconClass} />;
-      case 'grade_change_rejected':
-        return <XCircle size={18} className={iconClass} />;
-      case 'approved_song_milestone':
-        return <Award size={18} className={iconClass} />;
-      default:
-        return <Bell size={18} className={iconClass} />;
+      case 'comment': return <MessageCircle size={18} className={iconClass} />;
+      case 'reply': return <MessageCircle size={18} className={iconClass} />;
+      case 'like': return <Heart size={18} className={iconClass} />;
+      case 'approval': return <CheckCircle size={18} className={iconClass} />;
+      case 'rejection': return <XCircle size={18} className={iconClass} />;
+      case 'guestbook': return <Users size={18} className={iconClass} />;
+      case 'guestbook_reply': return <MessageCircle size={18} className={iconClass} />;
+      case 'mention': return <AtSign size={18} className={iconClass} />;
+      case 'partnership': return <UserPlus size={18} className={iconClass} />;
+      case 'partnership_closed': return <CheckCircle size={18} className={iconClass} />;
+      case 'partnership_confirmed': return <CheckCircle size={18} className={iconClass} />;
+      case 'grade_request_pending': return <Shield size={18} className={iconClass} />;
+      case 'grade_change_approved': return <CheckCircle size={18} className={iconClass} />;
+      case 'grade_change_rejected': return <XCircle size={18} className={iconClass} />;
+      case 'approved_song_milestone': return <Award size={18} className={iconClass} />;
+      default: return <Bell size={18} className={iconClass} />;
     }
   };
 
   const getNotificationMessage = (notification: Notification) => {
-    if (notification.message) {
-      return notification.message;
-    }
-    
-    // 기존 알림 타입 호환성
-    if (notification.type === 'comment') {
-      return '내 게시글에 댓글이 달렸습니다.';
-    } else if (notification.type === 'reply') {
-      return '내 댓글에 답글이 달렸습니다.';
-    }
-    
+    if (notification.message) return notification.message;
+    if (notification.type === 'comment') return '내 게시글에 댓글이 달렸습니다.';
+    if (notification.type === 'reply') return '내 댓글에 답글이 달렸습니다.';
     return NotificationService.getNotificationMessage(notification.type);
   };
 
   const getPostTypeBadge = (postType?: string) => {
-    const badges = {
+    const badges: Record<string, { label: string }> = {
       'free': { label: '자유' },
       'recording': { label: '녹음' },
       'evaluation': { label: '평가' },
@@ -243,59 +250,98 @@ const Notifications: React.FC = () => {
       'partner': { label: '파트너' },
       'notice': { label: '공지' }
     };
-    
-    if (!postType || !badges[postType as keyof typeof badges]) {
-      return { label: '게시판' };
-    }
-    
-    return badges[postType as keyof typeof badges];
+    return badges[postType || ''] || { label: '게시판' };
   };
 
   const unreadCount = useMemo(() => notifications.filter(noti => !noti.isRead).length, [notifications]);
 
   if (!user) return <div className="notifications-container">로그인이 필요합니다.</div>;
-  if (loading) return <div className="notifications-container">로딩 중...</div>;
+  if (loading) return (
+    <div className="notifications-page">
+      <div className="notifications-page-pattern" />
+      <div className="notifications-page-inner">
+        <div className="notifications-loading">
+          <div className="notifications-loading-spinner" />
+          <span>알림을 불러오는 중...</span>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="notifications-page">
-      {/* 배경 패턴 */}
       <div className="notifications-page-pattern" />
       
       <div className="notifications-page-inner">
         <div className="notifications-glass-panel">
+          {/* 헤더 */}
           <div className="notifications-header">
             <h2 className="notifications-title">
               🔔 알림
               {unreadCount > 0 && (
-                <span className="notifications-unread-badge">
-                  {unreadCount}
-                </span>
+                <span className="notifications-unread-badge">{unreadCount}</span>
               )}
             </h2>
             {notifications.length > 0 && (
-              <button 
-                onClick={handleMarkAllAsRead}
-                className="notifications-mark-all-btn"
-                title="모든 알림 삭제"
-              >
-                <CheckCheck size={16} />
-                모두 읽음
-              </button>
+              <div className="notifications-action-btns">
+                <button
+                  onClick={() => setShowConfirmModal('read')}
+                  className="notifications-mark-all-btn"
+                  disabled={unreadCount === 0}
+                >
+                  <CheckCheck size={15} />
+                  모두 읽음
+                </button>
+                <button
+                  onClick={() => setShowConfirmModal('delete')}
+                  className="notifications-delete-all-btn"
+                >
+                  <Trash2 size={15} />
+                  전체 삭제
+                </button>
+              </div>
             )}
           </div>
-          {notifications.length === 0 ? (
+
+          {/* 필터 */}
+          <div className="notifications-filter-bar">
+            <Filter size={14} className="notifications-filter-icon" />
+            {FILTER_OPTIONS.map(opt => (
+              <button
+                key={opt.key}
+                className={`notifications-filter-chip ${filter === opt.key ? 'active' : ''}`}
+                onClick={() => setFilter(opt.key)}
+              >
+                {opt.label}
+                {opt.key === 'unread' && unreadCount > 0 && (
+                  <span className="notifications-filter-count">{unreadCount}</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* 알림 목록 */}
+          {filteredNotifications.length === 0 ? (
             <div className="notifications-empty-state">
-              🔕 새 알림이 없습니다
+              <div className="notifications-empty-icon">🔕</div>
+              <p className="notifications-empty-text">
+                {filter === 'all' ? '새 알림이 없습니다' :
+                 filter === 'unread' ? '읽지 않은 알림이 없습니다' :
+                 '해당 유형의 알림이 없습니다'}
+              </p>
             </div>
           ) : (
             <div className="notifications-list">
-              {notifications.map(noti => {
+              {filteredNotifications.map(noti => {
                 const postBadge = getPostTypeBadge(noti.postType);
                 return (
                   <div
                     key={noti.id}
                     onClick={() => handleNotificationClick(noti)}
                     className={`notifications-card ${noti.isRead ? 'is-read' : 'is-unread'}`}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleNotificationClick(noti); }}
                   >
                     <div className="notifications-card-header">
                       <div className="notifications-card-icon">
@@ -317,22 +363,21 @@ const Notifications: React.FC = () => {
                         </div>
                       </div>
                       <button
-                        onClick={e => { e.stopPropagation(); handleDeleteNotification(noti.id); }}
+                        onClick={(e) => handleDeleteNotification(noti.id, e)}
                         className="notifications-delete-btn"
                         title="알림 삭제"
+                        aria-label="알림 삭제"
                       >
                         <X size={16} />
                       </button>
                     </div>
                     
-                    {/* 게시글 제목 */}
                     {noti.postTitle && (
                       <div className="notifications-post-title">
                         📝 {noti.postTitle}
                       </div>
                     )}
                     
-                    {/* 메타 정보 */}
                     <div className="notifications-card-meta">
                       <span className="notifications-author">
                         👤 {noti.fromNickname}
@@ -354,8 +399,32 @@ const Notifications: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* 확인 모달 */}
+      {showConfirmModal && (
+        <div className="notifications-modal-overlay" onClick={() => setShowConfirmModal(null)}>
+          <div className="notifications-modal" onClick={e => e.stopPropagation()}>
+            <p className="notifications-modal-text">
+              {showConfirmModal === 'read'
+                ? `${unreadCount}개의 알림을 모두 읽음 처리하시겠습니까?`
+                : `${notifications.length}개의 알림을 모두 삭제하시겠습니까?`}
+            </p>
+            <div className="notifications-modal-btns">
+              <button className="notifications-modal-cancel" onClick={() => setShowConfirmModal(null)}>
+                취소
+              </button>
+              <button
+                className={`notifications-modal-confirm ${showConfirmModal === 'delete' ? 'danger' : ''}`}
+                onClick={showConfirmModal === 'read' ? handleMarkAllAsRead : handleDeleteAll}
+              >
+                {showConfirmModal === 'read' ? '모두 읽음' : '모두 삭제'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export default Notifications; 
+export default Notifications;

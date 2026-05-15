@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../firebase';
@@ -13,6 +13,8 @@ const ForgotPassword: React.FC = () => {
   const [success, setSuccess] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [step, setStep] = useState<'input' | 'verify' | 'success'>('input');
+  const [countdown, setCountdown] = useState(5);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const navigate = useNavigate();
 
   const findEmailByNickname = async (nickname: string): Promise<string | null> => {
@@ -80,11 +82,18 @@ const ForgotPassword: React.FC = () => {
       
       setStep('success');
       setSuccess(`비밀번호 재설정 링크가 ${resetEmail}로 전송되었습니다.`);
+      setCountdown(5);
       
-      // 5초 후 로그인 페이지로 이동
-      setTimeout(() => {
-        navigate('/login');
-      }, 5000);
+      countdownRef.current = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            if (countdownRef.current) clearInterval(countdownRef.current);
+            navigate('/login');
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
 
     } catch (error: any) {
       console.error('비밀번호 재설정 에러:', error);
@@ -110,6 +119,10 @@ const ForgotPassword: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    return () => { if (countdownRef.current) clearInterval(countdownRef.current); };
+  }, []);
+
   if (step === 'success') {
     return (
       <div className="forgot-password-container">
@@ -117,13 +130,14 @@ const ForgotPassword: React.FC = () => {
           <div className="success-icon">✓</div>
           <h2>이메일 전송 완료</h2>
           <p>{success}</p>
-          <p className="redirect-message">잠시 후 로그인 페이지로 이동합니다...</p>
+          <p className="forgot-password-info">메일함(스팸 포함)을 확인해주세요. 링크를 클릭하면 새 비밀번호를 설정할 수 있습니다.</p>
+          <p className="redirect-message">{countdown}초 후 로그인 페이지로 이동합니다</p>
           <button 
             className="login-link-button"
             onClick={() => navigate('/login')}
           >
             <ArrowLeft size={16} />
-            로그인 페이지로 이동
+            바로 이동
           </button>
         </div>
       </div>
@@ -145,6 +159,7 @@ const ForgotPassword: React.FC = () => {
         </div>
 
         <form onSubmit={handlePasswordReset} className="reset-form">
+          <p className="forgot-password-guide">닉네임 또는 이메일 중 하나만 입력하면 됩니다.</p>
           <div className="input-group">
             <label htmlFor="nickname" className="input-label">
               <User size={18} />

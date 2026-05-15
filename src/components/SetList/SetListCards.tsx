@@ -1,25 +1,32 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { updateDoc, doc, Timestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { useSetListData } from './hooks/useSetListData';
 import { useSwipeGestures } from './hooks/useSwipeGestures';
-import FlexibleCardManager from './components/FlexibleCardManager';
-import type { Song, SetListItem, FlexibleCard, FlexibleSlot, SetListEntry, RequestSongCard, RequestSong } from './types';
+import type { Song, SetListItem, FlexibleCard, FlexibleSlot, SetListEntry, RequestSongCard, RequestSong, SetListData } from './types';
+import { isSongRegistrationPhase } from './types';
+import SetListParadeView from './SetListParadeView';
+import { buildParadeEntries } from './paradeUtils';
 import './styles.css';
 
 interface SetListCardsProps {
+  songs: Song[];
+  activeSetList: SetListData | null;
   onSetListActivated?: () => void;
+  fullscreen?: boolean;
 }
 
-const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
-  console.log('🎬 SetListCards 컴포넌트 렌더링 시작');
-  
+const SetListCards: React.FC<SetListCardsProps> = ({
+  songs,
+  activeSetList,
+  onSetListActivated,
+  fullscreen = false
+}) => {
   const userString = localStorage.getItem('veryus_user');
   const user = userString ? JSON.parse(userString) : null;
   const isLeader = user && user.role === '리더';
+  /** 진행 탭은 멤버용 보기 전용 — 곡 등록·편집 없음 */
+  const canLeaderModerateCards = false;
   const currentUserNickname = user?.nickname || '';
-  
-  const { songs, activeSetList } = useSetListData();
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [participants, setParticipants] = useState<string[]>(['']);
   const [availableSongs, setAvailableSongs] = useState<Song[]>([]);
@@ -47,9 +54,6 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
   // 드래그 활성화 상태 관리
   const [dragEnabled, setDragEnabled] = useState<boolean>(true);
   
-  // 편집 모드 상태 관리
-  const [isEditing, setIsEditing] = useState<boolean>(false);
-  
   // 참가자 목록 및 합격곡 모달 관련 상태
   const [showPassedSongsModal, setShowPassedSongsModal] = useState(false);
   const [selectedParticipant, setSelectedParticipant] = useState<string>('');
@@ -61,15 +65,30 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
   const [allPassedSongs, setAllPassedSongs] = useState<Song[]>([]);
   const [loadingAllPassedSongs, setLoadingAllPassedSongs] = useState(false);
   const [songFilter, setSongFilter] = useState<'all' | 'solo' | 'duet' | 'group'>('all');
-  
-  // 닉네임카드 추가 관련 상태
-  const [showNicknameCardModal, setShowNicknameCardModal] = useState(false);
-  const [selectedNickname, setSelectedNickname] = useState<string>('');
-  const [cardSlotCount, setCardSlotCount] = useState<number>(1);
-  
-  // 디버깅용 로그
-  console.log('showNicknameCardModal 상태:', showNicknameCardModal);
-  
+  const [gradeByNickname, setGradeByNickname] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadGrades = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'users'));
+        if (cancelled) return;
+        const map: Record<string, string> = {};
+        snap.docs.forEach((d) => {
+          const data = d.data();
+          if (data.nickname) map[data.nickname] = data.grade;
+        });
+        setGradeByNickname(map);
+      } catch (e) {
+        console.error('멤버 등급 로드 실패:', e);
+      }
+    };
+    void loadGrades();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // 컴포넌트 언마운트 시 cleanup
   useEffect(() => {
     return () => {
@@ -144,7 +163,7 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
     // 편집 권한 체크 (직접 구현)
     const hasEditPermission = isLeader || cardToUpdate.nickname === currentUserNickname;
     if (!hasEditPermission) {
-      alert('이 카드를 편집할 권한이 없습니다.');
+      alert('이 자유곡을 편집할 권한이 없습니다.');
       return;
     }
 
@@ -237,7 +256,7 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
     // 편집 권한 체크
     const hasEditPermission = isLeader || cardToUpdate.nickname === currentUserNickname;
     if (!hasEditPermission) {
-      alert('이 카드를 편집할 권한이 없습니다.');
+      alert('이 자유곡을 편집할 권한이 없습니다.');
       return;
     }
 
@@ -375,7 +394,7 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
 
   // 현재 곡 완료 처리
   const completeCurrentSong = useCallback(async () => {
-    if (!activeSetList || !isLeader) return;
+    if (!activeSetList || !canLeaderModerateCards) return;
     
     const allItems = getAllItems();
     const currentItem = allItems[currentCardIndex];
@@ -414,28 +433,13 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
         setIsModalCompleting(false);
       }
     } else if (isFlexibleCard(currentItem)) {
-      if (!confirm(`"${currentItem.nickname}" 카드를 완료 처리하시겠습니까?\n\n모든 슬롯의 참여자들이 통계에 기록됩니다.`)) return;
+      if (!confirm(`"${currentItem.nickname}" 자유곡을 완료 처리하시겠습니까?`)) return;
 
       setIsModalCompleting(true);
       try {
-        // 모든 슬롯의 참여자들을 수집
-        const allParticipants: string[] = [];
-        if (currentItem.slots && Array.isArray(currentItem.slots)) {
-          currentItem.slots.forEach(slot => {
-            if (slot.members && Array.isArray(slot.members)) {
-              allParticipants.push(...slot.members);
-            }
-          });
-        }
-        
-        // 중복 제거
-        const uniqueParticipants = [...new Set(allParticipants)];
-        
     const completedCard = {
           ...currentItem,
-          completedAt: Timestamp.now(),
-          allParticipants: uniqueParticipants, // 통계용 참여자 목록 추가
-          totalSlotsCompleted: currentItem.slots?.length || 0
+          completedAt: Timestamp.now()
         };
         
         // flexibleCards에서 제거
@@ -458,9 +462,7 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
           updatedAt: Timestamp.now()
         });
         
-        const participantCount = uniqueParticipants.length;
-        const slotCount = currentItem.slots?.length || 0;
-        alert(`"${currentItem.nickname}" 카드가 완료되었습니다! 🎉\n\n📊 통계 기록: ${participantCount}명이 ${slotCount}곡 완료`);
+        alert(`"${currentItem.nickname}" 자유곡이 완료되었습니다! 🎉`);
         
         // 다음 카드로 이동
         if (currentCardIndex < allItems.length - 1) {
@@ -468,7 +470,7 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
         }
     } catch (error) {
         console.error('유연한 카드 완료 실패:', error);
-        alert('유연한 카드 완료에 실패했습니다.');
+        alert('자유곡 완료에 실패했습니다.');
       } finally {
         setIsModalCompleting(false);
       }
@@ -510,11 +512,11 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
         setIsModalCompleting(false);
       }
     }
-  }, [activeSetList, isLeader, currentCardIndex, getAllItems]);
+  }, [activeSetList, canLeaderModerateCards, currentCardIndex, getAllItems]);
 
   // 현재 곡 삭제 처리
   const deleteCurrentSong = useCallback(async () => {
-    if (!activeSetList || !isLeader) return;
+    if (!activeSetList || !canLeaderModerateCards) return;
     
     const allItems = getAllItems();
     const currentItem = allItems[currentCardIndex];
@@ -544,7 +546,7 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
       }
     } else if (isFlexibleCard(currentItem)) {
       // 닉네임카드 삭제 처리
-      const cardTitle = currentItem.nickname ? `${currentItem.nickname}님의 닉네임카드` : '닉네임카드';
+      const cardTitle = currentItem.nickname ? `${currentItem.nickname}님의 자유곡` : '자유곡';
       if (!confirm(`"${cardTitle}"을 셋리스트에서 제거하시겠습니까?`)) return;
 
       try {
@@ -560,18 +562,18 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
           updatedAt: Timestamp.now()
         });
         
-        alert('닉네임카드가 셋리스트에서 제거되었습니다.');
+        alert('자유곡이 셋리스트에서 제거되었습니다.');
         
         // 현재 인덱스 조정
         if (currentCardIndex >= allItems.length - 1 && currentCardIndex > 0) {
           setCurrentCardIndex(currentCardIndex - 1);
         }
       } catch (error) {
-        console.error('닉네임카드 제거 실패:', error);
-        alert('닉네임카드 제거에 실패했습니다.');
+        console.error('자유곡 제거 실패:', error);
+        alert('자유곡 제거에 실패했습니다.');
       }
     }
-  }, [activeSetList, isLeader, currentCardIndex, getAllItems]);
+  }, [activeSetList, canLeaderModerateCards, currentCardIndex, getAllItems]);
 
   // 참가자 합격곡 로딩
   const loadParticipantPassedSongs = useCallback(async (participant: string) => {
@@ -685,65 +687,6 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
     loadAllPassedSongs();
   }, [loadAllPassedSongs]);
 
-  // 닉네임카드 추가
-  const addNicknameCardToSetList = useCallback(async () => {
-    if (!activeSetList || !isLeader) {
-      alert('활성 셋리스트가 없거나 권한이 없습니다.');
-      return;
-    }
-
-    if (!selectedNickname.trim()) {
-      alert('닉네임을 선택해주세요.');
-      return;
-    }
-
-    if (cardSlotCount < 1 || cardSlotCount > 10) {
-      alert('슬롯 수는 1개 이상 10개 이하여야 합니다.');
-      return;
-    }
-
-    try {
-      // 닉네임카드 생성
-      const nicknameCard = {
-        id: `nickname_${Date.now()}`,
-        nickname: selectedNickname,
-        totalSlots: cardSlotCount,
-        slots: Array.from({ length: cardSlotCount }, (_, index) => ({
-          title: '미정',
-          artist: '미정',
-          members: [],
-          isCompleted: false
-        })),
-        order: (activeSetList.songs || []).length,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now()
-      };
-
-      // 셋리스트에 닉네임카드 추가
-      const updatedSongs = [...(activeSetList.songs || []), nicknameCard];
-      
-      await updateDoc(doc(db, 'setlists', activeSetList.id!), {
-        songs: updatedSongs,
-        updatedAt: Timestamp.now()
-      });
-
-      alert(`"${selectedNickname}"님의 닉네임카드가 추가되었습니다! 🎭`);
-      
-      // 모달 닫기
-      setShowNicknameCardModal(false);
-      setSelectedNickname('');
-      setCardSlotCount(1);
-      
-      // 상태 업데이트
-      if (onSetListActivated) {
-        onSetListActivated();
-      }
-    } catch (error) {
-      console.error('닉네임카드 추가 실패:', error);
-      alert('닉네임카드 추가에 실패했습니다.');
-    }
-  }, [activeSetList, isLeader, selectedNickname, cardSlotCount, onSetListActivated]);
-
   // 필터링된 곡들 계산
   const getFilteredSongs = useCallback(() => {
     if (songFilter === 'all') {
@@ -768,7 +711,7 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
 
   // 현재 닉네임카드 삭제
   const deleteCurrentFlexibleCard = useCallback(async () => {
-    if (!activeSetList || !isLeader) return;
+    if (!activeSetList || !canLeaderModerateCards) return;
     
     const allItems = getAllItems();
     const currentItem = allItems[currentCardIndex];
@@ -776,7 +719,7 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
     if (!currentItem) return;
     
     if (isFlexibleCard(currentItem)) {
-      const cardTitle = currentItem.nickname ? `${currentItem.nickname}님의 닉네임카드` : '닉네임카드';
+      const cardTitle = currentItem.nickname ? `${currentItem.nickname}님의 자유곡` : '자유곡';
       if (!confirm(`"${cardTitle}"을 셋리스트에서 제거하시겠습니까?`)) return;
 
       try {
@@ -792,18 +735,18 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
         updatedAt: Timestamp.now()
       });
       
-        alert('닉네임카드가 셋리스트에서 제거되었습니다.');
+        alert('자유곡이 셋리스트에서 제거되었습니다.');
         
         // 현재 인덱스 조정
         if (currentCardIndex >= allItems.length - 1 && currentCardIndex > 0) {
       setCurrentCardIndex(currentCardIndex - 1);
         }
       } catch (error) {
-        console.error('닉네임카드 제거 실패:', error);
-        alert('닉네임카드 제거에 실패했습니다.');
+        console.error('자유곡 제거 실패:', error);
+        alert('자유곡 제거에 실패했습니다.');
       }
     }
-  }, [activeSetList, isLeader, currentCardIndex, getAllItems]);
+  }, [activeSetList, canLeaderModerateCards, currentCardIndex, getAllItems]);
 
   // 스와이프 제스처 훅
   const {
@@ -815,7 +758,7 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
     isReadyToComplete,
     isReadyToDelete
   } = useSwipeGestures(
-    isLeader, 
+    canLeaderModerateCards, 
     currentCardIndex, 
     activeSetList, 
     setCurrentCardIndex, 
@@ -864,591 +807,86 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
     );
   }
 
-  const allItems = getAllItems();
-  const currentItem = allItems[currentCardIndex];
-
-  if (allItems.length === 0) {
+  const songPhase = isSongRegistrationPhase(activeSetList);
+  if (!songPhase) {
     return (
-        <div style={{ 
-        padding: 40, 
-              textAlign: 'center', 
-        color: 'rgba(255, 255, 255, 0.8)',
-        background: 'rgba(255, 255, 255, 0.1)',
-        backdropFilter: 'blur(10px)',
-              borderRadius: 20,
-              border: '1px solid rgba(255, 255, 255, 0.2)'
-            }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>🎵</div>
-        <p style={{ fontSize: 16, margin: 0 }}>셋리스트가 비어있습니다.</p>
-        <p style={{ fontSize: 14, margin: '8px 0 0 0', color: 'rgba(255, 255, 255, 0.6)' }}>
-          곡을 추가하거나 유연한 카드를 생성해보세요.
+      <div
+        style={{
+          padding: 40,
+          textAlign: 'center',
+          color: 'rgba(255, 255, 255, 0.9)',
+          background: 'rgba(255, 255, 255, 0.1)',
+          backdropFilter: 'blur(10px)',
+          borderRadius: 20,
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          maxWidth: window.innerWidth < 768 ? '100%' : '1400px',
+          margin: '0 auto'
+        }}
+      >
+        <div style={{ fontSize: 44, marginBottom: 14 }}>👥</div>
+        <p style={{ fontSize: 17, margin: 0, fontWeight: 600 }}>먼저 참가자를 확정해 주세요</p>
+        <p style={{ fontSize: 14, margin: '12px 0 0 0', color: 'rgba(255, 255, 255, 0.65)', lineHeight: 1.55 }}>
+          <strong style={{ color: 'white' }}>관리</strong> 탭에서 참가자를 확정하고 곡을 등록해 주세요. 이 탭에서는 순서만 확인합니다.
         </p>
-        
-        {/* 닉네임카드 추가 버튼 */}
-        {isLeader && (
-          <div style={{ marginTop: 24, textAlign: 'center' }}>
-            <button
-              onClick={() => {
-                console.log('닉네임카드 추가 버튼 클릭됨');
-                setShowNicknameCardModal(true);
-              }}
-              style={{
-                background: 'rgba(168, 85, 247, 0.8)',
-                color: 'white',
-                border: 'none',
-                borderRadius: 12,
-                padding: '12px 24px',
-                cursor: 'pointer',
-                fontSize: 14,
-                fontWeight: 600,
-                transition: 'all 0.3s ease',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                margin: '0 auto'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(168, 85, 247, 0.9)';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(168, 85, 247, 0.8)';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >
-              <span style={{ fontSize: 16 }}>🎭</span>
-              닉네임카드 추가
-            </button>
-            <p style={{ 
-              fontSize: 12, 
-              margin: '8px 0 0 0', 
-              color: 'rgba(255, 255, 255, 0.5)',
-              fontStyle: 'italic'
-            }}>
-              관리탭에서 참가자를 추가한 후 닉네임카드를 생성할 수 있습니다.
-            </p>
-          </div>
-        )}
-            </div>
+      </div>
     );
   }
 
+  const allItems = getAllItems();
+  const currentItem = allItems[currentCardIndex];
+  const paradeEntries = useMemo(
+    () => buildParadeEntries(allItems, gradeByNickname),
+    [allItems, gradeByNickname]
+  );
+
   return (
-    <div style={{ 
-      maxWidth: window.innerWidth < 768 ? '100%' : '1400px', 
-      margin: '0 auto', 
-      padding: window.innerWidth < 768 ? '5px' : '20px',
-      width: '100%',
-      boxSizing: 'border-box'
-    }}>
-      {/* 현재 카드 */}
-      {currentItem && (
+    <div
+      className={fullscreen ? 'setlist-perform-shell' : ''}
+      style={{
+        maxWidth: fullscreen ? '100%' : window.innerWidth < 768 ? '100%' : '1400px',
+        margin: '0 auto',
+        padding: fullscreen ? 0 : window.innerWidth < 768 ? '5px' : '20px',
+        paddingBottom: fullscreen
+          ? 0
+          : 'max(20px, calc(12px + env(safe-area-inset-bottom, 0px)))',
+        width: '100%',
+        boxSizing: 'border-box'
+      }}
+    >
+      {allItems.length === 0 && (
         <div
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
-              style={{ 
-            transform: (isDragging && dragEnabled && isLeader) 
-              ? `translateY(${dragDistance.y}px) translateX(${dragDistance.x}px)` 
-              : 'none',
-            transition: (isDragging && dragEnabled && isLeader) ? 'none' : 'transform 0.3s ease',
-            position: 'relative'
+          style={{
+            padding: 32,
+            textAlign: 'center',
+            color: 'rgba(255, 255, 255, 0.85)',
+            background: 'rgba(255, 255, 255, 0.08)',
+            backdropFilter: 'blur(10px)',
+            borderRadius: 20,
+            border: '1px solid rgba(255, 255, 255, 0.18)',
+            marginBottom: 16
           }}
         >
-          {/* 완료/삭제 준비 상태 표시 */}
-          {isReadyToComplete && (
-                <div style={{
-                  position: 'absolute',
-              top: -10,
-                  left: '50%',
-              transform: 'translateX(-50%)',
-              background: 'rgba(34, 197, 94, 0.9)',
-              color: 'white',
-              padding: '8px 16px',
-              borderRadius: 20,
-              fontSize: 14,
-                  fontWeight: 600,
-              zIndex: 1000,
-              animation: 'pulse 1s infinite'
-            }}>
-              ✅ 완료하려면 놓으세요
-                </div>
-              )}
-              
-          {isReadyToDelete && (
-            <div style={{
-                    position: 'absolute',
-              bottom: -10,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              background: 'rgba(220, 38, 38, 0.9)',
-              color: 'white',
-              padding: '8px 16px',
-              borderRadius: 20,
-              fontSize: 14,
-              fontWeight: 600,
-              zIndex: 1000,
-              animation: 'pulse 1s infinite'
-            }}>
-              🗑️ 삭제하려면 놓으세요
-                </div>
-              )}
-              
-          {/* 카드 렌더링 */}
-          <div
-                      style={{
-              background: 'linear-gradient(135deg, rgba(138, 85, 204, 0.6), rgba(59, 130, 246, 0.4))',
-              backdropFilter: 'blur(15px)',
-              borderRadius: 20,
-              padding: 24,
-              marginBottom: 16,
-              border: '2px solid rgba(138, 85, 204, 0.7)',
-              transition: 'all 0.3s ease',
-                          position: 'relative',
-                          overflow: 'hidden',
-              animation: 'cardGlow 3s ease-in-out infinite alternate, shine 4s ease-in-out infinite',
-              boxShadow: '0 8px 32px rgba(138, 85, 204, 0.4)',
-              minHeight: '280px', // 최소 높이 설정 (더 크게)
-              display: 'flex',
-              flexDirection: 'column'
-            }}
-          >
-            {/* 번쩍번쩍 빛나는 효과 */}
-                          <div
-                            style={{
-                              position: 'absolute',
-                top: 0,
-                left: '-100%',
-                width: '100%',
-                height: '100%',
-                background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent)',
-                animation: 'shimmer 2.5s ease-in-out infinite',
-                              pointerEvents: 'none',
-                              zIndex: 1
-                            }}
-                          />
-            {/* 추가 빛나는 효과 */}
-                          <div
-                            style={{
-                              position: 'absolute',
-                top: 0,
-                left: '-100%',
-                width: '100%',
-                height: '100%',
-                background: 'linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent)',
-                animation: 'shimmer 3.5s ease-in-out infinite reverse',
-                              pointerEvents: 'none',
-                              zIndex: 1
-                            }}
-                          />
-            {/* 곡 카드 */}
-            {isSetListItem(currentItem) && (
-              <div style={{ position: 'relative', zIndex: 2, flex: 1, display: 'flex', flexDirection: 'column' }}>
-                {/* 상단 정보 영역 */}
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'flex-start', 
-                  marginBottom: 20,
-                  paddingBottom: 16,
-                  borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
-                }}>
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{ 
-                      color: 'white', 
-                      fontSize: 22, 
-                      margin: '0 0 8px 0', 
-                      fontWeight: 700 
-                    }}>
-                      🎵 {currentItem.title}
-                    </h3>
-                    <p style={{ 
-                      color: 'rgba(255, 255, 255, 0.8)', 
-                      fontSize: 16, 
-                      margin: 0,
-                      fontWeight: 500
-                    }}>
-                      참여자: {currentItem.members.join(', ')}
-                    </p>
-                          </div>
-                  
-                  <div style={{ 
-                    background: 'rgba(255, 255, 255, 0.25)',
-                    borderRadius: 12,
-                    padding: '8px 16px',
-                    color: 'white',
-                    fontSize: 14,
-                              fontWeight: 700,
-                    marginLeft: 16,
-                    border: '1px solid rgba(255, 255, 255, 0.3)'
-                  }}>
-                    #{currentCardIndex + 1}
-                          </div>
-                          </div>
-                
-                {/* 하단 여백 영역 */}
-                <div style={{ flex: 1 }}></div>
-                          </div>
-                        )}
+          <div style={{ fontSize: 44, marginBottom: 12 }}>🎵</div>
+          <p style={{ fontSize: 16, margin: 0, fontWeight: 600 }}>아직 등록된 곡이 없습니다</p>
+          <p style={{ fontSize: 14, margin: '10px 0 0 0', color: 'rgba(255, 255, 255, 0.62)', lineHeight: 1.55 }}>
+            관리자가 곡을 등록하면 이곳에 순서대로 표시됩니다.
+          </p>
+        </div>
+      )}
 
-            {/* 유연한 카드 */}
-            {isFlexibleCard(currentItem) && (
-              <div style={{ position: 'relative', zIndex: 2, flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flex: 1 }}>
-                  <div style={{ flex: 1 }}>
-                        <h3 style={{ 
-                      color: 'white', 
-                      fontSize: 20, 
-                      margin: '0 0 6px 0', 
-                      fontWeight: 600 
-                    }}>
-                      🎭 {currentItem.nickname} ({currentItem.totalSlots}곡)
-                        </h3>
-                          <p style={{ 
-                      color: 'rgba(255, 255, 255, 0.7)', 
-                      fontSize: 14, 
-                      margin: 0 
-                    }}>
-                      슬롯: {currentItem.slots.length}개
-                    </p>
-                  </div>
-                  
-                          <div style={{
-                    background: 'rgba(255, 255, 255, 0.2)',
-                    borderRadius: 8,
-                    padding: '6px 12px',
-                    color: 'white',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    marginLeft: 12
-                  }}>
-                    #{currentCardIndex + 1}
-                  </div>
-                </div>
-
-                {/* 슬롯 목록 */}
-                <div style={{ marginBottom: 12 }}>
-                  <h4 style={{ 
-                    color: 'white', 
-                    fontSize: 14, 
-                    margin: '0 0 8px 0', 
-                    fontWeight: 600 
-                  }}>
-                    🎵 슬롯 목록
-                  </h4>
-                  <div style={{ display: 'grid', gap: 6 }}>
-                    {currentItem.slots.map((slot, slotIndex) => (
-                      <div
-                        key={slot.id}
-                                    style={{ 
-                          background: 'rgba(255, 255, 255, 0.05)',
-                          borderRadius: 6,
-                          padding: 8,
-                          border: '1px solid rgba(255, 255, 255, 0.1)'
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div>
-                                    <span style={{ 
-                              color: 'white', 
-                              fontSize: 12, 
-                              fontWeight: 600 
-                            }}>
-                              슬롯 {slotIndex + 1}
-                                          </span>
-                                          {slot.title && (
-                                            <span style={{ 
-                                color: 'rgba(255, 255, 255, 0.7)', 
-                                fontSize: 12, 
-                                marginLeft: 6 
-                              }}>
-                                - {slot.title}
-                                            </span>
-                                          )}
-                                  </div>
-                          <div style={{ 
-                            background: slot.isCompleted ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255, 255, 255, 0.1)',
-                            borderRadius: 4,
-                            padding: '2px 6px',
-                            fontSize: 10,
-                            color: 'white'
-                          }}>
-                            {slot.isCompleted ? '완료' : '대기'}
-                            </div>
-                          </div>
-                        
-                        {slot.members.length > 0 && (
-                          <div style={{ marginTop: 4 }}>
-                            <span style={{ 
-                              color: 'rgba(255, 255, 255, 0.6)', 
-                              fontSize: 10 
-                            }}>
-                              참여자: {slot.members.join(', ')}
-                            </span>
-                                        </div>
-                        )}
-                                      </div>
-                                    ))}
-                                </div>
-                            </div>
-                          </div>
-                        )}
-
-            {/* 신청곡 카드 */}
-            {isRequestSongCard(currentItem) && (
-              <div style={{ position: 'relative', zIndex: 2, flex: 1, display: 'flex', flexDirection: 'column' }}>
-                {/* 상단 정보 영역 */}
-                          <div style={{
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'flex-start', 
-                  marginBottom: 20,
-                  paddingBottom: 16,
-                  borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
-                }}>
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{ 
-                      color: 'white', 
-                      fontSize: 22, 
-                      margin: '0 0 8px 0', 
-                      fontWeight: 700 
-                    }}>
-                      🎤 신청곡 카드 ({currentItem.songs.length}곡)
-                    </h3>
-                    <p style={{ 
-                      color: 'rgba(255, 255, 255, 0.8)', 
-                      fontSize: 16, 
-                      margin: 0,
-                      fontWeight: 500
-                    }}>
-                      {currentItem.songs.length > 0 ? currentItem.songs.map(song => song.title).join(', ') : '아직 신청곡이 없습니다.'}
-                    </p>
-                          </div>
-
-                          <div style={{
-                    background: 'rgba(255, 255, 255, 0.25)',
-                    borderRadius: 12,
-                            padding: '8px 16px',
-                    color: 'white',
-                    fontSize: 14,
-                    fontWeight: 700,
-                    marginLeft: 16,
-                    border: '1px solid rgba(255, 255, 255, 0.3)'
-                  }}>
-                    #{currentCardIndex + 1}
-                          </div>
-                </div>
-                
-                {/* 하단 여백 영역 */}
-                <div style={{ flex: 1 }}></div>
-
-                {/* 신청곡 목록 */}
-                {currentItem.songs.length > 0 && (
-                  <div style={{ marginBottom: 12 }}>
-                    <h4 style={{ 
-                      color: 'white', 
-                      fontSize: 14, 
-                      margin: '0 0 8px 0', 
-                      fontWeight: 600 
-                    }}>
-                      🎵 신청곡 목록
-                    </h4>
-                    <div style={{ display: 'grid', gap: 6 }}>
-                      {currentItem.songs.map((song, songIndex) => (
-                        <div
-                          key={song.id}
-                          style={{
-                            background: 'rgba(255, 255, 255, 0.05)',
-                            borderRadius: 6,
-                            padding: 8,
-                            border: '1px solid rgba(255, 255, 255, 0.1)'
-                          }}
-                        >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ 
-                              color: 'white', 
-                              fontSize: 12, 
-                              fontWeight: 600 
-                            }}>
-                              {songIndex + 1}. {song.title}
-                            </span>
-                            <span style={{ 
-                              color: 'rgba(255, 255, 255, 0.6)', 
-                              fontSize: 10 
-                            }}>
-                              신청자: {song.requestedBy}
-                            </span>
-                            </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                          </div>
-                        )}
-
-            {/* 액션 버튼들 */}
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', alignItems: 'center' }}>
-              {/* 편집 버튼 (본인 닉네임 카드인 경우만) */}
-              {checkIsMyFlexibleCard(currentItem) && isFlexibleCard(currentItem) && (
-                <button
-                  onClick={() => {
-                    setEditingFlexibleCard(currentItem);
-                    setEditingSlotIndex(-1);
-                    setCurrentEditingSlot(null);
-                  }}
-                            style={{
-                    background: 'rgba(59, 130, 246, 0.8)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 6,
-                    padding: '6px 12px',
-                    cursor: 'pointer',
-                    fontSize: 12,
-                              fontWeight: 600,
-                    transition: 'all 0.3s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(59, 130, 246, 0.9)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(59, 130, 246, 0.8)';
-                  }}
-                >
-                  ✏️ 편집
-                </button>
-              )}
-
-              {/* 드래그 토글 버튼 - 리더만 */}
-              {isLeader && (
-                <button
-                  onClick={() => setDragEnabled(!dragEnabled)}
-                  style={{
-                    background: dragEnabled ? 'rgba(34, 197, 94, 0.8)' : 'rgba(255, 255, 255, 0.2)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 6,
-                    padding: '6px 12px',
-                    cursor: 'pointer',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    transition: 'all 0.3s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = dragEnabled ? 'rgba(34, 197, 94, 0.9)' : 'rgba(255, 255, 255, 0.3)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = dragEnabled ? 'rgba(34, 197, 94, 0.8)' : 'rgba(255, 255, 255, 0.2)';
-                  }}
-                >
-                  {dragEnabled ? '고정❌' : '고정✅'}
-                </button>
-              )}
-
-              {isLeader && (
-                  <button
-                  onClick={completeCurrentSong}
-                    style={{
-                    background: 'rgba(34, 197, 94, 0.8)',
-                    color: 'white',
-                      border: 'none',
-                    borderRadius: 6,
-                    padding: '6px 12px',
-                    cursor: 'pointer',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    transition: 'all 0.3s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(34, 197, 94, 0.9)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(34, 197, 94, 0.8)';
-                  }}
-                >
-                  ✅ 완료
-                  </button>
-              )}
-
-              {isLeader && isSetListItem(currentItem) && (
-                  <button
-                  onClick={deleteCurrentSong}
-                    style={{
-                    background: 'rgba(220, 38, 38, 0.8)',
-                    color: 'white',
-                      border: 'none',
-                    borderRadius: 6,
-                    padding: '6px 12px',
-                    cursor: 'pointer',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    transition: 'all 0.3s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(220, 38, 38, 0.9)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(220, 38, 38, 0.8)';
-                  }}
-                >
-                  🗑️ 삭제
-                  </button>
-              )}
-
-              {isLeader && isFlexibleCard(currentItem) && (
-                  <button
-                  onClick={deleteCurrentFlexibleCard}
-                    style={{
-                    background: 'rgba(220, 38, 38, 0.8)',
-                    color: 'white',
-                      border: 'none',
-                    borderRadius: 6,
-                    padding: '6px 12px',
-                      cursor: 'pointer',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    transition: 'all 0.3s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(220, 38, 38, 0.9)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(220, 38, 38, 0.8)';
-                  }}
-                >
-                  🗑️ 삭제
-                  </button>
-              )}
-            </div>
-
-            {/* 첫 번째 카드 안내문구 */}
-            {currentCardIndex === 0 && (
-            <div style={{ 
-                background: 'rgba(255, 255, 255, 0.1)',
-                borderRadius: 8,
-                padding: 12,
-                marginTop: 16,
-                textAlign: 'center',
-                border: '1px solid rgba(255, 255, 255, 0.2)'
-              }}>
-                <div style={{
-                  color: 'rgba(255, 255, 255, 0.8)',
-                  fontSize: 14,
-                  fontWeight: 600,
-              display: 'flex', 
-                  alignItems: 'center',
-              justifyContent: 'center', 
-                  gap: 8
-                }}>
-                  <span style={{ fontSize: 16 }}>⏳</span>
-                  다음 순서는 대기해주세요
-                </div>
-              </div>
-            )}
-          </div>
-            </div>
-          )}
-
+      {/* 진행 탭 — 등급 이모지 퍼레이드 */}
+      {allItems.length > 0 && (
+        <SetListParadeView
+          entries={paradeEntries}
+          currentIndex={currentCardIndex}
+          onSelectIndex={setCurrentCardIndex}
+          currentUserNickname={currentUserNickname}
+          fullscreen={fullscreen}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        />
+      )}
 
       {/* 로딩 상태 */}
       {isModalCompleting && (
@@ -1504,7 +942,7 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h3 style={{ margin: 0, color: '#333' }}>
-                🎭 {editingFlexibleCard.nickname} 카드 편집
+                🎵 {editingFlexibleCard.nickname} 자유곡 편집
                 </h3>
                   <button
                 onClick={() => {
@@ -1792,684 +1230,7 @@ const SetListCards: React.FC<SetListCardsProps> = ({ onSetListActivated }) => {
         </div>
       )}
 
-      {/* 참가자 목록 */}
-      <div style={{ 
-        background: 'rgba(255, 255, 255, 0.1)',
-        borderRadius: 12,
-        padding: 20,
-        marginTop: 20,
-        border: '1px solid rgba(255, 255, 255, 0.2)'
-      }}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 16
-        }}>
-          <h3 style={{ 
-            color: 'white', 
-            fontSize: 18, 
-            margin: 0, 
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8
-          }}>
-            👥 참가자 목록
-          </h3>
-          {activeSetList && activeSetList.participants && activeSetList.participants.length > 0 && (
-            <button
-              onClick={openAllPassedSongsModal}
-              style={{
-                background: 'rgba(34, 197, 94, 0.8)',
-                color: 'white',
-                border: 'none',
-                borderRadius: 8,
-                padding: '8px 16px',
-                cursor: 'pointer',
-                fontSize: 14,
-                fontWeight: 600,
-                transition: 'all 0.3s ease',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(34, 197, 94, 0.9)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(34, 197, 94, 0.8)';
-              }}
-            >
-              🎵 모든 합격곡 보기
-            </button>
-          )}
-        </div>
-        
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-          {activeSetList && activeSetList.participants && activeSetList.participants.length > 0 ? (
-            activeSetList.participants.filter(p => p.trim()).map((participant, index) => (
-              <div
-                key={index}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.1)',
-                  borderRadius: 8,
-                  padding: '12px 16px',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                }}
-                onClick={() => openPassedSongsModal(participant)}
-              >
-                <div style={{
-                  background: 'rgba(59, 130, 246, 0.8)',
-                  color: 'white',
-                  borderRadius: '50%',
-                  width: 32,
-                  height: 32,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 14,
-                  fontWeight: 600
-                }}>
-                  {participant.charAt(0)}
-                </div>
-                <div>
-                  <div style={{
-                    color: 'white',
-                    fontSize: 14,
-                    fontWeight: 600
-                  }}>
-                    {participant}
-                  </div>
-                  <div style={{
-                    color: 'rgba(255, 255, 255, 0.7)',
-                    fontSize: 12
-                  }}>
-                    클릭하여 합격곡 보기
-                  </div>
-                </div>
-                <div style={{
-                  color: 'rgba(255, 255, 255, 0.6)',
-                  fontSize: 16
-                }}>
-                  🎵
-                </div>
-              </div>
-            ))
-          ) : (
-            <div style={{
-              textAlign: 'center',
-              padding: '20px 0',
-              color: 'rgba(255, 255, 255, 0.7)',
-              fontSize: 14
-            }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>👥</div>
-              <p style={{ margin: 0 }}>아직 참가자가 없습니다.</p>
-              <p style={{ margin: '8px 0 0 0', fontSize: 12, color: 'rgba(255, 255, 255, 0.5)' }}>
-                관리탭에서 참가자를 추가해주세요.
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
 
-      {/* 참가자 합격곡 모달 */}
-      {showPassedSongsModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.8)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.95)',
-            borderRadius: 16,
-            padding: 24,
-            maxWidth: '500px',
-            width: '90%',
-            maxHeight: '80vh',
-            overflow: 'auto',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)'
-          }}>
-              <div style={{
-                display: 'flex',
-              justifyContent: 'space-between',
-                alignItems: 'center',
-              marginBottom: 20
-            }}>
-              <h3 style={{
-                color: '#1f2937',
-                fontSize: 20,
-                fontWeight: 600,
-                  margin: 0
-                }}>
-                🎵 {selectedParticipant}님의 합격곡
-                 </h3>
-              <button
-                onClick={() => setShowPassedSongsModal(false)}
-                style={{
-                  background: 'rgba(220, 38, 38, 0.1)',
-                  color: '#dc2626',
-                  border: 'none',
-                  borderRadius: 8,
-                  padding: '8px 12px',
-                  cursor: 'pointer',
-                  fontSize: 14,
-                  fontWeight: 600
-                }}
-              >
-                ✕ 닫기
-              </button>
-            </div>
-
-            {loadingPassedSongs ? (
-            <div style={{
-                textAlign: 'center',
-                padding: '40px 0',
-                color: '#6b7280'
-              }}>
-                📊 합격곡을 불러오는 중...
-                        </div>
-            ) : participantPassedSongs.length === 0 ? (
-              <div style={{
-                        textAlign: 'center',
-                padding: '40px 0',
-                color: '#6b7280'
-              }}>
-                <div style={{ fontSize: 48, marginBottom: 16 }}>🎵</div>
-                <p style={{ margin: 0, fontSize: 16 }}>합격곡이 없습니다.</p>
-                <p style={{ margin: '8px 0 0 0', fontSize: 14, color: '#9ca3af' }}>
-                  아직 합격한 곡이 없거나 현재 셋리스트 참가자와 관련된 곡이 없습니다.
-                </p>
-                      </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {participantPassedSongs.map((song, index) => (
-                  <div
-                    key={song.id || index}
-                      style={{
-                      background: 'rgba(59, 130, 246, 0.05)',
-                      borderRadius: 8,
-                      padding: 16,
-                      border: '1px solid rgba(59, 130, 246, 0.2)',
-                      transition: 'all 0.3s ease'
-                      }}
-                    >
-                      <div style={{ 
-                      color: '#1f2937',
-                      fontSize: 16,
-                        fontWeight: 600, 
-                      marginBottom: 8
-                      }}>
-                        {song.title}
-                      </div>
-                      <div style={{ 
-                      color: '#6b7280',
-                      fontSize: 14,
-                      marginBottom: 8
-                    }}>
-                      {song.artist}
-                      </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                      {song.members && song.members.map((member: string, memberIndex: number) => (
-                        <span
-                          key={memberIndex}
-                          style={{
-                            background: 'rgba(59, 130, 246, 0.1)',
-                            color: '#3b82f6',
-                            padding: '4px 8px',
-                            borderRadius: 6,
-                            fontSize: 12,
-                            fontWeight: 600
-                          }}
-                        >
-                          {member}
-                        </span>
-                      ))}
-                    </div>
-              </div>
-                ))}
-            </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 모든 합격곡 모달 */}
-      {showAllPassedSongsModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.8)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.95)',
-            borderRadius: 16,
-            padding: 24,
-            maxWidth: '600px',
-            width: '90%',
-            maxHeight: '80vh',
-            overflow: 'auto',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)'
-          }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 20
-          }}>
-            <h3 style={{
-                color: '#1f2937',
-                fontSize: 20,
-                fontWeight: 600,
-                margin: 0
-              }}>
-                🎵 모든 참가자 합격곡
-            </h3>
-                <button
-                onClick={() => setShowAllPassedSongsModal(false)}
-                  style={{
-                  background: 'rgba(220, 38, 38, 0.1)',
-                  color: '#dc2626',
-                    border: 'none',
-                  borderRadius: 8,
-                  padding: '8px 12px',
-                  cursor: 'pointer',
-                  fontSize: 14,
-                  fontWeight: 600
-                }}
-              >
-                ✕ 닫기
-                </button>
-            </div>
-
-            {/* 필터링 버튼들 */}
-            <div style={{
-              display: 'flex',
-              gap: 8,
-              marginBottom: 20,
-              flexWrap: 'wrap'
-            }}>
-              {[
-                { key: 'all', label: '전체', icon: '🎵' },
-                { key: 'solo', label: '솔로', icon: '🎤' },
-                { key: 'duet', label: '듀엣', icon: '👥' },
-                { key: 'group', label: '합창', icon: '🎭' }
-              ].map(filter => (
-                <button
-                  key={filter.key}
-                  onClick={() => setSongFilter(filter.key as any)}
-                      style={{
-                    background: songFilter === filter.key 
-                      ? 'rgba(59, 130, 246, 0.8)' 
-                      : 'rgba(59, 130, 246, 0.1)',
-                    color: songFilter === filter.key 
-                      ? 'white' 
-                      : '#3b82f6',
-                    border: '1px solid rgba(59, 130, 246, 0.3)',
-                    borderRadius: 8,
-                    padding: '8px 16px',
-                    cursor: 'pointer',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    transition: 'all 0.3s ease',
-                        display: 'flex',
-                        alignItems: 'center',
-                    gap: 6
-                  }}
-                  onMouseEnter={(e) => {
-                    if (songFilter !== filter.key) {
-                      e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (songFilter !== filter.key) {
-                      e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)';
-                    }
-                  }}
-                >
-                  <span>{filter.icon}</span>
-                  {filter.label}
-                        </button>
-                  ))}
-                </div>
-
-            {loadingAllPassedSongs ? (
-              <div style={{
-                textAlign: 'center',
-                padding: '40px 0',
-                color: '#6b7280'
-              }}>
-                📊 모든 합격곡을 불러오는 중...
-              </div>
-            ) : allPassedSongs.length === 0 ? (
-              <div style={{
-                textAlign: 'center',
-                padding: '40px 0',
-                color: '#6b7280'
-              }}>
-                <div style={{ fontSize: 48, marginBottom: 16 }}>🎵</div>
-                <p style={{ margin: 0, fontSize: 16 }}>합격곡이 없습니다.</p>
-                <p style={{ margin: '8px 0 0 0', fontSize: 14, color: '#9ca3af' }}>
-                  아직 합격한 곡이 없거나 현재 셋리스트 참가자와 관련된 곡이 없습니다.
-                </p>
-              </div>
-            ) : (() => {
-              const filteredSongs = getFilteredSongs();
-              return (
-                <div>
-                  <div style={{
-                    background: 'rgba(59, 130, 246, 0.1)',
-                    borderRadius: 8,
-                    padding: 12,
-                    marginBottom: 16,
-                    border: '1px solid rgba(59, 130, 246, 0.2)'
-                  }}>
-                    <div style={{
-                      color: '#1f2937',
-                      fontSize: 14,
-                      fontWeight: 600,
-                      textAlign: 'center'
-                    }}>
-                      📊 {songFilter === 'all' ? '전체' : 
-                           songFilter === 'solo' ? '솔로' :
-                           songFilter === 'duet' ? '듀엣' : '합창'} 
-                      {filteredSongs.length}곡 / 총 {allPassedSongs.length}곡
-                    </div>
-            </div>
-
-                  {filteredSongs.length === 0 ? (
-                    <div style={{
-                      textAlign: 'center',
-                      padding: '40px 0',
-                      color: '#6b7280'
-                    }}>
-                      <div style={{ fontSize: 48, marginBottom: 16 }}>
-                        {songFilter === 'solo' ? '🎤' : 
-                         songFilter === 'duet' ? '👥' : '🎭'}
-                      </div>
-                      <p style={{ margin: 0, fontSize: 16 }}>
-                        {songFilter === 'solo' ? '솔로 곡이 없습니다.' :
-                         songFilter === 'duet' ? '듀엣 곡이 없습니다.' :
-                         '합창 곡이 없습니다.'}
-                      </p>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      {filteredSongs.map((song, index) => (
-                    <div
-                      key={song.id || index}
-                style={{
-                        background: 'rgba(59, 130, 246, 0.05)',
-                        borderRadius: 8,
-                        padding: 16,
-                        border: '1px solid rgba(59, 130, 246, 0.2)',
-                        transition: 'all 0.3s ease'
-                      }}
-                    >
-                      <div style={{
-                        color: '#1f2937',
-                        fontSize: 16,
-                  fontWeight: 600,
-                        marginBottom: 8
-                      }}>
-                        {song.title}
-                      </div>
-                      <div style={{
-                        color: '#6b7280',
-                        fontSize: 14,
-                        marginBottom: 8
-                      }}>
-                        {song.artist}
-                      </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                        {song.members && song.members.map((member: string, memberIndex: number) => (
-                          <span
-                            key={memberIndex}
-                            style={{
-                              background: 'rgba(59, 130, 246, 0.1)',
-                              color: '#3b82f6',
-                              padding: '4px 8px',
-                              borderRadius: 6,
-                              fontSize: 12,
-                              fontWeight: 600
-                            }}
-                          >
-                            {member}
-                          </span>
-                        ))}
-            </div>
-          </div>
-                      ))}
-        </div>
-      )}
-                </div>
-              );
-            })()}
-          </div>
-        </div>
-      )}
-
-      {/* 닉네임카드 추가 모달 */}
-      {showNicknameCardModal && (
-        <div 
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.8)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowNicknameCardModal(false);
-            }
-          }}
-        >
-          <div 
-            style={{
-              background: 'rgba(255, 255, 255, 0.95)',
-              borderRadius: 16,
-              padding: 24,
-              maxWidth: '400px',
-              width: '90%',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)',
-              border: '3px solid red' // 디버깅용 빨간 테두리
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 20
-            }}>
-              <h3 style={{
-                color: '#1f2937',
-                fontSize: 20,
-                fontWeight: 600,
-                margin: 0
-              }}>
-                🎭 닉네임카드 추가
-              </h3>
-              <div style={{
-                color: 'red',
-                fontSize: 12,
-                fontWeight: 'bold'
-              }}>
-                모달이 표시되었습니다!
-              </div>
-              <button
-                onClick={() => setShowNicknameCardModal(false)}
-                style={{
-                  background: 'rgba(220, 38, 38, 0.1)',
-                  color: '#dc2626',
-                  border: 'none',
-                  borderRadius: 8,
-                  padding: '8px 12px',
-                  cursor: 'pointer',
-                  fontSize: 14,
-                  fontWeight: 600
-                }}
-              >
-                ✕ 닫기
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {/* 닉네임 선택 */}
-              <div>
-                <label style={{
-                  display: 'block',
-                  color: '#374151',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  marginBottom: 8
-                }}>
-                  참가자 선택
-                </label>
-                <select
-                  value={selectedNickname}
-                  onChange={(e) => setSelectedNickname(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: 8,
-                    fontSize: 14,
-                    color: '#374151',
-                    background: 'white'
-                  }}
-                >
-                  <option value="">닉네임을 선택하세요</option>
-                  {activeSetList?.participants?.filter(p => p.trim()).map((participant, index) => (
-                    <option key={index} value={participant}>
-                      {participant}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* 슬롯 수 선택 */}
-              <div>
-                <label style={{
-                  display: 'block',
-                  color: '#374151',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  marginBottom: 8
-                }}>
-                  슬롯 수 선택
-                </label>
-                <div style={{ 
-                  display: 'flex', 
-                  gap: 8, 
-                  flexWrap: 'wrap' 
-                }}>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((count) => (
-                    <button
-                      key={count}
-                      type="button"
-                      onClick={() => setCardSlotCount(count)}
-                      style={{
-                        padding: '8px 16px',
-                        border: cardSlotCount === count ? '2px solid #3b82f6' : '1px solid #d1d5db',
-                        borderRadius: 8,
-                        background: cardSlotCount === count ? '#3b82f6' : '#ffffff',
-                        color: cardSlotCount === count ? '#ffffff' : '#374151',
-                        fontSize: 14,
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                        minWidth: '50px'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (cardSlotCount !== count) {
-                          e.currentTarget.style.background = '#f3f4f6';
-                          e.currentTarget.style.borderColor = '#9ca3af';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (cardSlotCount !== count) {
-                          e.currentTarget.style.background = '#ffffff';
-                          e.currentTarget.style.borderColor = '#d1d5db';
-                        }
-                      }}
-                    >
-                      {count}곡
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 버튼들 */}
-              <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
-                <button
-                  onClick={() => setShowNicknameCardModal(false)}
-                  style={{
-                    flex: 1,
-                    background: 'rgba(107, 114, 128, 0.1)',
-                    color: '#6b7280',
-                    border: 'none',
-                    borderRadius: 8,
-                    padding: '12px',
-                    cursor: 'pointer',
-                    fontSize: 14,
-                    fontWeight: 600
-                  }}
-                >
-                  취소
-                </button>
-                <button
-                  onClick={addNicknameCardToSetList}
-                  style={{
-                    flex: 1,
-                    background: 'rgba(168, 85, 247, 0.8)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 8,
-                    padding: '12px',
-                    cursor: 'pointer',
-                    fontSize: 14,
-                    fontWeight: 600
-                  }}
-                >
-                  추가
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );

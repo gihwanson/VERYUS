@@ -230,26 +230,6 @@ export const SongListItem: React.FC<SongListItemProps> = ({
         <span className="approved-songs-members" style={{ flex: '1 1 150px' }}>
           {song.members?.join(', ')}
         </span>
-        {!audioUrl && onLoadAudio && (
-          <button
-            className="approved-songs-btn"
-            onClick={handleLoadAudio}
-            disabled={isLoading}
-            style={{
-              background: 'rgba(138, 85, 204, 0.8)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              padding: '6px 12px',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              opacity: isLoading ? 0.6 : 1,
-              fontSize: '13px',
-              fontWeight: 500
-            }}
-          >
-            {isLoading ? '⏳ 로딩 중...' : '🎵 녹음 듣기'}
-          </button>
-        )}
         {isAdmin && (
           <div className="approved-songs-actions-group">
             <button
@@ -267,22 +247,35 @@ export const SongListItem: React.FC<SongListItemProps> = ({
           </div>
         )}
       </div>
-      {audioUrl && (
+      {(audioUrl || song.approvedPostId) && (
         <div style={{ width: '100%', marginTop: '8px' }}>
           {!showPlayer ? (
             <button
               className="approved-songs-btn"
-              onClick={() => setShowPlayer(true)}
+              onClick={async () => {
+                if (!audioUrl && onLoadAudio) {
+                  setIsLoading(true);
+                  try {
+                    await onLoadAudio(song);
+                  } finally {
+                    setIsLoading(false);
+                  }
+                }
+                setShowPlayer(true);
+              }}
+              disabled={isLoading}
               style={{
                 background: 'rgba(255, 255, 255, 0.16)',
                 borderRadius: '8px',
                 padding: '6px 12px',
-                fontSize: '13px'
+                fontSize: '13px',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                opacity: isLoading ? 0.6 : 1
               }}
             >
-              ▶ 플레이어 열기
+              {isLoading ? '⏳ 로딩 중...' : '▶ 플레이어 열기'}
             </button>
-          ) : (
+          ) : audioUrl ? (
             <SimpleAudioPlayer
               playerId={song.id}
               audioUrl={audioUrl}
@@ -290,6 +283,8 @@ export const SongListItem: React.FC<SongListItemProps> = ({
               currentPlayingId={currentPlayingId}
               onPlayChange={onPlayChange}
             />
+          ) : (
+            <span style={{ fontSize: '13px', color: '#94a3b8' }}>녹음 파일을 불러올 수 없습니다.</span>
           )}
         </div>
       )}

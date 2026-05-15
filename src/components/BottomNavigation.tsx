@@ -102,7 +102,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState<DragOffset>({ x: 0, y: 0 });
   const [position, setPosition] = useState<Position>(getSavedTogglePosition);
-  const shouldAutoCollapse = location.pathname.startsWith('/anonymous-chat');
+  const shouldAutoCollapse = location.pathname.startsWith('/anonymous-chat') || location.pathname.startsWith('/customer-center');
   const lastScrollYRef = React.useRef(0);
   const scrollDirectionRef = React.useRef<'up' | 'down' | null>(null);
   const isTickingRef = React.useRef(false);
@@ -135,9 +135,11 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
     setCurrentUser(getCurrentUser());
   }, []);
 
+  const isLeader = currentUser?.role === '리더';
+
   // Dynamic board items based on admin access + unread badges
   const boardItems: BoardItem[] = [
-    ...BOARD_ITEMS.map((item) =>
+    ...BOARD_ITEMS.filter((item) => item.path !== '/setlist' || isLeader).map((item) =>
       item.path === '/anonymous-chat' && anonymousChatUnreadCount > 0
         ? { ...item, badge: anonymousChatUnreadCount }
         : item

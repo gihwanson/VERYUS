@@ -79,6 +79,26 @@ const CustomerCenter: React.FC = () => {
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
+  const pageRef = useRef<HTMLDivElement>(null);
+
+  // 모바일 키보드 대응: visualViewport 높이에 맞춰 컨테이너 조정
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const handleResize = () => {
+      if (pageRef.current) {
+        pageRef.current.style.height = `${vv.height}px`;
+        pageRef.current.style.top = `${vv.offsetTop}px`;
+      }
+    };
+    vv.addEventListener('resize', handleResize);
+    vv.addEventListener('scroll', handleResize);
+    handleResize();
+    return () => {
+      vv.removeEventListener('resize', handleResize);
+      vv.removeEventListener('scroll', handleResize);
+    };
+  }, []);
 
   useEffect(() => {
     const unsub = auth.onAuthStateChanged(async (fbUser) => {
@@ -333,7 +353,7 @@ const CustomerCenter: React.FC = () => {
   }
 
   return (
-    <div className="cc-page">
+    <div className="cc-page" ref={pageRef}>
       <div className="cc-header">
         <button
           type="button"

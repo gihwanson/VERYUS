@@ -280,9 +280,9 @@ const FreePostDetail: React.FC = () => {
       setIsSubmittingReport(true);
       const postRef = doc(db, 'posts', post.id);
       
-      // 이미 신고한 경우 체크
       if (post.reports?.includes(user.uid)) {
         alert('이미 신고한 게시글입니다.');
+        setIsSubmittingReport(false);
         return;
       }
 

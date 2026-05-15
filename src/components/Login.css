@@ -65,6 +65,34 @@
   margin-bottom: var(--space-lg);
 }
 
+.password-group {
+  position: relative;
+}
+
+.password-group .login-input {
+  padding-right: 48px;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s;
+}
+
+.password-toggle-btn:hover {
+  color: var(--primary-color);
+}
+
 .login-input {
   width: 100%;
   padding: var(--space-lg) var(--space-lg);
@@ -245,11 +273,8 @@
   gap: var(--space-sm);
 }
 
-/* 닉네임은 20자 이하라 입력 칸을 넓게 늘릴 필요 없음 */
 .signup-nickname-row .login-input {
-  flex: 0 0 auto;
-  width: min(200px, 100%);
-  max-width: 100%;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -284,6 +309,35 @@
   font-size: var(--text-sm);
   margin-bottom: var(--space-lg);
   text-align: left;
+}
+
+.signup-notice {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin-bottom: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  background: rgba(99, 102, 241, 0.06);
+  border-radius: var(--radius-md);
+  line-height: 1.4;
+}
+
+.password-strength {
+  font-size: var(--text-xs);
+  margin-top: -8px;
+  margin-bottom: var(--space-md);
+  padding: 2px var(--space-sm);
+}
+
+.password-strength--weak {
+  color: #ef4444;
+}
+
+.password-strength--medium {
+  color: #f59e0b;
+}
+
+.password-strength--strong {
+  color: #10b981;
 }
 
 /* 애니메이션 */

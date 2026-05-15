@@ -316,34 +316,239 @@
   box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
 }
 
+.notifications-action-btns {
+  display: flex;
+  gap: 8px;
+}
+
 .notifications-mark-all-btn {
   background: rgba(16, 185, 129, 0.8);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 12px;
-  padding: 10px 18px;
+  border-radius: 10px;
+  padding: 8px 14px;
   font-weight: 600;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   transition: all 0.3s ease;
 }
 
-.notifications-mark-all-btn:hover {
-  background: rgba(16, 185, 129, 0.9);
-  transform: translateY(-2px);
+.notifications-mark-all-btn:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.95);
+  transform: translateY(-1px);
+}
+
+.notifications-mark-all-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.notifications-delete-all-btn {
+  background: rgba(239, 68, 68, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.3s ease;
+}
+
+.notifications-delete-all-btn:hover {
+  background: rgba(239, 68, 68, 0.9);
+  transform: translateY(-1px);
+}
+
+/* 필터 바 */
+.notifications-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 20px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.notifications-filter-icon {
+  display: none;
+}
+
+.notifications-filter-chip {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.notifications-filter-chip:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.notifications-filter-chip.active {
+  background: rgba(99, 102, 241, 0.6);
+  border-color: rgba(99, 102, 241, 0.8);
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.notifications-filter-count {
+  background: #ef4444;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+}
+
+/* 로딩 */
+.notifications-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 200px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 15px;
+}
+
+.notifications-loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: noti-spin 0.8s linear infinite;
+}
+
+@keyframes noti-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 확인 모달 */
+.notifications-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.notifications-modal {
+  background: #1e1b4b;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 28px 24px;
+  max-width: 340px;
+  width: 100%;
+  text-align: center;
+}
+
+.notifications-modal-text {
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 500;
+  margin: 0 0 20px;
+  line-height: 1.5;
+}
+
+.notifications-modal-btns {
+  display: flex;
+  gap: 10px;
+}
+
+.notifications-modal-cancel {
+  flex: 1;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.notifications-modal-cancel:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.notifications-modal-confirm {
+  flex: 1;
+  padding: 12px;
+  background: rgba(16, 185, 129, 0.8);
+  border: none;
+  border-radius: 10px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.notifications-modal-confirm:hover {
+  background: rgba(16, 185, 129, 0.95);
+}
+
+.notifications-modal-confirm.danger {
+  background: rgba(239, 68, 68, 0.8);
+}
+
+.notifications-modal-confirm.danger:hover {
+  background: rgba(239, 68, 68, 0.95);
 }
 
 .notifications-empty-state {
   text-align: center;
-  color: rgba(255, 255, 255, 0.7);
   padding: 60px 20px;
-  font-size: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.notifications-empty-icon {
+  font-size: 48px;
+  opacity: 0.7;
+}
+
+.notifications-empty-text {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 16px;
   font-weight: 500;
+  margin: 0;
 }
 
 .notifications-list {
