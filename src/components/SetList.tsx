@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import SetListManager from './SetList/SetListManager';
 import SetListCards from './SetList/SetListCards';
 import { useSetListData } from './SetList/hooks/useSetListData';
+import { canManageSetList } from './SetList/setListPermissions';
 import './SetList/styles.css';
 
 const pageBg: React.CSSProperties = {
@@ -21,9 +22,9 @@ const SetList: React.FC = () => {
   const navigate = useNavigate();
   const userString = localStorage.getItem('veryus_user');
   const user = userString ? JSON.parse(userString) : null;
-  const isLeader = Boolean(user && user.role === '리더');
+  const canManage = canManageSetList(user?.role);
 
-  const [viewMode, setViewMode] = useState<'manage' | 'cards'>(isLeader ? 'manage' : 'cards');
+  const [viewMode, setViewMode] = useState<'manage' | 'cards'>(canManage ? 'manage' : 'cards');
   const { songs, setLists, activeSetList, loading } = useSetListData();
 
   const goToPerformView = useCallback(() => {
@@ -43,12 +44,35 @@ const SetList: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!isLeader && viewMode === 'manage') {
+    if (!canManage && viewMode === 'manage') {
       setViewMode('cards');
     }
-  }, [isLeader, viewMode]);
+  }, [canManage, viewMode]);
 
-  const showManage = isLeader && viewMode === 'manage';
+  // 진행 탭: 하단 네비 자동 접기 (채팅 입력창 가림 방지)
+  useEffect(() => {
+    const performActive = viewMode === 'cards';
+    try {
+      if (performActive) {
+        sessionStorage.setItem('setlistPerformMode', '1');
+      } else {
+        sessionStorage.removeItem('setlistPerformMode');
+      }
+    } catch {
+      /* sessionStorage unavailable */
+    }
+    window.dispatchEvent(new Event('veryus-bottom-nav-sync'));
+    return () => {
+      try {
+        sessionStorage.removeItem('setlistPerformMode');
+      } catch {
+        /* ignore */
+      }
+      window.dispatchEvent(new Event('veryus-bottom-nav-sync'));
+    };
+  }, [viewMode]);
+
+  const showManage = canManage && viewMode === 'manage';
   const isPerformFullscreen = narrowScreen && viewMode === 'cards';
   const title = showManage ? '관리' : '진행';
 
@@ -111,10 +135,20 @@ const SetList: React.FC = () => {
     );
   }
 
+  const pageClassName = [
+    isPerformFullscreen && 'setlist-page--fullscreen',
+    showManage && 'setlist-page--manage'
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
     <div
-      className={isPerformFullscreen ? 'setlist-page--fullscreen' : ''}
-      style={{ ...pageBg, padding: isPerformFullscreen ? 0 : '20px' }}
+      className={pageClassName}
+      style={{
+        ...pageBg,
+        padding: isPerformFullscreen || showManage ? 0 : '20px'
+      }}
     >
       <div
         style={{
@@ -126,14 +160,17 @@ const SetList: React.FC = () => {
         }}
       />
 
-      <div className="setlist-page-inner" style={{ position: 'relative', zIndex: 1 }}>
+      <div
+        className={`setlist-page-inner${showManage ? ' setlist-page-inner--manage' : ''}`}
+        style={{ position: 'relative', zIndex: 1 }}
+      >
         {isPerformFullscreen ? (
           <div className="setlist-page-header--compact">
             <h1 style={{ color: 'white', fontWeight: 700, textShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>
-              🎴 {isLeader ? '진행' : '셋리스트'}
+              🎴 {canManage ? '진행' : '셋리스트'}
             </h1>
             <div style={{ display: 'flex', gap: 6 }}>
-              {isLeader && (
+              {canManage && (
                 <button type="button" onClick={() => setViewMode('manage')} style={tabBtnStyle(false)}>
                   관리
                 </button>
@@ -144,7 +181,7 @@ const SetList: React.FC = () => {
             </div>
           </div>
         ) : narrowScreen ? (
-          <div style={{ marginBottom: 16 }}>
+          <div className={showManage ? 'setlist-page-header-block' : ''} style={{ marginBottom: showManage ? 0 : 16 }}>
             <div style={{ flex: '1 1 220px', minWidth: 0 }}>
               <h1
                 style={{
@@ -155,13 +192,13 @@ const SetList: React.FC = () => {
                   textShadow: '0 2px 4px rgba(0,0,0,0.2)'
                 }}
               >
-                {isLeader ? `셋리스트 — ${title}` : '셋리스트 — 진행'}
+                {canManage ? `셋리스트 — ${title}` : '셋리스트 — 진행'}
               </h1>
               <button type="button" onClick={() => navigate('/')} style={homeBtnStyle}>
                 ← 메인 메뉴
               </button>
             </div>
-            {isLeader && (
+            {canManage && (
               <div style={{ display: 'flex', gap: 8, marginTop: 14, width: '100%', boxSizing: 'border-box' }}>
                 <button type="button" onClick={() => setViewMode('manage')} style={tabBtnStyle(viewMode === 'manage', true)}>
                   📋 관리
@@ -174,11 +211,12 @@ const SetList: React.FC = () => {
           </div>
         ) : (
           <div
+            className={showManage ? 'setlist-page-header-block' : ''}
             style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'flex-start',
-              marginBottom: 16,
+              marginBottom: showManage ? 0 : 16,
               flexWrap: 'wrap',
               gap: '16px'
             }}
@@ -193,13 +231,13 @@ const SetList: React.FC = () => {
                   textShadow: '0 2px 4px rgba(0,0,0,0.2)'
                 }}
               >
-                {isLeader ? `셋리스트 — ${title}` : '셋리스트 — 진행'}
+                {canManage ? `셋리스트 — ${title}` : '셋리스트 — 진행'}
               </h1>
               <button type="button" onClick={() => navigate('/')} style={homeBtnStyle}>
                 ← 메인 메뉴
               </button>
             </div>
-            {isLeader && (
+            {canManage && (
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 <button type="button" onClick={() => setViewMode('manage')} style={tabBtnStyle(viewMode === 'manage')}>
                   📋 관리

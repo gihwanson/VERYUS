@@ -102,12 +102,31 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState<DragOffset>({ x: 0, y: 0 });
   const [position, setPosition] = useState<Position>(getSavedTogglePosition);
-  const shouldAutoCollapse = location.pathname.startsWith('/anonymous-chat') || location.pathname.startsWith('/customer-center');
+  const [navSyncTick, setNavSyncTick] = useState(0);
+  const isSetlistPerformMode =
+    location.pathname.startsWith('/setlist') &&
+    (() => {
+      try {
+        return sessionStorage.getItem('setlistPerformMode') === '1';
+      } catch {
+        return false;
+      }
+    })();
+  const shouldAutoCollapse =
+    location.pathname.startsWith('/anonymous-chat') ||
+    location.pathname.startsWith('/customer-center') ||
+    isSetlistPerformMode;
   const lastScrollYRef = React.useRef(0);
   const scrollDirectionRef = React.useRef<'up' | 'down' | null>(null);
   const isTickingRef = React.useRef(false);
 
-  // 채팅방 진입 시 하단 네비 자동 접기
+  // 채팅방·셋리스트 진행 탭 등 — 하단 네비 자동 접기
+  useEffect(() => {
+    const onNavSync = () => setNavSyncTick((n) => n + 1);
+    window.addEventListener('veryus-bottom-nav-sync', onNavSync);
+    return () => window.removeEventListener('veryus-bottom-nav-sync', onNavSync);
+  }, []);
+
   useEffect(() => {
     if (!shouldAutoCollapse) return;
 
@@ -115,7 +134,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
     setShowBoardsMenu(false);
     setIsHiddenByScroll(false);
     localStorage.setItem('bottomNavCollapsed', JSON.stringify(true));
-  }, [shouldAutoCollapse]);
+  }, [shouldAutoCollapse, navSyncTick]);
 
   // 페이지 이동 시 스크롤 숨김 상태 초기화 (접기 버튼이 사라지는 버그 방지)
   useEffect(() => {

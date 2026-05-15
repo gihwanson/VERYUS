@@ -523,55 +523,22 @@ const SetListForm: React.FC<SetListFormProps> = ({
   };
 
   return (
-    <div style={{ marginBottom: '30px' }}>
+    <div className="setlist-manage-form">
       {isLeader && workspaceBootstrapping && !activeSetList && (
-        <div
-          style={{
-            background: 'rgba(255, 255, 255, 0.12)',
-            backdropFilter: 'blur(15px)',
-            borderRadius: 20,
-            padding: window.innerWidth < 768 ? '20px 16px' : '24px',
-            marginBottom: 24,
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            color: 'rgba(255,255,255,0.95)',
-            fontSize: 15,
-            textAlign: 'center',
-            lineHeight: 1.5
-          }}
-        >
+        <div className="setlist-manage-panel setlist-manage-panel--status" style={{ textAlign: 'center', lineHeight: 1.5 }}>
           셋리스트를 준비하는 중입니다… 잠시만 기다려 주세요.
         </div>
       )}
 
       {isLeader && workspaceBootstrapError && !activeSetList && (
-        <div
-          style={{
-            marginBottom: 24,
-            padding: 16,
-            borderRadius: 16,
-            background: 'rgba(220, 38, 38, 0.15)',
-            border: '1px solid rgba(252, 165, 165, 0.45)',
-            color: 'rgba(255,255,255,0.95)',
-            fontSize: 14,
-            lineHeight: 1.5
-          }}
-        >
+        <div className="setlist-manage-panel setlist-manage-panel--error">
           {workspaceBootstrapError}
         </div>
       )}
 
       {/* 1단계: 참가자 입력 (리더) */}
       {isLeader && activeSetList && participantInputPhase && (
-      <div style={{ 
-        background: 'rgba(255, 255, 255, 0.15)',
-        backdropFilter: 'blur(15px)',
-        borderRadius: 20,
-        padding: window.innerWidth < 768 ? '16px' : '24px',
-        marginBottom: 24,
-        border: '1px solid rgba(255, 255, 255, 0.2)',
-        width: '100%',
-        boxSizing: 'border-box'
-      }}>
+      <div className="setlist-manage-panel">
         <h2 style={{ color: 'white', fontSize: 20, marginBottom: 16, fontWeight: 700 }}>
           👥 참가자 · <span style={{ fontWeight: 600, fontSize: 16, opacity: 0.95 }}>{activeSetList.name}</span>
         </h2>
@@ -673,18 +640,7 @@ const SetListForm: React.FC<SetListFormProps> = ({
 
       {/* 2단계: 합격곡 등록 (리더) */}
       {isLeader && activeSetList && passedSongRegistrationPhase && (
-        <div
-          style={{
-            background: 'rgba(255, 255, 255, 0.15)',
-            backdropFilter: 'blur(15px)',
-            borderRadius: 20,
-            padding: window.innerWidth < 768 ? '16px' : '24px',
-            marginBottom: 24,
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            width: '100%',
-            boxSizing: 'border-box'
-          }}
-        >
+        <div className="setlist-manage-panel">
           <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
             <button
               type="button"
@@ -730,7 +686,7 @@ const SetListForm: React.FC<SetListFormProps> = ({
             참가자를 선택한 뒤 합격곡을 셋리스트에 추가하세요. 멤버는 <strong style={{ color: 'white' }}>진행</strong> 탭에서 순서만 확인합니다.
           </p>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 4 }}>
+          <div className="setlist-manage-participant-chips">
             {confirmedParticipants.map((name) => (
               <button
                 key={name}
@@ -832,7 +788,7 @@ const SetListForm: React.FC<SetListFormProps> = ({
                   등록 가능한 합격곡이 없습니다.
                 </p>
               ) : (
-                <div style={{ display: 'grid', gap: 10 }}>
+                <div className="setlist-manage-song-grid">
                   {participantPassedSongs.map((song: any, index: number) => {
                     const songId = song.id || song.songId;
                     const alreadyAdded =
@@ -978,31 +934,11 @@ const SetListForm: React.FC<SetListFormProps> = ({
       {/* 셋리스트 보기 모달 */}
       {showSetListModal && activeSetList && (
         <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999,
-            background: 'rgba(0,0,0,0.65)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px'
-          }}
+          className="setlist-manage-modal-backdrop"
           onClick={() => setShowSetListModal(false)}
         >
           <div
-            style={{
-              background: 'linear-gradient(135deg, rgba(30,30,60,0.97) 0%, rgba(20,20,50,0.97) 100%)',
-              border: '1px solid rgba(255,255,255,0.2)',
-              borderRadius: 20,
-              padding: window.innerWidth < 768 ? '16px' : '24px',
-              width: '100%',
-              maxWidth: 520,
-              maxHeight: '80vh',
-              overflowY: 'auto',
-              boxSizing: 'border-box'
-            }}
+            className="setlist-manage-modal-body"
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -1037,7 +973,7 @@ const SetListForm: React.FC<SetListFormProps> = ({
                 아직 추가된 곡이 없습니다.
               </p>
             ) : (
-              <div style={{ display: 'grid', gap: 10 }}>
+              <div className="setlist-manage-song-grid">
                 {activeSetList.songs.map((song, index) => {
                   const songKey =
                     (song as { songId?: string }).songId ||

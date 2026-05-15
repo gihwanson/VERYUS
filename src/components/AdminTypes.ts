@@ -141,6 +141,7 @@ export const ROLE_SYSTEM = {
   MEMBER: '일반',
   SUB_ADMIN: '부운영진',
   ADMIN: '운영진',
+  SQUAD_LEADER: '조장',
   LEADER: '리더'
 } as const;
 
@@ -148,6 +149,7 @@ export const ROLE_OPTIONS = [
   ROLE_SYSTEM.MEMBER,
   ROLE_SYSTEM.SUB_ADMIN,
   ROLE_SYSTEM.ADMIN,
+  ROLE_SYSTEM.SQUAD_LEADER,
   ROLE_SYSTEM.LEADER
 ] as const;
 

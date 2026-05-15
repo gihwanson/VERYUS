@@ -64,6 +64,7 @@ export const getGradeName = (emoji: string): string => {
 export const createRoleDisplay = (role: string) => {
   const roleConfig: Record<string, { icon: any; className: string; label: string }> = {
     [ROLE_SYSTEM.LEADER]: { icon: Crown, className: 'leader', label: '리더' },
+    [ROLE_SYSTEM.SQUAD_LEADER]: { icon: Users, className: 'squad-leader', label: '조장' },
     [ROLE_SYSTEM.ADMIN]: { icon: Shield, className: 'admin', label: '운영진' },
     [ROLE_SYSTEM.SUB_ADMIN]: { icon: Shield, className: 'sub-admin', label: '부운영진' },
     [ROLE_SYSTEM.MEMBER]: { icon: User, className: 'member', label: '일반' }
@@ -84,6 +85,7 @@ export const createRoleDisplay = (role: string) => {
 export const createRoleIcon = (role: string) => {
   const roleConfig: Record<string, { icon: any; className: string }> = {
     [ROLE_SYSTEM.LEADER]: { icon: Crown, className: 'leader' },
+    [ROLE_SYSTEM.SQUAD_LEADER]: { icon: Users, className: 'squad-leader' },
     [ROLE_SYSTEM.ADMIN]: { icon: Shield, className: 'admin' },
     [ROLE_SYSTEM.SUB_ADMIN]: { icon: Shield, className: 'sub-admin' },
     [ROLE_SYSTEM.MEMBER]: { icon: User, className: 'member' }

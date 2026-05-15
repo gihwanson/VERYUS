@@ -142,6 +142,7 @@ export const UserCard: React.FC<UserCardProps> = ({
               <option value="평가자">평가자</option>
               <option value="부운영진">부운영진</option>
               <option value="운영진">운영진</option>
+              <option value="조장">조장</option>
               <option value="리더">리더</option>
             </select>
             <select

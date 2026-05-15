@@ -6,6 +6,7 @@ import type { Song, SetListItem, FlexibleCard, FlexibleSlot, SetListEntry, Reque
 import { isSongRegistrationPhase } from './types';
 import SetListParadeView from './SetListParadeView';
 import SetListChat from './SetListChat';
+import { canManageSetList } from './setListPermissions';
 import { buildParadeEntries } from './paradeUtils';
 import './styles.css';
 
@@ -24,7 +25,7 @@ const SetListCards: React.FC<SetListCardsProps> = ({
 }) => {
   const userString = localStorage.getItem('veryus_user');
   const user = userString ? JSON.parse(userString) : null;
-  const isLeader = user && user.role === '리더';
+  const isLeader = canManageSetList(user?.role);
   /** 진행 탭은 멤버용 보기 전용 — 곡 등록·편집 없음 */
   const canLeaderModerateCards = false;
   const currentUserNickname = user?.nickname || '';

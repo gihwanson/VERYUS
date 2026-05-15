@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
 import SetListForm from './components/SetListForm';
+import { canManageSetList } from './setListPermissions';
 import type { SetListData } from './types';
 
 interface SetListManagerProps {
@@ -15,20 +16,13 @@ const SetListManager: React.FC<SetListManagerProps> = ({
 }) => {
   const userString = localStorage.getItem('veryus_user');
   const user = userString ? JSON.parse(userString) : null;
-  const isLeader = user && user.role === '리더';
+  const isLeader = canManageSetList(user?.role);
 
   const handleSetListDeleted = useCallback(() => {}, []);
   const handleSetListActivated = useCallback(() => {}, []);
 
   return (
-    <div style={{ 
-      maxWidth: window.innerWidth < 768 ? '100%' : '1400px', 
-      margin: '0 auto', 
-      padding: window.innerWidth < 768 ? '5px' : '20px',
-      width: '100%',
-      boxSizing: 'border-box'
-    }}>
-      {/* 셋리스트 생성/관리 폼 */}
+    <div className="setlist-manage-shell">
       <SetListForm
         setLists={setLists}
         activeSetList={activeSetList}
@@ -37,7 +31,6 @@ const SetListManager: React.FC<SetListManagerProps> = ({
         onSetListActivated={handleSetListActivated}
         onAfterSessionActivated={onAfterSessionActivated}
       />
-
     </div>
   );
 };
