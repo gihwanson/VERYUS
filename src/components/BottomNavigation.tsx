@@ -174,7 +174,14 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
       setIsCollapsed(false);
       localStorage.setItem('bottomNavCollapsed', JSON.stringify(false));
     }
-  }, [location.pathname]);
+  }, [location.pathname, location.key]);
+
+  const expandBottomNav = useCallback(() => {
+    setIsCollapsed(false);
+    setIsHiddenByScroll(false);
+    setShowBoardsMenu(false);
+    localStorage.setItem('bottomNavCollapsed', JSON.stringify(false));
+  }, []);
 
   // Get current user on mount
   useEffect(() => {
@@ -237,10 +244,13 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
     if (hasSubmenu) {
       setShowBoardsMenu(prev => !prev);
     } else {
+      if (path === '/') {
+        expandBottomNav();
+      }
       navigate(path);
       setShowBoardsMenu(false);
     }
-  }, [navigate]);
+  }, [navigate, expandBottomNav]);
 
   const handleBoardClick = useCallback((path: string, isSearch?: boolean) => {
     if (isSearch && onSearchOpen) {

@@ -212,6 +212,24 @@ const GRADE_ORDER = [
   '🍒'
 ];
 
+/** Router location 구독 — 익명채팅 등에서 나올 때 하단 네비가 다시 마운트되도록 */
+const BottomNavigationGate: React.FC<{
+  unreadNotificationCount: number;
+  anonymousChatUnreadCount: number;
+  onSearchOpen: () => void;
+}> = ({ unreadNotificationCount, anonymousChatUnreadCount, onSearchOpen }) => {
+  const location = useLocation();
+  if (location.pathname === '/anonymous-chat') return null;
+
+  return (
+    <BottomNavigation
+      unreadNotificationCount={unreadNotificationCount}
+      anonymousChatUnreadCount={anonymousChatUnreadCount}
+      onSearchOpen={onSearchOpen}
+    />
+  );
+};
+
 // 관리자 전용 라우트: Firebase Auth + Firestore users 문서로 권한 확인 (localStorage만으로는 통과 불가)
 const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [gate, setGate] = useState<'loading' | 'allow' | 'login' | 'deny'>('loading');
@@ -1105,8 +1123,8 @@ function App() {
               </Suspense>
               </RouteTransition>
             {/* 모바일 하단 네비게이션 바 */}
-            {user && window.location.pathname !== '/anonymous-chat' && (
-              <BottomNavigation 
+            {user && (
+              <BottomNavigationGate
                 unreadNotificationCount={unreadNotificationCount}
                 anonymousChatUnreadCount={anonymousChatUnreadCount}
                 onSearchOpen={() => setShowSearchSystem(true)}
