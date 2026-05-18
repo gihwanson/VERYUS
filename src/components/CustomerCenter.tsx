@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   collection,
@@ -77,9 +77,23 @@ const CustomerCenter: React.FC = () => {
   const [chatInput, setChatInput] = useState('');
   const [chatSending, setChatSending] = useState(false);
 
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
+  const shouldAutoScrollRef = useRef(true);
+
+  const isNearBottom = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return true;
+    const distanceToBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    return distanceToBottom < 80;
+  }, []);
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    container.scrollTo({ top: container.scrollHeight, behavior });
+  }, []);
 
   // 모바일 키보드 대응: visualViewport 높이에 맞춰 컨테이너 조정
   useEffect(() => {
@@ -163,6 +177,11 @@ const CustomerCenter: React.FC = () => {
     }
   }, [inquiries, selectedInquiry]);
 
+  useEffect(() => {
+    if (!selectedInquiry) return;
+    shouldAutoScrollRef.current = true;
+  }, [selectedInquiry?.id]);
+
   // Subscribe to messages when a conversation is selected
   useEffect(() => {
     if (!selectedInquiry) {
@@ -181,7 +200,6 @@ const CustomerCenter: React.FC = () => {
         ...d.data(),
       })) as ChatMessage[];
       setMessages(msgs);
-      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     });
 
     // Mark as read
@@ -194,6 +212,17 @@ const CustomerCenter: React.FC = () => {
 
     return () => unsub();
   }, [selectedInquiry, isNerae]);
+
+  useLayoutEffect(() => {
+    if (!selectedInquiry || messages.length === 0) return;
+    if (shouldAutoScrollRef.current || isNearBottom()) {
+      const behavior = shouldAutoScrollRef.current ? 'auto' : 'smooth';
+      shouldAutoScrollRef.current = false;
+      requestAnimationFrame(() => {
+        scrollToBottom(behavior);
+      });
+    }
+  }, [messages, selectedInquiry?.id, scrollToBottom, isNearBottom]);
 
   const handleSubmit = useCallback(async () => {
     if (!user) return;
@@ -247,6 +276,7 @@ const CustomerCenter: React.FC = () => {
   const handleSendChat = useCallback(async () => {
     if (!selectedInquiry || !chatInput.trim() || !user) return;
     setChatSending(true);
+    shouldAutoScrollRef.current = true;
     const myRole: 'member' | 'admin' = isNerae ? 'admin' : 'member';
     const text = chatInput.trim();
     setChatInput('');
@@ -535,7 +565,7 @@ const CustomerCenter: React.FC = () => {
             </div>
           </div>
 
-          <div className="cc-chat-messages">
+          <div ref={messagesContainerRef} className="cc-chat-messages">
             {messages.map((msg) => {
               const isMine = isNerae
                 ? msg.senderRole === 'admin'
@@ -552,7 +582,6 @@ const CustomerCenter: React.FC = () => {
                 </div>
               );
             })}
-            <div ref={chatEndRef} />
           </div>
 
           {selectedInquiry.closed ? (

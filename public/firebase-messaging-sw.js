@@ -13,6 +13,87 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
+/** notificationService.resolveNotificationRoute 와 동일한 규칙 (SW는 TS import 불가) */
+const resolvePushRoute = (data) => {
+  const raw = data || {};
+  const type = String(raw.type || '');
+  const postId = String(raw.postId || '');
+  const postType = String(raw.postType || '');
+  const roomId = String(raw.roomId || '');
+  const route = String(raw.route || '');
+  const guestbookOwnerUid = String(raw.guestbookOwnerUid || '');
+
+  if (route) {
+    if (route === '/anonymous-chat' && roomId) {
+      return `/anonymous-chat?roomId=${encodeURIComponent(roomId)}`;
+    }
+    return route.startsWith('/') ? route : `/${route}`;
+  }
+
+  if (type === 'anonymous_chat') {
+    return roomId ? `/anonymous-chat?roomId=${encodeURIComponent(roomId)}` : '/anonymous-chat';
+  }
+
+  if (type === 'grade_request_pending') {
+    return '/admin?tab=approvals';
+  }
+
+  if (type === 'approved_song_milestone') {
+    return '/hall-of-fame';
+  }
+
+  if (type === 'guestbook' || type === 'guestbook_reply') {
+    return guestbookOwnerUid ? `/mypage/${guestbookOwnerUid}` : '/mypage';
+  }
+
+  if (type === 'partnership' || type === 'partnership_closed' || type === 'partnership_confirmed') {
+    return postId ? `/boards/partner/${postId}` : '/boards/partner';
+  }
+
+  const postRoutes = {
+    free: `/free/${postId}`,
+    recording: `/recording/${postId}`,
+    evaluation: `/evaluation/${postId}`,
+    balance: `/balance/${postId}`,
+    partner: `/boards/partner/${postId}`
+  };
+
+  if (postId && postType && postRoutes[postType]) {
+    return postRoutes[postType];
+  }
+
+  if (postId) {
+    return `/free/${postId}`;
+  }
+
+  return '/notifications';
+};
+
+const toAbsoluteAppUrl = (path) => {
+  const normalized = path.startsWith('/') ? path : `/${path}`;
+  return new URL(normalized, self.location.origin).href;
+};
+
+const openAppAtPath = async (targetPath) => {
+  const absoluteUrl = toAbsoluteAppUrl(targetPath);
+  const clientList = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+
+  for (const client of clientList) {
+    try {
+      if (typeof client.navigate === 'function') {
+        await client.navigate(absoluteUrl);
+        return client.focus();
+      }
+    } catch (error) {
+      console.warn('클라이언트 navigate 실패, openWindow로 대체:', error);
+    }
+  }
+
+  if (clients.openWindow) {
+    return clients.openWindow(absoluteUrl);
+  }
+};
+
 self.addEventListener('install', () => {
   self.skipWaiting();
 });
@@ -22,38 +103,35 @@ self.addEventListener('activate', (event) => {
 });
 
 messaging.onBackgroundMessage((payload) => {
-  // 서버 메시지에 notification 필드가 있으면 브라우저/FCM이 이미 알림을 띄우는 경우가 많아
-  // 여기서 showNotification을 또 호출하면 동일 알림이 2번 뜰 수 있다.
+  const data = payload.data || {};
+  // notification 필드가 있으면 브라우저/FCM이 알림을 띄우고, 클릭은 webpush.fcmOptions.link 로 처리된다.
   if (payload.notification) {
     return;
   }
-  const title = payload.data?.title || 'VERYUS';
-  const options = {
-    body: payload.data?.body || '새 알림이 도착했습니다.',
+  const title = data.title || 'VERYUS';
+  const body = data.body || '새 알림이 도착했습니다.';
+  const targetPath = resolvePushRoute(data);
+  const notificationType = String(data.type || '');
+  const roomId = String(data.roomId || '');
+  const tag =
+    notificationType === 'anonymous_chat' && roomId
+      ? `anonymous-chat-${roomId}`
+      : String(data.notificationId || 'veryus');
+
+  return self.registration.showNotification(title, {
+    body,
     icon: '/apple-touch-icon.png',
     badge: '/apple-touch-icon.png',
-    data: payload.data || {}
-  };
-  self.registration.showNotification(title, options);
+    data: { ...data, route: targetPath },
+    tag,
+    renotify: notificationType === 'anonymous_chat'
+  });
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetPath = event.notification?.data?.route || '/notifications';
+  const data = event.notification?.data || {};
+  const targetPath = resolvePushRoute(data);
 
-  event.waitUntil(
-    clients
-      .matchAll({ type: 'window', includeUncontrolled: true })
-      .then((clientList) => {
-        for (const client of clientList) {
-          const clientUrl = new URL(client.url);
-          const nextUrl = `${clientUrl.origin}${targetPath}`;
-          if ('focus' in client) {
-            client.navigate(nextUrl);
-            return client.focus();
-          }
-        }
-        return clients.openWindow(targetPath);
-      })
-  );
+  event.waitUntil(openAppAtPath(targetPath));
 });

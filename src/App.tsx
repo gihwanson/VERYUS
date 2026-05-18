@@ -1,5 +1,6 @@
 import React, { useEffect, useState, createContext, useContext, useRef, useMemo, lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
+import { shouldSkipRouteScrollReset } from './utils/boardListScroll';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, getDocs, query, where, orderBy, addDoc, deleteDoc, doc, onSnapshot, getDoc } from 'firebase/firestore';
 import { uploadBytes, getDownloadURL, ref as storageRef } from 'firebase/storage';
@@ -168,17 +169,19 @@ const PracticeRoomManagement = lazy(() => import('./components/PracticeRoomManag
 /** 경로 변경 시 본문 전환 애니메이션 (useLocation은 Router 안에서만 사용) */
 const RouteTransition: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
+  const navigationType = useNavigationType();
   const transitionKey = `${location.pathname}${location.search}`;
 
   useEffect(() => {
     try {
-      const preserveScroll = Boolean((location.state as { preserveScroll?: boolean } | null)?.preserveScroll);
-      if (preserveScroll) return;
+      if (shouldSkipRouteScrollReset(location.pathname, navigationType, location.state)) {
+        return;
+      }
       window.scrollTo(0, 0);
     } catch {
       // ignore
     }
-  }, [transitionKey, location.state]);
+  }, [transitionKey, location.state, location.pathname, navigationType]);
 
   return (
     <div className="app-route-transition" key={transitionKey}>
@@ -238,7 +241,12 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 // 보호된 라우트 컴포넌트
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  return auth.currentUser ? <>{children}</> : <Navigate to="/login" replace />;
+  const location = useLocation();
+  if (!auth.currentUser) {
+    const returnTo = `${location.pathname}${location.search}`;
+    return <Navigate to="/login" replace state={{ from: returnTo }} />;
+  }
+  return <>{children}</>;
 };
 
 // 오디오 플레이어 Context

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Crown, Shield, User, Users, Activity, X, Edit3, AlertCircle, MessageSquare, Heart, FileText, Clock, TrendingUp, History, Eye, Search, Filter, Award, Plus, Target, Mail, Send, Trash2 } from 'lucide-react';
 import type { AdminUser, UserActivity, ActivityStats, UserActivitySummary, AdminLog, AdminAction, LogStats, ExtendedUserStats, UserAnalytics, BulkAction, Notification, NotificationType, NotificationTemplate, NotificationStats, NotificationTarget } from './AdminTypes';
-import { NOTIFICATION_TYPE_LABELS, NOTIFICATION_TYPE_COLORS, ADMIN_ACTION_LABELS, ADMIN_ACTION_COLORS } from './AdminTypes';
+import { NOTIFICATION_TYPE_LABELS, NOTIFICATION_TYPE_COLORS, ADMIN_ACTION_LABELS, ADMIN_ACTION_COLORS, ROLE_SYSTEM, ROLE_OPTIONS } from './AdminTypes';
 import { formatDate, getGradeDisplay, calculateActivityDays, createRoleDisplay, createRoleIcon, getUserStatus, createStatusDisplay, getSuspensionTimeLeft, getActivityIcon, formatActivityTime, getActivityLevel, getLogActionIcon, formatLogTime, calculateStats, calculateActivityScore, calculateActivityStats, changeUserStatus, isUserSuspended, executeBulkAction, generateUserAnalytics, logAdminAction, fetchAdminLogs, calculateLogStats, getNotificationTypeIcon, getNotificationStatusDisplay, getDefaultTemplates, createNotificationTargets, fetchNotificationTemplates, toggleAllTargets } from './AdminUtils';
 import { Timestamp } from 'firebase/firestore';
 import GlobalLoadingScreen from './GlobalLoadingScreen';
@@ -46,6 +46,7 @@ interface UserCardProps {
   onStatusChange?: () => void;
   editingUser?: AdminUser;
   onEditChange: (field: string, value: string) => void;
+  existingLeaderUid?: string;
 }
 
 export const UserCard: React.FC<UserCardProps> = ({
@@ -58,7 +59,8 @@ export const UserCard: React.FC<UserCardProps> = ({
   onView,
   onStatusChange,
   editingUser,
-  onEditChange
+  onEditChange,
+  existingLeaderUid
 }) => {
   const userStatus = getUserStatus(user);
   const suspensionTimeLeft = getSuspensionTimeLeft(user);
@@ -138,12 +140,19 @@ export const UserCard: React.FC<UserCardProps> = ({
               value={editingUser.role}
               onChange={(e) => onEditChange('role', e.target.value)}
             >
-              <option value="일반">일반</option>
-              <option value="평가자">평가자</option>
-              <option value="부운영진">부운영진</option>
-              <option value="운영진">운영진</option>
-              <option value="조장">조장</option>
-              <option value="리더">리더</option>
+              {ROLE_OPTIONS.map((role) => {
+                const leaderTaken = Boolean(
+                  role === ROLE_SYSTEM.LEADER &&
+                  existingLeaderUid &&
+                  existingLeaderUid !== editingUser.uid
+                );
+                return (
+                  <option key={role} value={role} disabled={leaderTaken}>
+                    {role}
+                    {leaderTaken ? ' (이미 리더 있음)' : ''}
+                  </option>
+                );
+              })}
             </select>
             <select
               className="edit-select"

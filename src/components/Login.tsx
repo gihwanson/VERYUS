@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { auth, db } from '../firebase';
 import './Login.css';
@@ -35,6 +35,7 @@ const Login: React.FC = () => {
   const nicknameRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const location = useLocation();
 
   // 이미 로그인된 사용자 체크
   useEffect(() => {
@@ -159,7 +160,12 @@ const Login: React.FC = () => {
         isLoggedIn: true
       };
       localStorage.setItem('veryus_user', JSON.stringify(userInfo));
-      window.location.replace('/');
+      const returnTo = (location.state as { from?: string } | null)?.from;
+      const nextPath =
+        returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//')
+          ? returnTo
+          : '/';
+      window.location.replace(nextPath);
     } catch (error: unknown) {
       console.error('로그인 에러:', error);
       const err = error as { code?: string; message?: string };
@@ -171,7 +177,7 @@ const Login: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [formData, resolveEmailForSignIn]);
+  }, [formData, resolveEmailForSignIn, location.state]);
 
   // 에러 메시지 변환
   const getErrorMessage = (errorCode: string): string => {

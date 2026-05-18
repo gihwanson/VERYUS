@@ -90,7 +90,6 @@ const EvaluationPostList: React.FC = () => {
   const pendingRestoreScrollYRef = useRef<number | null>(null);
   const restoreAttemptCountRef = useRef(0);
   const anchorRestoredRef = useRef(false);
-  const shouldRestoreOnMountRef = useRef(Boolean((location.state as { preserveScroll?: boolean } | null)?.preserveScroll));
   const allowPersistRef = useRef(false);
   if (persistedStateRef.current === null) {
     try {
@@ -100,6 +99,10 @@ const EvaluationPostList: React.FC = () => {
       persistedStateRef.current = {};
     }
   }
+  const shouldRestoreOnMountRef = useRef(
+    Boolean((location.state as { preserveScroll?: boolean } | null)?.preserveScroll) ||
+      Boolean(persistedStateRef.current?.lastViewedPostId)
+  );
   const [posts, setPosts] = useState<EvaluationPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

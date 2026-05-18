@@ -1,4 +1,4 @@
-import React, { useState, useEffect, memo, useCallback } from 'react';
+import React, { useState, useEffect, memo, useCallback, useRef } from 'react';
 import type { ReactElement } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, Bell, User, ChevronUp, Search, Grid3x3, ChevronDown, Menu, Settings } from 'lucide-react';
@@ -39,16 +39,6 @@ interface NavItem {
   hasDot?: boolean;
 }
 
-interface Position {
-  x: number;
-  y: number;
-}
-
-interface DragOffset {
-  x: number;
-  y: number;
-}
-
 const BOARD_ITEMS: BoardItem[] = [
   { name: '통합 검색', path: 'search', icon: Search, isSearch: true },
   { name: '연습실예약', path: '/practice-room-booking', icon: () => <span style={{fontSize:16}}>📅</span>, emoji: '📅' },
@@ -77,13 +67,39 @@ const getSavedCollapsedState = (): boolean => {
   }
 };
 
-const getSavedTogglePosition = (): Position => {
+const COLLAPSED_TOGGLE_STORAGE_KEY = 'bottomNavTogglePosition';
+const COLLAPSED_TOGGLE_DRAG_THRESHOLD = 6;
+
+const getCollapsedToggleSize = () => (window.innerWidth <= 768 ? 44 : 48);
+
+const getDefaultCollapsedTogglePosition = (): { x: number; y: number } => {
+  const size = getCollapsedToggleSize();
+  const sideGap = window.innerWidth <= 768 ? 10 : 12;
+  const bottomGap = window.innerWidth <= 768 ? 10 : 12;
+  return {
+    x: sideGap,
+    y: window.innerHeight - size - bottomGap
+  };
+};
+
+const loadCollapsedTogglePosition = (): { x: number; y: number } | null => {
   try {
-    const saved = localStorage.getItem('bottomNavTogglePosition');
-    return saved ? JSON.parse(saved) : { x: window.innerWidth - 84, y: window.innerHeight - 84 };
+    const saved = localStorage.getItem(COLLAPSED_TOGGLE_STORAGE_KEY);
+    if (!saved) return null;
+    const parsed = JSON.parse(saved) as { x?: number; y?: number };
+    if (typeof parsed.x !== 'number' || typeof parsed.y !== 'number') return null;
+    return parsed;
   } catch {
-    return { x: window.innerWidth - 84, y: window.innerHeight - 84 };
+    return null;
   }
+};
+
+const clampCollapsedTogglePosition = (pos: { x: number; y: number }) => {
+  const size = getCollapsedToggleSize();
+  return {
+    x: Math.max(0, Math.min(pos.x, window.innerWidth - size)),
+    y: Math.max(0, Math.min(pos.y, window.innerHeight - size))
+  };
 };
 
 const BottomNavigation: React.FC<BottomNavigationProps> = memo(({ 
@@ -99,9 +115,6 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
   const [isCollapsed, setIsCollapsed] = useState(getSavedCollapsedState);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isHiddenByScroll, setIsHiddenByScroll] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState<DragOffset>({ x: 0, y: 0 });
-  const [position, setPosition] = useState<Position>(getSavedTogglePosition);
   const [navSyncTick, setNavSyncTick] = useState(0);
   const isSetlistPerformMode =
     location.pathname.startsWith('/setlist') &&
@@ -119,6 +132,20 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
   const lastScrollYRef = React.useRef(0);
   const scrollDirectionRef = React.useRef<'up' | 'down' | null>(null);
   const isTickingRef = React.useRef(false);
+
+  const [togglePosition, setTogglePosition] = useState<{ x: number; y: number }>(() => {
+    const saved = loadCollapsedTogglePosition();
+    if (saved) return clampCollapsedTogglePosition(saved);
+    return getDefaultCollapsedTogglePosition();
+  });
+  const [isDraggingToggle, setIsDraggingToggle] = useState(false);
+  const togglePositionRef = useRef(togglePosition);
+  const toggleDragReadyRef = useRef(false);
+  const toggleDragStartRef = useRef({ x: 0, y: 0 });
+  const toggleDragOffsetRef = useRef({ x: 0, y: 0 });
+  const toggleDidDragRef = useRef(false);
+
+  togglePositionRef.current = togglePosition;
 
   // 채팅방·셋리스트 진행 탭 등 — 하단 네비 자동 접기
   useEffect(() => {
@@ -231,61 +258,77 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
     setShowBoardsMenu(false);
   }, [isCollapsed]);
 
-  // Drag handlers
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    const rect = (e.target as HTMLElement).getBoundingClientRect();
-    setDragOffset({
+  useEffect(() => {
+    const handleResize = () => {
+      setTogglePosition((prev) => clampCollapsedTogglePosition(prev));
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const persistTogglePosition = useCallback((pos: { x: number; y: number }) => {
+    const clamped = clampCollapsedTogglePosition(pos);
+    localStorage.setItem(COLLAPSED_TOGGLE_STORAGE_KEY, JSON.stringify(clamped));
+    return clamped;
+  }, []);
+
+  const handleCollapsedTogglePointerDown = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    const button = e.currentTarget;
+    const rect = button.getBoundingClientRect();
+    toggleDragReadyRef.current = true;
+    toggleDidDragRef.current = false;
+    toggleDragStartRef.current = { x: e.clientX, y: e.clientY };
+    toggleDragOffsetRef.current = {
       x: e.clientX - rect.left,
       y: e.clientY - rect.top
-    });
-    setIsDragging(true);
-    e.preventDefault();
+    };
+    button.setPointerCapture(e.pointerId);
   }, []);
 
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isDragging) return;
-    
-    const newX = Math.max(0, Math.min(window.innerWidth - 48, e.clientX - dragOffset.x));
-    const newY = Math.max(0, Math.min(window.innerHeight - 48, e.clientY - dragOffset.y));
-    
-    setPosition({ x: newX, y: newY });
-  }, [isDragging, dragOffset]);
+  const handleCollapsedTogglePointerMove = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!toggleDragReadyRef.current && !toggleDidDragRef.current) return;
 
-  const handleMouseUp = useCallback(() => {
-    if (isDragging) {
-      setIsDragging(false);
-      localStorage.setItem('bottomNavTogglePosition', JSON.stringify(position));
+    if (toggleDragReadyRef.current && !toggleDidDragRef.current) {
+      const distance = Math.hypot(
+        e.clientX - toggleDragStartRef.current.x,
+        e.clientY - toggleDragStartRef.current.y
+      );
+      if (distance < COLLAPSED_TOGGLE_DRAG_THRESHOLD) return;
+      toggleDragReadyRef.current = false;
+      toggleDidDragRef.current = true;
+      setIsDraggingToggle(true);
     }
-  }, [isDragging, position]);
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    const rect = (e.target as HTMLElement).getBoundingClientRect();
-    setDragOffset({
-      x: touch.clientX - rect.left,
-      y: touch.clientY - rect.top
-    });
-    setIsDragging(true);
-    e.preventDefault();
+    if (!toggleDidDragRef.current) return;
+
+    const size = getCollapsedToggleSize();
+    const next = {
+      x: Math.max(0, Math.min(e.clientX - toggleDragOffsetRef.current.x, window.innerWidth - size)),
+      y: Math.max(0, Math.min(e.clientY - toggleDragOffsetRef.current.y, window.innerHeight - size))
+    };
+    setTogglePosition(next);
+    togglePositionRef.current = next;
   }, []);
 
-  const handleTouchMove = useCallback((e: TouchEvent) => {
-    if (!isDragging || e.touches.length === 0) return;
-    
-    const touch = e.touches[0];
-    const newX = Math.max(0, Math.min(window.innerWidth - 48, touch.clientX - dragOffset.x));
-    const newY = Math.max(0, Math.min(window.innerHeight - 48, touch.clientY - dragOffset.y));
-    
-    setPosition({ x: newX, y: newY });
-    e.preventDefault();
-  }, [isDragging, dragOffset]);
-
-  const handleTouchEnd = useCallback(() => {
-    if (isDragging) {
-      setIsDragging(false);
-      localStorage.setItem('bottomNavTogglePosition', JSON.stringify(position));
+  const handleCollapsedTogglePointerUp = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    const button = e.currentTarget;
+    if (button.hasPointerCapture(e.pointerId)) {
+      button.releasePointerCapture(e.pointerId);
     }
-  }, [isDragging, position]);
+
+    const wasDrag = toggleDidDragRef.current;
+    toggleDragReadyRef.current = false;
+    toggleDidDragRef.current = false;
+    setIsDraggingToggle(false);
+
+    if (wasDrag) {
+      const clamped = persistTogglePosition(togglePositionRef.current);
+      setTogglePosition(clamped);
+      togglePositionRef.current = clamped;
+    } else {
+      toggleCollapse();
+    }
+  }, [persistTogglePosition, toggleCollapse]);
 
   // Outside click handler
   useEffect(() => {
@@ -302,23 +345,6 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
     }
   }, [showBoardsMenu]);
 
-  // Drag event listeners
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      document.addEventListener('touchmove', handleTouchMove, { passive: false });
-      document.addEventListener('touchend', handleTouchEnd);
-      
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-        document.removeEventListener('touchmove', handleTouchMove);
-        document.removeEventListener('touchend', handleTouchEnd);
-      };
-    }
-  }, [isDragging, handleMouseMove, handleMouseUp, handleTouchMove, handleTouchEnd]);
-
   // Scroll-based navigation visibility
   useEffect(() => {
     lastScrollYRef.current = window.scrollY;
@@ -330,7 +356,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
       const currentScrollY = window.scrollY;
       const scrollThreshold = 50;
       
-      if (!isCollapsed && !isDragging) {
+      if (!isCollapsed) {
         if (Math.abs(currentScrollY - lastScrollYRef.current) > 3) {
           if (currentScrollY > lastScrollYRef.current && currentScrollY > scrollThreshold) {
             if (scrollDirectionRef.current !== 'down') {
@@ -362,7 +388,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
     };
 
     const handleWheel = (e: WheelEvent) => {
-      if (!isCollapsed && !isDragging) {
+      if (!isCollapsed) {
         if (e.deltaY > 0) {
           setIsHiddenByScroll(true);
           setShowBoardsMenu(false);
@@ -394,7 +420,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
         const currentY = e.changedTouches[0].clientY;
         const deltaY = currentY - lastTouchY;
         
-        if (!isCollapsed && !isDragging && Math.abs(deltaY) > 50) {
+        if (!isCollapsed && Math.abs(deltaY) > 50) {
           if (deltaY < 0) {
             setIsHiddenByScroll(true);
             setShowBoardsMenu(false);
@@ -420,20 +446,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [isCollapsed, isDragging]);
-
-  // Resize handler
-  useEffect(() => {
-    const handleResize = () => {
-      setPosition((prev: Position) => ({
-        x: Math.max(0, Math.min(window.innerWidth - 48, prev.x)),
-        y: Math.max(0, Math.min(window.innerHeight - 48, prev.y))
-      }));
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [isCollapsed]);
 
   // Render functions
   const renderBoardItem = (board: BoardItem) => (
@@ -497,20 +510,16 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
 
       {/* 접힌 상태일 때 보이는 작은 토글 버튼 */}
       {isCollapsed && (
-        <button 
-          className="bottom-nav-toggle-collapsed"
-          onClick={!isDragging ? toggleCollapse : undefined}
-          onMouseDown={handleMouseDown}
-          onTouchStart={handleTouchStart}
-          title="네비게이션 펼치기"
-          style={{
-            left: `${position.x}px`,
-            top: `${position.y}px`,
-            transform: isDragging ? 'scale(1.1)' : 'scale(1)',
-            boxShadow: isDragging ? '0 8px 24px rgba(138, 85, 204, 0.4)' : '0 4px 16px rgba(138, 85, 204, 0.3)',
-            cursor: isDragging ? 'grabbing' : 'grab',
-            transition: isDragging ? 'none' : 'all 0.3s ease'
-          }}
+        <button
+          type="button"
+          className={`bottom-nav-toggle-collapsed${isDraggingToggle ? ' is-dragging' : ''}`}
+          style={{ left: togglePosition.x, top: togglePosition.y }}
+          onPointerDown={handleCollapsedTogglePointerDown}
+          onPointerMove={handleCollapsedTogglePointerMove}
+          onPointerUp={handleCollapsedTogglePointerUp}
+          onPointerCancel={handleCollapsedTogglePointerUp}
+          title="드래그하여 이동 · 탭하여 네비게이션 펼치기"
+          aria-label="네비게이션 펼치기"
         >
           <ChevronUp size={20} />
         </button>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { scheduleScrollRestore } from '../utils/boardListScroll';
 import { 
   collection, 
   query, 
@@ -88,8 +89,9 @@ const PartnerPostList: React.FC = () => {
   const location = useLocation();
   const persistedStateRef = useRef<{ searchTerm?: string; sortBy?: SortOption; scrollY?: number; lastViewedPostId?: string } | null>(null);
   const restoredScrollYRef = useRef<number | null>(null);
+  const pendingRestoreScrollYRef = useRef<number | null>(null);
   const anchorRestoredRef = useRef(false);
-  const shouldRestoreOnMountRef = useRef(Boolean((location.state as { preserveScroll?: boolean } | null)?.preserveScroll));
+  const allowPersistRef = useRef(false);
   if (persistedStateRef.current === null) {
     try {
       const raw = sessionStorage.getItem(PARTNER_LIST_STATE_KEY);
@@ -98,6 +100,10 @@ const PartnerPostList: React.FC = () => {
       persistedStateRef.current = {};
     }
   }
+  const shouldRestoreOnMountRef = useRef(
+    Boolean((location.state as { preserveScroll?: boolean } | null)?.preserveScroll) ||
+      Boolean(persistedStateRef.current?.lastViewedPostId)
+  );
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -234,6 +240,7 @@ const PartnerPostList: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (!allowPersistRef.current) return;
     try {
       sessionStorage.setItem(
         PARTNER_LIST_STATE_KEY,
@@ -257,24 +264,43 @@ const PartnerPostList: React.FC = () => {
         target.scrollIntoView({ block: 'center', behavior: 'auto' });
         anchorRestoredRef.current = true;
         restoredScrollYRef.current = window.scrollY;
+        pendingRestoreScrollYRef.current = null;
+        allowPersistRef.current = true;
       });
       return;
     }
     if (!hasMore) {
       anchorRestoredRef.current = true;
+      allowPersistRef.current = true;
     }
   }, [loading, posts.length, hasMore, lastViewedPostId]);
 
   useEffect(() => {
     if (loading) return;
+
+    if (pendingRestoreScrollYRef.current === null) {
+      const savedY = persistedStateRef.current?.scrollY;
+      if (typeof savedY !== 'number' || savedY <= 0) {
+        allowPersistRef.current = true;
+        return;
+      }
+      pendingRestoreScrollYRef.current = savedY;
+    }
+
     if (restoredScrollYRef.current !== null) return;
-    const savedY = persistedStateRef.current?.scrollY;
-    if (typeof savedY !== 'number' || savedY <= 0) return;
-    restoredScrollYRef.current = savedY;
-    requestAnimationFrame(() => {
-      window.scrollTo({ top: savedY, behavior: 'auto' });
+
+    const targetY = pendingRestoreScrollYRef.current;
+    if (typeof targetY !== 'number') {
+      allowPersistRef.current = true;
+      return;
+    }
+
+    scheduleScrollRestore(targetY, () => {
+      restoredScrollYRef.current = targetY;
+      pendingRestoreScrollYRef.current = null;
+      allowPersistRef.current = true;
     });
-  }, [loading, posts.length]);
+  }, [loading, posts.length, hasMore]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

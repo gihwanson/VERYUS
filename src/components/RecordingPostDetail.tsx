@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   doc, 
   getDoc, 
@@ -40,6 +40,7 @@ import '../styles/BoardLayout.css';
 import CommentSection from './CommentSection';
 import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
 import { useAudioPlayer } from '../App';
+import { stopBoardAudio } from '../utils/boardAudioPlayer';
 
 // 전역 변수로 중복 방지
 declare global {
@@ -84,7 +85,7 @@ interface RecordingPost {
 const RecordingPostDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  
+  const location = useLocation();
 
   const [user, setUser] = useState<User | null>(null);
   const [post, setPost] = useState<RecordingPost | null>(null);
@@ -169,13 +170,13 @@ const RecordingPostDetail: React.FC = () => {
     if (!audioRef.current) return;
     if (isPlaying) {
       audioRef.current.pause();
+      stopBoardAudio();
       setIsPlaying(false);
-      // 이전 글로벌 상태로 복귀
       if (globalStateRef.current.wasPlaying) playGlobal(globalStateRef.current.idx);
     } else {
-      // 녹음 오디오 재생 전 글로벌 상태 저장
+      stopBoardAudio();
       globalStateRef.current = { idx: globalIdx, wasPlaying: isGlobalPlaying };
-      audioRef.current.play();
+      void audioRef.current.play();
       setIsPlaying(true);
       if (isGlobalPlaying) pauseGlobal();
     }
@@ -255,18 +256,26 @@ const RecordingPostDetail: React.FC = () => {
   };
 
   useEffect(() => {
-    if (post?.audioUrl) {
-      audioRef.current = new Audio(post.audioUrl);
-      audioRef.current.onended = () => setIsPlaying(false);
-    }
+    const audio = audioRef.current;
+    if (!audio) return;
+    const onEnded = () => setIsPlaying(false);
+    audio.addEventListener('ended', onEnded);
+    return () => audio.removeEventListener('ended', onEnded);
+  }, [post?.audioUrl]);
 
+  useEffect(() => {
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
+      stopBoardAudio();
+      audioRef.current?.pause();
       setIsPlaying(false);
     };
-  }, [post?.audioUrl]);
+  }, []);
+
+  useEffect(() => {
+    stopBoardAudio();
+    audioRef.current?.pause();
+    setIsPlaying(false);
+  }, [location.pathname]);
 
   useEffect(() => {
     if (!post?.writerUid) return;
@@ -359,9 +368,9 @@ const RecordingPostDetail: React.FC = () => {
         <button
           className="back-button glassmorphism"
           onClick={() => {
-            if (audioRef.current && !audioRef.current.paused) {
-              audioRef.current.pause();
-            }
+            stopBoardAudio();
+            audioRef.current?.pause();
+            setIsPlaying(false);
             navigate('/recording', { state: { preserveScroll: true } });
           }}
         >

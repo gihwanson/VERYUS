@@ -155,8 +155,34 @@ const getRoomIdFromSearch = () => {
   return new URLSearchParams(window.location.search).get('roomId') || '';
 };
 
+const getPendingPushRoomId = () => {
+  const fromUrl = getRoomIdFromSearch();
+  if (fromUrl) {
+    try {
+      sessionStorage.setItem(PENDING_PUSH_ROOM_STORAGE_KEY, fromUrl);
+    } catch {
+      // ignore
+    }
+    return fromUrl;
+  }
+  try {
+    return sessionStorage.getItem(PENDING_PUSH_ROOM_STORAGE_KEY) || '';
+  } catch {
+    return '';
+  }
+};
+
+const clearPendingPushRoomId = () => {
+  try {
+    sessionStorage.removeItem(PENDING_PUSH_ROOM_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+};
+
 const CHAT_THEME_STORAGE_KEY = 'veryus_anonymous_chat_theme';
 const ROOM_TITLE_OVERRIDE_STORAGE_KEY_PREFIX = 'veryus_anonymous_room_title_override';
+const PENDING_PUSH_ROOM_STORAGE_KEY = 'veryus_anonymous_chat_pending_room';
 
 const AnonymousChatRoom: React.FC = () => {
   const navigate = useNavigate();
@@ -667,7 +693,9 @@ const AnonymousChatRoom: React.FC = () => {
   const finalizeEnterRoom = useCallback((room: AnonymousRoom, fromPushLink?: boolean) => {
     setEnteredByPushLink(Boolean(fromPushLink));
     setSelectedRoomId(room.id);
-  }, []);
+    clearDeepLinkRoomIdFromUrl();
+    clearPendingPushRoomId();
+  }, [clearDeepLinkRoomIdFromUrl]);
 
   const handleEnterRoom = useCallback(async (
     room: AnonymousRoom,
@@ -695,13 +723,12 @@ const AnonymousChatRoom: React.FC = () => {
 
   useEffect(() => {
     if (!user?.uid || !profile || selectedRoomId) return;
-    const deepLinkRoomId = getRoomIdFromSearch();
+    const deepLinkRoomId = getPendingPushRoomId();
     if (!deepLinkRoomId) return;
     const room = roomById.get(deepLinkRoomId);
     if (!room) return;
     void handleEnterRoom(room, { fromPushLink: true });
-    clearDeepLinkRoomIdFromUrl();
-  }, [user?.uid, profile, selectedRoomId, roomById, handleEnterRoom, clearDeepLinkRoomIdFromUrl]);
+  }, [user?.uid, profile, selectedRoomId, roomById, handleEnterRoom]);
 
   const selectedRoom = useMemo(
     () => (selectedRoomId ? roomById.get(selectedRoomId) : undefined),

@@ -153,6 +153,49 @@ export const ROLE_OPTIONS = [
   ROLE_SYSTEM.LEADER
 ] as const;
 
+export type RoleAssignableUser = {
+  uid: string;
+  nickname?: string;
+  role?: string;
+};
+
+/** 현재 리더(1명) 조회. excludeUid는 역할 변경 대상(본인 유지 시 제외) */
+export const findExistingLeader = (
+  users: RoleAssignableUser[],
+  excludeUid?: string
+): RoleAssignableUser | undefined =>
+  users.find((u) => u.role === ROLE_SYSTEM.LEADER && u.uid !== excludeUid);
+
+export const getLeaderRoleAssignmentError = (
+  nextRole: string,
+  targetUid: string,
+  users: RoleAssignableUser[]
+): string | null => {
+  if (nextRole !== ROLE_SYSTEM.LEADER) return null;
+  const existing = findExistingLeader(users, targetUid);
+  if (!existing) return null;
+  const label = existing.nickname?.trim() || '알 수 없음';
+  return `리더는 1명만 지정할 수 있습니다. 현재 리더: ${label}`;
+};
+
+export const getBulkLeaderRoleAssignmentError = (
+  nextRole: string,
+  targetUids: string[],
+  users: RoleAssignableUser[]
+): string | null => {
+  if (nextRole !== ROLE_SYSTEM.LEADER) return null;
+  if (targetUids.length > 1) {
+    return '리더는 한 번에 한 명만 지정할 수 있습니다.';
+  }
+  if (targetUids.length === 0) return null;
+  return getLeaderRoleAssignmentError(nextRole, targetUids[0], users);
+};
+
+export const canAssignLeaderRole = (
+  targetUid: string | undefined,
+  users: RoleAssignableUser[]
+): boolean => !findExistingLeader(users, targetUid);
+
 /** 관리자 패널·운영 권한: 리더/운영진 + 아래 닉네임 (코드 한 곳에서만 수정) */
 export const SUPER_ADMIN_NICKNAMES: readonly string[] = ['너래'];
 

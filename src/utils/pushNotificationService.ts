@@ -149,7 +149,8 @@ const navigateFromPushData = (data?: Record<string, string | undefined> | null) 
     }
   }
 
-  window.location.assign(target);
+  const path = target.startsWith('/') ? target : `/${target}`;
+  window.location.assign(`${window.location.origin}${path}`);
 };
 
 const showForegroundPushToast = (params: {

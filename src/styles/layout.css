@@ -72,10 +72,17 @@ html, body {
   cursor: grab;
   box-shadow: 0 4px 16px var(--nav-toggle-shadow);
   backdrop-filter: blur(20px);
-  transition: all var(--transition-base);
+  transition: transform var(--transition-base), box-shadow var(--transition-base), background var(--transition-base);
   animation: slideInUp var(--transition-base) ease-out;
   user-select: none;
   -webkit-user-select: none;
+  touch-action: none;
+}
+
+.bottom-nav-toggle-collapsed.is-dragging {
+  cursor: grabbing;
+  transition: none;
+  animation: none;
 }
 
 /* 서브메뉴 레이아웃 */

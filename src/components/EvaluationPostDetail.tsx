@@ -40,6 +40,7 @@ import '../styles/PostDetail.css';
 import '../styles/BoardLayout.css';
 import CommentSection from './CommentSection';
 import { useAudioPlayer } from '../App';
+import { stopBoardAudio } from '../utils/boardAudioPlayer';
 import { NotificationService } from '../utils/notificationService';
 import {
   approvedSongCountsByNicknameFromDocs,
@@ -115,7 +116,9 @@ const EvaluationPostDetail: React.FC = () => {
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [messageContent, setMessageContent] = useState('');
   const [voting, setVoting] = useState(false);
-  const [showAdminVoteReveal, setShowAdminVoteReveal] = useState(false);
+  const [showVoteReveal, setShowVoteReveal] = useState(false);
+  const lastVoteTapRef = useRef<{ choice: 'PASS' | 'FAIL'; time: number } | null>(null);
+  const DOUBLE_TAP_MS = 400;
   const { isPlaying: isGlobalPlaying, pause: pauseGlobal, play: playGlobal, currentIdx: globalIdx } = useAudioPlayer();
   const location = useLocation();
   // 글로벌 플레이리스트 상태 기억용
@@ -178,7 +181,8 @@ const EvaluationPostDetail: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    setShowAdminVoteReveal(false);
+    setShowVoteReveal(false);
+    lastVoteTapRef.current = null;
   }, [post?.id]);
 
   useEffect(() => {
@@ -313,6 +317,20 @@ const EvaluationPostDetail: React.FC = () => {
     .filter(([, choice]) => choice === 'FAIL')
     .map(([uid]) => post?.votedUserNicknames?.[uid] || '알 수 없음');
 
+  const handleVoteButtonClick = (choice: 'PASS' | 'FAIL') => {
+    if (canViewAnonymousVoters) {
+      const now = Date.now();
+      const last = lastVoteTapRef.current;
+      if (last && last.choice === choice && now - last.time < DOUBLE_TAP_MS) {
+        lastVoteTapRef.current = null;
+        setShowVoteReveal(true);
+        return;
+      }
+      lastVoteTapRef.current = { choice, time: now };
+    }
+    void handleVerdictVote(choice);
+  };
+
   const handleVerdictVote = async (choice: 'PASS' | 'FAIL') => {
     if (!post || !user) {
       alert('로그인이 필요합니다.');
@@ -381,6 +399,7 @@ const EvaluationPostDetail: React.FC = () => {
           <button
             className="back-button glassmorphism"
             onClick={() => {
+              stopBoardAudio();
               if (window.audioPlayerRef && !window.audioPlayerRef.paused) {
                 window.audioPlayerRef.pause();
               }
@@ -508,7 +527,7 @@ const EvaluationPostDetail: React.FC = () => {
               <button
                 className={`action-button ${myVote === 'PASS' ? 'liked' : ''}`}
                 disabled={voting}
-                onClick={() => handleVerdictVote('PASS')}
+                onClick={() => handleVoteButtonClick('PASS')}
                 style={{ justifyContent: 'space-between' }}
               >
                 <span>합격</span>
@@ -517,41 +536,24 @@ const EvaluationPostDetail: React.FC = () => {
               <button
                 className={`action-button ${myVote === 'FAIL' ? 'liked' : ''}`}
                 disabled={voting}
-                onClick={() => handleVerdictVote('FAIL')}
+                onClick={() => handleVoteButtonClick('FAIL')}
                 style={{ justifyContent: 'space-between' }}
               >
                 <span>불합격</span>
                 <span>{post.votesFail || 0}표 ({ratioFail}%)</span>
               </button>
               <div style={{ textAlign: 'center', color: '#6B7280', fontSize: '0.92rem' }}>
-                {isAnonymousVote ? '익명 투표로 집계됩니다.' : '투표자 정보가 공개됩니다.'}
+                {isAnonymousVote
+                  ? canViewAnonymousVoters
+                    ? '한 번 누르면 투표, 같은 칸을 빠르게 두 번 누르면 투표자를 확인할 수 있습니다.'
+                    : '익명 투표로 집계됩니다.'
+                  : '투표자 정보가 공개됩니다.'}
               </div>
-              {isAnonymousVote && !canViewAnonymousVoters ? null : isAnonymousVote && canViewAnonymousVoters && !showAdminVoteReveal ? (
-                <div style={{ display: 'flex', justifyContent: 'center' }}>
-                  <button
-                    type="button"
-                    className="action-button"
-                    onClick={() => setShowAdminVoteReveal(true)}
-                    style={{ maxWidth: 220 }}
-                  >
-                    관리자 보기
-                  </button>
-                </div>
-              ) : (
+              {(!isAnonymousVote || (canViewAnonymousVoters && showVoteReveal)) && (
                 <div style={{ marginTop: 8, padding: 12, background: '#F6F2FF', borderRadius: 12 }}>
                   <div style={{ fontWeight: 700, color: '#7C4DBC', marginBottom: 8 }}>
-                    {isAnonymousVote ? '투표자 공개 (관리자 보기)' : '투표자 공개'}
+                    투표자 공개
                   </div>
-                  {isAnonymousVote && canViewAnonymousVoters && (
-                    <button
-                      type="button"
-                      className="action-button"
-                      onClick={() => setShowAdminVoteReveal(false)}
-                      style={{ marginBottom: 10 }}
-                    >
-                      숨기기
-                    </button>
-                  )}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     <div>
                       <div style={{ fontWeight: 600, marginBottom: 6 }}>합격</div>
@@ -961,11 +963,11 @@ function AudioPlayer({ audioUrl, duration }: { audioUrl: string, duration?: numb
 
   // 라우트 변경 시 오디오 일시정지
   useEffect(() => {
+    stopBoardAudio();
     if (audioRef.current) {
       audioRef.current.pause();
       setIsPlaying(false);
     }
-    // eslint-disable-next-line
   }, [location.pathname]);
 
   useEffect(() => {
@@ -985,9 +987,11 @@ function AudioPlayer({ audioUrl, duration }: { audioUrl: string, duration?: numb
     if (!audioRef.current) return;
     if (isPlaying) {
       audioRef.current.pause();
+      stopBoardAudio();
       setIsPlaying(false);
     } else {
-      audioRef.current.play();
+      stopBoardAudio();
+      void audioRef.current.play();
       setIsPlaying(true);
     }
   };

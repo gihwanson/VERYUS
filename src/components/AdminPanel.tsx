@@ -85,6 +85,9 @@ import {
   GRADE_ORDER, 
   GRADE_NAMES, 
   ROLE_OPTIONS,
+  getLeaderRoleAssignmentError,
+  getBulkLeaderRoleAssignmentError,
+  findExistingLeader,
   USER_STATUS,
   USER_STATUS_LABELS,
   type AdminUser,
@@ -155,7 +158,7 @@ const AdminPanel: React.FC = () => {
 
   // 벌크 액션 설정
   const [bulkGrade, setBulkGrade] = useState(GRADE_SYSTEM.CHERRY);
-  const [bulkRole, setBulkRole] = useState(ROLE_SYSTEM.MEMBER);
+  const [bulkRole, setBulkRole] = useState<(typeof ROLE_OPTIONS)[number]>(ROLE_SYSTEM.MEMBER);
 
   // 상태 변경 모달
   const [showStatusModal, setShowStatusModal] = useState(false);
@@ -390,9 +393,20 @@ const AdminPanel: React.FC = () => {
     await commitRefs(commentsSnapshot.docs.map((d) => d.ref));
   };
 
+  const existingLeader = useMemo(
+    () => findExistingLeader(users),
+    [users]
+  );
+
   // 사용자 업데이트 (로그 포함)
   const handleUpdateUser = async (user: AdminUser) => {
     if (!editingUser || !currentUser) return;
+
+    const leaderError = getLeaderRoleAssignmentError(editingUser.role, user.uid, users);
+    if (leaderError) {
+      alert(leaderError);
+      return;
+    }
     
     try {
       const userRef = doc(db, 'users', user.uid);
@@ -620,6 +634,12 @@ const AdminPanel: React.FC = () => {
       
       if (!nicknameSnapshot.empty) {
         alert('이미 사용 중인 닉네임입니다.');
+        return;
+      }
+
+      const leaderError = getLeaderRoleAssignmentError(newUser.role, '', users);
+      if (leaderError) {
+        alert(leaderError);
         return;
       }
 
@@ -867,6 +887,11 @@ const AdminPanel: React.FC = () => {
 
   // 벌크 역할 변경 (로그 포함)
   const handleBulkRoleChange = async () => {
+    const leaderError = getBulkLeaderRoleAssignmentError(bulkRole, selectedUserUids, users);
+    if (leaderError) {
+      alert(leaderError);
+      return;
+    }
     if (!window.confirm(`선택된 ${selectedUserUids.length}명의 역할을 ${bulkRole}로 변경하시겠습니까?`)) return;
     if (!currentUser) return;
     
@@ -1232,6 +1257,7 @@ const AdminPanel: React.FC = () => {
                       setEditingUser({ ...editingUser, [field]: value });
                     }
                   }}
+                  existingLeaderUid={existingLeader?.uid}
                 />
               </div>
             ))}
@@ -2052,10 +2078,19 @@ const AdminPanel: React.FC = () => {
                   value={newUser.role}
                   onChange={(e) => setNewUser({...newUser, role: e.target.value as any})}
                 >
-                  {ROLE_OPTIONS.map(role => (
-                    <option key={role} value={role}>{role}</option>
-                  ))}
+                  {ROLE_OPTIONS.map((role) => {
+                    const leaderTaken = role === ROLE_SYSTEM.LEADER && !!existingLeader;
+                    return (
+                      <option key={role} value={role} disabled={leaderTaken}>
+                        {role}
+                        {leaderTaken ? ' (이미 리더 있음)' : ''}
+                      </option>
+                    );
+                  })}
                 </select>
+                {existingLeader && (
+                  <p className="form-hint">현재 리더: {existingLeader.nickname || '알 수 없음'} (1명만 지정 가능)</p>
+                )}
               </div>
               <div className="modal-actions">
                 <button onClick={handleAddUser} className="save-btn">
@@ -2140,10 +2175,34 @@ const AdminPanel: React.FC = () => {
                   onChange={(e) => setBulkRole(e.target.value as any)}
                   className="filter-select"
                 >
-                  {ROLE_OPTIONS.map(role => (
-                    <option key={role} value={role}>{role}</option>
-                  ))}
+                  {ROLE_OPTIONS.map((role) => {
+                    const isLeaderRole = role === ROLE_SYSTEM.LEADER;
+                    const soleTargetUid =
+                      selectedUserUids.length === 1 ? selectedUserUids[0] : undefined;
+                    const leaderBulkInvalid = isLeaderRole && selectedUserUids.length > 1;
+                    const leaderTakenByOther =
+                      isLeaderRole &&
+                      existingLeader &&
+                      (!soleTargetUid || existingLeader.uid !== soleTargetUid);
+                    const disabled = leaderBulkInvalid || leaderTakenByOther;
+                    return (
+                      <option key={role} value={role} disabled={disabled}>
+                        {role}
+                        {leaderBulkInvalid
+                          ? ' (1명만 선택)'
+                          : leaderTakenByOther
+                            ? ' (이미 리더 있음)'
+                            : ''}
+                      </option>
+                    );
+                  })}
                 </select>
+                {bulkRole === ROLE_SYSTEM.LEADER && selectedUserUids.length > 1 && (
+                  <p className="form-hint">리더는 한 번에 한 명만 지정할 수 있습니다.</p>
+                )}
+                {existingLeader && (
+                  <p className="form-hint">현재 리더: {existingLeader.nickname || '알 수 없음'}</p>
+                )}
               </div>
               <div className="modal-actions">
                 <button 

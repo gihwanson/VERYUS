@@ -913,7 +913,7 @@ button:hover::before,
 }
 
 /* 접기/펼치기 버튼 스타일 */
-.bottom-nav-toggle-collapsed:hover {
+.bottom-nav-toggle-collapsed:hover:not(.is-dragging) {
   background: var(--nav-toggle-hover);
   transform: translateY(-2px);
   box-shadow: 0 6px 20px var(--nav-toggle-shadow-hover);

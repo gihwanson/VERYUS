@@ -9,11 +9,17 @@
   box-sizing: border-box;
   min-height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
 }
 
-/* Navigation */
+/* Navigation — 제목 위 일반 흐름 (fixed 시 제목 가림 방지) */
 .post-navigation {
-  margin-bottom: 2rem;
+  margin: 0;
+  flex-shrink: 0;
+  align-self: flex-start;
 }
 
 .back-button {
@@ -107,10 +113,12 @@
 
 .title-section {
   display: flex;
-  align-items: center;
-  gap: 1rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
   flex: 1;
   min-width: 0;
+  width: 100%;
 }
 
 .post-detail-title {
@@ -774,13 +782,15 @@
   border-radius: 16px !important;
 }
 
-/* post-navigation은 위치만 고정, 배경/테두리/그림자 없음 */
+/* post-navigation: 제목 위 일반 흐름, 버튼만 글라스 스타일 */
 .post-navigation.glassmorphism {
-  position: fixed !important;
-  top: 20px !important;
-  left: 20px !important;
-  z-index: 1000 !important;
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  z-index: auto !important;
+  width: auto !important;
   padding: 0 !important;
+  margin: 0 !important;
   background: none !important;
   border: none !important;
   box-shadow: none !important;
