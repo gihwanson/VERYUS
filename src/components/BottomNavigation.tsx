@@ -88,7 +88,7 @@ const loadCollapsedTogglePosition = (): { x: number; y: number } | null => {
     if (!saved) return null;
     const parsed = JSON.parse(saved) as { x?: number; y?: number };
     if (typeof parsed.x !== 'number' || typeof parsed.y !== 'number') return null;
-    return parsed;
+    return { x: parsed.x, y: parsed.y };
   } catch {
     return null;
   }
