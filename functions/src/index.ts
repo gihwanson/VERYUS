@@ -62,6 +62,51 @@ const getNotificationRoute = (data: FirebaseFirestore.DocumentData): string => {
   return '/notifications';
 };
 
+const extractChatMessagePreview = (data: FirebaseFirestore.DocumentData): string => {
+  const explicit = String(data.chatMessagePreview || '').trim();
+  if (explicit) return explicit.slice(0, 80);
+
+  const storedMessage = String(data.message || '').trim();
+  if (!storedMessage) return '새 메시지';
+
+  const separatorIndex = storedMessage.indexOf(':');
+  if (separatorIndex >= 0) {
+    const preview = storedMessage.slice(separatorIndex + 1).trim();
+    if (preview) return preview.slice(0, 80);
+  }
+
+  return storedMessage.slice(0, 80);
+};
+
+const resolveAnonymousChatSenderNickname = async (
+  data: FirebaseFirestore.DocumentData
+): Promise<string> => {
+  const fromUid = (data.fromUid as string | undefined) || '';
+  const roomId = (data.roomId as string | undefined) || '';
+  const fallback = String(data.fromNickname || '').trim() || '익명';
+
+  if (!fromUid) return fallback;
+
+  try {
+    if (roomId) {
+      const participantSnap = await admin
+        .firestore()
+        .doc(`anonymousChatRooms/${roomId}/participants/${fromUid}`)
+        .get();
+      const participantNickname = String(participantSnap.data()?.nickname || '').trim();
+      if (participantNickname) return participantNickname;
+    }
+
+    const profileSnap = await admin.firestore().doc(`anonymousChatProfiles/${fromUid}`).get();
+    const profileNickname = String(profileSnap.data()?.customNickname || '').trim();
+    if (profileNickname) return profileNickname;
+  } catch (error) {
+    logger.warn('익명채팅 발신 닉네임 조회 실패', { fromUid, roomId, error });
+  }
+
+  return fallback;
+};
+
 export const sendPushOnNotificationCreated = onDocumentCreated(
   {
     document: 'notifications/{notificationId}',
@@ -173,11 +218,18 @@ export const sendPushOnNotificationCreated = onDocumentCreated(
     const absoluteRoute = `${WEB_APP_ORIGIN}${route}`;
     const chatRoomTag = roomId ? `anonymous-chat-${roomId}` : '';
 
+    let pushBody = (data.message as string) || '새 알림이 도착했습니다.';
+    if (notificationType === 'anonymous_chat') {
+      const senderNickname = await resolveAnonymousChatSenderNickname(data);
+      const chatPreview = extractChatMessagePreview(data);
+      pushBody = `${senderNickname}: ${chatPreview}`;
+    }
+
     const payload: admin.messaging.MulticastMessage = {
       tokens,
       notification: {
         title: data.postTitle ? `VERYUS - ${data.postTitle}` : 'VERYUS',
-        body: (data.message as string) || '새 알림이 도착했습니다.'
+        body: pushBody
       },
       data: {
         postId,

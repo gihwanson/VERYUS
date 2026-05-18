@@ -405,7 +405,18 @@ const AnonymousChatRoom: React.FC = () => {
       if (!profile || !user?.uid) return;
       await runTransaction(db, async (transaction) => {
         const snap = await transaction.get(participantRef);
-        if (snap.exists()) return;
+        if (snap.exists()) {
+          const existing = snap.data() as RoomParticipant;
+          const nextNickname = profile.customNickname.trim();
+          const nextProfileNickname = profile.profileNickname || '';
+          if (existing.nickname !== nextNickname || (existing.profileNickname || '') !== nextProfileNickname) {
+            transaction.update(participantRef, {
+              nickname: nextNickname,
+              profileNickname: nextProfileNickname
+            });
+          }
+          return;
+        }
         transaction.set(participantRef, {
           uid: user.uid,
           nickname: profile.customNickname,
@@ -512,6 +523,23 @@ const AnonymousChatRoom: React.FC = () => {
     }
     return baseNickname;
   };
+
+  /** 채팅·푸시에 쓸 발신 닉네임 — participant(실시간) 우선, profile은 보조 */
+  const resolveSenderNickname = useCallback((): string => {
+    const myParticipant = roomParticipants.find((member) => member.uid === user?.uid);
+    const fromParticipant = (myParticipant?.nickname || '').trim();
+    if (fromParticipant) return fromParticipant;
+    return (profile?.customNickname || '').trim() || '익명';
+  }, [roomParticipants, user?.uid, profile?.customNickname]);
+
+  const resolveSenderProfileNickname = useCallback((): string => {
+    const myParticipant = roomParticipants.find((member) => member.uid === user?.uid);
+    return (
+      (myParticipant?.profileNickname || '').trim() ||
+      (profile?.profileNickname || '').trim() ||
+      (user?.nickname || '').trim()
+    );
+  }, [roomParticipants, user?.uid, user?.nickname, profile?.profileNickname]);
 
   const chatTimeline = useMemo<ChatTimelineItem[]>(() => {
     const joinedAtSec = roomJoinedAt?.seconds || 0;
@@ -853,6 +881,15 @@ const AnonymousChatRoom: React.FC = () => {
         await batch.commit();
       }
 
+      setProfile((prev) =>
+        prev
+          ? {
+              ...prev,
+              customNickname: trimmed,
+              nicknameChangedOnce: canChangeNicknameUnlimited ? false : true
+            }
+          : prev
+      );
       setNicknameChangeInput('');
       alert(
         canChangeNicknameUnlimited
@@ -1156,10 +1193,14 @@ const AnonymousChatRoom: React.FC = () => {
     setSending(true);
     try {
       shouldAutoScrollRef.current = true;
+      const senderNickname = resolveSenderNickname();
+      const senderProfileNickname = resolveSenderProfileNickname();
+      const chatMessagePreview = trimmed.slice(0, 80);
+
       await addDoc(collection(db, 'anonymousChatRooms', selectedRoomId, 'messages'), {
         uid: user.uid,
-        senderLabel: profile.customNickname,
-        profileNickname: profile.profileNickname || user.nickname || '',
+        senderLabel: senderNickname,
+        profileNickname: senderProfileNickname,
         content: trimmed,
         replyToId: replyTarget?.id || null,
         replyPreviewSender: replyTarget?.senderLabel || '',
@@ -1179,11 +1220,12 @@ const AnonymousChatRoom: React.FC = () => {
           postType: 'anonymous_chat',
           postId: selectedRoomId,
           postTitle: `익명채팅 - ${selectedRoom?.title || '채팅방'}`,
-          message: `${profile.customNickname}: ${trimmed.slice(0, 80)}`,
+          message: `${senderNickname}: ${chatMessagePreview}`,
+          chatMessagePreview,
           route: `/anonymous-chat?roomId=${encodeURIComponent(selectedRoomId)}`,
           roomId: selectedRoomId,
           fromUid: user.uid,
-          fromNickname: profile.customNickname,
+          fromNickname: senderNickname,
           hiddenFromInbox: true,
           // 푸시 트리거(구버전 함수 포함) 호환을 위해 unread 상태로 생성
           // hiddenFromInbox=true 이므로 알림함/배지에는 노출되지 않음
@@ -1224,6 +1266,8 @@ const AnonymousChatRoom: React.FC = () => {
     isRoomFrozen,
     replyTarget,
     roomParticipants,
+    resolveSenderNickname,
+    resolveSenderProfileNickname,
     forceScrollToLatest,
     markRoomAsReadThrottled,
     refocusComposerInput
