@@ -732,14 +732,15 @@
   color: #352b14;
 }
 
-.anonymous-chat-members-overlay {
+.anonymous-chat-members-overlay,
+.ac-member-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 2000;
+  z-index: 10050;
 }
 
 .anonymous-chat-room-rule-banner {
@@ -843,18 +844,28 @@
 .anonymous-chat-members-modal {
   width: min(320px, calc(100vw - 32px));
   max-height: 70vh;
-  background: #fff;
+  background: #ffffff;
+  border: 1px solid #d8e0ea;
   border-radius: 12px;
   padding: 14px;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.22);
+  backdrop-filter: none;
 }
 
 .anonymous-chat-members-title {
   font-size: 16px;
   font-weight: 700;
-  color: #27394c;
+  color: #1f2937;
   margin-bottom: 10px;
+}
+
+.anonymous-chat-members-hint {
+  margin-bottom: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #4b5563;
 }
 
 .anonymous-chat-members-list {
@@ -865,26 +876,110 @@
 }
 
 .anonymous-chat-members-item {
-  padding: 8px 10px;
-  background: #f4f7fb;
+  background: #f3f6fa;
+  border: 1px solid #dbe3ec;
   border-radius: 8px;
-  color: #2a3b4e;
+  color: #1f2937;
   font-size: 14px;
+  overflow: hidden;
 }
 
-.anonymous-chat-members-item.can-toggle-cohost {
+.anonymous-chat-members-item.can-manage-member {
   cursor: pointer;
 }
 
-.anonymous-chat-members-item.can-toggle-cohost:hover {
-  background: #e9f1ff;
+.anonymous-chat-members-item.can-manage-member:hover {
+  background: #e8f0fb;
+  border-color: #c7d7ea;
+}
+
+.anonymous-chat-members-item.expanded {
+  background: #eef4ff;
+  border-color: #bfd3ef;
+}
+
+.anonymous-chat-members-item-main {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  color: #1f2937;
+  font: inherit;
+}
+
+.anonymous-chat-members-item:not(.can-manage-member) .anonymous-chat-members-item-main {
+  cursor: default;
+}
+
+.anonymous-chat-members-chevron {
+  margin-left: auto;
+  font-size: 10px;
+  color: #64748b;
+}
+
+.anonymous-chat-members-actions {
+  display: flex;
+  gap: 8px;
+  padding: 0 10px 10px;
+}
+
+.anonymous-chat-members-action {
+  flex: 1;
+  min-height: 34px;
+  border: none !important;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0 10px;
+}
+
+.anonymous-chat-members-action.cohost {
+  background: #dbeafe !important;
+  color: #1e40af !important;
+}
+
+.anonymous-chat-members-action.kick {
+  background: #fee2e2 !important;
+  color: #b91c1c !important;
 }
 
 .anonymous-chat-members-name-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 8px;
+  color: #1f2937;
+}
+
+.anonymous-chat-members-name-row > span:first-child,
+.anonymous-chat-members-name-row > .ac-member-row__name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  word-break: break-all;
+}
+
+.ac-member-row__name {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.ac-member-row__meta {
+  display: block;
+  margin: 4px 0 0;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b !important;
+  -webkit-text-fill-color: #64748b !important;
+  line-height: 1.35;
 }
 
 .anonymous-chat-members-badge {
@@ -894,6 +989,7 @@
   border-radius: 999px;
   padding: 2px 8px;
   font-weight: 700;
+  flex-shrink: 0;
 }
 
 .anonymous-chat-members-badge.cohost {
@@ -902,7 +998,7 @@
 
 .anonymous-chat-members-joined {
   margin-top: 4px;
-  color: #5d7185;
+  color: #64748b !important;
   font-size: 12px;
 }
 
@@ -915,12 +1011,13 @@
 .anonymous-chat-members-close {
   margin-top: 12px;
   height: 34px;
-  border: none;
+  border: none !important;
   border-radius: 8px;
-  background: #381e1f;
-  color: #fff;
+  background: #381e1f !important;
+  color: #fff !important;
   font-size: 13px;
   font-weight: 700;
+  cursor: pointer;
 }
 
 .anonymous-chat-members-close.secondary {
@@ -940,7 +1037,6 @@
 .anonymous-chat-room-enter,
 .anonymous-chat-nickname,
 .anonymous-chat-setup-card,
-.anonymous-chat-members-modal,
 .anonymous-chat-room-menu,
 .anonymous-chat-input {
   background: rgba(255, 255, 255, 0.24);
@@ -951,8 +1047,7 @@
 
 .anonymous-chat-bubble.other,
 .anonymous-chat-system-notice,
-.anonymous-chat-reply-preview,
-.anonymous-chat-members-item {
+.anonymous-chat-reply-preview {
   background: rgba(255, 255, 255, 0.86);
   color: #2a3b4e;
 }

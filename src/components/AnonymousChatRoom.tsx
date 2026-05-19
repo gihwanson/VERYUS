@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { AppWindow, ChevronLeft, Home, Search, Phone, Bell, BellOff, Menu, Plus, Smile, FileText } from 'lucide-react';
 import {
@@ -60,6 +61,7 @@ type AnonymousRoom = {
   lastCleanupAt?: any;
   requiredActiveDays?: number;
   entryCode?: string;
+  bannedUids?: string[];
   createdAt: any;
 };
 
@@ -194,6 +196,7 @@ const AnonymousChatRoom: React.FC = () => {
   const [roomParticipants, setRoomParticipants] = useState<RoomParticipant[]>([]);
   const [roomJoinedAt, setRoomJoinedAt] = useState<any>(null);
   const [showMembersModal, setShowMembersModal] = useState(false);
+  const [expandedMemberUid, setExpandedMemberUid] = useState<string | null>(null);
   const [input, setInput] = useState('');
   const [nicknameInput, setNicknameInput] = useState('');
   const [nicknameChangeInput, setNicknameChangeInput] = useState('');
@@ -229,6 +232,7 @@ const AnonymousChatRoom: React.FC = () => {
   const scrollRetryTimeoutRef = useRef<number | null>(null);
   const shouldAutoScrollRef = useRef(true);
   const lastReadMarkAtRef = useRef(0);
+  const wasRoomMemberRef = useRef(false);
 
   const scrollToLatestMessage = useCallback((behavior: ScrollBehavior = 'auto') => {
     const container = messagesContainerRef.current;
@@ -517,12 +521,16 @@ const AnonymousChatRoom: React.FC = () => {
   const canChangeNicknameUnlimited = isNerae;
 
   const getDisplayName = (baseNickname?: string, profileNickname?: string) => {
-    if (!baseNickname) return '익명';
+    const nick = (baseNickname || '').trim();
+    if (!nick) return '익명';
     if (isNerae && profileNickname) {
-      return `${baseNickname}(${profileNickname})`;
+      return `${nick}(${profileNickname.trim()})`;
     }
-    return baseNickname;
+    return nick;
   };
+
+  const getMemberLabel = (member: RoomParticipant) =>
+    getDisplayName(member.nickname, member.profileNickname);
 
   /** 채팅·푸시에 쓸 발신 닉네임 — participant(실시간) 우선, profile은 보조 */
   const resolveSenderNickname = useCallback((): string => {
@@ -659,6 +667,25 @@ const AnonymousChatRoom: React.FC = () => {
     markRoomAsReadThrottled(true);
   }, [selectedRoomId, forceScrollToLatest, markRoomAsReadThrottled]);
 
+  // 방에서 내보내졌을 때 채팅방 화면에서 나가기
+  useEffect(() => {
+    if (!selectedRoomId || !user?.uid) {
+      wasRoomMemberRef.current = false;
+      return;
+    }
+    const isMember = roomParticipants.some((member) => member.uid === user.uid);
+    if (isMember) {
+      wasRoomMemberRef.current = true;
+      return;
+    }
+    if (wasRoomMemberRef.current && roomParticipants.length > 0) {
+      wasRoomMemberRef.current = false;
+      alert('방에서 내보내졌습니다.');
+      setSelectedRoomId(null);
+      setEnteredByPushLink(false);
+    }
+  }, [roomParticipants, selectedRoomId, user?.uid]);
+
   useEffect(() => {
     if (!selectedRoomId) return;
     const container = messagesContainerRef.current;
@@ -739,6 +766,11 @@ const AnonymousChatRoom: React.FC = () => {
       return;
     }
 
+    if (!isExistingMember && (room.bannedUids || []).includes(user.uid)) {
+      alert('이 방에서 내보내져 다시 입장할 수 없습니다.');
+      return;
+    }
+
     const expectedCode = (room.entryCode || '').trim();
     if (expectedCode && !options?.skipEntryCodeCheck) {
       setPendingEntryCodeRoom({ room, fromPushLink: options?.fromPushLink });
@@ -778,6 +810,24 @@ const AnonymousChatRoom: React.FC = () => {
   );
   const canModerateChat = myUid ? roomManagerUids.has(myUid) : false;
   const canManageCoHost = Boolean(selectedRoom?.createdByUid && selectedRoom.createdByUid === myUid);
+  const isMemberCoHost = useCallback(
+    (uid: string) => Boolean(uid && selectedRoom?.coHostUids?.includes(uid)),
+    [selectedRoom?.coHostUids]
+  );
+  const getMemberManagePermissions = useCallback(
+    (targetUid: string) => {
+      if (!targetUid || targetUid === myUid || targetUid === selectedRoom?.createdByUid) {
+        return { canToggleCoHost: false, canKick: false };
+      }
+      const ownerCanAct = canManageCoHost;
+      const coHostCanKickMember = canModerateChat && !canManageCoHost && !isMemberCoHost(targetUid);
+      return {
+        canToggleCoHost: ownerCanAct,
+        canKick: ownerCanAct || coHostCanKickMember
+      };
+    },
+    [myUid, selectedRoom?.createdByUid, canManageCoHost, canModerateChat, isMemberCoHost]
+  );
   const isRoomNotificationMuted = Boolean(
     myUid && (selectedRoom?.notificationMutedUids || []).includes(myUid)
   );
@@ -1084,6 +1134,48 @@ const AnonymousChatRoom: React.FC = () => {
     }
   }, [selectedRoomId, selectedRoom, user?.uid, roomParticipants]);
 
+  const handleKickParticipant = useCallback(async (memberUid: string) => {
+    if (!selectedRoomId || !selectedRoom || !user?.uid) return;
+    const { canKick } = getMemberManagePermissions(memberUid);
+    if (!canKick) return;
+
+    const selectedMember = roomParticipants.find((member) => member.uid === memberUid);
+    const selectedMemberName = selectedMember?.nickname || '익명';
+    if (!window.confirm(`"${selectedMemberName}"님을 내보내시겠습니까?\n내보낸 멤버는 이 방에 다시 입장할 수 없습니다.`)) {
+      return;
+    }
+
+    try {
+      const roomRef = doc(db, 'anonymousChatRooms', selectedRoomId);
+      const participantRef = doc(db, 'anonymousChatRooms', selectedRoomId, 'participants', memberUid);
+      const currentBanned = selectedRoom.bannedUids || [];
+      const currentCoHosts = selectedRoom.coHostUids || [];
+      const noticeText = `"${selectedMemberName}"님이 내보내졌습니다`;
+
+      await runTransaction(db, async (transaction) => {
+        transaction.update(roomRef, {
+          bannedUids: currentBanned.includes(memberUid) ? currentBanned : [...currentBanned, memberUid],
+          coHostUids: currentCoHosts.filter((uid) => uid !== memberUid)
+        });
+        transaction.delete(participantRef);
+      });
+
+      await addDoc(collection(db, 'anonymousChatRooms', selectedRoomId, 'messages'), {
+        uid: '__system__',
+        senderLabel: 'system',
+        content: noticeText,
+        systemText: noticeText,
+        createdAtClient: Date.now(),
+        createdAt: serverTimestamp()
+      });
+
+      setExpandedMemberUid((prev) => (prev === memberUid ? null : prev));
+    } catch (error) {
+      console.error('멤버 내보내기 실패:', error);
+      alert('멤버 내보내기 중 오류가 발생했습니다.');
+    }
+  }, [selectedRoomId, selectedRoom, user?.uid, roomParticipants, getMemberManagePermissions]);
+
   const openMessageActionMenu = useCallback((message: AnonymousMessage, x: number, y: number) => {
     setMessageActionMenu({ message, x, y });
   }, []);
@@ -1326,12 +1418,20 @@ const AnonymousChatRoom: React.FC = () => {
   }, [confirmDeleteRoom]);
 
   const openMembersModal = useCallback(() => {
+    setExpandedMemberUid(null);
     setShowMembersModal(true);
   }, []);
 
   const closeMembersModal = useCallback(() => {
+    setExpandedMemberUid(null);
     setShowMembersModal(false);
   }, []);
+
+  const handleMemberRowClick = useCallback((memberUid: string) => {
+    const { canToggleCoHost, canKick } = getMemberManagePermissions(memberUid);
+    if (!canToggleCoHost && !canKick) return;
+    setExpandedMemberUid((prev) => (prev === memberUid ? null : memberUid));
+  }, [getMemberManagePermissions]);
 
   const toggleRoomMenu = useCallback(() => {
     setShowRoomMenu((prev) => !prev);
@@ -1954,53 +2054,102 @@ const AnonymousChatRoom: React.FC = () => {
         </div>
       </div>
 
-      {showMembersModal && (
-        <div className="anonymous-chat-members-overlay" onClick={closeMembersModal}>
+      {showMembersModal &&
+        createPortal(
+        <div className="anonymous-chat-members-overlay ac-member-overlay" onClick={closeMembersModal}>
           <div className="anonymous-chat-members-modal" onClick={(e) => e.stopPropagation()}>
             <div className="anonymous-chat-members-title">입장 멤버</div>
+            {(canManageCoHost || canModerateChat) && (
+              <div className="anonymous-chat-members-hint">
+                {canManageCoHost
+                  ? '멤버를 눌러 부방장 지정 또는 내보내기를 선택하세요.'
+                  : '멤버를 눌러 내보내기를 선택할 수 있습니다.'}
+              </div>
+            )}
             <div className="anonymous-chat-members-list">
               {sortedParticipants.length === 0 && (
                 <div className="anonymous-chat-members-empty">현재 입장 멤버가 없습니다.</div>
               )}
-              {sortedParticipants.map((member) => (
-                <div
-                  key={member.uid}
-                  className={`anonymous-chat-members-item ${canManageCoHost && member.uid !== selectedRoom?.createdByUid ? 'can-toggle-cohost' : ''}`}
-                  onClick={() => {
-                    if (!canManageCoHost) return;
-                    if (member.uid === selectedRoom?.createdByUid) return;
-                    void handleToggleCoHost(member.uid);
-                  }}
-                >
-                  <div className="anonymous-chat-members-name-row">
-                    <span>{getDisplayName(member.nickname, member.profileNickname)}</span>
-                    {member.uid === selectedRoom?.createdByUid && (
-                      <span className="anonymous-chat-members-badge">방장</span>
+              {sortedParticipants.map((member) => {
+                const { canToggleCoHost, canKick } = getMemberManagePermissions(member.uid);
+                const canManageMember = canToggleCoHost || canKick;
+                const isExpanded = expandedMemberUid === member.uid;
+                const isCoHost = isMemberCoHost(member.uid);
+
+                return (
+                  <div
+                    key={member.uid}
+                    className={`anonymous-chat-members-item ${canManageMember ? 'can-manage-member' : ''} ${isExpanded ? 'expanded' : ''}`}
+                  >
+                    <div
+                      role={canManageMember ? 'button' : undefined}
+                      tabIndex={canManageMember ? 0 : undefined}
+                      className="anonymous-chat-members-item-main"
+                      onClick={() => handleMemberRowClick(member.uid)}
+                      onKeyDown={(e) => {
+                        if (!canManageMember) return;
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleMemberRowClick(member.uid);
+                        }
+                      }}
+                    >
+                      <div className="anonymous-chat-members-name-row">
+                        <strong className="ac-member-row__name">{getMemberLabel(member)}</strong>
+                        {member.uid === selectedRoom?.createdByUid && (
+                          <span className="anonymous-chat-members-badge">방장</span>
+                        )}
+                        {member.uid !== selectedRoom?.createdByUid && isCoHost && (
+                          <span className="anonymous-chat-members-badge cohost">부방장</span>
+                        )}
+                        {canManageMember && (
+                          <span className="anonymous-chat-members-chevron">{isExpanded ? '▲' : '▼'}</span>
+                        )}
+                      </div>
+                      <p className="ac-member-row__meta">
+                        입장: {member.joinedAt?.seconds
+                          ? new Date(member.joinedAt.seconds * 1000).toLocaleString('ko-KR', {
+                              month: '2-digit',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })
+                          : '-'}
+                      </p>
+                    </div>
+                    {isExpanded && canManageMember && (
+                      <div className="anonymous-chat-members-actions">
+                        {canToggleCoHost && (
+                          <button
+                            type="button"
+                            className="anonymous-chat-members-action cohost"
+                            onClick={() => void handleToggleCoHost(member.uid)}
+                          >
+                            {isCoHost ? '부방장 해제' : '부방장 지정'}
+                          </button>
+                        )}
+                        {canKick && (
+                          <button
+                            type="button"
+                            className="anonymous-chat-members-action kick"
+                            onClick={() => void handleKickParticipant(member.uid)}
+                          >
+                            내보내기
+                          </button>
+                        )}
+                      </div>
                     )}
-                    {member.uid !== selectedRoom?.createdByUid &&
-                      selectedRoom?.coHostUids?.includes(member.uid) && (
-                        <span className="anonymous-chat-members-badge cohost">부방장</span>
-                      )}
                   </div>
-                  <div className="anonymous-chat-members-joined">
-                    입장: {member.joinedAt?.seconds
-                      ? new Date(member.joinedAt.seconds * 1000).toLocaleString('ko-KR', {
-                          month: '2-digit',
-                          day: '2-digit',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })
-                      : '-'}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <button type="button" className="anonymous-chat-members-close" onClick={closeMembersModal}>
               닫기
             </button>
           </div>
-        </div>
-      )}
+        </div>,
+        document.body
+        )}
     </div>
   );
 };
