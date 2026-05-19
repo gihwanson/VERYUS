@@ -61,7 +61,7 @@ html, body {
   position: fixed;
   z-index: var(--z-nav-toggle);
   background: var(--nav-toggle-bg);
-  color: white;
+  color: var(--nav-text-active);
   border: 1px solid var(--nav-border);
   border-radius: 50%;
   width: 48px;
@@ -119,7 +119,7 @@ html, body {
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.5) rgba(255, 255, 255, 0.1);
+  scrollbar-color: rgba(0, 0, 0, 0.25) rgba(0, 0, 0, 0.06);
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
 }
@@ -135,8 +135,8 @@ html, body {
   padding: 10px 6px;
   border-radius: var(--radius-md);
   transition: all var(--transition-fast);
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--nav-submenu-item-bg);
+  border: 1px solid var(--nav-submenu-item-border);
   min-height: 60px;
 }
 

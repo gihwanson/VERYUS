@@ -848,14 +848,9 @@ function App() {
           const data = snap.data() as Record<string, any>;
           if (data.hiddenFromInbox === true) return false;
           const type = String(data.type || '').toLowerCase();
-          const postType = String(data.postType || '').toLowerCase();
-          const route = String(data.route || '').toLowerCase();
-          const isChat =
-            type.includes('chat') ||
-            postType.includes('chat') ||
-            route.startsWith('/anonymous-chat') ||
-            route.startsWith('/chat');
-          return !isChat;
+          if (type === 'anonymous_chat_ban') return true;
+          if (type === 'anonymous_chat') return false;
+          return true;
         }).length;
         setUnreadNotificationCount(visibleUnread);
       },

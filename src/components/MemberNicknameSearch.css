@@ -11,18 +11,16 @@
   gap: 8px;
   width: 100%;
   min-height: 44px;
-  background: rgba(255, 255, 255, 0.18);
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: var(--nav-search-inner-bg);
+  border: 1px solid var(--nav-search-inner-border);
   border-radius: 22px;
   padding: 6px 8px 6px 14px;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   box-sizing: border-box;
 }
 
 .member-nick-search-icon {
   flex-shrink: 0;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--nav-search-icon);
 }
 
 .member-nick-search-input {
@@ -30,7 +28,7 @@
   min-width: 0;
   border: none;
   background: transparent;
-  color: #fff;
+  color: var(--nav-search-input);
   font-size: 14px;
   font-weight: 600;
   outline: none;
@@ -38,7 +36,7 @@
 }
 
 .member-nick-search-input::placeholder {
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--nav-search-placeholder);
   font-weight: 500;
 }
 
@@ -50,8 +48,8 @@
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  background: rgba(255, 255, 255, 0.95);
-  color: #5b4fcf;
+  background: #C41E3A;
+  color: #fff;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 

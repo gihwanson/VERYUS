@@ -484,7 +484,7 @@
 }
 
 .uab-title {
-  background: linear-gradient(135deg, #8a55cc 0%, #764ba2 100%);
+  background: var(--app-accent-gradient, var(--gradient-primary));
   -webkit-background-clip: text;
   background-clip: text;
 }
@@ -498,7 +498,7 @@
 
 .uab-sort-pill.active,
 .uab-retry-btn {
-  background: linear-gradient(135deg, #8a55cc 0%, #764ba2 100%);
+  background: var(--app-accent-gradient, var(--gradient-primary));
   color: #fff;
 }
 

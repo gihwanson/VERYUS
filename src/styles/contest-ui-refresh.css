@@ -1,9 +1,9 @@
 .contest-ui-refresh {
-  --cu-bg: linear-gradient(135deg, #5f6ee8 0%, #7a4fc2 55%, #a855f7 100%);
+  --cu-bg: var(--gradient-primary);
   --cu-card: rgba(255, 255, 255, 0.14);
   --cu-card-border: rgba(255, 255, 255, 0.24);
-  --cu-text: #ffffff;
-  --cu-text-soft: rgba(255, 255, 255, 0.86);
+  --cu-text: var(--app-page-text, #ffffff);
+  --cu-text-soft: var(--app-page-text-muted, rgba(255, 255, 255, 0.86));
   --cu-shadow: 0 10px 30px rgba(30, 20, 70, 0.25);
 }
 

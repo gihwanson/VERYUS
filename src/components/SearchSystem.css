@@ -720,7 +720,7 @@
 .filter-toggle.active,
 .sort-order.active,
 .selected-tag {
-  background: linear-gradient(135deg, #8a55cc 0%, #764ba2 100%);
+  background: var(--gradient-primary);
   border-color: transparent;
   color: #fff;
 }

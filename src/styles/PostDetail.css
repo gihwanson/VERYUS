@@ -8,7 +8,7 @@
   max-width: 100%;
   box-sizing: border-box;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--gradient-primary);
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -564,7 +564,7 @@
   top: 0;
   left: 0;
   height: 100%;
-  background: linear-gradient(90deg, #8A55CC 60%, #B497D6 100%);
+  background: linear-gradient(90deg, var(--primary-color, #8A55CC) 60%, #B497D6 100%);
   border-radius: 4px;
   transition: width 0.1s;
 }
@@ -807,7 +807,7 @@
   border: 1px solid rgba(138,85,204,0.10) !important;
   box-shadow: 0 2px 8px rgba(138,85,204,0.10) !important;
   border-radius: 10px !important;
-  color: #8A55CC !important;
+  color: var(--primary-color, #8A55CC) !important;
   font-weight: 600 !important;
   font-size: 13px !important;
   padding: 6px 14px !important;

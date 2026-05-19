@@ -11,7 +11,7 @@
 .notifications-container h2 {
   font-size: 24px;
   font-weight: 700;
-  color: #8A55CC;
+  color: var(--primary-color, #8A55CC);
   margin-bottom: 24px;
   display: flex;
   align-items: center;
@@ -39,7 +39,7 @@
 
 .notification-item.unread {
   background: #F6F2FF;
-  border-color: #8A55CC;
+  border-color: var(--primary-color, #8A55CC);
   box-shadow: 0 2px 8px rgba(138, 85, 204, 0.1);
 }
 
@@ -140,7 +140,7 @@
 
 .notification-author {
   font-size: 13px;
-  color: #8A55CC;
+  color: var(--primary-color, #8A55CC);
   font-weight: 500;
 }
 
@@ -236,7 +236,7 @@
 
 .notification-item.unread {
   background: rgba(245, 243, 255, 0.95);
-  border-color: #8a55cc;
+  border-color: var(--primary-color, #8a55cc);
 }
 
 .notification-icon {
@@ -246,7 +246,7 @@
 /* Lightweight class-based layout (inline style replacement) */
 .notifications-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--gradient-primary);
   background-attachment: fixed;
   position: relative;
   overflow: hidden;
@@ -598,7 +598,7 @@
   flex-shrink: 0;
 }
 
-.notifications-icon-comment { color: #8a55cc; }
+.notifications-icon-comment { color: var(--primary-color, #8a55cc); }
 .notifications-icon-reply { color: #7c4dbc; }
 .notifications-icon-like { color: #ff4757; }
 .notifications-icon-approval { color: #2ed573; }

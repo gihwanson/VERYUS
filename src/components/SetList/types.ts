@@ -67,6 +67,8 @@ export type SetListEntry = SetListItem | FlexibleCard | RequestSongCard;
 export interface SetListData {
   id?: string;
   name: string;
+  /** 세션 날짜 (YYYY-MM-DD, 로컬 타임존) */
+  sessionDate?: string;
   participants: string[];
   songs: SetListItem[]; // 기존 곡들
   flexibleCards?: FlexibleCard[]; // 유연한 카드들 (별도 필드)

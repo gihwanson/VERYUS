@@ -25,7 +25,8 @@ interface Notification {
     | 'grade_change_approved'
     | 'grade_change_rejected'
     | 'approved_song_milestone'
-    | 'anonymous_chat';
+    | 'anonymous_chat'
+    | 'anonymous_chat_ban';
   postId?: string;
   postTitle?: string;
   postType?: string;
@@ -81,6 +82,9 @@ const Notifications: React.FC = () => {
 
   const isHiddenInInbox = useCallback((noti: Notification) => {
     if (noti.hiddenFromInbox === true) return true;
+    const type = (noti.type || '').toLowerCase();
+    if (type === 'anonymous_chat_ban') return false;
+    if (type === 'anonymous_chat') return true;
     return isChatNotification(noti);
   }, [isChatNotification]);
 
@@ -115,7 +119,7 @@ const Notifications: React.FC = () => {
       case 'like':
         return notifications.filter(n => n.type === 'like');
       case 'system':
-        return notifications.filter(n => ['approval', 'rejection', 'grade_request_pending', 'grade_change_approved', 'grade_change_rejected', 'approved_song_milestone', 'partnership', 'partnership_closed', 'partnership_confirmed'].includes(n.type));
+        return notifications.filter(n => ['approval', 'rejection', 'grade_request_pending', 'grade_change_approved', 'grade_change_rejected', 'approved_song_milestone', 'partnership', 'partnership_closed', 'partnership_confirmed', 'anonymous_chat_ban'].includes(n.type));
       default:
         return notifications;
     }
@@ -207,6 +211,7 @@ const Notifications: React.FC = () => {
       case 'grade_change_approved': return 'notifications-icon-grade-change-approved';
       case 'grade_change_rejected': return 'notifications-icon-grade-change-rejected';
       case 'approved_song_milestone': return 'notifications-icon-grade-request-pending';
+      case 'anonymous_chat_ban': return 'notifications-icon-rejection';
       case 'comment':
       default: return 'notifications-icon-comment';
     }
@@ -230,6 +235,7 @@ const Notifications: React.FC = () => {
       case 'grade_change_approved': return <CheckCircle size={18} className={iconClass} />;
       case 'grade_change_rejected': return <XCircle size={18} className={iconClass} />;
       case 'approved_song_milestone': return <Award size={18} className={iconClass} />;
+      case 'anonymous_chat_ban': return <XCircle size={18} className={iconClass} />;
       default: return <Bell size={18} className={iconClass} />;
     }
   };
@@ -248,7 +254,8 @@ const Notifications: React.FC = () => {
       'evaluation': { label: '평가' },
       'balance': { label: '밸런스' },
       'partner': { label: '파트너' },
-      'notice': { label: '공지' }
+      'notice': { label: '공지' },
+      'anonymous_chat': { label: '익명채팅' }
     };
     return badges[postType || ''] || { label: '게시판' };
   };

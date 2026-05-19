@@ -1,8 +1,8 @@
 /* Home 컴포넌트 - 심플하고 모던한 디자인 */
 .home-container {
-  min-height: 100vh;
+  min-height: 100dvh;
   width: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--home-gradient, linear-gradient(160deg, #667eea 0%, #764ba2 55%, #6b5ce7 100%));
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   position: relative;
   overflow-x: hidden;
@@ -52,7 +52,69 @@
 }
 
 
-/* 우측 상단 고정 헤더 */
+/* 상단 바 */
+.home-top-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: max(10px, env(safe-area-inset-top)) 14px 10px;
+  background: rgba(255, 255, 255, 0.12);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.home-top-bar__profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+  padding: 4px 8px 4px 4px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+  color: #fff;
+}
+
+.home-top-bar__nickname {
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.home-top-bar__logout {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  border-radius: 999px;
+  background: rgba(239, 68, 68, 0.22);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.home-top-bar__logout:active {
+  transform: scale(0.98);
+  background: rgba(239, 68, 68, 0.35);
+}
+
+/* legacy — 하위 호환 */
 .fixed-header {
   position: fixed;
   top: 20px;
@@ -155,8 +217,8 @@
 
 /* 홈 헤더 전용: 원형 테두리(버튼) 안을 이미지가 꽉 채움 — MyPage 등의 .profile-avatar 전역 규칙과 분리 */
 .home-header-profile-avatar {
-  width: 100%;
-  height: 100%;
+  width: 40px;
+  height: 40px;
   min-width: 0;
   min-height: 0;
   border-radius: 50%;
@@ -166,6 +228,7 @@
   justify-content: center;
   overflow: hidden;
   flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, 0.35);
 }
 
 .home-header-profile-avatar img {
@@ -203,14 +266,15 @@
 
 /* 메인 컨텐트 */
 .home-content {
-  padding: 80px 32px 100px;
+  padding: calc(76px + env(safe-area-inset-top)) 16px calc(100px + env(safe-area-inset-bottom));
   position: relative;
   z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-height: 100vh;
-  justify-content: center;
+  min-height: 100dvh;
+  justify-content: flex-start;
+  gap: 20px;
   opacity: 1 !important;
   filter: none !important;
   isolation: isolate;
@@ -221,8 +285,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 1rem;
-  margin-top: 4rem;
+  margin: 28px 0 0;
+  width: 100%;
+  max-width: 420px;
   animation: float 6s ease-in-out infinite;
   opacity: 1 !important;
   filter: none !important;
@@ -245,8 +310,8 @@
 }
 
 .logo-image {
-  width: 150px;
-  height: 150px;
+  width: 120px;
+  height: 120px;
   filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4)) brightness(1.1) contrast(1.15) !important;
   transition: transform 0.3s ease;
   border-radius: 50%;
@@ -276,7 +341,7 @@
 }
 
 .home-title {
-  font-size: 42px;
+  font-size: 36px;
   font-weight: 800;
   color: #ffffff !important;
   margin: 0 0 8px 0;
@@ -292,7 +357,7 @@
 }
 
 .home-slogan {
-  font-size: 18px;
+  font-size: 16px;
   color: #ffffff !important;
   margin: 0;
   font-weight: 600;
@@ -308,10 +373,44 @@
 
 /* 게시판 섹션 */
 .boards-section {
-  max-width: 600px;
   width: 100%;
+  max-width: 520px;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.boards-section__title {
+  margin: 0;
+  padding: 0 4px;
+  font-size: 15px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.92);
+  letter-spacing: -0.02em;
+}
+
+.board-emoji {
+  font-size: 32px;
+  line-height: 1;
+  display: block;
+}
+
+.board-emoji--sm {
+  font-size: 28px;
+}
+
+.board-notification-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 10px;
+  height: 10px;
+  background-color: #ff4757;
+  border-radius: 50%;
+  border: 2px solid white;
+  z-index: 3;
+  animation: pulse 2s infinite;
 }
 
 /* 게시판 그리드 */
@@ -325,19 +424,28 @@
 
 /* 물방울 스타일 게시판 버튼 */
 .bubble-button {
-  background: transparent;
-  border: none;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 16px;
   width: 140px;
   height: 140px;
   cursor: pointer;
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   position: relative;
   justify-content: center;
-  padding: 16px;
+  padding: 14px;
+  font: inherit;
+  color: inherit;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.bubble-button:active {
+  transform: scale(0.98);
 }
 
 .bubble-top-left {
@@ -405,7 +513,7 @@
 
 .bubble-icon {
   margin-bottom: 8px;
-  transition: all 0.4s ease;
+  transition: all 0.3s ease;
   position: relative;
   z-index: 2;
   /* 강화된 글래시모피즘 효과 */
@@ -553,110 +661,32 @@
   transform: translateY(-2px);
 }
 
-/* 모바일 반응형 */
-@media (max-width: 768px) {
-  .fixed-header {
-    top: 15px;
-    right: 15px;
-    padding: 6px 12px;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    max-width: calc(100vw - 24px);
-  }
-
-  .notification-icon-button {
-    width: 36px;
-    height: 36px;
-  }
-
-  .profile-button {
-    width: 36px;
-    height: 36px;
-    padding: 0;
-  }
-
-  .profile-name {
+/* 모바일 — 게시판 그리드 */
+@media (max-width: 639px) {
+  .home-top-bar__logout-label {
     display: none;
   }
 
-  .home-content {
-    padding: 60px 20px 100px;
-  }
-
-  .logo-image {
-    width: 120px;
-    height: 120px;
-  }
-
-  .home-title {
-    font-size: 32px;
-  }
-
-  .home-slogan {
-    font-size: 16px;
-  }
-
-  .boards-cross-layout {
-    width: 320px;
-    height: 320px;
-  }
-
-  .bubble-button {
-    width: 120px;
-    height: 120px;
-    padding: 12px;
-  }
-
-  .bubble-icon {
-    width: 50px;
-    height: 50px;
-  }
-
-  .bubble-icon span {
-    font-size: 28px;
-  }
-
-  .bubble-name {
-    font-size: 12px;
-  }
-
-  /* 드롭다운 메뉴 CSS 제거됨 */
-}
-
-@media (max-width: 480px) {
-  .fixed-header {
-    top: 10px;
-    right: 10px;
-    padding: 2px 4px;
-    gap: 8px;
-  }
-
-  .notification-icon-button {
-    width: 28px;
-    height: 28px;
-  }
-
-  .profile-button {
-    width: 32px;
-    height: 32px;
+  .home-top-bar__logout {
+    width: 40px;
     padding: 0;
+    justify-content: center;
   }
 
-  .profile-name {
-    display: none;
-  }
-
-  .home-content {
-    padding: 50px 16px 100px;
+  .home-header-profile-avatar {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
   }
 
   .logo-image {
-    width: 100px;
-    height: 100px;
+    width: 96px;
+    height: 96px;
+    padding: 8px;
   }
 
   .home-title {
-    font-size: 28px;
+    font-size: 30px;
   }
 
   .home-slogan {
@@ -664,27 +694,71 @@
   }
 
   .boards-cross-layout {
-    width: 280px;
-    height: 280px;
+    position: static;
+    width: 100%;
+    height: auto;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
   }
 
-  .bubble-button {
-    width: 100px;
-    height: 100px;
-    padding: 10px;
+  .bubble-button,
+  .bubble-top-left,
+  .bubble-top-right,
+  .bubble-bottom-left,
+  .bubble-bottom-right,
+  .bubble-center {
+    position: static;
+    top: auto;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    transform: none !important;
+    width: auto;
+    min-height: 108px;
+    height: auto;
+    padding: 12px 10px;
+  }
+
+  .bubble-center {
+    grid-column: 1 / -1;
+    min-height: 96px;
+  }
+
+  .bubble-button.bubble-center:hover {
+    transform: scale(0.98) !important;
+  }
+
+  .bubble-button:hover {
+    transform: translateY(-2px) scale(1.02);
   }
 
   .bubble-icon {
-    width: 40px;
-    height: 40px;
+    width: 48px;
+    height: 48px;
+    margin-bottom: 6px;
   }
 
-  .bubble-icon span {
-    font-size: 22px;
+  .board-emoji {
+    font-size: 26px;
+  }
+
+  .board-emoji--sm {
+    font-size: 24px;
   }
 
   .bubble-name {
-    font-size: 11px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 380px) {
+  .home-top-bar__nickname {
+    max-width: 120px;
+  }
+
+  .bubble-button {
+    min-height: 100px;
   }
 }
 

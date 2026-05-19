@@ -34,7 +34,7 @@ const ContestResults: React.FC = () => {
     return (
       <div style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: 'var(--app-page-gradient)',
         backgroundAttachment: 'fixed',
         display: 'flex',
         alignItems: 'center',
@@ -59,7 +59,7 @@ const ContestResults: React.FC = () => {
     return (
       <div style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: 'var(--app-page-gradient)',
         backgroundAttachment: 'fixed',
         display: 'flex',
         alignItems: 'center',
@@ -296,7 +296,7 @@ const ContestResults: React.FC = () => {
   return (
     <div className="contest-ui-refresh" style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      background: 'var(--app-page-gradient)',
       backgroundAttachment: 'fixed',
       position: 'relative',
       overflow: 'hidden'

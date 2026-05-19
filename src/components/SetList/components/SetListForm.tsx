@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { updateDoc, deleteDoc, doc, Timestamp, collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../../firebase';
 import type { SetListData } from '../types';
+import {
+  buildSetListName,
+  getSetListSessionDateISO,
+  toLocalDateISO
+} from '../setListSessionDate';
 
 /** 리더 워크스페이스 자동 준비(생성/활성화) 중복 실행 방지 — 스냅샷으로 activeSetList가 오면 해제 */
 let setListLeaderWorkspaceBootstrapLock = false;
@@ -44,6 +49,8 @@ const SetListForm: React.FC<SetListFormProps> = ({
   const [nicknameCardSlotCount, setNicknameCardSlotCount] = useState(3);
   const [addingNicknameCard, setAddingNicknameCard] = useState(false);
   const [reorderingSongIndex, setReorderingSongIndex] = useState<number | null>(null);
+  const [sessionDateDraft, setSessionDateDraft] = useState('');
+  const [savingSessionDate, setSavingSessionDate] = useState(false);
 
   // 활성 셋리스트가 생기면 자동 준비 락·로딩·에러 정리
   useEffect(() => {
@@ -84,9 +91,10 @@ const SetListForm: React.FC<SetListFormProps> = ({
     const createDefaultSetList = async () => {
       const userString = localStorage.getItem('veryus_user');
       const user = userString ? JSON.parse(userString) : null;
-      const label = new Date().toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' });
+      const sessionDate = toLocalDateISO(new Date());
       await addDoc(collection(db, 'setlists'), {
-        name: `셋리스트 ${label}`,
+        name: buildSetListName(sessionDate),
+        sessionDate,
         participants: [''],
         songs: [],
         participantRegistrationComplete: false,
@@ -127,6 +135,19 @@ const SetListForm: React.FC<SetListFormProps> = ({
       setParticipants(['']);
     }
   }, [activeSetList]);
+
+  useEffect(() => {
+    if (activeSetList) {
+      setSessionDateDraft(getSetListSessionDateISO(activeSetList));
+    } else {
+      setSessionDateDraft('');
+    }
+  }, [
+    activeSetList?.id,
+    activeSetList?.sessionDate,
+    activeSetList?.name,
+    activeSetList?.createdAt
+  ]);
 
   const confirmedParticipants = (activeSetList?.participants ?? participants)
     .map((p) => p.trim())
@@ -298,6 +319,37 @@ const SetListForm: React.FC<SetListFormProps> = ({
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 2500);
   };
+
+  const saveSessionDate = async (iso: string) => {
+    if (!activeSetList?.id || !isLeader || !iso) return;
+    if (iso === getSetListSessionDateISO(activeSetList)) return;
+
+    setSavingSessionDate(true);
+    try {
+      await updateDoc(doc(db, 'setlists', activeSetList.id), {
+        sessionDate: iso,
+        name: buildSetListName(iso),
+        updatedAt: Timestamp.now()
+      });
+      showToast('세션 날짜가 변경되었습니다.');
+    } catch (error) {
+      console.error('세션 날짜 변경 실패:', error);
+      showToast('날짜 변경에 실패했습니다.');
+      setSessionDateDraft(getSetListSessionDateISO(activeSetList));
+    } finally {
+      setSavingSessionDate(false);
+    }
+  };
+
+  const handleSessionDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const iso = e.target.value;
+    setSessionDateDraft(iso);
+    if (iso) void saveSessionDate(iso);
+  };
+
+  const sessionTitleLabel = activeSetList
+    ? buildSetListName(sessionDateDraft || getSetListSessionDateISO(activeSetList))
+    : '';
 
   const removeUndefinedValues = (obj: any): any => {
     if (obj === null || obj === undefined) return null;
@@ -536,11 +588,30 @@ const SetListForm: React.FC<SetListFormProps> = ({
         </div>
       )}
 
+      {isLeader && activeSetList && (
+        <div className="setlist-manage-panel setlist-manage-panel--date">
+          <label className="setlist-manage-date-label" htmlFor="setlist-session-date">
+            📅 세션 날짜
+          </label>
+          <input
+            id="setlist-session-date"
+            type="date"
+            className="setlist-manage-date-input"
+            value={sessionDateDraft}
+            disabled={savingSessionDate}
+            onChange={handleSessionDateChange}
+          />
+          <p className="setlist-manage-date-hint">
+            {savingSessionDate ? '저장 중…' : `표시 이름: ${sessionTitleLabel}`}
+          </p>
+        </div>
+      )}
+
       {/* 1단계: 참가자 입력 (리더) */}
       {isLeader && activeSetList && participantInputPhase && (
       <div className="setlist-manage-panel">
         <h2 style={{ color: 'white', fontSize: 20, marginBottom: 16, fontWeight: 700 }}>
-          👥 참가자 · <span style={{ fontWeight: 600, fontSize: 16, opacity: 0.95 }}>{activeSetList.name}</span>
+          👥 참가자 · <span style={{ fontWeight: 600, fontSize: 16, opacity: 0.95 }}>{sessionTitleLabel}</span>
         </h2>
 
         <p style={{ color: 'rgba(255,255,255,0.88)', fontSize: 14, margin: '0 0 16px 0', lineHeight: 1.5 }}>
@@ -680,7 +751,7 @@ const SetListForm: React.FC<SetListFormProps> = ({
             </button>
           </div>
           <h2 style={{ color: 'white', fontSize: 20, marginBottom: 8, fontWeight: 700 }}>
-            🎵 합격곡 등록 · <span style={{ fontWeight: 600, fontSize: 16, opacity: 0.95 }}>{activeSetList.name}</span>
+            🎵 합격곡 등록 · <span style={{ fontWeight: 600, fontSize: 16, opacity: 0.95 }}>{sessionTitleLabel}</span>
           </h2>
           <p style={{ color: 'rgba(255,255,255,0.88)', fontSize: 14, margin: '0 0 20px 0', lineHeight: 1.5 }}>
             참가자를 선택한 뒤 합격곡을 셋리스트에 추가하세요. 멤버는 <strong style={{ color: 'white' }}>진행</strong> 탭에서 순서만 확인합니다.

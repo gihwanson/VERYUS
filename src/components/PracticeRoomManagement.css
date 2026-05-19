@@ -1,6 +1,6 @@
 .practice-room-management {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--gradient-primary);
   padding: 20px;
 }
 
@@ -67,7 +67,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: linear-gradient(135deg, #8A55CC 0%, #7C3AED 100%);
+  background: linear-gradient(135deg, var(--primary-color, #8A55CC) 0%, #7C3AED 100%);
   color: white;
   border: none;
   padding: 12px 20px;
@@ -115,7 +115,7 @@
 }
 
 .rule-card.active {
-  border-color: #8A55CC;
+  border-color: var(--primary-color, #8A55CC);
   background: linear-gradient(135deg, #faf5ff 0%, #ffffff 100%);
 }
 
@@ -309,7 +309,7 @@
 
 .form-group input:focus {
   outline: none;
-  border-color: #8A55CC;
+  border-color: var(--primary-color, #8A55CC);
   box-shadow: 0 0 0 3px rgba(138, 85, 204, 0.1);
 }
 
@@ -338,14 +338,14 @@
 }
 
 .weekday-btn.selected {
-  background: linear-gradient(135deg, #8A55CC 0%, #7C3AED 100%);
-  border-color: #8A55CC;
+  background: linear-gradient(135deg, var(--primary-color, #8A55CC) 0%, #7C3AED 100%);
+  border-color: var(--primary-color, #8A55CC);
   color: white;
 }
 
 .weekday-btn:hover:not(.selected) {
-  border-color: #8A55CC;
-  color: #8A55CC;
+  border-color: var(--primary-color, #8A55CC);
+  color: var(--primary-color, #8A55CC);
 }
 
 .modal-footer {
@@ -374,7 +374,7 @@
 
 .confirm-btn {
   padding: 12px 24px;
-  background: linear-gradient(135deg, #8A55CC 0%, #7C3AED 100%);
+  background: linear-gradient(135deg, var(--primary-color, #8A55CC) 0%, #7C3AED 100%);
   color: white;
   border: none;
   border-radius: 12px;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { updateDoc, doc, Timestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useSwipeGestures } from './hooks/useSwipeGestures';
@@ -31,6 +31,11 @@ const SetListCards: React.FC<SetListCardsProps> = ({
   const currentUserNickname = user?.nickname || '';
   const currentUserUid = user?.uid || '';
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  const [paradeCelebrateTrigger, setParadeCelebrateTrigger] = useState(0);
+  const [paradeOrderSyncTrigger, setParadeOrderSyncTrigger] = useState(0);
+  const focusedParadeEntryIdRef = useRef<string | null>(null);
+  const prevParadeOrderRef = useRef('');
+  const prevParadeCountRef = useRef(0);
   const [participants, setParticipants] = useState<string[]>(['']);
   const [availableSongs, setAvailableSongs] = useState<Song[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -841,6 +846,63 @@ const SetListCards: React.FC<SetListCardsProps> = ({
     () => buildParadeEntries(allItems, gradeByNickname),
     [allItems, gradeByNickname]
   );
+  const showMemberChat = Boolean(activeSetList?.id);
+  const paradeOrderKey = useMemo(
+    () => paradeEntries.map((e) => e.id).join('|'),
+    [paradeEntries]
+  );
+
+  useEffect(() => {
+    const entry = paradeEntries[currentCardIndex];
+    if (entry) focusedParadeEntryIdRef.current = entry.id;
+  }, [currentCardIndex, paradeEntries]);
+
+  useEffect(() => {
+    const count = paradeEntries.length;
+    if (count === 0) {
+      prevParadeOrderRef.current = '';
+      prevParadeCountRef.current = 0;
+      focusedParadeEntryIdRef.current = null;
+      return;
+    }
+
+    const prevOrder = prevParadeOrderRef.current;
+    const prevCount = prevParadeCountRef.current;
+
+    if (prevOrder && prevOrder !== paradeOrderKey) {
+      if (prevCount === count) {
+        setParadeOrderSyncTrigger((n) => n + 1);
+      } else if (prevCount > count) {
+        setParadeCelebrateTrigger((n) => n + 1);
+      }
+
+      const focusedId = focusedParadeEntryIdRef.current;
+      if (focusedId) {
+        const idx = paradeEntries.findIndex((e) => e.id === focusedId);
+        if (idx >= 0) {
+          setCurrentCardIndex(idx);
+        } else {
+          setParadeCelebrateTrigger((n) => n + 1);
+          const nextIdx = Math.min(currentCardIndex, count - 1);
+          const safeIdx = Math.max(0, nextIdx);
+          setCurrentCardIndex(safeIdx);
+          focusedParadeEntryIdRef.current = paradeEntries[safeIdx]?.id ?? null;
+        }
+      }
+    }
+
+    prevParadeOrderRef.current = paradeOrderKey;
+    prevParadeCountRef.current = count;
+  }, [paradeOrderKey, paradeEntries, currentCardIndex]);
+
+  const handleParadeSelectIndex = useCallback(
+    (index: number) => {
+      const entry = paradeEntries[index];
+      if (entry) focusedParadeEntryIdRef.current = entry.id;
+      setCurrentCardIndex(index);
+    },
+    [paradeEntries]
+  );
 
   return (
     <div
@@ -877,25 +939,37 @@ const SetListCards: React.FC<SetListCardsProps> = ({
         </div>
       )}
 
-      {/* 진행 탭 — 등급 이모지 퍼레이드 + 모바일 멤버 채팅 */}
-      {allItems.length > 0 && (
-        <div className={fullscreen ? 'setlist-mobile-perform-layout' : ''}>
-          <SetListParadeView
-            entries={paradeEntries}
-            currentIndex={currentCardIndex}
-            onSelectIndex={setCurrentCardIndex}
-            currentUserNickname={currentUserNickname}
-            fullscreen={fullscreen}
-            withChat={fullscreen && Boolean(activeSetList?.id)}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-          />
-          {fullscreen && activeSetList?.id && (
+      {/* 진행 탭 — 등급 이모지 퍼레이드 + 멤버 채팅 */}
+      {(allItems.length > 0 || showMemberChat) && (
+        <div
+          className={
+            showMemberChat
+              ? `setlist-perform-layout${fullscreen ? ' setlist-perform-layout--fullscreen' : ''}`
+              : ''
+          }
+        >
+          {allItems.length > 0 && (
+            <SetListParadeView
+              entries={paradeEntries}
+              currentIndex={currentCardIndex}
+              onSelectIndex={handleParadeSelectIndex}
+              currentUserNickname={currentUserNickname}
+              fullscreen={fullscreen}
+              withChat={fullscreen && showMemberChat}
+              celebrateTrigger={paradeCelebrateTrigger}
+              orderSyncTrigger={paradeOrderSyncTrigger}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+            />
+          )}
+          {showMemberChat && activeSetList?.id && (
             <SetListChat
               setListId={activeSetList.id}
               currentUserNickname={currentUserNickname}
               currentUserUid={currentUserUid}
+              isLeader={isLeader}
+              compact={fullscreen}
             />
           )}
         </div>

@@ -939,28 +939,28 @@ button:hover::before,
 
 /* 서브메뉴 아이템 스타일 */
 .board-submenu-item:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.4);
+  background: var(--nav-submenu-hover-bg);
+  border-color: var(--nav-submenu-hover-border);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .board-submenu-item svg {
-  color: #ffffff;
+  color: var(--nav-submenu-icon);
   margin-bottom: var(--space-2xs);
 }
 
 .board-submenu-item span {
   font-size: 10px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--nav-submenu-text);
   text-align: center;
   line-height: 1.2;
   margin-top: 2px;
 }
 
 .board-submenu-item:hover span {
-  color: #ffffff;
+  color: var(--nav-submenu-text-hover);
 }
 
 /* 통합 검색 아이템 스타일 */
@@ -1030,18 +1030,18 @@ button:hover::before,
 }
 
 .boards-submenu-content::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.04);
   border-radius: 4px;
 }
 
 .boards-submenu-content::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(0, 0, 0, 0.2);
   border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .boards-submenu-content::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(0, 0, 0, 0.35);
 }
 
 /* 모바일 스크롤바 스타일 */
@@ -1160,7 +1160,7 @@ button:hover::before,
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--comment-author);
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.3);
+  text-shadow: var(--comment-author-shadow, none);
 }
 
 /* Role Badges */

@@ -11,7 +11,7 @@ const pageBg: React.CSSProperties = {
   width: '100%',
   minHeight: '100vh',
   margin: 0,
-  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+  background: 'var(--app-page-gradient)',
   borderRadius: 0,
   boxShadow: 'none',
   position: 'relative',

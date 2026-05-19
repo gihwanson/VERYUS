@@ -25,8 +25,11 @@ import {
   LogOut, 
   User, 
   Save,
-  ArrowLeft
+  ArrowLeft,
+  Palette
 } from 'lucide-react';
+import AppThemePicker from './AppThemePicker';
+import BottomNavThemePicker from './BottomNavThemePicker';
 import './Settings.css';
 
 interface User {
@@ -553,6 +556,28 @@ const Settings: React.FC = () => {
             <Save size={16} />
             {savingProfileMeta ? '저장 중...' : '저장'}
           </button>
+        </div>
+      </div>
+
+      {/* 앱 테마 색상 */}
+      <div className="settings-card">
+        <div className="card-header">
+          <Palette className="card-icon" />
+          <h3>앱 테마 색상</h3>
+        </div>
+        <div className="setting-item">
+          <AppThemePicker />
+        </div>
+      </div>
+
+      {/* 하단 네비게이션 색상 */}
+      <div className="settings-card">
+        <div className="card-header">
+          <Palette className="card-icon" />
+          <h3>하단 네비게이션 색상</h3>
+        </div>
+        <div className="setting-item">
+          <BottomNavThemePicker />
         </div>
       </div>
 

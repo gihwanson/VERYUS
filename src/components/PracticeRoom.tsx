@@ -408,7 +408,7 @@ const PracticeRoom: React.FC = () => {
   if (!user) return (
     <div style={{ 
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      background: 'var(--app-page-gradient)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -423,7 +423,7 @@ const PracticeRoom: React.FC = () => {
   if (loading) return (
     <div style={{ 
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      background: 'var(--app-page-gradient)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -439,7 +439,7 @@ const PracticeRoom: React.FC = () => {
     <div style={{ 
       minHeight: '100vh',
       width: '100%',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      background: 'var(--app-page-gradient)',
       margin: 0, 
       padding: isMobile ? 16 : 24,
       fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",

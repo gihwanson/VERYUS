@@ -14,7 +14,7 @@ html, body {
   margin: 0 !important;
   padding: 0 !important;
   box-sizing: border-box !important;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  background: var(--gradient-primary) !important;
   min-height: 100vh;
 }
 
@@ -28,7 +28,7 @@ html, body {
   flex-direction: column;
   gap: 2.5rem;
   box-sizing: border-box !important;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  background: var(--gradient-primary) !important;
   min-height: 100vh;
 }
 

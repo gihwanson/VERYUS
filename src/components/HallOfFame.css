@@ -3,7 +3,7 @@
   min-height: 100dvh;
   /* 고정 하단 네비 + 노치/홈바: index.css 모바일에서 App padding이 0으로 덮이므로 페이지에서 반드시 확보 */
   padding: 10px 10px calc(96px + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 55%, #8b5cf6 100%);
+  background: var(--home-gradient, var(--gradient-primary));
 }
 
 .hall-of-fame-content {
@@ -47,7 +47,7 @@
   border-radius: 8px;
   padding: 5px 9px;
   background: rgba(255, 255, 255, 0.92);
-  color: #5b3ba8;
+  color: var(--primary-dark, #5b3ba8);
   font-weight: 700;
   cursor: pointer;
   font-size: 12px;
@@ -165,7 +165,7 @@
   border-radius: 9px;
   padding: 7px 11px;
   background: rgba(255, 255, 255, 0.9);
-  color: #5b3ba8;
+  color: var(--primary-dark, #5b3ba8);
   font-weight: 700;
   font-size: 12px;
   cursor: pointer;

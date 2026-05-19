@@ -3,6 +3,8 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions';
 
 admin.initializeApp();
+
+export { cleanupAnonymousChatRoom, scheduledAnonymousChatCleanup } from './anonymousChatCleanup';
 const WEB_APP_ORIGIN = 'https://veryusduet.web.app';
 
 const getRouteByPostType = (postType: string, postId: string): string => {
@@ -51,7 +53,7 @@ const getNotificationRoute = (data: FirebaseFirestore.DocumentData): string => {
     return postId ? `/boards/partner/${postId}` : '/boards/partner';
   }
 
-  if (notificationType === 'anonymous_chat') {
+  if (notificationType === 'anonymous_chat' || notificationType === 'anonymous_chat_ban') {
     return roomId ? `/anonymous-chat?roomId=${encodeURIComponent(roomId)}` : '/anonymous-chat';
   }
 
@@ -83,28 +85,54 @@ const resolveAnonymousChatSenderNickname = async (
 ): Promise<string> => {
   const fromUid = (data.fromUid as string | undefined) || '';
   const roomId = (data.roomId as string | undefined) || '';
-  const fallback = String(data.fromNickname || '').trim() || '익명';
+  const fromParticipantDocId = String(data.fromParticipantDocId || '').trim();
+  const fromNickname = String(data.fromNickname || '').trim();
 
-  if (!fromUid) return fallback;
+  if (fromNickname) return fromNickname;
 
   try {
-    if (roomId) {
+    if (roomId && fromParticipantDocId) {
+      const participantSnap = await admin
+        .firestore()
+        .doc(`anonymousChatRooms/${roomId}/participants/${fromParticipantDocId}`)
+        .get();
+      const participantNickname = String(participantSnap.data()?.nickname || '').trim();
+      if (participantNickname) return participantNickname;
+    }
+
+    if (roomId && fromUid) {
       const participantSnap = await admin
         .firestore()
         .doc(`anonymousChatRooms/${roomId}/participants/${fromUid}`)
         .get();
       const participantNickname = String(participantSnap.data()?.nickname || '').trim();
       if (participantNickname) return participantNickname;
+
+      const participantsSnap = await admin
+        .firestore()
+        .collection(`anonymousChatRooms/${roomId}/participants`)
+        .where('ownerUid', '==', fromUid)
+        .limit(1)
+        .get();
+      const ownedNickname = String(participantsSnap.docs[0]?.data()?.nickname || '').trim();
+      if (ownedNickname) return ownedNickname;
     }
 
-    const profileSnap = await admin.firestore().doc(`anonymousChatProfiles/${fromUid}`).get();
-    const profileNickname = String(profileSnap.data()?.customNickname || '').trim();
-    if (profileNickname) return profileNickname;
+    if (fromUid) {
+      const profileSnap = await admin.firestore().doc(`anonymousChatProfiles/${fromUid}`).get();
+      const profileNickname = String(profileSnap.data()?.customNickname || '').trim();
+      if (profileNickname) return profileNickname;
+    }
   } catch (error) {
-    logger.warn('익명채팅 발신 닉네임 조회 실패', { fromUid, roomId, error });
+    logger.warn('익명채팅 발신 닉네임 조회 실패', {
+      fromUid,
+      roomId,
+      fromParticipantDocId,
+      error
+    });
   }
 
-  return fallback;
+  return '익명';
 };
 
 export const sendPushOnNotificationCreated = onDocumentCreated(
@@ -223,6 +251,8 @@ export const sendPushOnNotificationCreated = onDocumentCreated(
       const senderNickname = await resolveAnonymousChatSenderNickname(data);
       const chatPreview = extractChatMessagePreview(data);
       pushBody = `${senderNickname}: ${chatPreview}`;
+    } else if (notificationType === 'anonymous_chat_ban') {
+      pushBody = String(data.message || '채팅방에서보내졌습니다.').slice(0, 120);
     }
 
     const payload: admin.messaging.MulticastMessage = {

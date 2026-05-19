@@ -15,7 +15,7 @@ html, body {
 /* Main Container */
 .board-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--gradient-primary);
   padding: 1rem;
   margin: 0;
   width: 100%;
@@ -141,7 +141,7 @@ html, body {
 .board-icon {
   width: 32px;
   height: 32px;
-  color: #8B5CF6;
+  color: var(--primary-color, #8B5CF6);
   flex-shrink: 0;
 }
 
@@ -272,7 +272,7 @@ html, body {
   padding: 0.8rem 1rem;
   background: rgba(139, 92, 246, 0.1);
   border: none;
-  color: #8B5CF6;
+  color: var(--primary-color, #8B5CF6);
   cursor: pointer;
   transition: all 0.3s ease;
   border-left: 1px solid rgba(255, 255, 255, 0.1);
@@ -280,7 +280,7 @@ html, body {
 
 .search-button:hover {
   background: rgba(139, 92, 246, 0.2);
-  color: #7C3AED;
+  color: var(--primary-dark, #7C3AED);
 }
 
 .search-icon {
@@ -301,7 +301,7 @@ html, body {
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%);
+  background: linear-gradient(135deg, var(--primary-color, #8B5CF6) 0%, #A78BFA 100%);
   border: none;
   border-radius: 16px;
   color: white;
@@ -314,7 +314,7 @@ html, body {
 }
 
 .write-button:hover:not(:disabled) {
-  background: linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%);
+  background: linear-gradient(135deg, var(--primary-dark, #7C3AED) 0%, var(--primary-color, #8B5CF6) 100%);
   transform: translateY(-1px);
   box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
 }
@@ -332,7 +332,7 @@ html, body {
   right: 2rem;
   width: 60px;
   height: 60px;
-  background: linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%);
+  background: linear-gradient(135deg, var(--primary-color, #8B5CF6) 0%, #A78BFA 100%);
   border: none;
   border-radius: 50%;
   color: white;
@@ -348,7 +348,7 @@ html, body {
 }
 
 .fab-button:hover {
-  background: linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%);
+  background: linear-gradient(135deg, var(--primary-dark, #7C3AED) 0%, var(--primary-color, #8B5CF6) 100%);
   transform: translateY(-2px) scale(1.05);
   box-shadow: 
     0 12px 32px rgba(139, 92, 246, 0.5),
@@ -374,7 +374,7 @@ html, body {
 .loading-spinner {
   animation: spin 1s linear infinite;
   margin-bottom: 1rem;
-  color: #8B5CF6;
+  color: var(--primary-color, #8B5CF6);
   font-size: 2rem;
 }
 
@@ -675,7 +675,7 @@ html, body {
 
 .back-button.glassmorphism:hover {
   background: rgba(138, 85, 204, 0.1) !important;
-  color: #7C3AED !important;
+  color: var(--primary-dark, #7C3AED) !important;
   transform: translateX(-2px) !important;
 }
 

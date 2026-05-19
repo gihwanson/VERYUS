@@ -233,7 +233,7 @@
   justify-content: space-between;
   padding: 20px 24px;
   border-bottom: 1px solid #e5e7eb;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--gradient-primary);
 }
 
 .modal-header h3 {
@@ -357,7 +357,7 @@
 }
 
 .btn-submit {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--gradient-primary);
   color: #ffffff;
   box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
 }

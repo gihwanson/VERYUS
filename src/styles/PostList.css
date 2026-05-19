@@ -352,7 +352,7 @@
 }
 
 .author-role, .author-position {
-  background: linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%);
+  background: var(--app-accent-gradient, linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%));
   color: white;
   border-radius: 10px;
   font-size: 0.7rem;
@@ -394,7 +394,7 @@
 .role-badge.회원,
 .role-badge.일반,
 .role-badge {
-  background: linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%);
+  background: var(--app-accent-gradient, linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%));
   color: white;
 }
 
@@ -526,7 +526,7 @@
     rgba(229, 218, 245, 0.8) 100%);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  color: #8A55CC;
+  color: var(--primary-color, #8A55CC);
   font-weight: 600;
   font-size: 1.08rem;
   letter-spacing: 0.01em;
@@ -546,7 +546,7 @@
   background: linear-gradient(135deg, 
     rgba(246, 242, 255, 0.9) 0%, 
     rgba(229, 218, 245, 0.8) 100%);
-  color: #8A55CC;
+  color: var(--primary-color, #8A55CC);
   border-radius: 12px;
   padding: 0.5rem 0;
   margin-bottom: 0.5rem;
@@ -575,7 +575,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%);
+  background: var(--app-accent-gradient, linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%));
   border: none;
   border-radius: 50%;
   width: 2.5rem;
@@ -587,14 +587,14 @@
 }
 
 .audio-preview button:hover {
-  background: linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%);
+  background: linear-gradient(135deg, var(--primary-dark, #7C3AED) 0%, var(--primary-color, #8B5CF6) 100%);
   transform: scale(1.05);
   box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
 }
 
 .audio-duration {
   font-size: 0.9rem;
-  color: rgba(139, 92, 246, 0.8);
+  color: var(--primary-color, #8b5cf6);
   font-weight: 600;
 }
 
@@ -606,7 +606,7 @@
   justify-content: center;
   padding: 4rem 2rem;
   text-align: center;
-  color: rgba(139, 92, 246, 0.8);
+  color: var(--app-page-text, #ffffff);
   font-size: 1.1rem;
   font-weight: 500;
 }
@@ -638,12 +638,13 @@
 }
 
 .empty-posts svg {
-  color: rgba(139, 92, 246, 0.5);
+  color: var(--primary-color, #8b5cf6);
+  opacity: 0.65;
   margin-bottom: 1rem;
 }
 
 .empty-posts p {
-  color: rgba(139, 92, 246, 0.8);
+  color: var(--primary-color, #8b5cf6);
   font-size: 1.1rem;
   font-weight: 500;
   margin: 0;
@@ -655,7 +656,7 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%);
+  background: var(--app-accent-gradient, linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%));
   color: white;
   border: none;
   border-radius: 16px;
@@ -667,7 +668,7 @@
 }
 
 .reset-search:hover {
-  background: linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%);
+  background: linear-gradient(135deg, var(--primary-dark, #7C3AED) 0%, var(--primary-color, #8B5CF6) 100%);
   transform: translateY(-1px);
   box-shadow: 0 6px 16px rgba(139, 92, 246, 0.5);
 }

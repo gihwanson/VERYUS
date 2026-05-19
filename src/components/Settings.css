@@ -3,7 +3,7 @@
 
 .settings-container {
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--app-page-gradient, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
   min-height: 100vh;
   padding: 20px;
   color: white;
@@ -180,11 +180,15 @@
   gap: 16px;
 }
 
-.setting-item span {
+.setting-item > span {
   font-size: 16px;
   font-weight: 500;
   color: white;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.setting-item:has(.theme-swatch-picker) {
+  display: block;
 }
 
 /* 토글 스위치 */

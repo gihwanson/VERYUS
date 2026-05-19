@@ -1,0 +1,28 @@
+/**
+ * 앱 테마 — 게시판·기능 페이지 배경 통일
+ * (컴포넌트별 !important 하드코딩 덮어쓰기)
+ */
+
+.board-container,
+.post-detail-container,
+.approved-songs-container,
+.hall-of-fame-page,
+.notifications-page,
+.practice-room-booking,
+.practice-room-management,
+.admin-container,
+.cc-page,
+.cc-loading,
+.global-loading.fullscreen,
+.anonymous-chat-page,
+.anonymous-chat-list-page,
+.anonymous-chat-room-screen,
+.write-page,
+.forgot-password-container {
+  background: var(--gradient-primary) !important;
+}
+
+/* 카카오톡 테마 채팅방은 별도 유지 */
+.anonymous-chat-room-screen.theme-kakao {
+  background: #b2c7d9 !important;
+}

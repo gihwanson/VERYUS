@@ -1,6 +1,6 @@
 .practice-room-booking {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--gradient-primary);
   padding: 16px;
   padding-bottom: 80px;
   position: relative;
@@ -38,7 +38,7 @@
 .booking-header h1 {
   font-size: 24px;
   font-weight: 700;
-  color: #8A55CC;
+  color: var(--primary-color, #8A55CC);
   margin: 0;
   flex: 1;
   text-align: center;
@@ -55,7 +55,7 @@
 .management-button {
   background: none;
   border: none;
-  color: #8A55CC;
+  color: var(--primary-color, #8A55CC);
   cursor: pointer;
   padding: 8px;
   border-radius: 8px;
@@ -113,7 +113,7 @@
 
 .nav-button,
 .today-button {
-  background: linear-gradient(135deg, #8a55cc 0%, #764ba2 100%);
+  background: var(--app-accent-gradient, var(--gradient-primary));
   color: white;
   border: none;
   border-radius: 8px;
@@ -476,7 +476,7 @@
 .mobile-date-display {
   font-size: 16px;
   font-weight: 600;
-  color: #8A55CC;
+  color: var(--primary-color, #8A55CC);
 }
 
 .mobile-cancel-btn {
@@ -520,7 +520,7 @@
 
 .time-column.header,
 .day-column.header {
-  background: #8A55CC;
+  background: var(--primary-color, #8A55CC);
   color: white;
   font-weight: 700;
   flex-direction: column;
@@ -529,7 +529,7 @@
 }
 
 .day-column.header.today {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--gradient-primary);
 }
 
 .time-label {
@@ -757,7 +757,7 @@
 .my-reservations-section h2 {
   font-size: 20px;
   font-weight: 700;
-  color: #8A55CC;
+  color: var(--primary-color, #8A55CC);
   margin-bottom: 16px;
 }
 
@@ -771,7 +771,7 @@
   background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
   padding: 16px;
   border-radius: 12px;
-  border-left: 4px solid #8A55CC;
+  border-left: 4px solid var(--primary-color, #8A55CC);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -816,7 +816,7 @@
 
 .admin-badge {
   font-size: 11px;
-  color: #8A55CC;
+  color: var(--primary-color, #8A55CC);
   font-weight: 600;
   padding: 4px 8px;
   background: #f3e8ff;
@@ -826,7 +826,7 @@
 
 .admin-badge-modal {
   font-size: 12px;
-  color: #8A55CC;
+  color: var(--primary-color, #8A55CC);
   font-weight: 600;
   padding: 6px 12px;
   background: #f3e8ff;
@@ -926,7 +926,7 @@
 .modal-header h3 {
   font-size: 20px;
   font-weight: 700;
-  color: #8A55CC;
+  color: var(--primary-color, #8A55CC);
   margin: 0;
 }
 
@@ -945,7 +945,7 @@
 
 .close-button:hover {
   background: rgba(138, 85, 204, 0.1);
-  color: #8A55CC;
+  color: var(--primary-color, #8A55CC);
 }
 
 .modal-body {
@@ -972,7 +972,7 @@
 }
 
 .info-row svg {
-  color: #8A55CC;
+  color: var(--primary-color, #8A55CC);
   flex-shrink: 0;
 }
 
@@ -1022,14 +1022,14 @@
 }
 
 .duration-button:hover:not(.disabled) {
-  border-color: #8A55CC;
+  border-color: var(--primary-color, #8A55CC);
   background: #f5f3ff;
 }
 
 .duration-button.active {
-  background: #8A55CC;
+  background: var(--primary-color, #8A55CC);
   color: white;
-  border-color: #8A55CC;
+  border-color: var(--primary-color, #8A55CC);
 }
 
 .duration-button.disabled {
@@ -1080,12 +1080,12 @@
 
 .member-input-container input:focus {
   outline: none;
-  border-color: #8A55CC;
+  border-color: var(--primary-color, #8A55CC);
 }
 
 .add-member-btn {
   padding: 10px 20px;
-  background: #8A55CC;
+  background: var(--primary-color, #8A55CC);
   color: white;
   border: none;
   border-radius: 12px;
@@ -1171,7 +1171,7 @@
 
 .purpose-input input:focus {
   outline: none;
-  border-color: #8A55CC;
+  border-color: var(--primary-color, #8A55CC);
 }
 
 .members-display {
@@ -1259,7 +1259,7 @@
 }
 
 .confirm-btn {
-  background: #8A55CC;
+  background: var(--primary-color, #8A55CC);
   color: white;
 }
 
@@ -1619,7 +1619,7 @@
 .check-in-title h2 {
   font-size: 20px;
   font-weight: 700;
-  color: #8A55CC;
+  color: var(--primary-color, #8A55CC);
   margin: 0;
 }
 
@@ -1714,7 +1714,7 @@
 
 .check-in-item.my-check-in {
   background: linear-gradient(135deg, #e9d5ff 0%, #ddd6fe 100%);
-  border-color: #8A55CC;
+  border-color: var(--primary-color, #8A55CC);
 }
 
 .check-in-user {
@@ -1731,7 +1731,7 @@
 }
 
 .check-in-badge {
-  background: #8A55CC;
+  background: var(--primary-color, #8A55CC);
   color: white;
   font-size: 11px;
   font-weight: 600;
