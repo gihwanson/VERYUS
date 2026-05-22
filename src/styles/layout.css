@@ -35,7 +35,7 @@ html, body {
   display: flex;
   justify-content: space-around;
   align-items: center;
-  max-width: 500px;
+  max-width: var(--app-content-max-width);
   margin: 0 auto;
   padding: 0 var(--space-md);
 }
@@ -100,7 +100,7 @@ html, body {
 }
 
 .boards-submenu-panel {
-  max-width: 500px;
+  max-width: var(--app-content-max-width);
   margin: 0 auto;
   width: 100%;
   display: flex;
@@ -264,7 +264,7 @@ body, html {
 /* 게시글 목록 레이아웃 */
 .posts-container {
   width: 100%;
-  max-width: 800px;
+  max-width: var(--app-content-max-width);
   margin: 0 auto;
   padding: 0 var(--spacing-md);
   box-sizing: border-box;
@@ -274,8 +274,11 @@ body, html {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
   gap: var(--spacing-xl);
-  margin: var(--spacing-xl) 0;
+  margin: var(--spacing-xl) auto;
   padding: 0;
+  max-width: var(--app-content-max-width);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* 게시글 상세 페이지 레이아웃 */
@@ -289,7 +292,7 @@ body, html {
 
 /* 글쓰기 페이지 레이아웃 */
 .write-page {
-  max-width: 800px;
+  max-width: var(--app-content-max-width);
   margin: 0 auto;
   padding: var(--spacing-xl);
   min-height: 100vh;

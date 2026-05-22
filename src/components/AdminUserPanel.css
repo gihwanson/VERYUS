@@ -60,7 +60,7 @@
 }
 
 .admin-hero-inner {
-  max-width: 1280px;
+  max-width: var(--app-content-max-width);
   margin: 0 auto;
   padding: 0 20px;
   width: 100%;
@@ -140,7 +140,7 @@
 }
 
 .admin-tab-scroll {
-  max-width: 1280px;
+  max-width: var(--app-content-max-width);
   margin: 0 auto;
   padding: 0 16px;
   display: flex;
@@ -164,7 +164,7 @@
 .admin-main {
   flex: 1;
   width: 100%;
-  max-width: 1280px;
+  max-width: var(--app-content-max-width);
   margin: 0 auto;
   padding: 8px 20px 56px;
   box-sizing: border-box;
@@ -299,7 +299,7 @@
 }
 
 .tabs-container {
-  max-width: 1280px;
+  max-width: var(--app-content-max-width);
   margin: 0 auto;
   padding: 0 16px;
   display: flex;
@@ -1851,7 +1851,7 @@
 }
 
 .activity-analysis {
-  max-width: 1200px;
+  max-width: var(--app-content-max-width);
   margin: 0 auto;
 }
 
@@ -2567,7 +2567,7 @@
 
 /* 알림 발송 모달 */
 .notification-send-modal {
-  max-width: 800px;
+  max-width: min(960px, 96vw);
   max-height: 90vh;
   overflow-y: auto;
 }

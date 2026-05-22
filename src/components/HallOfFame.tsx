@@ -112,16 +112,24 @@ const HallOfFame: React.FC = () => {
   const loadRanking = async (showSpinner = true) => {
     if (showSpinner) setLoading(true);
     try {
-      const [usersSnap, postsSnap, commentsSnap, approvedSongsSnap, boardVisitsSnap, hallSettingSnap] = await Promise.all([
+      const [usersSnap, postsSnap, commentsSnap, approvedSongsSnap, boardVisitsSnap] = await Promise.all([
         getDocs(collection(db, 'users')),
         getDocs(collection(db, 'posts')),
         getDocs(collection(db, 'comments')),
         getDocs(collection(db, 'approvedSongs')),
-        getDocs(collection(db, 'boardVisits')),
-        getDoc(doc(db, 'appSettings', 'hallOfFame'))
+        getDocs(collection(db, 'boardVisits'))
       ]);
 
-      const settingData = hallSettingSnap.exists() ? (hallSettingSnap.data() as Record<string, unknown>) : {};
+      let settingData: Record<string, unknown> = {};
+      try {
+        const hallSettingSnap = await getDoc(doc(db, 'appSettings', 'hallOfFame'));
+        settingData = hallSettingSnap.exists() ? (hallSettingSnap.data() as Record<string, unknown>) : {};
+      } catch (settingError) {
+        // 설정 문서가 없거나 읽기 권한이 없어도 랭킹은 기본 가중치로 계속 로드한다.
+        if (SHOW_HALL_DEBUG_LOG) {
+          console.warn('명예의전당 설정 로드 실패(기본 가중치 사용):', settingError);
+        }
+      }
       const weights: ScoreWeights = {
         post: Number.isFinite(Number(settingData.postWeight)) ? Number(settingData.postWeight) : DEFAULT_SCORE_WEIGHTS.post,
         comment: Number.isFinite(Number(settingData.commentWeight)) ? Number(settingData.commentWeight) : DEFAULT_SCORE_WEIGHTS.comment,

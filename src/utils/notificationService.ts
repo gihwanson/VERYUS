@@ -189,7 +189,7 @@ export class NotificationService {
       grade_change_approved: '등급 변경 요청이 승인되었습니다.',
       grade_change_rejected: '등급 변경 요청이 반려되었습니다.',
       approved_song_milestone: '회원이 합격곡 마일스톤을 달성했습니다.',
-      anonymous_chat_ban: '익명채팅방에서보내졌습니다.'
+      anonymous_chat_ban: '익명채팅방 퇴장 안내가 도착했습니다.'
     };
     return messages[type] || '새 알림이 있습니다.';
   }

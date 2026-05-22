@@ -1,0 +1,201 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isNeraeOrLeader() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && (
+          userDoc().nickname == '너래' ||
+          userDoc().role == '리더'
+        );
+    }
+
+    /**
+     * users: 로그인 전 닉네임→이메일 조회(Login.tsx)와 게시판에서의 프로필 읽기가 필요해 read 공개.
+     * (예전 테스트 모드에 가깝게 동작 — 민감 필드는 클라이언트에 노출하지 않도록 앱에서 제한 권장)
+     */
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if isSelf(userId);
+
+      match /pushTokens/{tokenId} {
+        allow read, write: if isSelf(userId);
+      }
+    }
+
+    match /anonymousChatProfiles/{userId} {
+      allow read: if isSelf(userId);
+      allow create: if isSelf(userId);
+      allow update: if isSelf(userId)
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['subAccounts', 'activePersona'])
+          || isNeraeOrLeader()
+        );
+      allow delete: if isSelf(userId);
+    }
+
+    match /anonymousChatRooms/{roomId} {
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update, delete: if signedIn();
+
+      match /participants/{participantId} {
+        allow read: if signedIn();
+        allow create, update: if signedIn();
+        allow delete: if signedIn();
+      }
+
+      /** 메시지 uid는 participant 문서 ID라 auth.uid와 다를 수 있음 (부계정 등) */
+      match /messages/{messageId} {
+        allow read: if signedIn();
+        allow create: if signedIn();
+        allow update, delete: if false;
+      }
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if signedIn()
+        && resource.data.toUid == request.auth.uid;
+      allow create: if signedIn();
+      allow update: if signedIn()
+        && resource.data.toUid == request.auth.uid;
+      allow delete: if signedIn()
+        && resource.data.toUid == request.auth.uid;
+    }
+
+    // ── 게시판: 목록 일부 라우트는 비보호라 읽기 공개(권한 없으면 빈 목록). 쓰기는 로그인 ──
+    match /posts/{postId} {
+      allow read: if true;
+      allow create, update, delete: if signedIn();
+    }
+
+    match /comments/{commentId} {
+      allow read: if true;
+      allow create, update, delete: if signedIn();
+    }
+
+    match /messages/{messageId} {
+      allow read: if signedIn();
+      allow create, update, delete: if signedIn();
+    }
+
+    match /guestbook/{docId} {
+      allow read, write: if signedIn();
+    }
+
+    match /anonymousNotes/{docId} {
+      allow read, write: if signedIn();
+    }
+
+    match /approvedSongs/{docId} {
+      allow read, write: if signedIn();
+    }
+
+    match /setlists/{setlistId} {
+      allow read, write: if signedIn();
+      match /chatMessages/{msgId} {
+        allow read, write: if signedIn();
+      }
+    }
+
+    match /playlistSongs/{docId} {
+      allow read, write: if signedIn();
+    }
+
+    match /specialMoments/{docId} {
+      allow read, write: if signedIn();
+    }
+
+    match /boardVisits/{docId} {
+      allow read, write: if signedIn();
+    }
+
+    match /blockingRules/{docId} {
+      allow read, write: if signedIn();
+    }
+
+    /** 연습실 예약·체크인·시간 차단 (배포 누락 시 예약 현황이 비어 보임) */
+    match /practiceRoomReservations/{docId} {
+      allow read, write: if signedIn();
+    }
+
+    match /practiceRoomCheckIn/{docId} {
+      allow read, write: if signedIn();
+    }
+
+    match /blockedTimeSlots/{docId} {
+      allow read, write: if signedIn();
+    }
+
+    match /practiceSongs/{docId} {
+      allow read, write: if signedIn();
+    }
+
+    match /practiceSuggestions/{docId} {
+      allow read, write: if signedIn();
+    }
+
+    match /practiceSchedules/{docId} {
+      allow read, write: if signedIn();
+    }
+
+    match /customerInquiries/{inquiryId} {
+      allow read, write: if signedIn();
+      match /messages/{msgId} {
+        allow read, write: if signedIn();
+      }
+    }
+
+    match /contests/{contestId} {
+      allow read, write: if signedIn();
+      match /participants/{docId} {
+        allow read, write: if signedIn();
+      }
+      match /teams/{docId} {
+        allow read, write: if signedIn();
+      }
+      match /grades/{docId} {
+        allow read, write: if signedIn();
+      }
+      match /evaluationTargets/{docId} {
+        allow read, write: if signedIn();
+      }
+    }
+
+    match /conversations/{conversationId} {
+      allow read, write: if signedIn();
+      match /messages/{msgId} {
+        allow read, write: if signedIn();
+      }
+    }
+
+    match /announcementBanned/{docId} {
+      allow read, write: if signedIn();
+    }
+
+    match /admin_logs/{docId} {
+      allow read, write: if signedIn();
+    }
+
+    match /notification_templates/{docId} {
+      allow read, write: if signedIn();
+    }
+
+    match /user_activities/{docId} {
+      allow read, write: if signedIn();
+    }
+  }
+}

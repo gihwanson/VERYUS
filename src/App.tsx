@@ -302,6 +302,10 @@ const audioPlayerFallback: AudioPlayerContextType = {
 export const useAudioPlayer = () => useContext(AudioPlayerContext) ?? audioPlayerFallback;
 
 const AudioPlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
+  const location = useLocation();
+  /** 익명채팅 입력/전송이 플레이어(z-index 9999)에 가려지는 것을 방지 — 재생(audio 태그)은 유지 */
+  const hideFloatingPlayerChrome = location.pathname.startsWith('/anonymous-chat');
+
   const safeStorageGet = (key: string) => {
     try {
       return localStorage.getItem(key);
@@ -334,7 +338,13 @@ const AudioPlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }
   const [duration, setDuration] = useState(0);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  
+
+  useEffect(() => {
+    if (!hideFloatingPlayerChrome) return;
+    setShowPlaylistModal(false);
+    setShowUpload(false);
+  }, [hideFloatingPlayerChrome]);
+
   // 드래그 관련 상태
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -638,7 +648,7 @@ const AudioPlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }
       {/* 오디오 태그는 항상 렌더링 */}
       <audio ref={audioRef} src={playlist[currentIdx]?.url} onEnded={handleEnded} style={{ display: 'none' }} />
       {/* 플레이어 UI는 플레이리스트가 있을 때만 표시 */}
-      {playlist.length > 0 && <div
+      {playlist.length > 0 && !hideFloatingPlayerChrome && <div
         ref={playerRef}
         onMouseDown={handleMouseDown}
         onTouchStart={handleTouchStart}
@@ -735,7 +745,7 @@ const AudioPlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }
         )}
       </div>}
       {/* 플레이리스트 모달 */}
-      {showPlaylistModal && (
+      {showPlaylistModal && !hideFloatingPlayerChrome && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.25)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowPlaylistModal(false)}>
           <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 16px #E5DAF5', padding: 24, minWidth: 320, maxWidth: 420, width: '90vw', maxHeight: '80vh', overflowY: 'auto', position: 'relative' }} onClick={e => e.stopPropagation()}>
             <h3 style={{ color: '#8A55CC', fontWeight: 700, fontSize: 20, marginBottom: 16 }}>플레이리스트</h3>
@@ -916,8 +926,8 @@ function App() {
   return (
     <AppErrorBoundary>
       <UserProfileProvider authUser={user}>
-        <AudioPlayerProvider>
-          <Router>
+        <Router>
+          <AudioPlayerProvider>
             <div className="App">
               <RouteTransition>
               <Suspense fallback={<RouteLoadShell />}>
@@ -1159,8 +1169,8 @@ function App() {
               color: '#1F2937'
             }}
           />
+          </AudioPlayerProvider>
         </Router>
-      </AudioPlayerProvider>
       </UserProfileProvider>
     </AppErrorBoundary>
   );

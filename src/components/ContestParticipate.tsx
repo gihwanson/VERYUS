@@ -597,7 +597,7 @@ const ContestParticipate: React.FC = () => {
           padding: '60px 40px',
           border: '1px solid rgba(255, 255, 255, 0.3)',
           textAlign: 'center',
-          maxWidth: '600px',
+          maxWidth: 'min(920px, 100%)',
           width: '100%',
           boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
         }}>
@@ -744,7 +744,7 @@ const ContestParticipate: React.FC = () => {
         position: 'relative',
         zIndex: 1,
         padding: '24px clamp(16px, 4vw, 40px) 40px',
-        maxWidth: '1160px',
+        maxWidth: 'var(--app-content-max-width)',
         margin: '0 auto'
       }}>
         {/* 뒤로가기 버튼 */}

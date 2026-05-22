@@ -9,7 +9,7 @@
 
 .contest-ui-refresh .contest-list-content,
 .contest-ui-refresh .contest-detail-content {
-  max-width: 1040px;
+  max-width: var(--app-content-max-width);
   padding: 28px 20px 36px;
 }
 
@@ -335,7 +335,7 @@
 .contest-ui-refresh .contest-results-content {
   position: relative;
   z-index: 1;
-  max-width: min(1160px, 100%);
+  max-width: min(var(--app-content-max-width), 100%);
   margin: 0 auto;
   /* 바깥 그라데이션을 조금 더 보이게 — 안쪽은 덜 빽빽하게 */
   padding: 22px clamp(14px, 4vw, 32px) 48px;
@@ -405,7 +405,7 @@
 .contest-ui-refresh .contest-list-content {
   padding-top: 10px !important;
   align-items: stretch !important;
-  max-width: 980px !important;
+  max-width: var(--app-content-max-width) !important;
 }
 
 .contest-ui-refresh .contest-title {
@@ -517,7 +517,7 @@
 }
 
 .contest-ui-refresh .contest-detail-content {
-  max-width: 1040px !important;
+  max-width: var(--app-content-max-width) !important;
   padding-top: 12px !important;
 }
 

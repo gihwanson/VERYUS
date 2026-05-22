@@ -125,6 +125,9 @@
   --space-3xl: 48px;
   --space-4xl: 60px;
 
+  /* 메인 콘텐츠 가로 폭 (셋리스트 데스크톱 셸과 동일 계열) */
+  --app-content-max-width: 1400px;
+
   /* Border Radius */
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -172,12 +175,12 @@
   --z-submenu: 999;
 
   /* New variables from the code block */
-  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --home-gradient: linear-gradient(160deg, #667eea 0%, #764ba2 55%, #6b5ce7 100%);
-  --app-page-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --app-accent: #C41E3A;
-  --app-accent-light: #DC3545;
-  --app-accent-gradient: linear-gradient(135deg, #DC3545 0%, #A01D2E 100%);
+  --gradient-primary: linear-gradient(135deg, #8E9BC8 0%, #9A8BB5 100%);
+  --home-gradient: linear-gradient(160deg, #9AA5CC 0%, #9488B0 55%, #8E96C0 100%);
+  --app-page-gradient: linear-gradient(135deg, #8E9BC8 0%, #9A8BB5 100%);
+  --app-accent: #A86B78;
+  --app-accent-light: #C08A96;
+  --app-accent-gradient: linear-gradient(135deg, #C08A96 0%, #8F5A66 100%);
   --app-page-text: #ffffff;
   --app-page-text-muted: rgba(255, 255, 255, 0.85);
   --app-card-text: #111827;
@@ -289,7 +292,7 @@
 
   /* ===== CONTEST CREATE VARIABLES ===== */
   /* Contest Create Background */
-  --contest-create-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --contest-create-bg: linear-gradient(135deg, #8E9BC8 0%, #9A8BB5 100%);
   --contest-create-bg-attachment: fixed;
   
   /* Contest Create Background Pattern */
@@ -300,7 +303,7 @@
   
   /* Contest Create Container */
   --contest-create-container-padding: 20px;
-  --contest-create-container-max-width: 600px;
+  --contest-create-container-max-width: var(--app-content-max-width);
   --contest-create-container-z-index: 1;
   
   /* Back Button */
@@ -348,7 +351,7 @@
   --contest-select-bg: rgba(255, 255, 255, 0.1);
   --contest-select-border: rgba(255, 255, 255, 0.3);
   --contest-select-color: white;
-  --contest-select-option-bg: #667eea;
+  --contest-select-option-bg: #8E9BC8;
   --contest-select-option-color: white;
   
   /* Submit Button */
@@ -376,7 +379,7 @@
 
   /* ===== CONTEST LIST VARIABLES ===== */
   /* Contest List Background */
-  --contest-list-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --contest-list-bg: linear-gradient(135deg, #8E9BC8 0%, #9A8BB5 100%);
   --contest-list-bg-attachment: fixed;
   
   /* Contest List Background Pattern */
@@ -387,7 +390,7 @@
   
   /* Contest List Container */
   --contest-list-container-padding: 32px 0 0 0;
-  --contest-list-container-max-width: 600px;
+  --contest-list-container-max-width: var(--app-content-max-width);
   --contest-list-container-min-height: 400px;
   --contest-list-content-gap: 32px;
   
@@ -506,7 +509,7 @@
 
   /* ===== CONTEST DETAIL VARIABLES ===== */
   /* Contest Detail Background */
-  --contest-detail-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --contest-detail-bg: linear-gradient(135deg, #8E9BC8 0%, #9A8BB5 100%);
   --contest-detail-bg-attachment: fixed;
   
   /* Contest Detail Background Pattern */
@@ -517,7 +520,7 @@
   
   /* Contest Detail Container */
   --contest-detail-container-padding: 20px;
-  --contest-detail-container-max-width: 1200px;
+  --contest-detail-container-max-width: var(--app-content-max-width);
   --contest-detail-container-z-index: 1;
   
   /* Loading State */
@@ -697,7 +700,7 @@
 
   /* ===== CONTEST PARTICIPATE VARIABLES ===== */
   /* Contest Participate Background */
-  --contest-participate-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --contest-participate-bg: linear-gradient(135deg, #8E9BC8 0%, #9A8BB5 100%);
   --contest-participate-bg-attachment: fixed;
   
   /* Contest Participate Background Pattern */
@@ -708,7 +711,7 @@
   
   /* Contest Participate Container */
   --contest-participate-container-padding: 20px;
-  --contest-participate-container-max-width: 1200px;
+  --contest-participate-container-max-width: var(--app-content-max-width);
   --contest-participate-container-z-index: 1;
   
   /* Contest Participate Header */
@@ -905,7 +908,7 @@
 
   /* ===== CONTEST RESULTS VARIABLES ===== */
   /* Contest Results Background */
-  --contest-results-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --contest-results-bg: linear-gradient(135deg, #8E9BC8 0%, #9A8BB5 100%);
   --contest-results-bg-attachment: fixed;
   
   /* Contest Results Background Pattern */
@@ -916,7 +919,7 @@
   
   /* Contest Results Container */
   --contest-results-container-padding: 20px;
-  --contest-results-container-max-width: 1200px;
+  --contest-results-container-max-width: var(--app-content-max-width);
   --contest-results-container-z-index: 1;
   
   /* Contest Results Header */

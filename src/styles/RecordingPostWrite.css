@@ -10,7 +10,7 @@
 }
 
 .rec-post-write {
-  max-width: 32rem;
+  max-width: var(--app-content-max-width);
   margin: 0 auto;
   padding: 0 0.75rem 2.5rem;
 }
@@ -260,7 +260,6 @@
 
 @media (min-width: 640px) {
   .rec-post-write {
-    max-width: 36rem;
     padding: 0 1rem 3rem;
   }
 

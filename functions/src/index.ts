@@ -107,15 +107,6 @@ const resolveAnonymousChatSenderNickname = async (
         .get();
       const participantNickname = String(participantSnap.data()?.nickname || '').trim();
       if (participantNickname) return participantNickname;
-
-      const participantsSnap = await admin
-        .firestore()
-        .collection(`anonymousChatRooms/${roomId}/participants`)
-        .where('ownerUid', '==', fromUid)
-        .limit(1)
-        .get();
-      const ownedNickname = String(participantsSnap.docs[0]?.data()?.nickname || '').trim();
-      if (ownedNickname) return ownedNickname;
     }
 
     if (fromUid) {
@@ -252,7 +243,7 @@ export const sendPushOnNotificationCreated = onDocumentCreated(
       const chatPreview = extractChatMessagePreview(data);
       pushBody = `${senderNickname}: ${chatPreview}`;
     } else if (notificationType === 'anonymous_chat_ban') {
-      pushBody = String(data.message || '채팅방에서보내졌습니다.').slice(0, 120);
+      pushBody = String(data.message || '익명채팅방 퇴장 안내가 도착했습니다.').slice(0, 120);
     }
 
     const payload: admin.messaging.MulticastMessage = {

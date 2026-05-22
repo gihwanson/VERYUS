@@ -20,11 +20,17 @@
 
 .login-card {
   width: 100%;
-  max-width: 400px;
+  max-width: var(--app-content-max-width, 1400px);
   background: var(--card-bg);
   border-radius: 20px;
   padding: 2rem;
   box-shadow: 0 4px 20px var(--shadow-color);
+}
+
+@media (min-width: 900px) {
+  .login-card {
+    padding: 2.5rem 3rem;
+  }
 }
 
 .login-header {

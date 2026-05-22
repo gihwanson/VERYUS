@@ -177,6 +177,11 @@ html, body {
   justify-content: space-between;
   gap: 1rem;
   padding: 1.25rem 1.75rem;
+  max-width: var(--app-content-max-width);
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+  box-sizing: border-box;
   background: linear-gradient(135deg, 
     rgba(255, 255, 255, 0.2) 0%, 
     rgba(255, 255, 255, 0.1) 50%,
@@ -222,7 +227,7 @@ html, body {
   align-items: center;
   gap: 0;
   width: 100%;
-  max-width: 400px;
+  max-width: min(920px, 100%);
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(15px);
   -webkit-backdrop-filter: blur(15px);

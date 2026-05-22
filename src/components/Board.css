@@ -9,6 +9,9 @@
 /* 게시판 컨트롤 영역 */
 .board-controls {
   width: 100%;
+  max-width: var(--app-content-max-width);
+  margin-left: auto;
+  margin-right: auto;
   box-sizing: border-box;
   display: flex;
   align-items: center;
@@ -62,7 +65,7 @@
   border-radius: 16px;
   padding: 0.3rem 1.2rem;
   min-width: 0;
-  max-width: 400px;
+  max-width: min(920px, 100%);
   flex: 1;
   box-shadow: 
     0 4px 16px rgba(124, 58, 237, 0.08),

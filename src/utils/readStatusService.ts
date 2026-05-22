@@ -7,9 +7,11 @@ import {
   getDocs, 
   collection, 
   onSnapshot,
-  serverTimestamp 
+  serverTimestamp,
+  type QuerySnapshot
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { isLegacySubParticipantDocId, NERAE_SUB_SEP } from './anonymousChatNeraePersona';
 
 // 읽음 상태 인터페이스
 export interface ReadStatus {
@@ -276,9 +278,17 @@ const toMillis = (v: any): number => {
   return Number.isNaN(parsed) ? 0 : parsed;
 };
 
+/** 메시지 문서 기준 생성 시각(ms) — 채팅방 UI와 동일하게 createdAt / createdAtClient 병합 */
+const anonymousMessageCreatedMs = (data: Record<string, unknown>): number => {
+  const serverMs = toMillis(data.createdAt);
+  const clientRaw = data.createdAtClient;
+  const clientMs = typeof clientRaw === 'number' ? toMillis(clientRaw) : 0;
+  return Math.max(serverMs, clientMs);
+};
+
 /**
  * 사용자가 참여 중인 모든 익명채팅 방의 안 읽은 메시지 총합을 실시간 구독합니다.
- * 각 방의 `participants/{uid}.lastReadAt`과 `messages.createdAt`을 비교하여 계산합니다.
+ * 각 방의 `participants/*` 중 본인(·부계정) `lastReadAt` 워터마크와 메시지 생성 시각을 비교합니다.
  */
 export const subscribeToAnonymousChatUnreadCount = (
   userId: string,
@@ -286,18 +296,88 @@ export const subscribeToAnonymousChatUnreadCount = (
 ): (() => void) => {
   const roomsRef = collection(db, 'anonymousChatRooms');
   const unsubscribers: (() => void)[] = [];
+  let ownedSubDocIds: string[] = [];
 
   let roomUnreadMap: Record<string, number> = {};
+
+  type MsgRow = { uid: string; createdAtMs: number; isSystem: boolean };
+
+  type RoomBuffers = {
+    participantSnap: QuerySnapshot | null;
+    msgs: MsgRow[];
+  };
+
+  const buffers = new Map<string, RoomBuffers>();
 
   const emitTotal = () => {
     const total = Object.values(roomUnreadMap).reduce((s, n) => s + n, 0);
     callback(total);
   };
 
+  const isOwnedParticipant = (participantDocId: string, data: Record<string, unknown>) => {
+    if (participantDocId === userId) return true;
+    if (ownedSubDocIds.includes(participantDocId)) return true;
+    const fromField = String(data.ownerUid || '').trim();
+    if (fromField === userId) return true;
+    const subIdx = participantDocId.indexOf(NERAE_SUB_SEP);
+    if (subIdx >= 0 && participantDocId.slice(0, subIdx) === userId) return true;
+    return false;
+  };
+
+  const isMessageFromSelf = (senderUid: string) => {
+    if (!senderUid) return false;
+    if (senderUid === userId) return true;
+    if (ownedSubDocIds.includes(senderUid)) return true;
+    if (isLegacySubParticipantDocId(senderUid)) {
+      const idx = senderUid.indexOf(NERAE_SUB_SEP);
+      if (idx >= 0 && senderUid.slice(0, idx) === userId) return true;
+    }
+    return false;
+  };
+
+  const recalcRoom = (roomId: string) => {
+    const buf = buffers.get(roomId);
+    if (!buf) return;
+
+    let ownedLastReadMs: number[] = [];
+    if (buf.participantSnap) {
+      ownedLastReadMs = buf.participantSnap.docs
+        .filter((participantDoc) => isOwnedParticipant(participantDoc.id, participantDoc.data()))
+        .map((participantDoc) => toMillis(participantDoc.data().lastReadAt));
+    }
+
+    if (ownedLastReadMs.length === 0) {
+      roomUnreadMap[roomId] = 0;
+      emitTotal();
+      return;
+    }
+
+    /** 본계·부계 중 하나라도 해당 시점까지 읽었으면 읽음으로 간주 (AND 조건은 미읽음 과대 집계 유발) */
+    const readWatermarkMs = Math.max(0, ...ownedLastReadMs);
+
+    roomUnreadMap[roomId] = buf.msgs.filter((m) => {
+      if (!m.uid || m.isSystem) return false;
+      if (isMessageFromSelf(m.uid)) return false;
+      return m.createdAtMs > readWatermarkMs;
+    }).length;
+
+    emitTotal();
+  };
+
+  const unsubProfile = onSnapshot(doc(db, 'anonymousChatProfiles', userId), (snap) => {
+    const subs = snap.exists()
+      ? ((snap.data().subAccounts as { id?: string }[] | undefined) || [])
+          .map((item) => String(item.id || '').trim())
+          .filter(Boolean)
+      : [];
+    ownedSubDocIds = subs;
+    buffers.forEach((_buf, roomId) => recalcRoom(roomId));
+  });
+
   const unsubRooms = onSnapshot(roomsRef, (roomsSnap) => {
-    // 기존 방별 구독 해제
     unsubscribers.forEach((fn) => fn());
     unsubscribers.length = 0;
+    buffers.clear();
     roomUnreadMap = {};
 
     if (roomsSnap.empty) {
@@ -308,36 +388,36 @@ export const subscribeToAnonymousChatUnreadCount = (
     for (const roomDoc of roomsSnap.docs) {
       const roomId = roomDoc.id;
 
-      const participantRef = doc(db, 'anonymousChatRooms', roomId, 'participants', userId);
+      buffers.set(roomId, { participantSnap: null, msgs: [] });
+
+      const participantsRef = collection(db, 'anonymousChatRooms', roomId, 'participants');
       const messagesRef = collection(db, 'anonymousChatRooms', roomId, 'messages');
 
-      let lastReadMs = 0;
-      let msgs: { uid: string; createdAtMs: number }[] = [];
-      let hasParticipant = false;
-
-      const recalc = () => {
-        if (!hasParticipant) {
-          roomUnreadMap[roomId] = 0;
-        } else {
-          roomUnreadMap[roomId] = msgs.filter(
-            (m) => m.uid !== userId && m.createdAtMs > lastReadMs
-          ).length;
-        }
-        emitTotal();
-      };
-
-      const unsubParticipant = onSnapshot(participantRef, (snap) => {
-        hasParticipant = snap.exists();
-        lastReadMs = hasParticipant ? toMillis(snap.data()?.lastReadAt) : 0;
-        recalc();
+      const unsubParticipant = onSnapshot(participantsRef, (snap) => {
+        const buf = buffers.get(roomId);
+        if (!buf) return;
+        buf.participantSnap = snap;
+        recalcRoom(roomId);
       });
 
       const unsubMsgs = onSnapshot(messagesRef, (msgsSnap) => {
-        msgs = msgsSnap.docs.map((d) => {
-          const data = d.data();
-          return { uid: data.uid || '', createdAtMs: toMillis(data.createdAt) };
+        const buf = buffers.get(roomId);
+        if (!buf) return;
+        buf.msgs = msgsSnap.docs.map((d) => {
+          const data = d.data() as Record<string, unknown>;
+          const uid = String(data.uid || '');
+          const senderLabel = String(data.senderLabel || '').toLowerCase();
+          const isSystem =
+            uid === '__system__' ||
+            uid === 'system' ||
+            senderLabel === 'system';
+          return {
+            uid,
+            createdAtMs: anonymousMessageCreatedMs(data),
+            isSystem
+          };
         });
-        recalc();
+        recalcRoom(roomId);
       });
 
       unsubscribers.push(unsubParticipant, unsubMsgs);
@@ -345,7 +425,9 @@ export const subscribeToAnonymousChatUnreadCount = (
   });
 
   return () => {
+    unsubProfile();
     unsubRooms();
     unsubscribers.forEach((fn) => fn());
+    buffers.clear();
   };
 }; 

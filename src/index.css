@@ -32,10 +32,13 @@ html, body, #root {
   box-sizing: border-box !important;
 }
 
-/* 모든 컨테이너 클래스에 대한 강제 전체 화면 적용 */
-div[class*="container"], div[class*="Container"], 
-div[class*="wrapper"], div[class*="Wrapper"],
-div[class*="layout"], div[class*="Layout"] {
+/* 게시판·상세 등 전체 폭 — 홈/셋리스트 등 콘텐츠 중앙 정렬 레이아웃은 제외 */
+div[class*="container"]:not(.home-container):not(.home-content),
+div[class*="Container"]:not(.home-container):not(.home-content),
+div[class*="wrapper"]:not([class*="home-"]):not([class*="boards-"]),
+div[class*="Wrapper"]:not([class*="home-"]):not([class*="boards-"]),
+div[class*="layout"]:not([class*="home-"]):not([class*="boards-"]):not([class*="set-list"]):not([class*="setlist"]),
+div[class*="Layout"]:not([class*="home-"]):not([class*="boards-"]):not([class*="set-list"]):not([class*="setlist"]) {
   max-width: 100% !important;
   margin-left: 0 !important;
   margin-right: 0 !important;
