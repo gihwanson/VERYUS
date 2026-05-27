@@ -16,12 +16,22 @@ export type RoomPresenceByRoom = Record<
   }
 >;
 
+/** 방마다 사용할 익명 닉네임 (main·부계정 각각) */
+export type RoomNicknameEntry = {
+  main?: string;
+  subs?: Record<string, string>;
+};
+
+export type RoomNicknamesByRoom = Record<string, RoomNicknameEntry>;
+
 export type NeraePersonaProfile = {
+  /** @deprecated 방별 닉네임(nicknamesByRoom) 사용. 구 데이터·입력 힌트용 */
   customNickname: string;
   profileNickname?: string;
   activePersona?: string;
   subAccounts?: NeraeSubAccount[];
   presenceByRoom?: RoomPresenceByRoom;
+  nicknamesByRoom?: RoomNicknamesByRoom;
 };
 
 export type NeraeChatUser = {
@@ -116,6 +126,71 @@ export function resolvePersonaDisplayForKey(profile: NeraePersonaProfile, person
 
 export function resolveActivePersonaDisplay(profile: NeraePersonaProfile) {
   return resolvePersonaDisplayForKey(profile, getActivePersonaKey(profile));
+}
+
+export function getRoomPersonaNickname(
+  profile: NeraePersonaProfile | null | undefined,
+  roomId: string,
+  personaKey: string
+): string {
+  if (!profile || !roomId) return '';
+  const key = (personaKey || 'main').trim() || 'main';
+  const entry = profile.nicknamesByRoom?.[roomId];
+  if (!entry) return '';
+  if (key === 'main') return (entry.main || '').trim();
+  return (entry.subs?.[key] || '').trim();
+}
+
+export function hasRoomPersonaNickname(
+  profile: NeraePersonaProfile | null | undefined,
+  roomId: string,
+  personaKey: string
+): boolean {
+  return !!getRoomPersonaNickname(profile, roomId, personaKey);
+}
+
+/** 방에 저장된 닉네임 우선, 없으면 전역(구) 닉네임 */
+export function resolvePersonaDisplayForRoom(
+  profile: NeraePersonaProfile,
+  roomId: string,
+  personaKey: string
+) {
+  const key = (personaKey || 'main').trim() || 'main';
+  const roomNick = getRoomPersonaNickname(profile, roomId, key);
+  if (roomNick) {
+    const isSub = key !== 'main';
+    return {
+      personaKey: (isSub ? key : 'main') as 'main' | string,
+      nickname: roomNick,
+      profileNickname: isSub ? '' : profile.profileNickname || '',
+      isSub
+    };
+  }
+  return resolvePersonaDisplayForKey(profile, key);
+}
+
+export function buildNextNicknamesByRoom(
+  prev: RoomNicknamesByRoom | undefined,
+  roomId: string,
+  personaKey: string,
+  nickname: string
+): RoomNicknamesByRoom {
+  const key = (personaKey || 'main').trim() || 'main';
+  const trimmed = nickname.trim();
+  const prevEntry = prev?.[roomId] || {};
+  if (key === 'main') {
+    return {
+      ...(prev || {}),
+      [roomId]: { ...prevEntry, main: trimmed }
+    };
+  }
+  return {
+    ...(prev || {}),
+    [roomId]: {
+      ...prevEntry,
+      subs: { ...(prevEntry.subs || {}), [key]: trimmed }
+    }
+  };
 }
 
 export function createSubAccountId() {

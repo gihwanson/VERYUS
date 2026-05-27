@@ -19,8 +19,7 @@ import {
   Timestamp,
   updateDoc,
   deleteField,
-  where,
-  writeBatch
+  where
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../firebase';
@@ -44,6 +43,10 @@ import {
   resolveMessageSenderParticipantDocId,
   parseParticipantDocId,
   resolvePersonaDisplayForKey,
+  resolvePersonaDisplayForRoom,
+  getRoomPersonaNickname,
+  hasRoomPersonaNickname,
+  buildNextNicknamesByRoom,
   type NeraePersonaProfile,
   type RoomPresenceByRoom
 } from '../utils/anonymousChatNeraePersona';
@@ -161,19 +164,25 @@ const isSystemChatMessage = (message: AnonymousMessage) =>
   message.uid === 'system' ||
   (message.senderLabel || '').toLowerCase() === 'system';
 
-const getMessageSortSeconds = (message: AnonymousMessage) => {
+/** 타임라인 정렬용 ms — 서버 시각만 쓰면 지연 반영 시 말풍선이 위로 튀는 경우가 있어 client/server 중 큰 값 사용 */
+const getMessageSortMs = (message: AnonymousMessage) => {
   if (isSystemChatMessage(message) && typeof message.createdAtClient === 'number') {
-    return Math.floor(message.createdAtClient / 1000);
+    return message.createdAtClient;
   }
-  if (typeof message?.createdAt?.seconds === 'number') return message.createdAt.seconds;
-  if (typeof message?.createdAtClient === 'number') return Math.floor(message.createdAtClient / 1000);
-  return 0;
+  const clientMs = typeof message.createdAtClient === 'number' ? message.createdAtClient : 0;
+  const serverMs = toUnixMillis(message.createdAt);
+  if (clientMs > 0 && serverMs > 0) return Math.max(clientMs, serverMs);
+  return clientMs || serverMs;
+};
+
+const getMessageSortSeconds = (message: AnonymousMessage) => {
+  const ms = getMessageSortMs(message);
+  return ms > 0 ? Math.floor(ms / 1000) : 0;
 };
 
 const getMessageSortNanos = (message: AnonymousMessage) => {
-  if (typeof message?.createdAt?.nanoseconds === 'number') return message.createdAt.nanoseconds;
-  if (typeof message?.createdAtClient === 'number') return (message.createdAtClient % 1000) * 1_000_000;
-  return 0;
+  const ms = getMessageSortMs(message);
+  return ms > 0 ? (ms % 1000) * 1_000_000 : 0;
 };
 
 const toUnixMillis = (value: any) => {
@@ -230,6 +239,19 @@ const getRoomCoHostParticipantIds = (room?: AnonymousRoom) => {
   return (room.coHostUids || []).filter(Boolean);
 };
 
+const isChatPushMutedForUid = (room: AnonymousRoom | undefined, uid: string) =>
+  Boolean(uid && (room?.notificationMutedUids || []).includes(uid));
+
+const resolveMemberOwnerUid = (member: RoomParticipant) => {
+  const fromField = (member.ownerUid || '').trim();
+  if (fromField) return fromField;
+  if (isLegacySubParticipantDocId(member.uid)) {
+    return parseParticipantDocId(member.uid).ownerUid;
+  }
+  if (member.uid.startsWith('sub_')) return '';
+  return member.uid;
+};
+
 const getRoomIdFromSearch = () => {
   if (typeof window === 'undefined') return '';
   return new URLSearchParams(window.location.search).get('roomId') || '';
@@ -281,10 +303,6 @@ const AnonymousChatRoom: React.FC = () => {
   const [neraeSubNicknameInput, setNeraeSubNicknameInput] = useState('');
   const [personaBusy, setPersonaBusy] = useState(false);
   const [input, setInput] = useState('');
-  const [nicknameInput, setNicknameInput] = useState('');
-  const [nicknameChangeInput, setNicknameChangeInput] = useState('');
-  const [showNicknameChangePanel, setShowNicknameChangePanel] = useState(false);
-  const [updatingNickname, setUpdatingNickname] = useState(false);
   const [roomTitleInput, setRoomTitleInput] = useState('');
   const [userActiveDays, setUserActiveDays] = useState(0);
   const [showRoomMenu, setShowRoomMenu] = useState(false);
@@ -295,10 +313,19 @@ const AnonymousChatRoom: React.FC = () => {
   const [savingRoomEntryCode, setSavingRoomEntryCode] = useState(false);
   const [pendingEntryCodeRoom, setPendingEntryCodeRoom] = useState<{ room: AnonymousRoom; fromPushLink?: boolean } | null>(null);
   const [entryCodeInput, setEntryCodeInput] = useState('');
-  const [creatingNickname, setCreatingNickname] = useState(false);
   const [creatingRoom, setCreatingRoom] = useState(false);
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
   const [pendingDeleteRoom, setPendingDeleteRoom] = useState<AnonymousRoom | null>(null);
+  const [pendingRoomNickname, setPendingRoomNickname] = useState<{
+    room: AnonymousRoom;
+    fromPushLink?: boolean;
+    isNewRoom?: boolean;
+    personaKey?: string;
+  } | null>(null);
+  const [roomNicknameInput, setRoomNicknameInput] = useState('');
+  const [savingRoomNickname, setSavingRoomNickname] = useState(false);
+  const [roomNicknameChangeInput, setRoomNicknameChangeInput] = useState('');
+  const [updatingRoomNickname, setUpdatingRoomNickname] = useState(false);
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
@@ -445,6 +472,31 @@ const AnonymousChatRoom: React.FC = () => {
 
   useEffect(() => {
     if (!user?.uid) return;
+    let cancelled = false;
+    const ensureProfile = async () => {
+      try {
+        const profileRef = doc(db, 'anonymousChatProfiles', user.uid);
+        const snap = await getDoc(profileRef);
+        if (cancelled || snap.exists()) return;
+        await setDoc(profileRef, {
+          uid: user.uid,
+          customNickname: '',
+          profileNickname: user.nickname || '',
+          nicknamesByRoom: {},
+          createdAt: serverTimestamp()
+        });
+      } catch (error) {
+        console.error('익명 채팅 프로필 초기화 실패:', error);
+      }
+    };
+    void ensureProfile();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid, user?.nickname]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
     const loadUserActiveDays = async () => {
       try {
         const userSnap = await getDoc(doc(db, 'users', user.uid));
@@ -503,15 +555,11 @@ const AnonymousChatRoom: React.FC = () => {
     const participantsCollectionRef = collection(db, 'anonymousChatRooms', selectedRoomId, 'participants');
 
     const ensureRoomParticipant = async () => {
-      if (!profile || !user?.uid) return;
-      const persona = isNeraeUser
-        ? resolvePersonaDisplayForKey(profile, localActivePersonaKey)
-        : {
-            nickname: profile.customNickname.trim(),
-            profileNickname: profile.profileNickname || '',
-            isSub: false,
-            personaKey: 'main' as const
-          };
+      if (!profile || !user?.uid || !selectedRoomId) return;
+      const personaKey = isNeraeUser ? localActivePersonaKey : 'main';
+      if (!hasRoomPersonaNickname(profile, selectedRoomId, personaKey)) return;
+
+      const persona = resolvePersonaDisplayForRoom(profile, selectedRoomId, personaKey);
       const roomPresence = profile.presenceByRoom?.[selectedRoomId];
       const restoredJoinedAtMs =
         persona.personaKey === 'main'
@@ -522,13 +570,31 @@ const AnonymousChatRoom: React.FC = () => {
         const snap = await transaction.get(participantRef);
         if (snap.exists()) {
           const existing = snap.data() as RoomParticipant;
+          const roomNick = getRoomPersonaNickname(profile, selectedRoomId, personaKey);
+          const effectiveNickname =
+            roomNick || (existing.nickname || '').trim() || persona.nickname;
+          const effectiveProfileNickname = persona.profileNickname;
+
+          if (!roomNick && (existing.nickname || '').trim()) {
+            const backfill = buildNextNicknamesByRoom(
+              profile.nicknamesByRoom,
+              selectedRoomId,
+              personaKey,
+              existing.nickname
+            );
+            void updateDoc(doc(db, 'anonymousChatProfiles', user.uid), {
+              nicknamesByRoom: backfill
+            }).catch(() => undefined);
+            setProfile((prev) => (prev ? { ...prev, nicknamesByRoom: backfill } : prev));
+          }
+
           if (
-            existing.nickname !== persona.nickname ||
-            (existing.profileNickname || '') !== persona.profileNickname
+            existing.nickname !== effectiveNickname ||
+            (existing.profileNickname || '') !== effectiveProfileNickname
           ) {
             transaction.update(participantRef, {
-              nickname: persona.nickname,
-              profileNickname: persona.profileNickname
+              nickname: effectiveNickname,
+              profileNickname: effectiveProfileNickname
             });
           }
           return;
@@ -687,8 +753,6 @@ const AnonymousChatRoom: React.FC = () => {
         return aSec - bSec;
       });
   }, [roomParticipants, ownedSubDuplicateDocIds]);
-  const canChangeNicknameUnlimited = isNerae;
-
   const getDisplayName = (
     baseNickname?: string,
     profileNickname?: string,
@@ -718,15 +782,19 @@ const AnonymousChatRoom: React.FC = () => {
     const myParticipant = roomParticipants.find((member) => member.uid === myActiveParticipantDocId);
     const fromParticipant = (myParticipant?.nickname || '').trim();
     if (fromParticipant) return fromParticipant;
-    if (profile && canUseNeraeSubAccounts(user)) {
-      return resolvePersonaDisplayForKey(profile, localActivePersonaKey).nickname || '익명';
+    if (profile && selectedRoomId) {
+      const fromRoom = getRoomPersonaNickname(profile, selectedRoomId, localActivePersonaKey);
+      if (fromRoom) return fromRoom;
+      if (canUseNeraeSubAccounts(user)) {
+        return resolvePersonaDisplayForRoom(profile, selectedRoomId, localActivePersonaKey).nickname || '익명';
+      }
     }
-    return (profile?.customNickname || '').trim() || '익명';
-  }, [roomParticipants, myActiveParticipantDocId, profile, user?.nickname, localActivePersonaKey]);
+    return '익명';
+  }, [roomParticipants, myActiveParticipantDocId, profile, selectedRoomId, localActivePersonaKey, user]);
 
   const resolveSenderProfileNickname = useCallback((): string => {
-    if (profile && canUseNeraeSubAccounts(user)) {
-      const persona = resolvePersonaDisplayForKey(profile, localActivePersonaKey);
+    if (profile && selectedRoomId && canUseNeraeSubAccounts(user)) {
+      const persona = resolvePersonaDisplayForRoom(profile, selectedRoomId, localActivePersonaKey);
       if (persona.isSub) return '';
       return persona.profileNickname;
     }
@@ -766,9 +834,13 @@ const AnonymousChatRoom: React.FC = () => {
         };
       });
 
+    const timelineSortKey = (item: ChatTimelineItem) =>
+      item.type === 'message' ? item.message.id : item.key;
+
     return [...messageItems, ...joinNoticeItems].sort((a, b) => {
       if (a.sortSec !== b.sortSec) return a.sortSec - b.sortSec;
-      return a.sortNano - b.sortNano;
+      if (a.sortNano !== b.sortNano) return a.sortNano - b.sortNano;
+      return timelineSortKey(a).localeCompare(timelineSortKey(b));
     });
   }, [sortedMessages, roomParticipants, timelineBaselineSec, user?.uid, ownedSubDocIds]);
 
@@ -984,16 +1056,13 @@ const AnonymousChatRoom: React.FC = () => {
     };
   }, [messageActionMenu]);
 
-  const myDisplayName = useMemo(() => {
-    if (!profile) return '익명';
-    if (isNerae) {
-      const persona = resolvePersonaDisplayForKey(profile, localActivePersonaKey);
-      return getDisplayName(persona.nickname, persona.profileNickname, {
-        isSubAccount: persona.isSub
-      });
-    }
-    return getDisplayName(profile.customNickname, profile.profileNickname);
-  }, [profile, isNerae, localActivePersonaKey]);
+  const myDisplayNameInRoom = useMemo(() => {
+    if (!profile || !selectedRoomId) return '';
+    const persona = resolvePersonaDisplayForRoom(profile, selectedRoomId, localActivePersonaKey);
+    return getDisplayName(persona.nickname, persona.profileNickname, {
+      isSubAccount: persona.isSub
+    });
+  }, [profile, selectedRoomId, localActivePersonaKey]);
 
   const getRoomRestrictionLabel = useCallback((room?: AnonymousRoom) => {
     const required = room?.requiredActiveDays || 0;
@@ -1013,15 +1082,62 @@ const AnonymousChatRoom: React.FC = () => {
     clearPendingPushRoomId();
   }, [clearDeepLinkRoomIdFromUrl]);
 
+  const getEntryPersonaKey = useCallback(() => {
+    if (canUseNeraeSubAccounts(user) && profile) return getActivePersonaKey(profile);
+    return 'main';
+  }, [user, profile]);
+
+  const needsRoomNicknameSetup = useCallback(
+    async (room: AnonymousRoom, personaKey: string) => {
+      if (!user?.uid || !profile) return true;
+      if (hasRoomPersonaNickname(profile, room.id, personaKey)) return false;
+
+      const activeDocId =
+        personaKey === 'main' ? user.uid : getSubParticipantDocId(personaKey);
+      const partSnap = await getDoc(
+        doc(db, 'anonymousChatRooms', room.id, 'participants', activeDocId)
+      );
+      if (partSnap.exists() && (partSnap.data()?.nickname || '').trim()) {
+        return false;
+      }
+      return true;
+    },
+    [user?.uid, profile]
+  );
+
+  const openRoomNicknameModal = useCallback(
+    (
+      room: AnonymousRoom,
+      options?: { fromPushLink?: boolean; isNewRoom?: boolean; personaKey?: string }
+    ) => {
+      const personaKey = options?.personaKey || getEntryPersonaKey();
+      const suggestion =
+        getRoomPersonaNickname(profile, room.id, personaKey) ||
+        (profile?.customNickname || '').trim();
+      setRoomNicknameInput(suggestion);
+      setPendingRoomNickname({
+        room,
+        fromPushLink: options?.fromPushLink,
+        isNewRoom: options?.isNewRoom,
+        personaKey
+      });
+    },
+    [profile, getEntryPersonaKey]
+  );
+
   const handleEnterRoom = useCallback(async (
     room: AnonymousRoom,
     options?: { fromPushLink?: boolean; skipEntryCodeCheck?: boolean }
   ) => {
-    if (!user?.uid) return;
+    if (!user?.uid || !profile) return;
     const participantsSnap = await getDocs(
       collection(db, 'anonymousChatRooms', room.id, 'participants')
     );
     const ownedSubs = getOwnedSubDocIds(profile);
+    const entryParticipantDocId =
+      canUseNeraeSubAccounts(user) && profile
+        ? getActiveParticipantDocId(user.uid, profile)
+        : user.uid;
     const isExistingMember = participantsSnap.docs.some((item) =>
       isOwnedByUser({ uid: item.id }, user.uid, ownedSubs)
     );
@@ -1031,12 +1147,8 @@ const AnonymousChatRoom: React.FC = () => {
       return;
     }
 
-    const entryParticipantDocId =
-      canUseNeraeSubAccounts(user) && profile
-        ? getActiveParticipantDocId(user.uid, profile)
-        : user.uid;
     const banUntilMs = getActiveRoomBanUntilMs(room, entryParticipantDocId);
-    if (!isExistingMember && banUntilMs > Date.now()) {
+    if (banUntilMs > Date.now()) {
       if (!Number.isFinite(banUntilMs)) {
         alert('이 방에서보내져 다시 입장할 수 없습니다.');
         return;
@@ -1058,8 +1170,33 @@ const AnonymousChatRoom: React.FC = () => {
       return;
     }
 
+    const personaKey = getEntryPersonaKey();
+    if (await needsRoomNicknameSetup(room, personaKey)) {
+      openRoomNicknameModal(room, { fromPushLink: options?.fromPushLink, personaKey });
+      return;
+    }
+
     finalizeEnterRoom(room, options?.fromPushLink);
-  }, [user, profile, canEnterRoom, userActiveDays, finalizeEnterRoom, getRoomRestrictionLabel]);
+  }, [
+    user,
+    profile,
+    canEnterRoom,
+    userActiveDays,
+    finalizeEnterRoom,
+    getRoomRestrictionLabel,
+    getEntryPersonaKey,
+    needsRoomNicknameSetup,
+    openRoomNicknameModal
+  ]);
+
+  useEffect(() => {
+    if (!selectedRoomId || !profile) {
+      setRoomNicknameChangeInput('');
+      return;
+    }
+    const nick = getRoomPersonaNickname(profile, selectedRoomId, localActivePersonaKey);
+    setRoomNicknameChangeInput(nick);
+  }, [selectedRoomId, profile, localActivePersonaKey]);
 
   useEffect(() => {
     if (!user?.uid || !profile || selectedRoomId) return;
@@ -1140,9 +1277,9 @@ const AnonymousChatRoom: React.FC = () => {
   const isMyChatMuted = myMuteUntilMs > Date.now();
   const isRoomFrozen = Boolean(selectedRoom?.isFrozen);
 
-  const handleCreateNickname = useCallback(async () => {
-    if (!user?.uid || profile) return;
-    const trimmed = nicknameInput.trim();
+  const confirmRoomNickname = useCallback(async () => {
+    if (!pendingRoomNickname || !user?.uid || !profile) return;
+    const trimmed = roomNicknameInput.trim();
     if (!trimmed) {
       alert('닉네임을 입력해주세요.');
       return;
@@ -1152,39 +1289,77 @@ const AnonymousChatRoom: React.FC = () => {
       return;
     }
 
-    setCreatingNickname(true);
-    try {
-      await runTransaction(db, async (transaction) => {
-        const profileRef = doc(db, 'anonymousChatProfiles', user.uid);
-        const existing = await transaction.get(profileRef);
-        if (existing.exists()) {
-          return;
-        }
+    const { room, fromPushLink, isNewRoom, personaKey = 'main' } = pendingRoomNickname;
+    const activeDocId = personaKey === 'main' ? user.uid : getSubParticipantDocId(personaKey);
 
-        transaction.set(profileRef, {
-          uid: user.uid,
-          customNickname: trimmed,
-          profileNickname: user.nickname || '',
-          nicknameChangedOnce: false,
-          createdAt: serverTimestamp()
-        });
+    setSavingRoomNickname(true);
+    try {
+      const participantsSnap = await getDocs(
+        collection(db, 'anonymousChatRooms', room.id, 'participants')
+      );
+      const participantsForNickCheck = participantsSnap.docs
+        .map((item) => ({ uid: item.id, nickname: item.data().nickname as string | undefined }))
+        .filter((member) => member.uid !== activeDocId);
+      if (isRoomNicknameTaken(participantsForNickCheck, trimmed)) {
+        alert('이 방에서 이미 사용 중인 닉네임입니다.');
+        return;
+      }
+
+      const nextNicknamesByRoom = buildNextNicknamesByRoom(
+        profile.nicknamesByRoom,
+        room.id,
+        personaKey,
+        trimmed
+      );
+      const nextProfile: AnonymousProfile = { ...profile, nicknamesByRoom: nextNicknamesByRoom };
+
+      await updateDoc(doc(db, 'anonymousChatProfiles', user.uid), {
+        nicknamesByRoom: nextNicknamesByRoom
       });
+
+      if (isNewRoom) {
+        await updateDoc(doc(db, 'anonymousChatRooms', room.id), {
+          createdByNickname: trimmed
+        });
+      }
+
+      const persona = resolvePersonaDisplayForRoom(nextProfile, room.id, personaKey);
+      const participantRef = doc(db, 'anonymousChatRooms', room.id, 'participants', activeDocId);
+      const partSnap = await getDoc(participantRef);
+      if (partSnap.exists()) {
+        await updateDoc(participantRef, {
+          nickname: persona.nickname,
+          profileNickname: persona.profileNickname
+        });
+      }
+
+      setProfile(nextProfile);
+      setPendingRoomNickname(null);
+      setRoomNicknameInput('');
+
+      if (isNewRoom) {
+        finalizeEnterRoom(room);
+      } else {
+        finalizeEnterRoom(room, fromPushLink);
+      }
     } catch (error) {
-      console.error('익명 닉네임 초기 설정 실패:', error);
+      console.error('방 닉네임 설정 실패:', error);
       alert('닉네임 설정 중 오류가 발생했습니다.');
     } finally {
-      setCreatingNickname(false);
+      setSavingRoomNickname(false);
     }
-  }, [user?.uid, user?.nickname, profile, nicknameInput]);
+  }, [
+    pendingRoomNickname,
+    user?.uid,
+    profile,
+    roomNicknameInput,
+    finalizeEnterRoom
+  ]);
 
-  const handleChangeNicknameOnce = useCallback(async () => {
-    if (!user?.uid || !profile) return;
-    if (!canChangeNicknameUnlimited && profile.nicknameChangedOnce) {
-      alert('닉네임 변경은 1회만 가능합니다.');
-      return;
-    }
+  const handleChangeRoomNickname = useCallback(async () => {
+    if (!user?.uid || !profile || !selectedRoomId) return;
 
-    const trimmed = nicknameChangeInput.trim();
+    const trimmed = roomNicknameChangeInput.trim();
     if (!trimmed) {
       alert('변경할 닉네임을 입력해주세요.');
       return;
@@ -1193,68 +1368,73 @@ const AnonymousChatRoom: React.FC = () => {
       alert('닉네임은 15자 이하로 입력해주세요.');
       return;
     }
-    if (trimmed === profile.customNickname) {
+
+    const personaKey = isNerae ? localActivePersonaKey : 'main';
+    const currentNick = getRoomPersonaNickname(profile, selectedRoomId, personaKey);
+    if (trimmed === currentNick) {
       alert('현재 닉네임과 동일합니다.');
       return;
     }
 
-    setUpdatingNickname(true);
-    try {
-      const profileRef = doc(db, 'anonymousChatProfiles', user.uid);
-      await runTransaction(db, async (transaction) => {
-        const snapshot = await transaction.get(profileRef);
-        if (!snapshot.exists()) {
-          throw new Error('프로필 정보가 없습니다.');
-        }
-        const currentProfile = snapshot.data() as AnonymousProfile;
-        if (!canChangeNicknameUnlimited && currentProfile.nicknameChangedOnce) {
-          throw new Error('닉네임은 이미 변경되었습니다.');
-        }
-        transaction.update(profileRef, {
-          customNickname: trimmed,
-          nicknameChangedOnce: canChangeNicknameUnlimited ? false : true
-        });
-      });
+    const duplicateDocIds = listOwnedSubParticipantDuplicates(roomParticipants, user.uid, profile);
+    const participantsForNickCheck = roomParticipants.filter(
+      (member) =>
+        member.uid !== myActiveParticipantDocId && !duplicateDocIds.includes(member.uid)
+    );
+    if (isRoomNicknameTaken(participantsForNickCheck, trimmed, myActiveParticipantDocId)) {
+      alert('이 방에서 이미 사용 중인 닉네임입니다.');
+      return;
+    }
 
-      const participantQuery = query(
-        collectionGroup(db, 'participants'),
-        where('uid', '==', user.uid)
+    setUpdatingRoomNickname(true);
+    try {
+      const nextNicknamesByRoom = buildNextNicknamesByRoom(
+        profile.nicknamesByRoom,
+        selectedRoomId,
+        personaKey,
+        trimmed
       );
-      const participantSnap = await getDocs(participantQuery);
-      if (!participantSnap.empty) {
-        const batch = writeBatch(db);
-        participantSnap.docs.forEach((participantDoc) => {
-          batch.update(participantDoc.ref, { nickname: trimmed });
+      const persona = resolvePersonaDisplayForRoom(
+        { ...profile, nicknamesByRoom: nextNicknamesByRoom },
+        selectedRoomId,
+        personaKey
+      );
+
+      await updateDoc(doc(db, 'anonymousChatProfiles', user.uid), {
+        nicknamesByRoom: nextNicknamesByRoom
+      });
+      await updateDoc(
+        doc(db, 'anonymousChatRooms', selectedRoomId, 'participants', myActiveParticipantDocId),
+        {
+          nickname: persona.nickname,
+          profileNickname: persona.profileNickname
+        }
+      );
+
+      if (personaKey === 'main' && selectedRoom?.createdByUid === user.uid) {
+        await updateDoc(doc(db, 'anonymousChatRooms', selectedRoomId), {
+          createdByNickname: trimmed
         });
-        await batch.commit();
       }
 
-      setProfile((prev) =>
-        prev
-          ? {
-              ...prev,
-              customNickname: trimmed,
-              nicknameChangedOnce: canChangeNicknameUnlimited ? false : true
-            }
-          : prev
-      );
-      setNicknameChangeInput('');
-      alert(
-        canChangeNicknameUnlimited
-          ? '닉네임이 변경되었습니다.'
-          : '닉네임이 변경되었습니다. (1회 변경 완료)'
-      );
-    } catch (error: any) {
-      console.error('닉네임 변경 실패:', error);
-      alert(error?.message || '닉네임 변경 중 오류가 발생했습니다.');
+      setProfile((prev) => (prev ? { ...prev, nicknamesByRoom: nextNicknamesByRoom } : prev));
+      alert('이 채팅방의 닉네임이 변경되었습니다.');
+    } catch (error) {
+      console.error('방 닉네임 변경 실패:', error);
+      alert('닉네임 변경 중 오류가 발생했습니다.');
     } finally {
-      setUpdatingNickname(false);
+      setUpdatingRoomNickname(false);
     }
   }, [
     user?.uid,
     profile,
-    canChangeNicknameUnlimited,
-    nicknameChangeInput
+    selectedRoomId,
+    selectedRoom,
+    roomNicknameChangeInput,
+    isNerae,
+    localActivePersonaKey,
+    roomParticipants,
+    myActiveParticipantDocId
   ]);
 
   const handleCreateRoom = useCallback(async () => {
@@ -1274,8 +1454,7 @@ const AnonymousChatRoom: React.FC = () => {
       const roomRef = await addDoc(collection(db, 'anonymousChatRooms'), {
         title: trimmed,
         createdByUid: user.uid,
-        // 채팅방 목록의 방장 닉네임은 생성 시점 값을 고정한다.
-        createdByNickname: profile.customNickname,
+        createdByNickname: '',
         coHostUids: [],
         coHostParticipantIds: [],
         notificationMutedUids: [],
@@ -1284,15 +1463,22 @@ const AnonymousChatRoom: React.FC = () => {
         entryCode: '',
         createdAt: serverTimestamp()
       });
+      const createdRoom: AnonymousRoom = {
+        id: roomRef.id,
+        title: trimmed,
+        createdByUid: user.uid,
+        createdByNickname: '',
+        createdAt: null
+      };
       setRoomTitleInput('');
-      setSelectedRoomId(roomRef.id);
+      openRoomNicknameModal(createdRoom, { isNewRoom: true, personaKey: 'main' });
     } catch (error) {
       console.error('채팅방 생성 실패:', error);
       alert('채팅방 생성 중 오류가 발생했습니다.');
     } finally {
       setCreatingRoom(false);
     }
-  }, [user?.uid, profile, roomTitleInput]);
+  }, [user?.uid, profile, roomTitleInput, openRoomNicknameModal]);
 
   const handleDeleteRoom = useCallback(async (room: AnonymousRoom) => {
     if (!user?.uid || room.createdByUid !== user.uid) return;
@@ -1305,15 +1491,27 @@ const AnonymousChatRoom: React.FC = () => {
 
     setDeletingRoomId(room.id);
     try {
-      const messageSnap = await getDocs(collection(db, 'anonymousChatRooms', room.id, 'messages'));
-      await Promise.all(messageSnap.docs.map((messageDoc) => deleteDoc(messageDoc.ref)));
-      await deleteDoc(doc(db, 'anonymousChatRooms', room.id));
+      const deleteRoomFn = httpsCallable<{ roomId: string }, { ok: boolean }>(
+        functions,
+        'deleteAnonymousChatRoom',
+        { timeout: 300_000 }
+      );
+      await deleteRoomFn({ roomId: room.id });
       if (selectedRoomId === room.id) {
         setSelectedRoomId(null);
       }
     } catch (error) {
       console.error('채팅방 삭제 실패:', error);
-      alert('채팅방 삭제 중 오류가 발생했습니다.');
+      let message = '채팅방 삭제 중 오류가 발생했습니다.';
+      if (error && typeof error === 'object') {
+        const anyErr = error as { code?: string; message?: string };
+        if (anyErr.code === 'functions/permission-denied') {
+          message = '방장만 채팅방을 삭제할 수 있습니다.';
+        } else if (typeof anyErr.message === 'string' && anyErr.message.trim().length > 0) {
+          message = anyErr.message;
+        }
+      }
+      alert(message);
     } finally {
       setDeletingRoomId(null);
       setPendingDeleteRoom(null);
@@ -1467,6 +1665,15 @@ const AnonymousChatRoom: React.FC = () => {
         notifyUid = recentMsgSnap.docs.find((item) => item.data()?.uid)?.data()?.uid || '';
       }
 
+      const kickedMember = selectedMember || roomParticipants.find((m) => m.uid === memberDocId);
+      const kickedOwnerUid = kickedMember ? resolveMemberOwnerUid(kickedMember) : notifyUid;
+      const otherPersonaRemains = roomParticipants.some((member) => {
+        if (member.uid === memberDocId) return false;
+        const ownerUid = resolveMemberOwnerUid(member);
+        if (kickedOwnerUid && ownerUid === kickedOwnerUid) return true;
+        return Boolean(notifyUid && (member.uid === notifyUid || ownerUid === notifyUid));
+      });
+
       await runTransaction(db, async (transaction) => {
         transaction.update(roomRef, {
           /** 방장 내보내기는 재입장 제한 없음 — 기존 밴 표시도 제거 */
@@ -1479,16 +1686,18 @@ const AnonymousChatRoom: React.FC = () => {
         transaction.delete(participantRef);
       });
 
-      if (notifyUid) {
+      if (notifyUid && !isChatPushMutedForUid(selectedRoom, notifyUid)) {
         await addDoc(collection(db, 'notifications'), {
           toUid: notifyUid,
-          type: 'anonymous_chat_ban',
+          type: 'anonymous_chat_kick',
           postType: 'anonymous_chat',
           postId: selectedRoomId,
           roomId: selectedRoomId,
           postTitle: `익명채팅 - ${roomTitle}`,
           fromNickname: '익명채팅',
-          message: kickNotifyMessage,
+          message: otherPersonaRemains
+            ? `"${roomTitle}" 방의 "${selectedMemberName}" 계정이보내졌습니다. 다른 익명 계정은 방에 남아 있습니다.`
+            : kickNotifyMessage,
           route: `/anonymous-chat?roomId=${encodeURIComponent(selectedRoomId)}`,
           isRead: false,
           hiddenFromInbox: false,
@@ -1674,7 +1883,7 @@ const AnonymousChatRoom: React.FC = () => {
         {
           lastMessageAt: serverTimestamp()
         }
-      ).catch(() => undefined);
+      );
 
       const participantToFirebaseUid = new Map<string, string>();
       messages.forEach((m) => {
@@ -1694,7 +1903,9 @@ const AnonymousChatRoom: React.FC = () => {
         }
         if (target && target !== user.uid) targetUidSet.add(target);
       });
-      const targetUids = [...targetUidSet];
+      const targetUids = [...targetUidSet].filter(
+        (targetUid) => !isChatPushMutedForUid(selectedRoom, targetUid)
+      );
 
       if (targetUids.length > 0) {
         const notificationPayloads = targetUids.map((targetUid) => ({
@@ -1798,10 +2009,6 @@ const AnonymousChatRoom: React.FC = () => {
       void handleSendMessage(e.currentTarget.value);
     }
   }, [handleSendMessage]);
-
-  const toggleNicknameChangePanel = useCallback(() => {
-    setShowNicknameChangePanel((prev) => !prev);
-  }, []);
 
   const closePendingDeleteRoomModal = useCallback(() => {
     setPendingDeleteRoom(null);
@@ -2092,10 +2299,17 @@ const AnonymousChatRoom: React.FC = () => {
 
       const nextSubAccounts = [...neraeSubAccounts, { id: subId, customNickname: trimmed }];
       const joinedAtMs = Date.now();
+      const nextNicknamesByRoom = buildNextNicknamesByRoom(
+        profile.nicknamesByRoom,
+        selectedRoomId,
+        subId,
+        trimmed
+      );
       const nextProfile: AnonymousProfile = {
         ...profile,
         subAccounts: nextSubAccounts,
         activePersona: subId,
+        nicknamesByRoom: nextNicknamesByRoom,
         presenceByRoom: {
           ...(profile.presenceByRoom || {}),
           [selectedRoomId]: {
@@ -2125,6 +2339,7 @@ const AnonymousChatRoom: React.FC = () => {
       await updateDoc(doc(db, 'anonymousChatProfiles', user.uid), {
         subAccounts: nextSubAccounts,
         activePersona: subId,
+        nicknamesByRoom: nextNicknamesByRoom,
         presenceByRoom: nextProfile.presenceByRoom
       });
 
@@ -2368,31 +2583,64 @@ const AnonymousChatRoom: React.FC = () => {
   }
 
   if (!profile) {
-    return (
-      <div className="anonymous-chat-page">
-        <div className="anonymous-chat-setup-card">
-          <h2>익명 채팅방 입장</h2>
-          <p>입장 전에 사용할 익명 닉네임을 설정해주세요.</p>
-          <input
-            type="text"
-            value={nicknameInput}
-            onChange={(e) => setNicknameInput(e.target.value)}
-            maxLength={15}
-            placeholder="닉네임 입력 (최대 15자)"
-          />
-          <button onClick={handleCreateNickname} disabled={creatingNickname || !nicknameInput.trim()}>
-            {creatingNickname ? '설정 중...' : '입장하기'}
-          </button>
-          <div className="anonymous-chat-setup-note">
-            한번 설정한 닉네임은 바꿀 수 없습니다.
-          </div>
-        </div>
-      </div>
-    );
+    return <div className="anonymous-chat-page">로딩 중...</div>;
   }
 
+  const roomNicknameModal = pendingRoomNickname ? (
+    <div
+      className="anonymous-chat-members-overlay"
+      onClick={() => {
+        if (!savingRoomNickname) setPendingRoomNickname(null);
+      }}
+    >
+      <div className="anonymous-chat-members-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="anonymous-chat-members-title">
+          {pendingRoomNickname.isNewRoom ? '채팅방 만들기' : '채팅방 입장'}
+        </div>
+        <div className="anonymous-chat-members-empty">
+          "{pendingRoomNickname.room.title}"에서 사용할 익명 닉네임을 입력해주세요.
+          <br />
+          방마다 다른 닉네임을 사용할 수 있습니다.
+        </div>
+        <div className="anonymous-chat-room-menu-row">
+          <input
+            type="text"
+            maxLength={15}
+            autoFocus
+            value={roomNicknameInput}
+            placeholder="닉네임 (최대 15자)"
+            onChange={(e) => setRoomNicknameInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                void confirmRoomNickname();
+              }
+            }}
+          />
+        </div>
+        <div className="anonymous-chat-room-menu-actions">
+          <button
+            type="button"
+            className="anonymous-chat-members-close"
+            onClick={() => void confirmRoomNickname()}
+            disabled={savingRoomNickname || !roomNicknameInput.trim()}
+          >
+            {savingRoomNickname ? '설정 중...' : pendingRoomNickname.isNewRoom ? '만들고 입장' : '입장하기'}
+          </button>
+          <button
+            type="button"
+            className="anonymous-chat-members-close secondary"
+            onClick={() => setPendingRoomNickname(null)}
+            disabled={savingRoomNickname}
+          >
+            취소
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   if (!selectedRoomId) {
-    const myDisplayInitial = getMemberInitial(myDisplayName);
     return (
       <div className="anonymous-chat-page anonymous-chat-list-page">
         <header className="anonymous-chat-list-header">
@@ -2417,58 +2665,10 @@ const AnonymousChatRoom: React.FC = () => {
               <AppWindow size={20} />
             </button>
           </div>
-          <div className="anonymous-chat-profile-card">
-            <div className="anonymous-chat-profile-card__identity">
-              <span className="anonymous-chat-profile-avatar" aria-hidden="true">
-                {myDisplayInitial}
-              </span>
-              <div className="anonymous-chat-profile-card__text">
-                <span className="anonymous-chat-profile-card__label">내 표시명</span>
-                <strong className="anonymous-chat-profile-card__name">{myDisplayName}</strong>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={toggleNicknameChangePanel}
-              className="anonymous-chat-nickname-toggle-btn"
-            >
-              {showNicknameChangePanel ? '닫기' : '닉네임 변경'}
-            </button>
-          </div>
+          <p className="anonymous-chat-setup-note anonymous-chat-setup-note-tight">
+            채팅방마다 서로 다른 익명 닉네임으로 입장할 수 있습니다.
+          </p>
         </header>
-        {showNicknameChangePanel && (
-          <section className="anonymous-chat-list-section" aria-label="닉네임 변경">
-            <div className="anonymous-chat-room-create anonymous-chat-room-create--stack">
-              <input
-                type="text"
-                value={nicknameChangeInput}
-                onChange={(e) => setNicknameChangeInput(e.target.value)}
-                maxLength={15}
-                placeholder={
-                  canChangeNicknameUnlimited
-                    ? '닉네임 변경 (무제한)'
-                    : profile.nicknameChangedOnce
-                      ? '닉네임 변경 완료'
-                      : '닉네임 1회 변경'
-                }
-                disabled={(!canChangeNicknameUnlimited && profile.nicknameChangedOnce) || updatingNickname}
-              />
-              <button
-                onClick={handleChangeNicknameOnce}
-                disabled={
-                  (!canChangeNicknameUnlimited && profile.nicknameChangedOnce) ||
-                  updatingNickname ||
-                  !nicknameChangeInput.trim()
-                }
-              >
-                {updatingNickname ? '변경 중...' : '변경 적용'}
-              </button>
-            </div>
-            <p className="anonymous-chat-setup-note anonymous-chat-setup-note-tight">
-              추가 변경 원할시 회비통장 입금바랍니다^^
-            </p>
-          </section>
-        )}
         <section className="anonymous-chat-list-section" aria-label="새 채팅방 만들기">
           <h3 className="anonymous-chat-list-section__title">새 채팅방</h3>
           <div className="anonymous-chat-room-create anonymous-chat-room-create--stack">
@@ -2556,6 +2756,7 @@ const AnonymousChatRoom: React.FC = () => {
             </div>
           </div>
         )}
+        {roomNicknameModal}
       </div>
     );
   }
@@ -2670,6 +2871,30 @@ const AnonymousChatRoom: React.FC = () => {
               onChange={handleThemeToggle}
             />
           </label>
+          <div className="anonymous-chat-room-menu-divider" />
+          <div className="anonymous-chat-room-menu-title">이 방 닉네임</div>
+          {myDisplayNameInRoom && (
+            <p className="anonymous-chat-setup-note anonymous-chat-setup-note-tight">
+              현재: {myDisplayNameInRoom}
+            </p>
+          )}
+          <div className="anonymous-chat-room-menu-row">
+            <input
+              type="text"
+              maxLength={15}
+              placeholder="닉네임 (최대 15자)"
+              value={roomNicknameChangeInput}
+              onChange={(e) => setRoomNicknameChangeInput(e.target.value)}
+            />
+          </div>
+          <button
+            type="button"
+            className="anonymous-chat-room-menu-save"
+            onClick={() => void handleChangeRoomNickname()}
+            disabled={updatingRoomNickname || !roomNicknameChangeInput.trim()}
+          >
+            {updatingRoomNickname ? '변경 중...' : '닉네임 변경'}
+          </button>
           <div className="anonymous-chat-room-menu-divider" />
           {selectedRoom?.createdByUid === user?.uid ? (
             <>
@@ -3110,6 +3335,8 @@ const AnonymousChatRoom: React.FC = () => {
           </div>,
           document.body
         )}
+
+      {roomNicknameModal}
     </div>
   );
 };

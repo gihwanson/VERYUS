@@ -858,7 +858,7 @@ function App() {
           const data = snap.data() as Record<string, any>;
           if (data.hiddenFromInbox === true) return false;
           const type = String(data.type || '').toLowerCase();
-          if (type === 'anonymous_chat_ban') return true;
+          if (type === 'anonymous_chat_ban' || type === 'anonymous_chat_kick') return true;
           if (type === 'anonymous_chat') return false;
           return true;
         }).length;

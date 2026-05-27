@@ -4,7 +4,11 @@ import { logger } from 'firebase-functions';
 
 admin.initializeApp();
 
-export { cleanupAnonymousChatRoom, scheduledAnonymousChatCleanup } from './anonymousChatCleanup';
+export {
+  cleanupAnonymousChatRoom,
+  deleteAnonymousChatRoom,
+  scheduledAnonymousChatCleanup
+} from './anonymousChatCleanup';
 const WEB_APP_ORIGIN = 'https://veryusduet.web.app';
 
 const getRouteByPostType = (postType: string, postId: string): string => {
@@ -53,7 +57,11 @@ const getNotificationRoute = (data: FirebaseFirestore.DocumentData): string => {
     return postId ? `/boards/partner/${postId}` : '/boards/partner';
   }
 
-  if (notificationType === 'anonymous_chat' || notificationType === 'anonymous_chat_ban') {
+  if (
+    notificationType === 'anonymous_chat' ||
+    notificationType === 'anonymous_chat_ban' ||
+    notificationType === 'anonymous_chat_kick'
+  ) {
     return roomId ? `/anonymous-chat?roomId=${encodeURIComponent(roomId)}` : '/anonymous-chat';
   }
 
@@ -126,6 +134,22 @@ const resolveAnonymousChatSenderNickname = async (
   return '익명';
 };
 
+const isAnonymousChatPushMuted = async (
+  roomId: string,
+  toUid: string
+): Promise<boolean> => {
+  if (!roomId || !toUid) return false;
+  try {
+    const roomSnap = await admin.firestore().doc(`anonymousChatRooms/${roomId}`).get();
+    if (!roomSnap.exists) return false;
+    const muted = (roomSnap.data()?.notificationMutedUids as string[] | undefined) || [];
+    return muted.includes(toUid);
+  } catch (error) {
+    logger.warn('익명채팅 푸시 음소거 설정 조회 실패', { roomId, toUid, error });
+    return false;
+  }
+};
+
 export const sendPushOnNotificationCreated = onDocumentCreated(
   {
     document: 'notifications/{notificationId}',
@@ -152,6 +176,27 @@ export const sendPushOnNotificationCreated = onDocumentCreated(
       logger.info('사용자 알림 비활성 상태로 푸시 스킵', { toUid });
       await notificationRef.set(
         {
+          pushDispatchEventId: admin.firestore.FieldValue.delete(),
+          pushDispatchLockUntil: admin.firestore.FieldValue.delete()
+        },
+        { merge: true }
+      );
+      return;
+    }
+
+    const notificationTypeEarly = (data.type as string | undefined) || '';
+    const roomIdEarly = (data.roomId as string | undefined) || '';
+    if (
+      (notificationTypeEarly === 'anonymous_chat' ||
+        notificationTypeEarly === 'anonymous_chat_ban' ||
+        notificationTypeEarly === 'anonymous_chat_kick') &&
+      roomIdEarly &&
+      (await isAnonymousChatPushMuted(roomIdEarly, toUid))
+    ) {
+      logger.info('익명채팅방 푸시 음소거로 스킵', { toUid, roomId: roomIdEarly });
+      await notificationRef.set(
+        {
+          pushSkippedReason: 'anonymous_chat_muted',
           pushDispatchEventId: admin.firestore.FieldValue.delete(),
           pushDispatchLockUntil: admin.firestore.FieldValue.delete()
         },
@@ -242,7 +287,10 @@ export const sendPushOnNotificationCreated = onDocumentCreated(
       const senderNickname = await resolveAnonymousChatSenderNickname(data);
       const chatPreview = extractChatMessagePreview(data);
       pushBody = `${senderNickname}: ${chatPreview}`;
-    } else if (notificationType === 'anonymous_chat_ban') {
+    } else if (
+      notificationType === 'anonymous_chat_ban' ||
+      notificationType === 'anonymous_chat_kick'
+    ) {
       pushBody = String(data.message || '익명채팅방 퇴장 안내가 도착했습니다.').slice(0, 120);
     }
 
