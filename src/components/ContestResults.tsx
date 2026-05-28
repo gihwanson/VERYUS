@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
+import { useNavigate, useParams } from 'react-router-dom';
+import { doc, getDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
+import type { RoundDoc, RoundVote } from '../types/contest';
 import { db } from '../firebase';
 import '../styles/components.css';
 import '../styles/contest-ui-refresh.css';
 
 const ContestResults: React.FC = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [contest, setContest] = useState<any>(null);
   const [grades, setGrades] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
@@ -14,6 +16,8 @@ const ContestResults: React.FC = () => {
   const [evaluationTargets, setEvaluationTargets] = useState<any[]>([]); // 평가받는 대상 (참가자 관리에서 설정한 멤버들)
   const [selectedEvaluator, setSelectedEvaluator] = useState<string>('');
   const [selectedTarget, setSelectedTarget] = useState<string>('');
+  const [rounds, setRounds] = useState<RoundDoc[]>([]);
+  const [roundVotesMap, setRoundVotesMap] = useState<Record<string, RoundVote[]>>({});
   const userString = localStorage.getItem('veryus_user');
   const user = userString ? JSON.parse(userString) : null;
   const isAdmin = user && ['리더', '운영진', '부운영진'].includes(user.role);
@@ -29,6 +33,26 @@ const ContestResults: React.FC = () => {
     // 평가받는 대상 불러오기 (참가자 관리에서 설정한 멤버들)
     getDocs(collection(db, 'contests', id, 'evaluationTargets')).then(snap => setEvaluationTargets(snap.docs.map(doc => ({ uid: doc.id, ...doc.data() }))));
   }, [id]);
+
+  useEffect(() => {
+    if (!id || !contest || contest.type !== '라운드매치') return;
+    const loadRounds = async () => {
+      const roundsSnap = await getDocs(
+        query(collection(db, 'contests', id, 'rounds'), orderBy('roundNumber', 'asc'))
+      );
+      const roundsData = roundsSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as RoundDoc[];
+      setRounds(roundsData);
+      const map: Record<string, RoundVote[]> = {};
+      await Promise.all(
+        roundsSnap.docs.map(async (r) => {
+          const votesSnap = await getDocs(collection(db, 'contests', id, 'rounds', r.id, 'votes'));
+          map[r.id] = votesSnap.docs.map((d) => d.data() as RoundVote);
+        })
+      );
+      setRoundVotesMap(map);
+    };
+    void loadRounds();
+  }, [id, contest]);
 
   if (!contest) {
     return (
@@ -75,6 +99,79 @@ const ContestResults: React.FC = () => {
         }}>
           <div style={{ fontSize: '48px', marginBottom: '16px' }}>🚫</div>
           <div style={{ color: 'white', fontSize: '18px', fontWeight: 600 }}>콘테스트 결과는 리더만 확인할 수 있습니다.</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (contest.type === '라운드매치') {
+    return (
+      <div
+        className="contest-ui-refresh"
+        style={{
+          minHeight: '100vh',
+          background: 'var(--app-page-gradient)',
+          backgroundAttachment: 'fixed',
+          padding: '28px 16px 48px',
+        }}
+      >
+        <div style={{ maxWidth: 720, margin: '0 auto' }}>
+          <div style={{ marginBottom: 14 }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => navigate(`/contests/${id}`)}
+            >
+              ← 콘테스트 상세로
+            </button>
+          </div>
+          <h2 style={{ color: '#fff', fontWeight: 800, marginBottom: 8 }}>{contest.title}</h2>
+          <p style={{ color: 'rgba(255,255,255,0.85)', marginBottom: 24 }}>⚔️ 라운드매치 히스토리 (리더 전용)</p>
+          {rounds.length === 0 ? (
+            <p style={{ color: 'rgba(255,255,255,0.7)' }}>기록된 라운드가 없습니다.</p>
+          ) : (
+            rounds.map((round) => (
+              <div key={round.id} className="contest-results-panel" style={{ marginBottom: 20 }}>
+                <h3 style={{ color: '#7C4DBC', fontWeight: 700, marginBottom: 8 }}>
+                  라운드 {round.roundNumber}: {round.teamAName} vs {round.teamBName}
+                </h3>
+                {round.status === 'published' ? (
+                  <p style={{ fontWeight: 600, marginBottom: 8 }}>
+                    결과: {round.winnerTeamName}
+                    {round.votesA != null && (
+                      <span style={{ fontWeight: 400, marginLeft: 8, fontSize: 14 }}>
+                        ({round.teamAName} {round.votesA}표 / {round.teamBName} {round.votesB}표)
+                      </span>
+                    )}
+                  </p>
+                ) : (
+                  <p style={{ color: '#666', fontSize: 14 }}>
+                    {round.status === 'voting' ? '진행 중' : '마감 · 미공개'}
+                  </p>
+                )}
+                {(roundVotesMap[round.id] || []).length > 0 && (
+                  <table className="contest-results-detail-table" style={{ width: '100%', marginTop: 12 }}>
+                    <thead>
+                      <tr>
+                        <th>참가자</th>
+                        <th>선택</th>
+                        <th>코멘트</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(roundVotesMap[round.id] || []).map((v, idx) => (
+                        <tr key={idx}>
+                          <td>{v.nickname}</td>
+                          <td>{v.choice === 'A' ? round.teamAName : round.teamBName}</td>
+                          <td>{v.comment || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            ))
+          )}
         </div>
       </div>
     );
@@ -321,9 +418,9 @@ const ContestResults: React.FC = () => {
         <div style={{ marginBottom: '20px' }}>
           <button
             className="contest-results-back"
-            onClick={() => id && window.history.back()}
+            onClick={() => navigate(`/contests/${id}`)}
           >
-            ← 이전
+            ← 콘테스트 상세로
           </button>
         </div>
 

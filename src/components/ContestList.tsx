@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, orderBy, getDocs, setDoc, doc, getDoc, doc as firestoreDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, doc as firestoreDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import '../styles/variables.css';
 import '../styles/components.css';
 import '../styles/contest-ui-refresh.css';
 
-type ContestType = '정규등급전' | '세미등급전' | '경연';
+import type { ContestType } from '../types/contest';
+import { registerOnParticipateClick } from '../utils/contestParticipant';
 
 interface Contest {
   id: string;
@@ -85,65 +86,14 @@ const ContestList: React.FC = () => {
     }
 
     try {
-      // 경연 유형인 경우 자동 참가 처리
-      if (contest.type === '경연') {
-        const participantsSnap = await getDocs(collection(db, 'contests', contest.id, 'participants'));
-        const participants = participantsSnap.docs.map(doc => doc.data());
+      await registerOnParticipateClick(contest.id, contest, user);
 
-        // 이미 참가했는지 확인 (uid 또는 nickname으로)
-        const isParticipant = participants.some(p =>
-          (p.uid === user.uid) ||
-          (p.nickname && user.nickname && p.nickname.toLowerCase().trim() === user.nickname.toLowerCase().trim())
-        );
-
-        // 입장 제한 상태 확인
-        const contestDoc = await getDoc(doc(db, 'contests', contest.id));
-        const contestData = contestDoc.data();
-        const entryRestricted = contestData?.entryRestricted || false;
-
-        if (!isParticipant) {
-          // 입장 제한 상태면 참가 불가
-          if (entryRestricted) {
-            alert('현재 입장이 제한된 상태입니다. 관리자에게 문의해주세요.');
-            return;
-          }
-
-          // 참가자 자동 추가
-          const participantRef = doc(db, 'contests', contest.id, 'participants', user.uid);
-          await setDoc(participantRef, {
-            nickname: user.nickname,
-            uid: user.uid,
-            joinedAt: new Date(),
-          });
-        }
-
-        // 개최 전이라도 리더는 입장 허용
-        if (contest.isStarted || isLeader) {
-          navigate(`/contests/${contest.id}/participate`);
-        } else {
-          alert('콘테스트가 아직 개최되지 않았습니다. 리더가 개최할 때까지 기다려주세요.');
-        }
-      } else {
-        // 정규등급전, 세미등급전은 기존 로직 유지
-        const participantsSnap = await getDocs(collection(db, 'contests', contest.id, 'participants'));
-        const participants = participantsSnap.docs.map(doc => doc.data());
-
-        const isParticipant = participants.some(p =>
-          p.nickname && user.nickname &&
-          p.nickname.toLowerCase().trim() === user.nickname.toLowerCase().trim()
-        );
-
-        if (isParticipant) {
-          // 개최 전이라도 리더는 입장 허용
-          if (contest.isStarted || isLeader) {
-            navigate(`/contests/${contest.id}/participate`);
-          } else {
-            alert('콘테스트가 아직 개최되지 않았습니다. 리더가 개최할 때까지 기다려주세요.');
-          }
-        } else {
-          alert('현재는 직접 참가가 불가능합니다. 운영진에게 문의해 주세요.');
-        }
+      if (!contest.isStarted && !isLeader) {
+        alert('콘테스트가 아직 개최되지 않았습니다. 리더가 개최할 때까지 기다려주세요.');
+        return;
       }
+
+      navigate(`/contests/${contest.id}/participate`);
     } catch (error) {
       console.error('참가자 목록 확인 중 오류:', error);
       alert('참가자 목록을 확인하는 중 오류가 발생했습니다.');

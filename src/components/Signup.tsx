@@ -309,7 +309,9 @@ const Signup: React.FC = () => {
 
           {/* 닉네임 안내 + 입력 */}
           <div className="signup-notice">
-            ※ 카카오톡 오픈채팅방과 동일한 닉네임으로 가입해주세요.
+            ※ 닉네임 칸에는 닉네임만 입력해주세요. (예: `홍길동`)
+            <br />
+            ※ `닉네임/생년/성별/사는지역` 형태로 입력하지 말아주세요.
           </div>
           <div className="input-group signup-nickname-row">
             <input
@@ -319,7 +321,7 @@ const Signup: React.FC = () => {
               dir="ltr"
               value={formData.nickname}
               onChange={handleInputChange}
-              placeholder="닉네임 (2-20자)"
+              placeholder="닉네임"
               className="login-input"
               required
               maxLength={20}

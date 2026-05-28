@@ -23,6 +23,31 @@ service cloud.firestore {
         );
     }
 
+    function contestDoc(contestId) {
+      return get(/databases/$(database)/documents/contests/$(contestId)).data;
+    }
+
+    function roundDoc(contestId, roundId) {
+      return get(/databases/$(database)/documents/contests/$(contestId)/rounds/$(roundId)).data;
+    }
+
+    function isContestTypeAutoJoin(contestId) {
+      return contestDoc(contestId).type == '경연' || contestDoc(contestId).type == '라운드매치';
+    }
+
+    function isParticipantSelfWrite(docId) {
+      return request.auth.uid == docId
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.nickname is string;
+    }
+
+    function isRoundVoteSelfWrite(voteId) {
+      return request.auth.uid == voteId
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.choice in ['A', 'B']
+        && request.resource.data.nickname is string;
+    }
+
     /**
      * users: 로그인 전 닉네임→이메일 조회(Login.tsx)와 게시판에서의 프로필 읽기가 필요해 read 공개.
      * (예전 테스트 모드에 가깝게 동작 — 민감 필드는 클라이언트에 노출하지 않도록 앱에서 제한 권장)
@@ -160,18 +185,53 @@ service cloud.firestore {
     }
 
     match /contests/{contestId} {
-      allow read, write: if signedIn();
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update, delete: if isNeraeOrLeader();
       match /participants/{docId} {
-        allow read, write: if signedIn();
+        allow read: if signedIn();
+        allow create: if signedIn() && (
+          isNeraeOrLeader() ||
+          (
+            isContestTypeAutoJoin(contestId) &&
+            (
+              !contestDoc(contestId).isStarted ||
+              (contestDoc(contestId).isStarted && isNeraeOrLeader())
+            ) &&
+            isParticipantSelfWrite(docId)
+          )
+        );
+        allow update, delete: if isNeraeOrLeader();
       }
       match /teams/{docId} {
-        allow read, write: if signedIn();
+        allow read: if signedIn();
+        allow write: if isNeraeOrLeader();
       }
       match /grades/{docId} {
-        allow read, write: if signedIn();
+        allow read: if signedIn();
+        allow create: if signedIn();
+        allow update, delete: if isNeraeOrLeader();
       }
       match /evaluationTargets/{docId} {
-        allow read, write: if signedIn();
+        allow read: if signedIn();
+        allow write: if isNeraeOrLeader();
+      }
+      match /rounds/{roundId} {
+        allow read: if signedIn();
+        allow write: if isNeraeOrLeader();
+        match /votes/{voteId} {
+          allow read: if signedIn();
+          allow create, update: if signedIn()
+            && roundDoc(contestId, roundId).status == 'voting'
+            && (
+              isNeraeOrLeader() ||
+              (
+                exists(/databases/$(database)/documents/contests/$(contestId)/participants/$(request.auth.uid))
+                && isRoundVoteSelfWrite(voteId)
+              )
+            );
+          allow delete: if isNeraeOrLeader();
+        }
       }
     }
 

@@ -7,7 +7,13 @@ import '../styles/variables.css';
 import '../styles/components.css';
 import '../styles/contest-ui-refresh.css';
 
-type ContestType = '정규등급전' | '세미등급전' | '경연';
+import type { ContestType, RoundVote } from '../types/contest';
+import {
+  canAutoJoinBeforeStart,
+  normalizeNickname,
+  registerOnParticipateClick,
+} from '../utils/contestParticipant';
+import RoundMatchLeaderPanel from './roundMatch/RoundMatchLeaderPanel';
 
 interface Contest {
   id: string;
@@ -17,6 +23,10 @@ interface Contest {
   createdBy: string;
   ended?: boolean;
   isStarted: boolean;
+  currentRoundId?: string | null;
+  currentRoundNumber?: number;
+  defaultTeamAName?: string;
+  defaultTeamBName?: string;
   top3?: Array<{
     rank: number;
     name: string;
@@ -74,8 +84,10 @@ const ContestDetail: React.FC = () => {
   const [editingEvaluationTargetNickname, setEditingEvaluationTargetNickname] = useState<string>('');
   const [isStarted, setIsStarted] = useState(false);
   const [submittedUids, setSubmittedUids] = useState<string[]>([]);
+  const [roundVotes, setRoundVotes] = useState<RoundVote[]>([]);
   const [entryRestricted, setEntryRestricted] = useState(false);
   const [adminTab, setAdminTab] = useState<AdminTab>('participants');
+  const [startingContest, setStartingContest] = useState(false);
   const soloListRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -96,58 +108,23 @@ const ContestDetail: React.FC = () => {
   // Callbacks
   const handleParticipate = useCallback(async () => {
     if (!contest || !user) return;
-    
-    // 리더는 개최 전에도 입장 허용
-    const isLeader = user.role === '리더';
-    
-    // 경연 유형인 경우 자동 참가 처리
-    if (contest.type === '경연') {
-      try {
-        const participantsSnap = await getDocs(collection(db, 'contests', contest.id, 'participants'));
-        const participants = participantsSnap.docs.map(doc => doc.data());
-        
-        // 이미 참가했는지 확인 (uid 또는 nickname으로)
-        const isParticipant = participants.some(p =>
-          (p.uid === user.uid) ||
-          (p.nickname && user.nickname && p.nickname.toLowerCase().trim() === user.nickname.toLowerCase().trim())
-        );
-        
-        // 입장 제한 상태 확인
-        const contestDoc = await getDoc(doc(db, 'contests', contest.id));
-        const contestData = contestDoc.data();
-        const entryRestricted = contestData?.entryRestricted || false;
-        
-        if (!isParticipant) {
-          // 입장 제한 상태면 참가 불가
-          if (entryRestricted) {
-            alert('현재 입장이 제한된 상태입니다. 관리자에게 문의해주세요.');
-            return;
-          }
-          
-          // 참가자 자동 추가
-          const participantRef = doc(db, 'contests', contest.id, 'participants', user.uid);
-          await setDoc(participantRef, {
-            nickname: user.nickname,
-            uid: user.uid,
-            joinedAt: new Date(),
-          });
-        }
-        
-        // 개최 전이라도 리더는 입장 허용
-        if (contest.isStarted || isLeader) {
-          navigate(`/contests/${contest.id}/participate`);
-        } else {
-          alert('콘테스트가 아직 개최되지 않았습니다. 리더가 개최할 때까지 기다려주세요.');
-        }
-      } catch (error) {
-        console.error('참가 처리 중 오류:', error);
-        alert('참가 처리 중 오류가 발생했습니다.');
+
+    const isLeaderUser = user.role === '리더';
+
+    try {
+      await registerOnParticipateClick(contest.id, contest, user);
+
+      if (!contest.isStarted && !isLeaderUser) {
+        alert('콘테스트가 아직 개최되지 않았습니다. 리더가 개최할 때까지 기다려주세요.');
+        return;
       }
-    } else {
-      // 정규등급전, 세미등급전은 기존 로직 유지
+
       navigate(`/contests/${contest.id}/participate`);
+    } catch (error) {
+      console.error('참가 처리 중 오류:', error);
+      alert('참가 처리 중 오류가 발생했습니다.');
     }
-  }, [contest, user, navigate]);
+  }, [contest, user, navigate, participants]);
 
   const handleEndContest = useCallback(async () => {
     if (!id) return;
@@ -167,13 +144,42 @@ const ContestDetail: React.FC = () => {
   }, [id, navigate]);
 
   const handleStartContest = useCallback(async () => {
-    if (!id) return;
-    if (window.confirm('콘테스트를 개최하시겠습니까? 개최 후에는 참가자들이 참여할 수 있습니다.')) {
-      await updateDoc(doc(db, 'contests', id), { isStarted: true });
+    if (!id || !contest || startingContest) return;
+    if (!window.confirm('콘테스트를 개최하시겠습니까? 개최 후에는 참가자들이 참여할 수 있습니다.')) {
+      return;
+    }
+
+    setStartingContest(true);
+    try {
+      if (contest.type === '라운드매치') {
+        const roundId = uuidv4();
+        const teamA = contest.defaultTeamAName?.trim() || 'A팀';
+        const teamB = contest.defaultTeamBName?.trim() || 'B팀';
+        await setDoc(firestoreDoc(db, 'contests', id, 'rounds', roundId), {
+          roundNumber: 1,
+          teamAName: teamA,
+          teamBName: teamB,
+          status: 'voting',
+          createdAt: new Date(),
+        });
+        await updateDoc(doc(db, 'contests', id), {
+          isStarted: true,
+          currentRoundId: roundId,
+          currentRoundNumber: 1,
+        });
+      } else {
+        await updateDoc(doc(db, 'contests', id), { isStarted: true });
+      }
+
       setIsStarted(true);
       alert('콘테스트가 개최되었습니다!');
+    } catch (error) {
+      console.error('콘테스트 개최 중 오류:', error);
+      alert('콘테스트 개최에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setStartingContest(false);
     }
-  }, [id]);
+  }, [id, contest, startingContest]);
 
   const handleMakeDuet = useCallback(async () => {
     if (!id || selectedSolo.length !== 2) return;
@@ -544,6 +550,32 @@ const ContestDetail: React.FC = () => {
   }, [id]);
 
   useEffect(() => {
+    if (!id || contest?.type !== '라운드매치' || !contest.currentRoundId) {
+      setRoundVotes([]);
+      return;
+    }
+    const unsubVotes = onSnapshot(
+      collection(db, 'contests', id, 'rounds', contest.currentRoundId, 'votes'),
+      (snap) => {
+        setRoundVotes(snap.docs.map((d) => d.data() as RoundVote));
+      }
+    );
+    return () => unsubVotes();
+  }, [id, contest?.type, contest?.currentRoundId]);
+
+  const hasRoundVote = useCallback(
+    (p: Participant) =>
+      roundVotes.some(
+        (v) =>
+          v.uid === p.uid ||
+          (v.nickname &&
+            p.nickname &&
+            normalizeNickname(v.nickname) === normalizeNickname(p.nickname))
+      ),
+    [roundVotes]
+  );
+
+  useEffect(() => {
     if (soloListRef.current) {
       soloListRef.current.scrollTop = soloListRef.current.scrollHeight;
     }
@@ -551,7 +583,7 @@ const ContestDetail: React.FC = () => {
 
   useEffect(() => {
     if (!isAdmin) return;
-    if (contest?.type !== '경연' && adminTab !== 'participants') {
+    if (contest?.type !== '경연' && contest?.type !== '라운드매치' && adminTab !== 'participants') {
       setAdminTab('participants');
     }
   }, [contest?.type, adminTab, isAdmin]);
@@ -570,6 +602,15 @@ const ContestDetail: React.FC = () => {
     <div className="contest-detail-container contest-ui-refresh">
       <div className="contest-detail-pattern" />
       <div className="contest-detail-content">
+        <div style={{ marginBottom: 12 }}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => navigate('/contests')}
+          >
+            ← 콘테스트 목록으로
+          </button>
+        </div>
         {/* 상단 요약 카드 */}
         <div className="contest-detail-summary-card">
           <div className="contest-detail-summary-header">
@@ -590,13 +631,19 @@ const ContestDetail: React.FC = () => {
             {!ended && (
               <button className="btn btn-primary" onClick={handleParticipate}>참여</button>
             )}
-            <button className="btn btn-secondary" onClick={() => navigate(`/contests/${contest.id}/results`)}>결과 보기</button>
+            {(contest.type !== '라운드매치' || isLeader) && (
+              <button className="btn btn-secondary" onClick={() => navigate(`/contests/${contest.id}/results`)}>
+                결과 보기
+              </button>
+            )}
             {isLeader && !contest.isStarted && !ended && (
-              <button 
-                className="btn btn-success contest-start-btn" 
+              <button
+                type="button"
+                className="btn btn-success contest-start-btn"
                 onClick={handleStartContest}
+                disabled={startingContest}
               >
-                🚀 콘테스트 개최
+                {startingContest ? '개최 중...' : '🚀 콘테스트 개최'}
               </button>
             )}
             {isAdmin && (
@@ -613,44 +660,66 @@ const ContestDetail: React.FC = () => {
                 🎭 경연 유형 안내
               </h3>
               <ul className="contest-info-list">
-                <li>경연은 참가자들이 서로 평가하는 콘테스트입니다</li>
+                <li>참여 버튼을 누른 멤버가 참가자 목록에 표시됩니다</li>
+                <li>참가자들이 서로 평가하는 콘테스트입니다</li>
                 <li>솔로 참가 또는 듀엣 팀 구성이 가능합니다</li>
-                <li>각 참가자는 다른 참가자/팀을 평가합니다 (본인/본인 팀 제외)</li>
                 <li>0~100점 사이로 점수를 부여할 수 있습니다</li>
               </ul>
             </div>
           </section>
         )}
 
+        {contest.type === '라운드매치' && (
+          <section className="contest-detail-section contest-info-section">
+            <div className="contest-info-card">
+              <h3 className="contest-info-title">⚔️ 라운드매치 안내</h3>
+              <ul className="contest-info-list">
+                <li>참여 버튼을 누른 멤버가 참가자 목록에 표시됩니다</li>
+                <li>등록된 참가자가 A팀/B팀 중 하나에 투표합니다</li>
+                <li>리더가 라운드 종료 → 결과 공개 → 다음 라운드를 진행합니다</li>
+                <li>라운드마다 다른 팀 이름으로 새 대결을 진행할 수 있습니다</li>
+              </ul>
+            </div>
+          </section>
+        )}
+
+        {isLeader && contest.type === '라운드매치' && !ended && (
+          <RoundMatchLeaderPanel
+            contestId={contest.id}
+            currentRoundId={contest.currentRoundId}
+            participants={uniqueParticipants}
+            ended={ended}
+            onEndContest={handleEndContest}
+          />
+        )}
+
         {isAdmin && (
           <section className="contest-detail-section">
-            <div className="contest-admin-tabs">
-              <button
-                type="button"
-                className={`contest-admin-tab-btn ${adminTab === 'participants' ? 'active' : ''}`}
-                onClick={() => setAdminTab('participants')}
-              >
-                참가자현황
-              </button>
-              {contest.type === '경연' && (
-                <>
-                  <button
-                    type="button"
-                    className={`contest-admin-tab-btn ${adminTab === 'targets' ? 'active' : ''}`}
-                    onClick={() => setAdminTab('targets')}
-                  >
-                    참가자 관리
-                  </button>
-                  <button
-                    type="button"
-                    className={`contest-admin-tab-btn ${adminTab === 'teams' ? 'active' : ''}`}
-                    onClick={() => setAdminTab('teams')}
-                  >
-                    팀 목록
-                  </button>
-                </>
-              )}
-            </div>
+            {contest.type === '경연' && (
+              <div className="contest-admin-tabs">
+                <button
+                  type="button"
+                  className={`contest-admin-tab-btn ${adminTab === 'participants' ? 'active' : ''}`}
+                  onClick={() => setAdminTab('participants')}
+                >
+                  참가자현황
+                </button>
+                <button
+                  type="button"
+                  className={`contest-admin-tab-btn ${adminTab === 'targets' ? 'active' : ''}`}
+                  onClick={() => setAdminTab('targets')}
+                >
+                  참가자 관리
+                </button>
+                <button
+                  type="button"
+                  className={`contest-admin-tab-btn ${adminTab === 'teams' ? 'active' : ''}`}
+                  onClick={() => setAdminTab('teams')}
+                >
+                  팀 목록
+                </button>
+              </div>
+            )}
           </section>
         )}
 
@@ -660,54 +729,35 @@ const ContestDetail: React.FC = () => {
             <h3 className="contest-detail-section-title">👥 참가자현황</h3>
             <hr className="contest-detail-section-divider" />
             
-            {/* 경연 유형: 입장 제한/허용 토글 버튼 */}
-            {contest.type === '경연' && (
-              <>
-                <div className="contest-entry-toggle-row">
-                  <button
-                    onClick={async () => {
-                      if (!id) return;
-                      const newStatus = !entryRestricted;
-                      await updateDoc(doc(db, 'contests', id), { entryRestricted: newStatus });
-                      setEntryRestricted(newStatus);
-                      alert(newStatus ? '입장이 제한되었습니다.' : '입장이 가능해졌습니다.');
-                    }}
-                    className={`contest-entry-toggle-btn ${entryRestricted ? 'restricted' : 'opened'}`}
-                  >
-                    {entryRestricted ? '🔒 입장제한' : '✅ 입장가능'}
-                  </button>
-                  <div className={`contest-entry-toggle-status ${entryRestricted ? 'restricted' : 'opened'}`}>
-                    {entryRestricted ? '현재 입장이 제한된 상태입니다.' : '현재 입장이 가능한 상태입니다.'}
-                  </div>
-                </div>
-                <div className="contest-helper-box">
-                  💡 경연은 자유 참가 방식입니다. 참가 버튼을 누른 사용자들이 실시간으로 표시됩니다.
-                </div>
-              </>
-            )}
+            <div className="contest-helper-box">
+              {canAutoJoinBeforeStart(contest.type) ? (
+                <>
+                  💡 <strong>개최 전:</strong> 참여 버튼을 누른 멤버가 자동으로 명단에 등록됩니다.
+                  <br />
+                  💡 <strong>개최 후:</strong> 새로 참여할 멤버는 아래에서 닉네임을 직접 추가해주세요.
+                </>
+              ) : (
+                <>💡 참가자는 관리자가 닉네임을 추가해 등록합니다. 개최 후 늦게 참여할 멤버도 여기서 추가할 수 있습니다.</>
+              )}
+            </div>
 
-            {/* 경연이 아닌 경우에만 참가자 추가 기능 표시 */}
-            {contest.type !== '경연' && (
-              <>
-                <div className="contest-detail-add-form">
-                  <input
-                    type="text"
-                    className="contest-detail-add-input"
-                    placeholder="참가자 닉네임을 입력하세요"
-                    value={newParticipantNickname}
-                    onChange={(e) => setNewParticipantNickname(e.target.value)}
-                    onKeyDown={(e) => !e.nativeEvent.isComposing && e.key === 'Enter' && handleAddParticipant()}
-                  />
-                  <button 
-                    className="contest-detail-add-button"
-                    onClick={handleAddParticipant}
-                    disabled={addingParticipant || !newParticipantNickname.trim()}
-                  >
-                    {addingParticipant ? '추가 중...' : '추가'}
-                  </button>
-                </div>
-              </>
-            )}
+            <div className="contest-detail-add-form">
+              <input
+                type="text"
+                className="contest-detail-add-input"
+                placeholder="참가자 닉네임을 입력하세요"
+                value={newParticipantNickname}
+                onChange={(e) => setNewParticipantNickname(e.target.value)}
+                onKeyDown={(e) => !e.nativeEvent.isComposing && e.key === 'Enter' && handleAddParticipant()}
+              />
+              <button
+                className="contest-detail-add-button"
+                onClick={handleAddParticipant}
+                disabled={addingParticipant || !newParticipantNickname.trim()}
+              >
+                {addingParticipant ? '추가 중...' : '추가'}
+              </button>
+            </div>
 
             {/* 실시간 참가자 명단 */}
             <div className="contest-list-header-box">
@@ -718,7 +768,10 @@ const ContestDetail: React.FC = () => {
             <div className="contest-detail-participant-list" ref={soloListRef}>
               {uniqueParticipants
                 .map(p => {
-                  const isSubmitted = isParticipantSubmitted(p.nickname);
+                  const isSubmitted =
+                    contest.type === '라운드매치'
+                      ? hasRoundVote(p)
+                      : isParticipantSubmitted(p.nickname);
                   const isInTeam = teams.some(t => Array.isArray(t.members) && t.members.includes(p.uid));
                   const teamInfo = teams.find(t => Array.isArray(t.members) && t.members.includes(p.uid));
                   return (
@@ -736,30 +789,31 @@ const ContestDetail: React.FC = () => {
                         )}
                       </span>
                       <span className={`contest-detail-participant-status ${isSubmitted ? 'submitted' : 'pending'}`}>
-                        {isSubmitted ? '✅ 제출완료' : '⏳ 대기중'}
+                        {contest.type === '라운드매치'
+                          ? isSubmitted
+                            ? '✅ 투표완료'
+                            : '⏳ 미투표'
+                          : isSubmitted
+                            ? '✅ 제출완료'
+                            : '⏳ 대기중'}
                       </span>
-                      <button 
-                        className={`contest-detail-team-button break ${contest.type === '경연' ? 'danger' : ''}`}
+                      <button
+                        type="button"
+                        className={`contest-detail-team-button break danger`}
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (contest.type === '경연') {
-                            if (window.confirm(`${p.nickname}님을 강퇴하시겠습니까?`)) {
-                              handleDeleteParticipant(p.uid);
-                            }
-                          } else {
+                          if (window.confirm(`${p.nickname}님을 참가자 목록에서 제거하시겠습니까?`)) {
                             handleDeleteParticipant(p.uid);
                           }
                         }}
                       >
-                        {contest.type === '경연' ? '강퇴' : '삭제'}
+                        {contest.type === '경연' || contest.type === '라운드매치' ? '강퇴' : '삭제'}
                       </button>
                     </div>
                   );
                 })}
               {uniqueParticipants.length === 0 && (
-                <div className="contest-empty-message">
-                  {contest.type === '경연' ? '아직 참가한 사람이 없습니다.' : '참가자가 없습니다.'}
-                </div>
+                <div className="contest-empty-message">참가자가 없습니다. 닉네임을 추가해주세요.</div>
               )}
             </div>
             {selectedSolo.length === 2 && (

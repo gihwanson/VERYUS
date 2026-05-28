@@ -2,6 +2,15 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, collection, addDoc, getDocs, query, where, onSnapshot, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import {
+  canAutoJoinBeforeStart,
+  CONTEST_LATE_JOIN_MESSAGE,
+  CONTEST_NOT_REGISTERED_MESSAGE,
+  isRegisteredParticipant,
+  registerOnParticipateClick,
+} from '../utils/contestParticipant';
+import ContestAccessBlock from './ContestAccessBlock';
+import RoundMatchVoteView from './roundMatch/RoundMatchVoteView';
 import '../styles/contest-ui-refresh.css';
 
 const ContestParticipate: React.FC = () => {
@@ -32,6 +41,17 @@ const ContestParticipate: React.FC = () => {
   const [entryRestricted, setEntryRestricted] = useState(false);
   const [songTitles, setSongTitles] = useState<Record<string, string>>({}); // targetId -> songTitle
   const [editingSongTitle, setEditingSongTitle] = useState<string | null>(null); // 현재 수정 중인 targetId
+
+  useEffect(() => {
+    if (!id || !user || !contest) return;
+    void registerOnParticipateClick(
+      id,
+      { isStarted: !!contest.isStarted, type: contest.type },
+      user
+    ).catch((err) => {
+      console.error('참가자 자동 등록 실패:', err);
+    });
+  }, [id, user?.uid, contest?.type, contest?.isStarted]);
 
   useEffect(() => {
     if (!id) return;
@@ -196,7 +216,15 @@ const ContestParticipate: React.FC = () => {
   };
 
   // 참가자 목록 중복 제거 유틸 (평가하는 인원)
-  const uniqueParticipants = participants.filter((p, idx, arr) => arr.findIndex(pp => pp.nickname === p.nickname) === idx);
+  const uniqueParticipants = useMemo(() => {
+    const byUid = participants.filter((p, idx, arr) =>
+      arr.findIndex((pp) => pp.uid === p.uid) === idx
+    );
+    return byUid.filter((p, idx, arr) => {
+      if (!p.nickname) return true;
+      return arr.findIndex((pp) => pp.nickname === p.nickname) === idx;
+    });
+  }, [participants]);
   
   // 평가받는 대상 목록 중복 제거 유틸
   const uniqueEvaluationTargets = evaluationTargets.filter((t, idx, arr) => 
@@ -221,14 +249,12 @@ const ContestParticipate: React.FC = () => {
     p.nickname && user.nickname && p.nickname.toLowerCase().trim() === user.nickname.toLowerCase().trim()
   );
 
-  // 경연 유형: 입장 제한 확인 (이미 참가한 사람은 입장 가능) - hooks 규칙을 위해 early return 이전에 선언
+  const isLeader = Boolean(user && user.role === '리더');
+
   const isContestParticipant = useMemo(() => {
-    if (!user || !contest || contest.type !== '경연') return false;
-    return participants.some(p =>
-      (p.uid === user.uid) ||
-      (p.nickname && user.nickname && p.nickname.toLowerCase().trim() === user.nickname.toLowerCase().trim())
-    );
-  }, [user, participants, contest]);
+    if (!user) return false;
+    return isRegisteredParticipant(participants, user);
+  }, [user, participants]);
 
   // 닉네임 추출 함수 (custom_닉네임_... 또는 target_닉네임_... 형태 지원)
   function extractNickname(uidOrNickname: string): string {
@@ -504,215 +530,120 @@ const ContestParticipate: React.FC = () => {
     );
   }
 
-  // 경연 유형이고 입장 제한 상태이며 참가자가 아닌 경우
-  if (contest && contest.type === '경연' && entryRestricted && !isContestParticipant && !(user && user.role === '리더')) {
+  if (
+    id &&
+    user &&
+    contest.isStarted &&
+    !isLeader &&
+    !isContestParticipant
+  ) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        background: 'var(--app-page-gradient)',
-        backgroundAttachment: 'fixed',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
-        <div style={{
-          background: 'rgba(244, 63, 94, 0.8)',
-          backdropFilter: 'blur(15px)',
-          borderRadius: '20px',
-          padding: '40px',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          textAlign: 'center'
-        }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔒</div>
-          <div style={{ color: 'white', fontSize: '20px', fontWeight: 600, marginBottom: '12px' }}>입장이 제한되었습니다</div>
-          <div style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '16px', marginBottom: '24px' }}>
-            현재 이 경연은 입장이 제한된 상태입니다.<br />
-            관리자에게 문의해주세요.
-          </div>
-          <button
-            style={{ 
-              background: 'rgba(255, 255, 255, 0.2)',
-              backdropFilter: 'blur(10px)',
-              color: 'white', 
-              borderRadius: '12px', 
-              padding: '12px 24px', 
-              fontWeight: 600, 
-              fontSize: 16, 
-              border: '1px solid rgba(255, 255, 255, 0.3)', 
-              cursor: 'pointer',
-              transition: 'all 0.3s ease'
-            }}
-            onClick={() => navigate(`/contests/${id}`)}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-              e.currentTarget.style.transform = 'translateY(-2px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            ← 콘테스트 상세로
-          </button>
-        </div>
+      <ContestAccessBlock
+        contestId={id}
+        message={CONTEST_LATE_JOIN_MESSAGE}
+      />
+    );
+  }
+
+  if (
+    id &&
+    user &&
+    !contest.isStarted &&
+    !isLeader &&
+    !canAutoJoinBeforeStart(contest.type) &&
+    !isContestParticipant
+  ) {
+    return (
+      <ContestAccessBlock
+        contestId={id}
+        message={CONTEST_NOT_REGISTERED_MESSAGE}
+      />
+    );
+  }
+
+  if (contest.type === '라운드매치' && id && user) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          background: 'var(--app-page-gradient)',
+          backgroundAttachment: 'fixed',
+        }}
+      >
+        <RoundMatchVoteView
+          contestId={id}
+          currentRoundId={contest.currentRoundId}
+          user={user}
+          isStarted={!!contest.isStarted}
+        />
       </div>
     );
   }
 
   // 콘테스트가 개최되지 않은 경우 - 준비 화면 표시 (리더는 평가지 미리보기 가능)
   if (!contest.isStarted && !(user && user.role === '리더')) {
+    const deadlineText =
+      contest?.deadline && contest.deadline.seconds
+        ? new Date(contest.deadline.seconds * 1000).toLocaleDateString('ko-KR')
+        : '';
+
     return (
-      <div style={{
-        minHeight: '100vh',
-        background: 'var(--app-page-gradient)',
-        backgroundAttachment: 'fixed',
-        position: 'relative',
-        overflow: 'hidden',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px'
-      }}>
-        {/* 배경 패턴 */}
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: `
-            radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-            radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-            radial-gradient(circle at 40% 80%, rgba(120, 119, 198, 0.2) 0%, transparent 50%)
-          `,
-          pointerEvents: 'none'
-        }} />
-        
-        <div style={{
-          position: 'relative',
-          zIndex: 1,
-          background: 'rgba(255, 255, 255, 0.15)',
-          backdropFilter: 'blur(20px)',
-          borderRadius: '24px',
-          padding: '60px 40px',
-          border: '1px solid rgba(255, 255, 255, 0.3)',
-          textAlign: 'center',
-          maxWidth: 'min(920px, 100%)',
-          width: '100%',
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
-        }}>
-          {/* 애니메이션 아이콘 */}
-          <div style={{ 
-            fontSize: '80px', 
-            marginBottom: '24px',
-            animation: 'pulse 2s ease-in-out infinite'
-          }}>
-            🎭
-          </div>
-          
-          <h2 style={{ 
-            color: 'white', 
-            fontSize: '32px', 
-            fontWeight: 700, 
-            marginBottom: '16px',
-            textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
-          }}>
-            {contest.title}
-          </h2>
-          
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.2)',
-            borderRadius: '16px',
-            padding: '24px',
-            marginBottom: '32px',
-            border: '1px solid rgba(255, 255, 255, 0.3)'
-          }}>
-            <div style={{ 
-              fontSize: '64px', 
-              marginBottom: '20px',
-              animation: 'bounce 2s ease-in-out infinite'
-            }}>
-              ⏳
-            </div>
-            <div style={{ 
-              color: 'white', 
-              fontSize: '24px', 
-              fontWeight: 600, 
-              marginBottom: '12px',
-              textShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
-            }}>
-              콘테스트 준비 중입니다
-            </div>
-            <div style={{ 
-              color: 'rgba(255, 255, 255, 0.9)', 
-              fontSize: '16px', 
-              lineHeight: '1.6',
-              marginBottom: '8px'
-            }}>
-              관리자가 콘테스트를 개최하면<br />
-              평가를 시작할 수 있습니다.
-            </div>
-            <div style={{
-              marginTop: '20px',
-              padding: '12px',
-              background: 'rgba(138, 85, 204, 0.3)',
-              borderRadius: '12px',
-              border: '1px solid rgba(138, 85, 204, 0.5)'
-            }}>
-              <div style={{ color: 'white', fontSize: '14px', fontWeight: 500 }}>
-                💡 곧 평가가 시작됩니다. 잠시만 기다려주세요!
-              </div>
-            </div>
-          </div>
-          
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-            alignItems: 'center'
-          }}>
-            <button
-              style={{ 
-                background: 'rgba(255, 255, 255, 0.25)',
-                backdropFilter: 'blur(10px)',
-                color: 'white', 
-                borderRadius: '12px', 
-                padding: '14px 32px', 
-                fontWeight: 600, 
-                fontSize: 16, 
-                border: '2px solid rgba(255, 255, 255, 0.4)', 
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                width: '100%',
-                maxWidth: '300px'
-              }}
-              onClick={() => navigate(`/contests/${id}`)}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.35)';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.2)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = 'none';
+      <div
+        className="contest-ui-refresh"
+        style={{
+          minHeight: '100vh',
+          background: 'var(--app-page-gradient)',
+          backgroundAttachment: 'fixed',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 20,
+        }}
+      >
+        <div
+          style={{
+            width: '100%',
+            maxWidth: 520,
+            background: 'rgba(255, 255, 255, 0.14)',
+            border: '1px solid rgba(255, 255, 255, 0.24)',
+            borderRadius: 20,
+            padding: '34px 26px',
+            boxShadow: '0 14px 40px rgba(0, 0, 0, 0.25)',
+            backdropFilter: 'blur(12px)',
+            textAlign: 'center',
+            color: '#fff',
+          }}
+        >
+          <div style={{ fontSize: 38, marginBottom: 12 }}>⏳</div>
+          <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>{contest.title}</h2>
+          <p style={{ margin: '10px 0 0', fontSize: 17, fontWeight: 700 }}>아직 개최되지 않았습니다</p>
+          <p style={{ margin: '8px 0 0', opacity: 0.9, lineHeight: 1.6 }}>
+            리더가 콘테스트를 개최하면 참여가 가능합니다.
+            <br />
+            잠시 후 다시 확인해주세요.
+          </p>
+          {deadlineText && (
+            <div
+              style={{
+                marginTop: 16,
+                padding: '10px 12px',
+                borderRadius: 10,
+                background: 'rgba(255, 255, 255, 0.12)',
+                fontSize: 14,
               }}
             >
-              ← 콘테스트 상세로 돌아가기
-            </button>
-          </div>
+              📅 마감일: {deadlineText}
+            </div>
+          )}
+          <button
+            type="button"
+            className="btn btn-secondary"
+            style={{ marginTop: 18 }}
+            onClick={() => navigate(`/contests/${id}`)}
+          >
+            콘테스트 상세로 돌아가기
+          </button>
         </div>
-        
-        <style>{`
-          @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-          }
-          @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-          }
-        `}</style>
       </div>
     );
   }
