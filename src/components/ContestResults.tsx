@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { doc, getDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
 import type { RoundDoc, RoundVote } from '../types/contest';
+import { parseRoundVoteFromDoc } from '../utils/contestParticipant';
 import { db } from '../firebase';
 import '../styles/components.css';
 import '../styles/contest-ui-refresh.css';
@@ -46,7 +47,7 @@ const ContestResults: React.FC = () => {
       await Promise.all(
         roundsSnap.docs.map(async (r) => {
           const votesSnap = await getDocs(collection(db, 'contests', id, 'rounds', r.id, 'votes'));
-          map[r.id] = votesSnap.docs.map((d) => d.data() as RoundVote);
+          map[r.id] = votesSnap.docs.map((d) => parseRoundVoteFromDoc(d.id, d.data()));
         })
       );
       setRoundVotesMap(map);

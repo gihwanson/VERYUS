@@ -11,15 +11,10 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../../firebase';
 import type { ParticipantRecord, RoundDoc, RoundVote } from '../../types/contest';
-import { normalizeNickname } from '../../utils/contestParticipant';
-
-function participantMatchesVote(p: ParticipantRecord, v: RoundVote): boolean {
-  if (v.uid === p.uid) return true;
-  if (v.nickname && p.nickname) {
-    return normalizeNickname(v.nickname) === normalizeNickname(p.nickname);
-  }
-  return false;
-}
+import {
+  parseRoundVoteFromDoc,
+  participantMatchesRoundVote,
+} from '../../utils/contestParticipant';
 
 interface Props {
   contestId: string;
@@ -70,7 +65,7 @@ const RoundMatchLeaderPanel: React.FC<Props> = ({
     const unsubVotes = onSnapshot(
       collection(db, 'contests', contestId, 'rounds', currentRoundId, 'votes'),
       (snap) => {
-        setVotes(snap.docs.map((d) => d.data() as RoundVote));
+        setVotes(snap.docs.map((d) => parseRoundVoteFromDoc(d.id, d.data())));
       }
     );
     return () => {
@@ -82,10 +77,10 @@ const RoundMatchLeaderPanel: React.FC<Props> = ({
   const voteStats = useMemo(() => {
     const total = participants.length;
     const participantVotes = votes.filter((v) =>
-      participants.some((p) => participantMatchesVote(p, v))
+      participants.some((p) => participantMatchesRoundVote(p, v))
     );
-    const voted = participants.filter((p) => participantVotes.some((v) => participantMatchesVote(p, v)));
-    const notVoted = participants.filter((p) => !participantVotes.some((v) => participantMatchesVote(p, v)));
+    const voted = participants.filter((p) => participantVotes.some((v) => participantMatchesRoundVote(p, v)));
+    const notVoted = participants.filter((p) => !participantVotes.some((v) => participantMatchesRoundVote(p, v)));
     const votesA = participantVotes.filter((v) => v.choice === 'A').length;
     const votesB = participantVotes.filter((v) => v.choice === 'B').length;
     const progress = total > 0 ? Math.round((voted.length / total) * 100) : 0;
@@ -251,7 +246,7 @@ const RoundMatchLeaderPanel: React.FC<Props> = ({
           <h4>✅ 투표 완료 ({voteStats.voted.length})</h4>
           <ul>
             {voteStats.voted.map((p) => {
-              const v = votes.find((x) => participantMatchesVote(p, x));
+              const v = votes.find((x) => participantMatchesRoundVote(p, x));
               const choiceLabel =
                 v?.choice === 'A' ? round.teamAName : v?.choice === 'B' ? round.teamBName : '-';
               return (

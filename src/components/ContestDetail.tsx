@@ -10,8 +10,12 @@ import '../styles/contest-ui-refresh.css';
 import type { ContestType, RoundVote } from '../types/contest';
 import {
   canAutoJoinBeforeStart,
-  normalizeNickname,
+  dedupeContestParticipants,
+  parseRoundVoteFromDoc,
+  parseParticipantFromDoc,
+  participantMatchesRoundVote,
   registerOnParticipateClick,
+  coerceFirestoreString,
 } from '../utils/contestParticipant';
 import RoundMatchLeaderPanel from './roundMatch/RoundMatchLeaderPanel';
 
@@ -387,24 +391,11 @@ const ContestDetail: React.FC = () => {
     return submittedUids.includes(nickname);
   }, [submittedUids]);
 
-  // 참가자 목록 중복 제거 유틸
-  const uniqueParticipants = useMemo(() => {
-    // uid 기준으로 먼저 중복 제거
-    const byUid = participants.filter((p, idx, arr) => 
-      arr.findIndex(pp => pp.uid === p.uid) === idx
-    );
-    
-    // nickname 기준으로 추가 중복 제거 (nickname이 있는 경우)
-    const byNickname = byUid.filter((p, idx, arr) => {
-      if (!p.nickname) return true; // nickname이 없으면 유지
-      return arr.findIndex(pp => 
-        pp.nickname && 
-        pp.nickname.toLowerCase().trim() === p.nickname.toLowerCase().trim()
-      ) === idx;
-    });
-    
-    return byNickname;
-  }, [participants]);
+  // 참가자 목록 중복 제거 (동일 닉네임 시 Auth UID 참가자 우선)
+  const uniqueParticipants = useMemo(
+    () => dedupeContestParticipants(participants),
+    [participants]
+  );
 
   // 팀 목록을 순서(order) 기준으로 정렬하는 유틸
   const sortedTeams = useMemo(() => {
@@ -507,12 +498,11 @@ const ContestDetail: React.FC = () => {
     
     // 참가자 목록 실시간 구독 (평가하는 인원)
     const unsub = onSnapshot(collection(db, 'contests', id, 'participants'), snap => {
-      const participantsData = snap.docs.map(doc => {
-        const data = doc.data();
+      const participantsData = snap.docs.map((docSnap) => {
+        const parsed = parseParticipantFromDoc(docSnap.id, docSnap.data() as Record<string, unknown>);
         return {
-          uid: data.uid || doc.id,
-          nickname: data.nickname || '',
-          joinedAt: data.joinedAt || null
+          ...parsed,
+          joinedAt: parsed.joinedAt ?? null,
         } as Participant;
       });
       setParticipants(participantsData);
@@ -521,7 +511,17 @@ const ContestDetail: React.FC = () => {
     
     // 평가받는 대상 목록 실시간 구독
     const unsubEvaluationTargets = onSnapshot(collection(db, 'contests', id, 'evaluationTargets'), snap => {
-      setEvaluationTargets(snap.docs.map(doc => ({ uid: doc.id, ...doc.data() })) as EvaluationTarget[]);
+      setEvaluationTargets(
+        snap.docs.map((docSnap) => {
+          const data = docSnap.data();
+          return {
+            uid: docSnap.id,
+            nickname: coerceFirestoreString(data.nickname),
+            createdAt: data.createdAt ?? null,
+            updatedAt: data.updatedAt ?? null,
+          } as EvaluationTarget;
+        })
+      );
     });
     
     // 팀 목록 실시간 구독
@@ -557,21 +557,14 @@ const ContestDetail: React.FC = () => {
     const unsubVotes = onSnapshot(
       collection(db, 'contests', id, 'rounds', contest.currentRoundId, 'votes'),
       (snap) => {
-        setRoundVotes(snap.docs.map((d) => d.data() as RoundVote));
+        setRoundVotes(snap.docs.map((d) => parseRoundVoteFromDoc(d.id, d.data())));
       }
     );
     return () => unsubVotes();
   }, [id, contest?.type, contest?.currentRoundId]);
 
   const hasRoundVote = useCallback(
-    (p: Participant) =>
-      roundVotes.some(
-        (v) =>
-          v.uid === p.uid ||
-          (v.nickname &&
-            p.nickname &&
-            normalizeNickname(v.nickname) === normalizeNickname(p.nickname))
-      ),
+    (p: Participant) => roundVotes.some((v) => participantMatchesRoundVote(p, v)),
     [roundVotes]
   );
 

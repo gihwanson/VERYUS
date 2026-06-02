@@ -208,10 +208,10 @@ const getMessageReceiptMs = (message: AnonymousMessage) => {
   return clientMs || serverMs;
 };
 
-/** 상대가 메시지 이후에 읽었는지 (동일 시각은 미읽음으로 간주) */
+/** 상대가 메시지 시각 이상으로 읽었는지 (동시각 포함) */
 const hasParticipantReadMessage = (readMs: number, messageMs: number) => {
   if (!messageMs || !readMs) return false;
-  return readMs > messageMs;
+  return readMs >= messageMs;
 };
 
 const getActiveRoomBanUntilMs = (room: AnonymousRoom | undefined, participantDocId: string) => {
@@ -699,7 +699,8 @@ const AnonymousChatRoom: React.FC = () => {
   const markRoomAsReadThrottled = useCallback(
     (force = false) => {
       const now = Date.now();
-      const THROTTLE_MS = 6000;
+      // 읽음 수 반영 지연을 줄이되, 과도한 쓰기는 막는다.
+      const THROTTLE_MS = 2000;
       if (!force && now - lastReadMarkAtRef.current < THROTTLE_MS) return;
       lastReadMarkAtRef.current = now;
       void markRoomAsRead();

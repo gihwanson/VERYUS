@@ -522,6 +522,16 @@ const AdminPanel: React.FC = () => {
     }
   };
 
+  const deleteFirestoreRefsInChunks = async (refs: DocumentReference[]) => {
+    const CHUNK = 450;
+    const unique = Array.from(new Map(refs.map((r) => [r.path, r])).values());
+    for (let i = 0; i < unique.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      unique.slice(i, i + CHUNK).forEach((ref) => batch.delete(ref));
+      await batch.commit();
+    }
+  };
+
   // 사용자 삭제 (로그 및 관련 데이터 정리 포함)
   const handleDeleteUser = async (user: AdminUser) => {
     if (!window.confirm(`정말로 ${user.nickname}님을 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없으며, 사용자의 모든 게시물과 댓글이 삭제됩니다.`)) return;
@@ -529,27 +539,31 @@ const AdminPanel: React.FC = () => {
     if (!currentUser) return;
 
     try {
-      // 관련 데이터 삭제 (게시물, 댓글 등)
-      const batch = writeBatch(db);
-      
-      // 게시물 삭제
-      const boards = ['freePosts', 'evaluationPosts', 'recordingPosts', 'partnerPosts'];
-      for (const board of boards) {
-        const postsQuery = query(
-          collection(db, board),
-          where('author', '==', user.nickname)
-        );
-        const postsSnapshot = await getDocs(postsQuery);
-        postsSnapshot.docs.forEach(doc => {
-          batch.delete(doc.ref);
-        });
+      const refsToDelete: DocumentReference[] = [];
+
+      const [postsByUid, postsByNick, commentsByUid, commentsByNick] = await Promise.all([
+        getDocs(query(collection(db, 'posts'), where('writerUid', '==', user.uid))),
+        user.nickname
+          ? getDocs(query(collection(db, 'posts'), where('writerNickname', '==', user.nickname)))
+          : Promise.resolve({ docs: [] as { ref: DocumentReference }[] }),
+        getDocs(query(collection(db, 'comments'), where('writerUid', '==', user.uid))),
+        user.nickname
+          ? getDocs(query(collection(db, 'comments'), where('writerNickname', '==', user.nickname)))
+          : Promise.resolve({ docs: [] as { ref: DocumentReference }[] }),
+      ]);
+
+      refsToDelete.push(
+        ...postsByUid.docs.map((d) => d.ref),
+        ...postsByNick.docs.map((d) => d.ref),
+        ...commentsByUid.docs.map((d) => d.ref),
+        ...commentsByNick.docs.map((d) => d.ref)
+      );
+
+      if (refsToDelete.length > 0) {
+        await deleteFirestoreRefsInChunks(refsToDelete);
       }
-      
-      // 사용자 데이터 삭제
-      const userRef = doc(db, 'users', user.uid);
-      batch.delete(userRef);
-      
-      await batch.commit();
+
+      await deleteDoc(doc(db, 'users', user.uid));
       
       // 로그 기록
       await logAdminAction(

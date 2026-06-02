@@ -23,6 +23,17 @@ service cloud.firestore {
         );
     }
 
+    /** 관리자 패널(AdminTypes.checkAdminAccess)과 동일: 너래 / 리더 / 운영진 */
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && (
+          userDoc().nickname == '너래' ||
+          userDoc().role == '리더' ||
+          userDoc().role == '운영진'
+        );
+    }
+
     function contestDoc(contestId) {
       return get(/databases/$(database)/documents/contests/$(contestId)).data;
     }
@@ -54,10 +65,12 @@ service cloud.firestore {
      */
     match /users/{userId} {
       allow read: if true;
-      allow write: if isSelf(userId);
+      allow create: if isSelf(userId) || isAdmin();
+      allow update: if isSelf(userId) || isAdmin();
+      allow delete: if isSelf(userId) || isAdmin();
 
       match /pushTokens/{tokenId} {
-        allow read, write: if isSelf(userId);
+        allow read, write: if isSelf(userId) || isAdmin();
       }
     }
 

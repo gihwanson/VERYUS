@@ -26,6 +26,7 @@ interface BoardItem {
   isSearch?: boolean;
   isAdmin?: boolean;
   badge?: number;
+  isComingSoon?: boolean;
 }
 
 interface NavItem {
@@ -44,7 +45,7 @@ const BOARD_ITEMS: BoardItem[] = [
   { name: '연습실예약', path: '/practice-room-booking', icon: () => <span style={{fontSize:16}}>📅</span>, emoji: '📅' },
   { name: '합격곡', path: '/approved-songs', icon: () => <span style={{fontSize:16}}>🏆</span>, emoji: '🏆' },
   { name: '셋리스트', path: '/setlist', icon: () => <span style={{fontSize:16}}>🎵</span>, emoji: '🎵' },
-  { name: '익명채팅', path: '/anonymous-chat', icon: () => <span style={{fontSize:16}}>😷</span>, emoji: '😷' },
+  { name: '게임(준비중)', path: '/games', icon: () => <span style={{fontSize:16}}>🎮</span>, emoji: '🎮', isComingSoon: true },
   { name: '콘테스트', path: '/contests', icon: () => <span style={{fontSize:16}}>🎤</span>, emoji: '🎤' },
 ];
 
@@ -190,11 +191,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
 
   // Dynamic board items based on admin access + unread badges
   const boardItems: BoardItem[] = [
-    ...BOARD_ITEMS.map((item) =>
-      item.path === '/anonymous-chat' && anonymousChatUnreadCount > 0
-        ? { ...item, badge: anonymousChatUnreadCount }
-        : item
-    ),
+    ...BOARD_ITEMS,
     ...(checkAdminAccess(currentUser) ? [
       { name: '관리자 패널', path: '/admin', icon: Settings, emoji: '⚙️', isAdmin: true }
     ] : [])
@@ -218,9 +215,9 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
                 location.pathname.includes('/setlist') || 
                 location.pathname.includes('/contests') ||
                 location.pathname.includes('/practice-room-booking') ||
-                location.pathname.includes('/anonymous-chat'),
+                location.pathname.includes('/games'),
       hasSubmenu: true,
-      hasDot: anonymousChatUnreadCount > 0
+      hasDot: false
     },
     {
       id: 'notifications',
@@ -252,9 +249,11 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
     }
   }, [navigate, expandBottomNav]);
 
-  const handleBoardClick = useCallback((path: string, isSearch?: boolean) => {
+  const handleBoardClick = useCallback((path: string, isSearch?: boolean, isComingSoon?: boolean) => {
     if (isSearch && onSearchOpen) {
       onSearchOpen();
+    } else if (isComingSoon) {
+      alert('게임 메뉴는 아직 준비중입니다.');
     } else {
       navigate(path);
     }
@@ -463,7 +462,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
     <button
       key={board.path}
       className={`board-submenu-item ${board.isSearch ? 'search-item' : ''} ${board.isAdmin ? 'admin-item' : ''}`}
-      onClick={() => handleBoardClick(board.path, board.isSearch)}
+      onClick={() => handleBoardClick(board.path, board.isSearch, board.isComingSoon)}
       style={{ position: 'relative' }}
     >
       {board.emoji ? (

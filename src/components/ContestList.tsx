@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, orderBy, getDocs, doc as firestoreDoc, updateDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { collection, query, orderBy, getDocs, onSnapshot, doc as firestoreDoc, updateDoc } from 'firebase/firestore';
+import { auth, db } from '../firebase';
 import '../styles/variables.css';
 import '../styles/components.css';
 import '../styles/contest-ui-refresh.css';
@@ -40,6 +41,9 @@ interface Top3Item {
 
 const ContestList: React.FC = () => {
   const [contests, setContests] = useState<Contest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const navigate = useNavigate();
   
   // User data
@@ -170,25 +174,51 @@ const ContestList: React.FC = () => {
     }
   }, []);
 
-  // Effects
+  // Effects — Auth 준비 후 실시간 구독 (로딩 중 빈 목록·일시적 조회 실패로 오표시 방지)
   useEffect(() => {
     let cancelled = false;
-    const loadContests = async () => {
-      try {
-        const q = query(collection(db, 'contests'), orderBy('deadline', 'desc'));
-        const snap = await getDocs(q);
-        if (cancelled) return;
-        setContests(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Contest[]);
-      } catch (error) {
-        console.error('콘테스트 목록 로딩 실패:', error);
-      }
-    };
+    let unsubFirestore: (() => void) | undefined;
 
-    void loadContests();
+    const unsubAuth = onAuthStateChanged(auth, (authUser) => {
+      unsubFirestore?.();
+      unsubFirestore = undefined;
+
+      if (cancelled) return;
+
+      if (!authUser) {
+        setContests([]);
+        setLoading(false);
+        setLoadError(null);
+        return;
+      }
+
+      setLoading(true);
+      setLoadError(null);
+
+      const q = query(collection(db, 'contests'), orderBy('deadline', 'desc'));
+      unsubFirestore = onSnapshot(
+        q,
+        (snap) => {
+          if (cancelled) return;
+          setContests(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Contest[]);
+          setLoading(false);
+          setLoadError(null);
+        },
+        (error) => {
+          if (cancelled) return;
+          console.error('콘테스트 목록 로딩 실패:', error);
+          setLoading(false);
+          setLoadError('콘테스트 목록을 불러오지 못했습니다. 네트워크 상태를 확인한 뒤 다시 시도해 주세요.');
+        }
+      );
+    });
+
     return () => {
       cancelled = true;
+      unsubFirestore?.();
+      unsubAuth();
     };
-  }, []);
+  }, [retryCount]);
 
   return (
     <div className="contest-list-container contest-ui-refresh">
@@ -208,10 +238,27 @@ const ContestList: React.FC = () => {
           )}
         </div>
 
-        {contests.length === 0 ? (
+        {loading ? (
+          <div className="contest-loading-state" aria-busy="true">
+            <div className="contest-loading-spinner" />
+            <span>콘테스트 목록을 불러오는 중...</span>
+          </div>
+        ) : loadError ? (
+          <div className="contest-empty-state">
+            <div className="contest-empty-icon">⚠️</div>
+            <p>{loadError}</p>
+            <button
+              type="button"
+              className="btn btn-primary contest-retry-button"
+              onClick={() => setRetryCount(c => c + 1)}
+            >
+              다시 시도
+            </button>
+          </div>
+        ) : contests.length === 0 ? (
           <div className="contest-empty-state">
             <div className="contest-empty-icon">🏆</div>
-            진행 중인 콘테스트가 없습니다.
+            등록된 콘테스트가 없습니다.
           </div>
         ) : (
           <>

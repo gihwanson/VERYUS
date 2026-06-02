@@ -844,15 +844,17 @@ button:hover::before,
 
 .bottom-nav-badge-dot {
   position: absolute;
-  top: -4px;
-  right: -4px;
-  width: 8px;
-  height: 8px;
+  top: 0;
+  right: 0;
+  width: 10px;
+  height: 10px;
   background: linear-gradient(135deg, #FF4757, #FF6B7A);
   border-radius: 50%;
-  border: 2px solid white;
+  border: 2px solid #fff;
+  transform: translate(42%, -42%);
   animation: pulse-dot 2s infinite;
   box-shadow: 0 2px 8px var(--nav-badge-shadow);
+  z-index: 2;
 }
 
 .submenu-indicator {
@@ -1076,11 +1078,12 @@ button:hover::before,
   }
   
   .bottom-nav-badge-dot {
-    top: -3px;
-    right: -3px;
-    width: 6px;
-    height: 6px;
+    top: 0;
+    right: 0;
+    width: 8px;
+    height: 8px;
     border-width: 1.5px;
+    transform: translate(42%, -42%);
   }
   
   .board-submenu-item span {
