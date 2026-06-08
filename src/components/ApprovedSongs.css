@@ -365,9 +365,31 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.approved-songs-manage-item--current-month {
+  background: rgba(255, 193, 7, 0.28);
+  border: 1px solid rgba(255, 215, 0, 0.65);
+  box-shadow: 0 0 14px rgba(255, 193, 7, 0.25);
+}
+
+.approved-songs-manage-item--current-month .approved-songs-manage-nickname {
+  color: #fff8e1;
+}
+
+.approved-songs-manage-item--current-month .approved-songs-manage-date {
+  color: rgba(255, 248, 225, 0.9);
+  font-weight: 500;
+}
+
 .approved-songs-manage-nickname {
   font-weight: 600;
   color: white;
+}
+
+.approved-songs-manage-date {
+  margin-left: 8px;
+  font-weight: 400;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.75);
 }
 
 .approved-songs-manage-delete {

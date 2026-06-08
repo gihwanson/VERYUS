@@ -21,6 +21,7 @@ export interface ApprovedSong {
 export interface UserMap {
   [nickname: string]: {
     grade?: string;
+    createdAt?: unknown;
   };
 }
 
@@ -97,6 +98,61 @@ export const getUniqueMembers = (songs: ApprovedSong[]): string[] => {
   );
   return Array.from(new Set(allMembers));
 };
+
+// 멤버별 최초 합격곡 등재일
+export const getMemberFirstApprovedDates = (songs: ApprovedSong[]): Record<string, Date> => {
+  const dates: Record<string, Date> = {};
+
+  for (const song of songs) {
+    if (!Array.isArray(song.members) || !song.createdAt) continue;
+
+    const date = song.createdAt instanceof Timestamp
+      ? song.createdAt.toDate()
+      : new Date(song.createdAt);
+
+    for (const member of song.members) {
+      const nickname = member.trim();
+      if (!nickname) continue;
+      if (!dates[nickname] || date < dates[nickname]) {
+        dates[nickname] = date;
+      }
+    }
+  }
+
+  return dates;
+};
+
+export const formatApprovedDateKorean = (date: Date | undefined): string => {
+  if (!date) return '';
+  return `(${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일)`;
+};
+
+export const isApprovedInCurrentMonth = (
+  date: Date | undefined,
+  referenceDate: Date = new Date()
+): boolean => {
+  if (!date) return false;
+  return (
+    date.getFullYear() === referenceDate.getFullYear() &&
+    date.getMonth() === referenceDate.getMonth()
+  );
+};
+
+export const parseFirestoreDate = (value: unknown): Date | undefined => {
+  if (!value) return undefined;
+  if (value instanceof Timestamp) return value.toDate();
+  if (typeof value === 'object' && value !== null && 'seconds' in value) {
+    return new Date((value as { seconds: number }).seconds * 1000);
+  }
+  if (value instanceof Date) return value;
+  const parsed = new Date(value as string | number);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+};
+
+export const isJoinedInCurrentMonth = (
+  date: Date | undefined,
+  referenceDate: Date = new Date()
+): boolean => isApprovedInCurrentMonth(date, referenceDate);
 
 // 폼 데이터 검증
 export const validateSongForm = (form: { title: string; members: string[] }): boolean => {

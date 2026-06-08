@@ -2,14 +2,19 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, Timestamp, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useNavigate } from 'react-router-dom';
-import { GRADE_ORDER, GRADE_NAMES, type AdminUser } from './AdminTypes';
+import { GRADE_ORDER, GRADE_NAMES, GRADE_SYSTEM, type AdminUser } from './AdminTypes';
 import type { ApprovedSong, UserMap, SongType, TabType } from './ApprovedSongsUtils';
 import { Play, Pause } from 'lucide-react';
 import { 
   filterSongsByType, 
   filterSongsBySearch, 
   searchBuskingSongs, 
-  getUniqueMembers, 
+  getUniqueMembers,
+  getMemberFirstApprovedDates,
+  formatApprovedDateKorean,
+  isApprovedInCurrentMonth,
+  parseFirestoreDate,
+  isJoinedInCurrentMonth,
   validateSongForm, 
   convertFirestoreData 
 } from './ApprovedSongsUtils';
@@ -89,7 +94,7 @@ const ApprovedSongs: React.FC = () => {
         snap.docs.forEach((snapshotDoc) => {
           const data = snapshotDoc.data();
           if (data.nickname) {
-            map[data.nickname] = { grade: data.grade };
+            map[data.nickname] = { grade: data.grade, createdAt: data.createdAt };
             nicknames.push(data.nickname);
           }
         });
@@ -377,15 +382,33 @@ const ApprovedSongs: React.FC = () => {
 
   const uniqueMembersText = useMemo(() => uniqueMembers.join('\n'), [uniqueMembers]);
 
+  const memberFirstApprovedDates = useMemo(() => {
+    if (manageTab !== 'manage') return {};
+    return getMemberFirstApprovedDates(songs);
+  }, [songs, manageTab]);
+
   const otherMembers = useMemo(() => {
     if (manageTab !== 'manage') return [];
     const uniqueSet = new Set(uniqueMembers);
     return allNicknames
-      .filter(nickname => !uniqueSet.has(nickname))
+      .filter(nickname => {
+        if (uniqueSet.has(nickname)) return false;
+        const joinDate = parseFirestoreDate(userMap[nickname]?.createdAt);
+        return !isJoinedInCurrentMonth(joinDate);
+      })
       .sort((a, b) => a.localeCompare(b, 'ko'));
-  }, [allNicknames, uniqueMembers, manageTab]);
+  }, [allNicknames, uniqueMembers, userMap, manageTab]);
 
   const otherMembersText = useMemo(() => otherMembers.join('\n'), [otherMembers]);
+
+  const feeExemptMembers = useMemo(() => {
+    if (manageTab !== 'manage') return [];
+    return allNicknames
+      .filter(nickname => userMap[nickname]?.grade === GRADE_SYSTEM.CRESCENT)
+      .sort((a, b) => a.localeCompare(b, 'ko'));
+  }, [allNicknames, userMap, manageTab]);
+
+  const feeExemptMembersText = useMemo(() => feeExemptMembers.join('\n'), [feeExemptMembers]);
 
   if (loading) {
     return <GlobalLoadingScreen message="합격곡을 불러오는 중..." />;
@@ -539,8 +562,20 @@ const ApprovedSongs: React.FC = () => {
                 <div className="approved-songs-card">
                   <ul className="approved-songs-manage-list">
                     {uniqueMembers.map(nickname => (
-                      <li key={nickname} className="approved-songs-manage-item">
-                        <span className="approved-songs-manage-nickname">{nickname}</span>
+                      <li
+                        key={nickname}
+                        className={`approved-songs-manage-item${
+                          isApprovedInCurrentMonth(memberFirstApprovedDates[nickname])
+                            ? ' approved-songs-manage-item--current-month'
+                            : ''
+                        }`}
+                      >
+                        <span className="approved-songs-manage-nickname">
+                          {nickname}
+                          <span className="approved-songs-manage-date">
+                            {formatApprovedDateKorean(memberFirstApprovedDates[nickname])}
+                          </span>
+                        </span>
                         {isLeader && (
                           <button
                             className="approved-songs-manage-delete"
@@ -555,7 +590,7 @@ const ApprovedSongs: React.FC = () => {
                 </div>
                 <div className="approved-songs-copy-box">
                   <div className="approved-songs-copy-header">
-                    <span>📋 닉네임 전체 복사 ({uniqueMembers.length}명)</span>
+                    <span>📋 버스킹멤버 ({uniqueMembers.length}명)</span>
                     <button
                       className="approved-songs-copy-button"
                       onClick={async () => {
@@ -580,7 +615,7 @@ const ApprovedSongs: React.FC = () => {
                 </div>
                 <div className="approved-songs-copy-box">
                   <div className="approved-songs-copy-header">
-                    <span>📋 그 외 멤버 전체 복사 ({otherMembers.length}명)</span>
+                    <span>📋 일반멤버 ({otherMembers.length}명)</span>
                     <button
                       className="approved-songs-copy-button"
                       onClick={async () => {
@@ -601,6 +636,31 @@ const ApprovedSongs: React.FC = () => {
                     readOnly
                     value={otherMembersText}
                     placeholder="그 외 멤버가 없습니다."
+                  />
+                </div>
+                <div className="approved-songs-copy-box">
+                  <div className="approved-songs-copy-header">
+                    <span>📋 회비 면제멤버 ({feeExemptMembers.length}명)</span>
+                    <button
+                      className="approved-songs-copy-button"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(feeExemptMembersText);
+                          alert('닉네임 목록이 복사되었습니다.');
+                        } catch (error) {
+                          console.error('복사 실패:', error);
+                          alert('복사에 실패했습니다. 직접 선택해서 복사해주세요.');
+                        }
+                      }}
+                    >
+                      복사
+                    </button>
+                  </div>
+                  <textarea
+                    className="approved-songs-copy-textarea"
+                    readOnly
+                    value={feeExemptMembersText}
+                    placeholder="초승달 등급 멤버가 없습니다."
                   />
                 </div>
               </div>

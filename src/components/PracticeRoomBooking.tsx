@@ -739,6 +739,7 @@ const PracticeRoomBooking: React.FC = () => {
       
       setMaxAvailableDuration(remainingHours);
       setDuration(Math.min(3, remainingHours) as 1 | 2 | 3);
+      setPurpose('');
       setMembers([]);
       setMemberInput('');
       setSelectedTimeSlot({ ...slot });
@@ -776,8 +777,32 @@ const PracticeRoomBooking: React.FC = () => {
     return `${String(endHour).padStart(2, '0')}:00`;
   };
 
+  const getTrimmedMembers = () =>
+    members.map((member) => member.trim()).filter(Boolean);
+
+  const getBookingParticipantCount = () => 1 + getTrimmedMembers().length;
+
+  const isBookingFormValid = () => {
+    const trimmedPurpose = purpose.trim();
+    const trimmedMembers = getTrimmedMembers();
+    return trimmedPurpose.length > 0 && trimmedMembers.length >= 1;
+  };
+
   const handleBooking = async () => {
     if (!selectedTimeSlot || !currentUser || !bookingDate) return;
+
+    const trimmedPurpose = purpose.trim();
+    const trimmedMembers = getTrimmedMembers();
+
+    if (!trimmedPurpose) {
+      alert('사용 목적을 입력해주세요.');
+      return;
+    }
+
+    if (trimmedMembers.length < 1) {
+      alert('함께 사용할 멤버를 1명 이상 추가해주세요.\n(2인 이상부터 예약 가능합니다)');
+      return;
+    }
     
     // 이미 예약 진행 중이면 무시
     if (isBookingInProgress.current) {
@@ -894,13 +919,13 @@ const PracticeRoomBooking: React.FC = () => {
         const reservationData = {
           userId: currentUser.uid,
           userDisplayName: currentUser.nickname || '익명',
-          members: members.length > 0 ? members : [],
+          members: trimmedMembers,
           date: dateStr,
           startTime: slotStartTime,
           endTime: slotEndTime,
           duration: SLOT_DURATION,
           totalDuration: duration * SLOT_DURATION,
-          purpose: purpose || '',
+          purpose: trimmedPurpose,
           status: 'confirmed',
           reservationGroup: reservationGroup,
           isFirstSlot: i === 0,
@@ -1206,7 +1231,12 @@ const PracticeRoomBooking: React.FC = () => {
 
   const handleAddMember = () => {
     const trimmedInput = memberInput.trim();
-    if (trimmedInput && !members.includes(trimmedInput)) {
+    if (!trimmedInput) return;
+    if (trimmedInput === currentUser?.nickname) {
+      alert('본인은 이미 예약자로 포함됩니다. 다른 멤버를 추가해주세요.');
+      return;
+    }
+    if (!members.includes(trimmedInput)) {
       setMembers([...members, trimmedInput]);
       setMemberInput('');
     }
@@ -1821,7 +1851,10 @@ const PracticeRoomBooking: React.FC = () => {
                 </p>
               </div>
               <div className="members-input">
-                <label>함께 사용할 멤버 (선택)</label>
+                <label>함께 사용할 멤버 <span style={{ color: '#ef4444' }}>*</span></label>
+                <p className="duration-hint">
+                  단독 사용은 불가합니다. 본인 포함 <strong>2인 이상</strong>일 때만 예약할 수 있습니다.
+                </p>
                 <div className="member-input-container">
                   <input
                     type="text"
@@ -1830,6 +1863,7 @@ const PracticeRoomBooking: React.FC = () => {
                     onChange={(e) => setMemberInput(e.target.value)}
                     onKeyPress={handleMemberInputKeyPress}
                     maxLength={20}
+                    required
                   />
                   <button 
                     type="button"
@@ -1840,6 +1874,12 @@ const PracticeRoomBooking: React.FC = () => {
                     추가
                   </button>
                 </div>
+                <p className="duration-hint">
+                  예약 인원: <strong>{getBookingParticipantCount()}명</strong> (본인 포함)
+                  {getTrimmedMembers().length < 1 && (
+                    <span style={{ color: '#ef4444' }}> · 멤버 1명 이상 추가 필요</span>
+                  )}
+                </p>
                 {members.length > 0 && (
                   <div className="members-list">
                     {members.map((member, idx) => (
@@ -1858,13 +1898,14 @@ const PracticeRoomBooking: React.FC = () => {
                 )}
               </div>
               <div className="purpose-input">
-                <label>사용 목적 (선택)</label>
+                <label>사용 목적 <span style={{ color: '#ef4444' }}>*</span></label>
                 <input
                   type="text"
-                  placeholder="예: 밴드 합주, 개인 연습 등"
+                  placeholder="예: 밴드 합주, 보컬 연습 등"
                   value={purpose}
                   onChange={(e) => setPurpose(e.target.value)}
                   maxLength={50}
+                  required
                 />
               </div>
             </div>
@@ -1896,7 +1937,7 @@ const PracticeRoomBooking: React.FC = () => {
                 <button 
                   className="confirm-btn" 
                   onClick={handleBooking}
-                  disabled={loading}
+                  disabled={loading || !isBookingFormValid()}
                   style={{ flex: 1 }}
                 >
                   {loading ? '예약 중...' : '예약하기'}
@@ -2013,6 +2054,7 @@ const PracticeRoomBooking: React.FC = () => {
                   const maxDuration = checkMaxAvailableDuration(selectedTimeSlot, bookingDate);
                   setMaxAvailableDuration(maxDuration);
                   setDuration(Math.min(3, maxDuration) as 1 | 2 | 3);
+                  setPurpose('');
                   setMembers([]);
                   setMemberInput('');
                   setShowBookingModal(true);
