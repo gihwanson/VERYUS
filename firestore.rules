@@ -40,13 +40,6 @@ service cloud.firestore {
         );
     }
 
-    /** 베리어스 디펜스(AdminTypes.checkLeaderAccess)와 동일: 리더 역할만 */
-    function isLeader() {
-      return signedIn()
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && userDoc().role == '리더';
-    }
-
     function contestDoc(contestId) {
       return get(/databases/$(database)/documents/contests/$(contestId)).data;
     }
@@ -286,7 +279,7 @@ service cloud.firestore {
 
     /** 미니게임 점수 */
     match /games/{gameId} {
-      allow read: if signedIn() && (gameId != 'veryusDefense' || isLeader());
+      allow read: if signedIn();
 
       /** 레거시: 시도마다 쌓이던 기록 (신규 저장 안 함) */
       match /scores/{scoreId} {
@@ -323,44 +316,6 @@ service cloud.firestore {
             || (gameId == 'reactionTime'
               && request.resource.data.durationMs >= 100
               && request.resource.data.durationMs <= 15000)
-          );
-        allow delete: if false;
-      }
-
-      /** 베리어스 디펜스 협동전 — 리더 전용(비공개), 시뮬레이션은 Cloud Functions 전용 */
-      match /rounds/{roundId} {
-        allow read: if isLeader() && gameId == 'veryusDefense';
-        allow write: if false;
-
-        match /units/{unitId} {
-          allow read: if isLeader() && gameId == 'veryusDefense';
-          allow write: if false;
-        }
-
-        match /feed/{feedId} {
-          allow read: if isLeader() && gameId == 'veryusDefense';
-          allow write: if false;
-        }
-      }
-
-      match /players/{playerId} {
-        allow read: if isLeader() && gameId == 'veryusDefense';
-        allow write: if false;
-      }
-
-      match /memberPower/{memberId} {
-        allow read: if isLeader() && gameId == 'veryusDefense';
-        allow write: if false;
-      }
-
-      match /presence/{presenceId} {
-        allow read: if isLeader() && gameId == 'veryusDefense';
-        allow create, update: if isLeader()
-          && gameId == 'veryusDefense'
-          && presenceId == request.auth.uid
-          && (
-            !('uid' in request.resource.data)
-            || request.resource.data.uid == request.auth.uid
           );
         allow delete: if false;
       }

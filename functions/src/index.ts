@@ -10,16 +10,6 @@ export {
   scheduledAnonymousChatCleanup
 } from './anonymousChatCleanup';
 export { scheduledGameWeeklyReset } from './gameWeeklyReset';
-export {
-  scheduledVeryusDefenseTick,
-  scheduledVeryusDefenseMemberSync,
-  veryusDefenseManualSpawn,
-  veryusDefensePurchaseUpgrade,
-  veryusDefenseClaimDaily,
-  veryusDefenseBoostTick,
-  veryusDefenseConnect,
-  veryusDefenseSetDifficulty,
-} from './veryusDefense';
 const WEB_APP_ORIGIN = 'https://veryusduet.web.app';
 
 const getRouteByPostType = (postType: string, postId: string): string => {

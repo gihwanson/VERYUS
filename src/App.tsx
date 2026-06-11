@@ -17,7 +17,7 @@ import { subscribeToAnnouncementUnreadCount, subscribeToAnonymousChatUnreadCount
 import { initPushNotifications, removeCurrentPushToken } from './utils/pushNotificationService';
 import { mergeVeryusUserFromAuth, readVeryusUserFromStorage, writeVeryusUserToStorage } from './utils/veryusUserStorage';
 import { signOutDeletedAccount } from './utils/deletedAccountSession';
-import { subscribeAdminVerification, subscribeLeaderVerification } from './utils/adminSessionVerify';
+import { subscribeAdminVerification } from './utils/adminSessionVerify';
 import { addLurkingScore } from './utils/simpleBoardNotification';
 import { UserProfileProvider } from './contexts/UserProfileContext';
 import GlobalLoadingScreen from './components/GlobalLoadingScreen';
@@ -169,7 +169,6 @@ const PracticeRoomManagement = lazy(() => import('./components/PracticeRoomManag
 const GamesHub = lazy(() => import('./components/games/GamesHub'));
 const TypingSpeedGame = lazy(() => import('./components/games/TypingSpeedGame'));
 const ReactionTimeGame = lazy(() => import('./components/games/ReactionTimeGame'));
-const VeryusDefenseGame = lazy(() => import('./components/games/VeryusDefenseGame'));
 
 /** 경로 변경 시 본문 전환 애니메이션 (useLocation은 Router 안에서만 사용) */
 const RouteTransition: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -267,10 +266,6 @@ const RoleGateRoute: React.FC<{
 // 관리자 전용 라우트: Firebase Auth + Firestore users 문서로 권한 확인 (localStorage만으로는 통과 불가)
 const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <RoleGateRoute subscribe={subscribeAdminVerification}>{children}</RoleGateRoute>
-);
-
-const LeaderRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <RoleGateRoute subscribe={subscribeLeaderVerification}>{children}</RoleGateRoute>
 );
 
 // 보호된 라우트 컴포넌트
@@ -1141,7 +1136,6 @@ function App() {
               <Route path="/games" element={<ProtectedRoute><GamesHub /></ProtectedRoute>} />
               <Route path="/games/typing-speed" element={<ProtectedRoute><TypingSpeedGame /></ProtectedRoute>} />
               <Route path="/games/reaction-time" element={<ProtectedRoute><ReactionTimeGame /></ProtectedRoute>} />
-              <Route path="/games/veryus-defense" element={<LeaderRoute><VeryusDefenseGame /></LeaderRoute>} />
               
               {/* 기타 모든 경로 - 404 대신 로그인으로 리다이렉트 */}
               <Route 

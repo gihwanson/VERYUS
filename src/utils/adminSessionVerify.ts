@@ -1,7 +1,7 @@
 import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
-import { checkAdminAccess, checkLeaderAccess } from '../components/AdminTypes';
+import { checkAdminAccess } from '../components/AdminTypes';
 import {
   mergeVeryusUserFromAuth,
   readVeryusUserFromStorage,
@@ -51,8 +51,3 @@ export function subscribeAdminVerification(
   return subscribeRoleVerification(checkAdminAccess, callback, '관리자');
 }
 
-export function subscribeLeaderVerification(
-  callback: (result: AdminVerifyResult) => void
-): () => void {
-  return subscribeRoleVerification(checkLeaderAccess, callback, '리더');
-}

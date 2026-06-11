@@ -25,11 +25,7 @@ export const unlockGameAudio = (): void => {
 
 const enabled = (): boolean => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw === 'off') return false;
-    const defense = localStorage.getItem('veryus_defense_sound');
-    if (defense === 'off') return false;
-    return true;
+    return localStorage.getItem(STORAGE_KEY) !== 'off';
   } catch {
     return true;
   }

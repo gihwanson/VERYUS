@@ -211,12 +211,6 @@ export const checkAdminAccess = (user: AdminAccessUser): boolean => {
   return user.role === ROLE_SYSTEM.LEADER || user.role === ROLE_SYSTEM.ADMIN;
 };
 
-/** 베리어스 디펜스 등 리더 전용 기능 */
-export const checkLeaderAccess = (user: AdminAccessUser): boolean => {
-  if (!user) return false;
-  return user.role === ROLE_SYSTEM.LEADER;
-};
-
 /** 익명 쪽지 관리 등 일부 기능은 지정 닉네임만 허용 */
 export const canManageAnonymousNotes = (user: AdminAccessUser): boolean => {
   if (!user?.nickname) return false;
