@@ -45,7 +45,7 @@ const BOARD_ITEMS: BoardItem[] = [
   { name: '연습실예약', path: '/practice-room-booking', icon: () => <span style={{fontSize:16}}>📅</span>, emoji: '📅' },
   { name: '합격곡', path: '/approved-songs', icon: () => <span style={{fontSize:16}}>🏆</span>, emoji: '🏆' },
   { name: '셋리스트', path: '/setlist', icon: () => <span style={{fontSize:16}}>🎵</span>, emoji: '🎵' },
-  { name: '게임(준비중)', path: '/games', icon: () => <span style={{fontSize:16}}>🎮</span>, emoji: '🎮', isComingSoon: true },
+  { name: '게임', path: '/games', icon: () => <span style={{fontSize:16}}>🎮</span>, emoji: '🎮' },
   { name: '콘테스트', path: '/contests', icon: () => <span style={{fontSize:16}}>🎤</span>, emoji: '🎤' },
 ];
 
@@ -253,7 +253,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
     if (isSearch && onSearchOpen) {
       onSearchOpen();
     } else if (isComingSoon) {
-      alert('게임 메뉴는 아직 준비중입니다.');
+      alert('해당 메뉴는 아직 준비중입니다.');
     } else {
       navigate(path);
     }

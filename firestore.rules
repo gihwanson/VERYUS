@@ -14,6 +14,12 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
+    function isNerae() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && userDoc().nickname == '너래';
+    }
+
     function isNeraeOrLeader() {
       return signedIn()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
@@ -269,6 +275,34 @@ service cloud.firestore {
 
     match /user_activities/{docId} {
       allow read, write: if signedIn();
+    }
+
+    /** 미니게임 점수 */
+    match /games/{gameId} {
+      allow read: if signedIn();
+
+      /** 레거시: 시도마다 쌓이던 기록 (신규 저장 안 함) */
+      match /scores/{scoreId} {
+        allow read: if signedIn();
+        allow write: if false;
+      }
+
+      /** 사용자·플랫폼별 최고 기록 (uid_pc / uid_mobile) */
+      match /bestScores/{scoreId} {
+        allow read: if signedIn();
+        allow create: if signedIn()
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.durationMs is number
+          && request.resource.data.durationMs >= 500
+          && request.resource.data.platform in ['pc', 'mobile'];
+        allow update: if signedIn()
+          && resource.data.uid == request.auth.uid
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.durationMs is number
+          && request.resource.data.durationMs >= 500
+          && request.resource.data.platform in ['pc', 'mobile'];
+        allow delete: if false;
+      }
     }
   }
 }

@@ -16,6 +16,7 @@ import SearchSystem from './components/SearchSystem';
 import { subscribeToAnnouncementUnreadCount, subscribeToAnonymousChatUnreadCount } from './utils/readStatusService';
 import { initPushNotifications, removeCurrentPushToken } from './utils/pushNotificationService';
 import { mergeVeryusUserFromAuth, readVeryusUserFromStorage, writeVeryusUserToStorage } from './utils/veryusUserStorage';
+import { signOutDeletedAccount } from './utils/deletedAccountSession';
 import { subscribeAdminVerification } from './utils/adminSessionVerify';
 import { addLurkingScore } from './utils/simpleBoardNotification';
 import { UserProfileProvider } from './contexts/UserProfileContext';
@@ -165,6 +166,8 @@ const EvaluationPostEdit = lazy(() => import('./components/EvaluationPostEdit'))
 const HallOfFame = lazy(() => import('./components/HallOfFame'));
 const PracticeRoomBooking = lazy(() => import('./components/PracticeRoomBooking'));
 const PracticeRoomManagement = lazy(() => import('./components/PracticeRoomManagement'));
+const GamesHub = lazy(() => import('./components/games/GamesHub'));
+const TypingSpeedGame = lazy(() => import('./components/games/TypingSpeedGame'));
 
 /** 경로 변경 시 본문 전환 애니메이션 (useLocation은 Router 안에서만 사용) */
 const RouteTransition: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -805,15 +808,17 @@ function App() {
       try {
         if (currentUser) {
           try {
-            const previous = readVeryusUserFromStorage();
             const userSnap = await getDoc(doc(db, 'users', currentUser.uid));
-            const userData = userSnap.exists() ? userSnap.data() : undefined;
-            const merged = mergeVeryusUserFromAuth(currentUser, userData, previous);
+            if (!userSnap.exists()) {
+              await signOutDeletedAccount();
+              return;
+            }
+            const previous = readVeryusUserFromStorage();
+            const merged = mergeVeryusUserFromAuth(currentUser, userSnap.data(), previous);
             writeVeryusUserToStorage(merged);
           } catch (error) {
             console.error('사용자 정보 가져오기 실패:', error);
-            const merged = mergeVeryusUserFromAuth(currentUser, {}, readVeryusUserFromStorage());
-            writeVeryusUserToStorage(merged);
+            await signOutDeletedAccount(false);
           }
           void initPushNotifications(currentUser.uid).catch((err) =>
             console.error('푸시 초기화(백그라운드) 실패:', err)
@@ -1118,6 +1123,10 @@ function App() {
               {/* 연습실 예약 라우트 */}
               <Route path="/practice-room-booking" element={<ProtectedRoute><PracticeRoomBooking /></ProtectedRoute>} />
               <Route path="/practice-room-management" element={<ProtectedRoute><PracticeRoomManagement /></ProtectedRoute>} />
+
+              {/* 미니게임 */}
+              <Route path="/games" element={<ProtectedRoute><GamesHub /></ProtectedRoute>} />
+              <Route path="/games/typing-speed" element={<ProtectedRoute><TypingSpeedGame /></ProtectedRoute>} />
               
               {/* 기타 모든 경로 - 404 대신 로그인으로 리다이렉트 */}
               <Route 
