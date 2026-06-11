@@ -17,11 +17,22 @@ import {
   sortPastChampions,
   type GamePastChampion,
 } from '../../utils/gamePastChampions';
+import GameConfetti from './GameConfetti';
 import GamePastChampions from './GamePastChampions';
+import GameSoundToggle from './GameSoundToggle';
+import {
+  playCountdownGo,
+  playCountdownTick,
+  playGameComplete,
+  playNewRecord,
+  playTypingError,
+  unlockGameAudio,
+} from '../../utils/gameSounds';
+import { setLastPlayedGame } from '../../utils/lastPlayedGame';
 import '../../styles/variables.css';
 import '../../styles/games.css';
 
-type GamePhase = 'idle' | 'playing' | 'finished';
+type GamePhase = 'idle' | 'countdown' | 'playing' | 'finished';
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'skipped' | 'error';
 
 interface LeaderboardEntry {
@@ -84,9 +95,15 @@ const TypingSpeedGame: React.FC = () => {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveDetail, setSaveDetail] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState(0);
+  const [previewSentence, setPreviewSentence] = useState('');
+  const [inputShake, setInputShake] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const pendingSentenceRef = useRef('');
 
   useEffect(() => {
     void migrateLegacyTypingScoresIfNeeded();
+    setLastPlayedGame('typing-speed');
   }, []);
 
   useEffect(() => {
@@ -171,6 +188,13 @@ const TypingSpeedGame: React.FC = () => {
         });
         setSaveStatus('saved');
         setLeaderboardTab(platform);
+        if (result.isNewBest) {
+          playNewRecord();
+          setShowConfetti(true);
+          window.setTimeout(() => setShowConfetti(false), 3200);
+        } else {
+          playGameComplete();
+        }
         setSaveDetail(
           result.isNewBest
             ? `${platform === 'pc' ? 'PC' : '모바일'} 신기록! (${result.attemptCount}회째 도전)`
@@ -200,9 +224,10 @@ const TypingSpeedGame: React.FC = () => {
       setFinalResult({ durationMs, cpm });
       setPhase('finished');
       setElapsedMs(durationMs);
+      if (!user?.uid) playGameComplete();
       void saveScore(durationMs, sentence);
     },
-    [saveScore]
+    [saveScore, user?.uid]
   );
 
   const ensureTimerStarted = useCallback(() => {
@@ -220,9 +245,22 @@ const TypingSpeedGame: React.FC = () => {
         ensureTimerStarted();
       }
 
-      setInputValue(value);
+      let nextValue = value;
+      for (let i = 0; i < nextValue.length; i += 1) {
+        if (nextValue[i] !== targetSentence[i]) {
+          nextValue = nextValue.slice(0, i + 1);
+          if (nextValue.length < value.length || value[i] !== targetSentence[i]) {
+            playTypingError();
+            setInputShake(true);
+            window.setTimeout(() => setInputShake(false), 420);
+          }
+          break;
+        }
+      }
 
-      if (value === targetSentence) {
+      setInputValue(nextValue);
+
+      if (nextValue === targetSentence) {
         const end = Date.now();
         const durationMs = startTimeRef.current ? end - startTimeRef.current : 1;
         finishGame(durationMs > 0 ? durationMs : 1, targetSentence);
@@ -249,20 +287,49 @@ const TypingSpeedGame: React.FC = () => {
     }
   }, []);
 
+  const startPlaying = useCallback(
+    (sentence: string) => {
+      finishedRef.current = false;
+      startTimeRef.current = null;
+      isComposingRef.current = false;
+      setTargetSentence(sentence);
+      setPreviewSentence('');
+      setInputValue('');
+      setStartTime(null);
+      setElapsedMs(0);
+      setFinalResult(null);
+      setSaveStatus('idle');
+      setSaveDetail(null);
+      setShowConfetti(false);
+      setPhase('playing');
+      window.setTimeout(focusTypingInput, isTouchPrimaryDevice() ? 120 : 50);
+    },
+    [focusTypingInput]
+  );
+
   const startGame = useCallback(() => {
-    finishedRef.current = false;
-    startTimeRef.current = null;
-    isComposingRef.current = false;
-    setTargetSentence(pickRandomTypingSentence());
-    setInputValue('');
-    setStartTime(null);
-    setElapsedMs(0);
-    setFinalResult(null);
-    setSaveStatus('idle');
-    setSaveDetail(null);
-    setPhase('playing');
-    window.setTimeout(focusTypingInput, isTouchPrimaryDevice() ? 120 : 50);
-  }, [focusTypingInput]);
+    unlockGameAudio();
+    const sentence = pickRandomTypingSentence();
+    pendingSentenceRef.current = sentence;
+    setPreviewSentence(sentence);
+    setCountdown(3);
+    setPhase('countdown');
+    playCountdownTick();
+  }, []);
+
+  useEffect(() => {
+    if (phase !== 'countdown' || countdown <= 0) return;
+    const timer = window.setTimeout(() => {
+      if (countdown > 1) {
+        setCountdown((c) => c - 1);
+        playCountdownTick();
+      } else {
+        playCountdownGo();
+        startPlaying(pendingSentenceRef.current);
+      }
+    }, 850);
+    return () => window.clearTimeout(timer);
+  }, [countdown, phase, startPlaying]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -306,6 +373,36 @@ const TypingSpeedGame: React.FC = () => {
     return Math.round((inputValue.length / elapsedMs) * 60000);
   }, [startTime, elapsedMs, inputValue.length]);
 
+  const liveWpm = useMemo(() => Math.round(liveCpm / 5), [liveCpm]);
+
+  const progressPct = useMemo(() => {
+    if (!targetSentence.length) return 0;
+    return Math.min(100, Math.round((inputValue.length / targetSentence.length) * 100));
+  }, [inputValue.length, targetSentence.length]);
+
+  const accuracyPct = useMemo(() => {
+    if (inputValue.length === 0) return 100;
+    let correct = 0;
+    for (let i = 0; i < inputValue.length; i += 1) {
+      if (inputValue[i] === targetSentence[i]) correct += 1;
+    }
+    return Math.round((correct / inputValue.length) * 100);
+  }, [inputValue, targetSentence]);
+
+  const myBestCpm = useMemo(() => {
+    if (!user?.uid) return null;
+    const me = leaderboard.find((e) => e.uid === user.uid);
+    return me?.bestCpm ?? null;
+  }, [leaderboard, user?.uid]);
+
+  const myStickyRank = useMemo(() => {
+    if (!user?.uid) return null;
+    const idx = leaderboard.findIndex((e) => e.uid === user.uid);
+    if (idx < 0 || idx < 20) return null;
+    const me = leaderboard[idx];
+    return { rank: idx + 1, entry: me };
+  }, [leaderboard, user?.uid]);
+
   const saveStatusMessage = useMemo(() => {
     if (saveStatus === 'saving') return '저장 중...';
     if (saveStatus === 'saved') return saveDetail ?? '저장됨';
@@ -315,6 +412,7 @@ const TypingSpeedGame: React.FC = () => {
 
   return (
     <div className="games-page">
+      <GameConfetti show={showConfetti} />
       <div className="games-content">
         <header className="games-header">
           <button type="button" className="games-back-btn" onClick={() => navigate('/games')}>
@@ -330,16 +428,22 @@ const TypingSpeedGame: React.FC = () => {
         </p>
 
         <div className="typing-game-panel">
-          <div className="typing-platform-badge">
-            {platform === 'pc' ? '🖥️ PC 모드' : '📱 모바일 모드'}
-            <span style={{ opacity: 0.75, fontWeight: 400 }}>
-              · 기록은 {platform === 'pc' ? 'PC' : '모바일'} 순위표에 저장됩니다
-            </span>
+          <div className="typing-panel-top">
+            <div className="typing-platform-badge">
+              {platform === 'pc' ? '🖥️ PC 모드' : '📱 모바일 모드'}
+              <span style={{ opacity: 0.75, fontWeight: 400 }}>
+                · 기록은 {platform === 'pc' ? 'PC' : '모바일'} 순위표에 저장됩니다
+              </span>
+            </div>
+            <GameSoundToggle />
           </div>
+          {myBestCpm != null && phase === 'idle' && (
+            <p className="typing-personal-best">내 최고 기록: {myBestCpm} 타/분</p>
+          )}
 
           {phase === 'idle' && (
-            <div style={{ textAlign: 'center', padding: '24px 0' }}>
-              <p style={{ marginBottom: 20, opacity: 0.9 }}>
+            <div className="typing-idle-panel">
+              <p>
                 시작 버튼을 누르면 랜덤 문장이 나타납니다.
                 <br />
                 첫 글자를 입력하는 순간 타이머가 시작됩니다.
@@ -350,14 +454,28 @@ const TypingSpeedGame: React.FC = () => {
             </div>
           )}
 
+          {phase === 'countdown' && (
+            <div className="typing-countdown-panel">
+              <p className="typing-countdown-preview">{previewSentence}</p>
+              <div className="typing-countdown-num" key={countdown}>
+                {countdown}
+              </div>
+              <p className="typing-countdown-hint">곧 시작합니다…</p>
+            </div>
+          )}
+
           {(phase === 'playing' || phase === 'finished') && (
             <>
+              <div className="typing-progress-track" aria-hidden>
+                <div className="typing-progress-fill" style={{ width: `${progressPct}%` }} />
+              </div>
+
               <div className="typing-target">{renderTargetChars()}</div>
 
               <input
                 ref={inputRef}
                 type="text"
-                className="typing-input"
+                className={`typing-input${inputShake ? ' typing-input--shake' : ''}`}
                 value={inputValue}
                 onChange={handleInputChange}
                 onFocus={focusTypingInput}
@@ -394,24 +512,45 @@ const TypingSpeedGame: React.FC = () => {
                   </span>
                 </div>
                 <div className="typing-stat">
-                  <span className="typing-stat-label">진행률</span>
+                  <span className="typing-stat-label">약 WPM</span>
                   <span className="typing-stat-value">
-                    {targetSentence.length > 0
-                      ? `${Math.min(100, Math.round((inputValue.length / targetSentence.length) * 100))}%`
-                      : '0%'}
+                    {phase === 'finished' && finalResult
+                      ? Math.round(finalResult.cpm / 5)
+                      : liveWpm}
+                  </span>
+                </div>
+                <div className="typing-stat">
+                  <span className="typing-stat-label">진행률</span>
+                  <span className="typing-stat-value">{progressPct}%</span>
+                </div>
+                <div className="typing-stat">
+                  <span className="typing-stat-label">정확도</span>
+                  <span
+                    className={`typing-stat-value${accuracyPct < 95 ? ' typing-stat-value--warn' : ''}`}
+                  >
+                    {accuracyPct}%
                   </span>
                 </div>
               </div>
 
               {phase === 'finished' && finalResult && (
                 <div
-                  className={`typing-result${saveStatus === 'error' || saveStatus === 'skipped' ? ' typing-result--error' : ''}`}
+                  className={`typing-result typing-result--pop${saveStatus === 'error' || saveStatus === 'skipped' ? ' typing-result--error' : ''}`}
                 >
                   <h4>완료!</h4>
                   <p>
                     {formatDuration(finalResult.durationMs)} · {finalResult.cpm} 타/분
                     {saveStatusMessage ? ` (${saveStatusMessage})` : ''}
                   </p>
+                  {myBestCpm != null && (
+                    <p className="typing-result-compare">
+                      {finalResult.cpm > myBestCpm
+                        ? `이전 최고 ${myBestCpm} 타/분보다 +${finalResult.cpm - myBestCpm}!`
+                        : finalResult.cpm === myBestCpm
+                          ? '최고 기록과 동점입니다'
+                          : `최고 기록 ${myBestCpm} 타/분 (차이 ${myBestCpm - finalResult.cpm})`}
+                    </p>
+                  )}
                   {saveStatus === 'saved' && myRank && leaderboardTab === platform && (
                     <p style={{ margin: '8px 0 0', fontSize: 14 }}>
                       현재 {platform === 'pc' ? 'PC' : '모바일'} 순위: <strong>{myRank}위</strong>
@@ -489,6 +628,21 @@ const TypingSpeedGame: React.FC = () => {
           ) : (
             !loadError && (
               <ul className="typing-rank-list">
+                {myStickyRank && (
+                  <li className="typing-rank-item is-me typing-rank-item--sticky">
+                    <span className="typing-rank-num">{myStickyRank.rank}</span>
+                    <div className="typing-rank-info">
+                      <div className="typing-rank-name">
+                        {myStickyRank.entry.nickname} (나)
+                      </div>
+                      <div className="typing-rank-meta">
+                        {formatDuration(myStickyRank.entry.bestDurationMs)} ·{' '}
+                        {myStickyRank.entry.attemptCount}회 도전
+                      </div>
+                    </div>
+                    <span className="typing-rank-score">{myStickyRank.entry.bestCpm} 타/분</span>
+                  </li>
+                )}
                 {leaderboard.slice(0, 20).map((entry, index) => {
                   const rank = index + 1;
                   const rankClass =
