@@ -287,20 +287,36 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      /** 주간 초기화 시 보관되는 과거 1위 기록 */
+      match /pastChampions/{recordId} {
+        allow read: if signedIn();
+        allow write: if false;
+      }
+
       /** 사용자·플랫폼별 최고 기록 (uid_pc / uid_mobile) */
       match /bestScores/{scoreId} {
         allow read: if signedIn();
         allow create: if signedIn()
           && request.resource.data.uid == request.auth.uid
           && request.resource.data.durationMs is number
-          && request.resource.data.durationMs >= 500
-          && request.resource.data.platform in ['pc', 'mobile'];
+          && request.resource.data.platform in ['pc', 'mobile']
+          && (
+            (gameId == 'typingSpeed' && request.resource.data.durationMs >= 500)
+            || (gameId == 'reactionTime'
+              && request.resource.data.durationMs >= 100
+              && request.resource.data.durationMs <= 15000)
+          );
         allow update: if signedIn()
           && resource.data.uid == request.auth.uid
           && request.resource.data.uid == request.auth.uid
           && request.resource.data.durationMs is number
-          && request.resource.data.durationMs >= 500
-          && request.resource.data.platform in ['pc', 'mobile'];
+          && request.resource.data.platform in ['pc', 'mobile']
+          && (
+            (gameId == 'typingSpeed' && request.resource.data.durationMs >= 500)
+            || (gameId == 'reactionTime'
+              && request.resource.data.durationMs >= 100
+              && request.resource.data.durationMs <= 15000)
+          );
         allow delete: if false;
       }
     }

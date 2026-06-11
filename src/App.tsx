@@ -168,6 +168,7 @@ const PracticeRoomBooking = lazy(() => import('./components/PracticeRoomBooking'
 const PracticeRoomManagement = lazy(() => import('./components/PracticeRoomManagement'));
 const GamesHub = lazy(() => import('./components/games/GamesHub'));
 const TypingSpeedGame = lazy(() => import('./components/games/TypingSpeedGame'));
+const ReactionTimeGame = lazy(() => import('./components/games/ReactionTimeGame'));
 
 /** 경로 변경 시 본문 전환 애니메이션 (useLocation은 Router 안에서만 사용) */
 const RouteTransition: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -1127,6 +1128,7 @@ function App() {
               {/* 미니게임 */}
               <Route path="/games" element={<ProtectedRoute><GamesHub /></ProtectedRoute>} />
               <Route path="/games/typing-speed" element={<ProtectedRoute><TypingSpeedGame /></ProtectedRoute>} />
+              <Route path="/games/reaction-time" element={<ProtectedRoute><ReactionTimeGame /></ProtectedRoute>} />
               
               {/* 기타 모든 경로 - 404 대신 로그인으로 리다이렉트 */}
               <Route 

@@ -2,17 +2,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { pickRandomTypingSentence } from '../../utils/gameSentences';
+import { detectGamePlatform, type GamePlatform } from '../../utils/gamePlatform';
 import {
-  detectGamePlatform,
-  isTouchPrimaryDevice,
-  type GamePlatform,
-} from '../../utils/gamePlatform';
-import {
-  migrateLegacyTypingScoresIfNeeded,
-  saveTypingBestScore,
-  type TypingBestScore,
-} from '../../utils/typingSpeedScores';
+  MAX_REACTION_MS,
+  saveReactionBestScore,
+  type ReactionBestScore,
+} from '../../utils/reactionTimeScores';
 import {
   sortPastChampions,
   type GamePastChampion,
@@ -21,45 +16,45 @@ import GamePastChampions from './GamePastChampions';
 import '../../styles/variables.css';
 import '../../styles/games.css';
 
-type GamePhase = 'idle' | 'playing' | 'finished';
+type GamePhase = 'idle' | 'waiting' | 'go' | 'false_start' | 'timeout' | 'finished';
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'skipped' | 'error';
 
 interface LeaderboardEntry {
   uid: string;
   nickname: string;
   bestDurationMs: number;
-  bestCpm: number;
   attemptCount: number;
 }
 
-const formatDuration = (ms: number): string => {
-  const sec = ms / 1000;
-  return sec < 10 ? `${sec.toFixed(2)}초` : `${sec.toFixed(1)}초`;
-};
+const WAIT_MIN_MS = 1500;
+const WAIT_MAX_MS = 5000;
+const GO_TIMEOUT_MS = MAX_REACTION_MS;
+
+const formatReactionMs = (ms: number): string => `${Math.round(ms)}ms`;
+
+const randomWaitMs = (): number =>
+  WAIT_MIN_MS + Math.floor(Math.random() * (WAIT_MAX_MS - WAIT_MIN_MS + 1));
 
 const buildLeaderboard = (
-  scores: TypingBestScore[],
+  scores: ReactionBestScore[],
   platform: GamePlatform
 ): LeaderboardEntry[] =>
   scores
     .filter((s) => s.platform === platform)
-    .sort((a, b) => {
-      if (b.cpm !== a.cpm) return b.cpm - a.cpm;
-      return a.durationMs - b.durationMs;
-    })
+    .sort((a, b) => a.durationMs - b.durationMs)
     .map((s) => ({
       uid: s.uid,
       nickname: s.nickname,
       bestDurationMs: s.durationMs,
-      bestCpm: s.cpm,
       attemptCount: s.attemptCount,
     }));
 
-const TypingSpeedGame: React.FC = () => {
+const ReactionTimeGame: React.FC = () => {
   const navigate = useNavigate();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const startTimeRef = useRef<number | null>(null);
-  const isComposingRef = useRef(false);
+  const waitTimerRef = useRef<number | null>(null);
+  const goTimerRef = useRef<number | null>(null);
+  const goTimeRef = useRef<number | null>(null);
+  const phaseRef = useRef<GamePhase>('idle');
   const finishedRef = useRef(false);
 
   const user = useMemo(() => {
@@ -74,30 +69,38 @@ const TypingSpeedGame: React.FC = () => {
   const [platform] = useState<GamePlatform>(detectGamePlatform);
   const [leaderboardTab, setLeaderboardTab] = useState<GamePlatform>(platform);
   const [phase, setPhase] = useState<GamePhase>('idle');
-  const [targetSentence, setTargetSentence] = useState('');
-  const [inputValue, setInputValue] = useState('');
-  const [startTime, setStartTime] = useState<number | null>(null);
-  const [elapsedMs, setElapsedMs] = useState(0);
-  const [finalResult, setFinalResult] = useState<{ durationMs: number; cpm: number } | null>(null);
-  const [bestScores, setBestScores] = useState<TypingBestScore[]>([]);
+  const [finalResult, setFinalResult] = useState<number | null>(null);
+  const [bestScores, setBestScores] = useState<ReactionBestScore[]>([]);
   const [pastChampions, setPastChampions] = useState<GamePastChampion[]>([]);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveDetail, setSaveDetail] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  useEffect(() => {
-    void migrateLegacyTypingScoresIfNeeded();
+  const setPhaseSafe = useCallback((next: GamePhase) => {
+    phaseRef.current = next;
+    setPhase(next);
+  }, []);
+
+  const clearTimers = useCallback(() => {
+    if (waitTimerRef.current !== null) {
+      window.clearTimeout(waitTimerRef.current);
+      waitTimerRef.current = null;
+    }
+    if (goTimerRef.current !== null) {
+      window.clearTimeout(goTimerRef.current);
+      goTimerRef.current = null;
+    }
   }, []);
 
   useEffect(() => {
     const unsub = onSnapshot(
-      collection(db, 'games', 'typingSpeed', 'bestScores'),
+      collection(db, 'games', 'reactionTime', 'bestScores'),
       (snap) => {
         setLoadError(null);
         setBestScores(
           snap.docs.map((d) => ({
             id: d.id,
-            ...(d.data() as Omit<TypingBestScore, 'id'>),
+            ...(d.data() as Omit<ReactionBestScore, 'id'>),
           }))
         );
       },
@@ -111,7 +114,7 @@ const TypingSpeedGame: React.FC = () => {
 
   useEffect(() => {
     const unsub = onSnapshot(
-      collection(db, 'games', 'typingSpeed', 'pastChampions'),
+      collection(db, 'games', 'reactionTime', 'pastChampions'),
       (snap) => {
         setPastChampions(
           snap.docs.map((d) => ({
@@ -127,13 +130,7 @@ const TypingSpeedGame: React.FC = () => {
     return () => unsub();
   }, []);
 
-  useEffect(() => {
-    if (phase !== 'playing' || startTime === null) return;
-    const timer = window.setInterval(() => {
-      setElapsedMs(Date.now() - startTime);
-    }, 50);
-    return () => window.clearInterval(timer);
-  }, [phase, startTime]);
+  useEffect(() => () => clearTimers(), [clearTimers]);
 
   const leaderboard = useMemo(
     () => buildLeaderboard(bestScores, leaderboardTab),
@@ -152,7 +149,7 @@ const TypingSpeedGame: React.FC = () => {
   }, [leaderboard, user?.uid]);
 
   const saveScore = useCallback(
-    async (durationMs: number, sentence: string) => {
+    async (durationMs: number) => {
       if (!user?.uid || !user?.nickname) {
         setSaveStatus('skipped');
         setSaveDetail('로그인 정보가 없어 기록을 저장하지 못했습니다.');
@@ -162,19 +159,18 @@ const TypingSpeedGame: React.FC = () => {
       setSaveStatus('saving');
       setSaveDetail(null);
       try {
-        const result = await saveTypingBestScore({
+        const result = await saveReactionBestScore({
           uid: user.uid,
           nickname: user.nickname,
           durationMs,
           platform,
-          sentence,
         });
         setSaveStatus('saved');
         setLeaderboardTab(platform);
         setSaveDetail(
           result.isNewBest
             ? `${platform === 'pc' ? 'PC' : '모바일'} 신기록! (${result.attemptCount}회째 도전)`
-            : `최고 기록 ${result.bestCpm} 타/분 유지 (${result.attemptCount}회째 도전)`
+            : `최고 기록 ${formatReactionMs(result.bestDurationMs)} 유지 (${result.attemptCount}회째 도전)`
         );
       } catch (e) {
         console.error('점수 저장 실패:', e);
@@ -190,121 +186,82 @@ const TypingSpeedGame: React.FC = () => {
   );
 
   const finishGame = useCallback(
-    (durationMs: number, sentence: string) => {
+    (durationMs: number) => {
       if (finishedRef.current) return;
       finishedRef.current = true;
-
-      const cpm =
-        sentence.length > 0 ? Math.round((sentence.length / durationMs) * 60000) : 0;
-
-      setFinalResult({ durationMs, cpm });
-      setPhase('finished');
-      setElapsedMs(durationMs);
-      void saveScore(durationMs, sentence);
+      clearTimers();
+      setFinalResult(durationMs);
+      setPhaseSafe('finished');
+      void saveScore(durationMs);
     },
-    [saveScore]
+    [clearTimers, saveScore, setPhaseSafe]
   );
 
-  const ensureTimerStarted = useCallback(() => {
-    if (startTimeRef.current !== null) return;
-    const now = Date.now();
-    startTimeRef.current = now;
-    setStartTime(now);
-  }, []);
-
-  const processInput = useCallback(
-    (value: string) => {
-      if (phase !== 'playing' || finishedRef.current) return;
-
-      if (value.length > 0) {
-        ensureTimerStarted();
-      }
-
-      setInputValue(value);
-
-      if (value === targetSentence) {
-        const end = Date.now();
-        const durationMs = startTimeRef.current ? end - startTimeRef.current : 1;
-        finishGame(durationMs > 0 ? durationMs : 1, targetSentence);
-      }
-    },
-    [ensureTimerStarted, finishGame, phase, targetSentence]
-  );
-
-  const focusTypingInput = useCallback(() => {
-    const el = inputRef.current;
-    if (!el) return;
-
-    try {
-      el.focus({ preventScroll: false });
-    } catch {
-      el.focus();
-    }
-
-    // 모바일 가상 키보드가 입력창을 가리지 않도록
-    if (isTouchPrimaryDevice()) {
-      window.setTimeout(() => {
-        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      }, 320);
-    }
-  }, []);
-
-  const startGame = useCallback(() => {
+  const beginWaiting = useCallback(() => {
+    clearTimers();
     finishedRef.current = false;
-    startTimeRef.current = null;
-    isComposingRef.current = false;
-    setTargetSentence(pickRandomTypingSentence());
-    setInputValue('');
-    setStartTime(null);
-    setElapsedMs(0);
+    goTimeRef.current = null;
     setFinalResult(null);
     setSaveStatus('idle');
     setSaveDetail(null);
-    setPhase('playing');
-    window.setTimeout(focusTypingInput, isTouchPrimaryDevice() ? 120 : 50);
-  }, [focusTypingInput]);
+    setPhaseSafe('waiting');
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+    waitTimerRef.current = window.setTimeout(() => {
+      const now = Date.now();
+      goTimeRef.current = now;
+      setPhaseSafe('go');
 
-    if (isComposingRef.current) {
-      // 모바일 한글: 조합 중에도 첫 입력 시점부터 타이머 시작
-      if (value.length > 0) {
-        ensureTimerStarted();
-      }
-      setInputValue(value);
+      goTimerRef.current = window.setTimeout(() => {
+        if (phaseRef.current !== 'go' || finishedRef.current) return;
+        finishedRef.current = true;
+        clearTimers();
+        setPhaseSafe('timeout');
+      }, GO_TIMEOUT_MS);
+    }, randomWaitMs());
+  }, [clearTimers, setPhaseSafe]);
+
+  const startGame = useCallback(() => {
+    beginWaiting();
+  }, [beginWaiting]);
+
+  const handleReactionTap = useCallback(() => {
+    const current = phaseRef.current;
+
+    if (current === 'idle') return;
+
+    if (current === 'waiting') {
+      clearTimers();
+      finishedRef.current = true;
+      setPhaseSafe('false_start');
       return;
     }
 
-    processInput(value);
-  };
+    if (current === 'go' && goTimeRef.current !== null && !finishedRef.current) {
+      const durationMs = Date.now() - goTimeRef.current;
+      finishGame(durationMs);
+    }
+  }, [clearTimers, finishGame, setPhaseSafe]);
 
-  const handleCompositionEnd = (e: React.CompositionEvent<HTMLInputElement>) => {
-    isComposingRef.current = false;
-    processInput(e.currentTarget.value);
-  };
-
-  const renderTargetChars = () =>
-    targetSentence.split('').map((char, i) => {
-      const typed = inputValue[i];
-      let className = 'typing-target-char pending';
-      if (typed !== undefined) {
-        className =
-          typed === char ? 'typing-target-char correct' : 'typing-target-char incorrect';
-      } else if (i === inputValue.length) {
-        className = 'typing-target-char current';
-      }
-      return (
-        <span key={`${i}-${char}`} className={className}>
-          {char}
-        </span>
-      );
-    });
-
-  const liveCpm = useMemo(() => {
-    if (!startTime || elapsedMs <= 0 || inputValue.length === 0) return 0;
-    return Math.round((inputValue.length / elapsedMs) * 60000);
-  }, [startTime, elapsedMs, inputValue.length]);
+  const phaseMessage = useMemo(() => {
+    switch (phase) {
+      case 'idle':
+        return { title: '준비되셨나요?', hint: '시작 버튼을 누르면 테스트가 시작됩니다.' };
+      case 'waiting':
+        return { title: '기다리세요...', hint: '초록색이 될 때까지 누르지 마세요.' };
+      case 'go':
+        return { title: '지금!', hint: '최대한 빠르게 탭하세요.' };
+      case 'false_start':
+        return { title: '너무 빨라요!', hint: '초록색이 되기 전에 눌렀습니다. 다시 도전해 보세요.' };
+      case 'timeout':
+        return { title: '시간 초과', hint: '반응이 너무 늦었습니다. 다시 도전해 보세요.' };
+      case 'finished':
+        return finalResult !== null
+          ? { title: formatReactionMs(finalResult), hint: '반응 속도' }
+          : { title: '완료', hint: '' };
+      default:
+        return { title: '', hint: '' };
+    }
+  }, [finalResult, phase]);
 
   const saveStatusMessage = useMemo(() => {
     if (saveStatus === 'saving') return '저장 중...';
@@ -323,10 +280,10 @@ const TypingSpeedGame: React.FC = () => {
         </header>
 
         <h1 className="games-title" style={{ marginBottom: 8 }}>
-          타자 빨리치기
+          반응속도 테스트
         </h1>
         <p className="games-subtitle" style={{ marginBottom: 20 }}>
-          아래 문장을 정확히 입력하세요. 타수(CPM)가 높을수록 순위가 올라갑니다.
+          초록색이 되면 최대한 빠르게 탭하세요. 빠를수록 순위가 올라갑니다.
         </p>
 
         <div className="typing-game-panel">
@@ -340,9 +297,9 @@ const TypingSpeedGame: React.FC = () => {
           {phase === 'idle' && (
             <div style={{ textAlign: 'center', padding: '24px 0' }}>
               <p style={{ marginBottom: 20, opacity: 0.9 }}>
-                시작 버튼을 누르면 랜덤 문장이 나타납니다.
+                빨간 화면에서는 기다렸다가, 초록색이 되면 바로 탭하세요.
                 <br />
-                첫 글자를 입력하는 순간 타이머가 시작됩니다.
+                빨간색일 때 누르면 실패 처리됩니다.
               </p>
               <button type="button" className="typing-btn typing-btn-primary" onClick={startGame}>
                 시작하기
@@ -350,66 +307,26 @@ const TypingSpeedGame: React.FC = () => {
             </div>
           )}
 
-          {(phase === 'playing' || phase === 'finished') && (
+          {phase !== 'idle' && (
             <>
-              <div className="typing-target">{renderTargetChars()}</div>
+              <button
+                type="button"
+                className={`reaction-zone reaction-zone--${phase}`}
+                onClick={handleReactionTap}
+                disabled={phase === 'finished' || phase === 'false_start' || phase === 'timeout'}
+                aria-label={phaseMessage.title}
+              >
+                <span className="reaction-zone-title">{phaseMessage.title}</span>
+                <span className="reaction-zone-hint">{phaseMessage.hint}</span>
+              </button>
 
-              <input
-                ref={inputRef}
-                type="text"
-                className="typing-input"
-                value={inputValue}
-                onChange={handleInputChange}
-                onFocus={focusTypingInput}
-                onCompositionStart={() => {
-                  isComposingRef.current = true;
-                }}
-                onCompositionEnd={handleCompositionEnd}
-                disabled={phase === 'finished'}
-                placeholder="여기에 입력하세요..."
-                lang="ko"
-                name="typing-speed-input"
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="none"
-                spellCheck={false}
-                inputMode="text"
-                enterKeyHint="done"
-                onPaste={(e) => e.preventDefault()}
-              />
-
-              <div className="typing-stats">
-                <div className="typing-stat">
-                  <span className="typing-stat-label">경과 시간</span>
-                  <span className="typing-stat-value">
-                    {phase === 'finished' && finalResult
-                      ? formatDuration(finalResult.durationMs)
-                      : formatDuration(elapsedMs)}
-                  </span>
-                </div>
-                <div className="typing-stat">
-                  <span className="typing-stat-label">타수 (CPM)</span>
-                  <span className="typing-stat-value">
-                    {phase === 'finished' && finalResult ? finalResult.cpm : liveCpm}
-                  </span>
-                </div>
-                <div className="typing-stat">
-                  <span className="typing-stat-label">진행률</span>
-                  <span className="typing-stat-value">
-                    {targetSentence.length > 0
-                      ? `${Math.min(100, Math.round((inputValue.length / targetSentence.length) * 100))}%`
-                      : '0%'}
-                  </span>
-                </div>
-              </div>
-
-              {phase === 'finished' && finalResult && (
+              {phase === 'finished' && finalResult !== null && (
                 <div
                   className={`typing-result${saveStatus === 'error' || saveStatus === 'skipped' ? ' typing-result--error' : ''}`}
                 >
                   <h4>완료!</h4>
                   <p>
-                    {formatDuration(finalResult.durationMs)} · {finalResult.cpm} 타/분
+                    {formatReactionMs(finalResult)}
                     {saveStatusMessage ? ` (${saveStatusMessage})` : ''}
                   </p>
                   {saveStatus === 'saved' && myRank && leaderboardTab === platform && (
@@ -422,7 +339,7 @@ const TypingSpeedGame: React.FC = () => {
                       type="button"
                       className="typing-btn typing-btn-secondary"
                       style={{ marginTop: 12 }}
-                      onClick={() => void saveScore(finalResult.durationMs, targetSentence)}
+                      onClick={() => void saveScore(finalResult)}
                     >
                       다시 저장 시도
                     </button>
@@ -431,22 +348,23 @@ const TypingSpeedGame: React.FC = () => {
               )}
 
               <div className="typing-actions">
-                {phase === 'finished' && (
+                {(phase === 'finished' || phase === 'false_start' || phase === 'timeout') && (
                   <button type="button" className="typing-btn typing-btn-primary" onClick={startGame}>
                     다시 도전
                   </button>
                 )}
-                {phase === 'playing' && (
+                {(phase === 'waiting' || phase === 'go') && (
                   <button
                     type="button"
                     className="typing-btn typing-btn-secondary"
                     onClick={() => {
+                      clearTimers();
                       finishedRef.current = false;
-                      startTimeRef.current = null;
-                      setPhase('idle');
-                      setInputValue('');
-                      setStartTime(null);
-                      setElapsedMs(0);
+                      goTimeRef.current = null;
+                      setFinalResult(null);
+                      setSaveStatus('idle');
+                      setSaveDetail(null);
+                      setPhaseSafe('idle');
                     }}
                   >
                     포기
@@ -503,11 +421,11 @@ const TypingSpeedGame: React.FC = () => {
                           {isMe ? ' (나)' : ''}
                         </div>
                         <div className="typing-rank-meta">
-                          {formatDuration(entry.bestDurationMs)} · {entry.attemptCount}회 도전
+                          {entry.attemptCount}회 도전
                         </div>
                       </div>
                       <span className="typing-rank-score">
-                        {entry.bestCpm} 타/분
+                        {formatReactionMs(entry.bestDurationMs)}
                       </span>
                     </li>
                   );
@@ -520,8 +438,7 @@ const TypingSpeedGame: React.FC = () => {
             champions={pastChampionsForTab}
             userUid={user?.uid}
             platformLabel={leaderboardTab === 'pc' ? 'PC' : '모바일'}
-            formatScore={(champion) => `${champion.cpm ?? 0} 타/분`}
-            formatMeta={(champion) => formatDuration(champion.durationMs)}
+            formatScore={(champion) => formatReactionMs(champion.durationMs)}
           />
         </section>
       </div>
@@ -529,4 +446,4 @@ const TypingSpeedGame: React.FC = () => {
   );
 };
 
-export default TypingSpeedGame;
+export default ReactionTimeGame;

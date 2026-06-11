@@ -9,6 +9,7 @@ export {
   deleteAnonymousChatRoom,
   scheduledAnonymousChatCleanup
 } from './anonymousChatCleanup';
+export { scheduledGameWeeklyReset } from './gameWeeklyReset';
 const WEB_APP_ORIGIN = 'https://veryusduet.web.app';
 
 const getRouteByPostType = (postType: string, postId: string): string => {
