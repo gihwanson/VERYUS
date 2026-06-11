@@ -167,13 +167,11 @@ const getDifficultyMultiplier = async (): Promise<number> => {
   return clampDifficulty(raw);
 };
 
-const assertAdmin = async (uid: string): Promise<void> => {
+const assertLeader = async (uid: string): Promise<void> => {
   const snap = await admin.firestore().doc(`users/${uid}`).get();
-  const data = snap.data() || {};
-  const nickname = String(data.nickname || '');
-  const role = String(data.role || '');
-  if (nickname === '너래' || role === '리더' || role === '운영진') return;
-  throw new HttpsError('permission-denied', '관리자만 설정할 수 있습니다.');
+  const role = String(snap.data()?.role || '');
+  if (role === '리더') return;
+  throw new HttpsError('permission-denied', '리더만 접근할 수 있습니다.');
 };
 
 const getUserIdentity = async (
@@ -1130,7 +1128,7 @@ export const veryusDefenseManualSpawn = onCall(
   async (request) => {
     if (!request.auth?.uid) throw new HttpsError('unauthenticated', '로그인이 필요합니다.');
     const uid = request.auth.uid;
-    await assertAdmin(uid);
+    await assertLeader(uid);
 
     const member = await ensureMemberForUid(uid);
     const roundId = await ensureActiveRound();
@@ -1190,7 +1188,7 @@ export const veryusDefensePurchaseUpgrade = onCall(
   async (request) => {
     if (!request.auth?.uid) throw new HttpsError('unauthenticated', '로그인이 필요합니다.');
     const uid = request.auth.uid;
-    await assertAdmin(uid);
+    await assertLeader(uid);
     const upgradeKey = String(request.data?.upgradeKey || '') as UpgradeKey;
     if (!UPGRADE_KEYS.includes(upgradeKey)) {
       throw new HttpsError('invalid-argument', '잘못된 강화 항목입니다.');
@@ -1252,7 +1250,7 @@ export const veryusDefenseClaimDaily = onCall(
   async (request) => {
     if (!request.auth?.uid) throw new HttpsError('unauthenticated', '로그인이 필요합니다.');
     const uid = request.auth.uid;
-    await assertAdmin(uid);
+    await assertLeader(uid);
     const dayKey = getKstDateKey();
 
     const claimResult = await admin.firestore().runTransaction(async (tx) => {
@@ -1314,7 +1312,7 @@ export const veryusDefenseConnect = onCall(
     if (!request.auth?.uid) throw new HttpsError('unauthenticated', '로그인이 필요합니다.');
 
     const uid = request.auth.uid;
-    await assertAdmin(uid);
+    await assertLeader(uid);
     await ensurePlayerProfile(uid);
     await ensureMemberForUid(uid);
     const members = await ensureMemberPower();
@@ -1359,7 +1357,7 @@ export const veryusDefenseBoostTick = onCall(
   { region: 'asia-northeast3' },
   async (request) => {
     if (!request.auth?.uid) throw new HttpsError('unauthenticated', '로그인이 필요합니다.');
-    await assertAdmin(request.auth.uid);
+    await assertLeader(request.auth.uid);
 
     const inGameUids = await getInGameUids();
     if (inGameUids.size === 0) {
@@ -1407,7 +1405,7 @@ export const veryusDefenseSetDifficulty = onCall(
   { region: 'asia-northeast3' },
   async (request) => {
     if (!request.auth?.uid) throw new HttpsError('unauthenticated', '로그인이 필요합니다.');
-    await assertAdmin(request.auth.uid);
+    await assertLeader(request.auth.uid);
 
     const multiplier = clampDifficulty(Number(request.data?.multiplier));
     if (!Number.isFinite(Number(request.data?.multiplier))) {

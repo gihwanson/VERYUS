@@ -40,6 +40,13 @@ service cloud.firestore {
         );
     }
 
+    /** 베리어스 디펜스(AdminTypes.checkLeaderAccess)와 동일: 리더 역할만 */
+    function isLeader() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && userDoc().role == '리더';
+    }
+
     function contestDoc(contestId) {
       return get(/databases/$(database)/documents/contests/$(contestId)).data;
     }
@@ -279,7 +286,7 @@ service cloud.firestore {
 
     /** 미니게임 점수 */
     match /games/{gameId} {
-      allow read: if signedIn() && (gameId != 'veryusDefense' || isAdmin());
+      allow read: if signedIn() && (gameId != 'veryusDefense' || isLeader());
 
       /** 레거시: 시도마다 쌓이던 기록 (신규 저장 안 함) */
       match /scores/{scoreId} {
@@ -320,35 +327,35 @@ service cloud.firestore {
         allow delete: if false;
       }
 
-      /** 베리어스 디펜스 협동전 — 관리자 전용(비공개), 시뮬레이션은 Cloud Functions 전용 */
+      /** 베리어스 디펜스 협동전 — 리더 전용(비공개), 시뮬레이션은 Cloud Functions 전용 */
       match /rounds/{roundId} {
-        allow read: if isAdmin() && gameId == 'veryusDefense';
+        allow read: if isLeader() && gameId == 'veryusDefense';
         allow write: if false;
 
         match /units/{unitId} {
-          allow read: if isAdmin() && gameId == 'veryusDefense';
+          allow read: if isLeader() && gameId == 'veryusDefense';
           allow write: if false;
         }
 
         match /feed/{feedId} {
-          allow read: if isAdmin() && gameId == 'veryusDefense';
+          allow read: if isLeader() && gameId == 'veryusDefense';
           allow write: if false;
         }
       }
 
       match /players/{playerId} {
-        allow read: if isAdmin() && gameId == 'veryusDefense';
+        allow read: if isLeader() && gameId == 'veryusDefense';
         allow write: if false;
       }
 
       match /memberPower/{memberId} {
-        allow read: if isAdmin() && gameId == 'veryusDefense';
+        allow read: if isLeader() && gameId == 'veryusDefense';
         allow write: if false;
       }
 
       match /presence/{presenceId} {
-        allow read: if isAdmin() && gameId == 'veryusDefense';
-        allow create, update: if isAdmin()
+        allow read: if isLeader() && gameId == 'veryusDefense';
+        allow create, update: if isLeader()
           && gameId == 'veryusDefense'
           && presenceId == request.auth.uid
           && (

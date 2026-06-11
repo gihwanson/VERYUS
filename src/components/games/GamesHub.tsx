@@ -10,7 +10,7 @@ import {
 import { detectGamePlatform } from '../../utils/gamePlatform';
 import { getReactionBestScoreDocId } from '../../utils/reactionTimeScores';
 import { getTypingBestScoreDocId } from '../../utils/typingSpeedScores';
-import { checkAdminAccess } from '../AdminTypes';
+import { checkLeaderAccess } from '../AdminTypes';
 import { GAME_ID, PRESENCE_TTL_MS } from '../../utils/veryusDefense/constants';
 import { getLastPlayedGame } from '../../utils/lastPlayedGame';
 import '../../styles/variables.css';
@@ -24,8 +24,8 @@ interface GameItem {
   path?: string;
   available: boolean;
   category: 'solo' | 'coop';
-  /** true면 운영진·리더·지정 관리자만 목록에 표시 */
-  adminOnly?: boolean;
+  /** true면 리더만 목록에 표시 */
+  leaderOnly?: boolean;
 }
 
 interface GameCategory {
@@ -63,12 +63,12 @@ const GAME_ITEMS: GameItem[] = [
     path: '/games/veryus-defense',
     available: true,
     category: 'coop',
-    adminOnly: true,
+    leaderOnly: true,
   },
 ];
 
-const buildGameCategories = (isAdmin: boolean): GameCategory[] => {
-  const visibleGames = GAME_ITEMS.filter((g) => !g.adminOnly || isAdmin);
+const buildGameCategories = (isLeader: boolean): GameCategory[] => {
+  const visibleGames = GAME_ITEMS.filter((g) => !g.leaderOnly || isLeader);
   return [
     {
       id: 'solo',
@@ -110,12 +110,12 @@ const GamesHub: React.FC = () => {
   );
 
   const lastPlayedId = useMemo(() => getLastPlayedGame(), []);
-  const isAdmin = useMemo(() => checkAdminAccess(user), [user]);
-  const gameCategories = useMemo(() => buildGameCategories(isAdmin), [isAdmin]);
-  const showDefenseNotice = isAdmin;
+  const isLeader = useMemo(() => checkLeaderAccess(user), [user]);
+  const gameCategories = useMemo(() => buildGameCategories(isLeader), [isLeader]);
+  const showDefenseNotice = isLeader;
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!isLeader) return;
 
     const unsubPresence = onSnapshot(collection(db, 'games', GAME_ID, 'presence'), (snap) => {
       const now = Date.now();
@@ -150,7 +150,7 @@ const GamesHub: React.FC = () => {
       unsubGame();
       unsubRound?.();
     };
-  }, [isAdmin]);
+  }, [isLeader]);
 
   useEffect(() => {
     if (!user?.uid) return;

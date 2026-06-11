@@ -17,7 +17,7 @@ import { subscribeToAnnouncementUnreadCount, subscribeToAnonymousChatUnreadCount
 import { initPushNotifications, removeCurrentPushToken } from './utils/pushNotificationService';
 import { mergeVeryusUserFromAuth, readVeryusUserFromStorage, writeVeryusUserToStorage } from './utils/veryusUserStorage';
 import { signOutDeletedAccount } from './utils/deletedAccountSession';
-import { subscribeAdminVerification } from './utils/adminSessionVerify';
+import { subscribeAdminVerification, subscribeLeaderVerification } from './utils/adminSessionVerify';
 import { addLurkingScore } from './utils/simpleBoardNotification';
 import { UserProfileProvider } from './contexts/UserProfileContext';
 import GlobalLoadingScreen from './components/GlobalLoadingScreen';
@@ -235,12 +235,14 @@ const BottomNavigationGate: React.FC<{
   );
 };
 
-// 관리자 전용 라우트: Firebase Auth + Firestore users 문서로 권한 확인 (localStorage만으로는 통과 불가)
-const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const RoleGateRoute: React.FC<{
+  children: React.ReactNode;
+  subscribe: (callback: (result: { ok: boolean; authUser: User | null }) => void) => () => void;
+}> = ({ children, subscribe }) => {
   const [gate, setGate] = useState<'loading' | 'allow' | 'login' | 'deny'>('loading');
 
   useEffect(() => {
-    const unsub = subscribeAdminVerification(({ ok, authUser }) => {
+    const unsub = subscribe(({ ok, authUser }) => {
       if (!authUser) {
         setGate('login');
         return;
@@ -248,7 +250,7 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       setGate(ok ? 'allow' : 'deny');
     });
     return () => unsub();
-  }, []);
+  }, [subscribe]);
 
   if (gate === 'loading') {
     return <RouteLoadShell />;
@@ -261,6 +263,15 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   }
   return <>{children}</>;
 };
+
+// 관리자 전용 라우트: Firebase Auth + Firestore users 문서로 권한 확인 (localStorage만으로는 통과 불가)
+const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <RoleGateRoute subscribe={subscribeAdminVerification}>{children}</RoleGateRoute>
+);
+
+const LeaderRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <RoleGateRoute subscribe={subscribeLeaderVerification}>{children}</RoleGateRoute>
+);
 
 // 보호된 라우트 컴포넌트
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -1130,7 +1141,7 @@ function App() {
               <Route path="/games" element={<ProtectedRoute><GamesHub /></ProtectedRoute>} />
               <Route path="/games/typing-speed" element={<ProtectedRoute><TypingSpeedGame /></ProtectedRoute>} />
               <Route path="/games/reaction-time" element={<ProtectedRoute><ReactionTimeGame /></ProtectedRoute>} />
-              <Route path="/games/veryus-defense" element={<AdminRoute><VeryusDefenseGame /></AdminRoute>} />
+              <Route path="/games/veryus-defense" element={<LeaderRoute><VeryusDefenseGame /></LeaderRoute>} />
               
               {/* 기타 모든 경로 - 404 대신 로그인으로 리다이렉트 */}
               <Route 
