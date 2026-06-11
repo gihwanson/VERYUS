@@ -38,7 +38,10 @@ const buildLeaderboard = (
 ): LeaderboardEntry[] =>
   scores
     .filter((s) => s.platform === platform)
-    .sort((a, b) => a.durationMs - b.durationMs)
+    .sort((a, b) => {
+      if (b.cpm !== a.cpm) return b.cpm - a.cpm;
+      return a.durationMs - b.durationMs;
+    })
     .map((s) => ({
       uid: s.uid,
       nickname: s.nickname,
@@ -142,7 +145,7 @@ const TypingSpeedGame: React.FC = () => {
         setSaveDetail(
           result.isNewBest
             ? `${platform === 'pc' ? 'PC' : '모바일'} 신기록! (${result.attemptCount}회째 도전)`
-            : `최고 기록 ${formatDuration(result.bestDurationMs)} 유지 (${result.attemptCount}회째 도전)`
+            : `최고 기록 ${result.bestCpm} 타/분 유지 (${result.attemptCount}회째 도전)`
         );
       } catch (e) {
         console.error('점수 저장 실패:', e);
@@ -294,7 +297,7 @@ const TypingSpeedGame: React.FC = () => {
           타자 빨리치기
         </h1>
         <p className="games-subtitle" style={{ marginBottom: 20 }}>
-          아래 문장을 정확히 입력하세요. 가장 빠른 기록이 순위에 올라갑니다.
+          아래 문장을 정확히 입력하세요. 타수(CPM)가 높을수록 순위가 올라갑니다.
         </p>
 
         <div className="typing-game-panel">
@@ -471,11 +474,11 @@ const TypingSpeedGame: React.FC = () => {
                           {isMe ? ' (나)' : ''}
                         </div>
                         <div className="typing-rank-meta">
-                          {entry.bestCpm} 타/분 · {entry.attemptCount}회 도전
+                          {formatDuration(entry.bestDurationMs)} · {entry.attemptCount}회 도전
                         </div>
                       </div>
                       <span className="typing-rank-score">
-                        {formatDuration(entry.bestDurationMs)}
+                        {entry.bestCpm} 타/분
                       </span>
                     </li>
                   );

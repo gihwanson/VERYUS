@@ -30,10 +30,23 @@ export interface TypingBestScore {
 export const getTypingBestScoreDocId = (uid: string, platform: GamePlatform): string =>
   `${uid}_${platform}`;
 
+export const calcTypingCpm = (sentence: string, durationMs: number): number =>
+  sentence.length > 0 ? Math.round((sentence.length / durationMs) * 60000) : 0;
+
+/** CPM이 높을수록 우수. 동점이면 더 짧은 시간이 우선 */
+export const isBetterTypingScore = (
+  next: { cpm: number; durationMs: number },
+  prev: { cpm: number; durationMs: number }
+): boolean => {
+  if (next.cpm !== prev.cpm) return next.cpm > prev.cpm;
+  return next.durationMs < prev.durationMs;
+};
+
 export type SaveTypingBestResult = {
   saved: boolean;
   isNewBest: boolean;
   attemptCount: number;
+  bestCpm: number;
   bestDurationMs: number;
 };
 
@@ -48,10 +61,7 @@ export const saveTypingBestScore = async (params: {
     throw new Error(`기록이 너무 빠릅니다. (최소 ${MIN_TYPING_DURATION_MS / 1000}초)`);
   }
 
-  const cpm =
-    params.sentence.length > 0
-      ? Math.round((params.sentence.length / params.durationMs) * 60000)
-      : 0;
+  const cpm = calcTypingCpm(params.sentence, params.durationMs);
 
   const ref = doc(
     db,
@@ -79,6 +89,7 @@ export const saveTypingBestScore = async (params: {
         saved: true,
         isNewBest: true,
         attemptCount: 1,
+        bestCpm: cpm,
         bestDurationMs: params.durationMs,
       };
     }
@@ -86,8 +97,12 @@ export const saveTypingBestScore = async (params: {
     const existing = snap.data();
     const prevAttempts = Number(existing.attemptCount) || 0;
     const attemptCount = prevAttempts + 1;
-    const prevBest = Number(existing.durationMs);
-    const isNewBest = params.durationMs < prevBest;
+    const prevCpm = Number(existing.cpm) || 0;
+    const prevDurationMs = Number(existing.durationMs);
+    const isNewBest = isBetterTypingScore(
+      { cpm, durationMs: params.durationMs },
+      { cpm: prevCpm, durationMs: prevDurationMs }
+    );
 
     if (isNewBest) {
       transaction.update(ref, {
@@ -102,6 +117,7 @@ export const saveTypingBestScore = async (params: {
         saved: true,
         isNewBest: true,
         attemptCount,
+        bestCpm: cpm,
         bestDurationMs: params.durationMs,
       };
     }
@@ -115,7 +131,8 @@ export const saveTypingBestScore = async (params: {
       saved: true,
       isNewBest: false,
       attemptCount,
-      bestDurationMs: prevBest,
+      bestCpm: prevCpm,
+      bestDurationMs: prevDurationMs,
     };
   });
 };
@@ -165,9 +182,13 @@ export const migrateLegacyTypingScoresIfNeeded = async (): Promise<void> => {
       }
 
       cur.count += 1;
-      if (data.durationMs < cur.durationMs) {
+      const dataCpm = Number(data.cpm) || calcTypingCpm(String(data.sentence ?? ''), data.durationMs);
+      if (isBetterTypingScore(
+        { cpm: dataCpm, durationMs: data.durationMs },
+        { cpm: cur.cpm, durationMs: cur.durationMs }
+      )) {
         cur.durationMs = data.durationMs;
-        cur.cpm = Number(data.cpm) || cur.cpm;
+        cur.cpm = dataCpm;
         cur.sentence = String(data.sentence ?? cur.sentence);
       }
       if (data.nickname) cur.nickname = String(data.nickname);
@@ -193,8 +214,12 @@ export const migrateLegacyTypingScoresIfNeeded = async (): Promise<void> => {
 
       const ex = existing.data();
       const attemptCount = Math.max(Number(ex.attemptCount) || 0, item.count);
-      const prevBest = Number(ex.durationMs);
-      const isBetter = item.durationMs < prevBest;
+      const prevCpm = Number(ex.cpm) || 0;
+      const prevDurationMs = Number(ex.durationMs);
+      const isBetter = isBetterTypingScore(
+        { cpm: item.cpm, durationMs: item.durationMs },
+        { cpm: prevCpm, durationMs: prevDurationMs }
+      );
 
       await setDoc(
         ref,
