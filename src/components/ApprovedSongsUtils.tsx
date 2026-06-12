@@ -38,16 +38,55 @@ export const filterSongsByType = (songs: ApprovedSong[], songType: SongType): Ap
   });
 };
 
-// 검색 필터링 함수
+const MEMBER_SEARCH_DELIMITER = /[,，、·/&+]+/;
+
+const normalizeMemberSearchText = (value: string) =>
+  value.replace(/\s+/g, '').toLowerCase();
+
+const parseMemberSearchTerms = (searchTerm: string): string[] =>
+  searchTerm
+    .split(MEMBER_SEARCH_DELIMITER)
+    .map((term) => term.trim().toLowerCase())
+    .filter(Boolean);
+
+const memberIncludesTerm = (members: string[], term: string): boolean => {
+  const normalizedTerm = normalizeMemberSearchText(term);
+  if (!normalizedTerm) return false;
+  return members.some((member) =>
+    normalizeMemberSearchText(String(member)).includes(normalizedTerm)
+  );
+};
+
+const membersDisplayIncludesTerm = (members: string[], term: string): boolean => {
+  const joined = members.map((m) => String(m).trim()).join(', ');
+  const normalizedJoined = normalizeMemberSearchText(joined);
+  const normalizedTerm = normalizeMemberSearchText(term);
+  return normalizedTerm.length > 0 && normalizedJoined.includes(normalizedTerm);
+};
+
+// 검색 필터링 함수 (단일: 제목·닉네임, 복수: 쉼표 등으로 구분한 듀엣/합창 멤버 전원 매칭)
 export const filterSongsBySearch = (songs: ApprovedSong[], searchTerm: string): ApprovedSong[] => {
-  const term = searchTerm.trim().toLowerCase();
-  if (!term) return songs;
-  
-  return songs.filter(song => {
-    const titleMatch = song.title?.toLowerCase().includes(term);
-    const memberMatch = Array.isArray(song.members) && 
-      song.members.some((m: string) => m.toLowerCase().includes(term));
-    return titleMatch || memberMatch;
+  const raw = searchTerm.trim();
+  if (!raw) return songs;
+
+  const terms = parseMemberSearchTerms(raw);
+  const isMultiMemberSearch = terms.length >= 2;
+
+  return songs.filter((song) => {
+    const members = Array.isArray(song.members)
+      ? song.members.map((m) => String(m).trim()).filter(Boolean)
+      : [];
+    const titleLower = song.title?.toLowerCase() || '';
+
+    if (isMultiMemberSearch) {
+      return terms.every((term) => memberIncludesTerm(members, term));
+    }
+
+    const singleTerm = terms[0] || raw.toLowerCase();
+    const titleMatch = titleLower.includes(singleTerm);
+    const memberMatch = memberIncludesTerm(members, singleTerm);
+    const duetDisplayMatch = membersDisplayIncludesTerm(members, raw);
+    return titleMatch || memberMatch || duetDisplayMatch;
   });
 };
 

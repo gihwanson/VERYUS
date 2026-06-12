@@ -484,7 +484,7 @@ const ApprovedSongs: React.FC = () => {
             <SearchInput
               value={searchTerm}
               onChange={setSearchTerm}
-              placeholder="🔍 곡 제목 또는 닉네임 검색"
+              placeholder="🔍 곡 제목 또는 닉네임 (듀엣: 너래, 민주)"
             />
             
             {/* 필터 탭 */}

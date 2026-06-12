@@ -746,7 +746,7 @@ const EvaluationPostList: React.FC = () => {
         </div>
       </div>
       <div className="board-info-banner">
-        해당게시판은 심사곡 업로드와 피드백요청을 위한 게시판 입니다
+        신입은 오프1회 참여 후 평가게시판 업로드가 가능합니다
       </div>
       <div className="post-list">
         {loading ? (

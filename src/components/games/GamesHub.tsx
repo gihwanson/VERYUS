@@ -141,12 +141,7 @@ const GamesHub: React.FC = () => {
                     {game.emoji}
                   </span>
                   <div className="games-card-body">
-                    <h3>
-                      {game.title}
-                      {lastPlayedId === game.id && (
-                        <span className="games-card-recent-badge">최근 플레이</span>
-                      )}
-                    </h3>
+                    <h3>{game.title}</h3>
                     <p>{game.description}</p>
                     {teaser && <p className="games-card-teaser">{teaser}</p>}
                   </div>
