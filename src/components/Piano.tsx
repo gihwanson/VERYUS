@@ -1,19 +1,23 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Keyboard, X, Volume2, VolumeX } from 'lucide-react';
+import { Keyboard, X, Volume2, VolumeX, ChevronDown } from 'lucide-react';
 import { usePianoLandscape } from '../hooks/usePianoLandscape';
 import { isTouchPrimaryDevice, unlockPianoLandscape } from '../utils/pianoOrientation';
 import {
   disposePianoAudio,
+  getActiveInstrument,
   getPianoVolume,
+  INSTRUMENT_OPTIONS,
   isPianoMuted,
   midiToLabel,
   preloadPianoAudio,
+  setActiveInstrument,
   setPianoMuted,
   setPianoVolume,
   startPianoNote,
   stopAllPianoNotes,
   stopPianoNote,
+  type InstrumentId,
 } from '../utils/pianoSounds';
 import '../styles/variables.css';
 import '../styles/piano.css';
@@ -44,7 +48,8 @@ const QWERTY_BY_SEMITONE: Record<number, string> = {
   11: 'm',
 };
 const BLACK_KEY_WIDTH_RATIO = 0.46;
-const SCROLL_KEY = 'veryus_piano_scroll_x_88';
+const SCROLL_KEY = 'veryus_piano_scroll_v3';
+const SCROLL_USER_KEY = 'veryus_piano_scroll_user_v3';
 const INERTIA_FRICTION = 0.92;
 const INERTIA_MIN_VELOCITY = 0.2;
 const BODY_PADDING_X = 20;
@@ -87,6 +92,7 @@ const clamp = (value: number, min: number, max: number): number =>
 
 const getSavedScrollX = (): number | null => {
   try {
+    if (localStorage.getItem(SCROLL_USER_KEY) !== '1') return null;
     const saved = localStorage.getItem(SCROLL_KEY);
     if (saved === null) return null;
     const n = Number(saved);
@@ -99,13 +105,16 @@ const getSavedScrollX = (): number | null => {
 const saveScrollX = (offset: number): void => {
   try {
     localStorage.setItem(SCROLL_KEY, String(offset));
+    localStorage.setItem(SCROLL_USER_KEY, '1');
   } catch {
     /* ignore */
   }
 };
 
-const getBlackKeyStyle = (afterWhite: number): React.CSSProperties =>
-  ({ '--aw': afterWhite } as React.CSSProperties);
+const getBlackKeyStyle = (afterWhite: number, keyWidth: number): React.CSSProperties => ({
+  left: `${(afterWhite + 1) * keyWidth - (keyWidth * BLACK_KEY_WIDTH_RATIO) / 2}px`,
+  width: `${keyWidth * BLACK_KEY_WIDTH_RATIO}px`,
+});
 
 interface ScrollTrackSession {
   pointerId: number;
@@ -119,12 +128,12 @@ const Piano: React.FC = () => {
   const handleClose = useCallback(() => {
     stopAllPianoNotes();
     unlockPianoLandscape();
-    navigate('/instruments');
+    navigate('/');
   }, [navigate]);
 
   const handleExitFullscreen = useCallback(() => {
     stopAllPianoNotes();
-    navigate('/instruments');
+    navigate('/');
   }, [navigate]);
 
   const { isEmulatedLandscape, isReverseEmulation } = usePianoLandscape(handleExitFullscreen);
@@ -137,7 +146,10 @@ const Piano: React.FC = () => {
   const [muted, setMuted] = useState(isPianoMuted);
   const [showGuides, setShowGuides] = useState(true);
   const [layoutTick, setLayoutTick] = useState(0);
+  const [instrument, setInstrument] = useState<InstrumentId>(getActiveInstrument);
+  const [showInstrumentMenu, setShowInstrumentMenu] = useState(false);
 
+  const instrumentPickerRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -152,19 +164,30 @@ const Piano: React.FC = () => {
   const pointerVoicesRef = useRef<Map<number, { midi: number; voiceId: number }>>(new Map());
   const keyboardVoicesRef = useRef<Map<string, { midi: number; voiceId: number }>>(new Map());
   const activeCountRef = useRef<Map<number, number>>(new Map());
-  const hasInitializedScrollRef = useRef(false);
+  const userAdjustedScrollRef = useRef(false);
 
   const whiteKeys = useMemo(() => ALL_KEYS.filter((k) => !k.isBlack), []);
   const blackKeys = useMemo(() => ALL_KEYS.filter((k) => k.isBlack), []);
 
+  const measureWhiteKeyWidth = useCallback((): number => {
+    const firstWhite = keysAreaRef.current?.querySelector<HTMLElement>('.piano-white-key');
+    if (firstWhite) {
+      const measured = firstWhite.offsetWidth;
+      if (measured > 0) return measured;
+    }
+    const body = bodyRef.current;
+    if (body) {
+      const raw = getComputedStyle(body).getPropertyValue('--key-width').trim();
+      const parsed = parseFloat(raw);
+      if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    }
+    return 50;
+  }, []);
+
   const keyWidth = useMemo(() => {
     void layoutTick;
-    const body = bodyRef.current;
-    if (!body) return 50;
-    const raw = getComputedStyle(body).getPropertyValue('--key-width').trim();
-    const parsed = parseFloat(raw);
-    return Number.isFinite(parsed) ? parsed : 50;
-  }, [layoutTick]);
+    return measureWhiteKeyWidth();
+  }, [layoutTick, measureWhiteKeyWidth]);
 
   const measureBounds = useCallback(() => {
     const viewport = viewportRef.current;
@@ -173,7 +196,8 @@ const Piano: React.FC = () => {
     if (!viewport || !scroll || !body) return;
 
     const viewportWidth = viewport.clientWidth;
-    const contentWidth = body.offsetWidth || body.scrollWidth;
+    const keysArea = keysAreaRef.current;
+    const contentWidth = keysArea?.offsetWidth || body.offsetWidth || body.scrollWidth;
     const min = Math.min(0, viewportWidth - contentWidth);
     const nextBounds = { min, max: 0 };
     boundsRef.current = nextBounds;
@@ -195,8 +219,12 @@ const Piano: React.FC = () => {
     observer.observe(viewport);
     observer.observe(scroll);
     observer.observe(body);
+    if (keysAreaRef.current) observer.observe(keysAreaRef.current);
 
-    const id = requestAnimationFrame(() => measureBounds());
+    const id = requestAnimationFrame(() => {
+      measureBounds();
+      setLayoutTick((v) => v + 1);
+    });
     return () => {
       cancelAnimationFrame(id);
       observer.disconnect();
@@ -204,16 +232,17 @@ const Piano: React.FC = () => {
   }, [measureBounds, whiteKeys.length]);
 
   useEffect(() => {
-    if (hasInitializedScrollRef.current) return;
+    if (userAdjustedScrollRef.current) return;
     if (!viewportRef.current || !bodyRef.current) return;
+    if (keyWidth <= 0) return;
     if (bounds.min === 0 && bounds.max === 0 && scrollRef.current && viewportRef.current) {
       if (scrollRef.current.scrollWidth <= viewportRef.current.clientWidth) return;
     }
 
     const saved = getSavedScrollX();
     if (saved !== null) {
+      userAdjustedScrollRef.current = true;
       setOffsetX(clamp(saved, bounds.min, bounds.max));
-      hasInitializedScrollRef.current = true;
       return;
     }
 
@@ -224,12 +253,13 @@ const Piano: React.FC = () => {
       const centered = viewportWidth / 2 - c4Center;
       setOffsetX(clamp(centered, bounds.min, bounds.max));
     }
-    hasInitializedScrollRef.current = true;
   }, [bounds, keyWidth, whiteKeys]);
 
   useEffect(() => {
     offsetXRef.current = offsetX;
-    saveScrollX(offsetX);
+    if (userAdjustedScrollRef.current) {
+      saveScrollX(offsetX);
+    }
   }, [offsetX]);
 
   const mappingStart = useMemo(() => {
@@ -289,7 +319,7 @@ const Piano: React.FC = () => {
     const body = bodyRef.current;
     if (!viewport || !body) return { left: 0, width: 100, canScroll: false };
     const viewportWidth = viewport.clientWidth;
-    const contentWidth = body.offsetWidth || body.scrollWidth;
+    const contentWidth = keysAreaRef.current?.offsetWidth || body.offsetWidth || body.scrollWidth;
     if (contentWidth <= viewportWidth) return { left: 0, width: 100, canScroll: false };
     const width = (viewportWidth / contentWidth) * 100;
     const maxLeft = 100 - width;
@@ -301,6 +331,32 @@ const Piano: React.FC = () => {
   useEffect(() => {
     void preloadPianoAudio();
   }, []);
+
+  const activeInstrumentOption = useMemo(
+    () => INSTRUMENT_OPTIONS.find((item) => item.id === instrument) ?? INSTRUMENT_OPTIONS[0],
+    [instrument]
+  );
+
+  const handleInstrumentSelect = useCallback((next: InstrumentId) => {
+    if (next === instrument) {
+      setShowInstrumentMenu(false);
+      return;
+    }
+    setActiveInstrument(next);
+    setInstrument(next);
+    setShowInstrumentMenu(false);
+  }, [instrument]);
+
+  useEffect(() => {
+    if (!showInstrumentMenu) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!instrumentPickerRef.current?.contains(e.target as Node)) {
+        setShowInstrumentMenu(false);
+      }
+    };
+    window.addEventListener('pointerdown', onPointerDown);
+    return () => window.removeEventListener('pointerdown', onPointerDown);
+  }, [showInstrumentMenu]);
 
   const setMidiActive = useCallback((midi: number, active: boolean) => {
     const counts = activeCountRef.current;
@@ -479,6 +535,7 @@ const Piano: React.FC = () => {
     session.lastTime = now;
 
     e.preventDefault();
+    userAdjustedScrollRef.current = true;
     const panDx = e.clientX - session.startClientX;
     const { min, max } = boundsRef.current;
     setOffsetX(clamp(session.startOffset + panDx, min, max));
@@ -524,6 +581,7 @@ const Piano: React.FC = () => {
       const onThumb = Math.abs(ratio - thumbCenter) <= scrollThumb.width / 200;
 
       if (!onThumb) {
+        userAdjustedScrollRef.current = true;
         const maxLeft = 100 - scrollThumb.width;
         const targetLeft = clamp(ratio * 100 - scrollThumb.width / 2, 0, maxLeft);
         const progress = maxLeft > 0 ? targetLeft / maxLeft : 0;
@@ -548,6 +606,7 @@ const Piano: React.FC = () => {
       if (!track) return;
 
       e.preventDefault();
+      userAdjustedScrollRef.current = true;
       const rect = track.getBoundingClientRect();
       const maxLeft = 100 - scrollThumb.width;
       const startProgress = session.startOffset / boundsRef.current.min || 0;
@@ -679,6 +738,48 @@ const Piano: React.FC = () => {
             <button
               type="button"
               className="piano-tool-btn"
+              onClick={() => navigate('/instruments/drums')}
+            >
+              <span aria-hidden>🥁</span>
+              <span>드럼</span>
+            </button>
+            <div className="piano-instrument-picker" ref={instrumentPickerRef}>
+              <button
+                type="button"
+                className={`piano-tool-btn piano-instrument-btn${showInstrumentMenu ? ' is-open' : ''}`}
+                onClick={() => setShowInstrumentMenu((open) => !open)}
+                aria-expanded={showInstrumentMenu}
+                aria-haspopup="listbox"
+              >
+                <span className="piano-instrument-emoji" aria-hidden>
+                  {activeInstrumentOption.emoji}
+                </span>
+                <span className="piano-instrument-name">
+                  {activeInstrumentOption.label}
+                </span>
+                <ChevronDown size={14} className="piano-instrument-chevron" aria-hidden />
+              </button>
+              {showInstrumentMenu && (
+                <div className="piano-instrument-menu" role="listbox" aria-label="악기 선택">
+                  {INSTRUMENT_OPTIONS.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      role="option"
+                      aria-selected={item.id === instrument}
+                      className={`piano-instrument-option${item.id === instrument ? ' is-active' : ''}`}
+                      onClick={() => handleInstrumentSelect(item.id)}
+                    >
+                      <span aria-hidden>{item.emoji}</span>
+                      <span>{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              className="piano-tool-btn"
               onClick={toggleMute}
               aria-pressed={muted}
               aria-label={muted ? '음소거 해제' : '음소거'}
@@ -729,6 +830,7 @@ const Piano: React.FC = () => {
                   {
                     '--white-count': whiteKeys.length,
                     '--black-ratio': BLACK_KEY_WIDTH_RATIO,
+                    '--measured-key-width': `${keyWidth}px`,
                   } as React.CSSProperties
                 }
               >
@@ -745,7 +847,7 @@ const Piano: React.FC = () => {
                         key={`w-${key.midi}`}
                         type="button"
                         data-midi={key.midi}
-                        className={`piano-white-key${activeMidis.has(key.midi) ? ' is-active' : ''}`}
+                        className={`piano-white-key${activeMidis.has(key.midi) ? ' is-active' : ''}${key.midi % 12 === 0 ? ' is-c-root' : ''}`}
                         aria-label={key.label}
                       >
                         <span className={guideClass()}>
@@ -765,7 +867,7 @@ const Piano: React.FC = () => {
                         type="button"
                         data-midi={key.midi}
                         className={`piano-black-key${activeMidis.has(key.midi) ? ' is-active' : ''}`}
-                        style={getBlackKeyStyle(key.afterWhite ?? 0)}
+                        style={getBlackKeyStyle(key.afterWhite ?? 0, keyWidth)}
                         aria-label={key.label}
                       >
                         {key.keyboard && (

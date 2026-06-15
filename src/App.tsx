@@ -169,11 +169,13 @@ const PracticeRoomManagement = lazy(() => import('./components/PracticeRoomManag
 const GamesHub = lazy(() => import('./components/games/GamesHub'));
 const TypingSpeedGame = lazy(() => import('./components/games/TypingSpeedGame'));
 const ReactionTimeGame = lazy(() => import('./components/games/ReactionTimeGame'));
-const InstrumentsHub = lazy(() => import('./components/instruments/InstrumentsHub'));
 const Piano = lazy(() => import('./components/Piano'));
+const DrumKit = lazy(() => import('./components/DrumKit'));
 
 const isImmersiveInstrumentPath = (pathname: string): boolean =>
-  pathname.startsWith('/instruments/piano') || pathname === '/piano';
+  pathname.startsWith('/instruments/piano') ||
+  pathname.startsWith('/instruments/drums') ||
+  pathname === '/piano';
 
 /** 경로 변경 시 본문 전환 애니메이션 (useLocation은 Router 안에서만 사용) */
 const RouteTransition: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -203,7 +205,7 @@ const RouteTransition: React.FC<{ children: React.ReactNode }> = ({ children }) 
 const FloatingCSButton: React.FC<{ hasUnread?: boolean }> = ({ hasUnread }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const hiddenPaths = ['/customer-center', '/anonymous-chat', '/login', '/signup', '/instruments/piano', '/piano'];
+  const hiddenPaths = ['/customer-center', '/anonymous-chat', '/login', '/signup', '/instruments/piano', '/instruments/drums', '/piano'];
   if (hiddenPaths.some((p) => location.pathname.startsWith(p))) return null;
 
   return (
@@ -1142,9 +1144,10 @@ function App() {
               <Route path="/games/typing-speed" element={<ProtectedRoute><TypingSpeedGame /></ProtectedRoute>} />
               <Route path="/games/reaction-time" element={<ProtectedRoute><ReactionTimeGame /></ProtectedRoute>} />
 
-              {/* 악기 연습실 */}
-              <Route path="/instruments" element={<ProtectedRoute><InstrumentsHub /></ProtectedRoute>} />
+              {/* 악기 — 피아노 · 드럼 */}
+              <Route path="/instruments" element={<Navigate to="/instruments/piano" replace />} />
               <Route path="/instruments/piano" element={<ProtectedRoute><Piano /></ProtectedRoute>} />
+              <Route path="/instruments/drums" element={<ProtectedRoute><DrumKit /></ProtectedRoute>} />
               <Route path="/piano" element={<Navigate to="/instruments/piano" replace />} />
               
               {/* 기타 모든 경로 - 404 대신 로그인으로 리다이렉트 */}
