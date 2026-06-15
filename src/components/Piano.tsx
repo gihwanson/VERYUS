@@ -26,8 +26,8 @@ interface PianoKey {
   keyboard?: string;
 }
 
-const MIN_MIDI = 36; // C2
-const MAX_MIDI = 84; // C6
+const MIN_MIDI = 21; // A0 — standard 88-key piano low
+const MAX_MIDI = 108; // C8 — standard 88-key piano high
 const BLACK_SEMITONES = new Set([1, 3, 6, 8, 10]);
 const QWERTY_BY_SEMITONE: Record<number, string> = {
   0: 'z',
@@ -43,8 +43,8 @@ const QWERTY_BY_SEMITONE: Record<number, string> = {
   10: 'j',
   11: 'm',
 };
-const BLACK_KEY_WIDTH_RATIO = 0.52;
-const SCROLL_KEY = 'veryus_piano_scroll_x';
+const BLACK_KEY_WIDTH_RATIO = 0.46;
+const SCROLL_KEY = 'veryus_piano_scroll_x_88';
 const INERTIA_FRICTION = 0.92;
 const INERTIA_MIN_VELOCITY = 0.2;
 const BODY_PADDING_X = 20;
@@ -119,12 +119,12 @@ const Piano: React.FC = () => {
   const handleClose = useCallback(() => {
     stopAllPianoNotes();
     unlockPianoLandscape();
-    navigate('/');
+    navigate('/instruments');
   }, [navigate]);
 
   const handleExitFullscreen = useCallback(() => {
     stopAllPianoNotes();
-    navigate('/');
+    navigate('/instruments');
   }, [navigate]);
 
   const { isEmulatedLandscape, isReverseEmulation } = usePianoLandscape(handleExitFullscreen);
@@ -173,7 +173,7 @@ const Piano: React.FC = () => {
     if (!viewport || !scroll || !body) return;
 
     const viewportWidth = viewport.clientWidth;
-    const contentWidth = scroll.scrollWidth || scroll.offsetWidth || body.scrollWidth;
+    const contentWidth = body.offsetWidth || body.scrollWidth;
     const min = Math.min(0, viewportWidth - contentWidth);
     const nextBounds = { min, max: 0 };
     boundsRef.current = nextBounds;
@@ -286,14 +286,15 @@ const Piano: React.FC = () => {
   const scrollThumb = useMemo(() => {
     void layoutTick;
     const viewport = viewportRef.current;
-    const scroll = scrollRef.current;
-    if (!viewport || !scroll) return { left: 0, width: 100, canScroll: false };
+    const body = bodyRef.current;
+    if (!viewport || !body) return { left: 0, width: 100, canScroll: false };
     const viewportWidth = viewport.clientWidth;
-    const contentWidth = scroll.scrollWidth;
+    const contentWidth = body.offsetWidth || body.scrollWidth;
     if (contentWidth <= viewportWidth) return { left: 0, width: 100, canScroll: false };
     const width = (viewportWidth / contentWidth) * 100;
     const maxLeft = 100 - width;
-    const progress = bounds.min === 0 ? 0 : clamp(offsetX / bounds.min, 0, 1);
+    const scrollRange = bounds.min;
+    const progress = scrollRange === 0 ? 0 : clamp(offsetX / scrollRange, 0, 1);
     return { left: progress * maxLeft, width, canScroll: true };
   }, [offsetX, bounds, layoutTick]);
 
@@ -777,27 +778,27 @@ const Piano: React.FC = () => {
                   </div>
                 </div>
                 <div className="piano-pan-rail piano-pan-rail--bottom" aria-hidden="true" />
-                {scrollThumb.canScroll && (
-                  <div
-                    ref={scrollTrackRef}
-                    className="piano-scroll-track"
-                    onPointerDown={handleScrollTrackPointerDown}
-                    onPointerMove={handleScrollTrackPointerMove}
-                    onPointerUp={endScrollTrackSession}
-                    onPointerCancel={endScrollTrackSession}
-                    aria-label="건반 위치"
-                  >
-                    <div
-                      className="piano-scroll-thumb"
-                      style={{
-                        left: `${scrollThumb.left}%`,
-                        width: `${scrollThumb.width}%`,
-                      }}
-                    />
-                  </div>
-                )}
               </div>
             </div>
+            {scrollThumb.canScroll && (
+              <div
+                ref={scrollTrackRef}
+                className="piano-scroll-track"
+                onPointerDown={handleScrollTrackPointerDown}
+                onPointerMove={handleScrollTrackPointerMove}
+                onPointerUp={endScrollTrackSession}
+                onPointerCancel={endScrollTrackSession}
+                aria-label="건반 위치"
+              >
+                <div
+                  className="piano-scroll-thumb"
+                  style={{
+                    left: `${scrollThumb.left}%`,
+                    width: `${scrollThumb.width}%`,
+                  }}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
