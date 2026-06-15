@@ -26,6 +26,7 @@
     "react-mentions": "^4.4.10",
     "react-router-dom": "^7.6.1",
     "react-toastify": "^11.0.5",
+    "tone": "^15.1.22",
     "uuid": "^11.1.0"
   },
   "devDependencies": {

@@ -5,6 +5,7 @@ import { Home, Bell, User, ChevronUp, Search, Grid3x3, ChevronDown, Menu, Settin
 import './BottomNavigation.css';
 import MemberNicknameSearch from './MemberNicknameSearch';
 import { checkAdminAccess } from './AdminTypes';
+import { lockPianoLandscape } from '../utils/pianoOrientation';
 
 // Types
 interface User {
@@ -46,6 +47,7 @@ const BOARD_ITEMS: BoardItem[] = [
   { name: '합격곡', path: '/approved-songs', icon: () => <span style={{fontSize:16}}>🏆</span>, emoji: '🏆' },
   { name: '셋리스트', path: '/setlist', icon: () => <span style={{fontSize:16}}>🎵</span>, emoji: '🎵' },
   { name: '게임', path: '/games', icon: () => <span style={{fontSize:16}}>🎮</span>, emoji: '🎮' },
+  { name: '악기(개발중)', path: '/piano', icon: () => <span style={{fontSize:16}}>🎹</span>, emoji: '🎹' },
   { name: '콘테스트', path: '/contests', icon: () => <span style={{fontSize:16}}>🎤</span>, emoji: '🎤' },
 ];
 
@@ -215,7 +217,8 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
                 location.pathname.includes('/setlist') || 
                 location.pathname.includes('/contests') ||
                 location.pathname.includes('/practice-room-booking') ||
-                location.pathname.includes('/games'),
+                location.pathname.includes('/games') ||
+                location.pathname.includes('/piano'),
       hasSubmenu: true,
       hasDot: false
     },
@@ -255,6 +258,9 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
     } else if (isComingSoon) {
       alert('해당 메뉴는 아직 준비중입니다.');
     } else {
+      if (path === '/piano') {
+        void lockPianoLandscape();
+      }
       navigate(path);
     }
     setShowBoardsMenu(false);

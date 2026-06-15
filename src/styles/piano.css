@@ -1,0 +1,622 @@
+/* ─── Piano Redesign — Dark Mode ─── */
+html.piano-landscape-active {
+  overflow: hidden;
+  height: 100%;
+}
+
+/* 세로 터치 기기 — 진입 즉시 가로 UI */
+html.piano-landscape-active.piano-portrait-emulated,
+html.piano-landscape-active.piano-portrait-emulated body {
+  touch-action: none;
+}
+
+/* ─── Page — concert hall ambiance (background only) ─── */
+.piano-page {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 100vh;
+  min-height: 100dvh;
+  color: #e8e8ec;
+  padding:
+    calc(12px + env(safe-area-inset-top, 0px))
+    calc(16px + env(safe-area-inset-right, 0px))
+    calc(16px + env(safe-area-inset-bottom, 0px))
+    calc(16px + env(safe-area-inset-left, 0px));
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #0a0908;
+  background-image:
+    radial-gradient(ellipse 90% 55% at 50% 18%, rgba(255, 228, 180, 0.09) 0%, transparent 52%),
+    radial-gradient(ellipse 55% 40% at 50% 22%, rgba(255, 248, 235, 0.05) 0%, transparent 45%),
+    radial-gradient(ellipse 38% 95% at 0% 55%, rgba(72, 28, 32, 0.28) 0%, transparent 58%),
+    radial-gradient(ellipse 38% 95% at 100% 55%, rgba(72, 28, 32, 0.28) 0%, transparent 58%),
+    radial-gradient(ellipse 110% 65% at 50% 108%, rgba(42, 28, 18, 0.75) 0%, transparent 58%),
+    linear-gradient(175deg, #221a14 0%, #14100d 38%, #0e0c0a 68%, #080706 100%);
+}
+
+/* 무대 바닥 반사 + 미세 질감 */
+.piano-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      to top,
+      rgba(0, 0, 0, 0.55) 0%,
+      rgba(28, 20, 14, 0.18) 28%,
+      transparent 52%
+    ),
+    repeating-linear-gradient(
+      92deg,
+      transparent 0,
+      transparent 48px,
+      rgba(255, 255, 255, 0.012) 48px,
+      rgba(255, 255, 255, 0.012) 49px
+    );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* 상단 스포트라이트 링 */
+.piano-page::after {
+  content: '';
+  position: absolute;
+  top: -8%;
+  left: 50%;
+  width: min(92vw, 720px);
+  height: min(55vh, 420px);
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 236, 200, 0.07) 0%,
+    rgba(255, 220, 160, 0.03) 35%,
+    transparent 68%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.piano-page--emulated {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 100dvh;
+  height: 100dvw;
+  min-height: 0;
+  max-width: none;
+  transform: translate(-50%, -50%) rotate(90deg);
+  transform-origin: center center;
+  overflow: hidden;
+  padding:
+    calc(12px + env(safe-area-inset-left, 0px))
+    calc(16px + env(safe-area-inset-bottom, 0px))
+    calc(16px + env(safe-area-inset-right, 0px))
+    calc(12px + env(safe-area-inset-top, 0px));
+  z-index: 1;
+}
+
+html.piano-portrait-emulated .piano-body {
+  --key-width: 42px;
+  --key-height: min(160px, 42vw);
+}
+
+html.piano-portrait-emulated .piano-stage {
+  gap: 12px;
+}
+
+.piano-stage {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 1100px;
+  gap: 20px;
+}
+
+/* ─── Toolbar ─── */
+.piano-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #1a1a1e;
+  border: 1px solid #2a2a32;
+}
+
+.piano-tool-btn {
+  border: 1px solid #33333d;
+  background: #25252c;
+  color: #d8d8e0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.piano-tool-btn:hover:not(:disabled) {
+  background: #2f2f38;
+  border-color: #44444f;
+  color: #fff;
+}
+
+.piano-tool-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.piano-tool-btn.is-on {
+  background: #3a3a48;
+  border-color: #5b8def;
+  color: #a8c4ff;
+}
+
+.piano-range-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  justify-content: center;
+  min-width: 0;
+}
+
+.piano-range-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #888894;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.piano-mapping-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: #5b8def;
+  letter-spacing: 0.03em;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+
+.piano-volume-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.piano-volume-slider {
+  width: 72px;
+  accent-color: #5b8def;
+  cursor: pointer;
+}
+
+.piano-hint-toggle {
+  margin-left: auto;
+}
+
+/* ─── Piano body (matte black chassis) ─── */
+.piano-content {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.piano-viewport {
+  width: 100%;
+  max-width: 1100px;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  padding: 4px 0 8px;
+  box-sizing: border-box;
+}
+
+.piano-viewport.is-panning {
+  cursor: grabbing;
+}
+
+.piano-keys-scroll {
+  width: max-content;
+  will-change: transform;
+}
+
+.piano-pan-surface {
+  width: max-content;
+  cursor: grab;
+}
+
+.piano-pan-rail {
+  flex-shrink: 0;
+  cursor: grab;
+  touch-action: none;
+}
+
+.piano-pan-rail--top {
+  height: 18px;
+  margin-bottom: 4px;
+  border-radius: 6px 6px 0 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 100%);
+}
+
+.piano-pan-rail--bottom {
+  height: 22px;
+  margin-top: 4px;
+  border-radius: 0 0 6px 6px;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.2) 0%, transparent 100%);
+}
+
+.piano-white-key,
+.piano-black-key {
+  cursor: pointer;
+}
+
+.piano-body {
+  --key-width: 50px;
+  --key-height: 220px;
+  --white-count: 29;
+  --black-ratio: 0.52;
+  --black-height-ratio: 0.6;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  padding: 22px 20px 26px;
+  background: #1e1e1e;
+  border-radius: 14px;
+  border: 1px solid #2c2c2c;
+  box-shadow:
+    0 32px 80px rgba(0, 0, 0, 0.65),
+    0 12px 32px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.piano-keys-area {
+  position: relative;
+  width: calc(var(--key-width) * var(--white-count));
+  height: var(--key-height);
+}
+
+/* ─── White keys ─── */
+.piano-white-keys {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  height: 100%;
+  gap: 0;
+}
+
+.piano-white-key {
+  position: relative;
+  flex: 0 0 var(--key-width);
+  width: var(--key-width);
+  height: 100%;
+  border: none;
+  border-right: 1px solid #c8c4bc;
+  border-radius: 0 0 4px 4px;
+  background: linear-gradient(
+    180deg,
+    #faf9f6 0%,
+    #f3f1ec 40%,
+    #ebe8e2 75%,
+    #e2ded6 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 4px 0 #c9c5bd,
+    0 6px 12px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: 14px;
+  gap: 3px;
+  transition:
+    transform 0.07s ease,
+    box-shadow 0.07s ease,
+    filter 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.piano-white-key:first-child {
+  border-radius: 0 0 0 4px;
+  border-left: 1px solid #d8d4cc;
+}
+
+.piano-white-key:last-child {
+  border-right: 1px solid #c8c4bc;
+  border-radius: 0 0 4px 4px;
+}
+
+/* 눌림 하이라이트 (네온 블루 → 피치 핑크) */
+.piano-white-key::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    rgba(96, 165, 250, 0.55) 0%,
+    rgba(147, 197, 253, 0.3) 25%,
+    rgba(251, 207, 232, 0.25) 50%,
+    transparent 72%
+  );
+  opacity: 0;
+  transition: opacity 0.1s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.piano-white-key::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 3px;
+  right: 3px;
+  height: 7px;
+  border-radius: 0 0 3px 3px;
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.07));
+  pointer-events: none;
+}
+
+@media (hover: hover) {
+  .piano-white-key:hover:not(.is-active) {
+    filter: brightness(1.05);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 1),
+      0 4px 0 #c9c5bd,
+      0 6px 14px rgba(0, 0, 0, 0.22);
+  }
+}
+
+.piano-white-key.is-active {
+  transform: translateY(3px);
+  box-shadow:
+    inset 0 2px 8px rgba(0, 0, 0, 0.1),
+    0 1px 0 #b8b4ac;
+}
+
+.piano-white-key.is-active::before {
+  opacity: 1;
+}
+
+/* ─── Black keys ─── */
+.piano-black-keys {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: calc(var(--key-height) * var(--black-height-ratio));
+  pointer-events: none;
+  z-index: 10;
+}
+
+.piano-black-key {
+  --aw: 0;
+  position: absolute;
+  top: 0;
+  width: calc(var(--key-width) * var(--black-ratio));
+  height: 100%;
+  left: calc(
+    (var(--aw) + 1) * var(--key-width)
+    - (var(--key-width) * var(--black-ratio)) / 2
+  );
+  border: none;
+  border-radius: 0 0 4px 4px;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.38) 0%,
+      rgba(255, 255, 255, 0.1) 10%,
+      rgba(255, 255, 255, 0.05) 50%,
+      rgba(255, 255, 255, 0.08) 90%,
+      rgba(0, 0, 0, 0.32) 100%
+    ),
+    linear-gradient(
+      180deg,
+      #52525c 0%,
+      #36363e 22%,
+      #222228 58%,
+      #141418 88%,
+      #0c0c10 100%
+    );
+  box-shadow:
+    inset 1px 0 0 rgba(255, 255, 255, 0.16),
+    inset -1px 0 2px rgba(0, 0, 0, 0.42),
+    0 5px 8px rgba(0, 0, 0, 0.48),
+    0 2px 3px rgba(0, 0, 0, 0.28);
+  cursor: pointer;
+  pointer-events: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 0 10px;
+  transform-origin: top center;
+  transition:
+    transform 0.07s ease,
+    box-shadow 0.07s ease,
+    filter 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 눌림 시 오렌지 라이팅 */
+.piano-black-key::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    rgba(251, 146, 60, 0.38) 0%,
+    rgba(234, 88, 12, 0.16) 42%,
+    transparent 72%
+  );
+  opacity: 0;
+  transition: opacity 0.1s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* 상단 볼록 하이라이트 */
+.piano-black-key::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 12%;
+  right: 12%;
+  height: 2px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+  pointer-events: none;
+  z-index: 0;
+}
+
+@media (hover: hover) {
+  .piano-black-key:hover:not(.is-active) {
+    filter: brightness(1.1);
+    box-shadow:
+      inset 1px 0 0 rgba(255, 255, 255, 0.2),
+      inset -1px 0 2px rgba(0, 0, 0, 0.38),
+      0 6px 10px rgba(0, 0, 0, 0.52),
+      0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+}
+
+.piano-black-key.is-active {
+  transform: translateY(2px);
+  box-shadow:
+    inset 1px 0 0 rgba(255, 255, 255, 0.1),
+    inset -1px 0 3px rgba(0, 0, 0, 0.45),
+    inset 0 2px 5px rgba(0, 0, 0, 0.42),
+    0 2px 4px rgba(0, 0, 0, 0.32);
+}
+
+.piano-black-key.is-active::before {
+  opacity: 1;
+}
+
+/* ─── Guide labels ─── */
+.piano-key-guides {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.piano-key-guides.is-hidden {
+  display: none;
+}
+
+.piano-key-note {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(80, 75, 68, 0.55);
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.piano-key-letter {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(70, 65, 58, 0.45);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.piano-key-guides--black {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 2px 2px;
+  box-sizing: border-box;
+}
+
+.piano-key-guides--black .piano-key-letter {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+  line-height: 1;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 760px) {
+  .piano-body {
+    --key-width: 44px;
+    --key-height: 190px;
+    padding: 16px 14px 20px;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 520px) {
+  .piano-body {
+    --key-width: 40px;
+    --key-height: 175px;
+  }
+
+  .piano-toolbar {
+    gap: 6px;
+    padding: 8px 10px;
+  }
+
+  .piano-tool-btn {
+    padding: 7px 9px;
+    font-size: 12px;
+  }
+
+  .piano-volume-slider {
+    width: 56px;
+  }
+
+  .piano-hint-toggle span:last-child {
+    display: none;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .piano-body {
+    --key-height: 160px;
+    --key-width: 42px;
+  }
+
+  .piano-stage {
+    gap: 12px;
+  }
+}
+
+@media (min-width: 900px) {
+  .piano-body {
+    --key-width: 50px;
+    --key-height: 220px;
+  }
+}

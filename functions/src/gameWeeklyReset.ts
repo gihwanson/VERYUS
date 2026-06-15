@@ -168,6 +168,19 @@ const archiveAndResetGame = async (gameId: GameId, weekKey: string) => {
 
   await deleteCollectionInBatches(bestScoresRef);
   logger.info('주간 순위 초기화 완료', { gameId, weekKey, deletedCount: allScores.size });
+
+  if (gameId === 'typingSpeed') {
+    const legacyScoresRef = db.collection(`games/${gameId}/scores`);
+    await deleteCollectionInBatches(legacyScoresRef);
+    await db.doc('games/typingSpeed/meta/legacyMigration').set(
+      {
+        completedAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastWeeklyResetWeekKey: weekKey,
+      },
+      { merge: true }
+    );
+    logger.info('레거시 타자 기록 정리 완료', { gameId, weekKey });
+  }
 };
 
 export const scheduledGameWeeklyReset = onSchedule(

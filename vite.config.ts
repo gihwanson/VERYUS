@@ -35,9 +35,20 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,svg,png,webp,woff2,webmanifest}'],
-        navigateFallback: '/index.html'
-      }
+        globPatterns: ['**/*.{js,css,html,ico,svg,png,webp,woff2,webmanifest,mp3}'],
+        navigateFallback: '/index.html',
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/tonejs\.github\.io\/audio\/salamander\/.+\.mp3$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'piano-samples-cdn',
+              expiration: { maxEntries: 40, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
+      },
     })
   ],
   build: {

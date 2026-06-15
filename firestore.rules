@@ -287,6 +287,13 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      /** 레거시 이전 완료 등 내부 메타 */
+      match /meta/{metaId} {
+        allow read: if signedIn();
+        allow create, update: if signedIn() && metaId == 'legacyMigration';
+        allow delete: if false;
+      }
+
       /** 주간 초기화 시 보관되는 과거 1위 기록 */
       match /pastChampions/{recordId} {
         allow read: if signedIn();

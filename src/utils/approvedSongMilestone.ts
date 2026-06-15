@@ -3,17 +3,37 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { NotificationService } from './notificationService';
 
-/** 명예의 전당 합격곡 순위와 동일: 멤버 닉네임별 합격곡 문서 개수 */
+export function normalizeApprovedSongTitleKey(data: Record<string, unknown>): string {
+  const titleNoSpace = String(data.titleNoSpace || '').trim();
+  if (titleNoSpace) return titleNoSpace.toLowerCase();
+  const title = String(data.title || '').trim();
+  return title.replace(/\s/g, '').toLowerCase();
+}
+
+/** 명예의 전당 합격곡 순위: 같은 곡 제목+멤버 조합은 문서가 여러 개여도 1곡으로만 집계 */
 export function approvedSongCountsByNicknameFromDocs(
   docs: Array<QueryDocumentSnapshot<DocumentData> | { data: () => DocumentData }>
 ): Map<string, number> {
   const counts = new Map<string, number>();
+  const seenTitleMember = new Set<string>();
+
   for (const d of docs) {
     const data = d.data() as Record<string, unknown>;
+    const titleKey = normalizeApprovedSongTitleKey(data);
+    if (!titleKey) continue;
+
     const members = Array.isArray(data.members) ? data.members : [];
+    const seenInDoc = new Set<string>();
+
     for (const raw of members) {
       const nick = String(raw || '').trim();
-      if (!nick) continue;
+      if (!nick || seenInDoc.has(nick)) continue;
+      seenInDoc.add(nick);
+
+      const dedupeKey = `${titleKey}\0${nick}`;
+      if (seenTitleMember.has(dedupeKey)) continue;
+      seenTitleMember.add(dedupeKey);
+
       counts.set(nick, (counts.get(nick) || 0) + 1);
     }
   }

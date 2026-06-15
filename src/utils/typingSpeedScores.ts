@@ -11,6 +11,20 @@ import { db } from '../firebase';
 import type { GamePlatform } from './gamePlatform';
 
 const LEGACY_MIGRATION_KEY = 'typingSpeed_legacy_migrated';
+const legacyMigrationMetaRef = () => doc(db, 'games', 'typingSpeed', 'meta', 'legacyMigration');
+
+const markLegacyMigrationComplete = async (): Promise<void> => {
+  try {
+    localStorage.setItem(LEGACY_MIGRATION_KEY, '1');
+  } catch {
+    /* ignore */
+  }
+  try {
+    await setDoc(legacyMigrationMetaRef(), { completedAt: serverTimestamp() }, { merge: true });
+  } catch {
+    /* ignore */
+  }
+};
 
 /** 비정상적으로 짧은 기록(치트·버그) 방지 */
 export const MIN_TYPING_DURATION_MS = 500;
@@ -137,14 +151,20 @@ export const saveTypingBestScore = async (params: {
   });
 };
 
-/** 예전 scores 컬렉션 → bestScores 1회 이전 (세션당 1번) */
+/** 예전 scores 컬렉션 → bestScores 1회 이전 (전역 1회, 주간 초기화 후 재실행 안 함) */
 export const migrateLegacyTypingScoresIfNeeded = async (): Promise<void> => {
   try {
-    if (sessionStorage.getItem(LEGACY_MIGRATION_KEY) === '1') return;
+    if (localStorage.getItem(LEGACY_MIGRATION_KEY) === '1') return;
+
+    const metaSnap = await getDoc(legacyMigrationMetaRef());
+    if (metaSnap.exists()) {
+      localStorage.setItem(LEGACY_MIGRATION_KEY, '1');
+      return;
+    }
 
     const legacySnap = await getDocs(collection(db, 'games', 'typingSpeed', 'scores'));
     if (legacySnap.empty) {
-      sessionStorage.setItem(LEGACY_MIGRATION_KEY, '1');
+      await markLegacyMigrationComplete();
       return;
     }
 
@@ -237,7 +257,7 @@ export const migrateLegacyTypingScoresIfNeeded = async (): Promise<void> => {
       );
     }
 
-    sessionStorage.setItem(LEGACY_MIGRATION_KEY, '1');
+    await markLegacyMigrationComplete();
   } catch (e) {
     console.warn('레거시 타자 기록 이전 실패:', e);
   }

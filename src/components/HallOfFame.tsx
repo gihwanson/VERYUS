@@ -4,6 +4,7 @@ import { db } from '../firebase';
 import { getGradeEmoji } from '../utils/gradeDisplay';
 import GlobalLoadingScreen from './GlobalLoadingScreen';
 import './HallOfFame.css';
+import { approvedSongCountsByNicknameFromDocs } from '../utils/approvedSongMilestone';
 
 type RankEntry = {
   uid: string;
@@ -207,16 +208,10 @@ const HallOfFame: React.FC = () => {
         trackNicknameCandidate(uid, data.writerNickname);
       });
 
-      approvedSongsSnap.forEach((songDoc) => {
-        const data = songDoc.data() as Record<string, any>;
-        const members = Array.isArray(data.members) ? data.members : [];
-        members.forEach((member) => {
-          const nickname = String(member || '').trim();
-          if (!nickname) return;
-          const uid = nicknameToUid.get(nickname);
-          if (!uid) return;
-          approvedSongCounter.set(uid, (approvedSongCounter.get(uid) || 0) + 1);
-        });
+      approvedSongCountsByNicknameFromDocs(approvedSongsSnap.docs).forEach((count, nickname) => {
+        const uid = nicknameToUid.get(nickname);
+        if (!uid) return;
+        approvedSongCounter.set(uid, count);
       });
 
       boardVisitsSnap.forEach((visitDoc) => {

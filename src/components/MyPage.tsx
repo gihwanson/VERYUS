@@ -47,6 +47,7 @@ import { NotificationService } from '../utils/notificationService';
 import { enablePushNotifications, removeAllPushTokens } from '../utils/pushNotificationService';
 import { GRADE_NAMES, GRADE_SYSTEM } from './AdminTypes';
 import { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
+import { approvedSongCountsByNicknameFromDocs } from '../utils/approvedSongMilestone';
 
 interface User {
   uid: string;
@@ -1086,19 +1087,7 @@ const MyPage: React.FC = () => {
     setApprovedSongLeaderboardLoading(true);
     try {
       const snap = await getDocs(collection(db, 'approvedSongs'));
-      const counts = new Map<string, number>();
-      snap.docs.forEach((docSnap) => {
-        const data = docSnap.data();
-        // 평가 합격·관리자 등록 모두 members에 솔로/듀엣/합창 참여자가 들어가며, 곡 1개당 참여자마다 1곡씩 집계
-        const raw = Array.isArray(data.members) ? data.members : [];
-        const seen = new Set<string>();
-        raw.forEach((m) => {
-          const nick = typeof m === 'string' ? m.trim() : '';
-          if (!nick || seen.has(nick)) return;
-          seen.add(nick);
-          counts.set(nick, (counts.get(nick) || 0) + 1);
-        });
-      });
+      const counts = approvedSongCountsByNicknameFromDocs(snap.docs);
       const sorted = [...counts.entries()]
         .map(([nickname, count]) => ({ nickname, count }))
         .sort((a, b) => b.count - a.count || a.nickname.localeCompare(b.nickname, 'ko'));
