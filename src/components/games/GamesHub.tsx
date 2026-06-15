@@ -35,7 +35,7 @@ const GAME_ITEMS: GameItem[] = [
   {
     id: 'reaction-time',
     title: '반응속도 테스트',
-    description: '5회 측정 후 최고 기록으로 순위에 도전하세요.',
+    description: '5회 측정 후 평균으로 순위에 도전하세요.',
     emoji: '⚡',
     path: '/games/reaction-time',
     available: true,

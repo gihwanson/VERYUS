@@ -438,6 +438,20 @@
   transition: background 0.2s ease, transform 0.1s ease;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 전역 button:hover 리플(::before)이 단계별 배경색을 가리지 않도록 비활성화 */
+.reaction-zone::before {
+  content: none !important;
+  display: none !important;
+}
+
+.reaction-zone-title,
+.reaction-zone-hint {
+  position: relative;
+  z-index: 1;
 }
 
 .reaction-zone:active:not(:disabled) {
@@ -453,9 +467,19 @@
   box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
+.reaction-zone--waiting:hover {
+  background: linear-gradient(160deg, #dc2626 0%, #991b1b 100%);
+}
+
 .reaction-zone--go {
   background: linear-gradient(160deg, #16a34a 0%, #15803d 100%);
   box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.25);
+}
+
+.reaction-zone--go:hover,
+.reaction-zone--go:focus-visible {
+  background: linear-gradient(160deg, #16a34a 0%, #15803d 100%);
+  filter: brightness(1.05);
 }
 
 .reaction-zone--false_start,

@@ -199,7 +199,7 @@ const RouteTransition: React.FC<{ children: React.ReactNode }> = ({ children }) 
 const FloatingCSButton: React.FC<{ hasUnread?: boolean }> = ({ hasUnread }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const hiddenPaths = ['/customer-center', '/anonymous-chat', '/login', '/signup'];
+  const hiddenPaths = ['/customer-center', '/anonymous-chat', '/login', '/signup', '/piano'];
   if (hiddenPaths.some((p) => location.pathname.startsWith(p))) return null;
 
   return (

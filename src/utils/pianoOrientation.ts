@@ -1,9 +1,14 @@
 const ROOT_CLASS = 'piano-landscape-active';
 const PORTRAIT_EMULATE_CLASS = 'piano-portrait-emulated';
+const REVERSE_EMULATE_CLASS = 'piano-emulated-reverse';
+const FLIP_PREF_KEY = 'piano_landscape_flip';
 
 type OrientationLockType = 'landscape' | 'landscape-primary' | 'landscape-secondary';
 
-const lockTypes: OrientationLockType[] = ['landscape-primary', 'landscape', 'landscape-secondary'];
+const delay = (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
 
 type FullscreenCapable = HTMLElement & {
   requestFullscreen?: () => Promise<void>;
@@ -24,12 +29,8 @@ type LegacyScreen = Screen & {
   msUnlockOrientation?: () => void;
 };
 
-const delay = (ms: number): Promise<void> =>
-  new Promise((resolve) => {
-    window.setTimeout(resolve, ms);
-  });
-
-const isFullscreenActive = (): boolean => {
+export const isFullscreenActive = (): boolean => {
+  if (typeof document === 'undefined') return false;
   const doc = document as FullscreenDocument;
   return Boolean(doc.fullscreenElement ?? doc.webkitFullscreenElement);
 };
@@ -86,8 +87,38 @@ const unlockOrientationLegacy = (): void => {
   legacy.msUnlockOrientation?.();
 };
 
+/** landscape-primary / secondary 중 사용자가 뒤집은 방향 저장 */
+const saveLandscapeFlipPreference = (): void => {
+  try {
+    const type = screen.orientation?.type;
+    if (type === 'landscape-secondary') {
+      sessionStorage.setItem(FLIP_PREF_KEY, 'secondary');
+    } else if (type === 'landscape-primary') {
+      sessionStorage.setItem(FLIP_PREF_KEY, 'primary');
+    }
+  } catch {
+    /* ignore */
+  }
+};
+
+const getStoredFlipPreference = (): 'primary' | 'secondary' | null => {
+  try {
+    const v = sessionStorage.getItem(FLIP_PREF_KEY);
+    return v === 'secondary' || v === 'primary' ? v : null;
+  } catch {
+    return null;
+  }
+};
+
+/** 세로 화면 CSS 가로 에뮬레이션 시 -90° 회전 여부 */
+export const shouldReverseEmulatedLandscape = (): boolean => {
+  const type = screen.orientation?.type;
+  if (type === 'landscape-secondary') return true;
+  if (type === 'landscape-primary') return false;
+  return getStoredFlipPreference() === 'secondary';
+};
+
 export const lockPianoLandscape = async (): Promise<boolean> => {
-  // PC(마우스·키보드)에서는 전체화면·방향 고정을 시도하지 않음
   if (!isTouchPrimaryDevice()) return false;
 
   await requestPianoFullscreen();
@@ -97,14 +128,13 @@ export const lockPianoLandscape = async (): Promise<boolean> => {
     lock?: (type: OrientationLockType) => Promise<void>;
   };
 
+  // landscape만 사용 — primary/secondary 고정 없이 뒤집기로 방향 선택
   if (orientation?.lock) {
-    for (const type of lockTypes) {
-      try {
-        await orientation.lock(type);
-        return true;
-      } catch {
-        /* try next */
-      }
+    try {
+      await orientation.lock('landscape');
+      return true;
+    } catch {
+      /* fallback */
     }
   }
 
@@ -125,10 +155,8 @@ export const isLandscapeViewport = (): boolean =>
   window.matchMedia('(orientation: landscape)').matches ||
   window.innerWidth > window.innerHeight;
 
-/** 세로 뷰포트일 때 CSS로 가로 레이아웃을 강제할지 */
 export const shouldEmulatePianoLandscape = (): boolean => {
   if (isLandscapeViewport()) return false;
-  // 터치 기기 또는 좁은 화면(모바일 폭)에서는 가로 UI 강제
   if (isTouchPrimaryDevice()) return true;
   return window.innerWidth < 900;
 };
@@ -150,7 +178,19 @@ let savedScrollY = 0;
 
 export const syncPianoOrientationClasses = (): void => {
   if (!document.documentElement.classList.contains(ROOT_CLASS)) return;
-  document.documentElement.classList.toggle(PORTRAIT_EMULATE_CLASS, shouldEmulatePianoLandscape());
+
+  const emulate = shouldEmulatePianoLandscape();
+  document.documentElement.classList.toggle(PORTRAIT_EMULATE_CLASS, emulate);
+
+  if (emulate) {
+    document.documentElement.classList.toggle(
+      REVERSE_EMULATE_CLASS,
+      shouldReverseEmulatedLandscape()
+    );
+  } else {
+    document.documentElement.classList.remove(REVERSE_EMULATE_CLASS);
+    saveLandscapeFlipPreference();
+  }
 };
 
 export const enablePianoLandscapeMode = (): void => {
@@ -166,7 +206,7 @@ export const enablePianoLandscapeMode = (): void => {
 };
 
 export const disablePianoLandscapeMode = (): void => {
-  document.documentElement.classList.remove(ROOT_CLASS, PORTRAIT_EMULATE_CLASS);
+  document.documentElement.classList.remove(ROOT_CLASS, PORTRAIT_EMULATE_CLASS, REVERSE_EMULATE_CLASS);
   document.body.style.overflow = '';
   document.body.style.position = '';
   document.body.style.top = '';

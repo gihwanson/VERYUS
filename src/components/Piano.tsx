@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { Keyboard, X, Volume2, VolumeX } from 'lucide-react';
 import { usePianoLandscape } from '../hooks/usePianoLandscape';
+import { isTouchPrimaryDevice, unlockPianoLandscape } from '../utils/pianoOrientation';
 import {
   disposePianoAudio,
   getPianoVolume,
@@ -44,23 +45,20 @@ const QWERTY_BY_SEMITONE: Record<number, string> = {
 };
 const BLACK_KEY_WIDTH_RATIO = 0.52;
 const SCROLL_KEY = 'veryus_piano_scroll_x';
-const PAN_THRESHOLD = 8;
 const INERTIA_FRICTION = 0.92;
 const INERTIA_MIN_VELOCITY = 0.2;
 const BODY_PADDING_X = 20;
 
-type PanMode = 'pan' | 'key';
+type PanMode = 'pan';
 
 interface PanSession {
   pointerId: number;
   startClientX: number;
-  startClientY: number;
   startOffset: number;
   lastX: number;
   lastTime: number;
   velocity: number;
   mode: PanMode;
-  midi?: number;
 }
 
 const buildFullKeyboard = (): Omit<PianoKey, 'keyboard'>[] => {
@@ -109,9 +107,27 @@ const saveScrollX = (offset: number): void => {
 const getBlackKeyStyle = (afterWhite: number): React.CSSProperties =>
   ({ '--aw': afterWhite } as React.CSSProperties);
 
+interface ScrollTrackSession {
+  pointerId: number;
+  startClientX: number;
+  startOffset: number;
+}
+
 const Piano: React.FC = () => {
   const navigate = useNavigate();
-  const { isEmulatedLandscape } = usePianoLandscape();
+
+  const handleClose = useCallback(() => {
+    stopAllPianoNotes();
+    unlockPianoLandscape();
+    navigate('/');
+  }, [navigate]);
+
+  const handleExitFullscreen = useCallback(() => {
+    stopAllPianoNotes();
+    navigate('/');
+  }, [navigate]);
+
+  const { isEmulatedLandscape, isReverseEmulation } = usePianoLandscape(handleExitFullscreen);
 
   const [offsetX, setOffsetX] = useState(0);
   const [bounds, setBounds] = useState({ min: 0, max: 0 });
@@ -125,9 +141,13 @@ const Piano: React.FC = () => {
   const viewportRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const keysAreaRef = useRef<HTMLDivElement>(null);
+  const scrollTrackRef = useRef<HTMLDivElement>(null);
   const offsetXRef = useRef(0);
   const boundsRef = useRef({ min: 0, max: 0 });
   const panSessionRef = useRef<PanSession | null>(null);
+  const scrollTrackSessionRef = useRef<ScrollTrackSession | null>(null);
+  const playingPointersRef = useRef<Set<number>>(new Set());
   const inertiaFrameRef = useRef<number | null>(null);
   const pointerVoicesRef = useRef<Map<number, { midi: number; voiceId: number }>>(new Map());
   const keyboardVoicesRef = useRef<Map<string, { midi: number; voiceId: number }>>(new Map());
@@ -263,6 +283,20 @@ const Piano: React.FC = () => {
     return `${midiToLabel(start)} – ${midiToLabel(end)}`;
   }, [mappingStart]);
 
+  const scrollThumb = useMemo(() => {
+    void layoutTick;
+    const viewport = viewportRef.current;
+    const scroll = scrollRef.current;
+    if (!viewport || !scroll) return { left: 0, width: 100, canScroll: false };
+    const viewportWidth = viewport.clientWidth;
+    const contentWidth = scroll.scrollWidth;
+    if (contentWidth <= viewportWidth) return { left: 0, width: 100, canScroll: false };
+    const width = (viewportWidth / contentWidth) * 100;
+    const maxLeft = 100 - width;
+    const progress = bounds.min === 0 ? 0 : clamp(offsetX / bounds.min, 0, 1);
+    return { left: progress * maxLeft, width, canScroll: true };
+  }, [offsetX, bounds, layoutTick]);
+
   useEffect(() => {
     void preloadPianoAudio();
   }, []);
@@ -299,10 +333,6 @@ const Piano: React.FC = () => {
     [setMidiActive]
   );
 
-  const handleClose = useCallback(() => {
-    stopAllPianoNotes();
-    navigate('/');
-  }, [navigate]);
 
   const pointerVelocity = (e: React.PointerEvent | PointerEvent): number => {
     if (e.pressure > 0) return 0.7 + e.pressure * 0.3;
@@ -382,103 +412,175 @@ const Piano: React.FC = () => {
   const isPanSurfaceTarget = (target: EventTarget | null): boolean => {
     const el = target as HTMLElement | null;
     if (!el) return false;
-    if (el.closest('.piano-white-key, .piano-black-key')) return false;
-    return Boolean(el.closest('.piano-pan-rail, .piano-body'));
+    if (el.closest('.piano-white-key, .piano-black-key, .piano-keys-area, .piano-scroll-track')) {
+      return false;
+    }
+    return Boolean(el.closest('.piano-pan-rail, .piano-pan-surface'));
   };
 
-  const handleViewportPointerDown = useCallback(
+  const handleKeysPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const midi = resolveKeyMidi(e.target);
+      if (midi === undefined) return;
+
+      e.stopPropagation();
+      e.preventDefault();
+      keysAreaRef.current?.setPointerCapture(e.pointerId);
+      playingPointersRef.current.add(e.pointerId);
+      beginPointerNote(e.pointerId, midi, pointerVelocity(e));
+    },
+    [beginPointerNote]
+  );
+
+  const handleKeysPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!playingPointersRef.current.has(e.pointerId)) return;
+
+      const midi = resolveKeyMidi(document.elementFromPoint(e.clientX, e.clientY));
+      if (midi !== undefined) {
+        beginPointerNote(e.pointerId, midi, pointerVelocity(e));
+      }
+    },
+    [beginPointerNote]
+  );
+
+  const handlePanPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (e.button !== 0) return;
+      if (!isPanSurfaceTarget(e.target)) return;
+
+      e.stopPropagation();
       stopInertia();
-
-      const keyMidi = resolveKeyMidi(e.target);
-      const onPanSurface = isPanSurfaceTarget(e.target);
-
-      viewportRef.current?.setPointerCapture(e.pointerId);
+      bodyRef.current?.setPointerCapture(e.pointerId);
 
       panSessionRef.current = {
         pointerId: e.pointerId,
         startClientX: e.clientX,
-        startClientY: e.clientY,
         startOffset: offsetXRef.current,
         lastX: e.clientX,
         lastTime: performance.now(),
         velocity: 0,
-        mode: onPanSurface ? 'pan' : 'key',
-        midi: keyMidi,
+        mode: 'pan',
       };
-
-      if (onPanSurface) {
-        setIsPanning(true);
-      } else if (keyMidi !== undefined) {
-        beginPointerNote(e.pointerId, keyMidi, pointerVelocity(e));
-      }
+      setIsPanning(true);
     },
-    [beginPointerNote, stopInertia]
+    [stopInertia]
   );
 
-  const handleViewportPointerMove = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      const session = panSessionRef.current;
-      if (!session || session.pointerId !== e.pointerId) return;
+  const handlePanPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const session = panSessionRef.current;
+    if (!session || session.pointerId !== e.pointerId || session.mode !== 'pan') return;
 
-      const dx = e.clientX - session.startClientX;
-      const dy = e.clientY - session.startClientY;
+    const now = performance.now();
+    const dt = now - session.lastTime;
+    if (dt > 0) session.velocity = (e.clientX - session.lastX) / dt;
+    session.lastX = e.clientX;
+    session.lastTime = now;
 
-      if (session.mode === 'key' && Math.abs(dx) > PAN_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
-        releasePointerNote(e.pointerId);
-        session.mode = 'pan';
-        session.startOffset = offsetXRef.current;
-        session.startClientX = e.clientX;
-        session.startClientY = e.clientY;
-        setIsPanning(true);
-      }
-
-      const now = performance.now();
-      const dt = now - session.lastTime;
-      if (dt > 0) session.velocity = (e.clientX - session.lastX) / dt;
-      session.lastX = e.clientX;
-      session.lastTime = now;
-
-      if (session.mode === 'pan') {
-        e.preventDefault();
-        const panDx = e.clientX - session.startClientX;
-        const { min, max } = boundsRef.current;
-        const next = clamp(session.startOffset + panDx, min, max);
-        setOffsetX(next);
-        return;
-      }
-
-      if (session.mode === 'key') {
-        const midi = resolveKeyMidi(document.elementFromPoint(e.clientX, e.clientY));
-        if (midi !== undefined) {
-          beginPointerNote(e.pointerId, midi, pointerVelocity(e));
-        }
-      }
-    },
-    [beginPointerNote, releasePointerNote]
-  );
+    e.preventDefault();
+    const panDx = e.clientX - session.startClientX;
+    const { min, max } = boundsRef.current;
+    setOffsetX(clamp(session.startOffset + panDx, min, max));
+  }, []);
 
   const endPanSession = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       const session = panSessionRef.current;
       if (!session || session.pointerId !== e.pointerId) return;
 
-      if (session.mode === 'pan') {
-        startInertia(session.velocity);
-      }
-
-      releasePointerNote(e.pointerId);
+      startInertia(session.velocity);
       panSessionRef.current = null;
       setIsPanning(false);
 
       try {
-        viewportRef.current?.releasePointerCapture(e.pointerId);
+        bodyRef.current?.releasePointerCapture(e.pointerId);
       } catch {
         /* ignore */
       }
     },
-    [releasePointerNote, startInertia]
+    [startInertia]
+  );
+
+  const offsetFromTrackProgress = useCallback((progress: number): number => {
+    const { min, max } = boundsRef.current;
+    if (min === max) return 0;
+    return clamp(progress * min, min, max);
+  }, []);
+
+  const handleScrollTrackPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.button !== 0 || !scrollThumb.canScroll) return;
+      e.stopPropagation();
+      stopInertia();
+
+      const track = scrollTrackRef.current;
+      if (!track) return;
+      track.setPointerCapture(e.pointerId);
+
+      const rect = track.getBoundingClientRect();
+      const ratio = clamp((e.clientX - rect.left) / rect.width, 0, 1);
+      const thumbCenter = (scrollThumb.left + scrollThumb.width / 2) / 100;
+      const onThumb = Math.abs(ratio - thumbCenter) <= scrollThumb.width / 200;
+
+      if (!onThumb) {
+        const maxLeft = 100 - scrollThumb.width;
+        const targetLeft = clamp(ratio * 100 - scrollThumb.width / 2, 0, maxLeft);
+        const progress = maxLeft > 0 ? targetLeft / maxLeft : 0;
+        setOffsetX(offsetFromTrackProgress(progress));
+      }
+
+      scrollTrackSessionRef.current = {
+        pointerId: e.pointerId,
+        startClientX: e.clientX,
+        startOffset: offsetXRef.current,
+      };
+    },
+    [offsetFromTrackProgress, scrollThumb, stopInertia]
+  );
+
+  const handleScrollTrackPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const session = scrollTrackSessionRef.current;
+      if (!session || session.pointerId !== e.pointerId || !scrollThumb.canScroll) return;
+
+      const track = scrollTrackRef.current;
+      if (!track) return;
+
+      e.preventDefault();
+      const rect = track.getBoundingClientRect();
+      const maxLeft = 100 - scrollThumb.width;
+      const startProgress = session.startOffset / boundsRef.current.min || 0;
+      const startLeft = startProgress * maxLeft;
+      const deltaPct = ((e.clientX - session.startClientX) / rect.width) * 100;
+      const nextLeft = clamp(startLeft + deltaPct, 0, maxLeft);
+      const progress = maxLeft > 0 ? nextLeft / maxLeft : 0;
+      setOffsetX(offsetFromTrackProgress(progress));
+    },
+    [offsetFromTrackProgress, scrollThumb]
+  );
+
+  const endScrollTrackSession = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const session = scrollTrackSessionRef.current;
+    if (!session || session.pointerId !== e.pointerId) return;
+    scrollTrackSessionRef.current = null;
+    try {
+      scrollTrackRef.current?.releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const handlePointerUp = useCallback(
+    (e: React.PointerEvent) => {
+      playingPointersRef.current.delete(e.pointerId);
+      releasePointerNote(e.pointerId);
+      try {
+        keysAreaRef.current?.releasePointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+    },
+    [releasePointerNote]
   );
 
   useEffect(() => {
@@ -545,13 +647,26 @@ const Piano: React.FC = () => {
   const whiteKeysRendered = keys.filter((k) => !k.isBlack);
   const blackKeysRendered = keys.filter((k) => k.isBlack);
 
+  const isMobilePiano = isTouchPrimaryDevice();
+  const pageClass = [
+    'piano-page',
+    isEmulatedLandscape
+      ? 'piano-page--emulated'
+      : isMobilePiano
+        ? 'piano-page--immersive'
+        : '',
+    isEmulatedLandscape && isReverseEmulation ? 'piano-page--reverse' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <div className={`piano-page${isEmulatedLandscape ? ' piano-page--emulated' : ''}`}>
+    <div className={pageClass} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp}>
       <div className="piano-stage">
         <div className="piano-toolbar">
           <button type="button" className="piano-tool-btn" onClick={handleClose}>
             <X size={16} />
-            <span>닫기</span>
+            <span>나가기</span>
           </button>
 
           <div className="piano-range-display">
@@ -596,10 +711,6 @@ const Piano: React.FC = () => {
           <div
             ref={viewportRef}
             className={`piano-viewport${isPanning ? ' is-panning' : ''}`}
-            onPointerDown={handleViewportPointerDown}
-            onPointerMove={handleViewportPointerMove}
-            onPointerUp={endPanSession}
-            onPointerCancel={endPanSession}
           >
             <div
               ref={scrollRef}
@@ -609,6 +720,10 @@ const Piano: React.FC = () => {
               <div
                 ref={bodyRef}
                 className="piano-body piano-pan-surface"
+                onPointerDown={handlePanPointerDown}
+                onPointerMove={handlePanPointerMove}
+                onPointerUp={endPanSession}
+                onPointerCancel={endPanSession}
                 style={
                   {
                     '--white-count': whiteKeys.length,
@@ -617,7 +732,12 @@ const Piano: React.FC = () => {
                 }
               >
                 <div className="piano-pan-rail piano-pan-rail--top" aria-hidden="true" />
-                <div className="piano-keys-area">
+                <div
+                  ref={keysAreaRef}
+                  className="piano-keys-area"
+                  onPointerDown={handleKeysPointerDown}
+                  onPointerMove={handleKeysPointerMove}
+                >
                   <div className="piano-white-keys">
                     {whiteKeysRendered.map((key) => (
                       <button
@@ -657,6 +777,25 @@ const Piano: React.FC = () => {
                   </div>
                 </div>
                 <div className="piano-pan-rail piano-pan-rail--bottom" aria-hidden="true" />
+                {scrollThumb.canScroll && (
+                  <div
+                    ref={scrollTrackRef}
+                    className="piano-scroll-track"
+                    onPointerDown={handleScrollTrackPointerDown}
+                    onPointerMove={handleScrollTrackPointerMove}
+                    onPointerUp={endScrollTrackSession}
+                    onPointerCancel={endScrollTrackSession}
+                    aria-label="건반 위치"
+                  >
+                    <div
+                      className="piano-scroll-thumb"
+                      style={{
+                        left: `${scrollThumb.left}%`,
+                        width: `${scrollThumb.width}%`,
+                      }}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>

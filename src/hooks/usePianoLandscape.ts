@@ -2,31 +2,36 @@ import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import {
   disablePianoLandscapeMode,
   enablePianoLandscapeMode,
+  isFullscreenActive,
+  isTouchPrimaryDevice,
   lockPianoLandscape,
   shouldEmulatePianoLandscape,
+  shouldReverseEmulatedLandscape,
   syncPianoOrientationClasses,
   unlockPianoLandscape,
 } from '../utils/pianoOrientation';
 
 export interface PianoLandscapeState {
-  /** 실제 기기는 세로지만 CSS로 가로 UI를 보여주는 상태 */
   isEmulatedLandscape: boolean;
+  isReverseEmulation: boolean;
   refresh: () => void;
 }
 
-export const usePianoLandscape = (): PianoLandscapeState => {
+export const usePianoLandscape = (onExitFullscreen?: () => void): PianoLandscapeState => {
   const [isEmulatedLandscape, setIsEmulatedLandscape] = useState(shouldEmulatePianoLandscape);
+  const [isReverseEmulation, setIsReverseEmulation] = useState(shouldReverseEmulatedLandscape);
 
   const refresh = useCallback(() => {
     syncPianoOrientationClasses();
     setIsEmulatedLandscape(shouldEmulatePianoLandscape());
+    setIsReverseEmulation(shouldReverseEmulatedLandscape());
   }, []);
 
   useLayoutEffect(() => {
     enablePianoLandscapeMode();
     syncPianoOrientationClasses();
     setIsEmulatedLandscape(shouldEmulatePianoLandscape());
-    // 메뉴 탭 직후 마운트 구간에서 방향 고정 시도 (Android 등)
+    setIsReverseEmulation(shouldReverseEmulatedLandscape());
     void lockPianoLandscape().then(() => refresh());
   }, [refresh]);
 
@@ -37,17 +42,30 @@ export const usePianoLandscape = (): PianoLandscapeState => {
     mq.addEventListener('change', sync);
     window.addEventListener('resize', sync);
     window.addEventListener('orientationchange', sync);
-    document.addEventListener('fullscreenchange', sync);
+
+    let wasFullscreen = isFullscreenActive();
+    const onFullscreenChange = () => {
+      const now = isFullscreenActive();
+      if (wasFullscreen && !now && isTouchPrimaryDevice()) {
+        onExitFullscreen?.();
+      }
+      wasFullscreen = now;
+      sync();
+    };
+
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
 
     return () => {
       mq.removeEventListener('change', sync);
       window.removeEventListener('resize', sync);
       window.removeEventListener('orientationchange', sync);
-      document.removeEventListener('fullscreenchange', sync);
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', onFullscreenChange);
       unlockPianoLandscape();
       disablePianoLandscapeMode();
     };
-  }, [refresh]);
+  }, [refresh, onExitFullscreen]);
 
-  return { isEmulatedLandscape, refresh };
+  return { isEmulatedLandscape, isReverseEmulation, refresh };
 };

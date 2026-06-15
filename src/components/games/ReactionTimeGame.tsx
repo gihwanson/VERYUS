@@ -51,12 +51,8 @@ const GO_TIMEOUT_MS = MAX_REACTION_MS;
 const SESSION_ROUNDS = 5;
 const BETWEEN_MS = 1400;
 
-const calcMedian = (values: number[]): number => {
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  if (sorted.length % 2 === 1) return sorted[mid];
-  return (sorted[mid - 1] + sorted[mid]) / 2;
-};
+const calcAverage = (values: number[]): number =>
+  values.reduce((sum, value) => sum + value, 0) / values.length;
 
 const formatReactionMs = (ms: number): string => `${Math.round(ms)}ms`;
 
@@ -105,7 +101,6 @@ const ReactionTimeGame: React.FC = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [attemptResults, setAttemptResults] = useState<number[]>([]);
   const [lastAttemptMs, setLastAttemptMs] = useState<number | null>(null);
-  const [sessionMedian, setSessionMedian] = useState<number | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const betweenTimerRef = useRef<number | null>(null);
   const attemptResultsRef = useRef<number[]>([]);
@@ -300,13 +295,11 @@ const ReactionTimeGame: React.FC = () => {
           beginWaiting();
         }, BETWEEN_MS);
       } else {
-        const median = calcMedian(nextTimes);
-        const best = Math.min(...nextTimes);
-        setSessionMedian(median);
-        setFinalResult(best);
+        const average = Math.round(calcAverage(nextTimes));
+        setFinalResult(average);
         setPhaseSafe('finished');
         playGameComplete();
-        void saveScore(best);
+        void saveScore(average);
       }
     },
     [beginWaiting, clearTimers, saveScore, setPhaseSafe]
@@ -316,7 +309,6 @@ const ReactionTimeGame: React.FC = () => {
     unlockGameAudio();
     attemptResultsRef.current = [];
     setAttemptResults([]);
-    setSessionMedian(null);
     setLastAttemptMs(null);
     setFinalResult(null);
     setSaveStatus('idle');
@@ -384,16 +376,13 @@ const ReactionTimeGame: React.FC = () => {
         return finalResult !== null
           ? {
               title: formatReactionMs(finalResult),
-              hint:
-                sessionMedian !== null
-                  ? `5회 중 최고 · 중앙값 ${formatReactionMs(sessionMedian)}`
-                  : '반응 속도',
+              hint: '5회 평균',
             }
           : { title: '완료', hint: '' };
       default:
         return { title: '', hint: '' };
     }
-  }, [attemptResults.length, finalResult, lastAttemptMs, phase, sessionMedian]);
+  }, [attemptResults.length, finalResult, lastAttemptMs, phase]);
 
   const saveStatusMessage = useMemo(() => {
     if (saveStatus === 'saving') return '저장 중...';
@@ -416,7 +405,7 @@ const ReactionTimeGame: React.FC = () => {
           반응속도 테스트
         </h1>
         <p className="games-subtitle" style={{ marginBottom: 20 }}>
-          5회 측정 후 최고 기록이 순위에 반영됩니다. PC에서는 스페이스바도 사용할 수 있어요.
+          5회 측정 후 평균이 순위에 반영됩니다. PC에서는 스페이스바도 사용할 수 있어요.
         </p>
 
         <div className="typing-game-panel">
@@ -490,8 +479,7 @@ const ReactionTimeGame: React.FC = () => {
                     </p>
                   )}
                   <p>
-                    최고 {formatReactionMs(finalResult)}
-                    {sessionMedian !== null ? ` · 중앙값 ${formatReactionMs(sessionMedian)}` : ''}
+                    평균 {formatReactionMs(finalResult)}
                     {saveStatusMessage ? ` (${saveStatusMessage})` : ''}
                   </p>
                   {myBestMs != null && (
