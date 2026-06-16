@@ -13,12 +13,22 @@ function resolveEmojiFromKoreanName(label: string): string | undefined {
   return undefined;
 }
 
+function resolveEmojiFromMixedLabel(raw: string): string | undefined {
+  const compact = raw.replace(/\s+/g, '');
+  for (const [emoji, name] of Object.entries(GRADE_NAMES) as Array<[string, string]>) {
+    if (raw.includes(emoji) || compact.includes(name)) return emoji;
+  }
+  return undefined;
+}
+
 export function getGradeEmoji(grade: string | undefined | null): string {
   const g = (grade ?? '').trim();
   if (!g) return GRADE_SYSTEM.CHERRY;
   if (EMOJI_SET.has(g)) return g;
   const fromKo = resolveEmojiFromKoreanName(g);
   if (fromKo) return fromKo;
+  const fromMixed = resolveEmojiFromMixedLabel(g);
+  if (fromMixed) return fromMixed;
   return GRADE_SYSTEM.CHERRY;
 }
 
@@ -28,5 +38,7 @@ export function getGradeName(emojiOrKoreanLabel: string | undefined | null): str
   if (EMOJI_SET.has(raw)) return GRADE_NAMES[raw] || GRADE_NAMES[GRADE_SYSTEM.CHERRY];
   const resolvedEmoji = resolveEmojiFromKoreanName(raw);
   if (resolvedEmoji) return GRADE_NAMES[resolvedEmoji] || GRADE_NAMES[GRADE_SYSTEM.CHERRY];
+  const resolvedMixedEmoji = resolveEmojiFromMixedLabel(raw);
+  if (resolvedMixedEmoji) return GRADE_NAMES[resolvedMixedEmoji] || GRADE_NAMES[GRADE_SYSTEM.CHERRY];
   return GRADE_NAMES[GRADE_SYSTEM.CHERRY];
 }
