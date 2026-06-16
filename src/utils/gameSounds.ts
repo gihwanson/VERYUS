@@ -109,3 +109,18 @@ export const playTypingError = () => {
   tone(200, 0.06, 'square', 0.04);
   gameVibrate(8);
 };
+
+export const playRhythmBeatClick = (downbeat: boolean) => {
+  tone(downbeat ? 880 : 660, downbeat ? 0.06 : 0.04, 'square', downbeat ? 0.08 : 0.05);
+  if (downbeat) gameVibrate(6);
+};
+
+export const playRhythmTap = (errorMs: number) => {
+  const good = errorMs <= 50;
+  tone(good ? 784 : 440, 0.05, 'triangle', good ? 0.06 : 0.04);
+  if (good) gameVibrate(8);
+};
+
+export const playRhythmMiss = () => {
+  tone(220, 0.08, 'sawtooth', 0.04);
+};

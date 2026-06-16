@@ -155,6 +155,14 @@
   background: linear-gradient(135deg, rgba(234, 179, 8, 0.35), rgba(249, 115, 22, 0.25));
 }
 
+.games-card-art--rhythm-beat {
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.35), rgba(168, 85, 247, 0.25));
+}
+
+.games-card-art--locked-practice-room {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.35), rgba(20, 184, 166, 0.25));
+}
+
 .games-card-teaser {
   margin: 6px 0 0 !important;
   font-size: 12px !important;
@@ -789,4 +797,490 @@
   margin: 4px 0 0;
   font-size: 13px;
   opacity: 0.82;
+}
+
+/* Rhythm beat game */
+.typing-panel-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.rhythm-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.rhythm-meta-pill {
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.rhythm-meta-pill--tap {
+  border-color: rgba(253, 224, 71, 0.5);
+  background: rgba(253, 224, 71, 0.15);
+  color: #fef9c3;
+}
+
+.rhythm-progress-fill {
+  background: linear-gradient(90deg, #ec4899, #a855f7);
+}
+
+.rhythm-tap-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 220px;
+  border: none;
+  border-radius: 18px;
+  padding: 32px 20px;
+  cursor: pointer;
+  color: #fff;
+  background: linear-gradient(160deg, #7c3aed 0%, #db2777 100%);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.2);
+  transition: transform 0.1s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+  overflow: hidden;
+}
+
+.rhythm-tap-zone::before {
+  content: none !important;
+  display: none !important;
+}
+
+.rhythm-tap-zone:active {
+  transform: scale(0.98);
+}
+
+.rhythm-tap-flash {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.rhythm-tap-flash--beat {
+  animation: rhythm-beat-pulse 0.38s ease-out;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.35) 0%, transparent 68%);
+}
+
+.rhythm-tap-flash--downbeat {
+  animation: rhythm-downbeat-pulse 0.42s ease-out;
+  background: radial-gradient(circle at center, rgba(253, 224, 71, 0.45) 0%, transparent 72%);
+  box-shadow: inset 0 0 40px rgba(253, 224, 71, 0.25);
+}
+
+@keyframes rhythm-beat-pulse {
+  from {
+    opacity: 1;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes rhythm-downbeat-pulse {
+  from {
+    opacity: 1;
+    transform: scale(0.88);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.12);
+  }
+}
+
+.rhythm-tap-zone--pulse-beat {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35);
+}
+
+.rhythm-tap-zone--pulse-downbeat {
+  box-shadow: inset 0 0 0 3px rgba(253, 224, 71, 0.55);
+}
+
+.rhythm-tap-icon {
+  font-size: 40px;
+  line-height: 1;
+}
+
+.rhythm-tap-title {
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.rhythm-tap-hint {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.rhythm-beat-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+  margin-top: 16px;
+}
+
+.rhythm-beat-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.rhythm-beat-cell--perfect {
+  background: rgba(34, 197, 94, 0.35);
+  border-color: rgba(34, 197, 94, 0.6);
+}
+
+.rhythm-beat-cell--good {
+  background: rgba(59, 130, 246, 0.3);
+  border-color: rgba(59, 130, 246, 0.5);
+}
+
+.rhythm-beat-cell--ok {
+  background: rgba(234, 179, 8, 0.25);
+  border-color: rgba(234, 179, 8, 0.45);
+}
+
+.rhythm-beat-cell--miss {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.45);
+  opacity: 0.85;
+}
+
+/* Shared game UI polish */
+.typing-personal-best {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fde68a;
+}
+
+.typing-result-compare {
+  margin: 8px 0 0;
+  font-size: 14px;
+  opacity: 0.92;
+}
+
+.reaction-grade {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.reaction-grade--legend { color: #fde047; }
+.reaction-grade--great { color: #86efac; }
+.reaction-grade--good { color: #93c5fd; }
+.reaction-grade--ok { color: #e5e7eb; }
+.reaction-grade--slow { color: #fca5a5; }
+
+.rhythm-tap-icon,
+.rhythm-tap-title,
+.rhythm-tap-hint {
+  position: relative;
+  z-index: 1;
+}
+
+/* Escape room — 잠긴 연습실 */
+.escape-room-page--flashlight {
+  box-shadow: inset 0 0 120px rgba(253, 224, 71, 0.08);
+}
+
+.escape-panel {
+  position: relative;
+}
+
+.escape-toast {
+  position: fixed;
+  top: max(16px, env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1200;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  font-size: 14px;
+  font-weight: 600;
+  max-width: min(90vw, 360px);
+  text-align: center;
+}
+
+.escape-intro-card {
+  text-align: center;
+  padding: 20px 8px;
+}
+
+.escape-intro-step {
+  margin: 0 0 12px;
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.escape-intro-text {
+  margin: 0 0 24px;
+  font-size: 17px;
+  line-height: 1.7;
+}
+
+.escape-status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.escape-status-pill {
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.escape-status-pill--btn {
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.escape-inventory {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.escape-inv-slot {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.2);
+  font-size: 22px;
+  cursor: pointer;
+  color: inherit;
+}
+
+.escape-inv-slot--empty {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.escape-inv-slot--selected {
+  border-color: #fde047;
+  background: rgba(253, 224, 71, 0.15);
+}
+
+.escape-selected-hint {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #fde68a;
+}
+
+.escape-room-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+@media (min-width: 520px) {
+  .escape-room-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.escape-hotspot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 88px;
+  padding: 12px 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.18);
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.escape-hotspot:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.escape-hotspot:active {
+  transform: scale(0.98);
+}
+
+.escape-hotspot--goal {
+  border-color: rgba(74, 222, 128, 0.45);
+}
+
+.escape-hotspot--found {
+  border-color: rgba(253, 224, 71, 0.45);
+}
+
+.escape-hotspot-emoji {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.escape-hotspot-label {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.escape-inspect {
+  margin-top: 4px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.escape-inspect h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.escape-inspect p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  white-space: pre-line;
+}
+
+.escape-grade {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 8px 0;
+  color: #86efac;
+}
+
+.escape-ending {
+  margin-top: 12px !important;
+  font-size: 13px !important;
+  opacity: 0.85;
+}
+
+.escape-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.escape-code-modal,
+.escape-hint-modal {
+  width: 100%;
+  max-width: 320px;
+  padding: 20px;
+  border-radius: 18px;
+  background: linear-gradient(160deg, #1e293b 0%, #0f172a 100%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.escape-code-modal h3,
+.escape-hint-modal h3 {
+  margin: 0 0 16px;
+  text-align: center;
+  font-size: 18px;
+}
+
+.escape-code-display {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.escape-code-char {
+  width: 36px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.escape-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.escape-keypad-btn {
+  padding: 14px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.escape-keypad-btn:active {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.escape-hint-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.escape-hint-btn {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.escape-hint-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }

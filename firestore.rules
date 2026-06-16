@@ -312,6 +312,20 @@ service cloud.firestore {
             || (gameId == 'reactionTime'
               && request.resource.data.durationMs >= 100
               && request.resource.data.durationMs <= 15000)
+            || (gameId == 'rhythmBeat'
+              && request.resource.data.durationMs >= 0
+              && request.resource.data.durationMs <= 300
+              && request.resource.data.accuracy is number
+              && request.resource.data.accuracy >= 0
+              && request.resource.data.accuracy <= 100
+              && request.resource.data.accuracy >= (100 - request.resource.data.durationMs * 100 / 300) - 1
+              && request.resource.data.accuracy <= (100 - request.resource.data.durationMs * 100 / 300) + 1)
+            || (gameId == 'escapeRoom'
+              && request.resource.data.durationMs >= 0
+              && request.resource.data.durationMs <= 9999999
+              && request.resource.data.rankScore is number
+              && request.resource.data.rankScore >= 0
+              && request.resource.data.rankScore <= 9999999)
           );
         allow update: if signedIn()
           && resource.data.uid == request.auth.uid
@@ -323,6 +337,20 @@ service cloud.firestore {
             || (gameId == 'reactionTime'
               && request.resource.data.durationMs >= 100
               && request.resource.data.durationMs <= 15000)
+            || (gameId == 'rhythmBeat'
+              && request.resource.data.durationMs >= 0
+              && request.resource.data.durationMs <= 300
+              && request.resource.data.accuracy is number
+              && request.resource.data.accuracy >= 0
+              && request.resource.data.accuracy <= 100
+              && request.resource.data.accuracy >= (100 - request.resource.data.durationMs * 100 / 300) - 1
+              && request.resource.data.accuracy <= (100 - request.resource.data.durationMs * 100 / 300) + 1)
+            || (gameId == 'escapeRoom'
+              && request.resource.data.durationMs >= 0
+              && request.resource.data.durationMs <= 9999999
+              && request.resource.data.rankScore is number
+              && request.resource.data.rankScore >= 0
+              && request.resource.data.rankScore <= 9999999)
           );
         allow delete: if false;
       }

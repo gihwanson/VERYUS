@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { collection, query, where, getDocs, addDoc, deleteDoc, doc, Timestamp, orderBy, serverTimestamp, onSnapshot, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { SUPER_ADMIN_NICKNAMES, GRADE_SYSTEM } from './AdminTypes';
+import { getGradeEmoji } from '../utils/gradeDisplay';
 import { Calendar, Clock, User, X, ChevronLeft, ChevronRight, Info, RefreshCw, LogIn, LogOut, Users } from 'lucide-react';
 import './PracticeRoomBooking.css';
 
@@ -85,7 +87,7 @@ const PracticeRoomBooking: React.FC = () => {
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
   const [blockingRules, setBlockingRules] = useState<BlockingRule[]>([]);
   const [purpose, setPurpose] = useState('');
-  const [duration, setDuration] = useState<1 | 2 | 3>(1);
+  const [duration, setDuration] = useState(1);
   const [maxAvailableDuration, setMaxAvailableDuration] = useState<number>(1);
   const [members, setMembers] = useState<string[]>([]);
   const [memberInput, setMemberInput] = useState('');
@@ -99,7 +101,15 @@ const PracticeRoomBooking: React.FC = () => {
   const [weeklyReservationCount, setWeeklyReservationCount] = useState(0);
   const [checkedInMembers, setCheckedInMembers] = useState<CheckIn[]>([]);
   const [myCheckIn, setMyCheckIn] = useState<CheckIn | null>(null);
-  const isUnlimitedUser = currentUser?.nickname === '너래';
+  const isUnlimitedUser = Boolean(
+    currentUser?.nickname && SUPER_ADMIN_NICKNAMES.includes(currentUser.nickname)
+  );
+
+  const isCherryGradeUser = () =>
+    Boolean(currentUser && getGradeEmoji(currentUser.grade) === GRADE_SYSTEM.CHERRY);
+
+  const CHERRY_GRADE_BOOKING_MESSAGE =
+    '🍒 체리 등급 회원은 연습실 예약을 이용할 수 없습니다.\n\n체리 등급을 졸업(딸기 등급 이상)한 후 예약해 주세요.';
 
   // 연습실 운영 시간 설정 (09:00 ~ 22:00, 1시간 단위)
   const OPEN_TIME = 9;
@@ -119,7 +129,11 @@ const PracticeRoomBooking: React.FC = () => {
       console.log('  - "너래" 일치 여부:', user.nickname === '너래');
       setCurrentUser(user);
       // 관리자 체크 (너래 또는 리더/운영진)
-      setIsAdmin(user.nickname === '너래' || user.role === '리더' || user.role === '운영진');
+      setIsAdmin(
+        SUPER_ADMIN_NICKNAMES.includes(user.nickname) ||
+          user.role === '리더' ||
+          user.role === '운영진'
+      );
     }
     
     // 모바일 감지
@@ -640,23 +654,88 @@ const PracticeRoomBooking: React.FC = () => {
     return dates;
   };
 
-  const checkMaxAvailableDuration = (startSlot: TimeSlot, date: Date): number => {
-    const dateStr = formatDate(date);
+  const checkMaxAvailableDuration = (
+    startSlot: TimeSlot,
+    date: Date,
+    options?: { ignoreBlocks?: boolean; ignoreReservations?: boolean }
+  ): number => {
     const slots = generateTimeSlots(date);
     const startIdx = slots.findIndex(s => s.time === startSlot.time);
-    
+    if (startIdx === -1) return 0;
+
+    const ignoreBlocks = options?.ignoreBlocks ?? false;
+    const ignoreReservations = options?.ignoreReservations ?? false;
+
     let maxDuration = 0;
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < CLOSE_TIME - OPEN_TIME; i++) {
       const checkIdx = startIdx + i;
       if (checkIdx >= slots.length) break;
-      
+
       const checkSlot = slots[checkIdx];
-      if (!checkSlot.isAvailable || checkSlot.isPast) break;
-      
+      if (checkSlot.isPast) break;
+      if (!ignoreBlocks && checkSlot.isBlocked) break;
+      if (!ignoreReservations && checkSlot.reservation) break;
+      if (!ignoreBlocks && !ignoreReservations && !checkSlot.isAvailable) break;
+
       maxDuration++;
     }
-    
+
     return maxDuration;
+  };
+
+  const openBookingFlow = async (
+    slot: TimeSlot,
+    date: Date,
+    options?: { ignoreBlocks?: boolean; ignoreReservations?: boolean }
+  ) => {
+    if (!isUnlimitedUser && isCherryGradeUser()) {
+      alert(CHERRY_GRADE_BOOKING_MESSAGE);
+      return;
+    }
+
+    if (!isUnlimitedUser) {
+      if (weeklyReservationCount >= MAX_WEEKLY_RESERVATIONS) {
+        alert('주에 1회만 예약이 가능합니다.');
+        return;
+      }
+      const weeklyCount = await calculateWeeklyReservationCount(date);
+      if (weeklyCount >= MAX_WEEKLY_RESERVATIONS) {
+        alert('주에 1회만 예약이 가능합니다.');
+        return;
+      }
+
+      const currentUsedHours = await calculateDailyUsedHours(date);
+      if (currentUsedHours >= MAX_DAILY_HOURS) {
+        alert('일일 예약은 3시간까지만 가능합니다.');
+        return;
+      }
+    }
+
+    const maxDuration = checkMaxAvailableDuration(slot, date, options);
+    const allowedDuration = isUnlimitedUser
+      ? maxDuration
+      : Math.min(
+          maxDuration,
+          MAX_DAILY_HOURS - (await calculateDailyUsedHours(date))
+        );
+
+    if (allowedDuration < 1) {
+      alert('예약 가능한 연속 시간이 없습니다.');
+      return;
+    }
+
+    const defaultDuration = isUnlimitedUser
+      ? allowedDuration
+      : Math.min(3, allowedDuration);
+
+    setMaxAvailableDuration(allowedDuration);
+    setDuration(defaultDuration);
+    setPurpose('');
+    setMembers([]);
+    setMemberInput('');
+    setSelectedTimeSlot({ ...slot });
+    setBookingDate(date);
+    setShowBookingModal(true);
   };
 
   const handleTimeSlotClick = async (slot: TimeSlot, date: Date) => {
@@ -673,7 +752,9 @@ const PracticeRoomBooking: React.FC = () => {
     
     // 차단된 시간대 클릭
     if (slot.isBlocked) {
-      if (isAdmin) {
+      if (isUnlimitedUser) {
+        await openBookingFlow(slot, date, { ignoreBlocks: true, ignoreReservations: true });
+      } else if (isAdmin) {
         // 관리자: 차단 해제 또는 예외 허용
         setSelectedTimeSlot({ ...slot });
         setBookingDate(date);
@@ -691,65 +772,24 @@ const PracticeRoomBooking: React.FC = () => {
       console.log('📅 클릭한 날짜:', formatDate(date));
       console.log('🕐 선택한 시간:', slot.time);
 
-      // 먼저 화면 상태값으로 즉시 차단/알림
-      if (!isUnlimitedUser && weeklyReservationCount >= MAX_WEEKLY_RESERVATIONS) {
-        alert('주에 1회만 예약이 가능합니다.');
-        return;
-      }
-
-      // 이어서 DB 재조회로 재검증 (동시성/다중 탭 대비)
-      const weeklyCount = await calculateWeeklyReservationCount(date);
-      if (!isUnlimitedUser && weeklyCount >= MAX_WEEKLY_RESERVATIONS) {
-        alert('주에 1회만 예약이 가능합니다.');
-        return;
-      }
-      
-      // 관리자는 예약/차단/예외취소 선택 모달 표시
-      if (isAdmin && !slot.isException) {
-        // 일반 예약 가능 시간대 - 예약 또는 차단 선택
+      // 관리자(너래 제외)는 예약/차단 선택 모달
+      if (isAdmin && !isUnlimitedUser && !slot.isException) {
         setSelectedTimeSlot({ ...slot });
         setBookingDate(date);
         setShowAdminActionModal(true);
         return;
       }
-      
-      // 예외 허용된 시간대 포함, 일반 예약 가능 시간대는 예약 진행
-      // (관리자든 일반 사용자든 예약 가능)
-      
-      // 일반 사용자 - 일일 한도 체크
-      const currentUsedHours = await calculateDailyUsedHours(date);
-      
-      // 🚨🚨🚨 핵심: 3시간 이상이면 무조건 차단
-      if (currentUsedHours >= MAX_DAILY_HOURS) {
-        console.log('');
-        console.log('🚫🚫🚫 ========== 예약 차단 ==========');
-        console.log('❌ 이유: 일일 한도 초과');
-        console.log('📊 현재 사용:', currentUsedHours, '시간');
-        console.log('📊 한도:', MAX_DAILY_HOURS, '시간');
-        console.log('🚫🚫🚫 ================================');
-        console.log('');
-        alert('일일 예약은 3시간까지만 가능합니다.');
-        return; // 모달 안 띄움
-      }
-      
-      console.log('✅ 예약 가능 - 모달 표시');
-      
-      const maxDuration = checkMaxAvailableDuration(slot, date);
-      const remainingHours = Math.min(maxDuration, MAX_DAILY_HOURS - currentUsedHours);
-      
-      setMaxAvailableDuration(remainingHours);
-      setDuration(Math.min(3, remainingHours) as 1 | 2 | 3);
-      setPurpose('');
-      setMembers([]);
-      setMemberInput('');
-      setSelectedTimeSlot({ ...slot });
-      setBookingDate(date);
-      setShowBookingModal(true);
+
+      await openBookingFlow(slot, date);
       console.log('🖱️ ========================================');
       console.log('');
     } else if (slot.reservation) {
-      setSelectedTimeSlot(slot);
-      setShowDetailModal(true);
+      if (isUnlimitedUser) {
+        await openBookingFlow(slot, date, { ignoreReservations: true });
+      } else {
+        setSelectedTimeSlot(slot);
+        setShowDetailModal(true);
+      }
     }
   };
 
@@ -783,6 +823,7 @@ const PracticeRoomBooking: React.FC = () => {
   const getBookingParticipantCount = () => 1 + getTrimmedMembers().length;
 
   const isBookingFormValid = () => {
+    if (isUnlimitedUser) return true;
     const trimmedPurpose = purpose.trim();
     const trimmedMembers = getTrimmedMembers();
     return trimmedPurpose.length > 0 && trimmedMembers.length >= 1;
@@ -791,17 +832,24 @@ const PracticeRoomBooking: React.FC = () => {
   const handleBooking = async () => {
     if (!selectedTimeSlot || !currentUser || !bookingDate) return;
 
-    const trimmedPurpose = purpose.trim();
-    const trimmedMembers = getTrimmedMembers();
-
-    if (!trimmedPurpose) {
-      alert('사용 목적을 입력해주세요.');
+    if (!isUnlimitedUser && isCherryGradeUser()) {
+      alert(CHERRY_GRADE_BOOKING_MESSAGE);
       return;
     }
 
-    if (trimmedMembers.length < 1) {
-      alert('함께 사용할 멤버를 1명 이상 추가해주세요.\n(2인 이상부터 예약 가능합니다)');
-      return;
+    const trimmedPurpose = purpose.trim();
+    const trimmedMembers = getTrimmedMembers();
+
+    if (!isUnlimitedUser) {
+      if (!trimmedPurpose) {
+        alert('사용 목적을 입력해주세요.');
+        return;
+      }
+
+      if (trimmedMembers.length < 1) {
+        alert('함께 사용할 멤버를 1명 이상 추가해주세요.\n(2인 이상부터 예약 가능합니다)');
+        return;
+      }
     }
     
     // 이미 예약 진행 중이면 무시
@@ -832,8 +880,8 @@ const PracticeRoomBooking: React.FC = () => {
         return;
       }
       
-      // 예약 직전 일일 한도 재확인 (관리자 제외)
-      if (!isAdmin) {
+      // 예약 직전 일일·주간 한도 재확인 (너래 제외)
+      if (!isUnlimitedUser) {
         const currentUsedHours = await calculateDailyUsedHours(bookingDate);
         
         console.log('');
@@ -897,7 +945,7 @@ const PracticeRoomBooking: React.FC = () => {
         );
         
         const existingSnapshot = await getDocs(existingQ);
-        if (!existingSnapshot.empty) {
+        if (!isUnlimitedUser && !existingSnapshot.empty) {
           alert(`${checkTime} 시간대가 이미 예약되어 있습니다.`);
           isBookingInProgress.current = false;
           setLoading(false);
@@ -925,7 +973,7 @@ const PracticeRoomBooking: React.FC = () => {
           endTime: slotEndTime,
           duration: SLOT_DURATION,
           totalDuration: duration * SLOT_DURATION,
-          purpose: trimmedPurpose,
+          purpose: trimmedPurpose || (isUnlimitedUser ? '관리자 예약' : ''),
           status: 'confirmed',
           reservationGroup: reservationGroup,
           isFirstSlot: i === 0,
@@ -970,7 +1018,9 @@ const PracticeRoomBooking: React.FC = () => {
       console.log('');
       
       alert(
-        `${reservedDuration}시간 예약 완료!\n\n${dateStr}\n일일 사용: ${newUsedHours}/${MAX_DAILY_HOURS}시간\n주간 예약: ${newWeeklyCount}/${MAX_WEEKLY_RESERVATIONS}회`
+        isUnlimitedUser
+          ? `${reservedDuration}시간 예약 완료!\n\n${dateStr}`
+          : `${reservedDuration}시간 예약 완료!\n\n${dateStr}\n일일 사용: ${newUsedHours}/${MAX_DAILY_HOURS}시간\n주간 예약: ${newWeeklyCount}/${MAX_WEEKLY_RESERVATIONS}회`
       );
       console.log('🔓 잠금 해제');
     } catch (error) {
@@ -1415,7 +1465,12 @@ const PracticeRoomBooking: React.FC = () => {
         </button>
         <h1>🎹 연습실 예약</h1>
         <div className="header-buttons">
-          {currentUser?.nickname === '너래' && (
+          {isUnlimitedUser && (
+            <span className="unlimited-admin-badge" title="예약 한도 없음">
+              무제한
+            </span>
+          )}
+          {isUnlimitedUser && (
             <button 
               className="management-button" 
               onClick={() => navigate('/practice-room-management')}
@@ -1434,6 +1489,15 @@ const PracticeRoomBooking: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {!isUnlimitedUser && isCherryGradeUser() && (
+        <div
+          className="cherry-grade-booking-notice"
+          role="status"
+        >
+          🍒 체리 등급 회원은 연습실 예약을 이용할 수 없습니다. 체리 등급을 졸업(딸기 등급 이상)한 후 예약해 주세요.
+        </div>
+      )}
 
       {/* 현재 입실 현황 섹션 */}
       <div className="check-in-section">
@@ -1574,7 +1638,7 @@ const PracticeRoomBooking: React.FC = () => {
         </div>
         
         {/* 일일 예약 현황 */}
-        {!isAdmin && (
+        {!isUnlimitedUser && (
           <div className="daily-limit-info">
             <span className="limit-icon">⏰</span>
             <span className="limit-text">
@@ -1824,24 +1888,32 @@ const PracticeRoomBooking: React.FC = () => {
               <div className="duration-selector">
                 <label>예약 시간 <span className="auto-selected">✓ 자동 선택됨</span></label>
                 <div className="duration-buttons">
-                  {[1, 2, 3].map((hours) => (
+                  {(isUnlimitedUser
+                    ? Array.from({ length: maxAvailableDuration }, (_, i) => i + 1)
+                    : [1, 2, 3]
+                  ).map((hours) => (
                     <button
                       key={hours}
                       type="button"
                       className={`duration-button ${duration === hours ? 'active' : ''} ${hours > maxAvailableDuration ? 'disabled' : ''}`}
-                      onClick={() => hours <= maxAvailableDuration && setDuration(hours as 1 | 2 | 3)}
+                      onClick={() => hours <= maxAvailableDuration && setDuration(hours)}
                       disabled={hours > maxAvailableDuration}
                     >
                       {hours}시간
                     </button>
                   ))}
                 </div>
-                {!isAdmin && (
+                {!isUnlimitedUser && (
                   <p className="duration-hint daily-limit">
                     📊 오늘 예약 가능: {MAX_DAILY_HOURS - dailyUsedHours}시간 (사용: {dailyUsedHours}/{MAX_DAILY_HOURS}시간)
                   </p>
                 )}
-                {maxAvailableDuration < 3 && (
+                {isUnlimitedUser && (
+                  <p className="duration-hint daily-limit" style={{ color: '#86efac' }}>
+                    관리자 모드: 일일·주간 한도 없이 예약할 수 있습니다.
+                  </p>
+                )}
+                {maxAvailableDuration < 3 && !isUnlimitedUser && (
                   <p className="duration-hint">
                     ⚠️ 연속된 시간대가 비어있지 않아 최대 {maxAvailableDuration}시간까지만 예약 가능합니다.
                   </p>
@@ -1851,7 +1923,10 @@ const PracticeRoomBooking: React.FC = () => {
                 </p>
               </div>
               <div className="members-input">
-                <label>함께 사용할 멤버 <span style={{ color: '#ef4444' }}>*</span></label>
+                <label>
+                  함께 사용할 멤버
+                  {!isUnlimitedUser && <span style={{ color: '#ef4444' }}> *</span>}
+                </label>
                 <p className="duration-hint">
                   단독 사용은 불가합니다. 본인 포함 <strong>2인 이상</strong>일 때만 예약할 수 있습니다.
                 </p>
@@ -1876,7 +1951,7 @@ const PracticeRoomBooking: React.FC = () => {
                 </div>
                 <p className="duration-hint">
                   예약 인원: <strong>{getBookingParticipantCount()}명</strong> (본인 포함)
-                  {getTrimmedMembers().length < 1 && (
+                  {getTrimmedMembers().length < 1 && !isUnlimitedUser && (
                     <span style={{ color: '#ef4444' }}> · 멤버 1명 이상 추가 필요</span>
                   )}
                 </p>
@@ -1898,7 +1973,10 @@ const PracticeRoomBooking: React.FC = () => {
                 )}
               </div>
               <div className="purpose-input">
-                <label>사용 목적 <span style={{ color: '#ef4444' }}>*</span></label>
+                <label>
+                  사용 목적
+                  {!isUnlimitedUser && <span style={{ color: '#ef4444' }}> *</span>}
+                </label>
                 <input
                   type="text"
                   placeholder="예: 밴드 합주, 보컬 연습 등"
@@ -2048,16 +2126,11 @@ const PracticeRoomBooking: React.FC = () => {
             <div className="modal-footer" style={{ flexDirection: 'column', gap: '12px' }}>
               <button
                 className="confirm-btn"
-                onClick={() => {
+                onClick={async () => {
                   setShowAdminActionModal(false);
-                  // 관리자도 예약 가능하도록 설정
-                  const maxDuration = checkMaxAvailableDuration(selectedTimeSlot, bookingDate);
-                  setMaxAvailableDuration(maxDuration);
-                  setDuration(Math.min(3, maxDuration) as 1 | 2 | 3);
-                  setPurpose('');
-                  setMembers([]);
-                  setMemberInput('');
-                  setShowBookingModal(true);
+                  if (selectedTimeSlot && bookingDate) {
+                    await openBookingFlow(selectedTimeSlot, bookingDate);
+                  }
                 }}
                 style={{ width: '100%' }}
               >

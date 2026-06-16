@@ -169,6 +169,8 @@ const PracticeRoomManagement = lazy(() => import('./components/PracticeRoomManag
 const GamesHub = lazy(() => import('./components/games/GamesHub'));
 const TypingSpeedGame = lazy(() => import('./components/games/TypingSpeedGame'));
 const ReactionTimeGame = lazy(() => import('./components/games/ReactionTimeGame'));
+const RhythmBeatGame = lazy(() => import('./components/games/RhythmBeatGame'));
+const LockedPracticeRoomGame = lazy(() => import('./components/games/escape/LockedPracticeRoomGame'));
 const Piano = lazy(() => import('./components/Piano'));
 const DrumKit = lazy(() => import('./components/DrumKit'));
 
@@ -1143,6 +1145,8 @@ function App() {
               <Route path="/games" element={<ProtectedRoute><GamesHub /></ProtectedRoute>} />
               <Route path="/games/typing-speed" element={<ProtectedRoute><TypingSpeedGame /></ProtectedRoute>} />
               <Route path="/games/reaction-time" element={<ProtectedRoute><ReactionTimeGame /></ProtectedRoute>} />
+              <Route path="/games/rhythm-beat" element={<ProtectedRoute><RhythmBeatGame /></ProtectedRoute>} />
+              <Route path="/games/locked-practice-room" element={<ProtectedRoute><LockedPracticeRoomGame /></ProtectedRoute>} />
 
               {/* 악기 — 피아노 · 드럼 */}
               <Route path="/instruments" element={<Navigate to="/instruments/piano" replace />} />

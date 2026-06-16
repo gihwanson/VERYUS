@@ -79,6 +79,7 @@ export type SortOrder = 'asc' | 'desc';
 // 등급 시스템 정의
 export const GRADE_SYSTEM = {
   CHERRY: '🍒',
+  STRAWBERRY: '🍓',
   BLUEBERRY: '🫐',
   KIWI: '🥝',
   APPLE: '🍎',
@@ -94,6 +95,7 @@ export const GRADE_SYSTEM = {
 // 등급 순서 (낮은 등급부터 높은 등급 순)
 export const GRADE_ORDER = [
   GRADE_SYSTEM.CHERRY,      // 0일
+  GRADE_SYSTEM.STRAWBERRY,  // 45일 (체리 졸업)
   GRADE_SYSTEM.BLUEBERRY,   // 90일
   GRADE_SYSTEM.KIWI,        // 180일
   GRADE_SYSTEM.APPLE,       // 270일
@@ -109,6 +111,7 @@ export const GRADE_ORDER = [
 // 등급 한글 이름
 export const GRADE_NAMES: Record<string, string> = {
   [GRADE_SYSTEM.CHERRY]: '체리',
+  [GRADE_SYSTEM.STRAWBERRY]: '딸기',
   [GRADE_SYSTEM.BLUEBERRY]: '블루베리',
   [GRADE_SYSTEM.KIWI]: '키위',
   [GRADE_SYSTEM.APPLE]: '사과',
@@ -124,6 +127,7 @@ export const GRADE_NAMES: Record<string, string> = {
 // 등급별 필요한 최소 활동 일수
 export const GRADE_REQUIREMENTS: Record<string, number> = {
   [GRADE_SYSTEM.CHERRY]: 0,
+  [GRADE_SYSTEM.STRAWBERRY]: 45,
   [GRADE_SYSTEM.BLUEBERRY]: 90,
   [GRADE_SYSTEM.KIWI]: 180,
   [GRADE_SYSTEM.APPLE]: 270,

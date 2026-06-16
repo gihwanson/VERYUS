@@ -45,7 +45,7 @@ import './MyPage.css';
 import { auth } from '../firebase';
 import { NotificationService } from '../utils/notificationService';
 import { enablePushNotifications, removeAllPushTokens } from '../utils/pushNotificationService';
-import { GRADE_NAMES, GRADE_SYSTEM } from './AdminTypes';
+import { GRADE_NAMES, GRADE_ORDER, GRADE_SYSTEM } from './AdminTypes';
 import { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
 import { approvedSongCountsByNicknameFromDocs } from '../utils/approvedSongMilestone';
 
@@ -222,28 +222,6 @@ interface ApprovedSong {
   fileName?: string;
   duration?: number;
 }
-
-type GradeOption = {
-  value: string;
-  emoji: string;
-  category: '일반' | '예외';
-};
-
-const GRADE_OPTIONS: GradeOption[] = [
-  { value: GRADE_SYSTEM.CHERRY, emoji: GRADE_SYSTEM.CHERRY, category: '일반' },
-  { value: GRADE_SYSTEM.BLUEBERRY, emoji: GRADE_SYSTEM.BLUEBERRY, category: '일반' },
-  { value: GRADE_SYSTEM.KIWI, emoji: GRADE_SYSTEM.KIWI, category: '일반' },
-  { value: GRADE_SYSTEM.APPLE, emoji: GRADE_SYSTEM.APPLE, category: '일반' },
-  { value: GRADE_SYSTEM.MELON, emoji: GRADE_SYSTEM.MELON, category: '일반' },
-  { value: GRADE_SYSTEM.WATERMELON, emoji: GRADE_SYSTEM.WATERMELON, category: '일반' },
-  { value: GRADE_SYSTEM.EARTH, emoji: GRADE_SYSTEM.EARTH, category: '일반' },
-  { value: GRADE_SYSTEM.SATURN, emoji: GRADE_SYSTEM.SATURN, category: '일반' },
-  { value: GRADE_SYSTEM.SUN, emoji: GRADE_SYSTEM.SUN, category: '일반' },
-  { value: GRADE_SYSTEM.CRESCENT, emoji: GRADE_SYSTEM.CRESCENT, category: '예외' },
-  { value: GRADE_SYSTEM.GALAXY, emoji: GRADE_SYSTEM.GALAXY, category: '예외' }
-];
-
-const GRADE_ORDER = GRADE_OPTIONS.map((option) => option.emoji);
 
 const MyPage: React.FC = () => {
   const navigate = useNavigate();

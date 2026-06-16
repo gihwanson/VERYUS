@@ -3,7 +3,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions';
 
 const KST = 'Asia/Seoul';
-const GAME_IDS = ['typingSpeed', 'reactionTime'] as const;
+const GAME_IDS = ['typingSpeed', 'reactionTime', 'rhythmBeat'] as const;
 const PLATFORMS = ['pc', 'mobile'] as const;
 
 type GameId = (typeof GAME_IDS)[number];
@@ -109,6 +109,13 @@ const pickChampion = (gameId: GameId, docs: ScoreDoc[]): ScoreDoc | null => {
       return aDuration - bDuration;
     }
 
+    if (gameId === 'rhythmBeat') {
+      const aAccuracy = Number(aData.accuracy) || 0;
+      const bAccuracy = Number(bData.accuracy) || 0;
+      if (bAccuracy !== aAccuracy) return bAccuracy - aAccuracy;
+      return aDuration - bDuration;
+    }
+
     return aDuration - bDuration;
   });
 
@@ -148,6 +155,12 @@ const archiveAndResetGame = async (gameId: GameId, weekKey: string) => {
           ? {
               cpm: Number(data.cpm) || 0,
               sentence: String(data.sentence || ''),
+            }
+          : {}),
+        ...(gameId === 'rhythmBeat'
+          ? {
+              accuracy: Number(data.accuracy) || 0,
+              bpm: Number(data.bpm) || 0,
             }
           : {}),
         weekKey,

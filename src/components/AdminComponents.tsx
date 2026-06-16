@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Crown, Shield, User, Users, Activity, X, Edit3, AlertCircle, MessageSquare, Heart, FileText, Clock, TrendingUp, History, Eye, Search, Filter, Award, Plus, Target, Mail, Send, Trash2 } from 'lucide-react';
 import type { AdminUser, UserActivity, ActivityStats, UserActivitySummary, AdminLog, AdminAction, LogStats, ExtendedUserStats, UserAnalytics, BulkAction, Notification, NotificationType, NotificationTemplate, NotificationStats, NotificationTarget } from './AdminTypes';
-import { NOTIFICATION_TYPE_LABELS, NOTIFICATION_TYPE_COLORS, ADMIN_ACTION_LABELS, ADMIN_ACTION_COLORS, ROLE_SYSTEM, ROLE_OPTIONS } from './AdminTypes';
+import { NOTIFICATION_TYPE_LABELS, NOTIFICATION_TYPE_COLORS, ADMIN_ACTION_LABELS, ADMIN_ACTION_COLORS, ROLE_SYSTEM, ROLE_OPTIONS, GRADE_ORDER, GRADE_NAMES } from './AdminTypes';
 import { formatDate, getGradeDisplay, calculateActivityDays, createRoleDisplay, createRoleIcon, getUserStatus, createStatusDisplay, getSuspensionTimeLeft, getActivityIcon, formatActivityTime, getActivityLevel, getLogActionIcon, formatLogTime, calculateStats, calculateActivityScore, calculateActivityStats, changeUserStatus, isUserSuspended, executeBulkAction, generateUserAnalytics, logAdminAction, fetchAdminLogs, calculateLogStats, getNotificationTypeIcon, getNotificationStatusDisplay, getDefaultTemplates, createNotificationTargets, fetchNotificationTemplates, toggleAllTargets } from './AdminUtils';
 import { Timestamp } from 'firebase/firestore';
 import GlobalLoadingScreen from './GlobalLoadingScreen';
@@ -159,15 +159,11 @@ export const UserCard: React.FC<UserCardProps> = ({
               value={editingUser.grade}
               onChange={(e) => onEditChange('grade', e.target.value)}
             >
-              <option value="🍒">🍒 체리</option>
-              <option value="🫐">🫐 블루베리</option>
-              <option value="🥝">🥝 키위</option>
-              <option value="🍎">🍎 사과</option>
-              <option value="🍈">🍈 멜론</option>
-              <option value="🍉">🍉 수박</option>
-              <option value="🌍">🌍 지구</option>
-              <option value="🪐">🪐 토성</option>
-              <option value="☀️">☀️ 태양</option>
+              {GRADE_ORDER.map((grade) => (
+                <option key={grade} value={grade}>
+                  {grade} {GRADE_NAMES[grade] || grade}
+                </option>
+              ))}
             </select>
           </div>
         </div>
