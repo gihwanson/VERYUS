@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, onSnapshot } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { db } from '../../../firebase';
 import {
   CODES,
   HINTS,
@@ -14,16 +14,16 @@ import {
   calcRankScore,
   formatElapsed,
   LOCKED_PRACTICE_ROOM_AVAILABLE,
-} from '../../data/lockedPracticeRoom';
-import { detectGamePlatform, type GamePlatform } from '../../utils/gamePlatform';
+} from '../../../data/lockedPracticeRoom';
+import { detectGamePlatform, type GamePlatform } from '../../../utils/gamePlatform';
 import {
   saveEscapeRoomBestScore,
   type EscapeRoomBestScore,
-} from '../../utils/escapeRoomScores';
-import { setLastPlayedGame } from '../../utils/lastPlayedGame';
-import { playGameComplete, playNewRecord, unlockGameAudio } from '../../utils/gameSounds';
-import '../../styles/variables.css';
-import '../../styles/games.css';
+} from '../../../utils/escapeRoomScores';
+import { setLastPlayedGame } from '../../../utils/lastPlayedGame';
+import { playGameComplete, playNewRecord, unlockGameAudio } from '../../../utils/gameSounds';
+import '../../../styles/variables.css';
+import '../../../styles/games.css';
 
 type Phase = 'intro' | 'play' | 'cleared';
 type CodeTarget = 'bag' | 'drawer' | 'door' | null;

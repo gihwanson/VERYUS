@@ -7,7 +7,6 @@ import {
   arrayUnion,
   arrayRemove,
   increment,
-  deleteField,
   collection,
   addDoc,
   query,
@@ -90,11 +89,6 @@ interface EvaluationPost {
   fileName?: string;
   duration?: number;
   members?: string[];
-  votesPass?: number;
-  votesFail?: number;
-  votedMap?: Record<string, 'PASS' | 'FAIL'>;
-  votedUserNicknames?: Record<string, string>;
-  isAnonymousVote?: boolean;
 }
 
 // 타입 선언 추가
@@ -115,10 +109,6 @@ const EvaluationPostDetail: React.FC = () => {
   const optionsRef = useRef<HTMLDivElement>(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [messageContent, setMessageContent] = useState('');
-  const [voting, setVoting] = useState(false);
-  const [showVoteReveal, setShowVoteReveal] = useState(false);
-  const lastVoteTapRef = useRef<{ choice: 'PASS' | 'FAIL'; time: number } | null>(null);
-  const DOUBLE_TAP_MS = 400;
   const { isPlaying: isGlobalPlaying, pause: pauseGlobal, play: playGlobal, currentIdx: globalIdx } = useAudioPlayer();
   const location = useLocation();
   // 글로벌 플레이리스트 상태 기억용
@@ -179,11 +169,6 @@ const EvaluationPostDetail: React.FC = () => {
 
     void refreshUserProfile();
   }, []);
-
-  useEffect(() => {
-    setShowVoteReveal(false);
-    lastVoteTapRef.current = null;
-  }, [post?.id]);
 
   useEffect(() => {
     if (!id) return;
@@ -301,79 +286,6 @@ const EvaluationPostDetail: React.FC = () => {
       return;
     }
     navigate(`/evaluation/edit/${post.id}`);
-  };
-
-  const myVote = user?.uid && post?.votedMap ? post.votedMap[user.uid] : undefined;
-  const totalVotes = (post?.votesPass || 0) + (post?.votesFail || 0);
-  const ratioPass = totalVotes > 0 ? Math.round(((post?.votesPass || 0) / totalVotes) * 100) : 0;
-  const ratioFail = totalVotes > 0 ? 100 - ratioPass : 0;
-  const isAnonymousVote = post?.isAnonymousVote !== false;
-  const canViewAnonymousVoters = user?.nickname === '너래';
-  const voteEntries = Object.entries(post?.votedMap || {});
-  const passVoters = voteEntries
-    .filter(([, choice]) => choice === 'PASS')
-    .map(([uid]) => post?.votedUserNicknames?.[uid] || '알 수 없음');
-  const failVoters = voteEntries
-    .filter(([, choice]) => choice === 'FAIL')
-    .map(([uid]) => post?.votedUserNicknames?.[uid] || '알 수 없음');
-
-  const handleVoteButtonClick = (choice: 'PASS' | 'FAIL') => {
-    if (canViewAnonymousVoters) {
-      const now = Date.now();
-      const last = lastVoteTapRef.current;
-      if (last && last.choice === choice && now - last.time < DOUBLE_TAP_MS) {
-        lastVoteTapRef.current = null;
-        setShowVoteReveal(true);
-        return;
-      }
-      lastVoteTapRef.current = { choice, time: now };
-    }
-    void handleVerdictVote(choice);
-  };
-
-  const handleVerdictVote = async (choice: 'PASS' | 'FAIL') => {
-    if (!post || !user) {
-      alert('로그인이 필요합니다.');
-      return;
-    }
-
-    try {
-      setVoting(true);
-      const postRef = doc(db, 'posts', post.id);
-      const updateBase = {
-        [`votedUserNicknames.${user.uid}`]: user.nickname || '익명'
-      };
-
-      if (!myVote) {
-        await updateDoc(postRef, {
-          ...updateBase,
-          [`votedMap.${user.uid}`]: choice,
-          ...(choice === 'PASS' ? { votesPass: increment(1) } : { votesFail: increment(1) })
-        });
-        return;
-      }
-
-      if (myVote === choice) {
-        await updateDoc(postRef, {
-          [`votedMap.${user.uid}`]: deleteField(),
-          [`votedUserNicknames.${user.uid}`]: deleteField(),
-          ...(choice === 'PASS' ? { votesPass: increment(-1) } : { votesFail: increment(-1) })
-        });
-        return;
-      }
-
-      await updateDoc(postRef, {
-        ...updateBase,
-        [`votedMap.${user.uid}`]: choice,
-        ...(myVote === 'PASS' ? { votesPass: increment(-1) } : { votesFail: increment(-1) }),
-        ...(choice === 'PASS' ? { votesPass: increment(1) } : { votesFail: increment(1) })
-      });
-    } catch (voteError) {
-      console.error('합불 투표 실패:', voteError);
-      alert('투표 처리 중 오류가 발생했습니다.');
-    } finally {
-      setVoting(false);
-    }
   };
 
   if (error) {
@@ -519,59 +431,6 @@ const EvaluationPostDetail: React.FC = () => {
             </div>
           </div>
 
-          {post.category === 'busking' && (
-            <div style={{ marginTop: 16, display: 'grid', gap: 10 }}>
-              <div style={{ textAlign: 'center', color: '#8A55CC', fontWeight: 700 }}>
-                멤버 의견 투표 (합/불)
-              </div>
-              <button
-                className={`action-button ${myVote === 'PASS' ? 'liked' : ''}`}
-                disabled={voting}
-                onClick={() => handleVoteButtonClick('PASS')}
-                style={{ justifyContent: 'space-between' }}
-              >
-                <span>합격</span>
-                <span>{post.votesPass || 0}표 ({ratioPass}%)</span>
-              </button>
-              <button
-                className={`action-button ${myVote === 'FAIL' ? 'liked' : ''}`}
-                disabled={voting}
-                onClick={() => handleVoteButtonClick('FAIL')}
-                style={{ justifyContent: 'space-between' }}
-              >
-                <span>불합격</span>
-                <span>{post.votesFail || 0}표 ({ratioFail}%)</span>
-              </button>
-              <div style={{ textAlign: 'center', color: '#6B7280', fontSize: '0.92rem' }}>
-                {isAnonymousVote
-                  ? canViewAnonymousVoters
-                    ? '한 번 누르면 투표, 같은 칸을 빠르게 두 번 누르면 투표자를 확인할 수 있습니다.'
-                    : '익명 투표로 집계됩니다.'
-                  : '투표자 정보가 공개됩니다.'}
-              </div>
-              {(!isAnonymousVote || (canViewAnonymousVoters && showVoteReveal)) && (
-                <div style={{ marginTop: 8, padding: 12, background: '#F6F2FF', borderRadius: 12 }}>
-                  <div style={{ fontWeight: 700, color: '#7C4DBC', marginBottom: 8 }}>
-                    투표자 공개
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    <div>
-                      <div style={{ fontWeight: 600, marginBottom: 6 }}>합격</div>
-                      {passVoters.length > 0 ? passVoters.map((name, idx) => (
-                        <div key={`pass-voter-${idx}`} style={{ fontSize: 14, color: '#4B5563' }}>{name}</div>
-                      )) : <div style={{ fontSize: 14, color: '#9CA3AF' }}>아직 투표자가 없습니다.</div>}
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 600, marginBottom: 6 }}>불합격</div>
-                      {failVoters.length > 0 ? failVoters.map((name, idx) => (
-                        <div key={`fail-voter-${idx}`} style={{ fontSize: 14, color: '#4B5563' }}>{name}</div>
-                      )) : <div style={{ fontSize: 14, color: '#9CA3AF' }}>아직 투표자가 없습니다.</div>}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
           {/* 오디오 플레이어 (녹음게시판과 동일) */}
           {post.audioUrl && (
             <div style={{marginBottom:18}}>

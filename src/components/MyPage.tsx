@@ -1205,7 +1205,7 @@ const MyPage: React.FC = () => {
   // 합격곡 등급 계산 함수
   const getSongGrade = (song: ApprovedSong) => {
     const idxs = (song.members || []).map((m: string) =>
-      GRADE_ORDER.indexOf(getGradeEmoji(userMap[m]?.grade || GRADE_SYSTEM.CHERRY))
+      (GRADE_ORDER as readonly string[]).indexOf(getGradeEmoji(userMap[m]?.grade || GRADE_SYSTEM.CHERRY))
     );
     const minIdx = Math.min(...(idxs.length?idxs:[GRADE_ORDER.length-1]));
     return GRADE_ORDER[minIdx] || '🍒';
