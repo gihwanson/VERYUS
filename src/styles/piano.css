@@ -114,10 +114,10 @@ html.piano-landscape-active.piano-portrait-emulated body {
   max-width: none;
   z-index: 1000;
   padding:
-    calc(8px + env(safe-area-inset-top, 0px))
-    calc(10px + env(safe-area-inset-right, 0px))
-    calc(10px + env(safe-area-inset-bottom, 0px))
-    calc(10px + env(safe-area-inset-left, 0px));
+    calc(4px + env(safe-area-inset-top, 0px))
+    calc(6px + env(safe-area-inset-right, 0px))
+    calc(6px + env(safe-area-inset-bottom, 0px))
+    calc(4px + env(safe-area-inset-left, 0px));
 }
 
 html.piano-landscape-active:not(.piano-portrait-emulated) .piano-page--immersive {
@@ -125,9 +125,9 @@ html.piano-landscape-active:not(.piano-portrait-emulated) .piano-page--immersive
 }
 
 html.piano-landscape-active .piano-body {
-  --key-width: clamp(34px, 8.5vmin, 50px);
-  --key-height: clamp(96px, 34vmin, 220px);
-  --black-ratio: 0.46;
+  --key-width: clamp(44px, 11vmin, 68px);
+  --key-height: clamp(160px, 56vmin, 380px);
+  --black-ratio: 0.64;
 }
 
 html.piano-landscape-active .piano-stage {
@@ -138,12 +138,46 @@ html.piano-landscape-active .piano-stage {
 }
 
 html.piano-portrait-emulated .piano-body {
-  --key-width: clamp(34px, 8.5vmin, 50px);
-  --key-height: clamp(96px, 34vmin, 220px);
+  --key-width: clamp(44px, 11vmin, 68px);
+  --key-height: clamp(160px, 56vmin, 380px);
+  --black-ratio: 0.64;
 }
 
 html.piano-portrait-emulated .piano-stage {
   gap: 10px;
+}
+
+/* 몰입 모드 — 건반 영역 최대화 */
+.piano-page--immersive .piano-stage {
+  gap: 8px;
+  max-width: none;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.piano-page--immersive .piano-content {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  align-items: stretch;
+}
+
+.piano-page--immersive .piano-viewport {
+  max-width: none;
+  flex: 1;
+  min-height: 0;
+  justify-content: flex-end;
+}
+
+.piano-page--immersive .piano-body {
+  --key-width: clamp(48px, 12vmin, 72px);
+  --key-height: clamp(200px, 62vmin, 420px);
+  padding: 10px 10px 14px;
+}
+
+.piano-page--immersive .piano-toolbar {
+  padding: 8px 10px;
+  flex-shrink: 0;
 }
 
 .piano-stage {
@@ -268,6 +302,52 @@ html.piano-portrait-emulated .piano-stage {
 .piano-instrument-chevron {
   opacity: 0.7;
   flex-shrink: 0;
+}
+
+.piano-visible-keys-btn {
+  min-width: 0;
+  padding-right: 10px;
+  gap: 4px;
+}
+
+.piano-visible-keys-btn.is-open {
+  border-color: #5b8def;
+  background: #2f3548;
+}
+
+.piano-visible-keys-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888894;
+}
+
+.piano-visible-keys-value {
+  max-width: 64px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.piano-body--fit-keys {
+  width: max-content;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.piano-body--fit-keys .piano-keys-area {
+  width: calc(var(--measured-key-width) * var(--white-count));
+}
+
+.piano-body--fit-keys .piano-white-keys {
+  display: grid;
+  grid-template-columns: repeat(var(--white-count), var(--measured-key-width));
+  width: calc(var(--measured-key-width) * var(--white-count));
+}
+
+.piano-body--fit-keys .piano-white-key {
+  flex: none;
+  width: var(--measured-key-width);
 }
 
 .piano-instrument-menu {
@@ -421,18 +501,29 @@ html.piano-portrait-emulated .piano-stage {
 .piano-white-key,
 .piano-black-key {
   cursor: pointer;
+  transform: none;
+  transition: none;
+}
+
+.piano-white-key:active,
+.piano-black-key:active,
+.piano-white-key.is-active,
+.piano-black-key.is-active {
+  transform: none;
+  scale: 1;
+  filter: none;
 }
 
 .piano-body {
-  --key-width: 50px;
-  --key-height: 220px;
+  --key-width: 68px;
+  --key-height: 380px;
   --white-count: 52;
-  --black-ratio: 0.46;
-  --black-height-ratio: 0.6;
+  --black-ratio: 0.64;
+  --black-height-ratio: 0.64;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  padding: 22px 20px 26px;
+  padding: 14px 12px 16px;
   background: #1e1e1e;
   border-radius: 14px;
   border: 1px solid #2c2c2c;
@@ -487,10 +578,6 @@ html.piano-portrait-emulated .piano-stage {
   justify-content: flex-end;
   padding-bottom: 14px;
   gap: 3px;
-  transition:
-    transform 0.07s ease,
-    box-shadow 0.07s ease,
-    filter 0.12s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -508,21 +595,14 @@ html.piano-portrait-emulated .piano-stage {
   border-radius: 0 0 4px 4px;
 }
 
-/* 눌림 하이라이트 (네온 블루 → 피치 핑크) */
+/* 눌림 — 검정 그림자 대비 (크기·위치 변화 없음) */
 .piano-white-key::before {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(
-    180deg,
-    rgba(96, 165, 250, 0.55) 0%,
-    rgba(147, 197, 253, 0.3) 25%,
-    rgba(251, 207, 232, 0.25) 50%,
-    transparent 72%
-  );
+  background: transparent;
   opacity: 0;
-  transition: opacity 0.1s ease;
   pointer-events: none;
   z-index: 1;
 }
@@ -550,10 +630,26 @@ html.piano-portrait-emulated .piano-stage {
 }
 
 .piano-white-key.is-active {
-  transform: translateY(3px);
   box-shadow:
-    inset 0 2px 8px rgba(0, 0, 0, 0.1),
-    0 1px 0 #b8b4ac;
+    inset 0 6px 18px rgba(0, 0, 0, 0.32),
+    inset 0 2px 6px rgba(0, 0, 0, 0.18),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.12),
+    inset -1px 0 0 #c8c4bc,
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    0 4px 0 #c9c5bd,
+    0 6px 12px rgba(0, 0, 0, 0.18);
+}
+
+.piano-white-key:first-child.is-active {
+  box-shadow:
+    inset 0 6px 18px rgba(0, 0, 0, 0.32),
+    inset 0 2px 6px rgba(0, 0, 0, 0.18),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.12),
+    inset 1px 0 0 #d8d4cc,
+    inset -1px 0 0 #c8c4bc,
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    0 4px 0 #c9c5bd,
+    0 6px 12px rgba(0, 0, 0, 0.18);
 }
 
 .piano-white-key.is-c-root {
@@ -573,7 +669,7 @@ html.piano-portrait-emulated .piano-stage {
 }
 
 .piano-white-key.is-active::before {
-  opacity: 1;
+  opacity: 0;
 }
 
 /* ─── Black keys ─── */
@@ -624,28 +720,17 @@ html.piano-portrait-emulated .piano-stage {
   align-items: center;
   justify-content: flex-end;
   padding: 0 0 10px;
-  transform-origin: top center;
-  transition:
-    transform 0.07s ease,
-    box-shadow 0.07s ease,
-    filter 0.12s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* 눌림 시 오렌지 라이팅 */
+/* 눌림 — 하얀 그림자 대비 (크기·위치 변화 없음) */
 .piano-black-key::before {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(
-    180deg,
-    rgba(251, 146, 60, 0.38) 0%,
-    rgba(234, 88, 12, 0.16) 42%,
-    transparent 72%
-  );
+  background: transparent;
   opacity: 0;
-  transition: opacity 0.1s ease;
   pointer-events: none;
   z-index: 1;
 }
@@ -676,16 +761,18 @@ html.piano-portrait-emulated .piano-stage {
 }
 
 .piano-black-key.is-active {
-  transform: translateY(2px);
   box-shadow:
-    inset 1px 0 0 rgba(255, 255, 255, 0.1),
-    inset -1px 0 3px rgba(0, 0, 0, 0.45),
-    inset 0 2px 5px rgba(0, 0, 0, 0.42),
-    0 2px 4px rgba(0, 0, 0, 0.32);
+    inset 0 0 10px rgba(255, 255, 255, 0.42),
+    inset 0 3px 8px rgba(255, 255, 255, 0.28),
+    inset 1px 0 0 rgba(255, 255, 255, 0.3),
+    inset -1px 0 0 rgba(255, 255, 255, 0.12),
+    inset -1px 0 2px rgba(0, 0, 0, 0.42),
+    0 5px 8px rgba(0, 0, 0, 0.48),
+    0 2px 3px rgba(0, 0, 0, 0.28);
 }
 
 .piano-black-key.is-active::before {
-  opacity: 1;
+  opacity: 0;
 }
 
 /* ─── Guide labels ─── */
@@ -744,16 +831,16 @@ html.piano-portrait-emulated .piano-stage {
 /* ─── Responsive ─── */
 @media (max-width: 760px) {
   .piano-body {
-    --key-width: 44px;
-    --key-height: 190px;
-    padding: 16px 14px 20px;
+    --key-width: 58px;
+    --key-height: 320px;
+    padding: 12px 10px 14px;
   }
 }
 
 @media (orientation: portrait) and (max-width: 520px) {
   .piano-body {
-    --key-width: 40px;
-    --key-height: 175px;
+    --key-width: 54px;
+    --key-height: 300px;
   }
 
   .piano-toolbar {
@@ -777,12 +864,21 @@ html.piano-portrait-emulated .piano-stage {
   .piano-instrument-name {
     display: none;
   }
+
+  .piano-visible-keys-label {
+    display: none;
+  }
+
+  .piano-visible-keys-value {
+    max-width: 48px;
+    font-size: 12px;
+  }
 }
 
 @media (orientation: landscape) and (max-height: 500px) {
   .piano-body {
-    --key-height: 160px;
-    --key-width: 42px;
+    --key-height: 280px;
+    --key-width: 56px;
   }
 
   .piano-stage {
@@ -792,7 +888,7 @@ html.piano-portrait-emulated .piano-stage {
 
 @media (min-width: 900px) {
   .piano-body {
-    --key-width: 50px;
-    --key-height: 220px;
+    --key-width: 68px;
+    --key-height: 380px;
   }
 }

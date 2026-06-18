@@ -101,12 +101,12 @@ interface InstrumentConfig {
 }
 
 const INSTRUMENT_CONFIG: Record<InstrumentId, InstrumentConfig> = {
-  piano: { useSalamander: true, release: 1.4, reverbWet: 0.25 },
-  violin: { release: 1.8, reverbWet: 0.32 },
-  cello: { release: 2.0, reverbWet: 0.28 },
-  saxophone: { release: 1.2, reverbWet: 0.22 },
-  flute: { release: 1.0, reverbWet: 0.18 },
-  trumpet: { release: 0.9, reverbWet: 0.2 },
+  piano: { useSalamander: true, release: 1.0, reverbWet: 0.16 },
+  violin: { release: 1.4, reverbWet: 0.24 },
+  cello: { release: 1.6, reverbWet: 0.22 },
+  saxophone: { release: 0.9, reverbWet: 0.16 },
+  flute: { release: 0.8, reverbWet: 0.12 },
+  trumpet: { release: 0.7, reverbWet: 0.14 },
 };
 
 const ALL_INSTRUMENT_IDS = INSTRUMENT_OPTIONS.map((item) => item.id);
@@ -115,6 +115,9 @@ const isInstrumentId = (value: string): value is InstrumentId =>
   INSTRUMENT_OPTIONS.some((item) => item.id === value);
 
 export type PianoAudioState = 'idle' | 'loading' | 'ready' | 'error';
+
+/** 슬라이더 100%일 때 추가 부스트 (dB) */
+const MASTER_VOLUME_BOOST_DB = 10;
 
 let masterVolume = 0.75;
 let muted = false;
@@ -201,7 +204,11 @@ export const getPianoLoadProgress = (): number => loadProgress;
 
 const syncMasterGain = (): void => {
   if (!masterGain) return;
-  masterGain.volume.value = Tone.gainToDb(muted ? 0 : masterVolume);
+  if (muted || masterVolume <= 0) {
+    masterGain.volume.value = -Infinity;
+    return;
+  }
+  masterGain.volume.value = Tone.gainToDb(masterVolume) + MASTER_VOLUME_BOOST_DB;
 };
 
 const applyReverbForInstrument = (instrument: InstrumentId): void => {
@@ -262,7 +269,7 @@ const ensureCoreEngine = async (): Promise<void> => {
     }
 
     if (!masterGain) {
-      masterGain = new Tone.Volume(Tone.gainToDb(muted ? 0 : masterVolume));
+      masterGain = new Tone.Volume(-Infinity);
       masterGain.chain(reverb, Tone.getDestination());
     }
 
@@ -455,9 +462,9 @@ export const midiToLabel = (midi: number): string => {
   return `${names[midi % 12]}${octave}`;
 };
 
-const clampVelocity = (v: number): number => Math.max(0.35, Math.min(1, v));
+const clampVelocity = (v: number): number => Math.max(0.55, Math.min(1, v));
 
-const triggerAttack = (instrument: InstrumentId, midi: number, velocity = 0.88): void => {
+const triggerAttack = (instrument: InstrumentId, midi: number, velocity = 0.95): void => {
   const sampler = getSampler(instrument);
   if (!sampler || !samplerReady.get(instrument)) return;
 
@@ -466,12 +473,12 @@ const triggerAttack = (instrument: InstrumentId, midi: number, velocity = 0.88):
   const prev = counts.get(midi) ?? 0;
   counts.set(midi, prev + 1);
   if (prev === 0) {
-    sampler.triggerAttack(note, Tone.now(), clampVelocity(velocity));
+    sampler.triggerAttack(note, undefined, clampVelocity(velocity));
   }
 };
 
 /** 건반 누름 — voice id 반환 */
-export const startPianoNote = (midi: number, velocity = 0.88): number | null => {
+export const startPianoNote = (midi: number, velocity = 0.95): number | null => {
   if (typeof window === 'undefined') return null;
 
   const instrument = activeInstrument;
@@ -517,7 +524,7 @@ export const stopPianoNote = (voiceId: number): void => {
   const next = prev - 1;
   if (next <= 0) {
     counts.delete(voice.midi);
-    sampler.triggerRelease(voice.note, Tone.now());
+    sampler.triggerRelease(voice.note);
   } else {
     counts.set(voice.midi, next);
   }
