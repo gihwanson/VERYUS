@@ -610,16 +610,16 @@ const SetListForm: React.FC<SetListFormProps> = ({
       {/* 1단계: 참가자 입력 (리더) */}
       {isLeader && activeSetList && participantInputPhase && (
       <div className="setlist-manage-panel">
-        <h2 style={{ color: 'white', fontSize: 20, marginBottom: 16, fontWeight: 700 }}>
-          👥 참가자 · <span style={{ fontWeight: 600, fontSize: 16, opacity: 0.95 }}>{sessionTitleLabel}</span>
+        <h2 className="setlist-manage-heading" style={{ fontSize: 20, marginBottom: 16, fontWeight: 700 }}>
+          참가자 · <span style={{ fontWeight: 600, fontSize: 16, opacity: 0.95 }}>{sessionTitleLabel}</span>
         </h2>
 
-        <p style={{ color: 'rgba(255,255,255,0.88)', fontSize: 14, margin: '0 0 16px 0', lineHeight: 1.5 }}>
+        <p className="setlist-manage-sub" style={{ fontSize: 14, margin: '0 0 16px 0', lineHeight: 1.5 }}>
           진행에 참여할 참가자 닉네임을 입력한 뒤, <strong style={{ color: 'white' }}>완료</strong>를 눌러 주세요.
         </p>
 
         <div style={{ marginBottom: 16 }}>
-          <h3 style={{ color: 'white', fontSize: 16, marginBottom: 12, fontWeight: 600 }}>
+          <h3 className="setlist-manage-heading" style={{ fontSize: 16, marginBottom: 12, fontWeight: 600 }}>
             참가자 목록
           </h3>
           {participants.map((participant, index) => (
@@ -750,11 +750,11 @@ const SetListForm: React.FC<SetListFormProps> = ({
               📋 셋리스트 보기{activeSetList.songs?.length ? ` (${activeSetList.songs.length}곡)` : ''}
             </button>
           </div>
-          <h2 style={{ color: 'white', fontSize: 20, marginBottom: 8, fontWeight: 700 }}>
-            🎵 합격곡 등록 · <span style={{ fontWeight: 600, fontSize: 16, opacity: 0.95 }}>{sessionTitleLabel}</span>
+          <h2 className="setlist-manage-heading" style={{ fontSize: 20, marginBottom: 8, fontWeight: 700 }}>
+            합격곡 등록 · <span style={{ fontWeight: 600, fontSize: 16, opacity: 0.95 }}>{sessionTitleLabel}</span>
           </h2>
-          <p style={{ color: 'rgba(255,255,255,0.88)', fontSize: 14, margin: '0 0 20px 0', lineHeight: 1.5 }}>
-            참가자를 선택한 뒤 합격곡을 셋리스트에 추가하세요. 멤버는 <strong style={{ color: 'white' }}>진행</strong> 탭에서 순서만 확인합니다.
+          <p className="setlist-manage-sub" style={{ fontSize: 14, margin: '0 0 20px 0', lineHeight: 1.5 }}>
+            참가자를 선택한 뒤 합격곡을 셋리스트에 추가하세요. 멤버는 <strong>진행</strong> 탭에서 순서만 확인합니다.
           </p>
 
           <div className="setlist-manage-participant-chips">
@@ -763,16 +763,7 @@ const SetListForm: React.FC<SetListFormProps> = ({
                 key={name}
                 type="button"
                 onClick={() => setSelectedSongParticipant(name)}
-                style={{
-                  padding: '8px 14px',
-                  borderRadius: 20,
-                  border: selectedSongParticipant === name ? '2px solid rgba(255,255,255,0.9)' : '1px solid rgba(255,255,255,0.35)',
-                  background: selectedSongParticipant === name ? 'rgba(59, 130, 246, 0.55)' : 'rgba(255,255,255,0.12)',
-                  color: 'white',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
+                className={`setlist-manage-chip${selectedSongParticipant === name ? ' setlist-manage-chip--active' : ''}`}
               >
                 {name}
               </button>
@@ -781,30 +772,15 @@ const SetListForm: React.FC<SetListFormProps> = ({
 
           {selectedSongParticipant && (
             <div style={{ marginTop: 20 }}>
-              <h3 style={{ color: 'white', fontSize: 16, margin: '0 0 12px 0', fontWeight: 600 }}>
+              <h3 className="setlist-manage-heading" style={{ fontSize: 16, margin: '0 0 12px 0', fontWeight: 600 }}>
                 {selectedSongParticipant}님의 합격곡
               </h3>
 
-              <div
-                style={{
-                  marginBottom: 16,
-                  padding: 14,
-                  borderRadius: 12,
-                  background: 'rgba(168, 85, 247, 0.15)',
-                  border: '1px solid rgba(168, 85, 247, 0.35)'
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-                  <span style={{ color: 'white', fontWeight: 700, fontSize: 14 }}>🎵 자유곡</span>
+              <div className="setlist-manage-free-box">
+                <div className="setlist-manage-free-box__head">
+                  <span className="setlist-manage-free-box__title">자유곡</span>
                   {participantHasNicknameCard(selectedSongParticipant) && (
-                    <span style={{
-                      color: 'rgba(255,255,255,0.9)',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      background: 'rgba(34,197,94,0.35)',
-                      padding: '4px 10px',
-                      borderRadius: 8
-                    }}>
+                    <span className="setlist-manage-badge-added">
                       셋리스트에 추가됨
                     </span>
                   )}
@@ -832,30 +808,27 @@ const SetListForm: React.FC<SetListFormProps> = ({
                       type="button"
                       disabled={addingNicknameCard}
                       onClick={addNicknameCardToSetList}
+                      className="btn-primary"
                       style={{
-                        background: addingNicknameCard ? 'rgba(107,114,128,0.6)' : 'rgba(168, 85, 247, 0.85)',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: 8,
                         padding: '8px 16px',
-                        cursor: addingNicknameCard ? 'not-allowed' : 'pointer',
                         fontSize: 13,
-                        fontWeight: 700
+                        cursor: addingNicknameCard ? 'not-allowed' : 'pointer',
+                        opacity: addingNicknameCard ? 0.6 : 1,
                       }}
                     >
-                      {addingNicknameCard ? '추가 중…' : '🎵 자유곡 셋리스트에 추가'}
+                      {addingNicknameCard ? '추가 중…' : '자유곡 셋리스트에 추가'}
                     </button>
                   </div>
                 )}
-                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, margin: '8px 0 0', lineHeight: 1.4 }}>
+                <p className="setlist-manage-sub" style={{ fontSize: 12, margin: '8px 0 0', lineHeight: 1.4 }}>
                   슬롯 수를 정한 뒤 추가하면 진행 탭에서 곡을 채울 수 있습니다.
                 </p>
               </div>
 
               {loadingPassedSongs ? (
-                <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14, margin: 0 }}>합격곡을 불러오는 중…</p>
+                <p className="setlist-manage-sub" style={{ fontSize: 14, margin: 0 }}>합격곡을 불러오는 중…</p>
               ) : participantPassedSongs.length === 0 ? (
-                <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 14, margin: 0, lineHeight: 1.5 }}>
+                <p className="setlist-manage-sub" style={{ fontSize: 14, margin: 0, lineHeight: 1.5 }}>
                   등록 가능한 합격곡이 없습니다.
                 </p>
               ) : (

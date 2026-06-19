@@ -269,7 +269,7 @@ const SetListChat: React.FC<SetListChatProps> = ({
     >
       <div className="setlist-chat-header">
         <div className="setlist-chat-header-main">
-          <span className="setlist-chat-title">💬 멤버 채팅</span>
+          <span className="setlist-chat-title">멤버 채팅</span>
           {!collapsed && (
             <span className="setlist-chat-sub">{messages.length}개</span>
           )}

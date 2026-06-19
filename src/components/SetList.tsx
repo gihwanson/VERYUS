@@ -1,22 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ListMusic } from 'lucide-react';
 import SetListManager from './SetList/SetListManager';
 import SetListCards from './SetList/SetListCards';
 import { useSetListData } from './SetList/hooks/useSetListData';
 import { canManageSetList } from './SetList/setListPermissions';
 import './SetList/styles.css';
-
-const pageBg: React.CSSProperties = {
-  maxWidth: '100%',
-  width: '100%',
-  minHeight: '100vh',
-  margin: 0,
-  background: 'var(--paper-bg, #f5f0e8)',
-  borderRadius: 0,
-  boxShadow: 'none',
-  position: 'relative',
-  overflow: 'hidden'
-};
+import '../styles/warm-paper-setlist.css';
 
 const SetList: React.FC = () => {
   const navigate = useNavigate();
@@ -49,7 +39,6 @@ const SetList: React.FC = () => {
     }
   }, [canManage, viewMode]);
 
-  // 진행 탭: 하단 네비 자동 접기 (채팅 입력창 가림 방지)
   useEffect(() => {
     const performActive = viewMode === 'cards';
     try {
@@ -81,39 +70,41 @@ const SetList: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ ...pageBg, padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div className="setlist-loading-card" style={{ borderRadius: 4, padding: 32, textAlign: 'center', fontSize: 18, fontWeight: 600 }}>
-          셋리스트 불러오는 중…
-        </div>
+      <div className="setlist-loading-wrap">
+        <div className="setlist-loading-card">셋리스트 불러오는 중…</div>
       </div>
     );
   }
 
   const pageClassName = [
+    'setlist-page',
     isPerformFullscreen && 'setlist-page--fullscreen',
-    showManage && 'setlist-page--manage'
+    showManage && 'setlist-page--manage',
   ]
     .filter(Boolean)
     .join(' ');
 
+  const renderTabs = (flex?: boolean) =>
+    canManage ? (
+      <div className={`setlist-page-header__tabs${flex ? ' setlist-page-header__tabs--full' : ''}`}>
+        <button type="button" onClick={() => setViewMode('manage')} className={tabBtnClass(viewMode === 'manage', flex)}>
+          관리
+        </button>
+        <button type="button" onClick={() => setViewMode('cards')} className={tabBtnClass(viewMode === 'cards', flex)}>
+          진행
+        </button>
+      </div>
+    ) : null;
+
   return (
-    <div
-      className={pageClassName}
-      style={{
-        ...pageBg,
-        padding: isPerformFullscreen || showManage ? 0 : '20px'
-      }}
-    >
-      <div
-        className={`setlist-page-inner${showManage ? ' setlist-page-inner--manage' : ''}`}
-        style={{ position: 'relative', zIndex: 1 }}
-      >
+    <div className={pageClassName}>
+      <div className={`setlist-page-inner${showManage ? ' setlist-page-inner--manage' : ''}`}>
         {isPerformFullscreen ? (
-          <div className="setlist-page-header--compact">
-            <h1 className="setlist-page-title" style={{ fontSize: 15 }}>
+          <header className="setlist-page-header--compact">
+            <h1 className="setlist-page-title setlist-page-title--sm">
               {canManage ? '진행' : '셋리스트'}
             </h1>
-            <div style={{ display: 'flex', gap: 6 }}>
+            <div className="setlist-page-header__tabs">
               {canManage && (
                 <button type="button" onClick={() => setViewMode('manage')} className={tabBtnClass(false)}>
                   관리
@@ -123,64 +114,43 @@ const SetList: React.FC = () => {
                 홈
               </button>
             </div>
-          </div>
-        ) : narrowScreen ? (
-          <div className={showManage ? 'setlist-page-header-block' : ''} style={{ marginBottom: showManage ? 0 : 16 }}>
-            <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-              <h1 className="setlist-page-title" style={{ fontSize: 24 }}>
-                {canManage ? `셋리스트 — ${title}` : '셋리스트 — 진행'}
-              </h1>
-              <button
-                type="button"
-                onClick={() => navigate('/')}
-                className="setlist-home-btn"
-                style={{ marginTop: narrowScreen && !isPerformFullscreen ? 10 : 0 }}
-              >
-                ← 메인 메뉴
-              </button>
-            </div>
-            {canManage && (
-              <div style={{ display: 'flex', gap: 8, marginTop: 14, width: '100%', boxSizing: 'border-box' }}>
-                <button type="button" onClick={() => setViewMode('manage')} className={tabBtnClass(viewMode === 'manage', true)}>
-                  관리
-                </button>
-                <button type="button" onClick={() => setViewMode('cards')} className={tabBtnClass(viewMode === 'cards', true)}>
-                  진행
-                </button>
-              </div>
-            )}
-          </div>
+          </header>
         ) : (
-          <div
-            className={showManage ? 'setlist-page-header-block' : ''}
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'flex-start',
-              marginBottom: showManage ? 0 : 16,
-              flexWrap: 'wrap',
-              gap: '16px'
-            }}
-          >
-            <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-              <h1 className="setlist-page-title" style={{ fontSize: 28 }}>
-                {canManage ? `셋리스트 — ${title}` : '셋리스트 — 진행'}
-              </h1>
-              <button type="button" onClick={() => navigate('/')} className="setlist-home-btn">
-                ← 메인 메뉴
-              </button>
-            </div>
-            {canManage && (
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                <button type="button" onClick={() => setViewMode('manage')} className={tabBtnClass(viewMode === 'manage')}>
-                  관리
-                </button>
-                <button type="button" onClick={() => setViewMode('cards')} className={tabBtnClass(viewMode === 'cards')}>
-                  진행
-                </button>
+          <header className={`setlist-page-header${showManage ? ' setlist-page-header-block' : ''}`}>
+            {narrowScreen ? (
+              <>
+                <div className="setlist-page-header__main">
+                  <h1 className="setlist-page-title setlist-page-title--md">
+                    <ListMusic size={20} className="setlist-page-title__icon" aria-hidden />
+                    셋리스트
+                  </h1>
+                  <p className="setlist-page-sub">
+                    {canManage ? `${title} 모드` : '진행 모드'}
+                  </p>
+                  <button type="button" onClick={() => navigate('/')} className="setlist-home-btn">
+                    ← 메인 메뉴
+                  </button>
+                </div>
+                {renderTabs(true)}
+              </>
+            ) : (
+              <div className="setlist-page-header__row">
+                <div className="setlist-page-header__main">
+                  <h1 className="setlist-page-title setlist-page-title--lg">
+                    <ListMusic size={22} className="setlist-page-title__icon" aria-hidden />
+                    셋리스트
+                  </h1>
+                  <p className="setlist-page-sub">
+                    {canManage ? `리더 ${title} · 참가자 진행 확인` : '오늘의 진행 순서'}
+                  </p>
+                  <button type="button" onClick={() => navigate('/')} className="setlist-home-btn">
+                    ← 메인 메뉴
+                  </button>
+                </div>
+                {renderTabs()}
               </div>
             )}
-          </div>
+          </header>
         )}
 
         {showManage ? (

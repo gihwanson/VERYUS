@@ -5,8 +5,9 @@ import { collection, query, where, getDocs, addDoc, deleteDoc, doc, Timestamp, o
 import { db } from '../firebase';
 import { SUPER_ADMIN_NICKNAMES, GRADE_SYSTEM } from './AdminTypes';
 import { getGradeEmoji } from '../utils/gradeDisplay';
-import { Calendar, Clock, User, X, ChevronLeft, ChevronRight, Info, RefreshCw, LogIn, LogOut, Users } from 'lucide-react';
+import { Calendar, Clock, User, X, ChevronLeft, ChevronRight, Info, RefreshCw, LogIn, LogOut, Users, Music2, Settings } from 'lucide-react';
 import './PracticeRoomBooking.css';
+import '../styles/warm-paper-practice-room.css';
 
 interface Reservation {
   id: string;
@@ -1459,11 +1460,18 @@ const PracticeRoomBooking: React.FC = () => {
 
   return (
     <div className="practice-room-booking">
-      <div className="booking-header">
-        <button className="booking-back-button" onClick={() => navigate(-1)}>
-          <ChevronLeft size={24} />
+      <div className="practice-room-shell">
+      <header className="booking-header">
+        <button type="button" className="booking-back-button" onClick={() => navigate(-1)} aria-label="뒤로">
+          <ChevronLeft size={22} />
         </button>
-        <h1>🎹 연습실 예약</h1>
+        <div className="booking-header__title-wrap">
+          <h1>
+            <Music2 size={20} className="booking-header__icon" aria-hidden />
+            연습실 예약
+          </h1>
+          <p className="booking-header__sub">매일 09:00 – 22:00 · 1시간 단위</p>
+        </div>
         <div className="header-buttons">
           {isUnlimitedUser && (
             <span className="unlimited-admin-badge" title="예약 한도 없음">
@@ -1471,24 +1479,28 @@ const PracticeRoomBooking: React.FC = () => {
             </span>
           )}
           {isUnlimitedUser && (
-            <button 
-              className="management-button" 
+            <button
+              type="button"
+              className="management-button"
               onClick={() => navigate('/practice-room-management')}
               title="연습실 관리"
+              aria-label="연습실 관리"
             >
-              ⚙️
+              <Settings size={18} />
             </button>
           )}
-          <button 
-            className="refresh-button" 
+          <button
+            type="button"
+            className="refresh-button"
             onClick={handleManualRefresh}
             disabled={loading}
             title="새로고침"
+            aria-label="새로고침"
           >
-            <RefreshCw size={20} className={loading ? 'spinning' : ''} />
+            <RefreshCw size={18} className={loading ? 'spinning' : ''} />
           </button>
         </div>
-      </div>
+      </header>
 
       {!isUnlimitedUser && isCherryGradeUser() && (
         <div
@@ -1499,8 +1511,9 @@ const PracticeRoomBooking: React.FC = () => {
         </div>
       )}
 
-      {/* 현재 입실 현황 섹션 */}
-      <div className="check-in-section">
+      {/* 현재 입실 현황 */}
+      <section className="check-in-section practice-notebook-section" aria-label="현재 입실 현황">
+        <div className="practice-section-label">입실 현황</div>
         <div className="check-in-header">
           <div className="check-in-title">
             <Users size={20} />
@@ -1567,9 +1580,10 @@ const PracticeRoomBooking: React.FC = () => {
             ))}
           </div>
         )}
-      </div>
+      </section>
 
-      <div className="booking-controls">
+      <section className="booking-controls practice-notebook-section" aria-label="예약 일정">
+        <div className="practice-section-label">예약 일정</div>
         <div className="week-navigation">
           {isMobile ? (
             <>
@@ -1649,7 +1663,7 @@ const PracticeRoomBooking: React.FC = () => {
             </span>
           </div>
         )}
-      </div>
+      </section>
 
       {/* 뷰 렌더링 */}
       {isMobile ? (
@@ -1811,8 +1825,9 @@ const PracticeRoomBooking: React.FC = () => {
 
       {/* 내 예약 목록 */}
       {myReservations.length > 0 && (
-        <div className="my-reservations-section">
-          <h2>📋 내 예약 목록</h2>
+        <section className="my-reservations-section practice-notebook-section" aria-label="내 예약 목록">
+          <div className="practice-section-label">내 예약</div>
+          <h2>예약한 시간</h2>
           <div className="my-reservations-list">
             {myReservations.map((reservation) => (
               <div key={reservation.id} className="my-reservation-item">
@@ -1849,8 +1864,10 @@ const PracticeRoomBooking: React.FC = () => {
               </div>
             ))}
           </div>
-        </div>
+        </section>
       )}
+
+      </div>{/* .practice-room-shell */}
 
       {/* 예약 모달 — body로 포털(라우트 transform 때문에 fixed가 맨 위에 붙는 문제 방지) */}
       {showBookingModal && selectedTimeSlot && typeof document !== 'undefined' && createPortal(
@@ -1863,10 +1880,10 @@ const PracticeRoomBooking: React.FC = () => {
               </button>
             </div>
             {selectedTimeSlot.isException && (
-              <div style={{ background: '#d1fae5', padding: '10px 20px', borderTop: '1px solid #6ee7b7' }}>
-                <p style={{ margin: 0, fontSize: '13px', color: '#065f46', textAlign: 'center' }}>
-                  ✅ <strong>규칙 예외로 허용된 시간대</strong>입니다
-                  {isAdmin && <span style={{ fontSize: '12px' }}> (취소는 하단 버튼)</span>}
+              <div className="exception-notice">
+                <p>
+                  <strong>규칙 예외로 허용된 시간대</strong>입니다
+                  {isAdmin && <span className="exception-notice__admin"> (취소는 하단 버튼)</span>}
                 </p>
               </div>
             )}

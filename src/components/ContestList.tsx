@@ -2,10 +2,12 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, query, orderBy, getDocs, onSnapshot, doc as firestoreDoc, updateDoc } from 'firebase/firestore';
+import { Trophy } from 'lucide-react';
 import { auth, db } from '../firebase';
 import '../styles/variables.css';
 import '../styles/components.css';
 import '../styles/contest-ui-refresh.css';
+import '../styles/warm-paper-contest.css';
 
 import type { ContestType } from '../types/contest';
 import { registerOnParticipateClick } from '../utils/contestParticipant';
@@ -165,13 +167,8 @@ const ContestList: React.FC = () => {
     return deadline.seconds ? new Date(deadline.seconds * 1000).toLocaleDateString('ko-KR') : '';
   }, []);
 
-  const getRankEmoji = useCallback((rank: number): string => {
-    switch (rank) {
-      case 1: return '🥇';
-      case 2: return '🥈';
-      case 3: return '🥉';
-      default: return '';
-    }
+  const getRankLabel = useCallback((rank: number): string => {
+    return `${rank}위`;
   }, []);
 
   // Effects — Auth 준비 후 실시간 구독 (로딩 중 빈 목록·일시적 조회 실패로 오표시 방지)
@@ -225,15 +222,19 @@ const ContestList: React.FC = () => {
       <div className="contest-list-pattern" />
       <div className="contest-list-content">
         <div className="contest-header-row">
-          <h2 className="contest-title">
-            🏆 콘테스트
-          </h2>
+          <div>
+            <h2 className="contest-title">
+              <Trophy className="contest-title__icon" size={26} strokeWidth={2.2} aria-hidden />
+              콘테스트
+            </h2>
+            <p className="contest-page-sub">진행 중인 대회에 참여하거나 지난 결과를 확인하세요</p>
+          </div>
           {isAdmin && (
             <button
-              className="btn btn-primary"
+              className="btn btn-primary contest-create-button"
               onClick={() => navigate('/contests/create')}
             >
-              + 콘테스트 생성
+              콘테스트 생성
             </button>
           )}
         </div>
@@ -257,7 +258,7 @@ const ContestList: React.FC = () => {
           </div>
         ) : contests.length === 0 ? (
           <div className="contest-empty-state">
-            <div className="contest-empty-icon">🏆</div>
+            <Trophy className="contest-empty-icon" size={32} strokeWidth={1.8} aria-hidden />
             등록된 콘테스트가 없습니다.
           </div>
         ) : (
@@ -265,7 +266,7 @@ const ContestList: React.FC = () => {
             {/* 진행중 콘테스트 */}
             {contests.filter(c => !isContestEnded(c)).length > 0 && (
               <div className="contest-section">
-                <h3 className="contest-section-label">🔥 진행중</h3>
+                <h3 className="contest-section-label">진행 중</h3>
                 {contests.filter(c => !isContestEnded(c)).map(contest => (
                   <div key={contest.id} className="contest-card">
                     <div className="contest-card-content">
@@ -273,24 +274,24 @@ const ContestList: React.FC = () => {
                       <div className="contest-tags">
                         <span className="contest-tag type">{contest.type}</span>
                         {contest.isStarted && (
-                          <span className="contest-tag started">✅ 개최됨</span>
+                          <span className="contest-tag started">개최됨</span>
                         )}
                         {!contest.isStarted && (
-                          <span className="contest-tag waiting">⏸️ 대기중</span>
+                          <span className="contest-tag waiting">대기 중</span>
                         )}
-                        <span className="contest-date">📅 마감: {formatDeadline(contest.deadline)}</span>
+                        <span className="contest-date">마감 {formatDeadline(contest.deadline)}</span>
                       </div>
                     </div>
                     <div className="contest-buttons">
                       <button className="contest-button detail" onClick={() => navigate(`/contests/${contest.id}`)}>
-                        📋 상세
+                        상세
                       </button>
                       <button className="contest-button participate" onClick={() => handleParticipate(contest)}>
-                        🎯 참여
+                        참여
                       </button>
                       {user && user.role === '리더' && user.nickname === '너래' && (
                         <button className="contest-button end" onClick={async () => await updateDoc(firestoreDoc(db, 'contests', contest.id), { ended: true })}>
-                          🛑 종료
+                          종료
                         </button>
                       )}
                     </div>
@@ -302,7 +303,7 @@ const ContestList: React.FC = () => {
             {/* 종료된 콘테스트 */}
             {contests.filter(c => isContestEnded(c)).length > 0 && (
               <div className="contest-section">
-                <h3 className="contest-section-label">📁 종료됨</h3>
+                <h3 className="contest-section-label">종료됨</h3>
                 {contests.filter(c => isContestEnded(c)).map(contest => (
                   <div key={contest.id} className="contest-card ended">
                     <div className="contest-card-content">
@@ -311,7 +312,7 @@ const ContestList: React.FC = () => {
                         <div className="contest-top3">
                           {contest.top3.map((item) => (
                             <span key={item.rank} className={`contest-top3-badge rank-${item.rank}`}>
-                              {getRankEmoji(item.rank)} {item.name} ({item.score ? item.score.toFixed(1) : '-'})
+                              {getRankLabel(item.rank)} {item.name} ({item.score ? item.score.toFixed(1) : '-'})
                             </span>
                           ))}
                         </div>
@@ -323,7 +324,7 @@ const ContestList: React.FC = () => {
                     </div>
                     <div className="contest-buttons">
                       <button className="contest-button detail" onClick={() => navigate(`/contests/${contest.id}`)}>
-                        📋 상세
+                        상세
                       </button>
                     </div>
                   </div>

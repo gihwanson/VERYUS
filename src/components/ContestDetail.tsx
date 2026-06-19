@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import '../styles/variables.css';
 import '../styles/components.css';
 import '../styles/contest-ui-refresh.css';
+import '../styles/warm-paper-contest.css';
 
 import type { ContestType, RoundVote } from '../types/contest';
 import {

@@ -4,7 +4,7 @@ import { db } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import { GRADE_ORDER, GRADE_NAMES, GRADE_SYSTEM, type AdminUser } from './AdminTypes';
 import type { ApprovedSong, UserMap, SongType, TabType } from './ApprovedSongsUtils';
-import { Play, Pause } from 'lucide-react';
+import { Play, Pause, Trophy } from 'lucide-react';
 import { 
   filterSongsByType, 
   filterSongsBySearch, 
@@ -29,6 +29,7 @@ import {
 } from './ApprovedSongsComponents';
 import GlobalLoadingScreen from './GlobalLoadingScreen';
 import './ApprovedSongs.css';
+import '../styles/warm-paper-approved-songs.css';
 import {
   approvedSongCountsByNicknameFromDocs,
   notifyStaffOnApprovedSongCountMilestones
@@ -416,14 +417,16 @@ const ApprovedSongs: React.FC = () => {
 
   return (
     <div className="approved-songs-container">
-      {/* 배경 패턴 */}
-      <div className="approved-songs-bg-pattern" />
-      
-      <div className="approved-songs-content">
-        <h2 className="approved-songs-title">합격곡 관리 및 조회</h2>
-        
-        {/* 메인 탭 네비게이션 */}
-        <div className={`approved-songs-tabs ${!isAdmin ? 'two' : 'three'}`}>
+      <div className="approved-songs-shell">
+        <header className="approved-songs-header">
+          <h1>
+            <Trophy size={22} className="approved-songs-header__icon" aria-hidden />
+            합격곡
+          </h1>
+          <p className="approved-songs-header__sub">합격 기록 · 버스킹 조회</p>
+        </header>
+
+        <nav className={`approved-songs-tabs ${!isAdmin ? 'two' : 'three'}`} aria-label="합격곡 메뉴">
           {isAdmin && (
             <TabButton
               label="합격곡 등록"
@@ -451,7 +454,18 @@ const ApprovedSongs: React.FC = () => {
               setFilteredSongs([]);
             }}
           />
-        </div>
+        </nav>
+
+        <section className="approved-songs-panel" aria-live="polite">
+          {activeTab === 'register' && (
+            <span className="approved-songs-panel__label">등록</span>
+          )}
+          {activeTab === 'list' && (
+            <span className="approved-songs-panel__label">목록</span>
+          )}
+          {activeTab === 'busking' && (
+            <span className="approved-songs-panel__label">버스킹</span>
+          )}
 
         {/* 합격곡 등록/수정 폼 */}
         {activeTab === 'register' && isAdmin && (
@@ -481,33 +495,33 @@ const ApprovedSongs: React.FC = () => {
             <SearchInput
               value={searchTerm}
               onChange={setSearchTerm}
-              placeholder="🔍 곡 제목 또는 닉네임 (듀엣: 너래, 민주)"
+              placeholder="곡 제목 또는 닉네임 (듀엣: 너래, 민주)"
             />
             
             {/* 필터 탭 */}
             <div className="approved-songs-filter-tabs">
               <FilterTab
                 type="all"
-                label="🎵 전체"
+                label="전체"
                 isActive={manageTab === 'all'}
                 onClick={() => { setSongType('all'); setManageTab('all'); }}
               />
               <FilterTab
                 type="solo"
-                label="🎤 솔로곡"
+                label="솔로곡"
                 isActive={manageTab === 'solo'}
                 onClick={() => { setSongType('solo'); setManageTab('solo'); }}
               />
               <FilterTab
                 type="duet"
-                label="👥 듀엣/합창곡"
+                label="듀엣/합창"
                 isActive={manageTab === 'duet'}
                 onClick={() => { setSongType('duet'); setManageTab('duet'); }}
               />
               {isAdmin && (
                 <FilterTab
                   type="manage"
-                  label="⚙️ 관리"
+                  label="관리"
                   isActive={manageTab === 'manage'}
                   onClick={() => setManageTab('manage')}
                 />
@@ -518,37 +532,31 @@ const ApprovedSongs: React.FC = () => {
             {manageTab === 'manage' && isAdmin && (
               <div className="approved-songs-manage-section">
                 <h4 className="approved-songs-manage-title">
-                  👥 합격곡에 등재된 닉네임 목록
+                  합격곡에 등재된 닉네임
                 </h4>
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+                <div className="approved-songs-manage-toolbar">
                   <button
-                    className="approved-songs-btn"
+                    type="button"
+                    className="approved-songs-btn repair"
                     onClick={repairMissingAudioLinks}
                     disabled={isRepairingAudioLinks}
-                    style={{
-                      background: 'rgba(138, 85, 204, 0.9)',
-                      borderRadius: '10px',
-                      padding: '8px 14px',
-                      opacity: isRepairingAudioLinks ? 0.7 : 1,
-                      cursor: isRepairingAudioLinks ? 'not-allowed' : 'pointer'
-                    }}
                   >
-                    {isRepairingAudioLinks ? '⏳ 연결 점검 중...' : '🔧 녹음 연결 점검/복구'}
+                    {isRepairingAudioLinks ? '연결 점검 중…' : '녹음 연결 점검/복구'}
                   </button>
                 </div>
                 {repairFailures.length > 0 && (
-                  <div className="approved-songs-copy-box" style={{ marginBottom: '16px' }}>
+                  <div className="approved-songs-copy-box approved-songs-repair-failures">
                     <div className="approved-songs-copy-header">
-                      <span>⚠️ 자동 복구 실패 항목 ({repairFailures.length}곡)</span>
+                      <span>자동 복구 실패 ({repairFailures.length}곡)</span>
                     </div>
                     <ul className="approved-songs-manage-list">
                       {repairFailures.map(item => (
-                        <li key={item.songId} className="approved-songs-manage-item" style={{ alignItems: 'flex-start', flexDirection: 'column' }}>
-                          <span className="approved-songs-manage-nickname">🎵 {item.title}</span>
-                          <span style={{ color: 'rgba(255, 255, 255, 0.85)', fontSize: '13px' }}>
+                        <li key={item.songId} className="approved-songs-manage-item">
+                          <span className="approved-songs-manage-nickname">{item.title}</span>
+                          <span className="approved-songs-repair-members">
                             멤버: {item.members.length > 0 ? item.members.join(', ') : '-'}
                           </span>
-                          <span style={{ color: '#ffd6d6', fontSize: '13px' }}>
+                          <span className="approved-songs-repair-reason">
                             사유: {item.reason}
                           </span>
                         </li>
@@ -556,7 +564,7 @@ const ApprovedSongs: React.FC = () => {
                     </ul>
                   </div>
                 )}
-                <div className="approved-songs-card">
+                <div className="approved-songs-card approved-songs-card--manage-list">
                   <ul className="approved-songs-manage-list">
                     {uniqueMembers.map(nickname => (
                       <li
@@ -578,7 +586,7 @@ const ApprovedSongs: React.FC = () => {
                             className="approved-songs-manage-delete"
                             onClick={() => handleDeleteMember(nickname)}
                           >
-                            🗑️ 삭제
+                            삭제
                           </button>
                         )}
                       </li>
@@ -587,7 +595,7 @@ const ApprovedSongs: React.FC = () => {
                 </div>
                 <div className="approved-songs-copy-box">
                   <div className="approved-songs-copy-header">
-                    <span>📋 버스킹멤버 ({uniqueMembers.length}명)</span>
+                    <span>버스킹멤버 ({uniqueMembers.length}명)</span>
                     <button
                       className="approved-songs-copy-button"
                       onClick={async () => {
@@ -612,7 +620,7 @@ const ApprovedSongs: React.FC = () => {
                 </div>
                 <div className="approved-songs-copy-box">
                   <div className="approved-songs-copy-header">
-                    <span>📋 일반멤버 ({otherMembers.length}명)</span>
+                    <span>일반멤버 ({otherMembers.length}명)</span>
                     <button
                       className="approved-songs-copy-button"
                       onClick={async () => {
@@ -637,7 +645,7 @@ const ApprovedSongs: React.FC = () => {
                 </div>
                 <div className="approved-songs-copy-box">
                   <div className="approved-songs-copy-header">
-                    <span>📋 회비 면제멤버 ({feeExemptMembers.length}명)</span>
+                    <span>회비 면제멤버 ({feeExemptMembers.length}명)</span>
                     <button
                       className="approved-songs-copy-button"
                       onClick={async () => {
@@ -682,7 +690,7 @@ const ApprovedSongs: React.FC = () => {
         {/* 버스킹용 합격곡 조회 폼 */}
         {activeTab === 'busking' && (
           <div className="approved-songs-busking-card">
-            <h3 className="approved-songs-busking-title">🎤 버스킹용 합격곡 조회</h3>
+            <h3 className="approved-songs-busking-title">버스킹용 합격곡 조회</h3>
             
             <MemberInput
               members={buskingMembers}
@@ -692,10 +700,11 @@ const ApprovedSongs: React.FC = () => {
             {/* 합격곡 조회 버튼 별도 배치 */}
             <div className="approved-songs-busking-search">
               <button
+                type="button"
                 className="approved-songs-btn search"
                 onClick={handleBuskingSearch}
               >
-                🔍 합격곡 조회
+                합격곡 조회
               </button>
             </div>
             
@@ -706,25 +715,25 @@ const ApprovedSongs: React.FC = () => {
                 <div className="approved-songs-filter-tabs">
                   <FilterTab
                     type="all"
-                    label="🎵 전체"
+                    label="전체"
                     isActive={buskingTab === 'all'}
                     onClick={() => setBuskingTab('all')}
                   />
                   <FilterTab
                     type="solo"
-                    label="🎤 솔로곡"
+                    label="솔로곡"
                     isActive={buskingTab === 'solo'}
                     onClick={() => setBuskingTab('solo')}
                   />
                   <FilterTab
                     type="duet"
-                    label="👥 듀엣/합창곡"
+                    label="듀엣/합창"
                     isActive={buskingTab === 'duet'}
                     onClick={() => setBuskingTab('duet')}
                   />
                   <FilterTab
                     type="grade"
-                    label="🏆 등급순"
+                    label="등급순"
                     isActive={buskingTab === 'grade'}
                     onClick={() => setBuskingTab('grade')}
                   />
@@ -747,6 +756,7 @@ const ApprovedSongs: React.FC = () => {
             )}
           </div>
         )}
+        </section>
       </div>
     </div>
   );

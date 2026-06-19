@@ -6,6 +6,7 @@ import { parseRoundVoteFromDoc } from '../utils/contestParticipant';
 import { db } from '../firebase';
 import '../styles/components.css';
 import '../styles/contest-ui-refresh.css';
+import '../styles/warm-paper-contest.css';
 
 const ContestResults: React.FC = () => {
   const { id } = useParams();

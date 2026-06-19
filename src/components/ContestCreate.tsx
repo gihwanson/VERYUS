@@ -1,10 +1,13 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { Trophy } from 'lucide-react';
 import { db } from '../firebase';
 import type { ContestType } from '../types/contest';
 import '../styles/variables.css';
 import '../styles/components.css';
+import '../styles/contest-ui-refresh.css';
+import '../styles/warm-paper-contest.css';
 
 interface User {
   uid: string;
@@ -117,7 +120,7 @@ const ContestCreate: React.FC = () => {
   const isRoundMatch = formData.type === '라운드매치';
 
   return (
-    <div className="contest-create-container">
+    <div className="contest-create-container contest-ui-refresh">
       <div className="contest-create-pattern" />
 
       <div className="contest-create-content">
@@ -128,7 +131,10 @@ const ContestCreate: React.FC = () => {
         </div>
 
         <div className="contest-form">
-          <h2 className="contest-title">🏆 콘테스트 생성</h2>
+          <h2 className="contest-title">
+            <Trophy className="contest-title__icon" size={24} strokeWidth={2.2} aria-hidden />
+            콘테스트 생성
+          </h2>
 
           <div className="contest-field">
             <label className="contest-label">콘테스트명</label>
@@ -150,44 +156,23 @@ const ContestCreate: React.FC = () => {
               <option value="경연">등급전/경연 - 참가자 상호 평가 콘테스트</option>
               <option value="라운드매치">라운드매치 - A/B 팀 투표 대결</option>
             </select>
-            <div
-              style={{
-                marginTop: '8px',
-                padding: '12px',
-                borderRadius: '8px',
-                fontSize: '14px',
-                lineHeight: '1.6',
-                background: isRoundMatch ? '#FFF7ED' : '#F6F2FF',
-                border: isRoundMatch ? '1px solid #FED7AA' : '1px solid #8A55CC',
-                color: isRoundMatch ? '#9A3412' : '#6B21A8',
-              }}
-            >
+            <div className={`contest-type-hint${isRoundMatch ? ' contest-type-hint--round' : ''}`}>
               {formData.type === '경연' && (
                 <div>
-                  <strong>🎭 등급전/경연</strong>
+                  <strong>등급전 / 경연</strong>
                   <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
                     <li>참여 버튼을 누른 멤버가 참가자 목록에 표시됩니다</li>
                     <li>참가자들이 서로 점수를 부여하는 방식입니다</li>
                     <li>솔로·듀엣 팀 구성이 가능합니다</li>
                   </ul>
-                  <div
-                    style={{
-                      marginTop: '8px',
-                      padding: '10px',
-                      background: '#EFF6FF',
-                      borderRadius: '6px',
-                      border: '1px solid #BFDBFE',
-                      color: '#1E40AF',
-                      fontSize: '13px',
-                    }}
-                  >
-                    <strong>📝 다음 단계:</strong> 생성 후 상세 페이지에서 참가자·평가 대상을 등록해주세요.
+                  <div className="contest-type-hint__note">
+                    <strong>다음 단계:</strong> 생성 후 상세 페이지에서 참가자·평가 대상을 등록해주세요.
                   </div>
                 </div>
               )}
               {isRoundMatch && (
                 <div>
-                  <strong>⚔️ 라운드매치</strong>
+                  <strong>라운드매치</strong>
                   <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
                     <li>등록된 참가자가 A팀/B팀 중 하나에 투표합니다</li>
                     <li>라운드마다 다른 팀 대결을 진행할 수 있습니다</li>
@@ -230,8 +215,8 @@ const ContestCreate: React.FC = () => {
             />
           </div>
 
-          <button className="contest-submit-button" onClick={handleCreate}>
-            🎯 콘테스트 생성
+          <button className="contest-submit-button contest-button participate" onClick={handleCreate}>
+            콘테스트 생성
           </button>
         </div>
       </div>

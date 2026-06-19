@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause } from 'lucide-react';
+import { Play, Pause, Search } from 'lucide-react';
 import type { ApprovedSong, SongType, TabType } from './ApprovedSongsUtils';
 import { GRADE_ORDER } from './AdminTypes';
 
@@ -108,47 +108,19 @@ const SimpleAudioPlayer: React.FC<SimpleAudioPlayerProps> = ({
   };
 
   return (
-    <div style={{ 
-      display: 'flex', 
-      alignItems: 'center', 
-      gap: '8px', 
-      width: '100%',
-      marginTop: '8px',
-      padding: '8px',
-      background: 'rgba(255, 255, 255, 0.05)',
-      borderRadius: '8px'
-    }}>
-      <button 
-        onClick={handlePlayPause} 
-        style={{
-          background: 'rgba(138, 85, 204, 0.8)',
-          border: 'none',
-          borderRadius: '50%',
-          width: '36px',
-          height: '36px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          color: 'white',
-          flexShrink: 0
-        }}
+    <div className="approved-songs-audio-player">
+      <button
+        type="button"
+        className="approved-songs-audio-play"
+        onClick={handlePlayPause}
+        aria-label={isPlaying ? '일시정지' : '재생'}
       >
-        {isPlaying ? <Pause size={18} /> : <Play size={18} />}
+        {isPlaying ? <Pause size={16} /> : <Play size={16} />}
       </button>
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span style={{ fontSize: 12, color: 'rgba(255, 255, 255, 0.8)', minWidth: 35 }}>
-          {formatTime(currentTime)}
-        </span>
+      <div className="approved-songs-audio-track">
+        <span className="approved-songs-audio-time">{formatTime(currentTime)}</span>
         <div
-          style={{ 
-            flex: 1, 
-            height: 6, 
-            background: 'rgba(255, 255, 255, 0.2)', 
-            borderRadius: 3, 
-            cursor: 'pointer', 
-            position: 'relative' 
-          }}
+          className="approved-songs-audio-bar"
           onClick={e => {
             const bar = e.currentTarget;
             const rect = bar.getBoundingClientRect();
@@ -159,18 +131,17 @@ const SimpleAudioPlayer: React.FC<SimpleAudioPlayerProps> = ({
               setCurrentTime(percent * audioDuration);
             }
           }}
+          role="slider"
+          aria-valuenow={currentTime}
+          aria-valuemax={audioDuration}
+          tabIndex={0}
         >
           <div
-            style={{
-              width: audioDuration ? `${(currentTime / audioDuration) * 100}%` : '0%',
-              height: '100%',
-              background: 'linear-gradient(90deg, #8A55CC 60%, #B497D6 100%)',
-              borderRadius: 3,
-              transition: 'width 0.1s',
-            }}
+            className="approved-songs-audio-bar__fill"
+            style={{ width: audioDuration ? `${(currentTime / audioDuration) * 100}%` : '0%' }}
           />
         </div>
-        <span style={{ fontSize: 12, color: 'rgba(255, 255, 255, 0.8)', minWidth: 35 }}>
+        <span className="approved-songs-audio-time">
           {formatTime(audioDuration || duration || 0)}
         </span>
       </div>
@@ -221,37 +192,40 @@ export const SongListItem: React.FC<SongListItemProps> = ({
   };
 
   return (
-    <li className="approved-songs-list-item" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
-      <div style={{ display: 'flex', alignItems: 'center', width: '100%', flexWrap: 'wrap', gap: '12px' }}>
+    <li className="approved-songs-list-item">
+      <div className="approved-songs-list-item__main">
         {showGrade && grade && (
           <span className="approved-songs-grade-badge">{grade}</span>
         )}
-        <span className="approved-songs-title-text" style={{ flex: '1 1 200px' }}>{song.title}</span>
-        <span className="approved-songs-members" style={{ flex: '1 1 150px' }}>
+        <span className="approved-songs-title-text">{song.title}</span>
+        <span className="approved-songs-members">
           {song.members?.join(', ')}
         </span>
         {isAdmin && (
           <div className="approved-songs-actions-group">
             <button
+              type="button"
               className="approved-songs-btn edit"
               onClick={() => onEdit(song)}
             >
-              ✏️ 수정
+              수정
             </button>
             <button
+              type="button"
               className="approved-songs-btn remove"
               onClick={() => onDelete(song.id)}
             >
-              🗑️ 삭제
+              삭제
             </button>
           </div>
         )}
       </div>
       {(audioUrl || song.approvedPostId) && (
-        <div style={{ width: '100%', marginTop: '8px' }}>
+        <div className="approved-songs-list-item__audio">
           {!showPlayer ? (
             <button
-              className="approved-songs-btn"
+              type="button"
+              className="approved-songs-btn play-toggle"
               onClick={async () => {
                 if (!audioUrl && onLoadAudio) {
                   setIsLoading(true);
@@ -264,16 +238,8 @@ export const SongListItem: React.FC<SongListItemProps> = ({
                 setShowPlayer(true);
               }}
               disabled={isLoading}
-              style={{
-                background: 'rgba(255, 255, 255, 0.16)',
-                borderRadius: '8px',
-                padding: '6px 12px',
-                fontSize: '13px',
-                cursor: isLoading ? 'not-allowed' : 'pointer',
-                opacity: isLoading ? 0.6 : 1
-              }}
             >
-              {isLoading ? '⏳ 로딩 중...' : '▶ 플레이어 열기'}
+              {isLoading ? '로딩 중…' : '녹음 듣기'}
             </button>
           ) : audioUrl ? (
             <SimpleAudioPlayer
@@ -284,7 +250,7 @@ export const SongListItem: React.FC<SongListItemProps> = ({
               onPlayChange={onPlayChange}
             />
           ) : (
-            <span style={{ fontSize: '13px', color: '#94a3b8' }}>녹음 파일을 불러올 수 없습니다.</span>
+            <span className="approved-songs-audio-empty">녹음 파일을 불러올 수 없습니다.</span>
           )}
         </div>
       )}
@@ -318,7 +284,7 @@ export const SongList: React.FC<SongListProps> = ({
   currentPlayingId,
   onPlayChange
 }) => (
-  <div className="approved-songs-card">
+  <div className="approved-songs-card approved-songs-card--lined">
     <ul className="approved-songs-list">
       {songs.map(song => {
         let grade: string | undefined;
@@ -366,6 +332,7 @@ interface SearchInputProps {
 
 export const SearchInput: React.FC<SearchInputProps> = ({ value, onChange, placeholder }) => (
   <div className="approved-songs-search">
+    <Search size={16} className="approved-songs-search-icon" aria-hidden />
     <input
       type="text"
       value={value}
@@ -447,8 +414,8 @@ interface ActionButtonsProps {
 export const ActionButtons: React.FC<ActionButtonsProps> = ({ 
   onSave, 
   onCancel, 
-  saveLabel = "💾 저장", 
-  cancelLabel = "❌ 취소" 
+  saveLabel = '저장',
+  cancelLabel = '취소' 
 }) => (
   <div className="approved-songs-actions">
     <button 

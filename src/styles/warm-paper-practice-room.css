@@ -1,0 +1,775 @@
+/**
+ * 연습실 예약 — 웜 페이퍼 노트 일지 스타일
+ */
+
+.practice-room-booking {
+  --pr-slot-available-bg: #f4f8f1;
+  --pr-slot-available-border: #8faa8f;
+  --pr-slot-reserved-bg: #faf6ec;
+  --pr-slot-reserved-border: #c9a962;
+  --pr-slot-mine-bg: #f5efe4;
+  --pr-slot-mine-border: var(--paper-accent, #8b5a2b);
+  --pr-slot-blocked-bg: #faf2f2;
+  --pr-slot-blocked-border: #c48a8a;
+  --pr-slot-past-bg: #f3f0ea;
+  --pr-slot-exception-bg: #f0f5f0;
+  --pr-slot-exception-border: #7a9e8a;
+
+  min-height: 100dvh;
+  padding: calc(12px + env(safe-area-inset-top)) 16px calc(96px + env(safe-area-inset-bottom));
+  font-family: var(--paper-font-body, Georgia, 'Times New Roman', 'Batang', serif);
+  color: var(--paper-ink, #2c2416);
+  background: var(--paper-bg, #f5f0e8);
+}
+
+.practice-room-shell {
+  width: 100%;
+  max-width: min(920px, 100%);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ===== 헤더 ===== */
+.practice-room-booking .booking-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  margin-bottom: 0;
+  background: var(--paper-card, #fffdf8);
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-radius: var(--paper-radius, 4px);
+  box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.06);
+  backdrop-filter: none;
+}
+
+.practice-room-booking .booking-header__title-wrap {
+  min-width: 0;
+  text-align: center;
+}
+
+.practice-room-booking .booking-header h1 {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  font-family: var(--paper-serif, Georgia, serif);
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--paper-ink, #2c2416);
+  letter-spacing: -0.02em;
+}
+
+.practice-room-booking .booking-header__icon {
+  color: var(--paper-accent, #8b5a2b);
+  flex-shrink: 0;
+}
+
+.practice-room-booking .booking-header__sub {
+  margin: 4px 0 0;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--paper-muted, #8b7355);
+  letter-spacing: 0.02em;
+}
+
+.practice-room-booking .booking-back-button,
+.practice-room-booking .refresh-button,
+.practice-room-booking .management-button {
+  color: var(--paper-accent, #8b5a2b);
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-radius: var(--paper-radius, 4px);
+  background: var(--paper-tag-bg, #f0e6d6);
+  padding: 8px;
+}
+
+.practice-room-booking .booking-back-button:hover,
+.practice-room-booking .refresh-button:hover:not(:disabled),
+.practice-room-booking .management-button:hover {
+  background: #e8dcc8;
+  border-color: var(--paper-accent, #8b5a2b);
+}
+
+.practice-room-booking .unlimited-admin-badge {
+  padding: 4px 10px;
+  border-radius: var(--paper-radius, 4px);
+  font-size: 0.68rem;
+  font-weight: 700;
+  background: #eef5ee;
+  border: 1px solid #c5dcc8;
+  color: #3d6b4f;
+}
+
+/* ===== 섹션 공통 ===== */
+.practice-notebook-section {
+  position: relative;
+  background: var(--paper-card, #fffdf8);
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-radius: var(--paper-radius, 4px);
+  box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.06);
+  backdrop-filter: none !important;
+}
+
+.practice-section-label {
+  position: absolute;
+  top: -9px;
+  left: 14px;
+  padding: 0 8px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--paper-accent, #8b5a2b);
+  background: var(--paper-card, #fffdf8);
+}
+
+.practice-room-booking .check-in-section {
+  padding: 20px 16px 16px;
+  margin-bottom: 0;
+}
+
+.practice-room-booking .check-in-title h2 {
+  font-family: var(--paper-serif, Georgia, serif);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--paper-ink, #2c2416);
+}
+
+.practice-room-booking .check-in-count {
+  color: var(--paper-muted, #8b7355);
+  font-size: 0.88rem;
+}
+
+.practice-room-booking .check-in-button {
+  background: var(--paper-accent, #8b5a2b);
+  color: var(--paper-card, #fffdf8);
+  border-radius: var(--paper-radius, 4px);
+  box-shadow: none;
+}
+
+.practice-room-booking .check-in-button:hover:not(:disabled) {
+  background: var(--primary-dark, #6b4423);
+  transform: none;
+  box-shadow: none;
+}
+
+.practice-room-booking .check-out-button {
+  background: #faf0f0;
+  color: #8b4040;
+  border: 1px solid #d4a0a0;
+  border-radius: var(--paper-radius, 4px);
+  box-shadow: none;
+}
+
+.practice-room-booking .check-out-button:hover:not(:disabled) {
+  background: #f0e0e0;
+  transform: none;
+  box-shadow: none;
+}
+
+.practice-room-booking .check-in-empty {
+  padding: 24px 12px;
+  color: var(--paper-muted, #8b7355);
+  font-style: italic;
+}
+
+.practice-room-booking .check-in-item {
+  background: var(--paper-tag-bg, #f0e6d6);
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-radius: var(--paper-radius, 4px);
+  box-shadow: none;
+}
+
+.practice-room-booking .check-in-item:hover {
+  background: #e8dcc8;
+  transform: none;
+  box-shadow: none;
+}
+
+.practice-room-booking .check-in-item.my-check-in {
+  background: #f5efe4;
+  border-color: var(--paper-accent, #8b5a2b);
+}
+
+.practice-room-booking .check-in-name {
+  color: var(--paper-ink, #2c2416);
+}
+
+.practice-room-booking .check-in-badge {
+  background: var(--paper-accent, #8b5a2b);
+  border-radius: 2px;
+  font-size: 0.62rem;
+}
+
+.practice-room-booking .check-in-time {
+  color: var(--paper-muted, #8b7355);
+}
+
+/* ===== 예약 컨트롤 ===== */
+.practice-room-booking .booking-controls {
+  padding: 20px 16px 16px;
+  margin-bottom: 0;
+}
+
+.practice-room-booking .nav-button,
+.practice-room-booking .today-button {
+  background: var(--paper-accent, #8b5a2b);
+  color: var(--paper-card, #fffdf8);
+  border-radius: var(--paper-radius, 4px);
+  font-family: inherit;
+  font-size: 0.82rem;
+  box-shadow: none;
+}
+
+.practice-room-booking .nav-button:hover,
+.practice-room-booking .today-button:hover {
+  background: var(--primary-dark, #6b4423);
+  transform: none;
+}
+
+.practice-room-booking .current-week,
+.practice-room-booking .mobile-date-display {
+  font-family: var(--paper-serif, Georgia, serif);
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--paper-ink, #2c2416);
+}
+
+.practice-room-booking .color-legend {
+  background: var(--paper-tag-bg, #f0e6d6);
+  border: 1px dashed var(--paper-border, #e8dcc8);
+  border-radius: var(--paper-radius, 4px);
+  gap: 10px;
+  padding: 10px;
+}
+
+.practice-room-booking .legend-item {
+  font-size: 0.72rem;
+  color: var(--paper-body, #4a3f32);
+}
+
+.practice-room-booking .legend-color {
+  width: 18px;
+  height: 18px;
+  border-radius: 2px;
+}
+
+.practice-room-booking .legend-color.available {
+  background: var(--pr-slot-available-bg);
+  border-left: 3px solid var(--pr-slot-available-border);
+}
+
+.practice-room-booking .legend-color.reserved {
+  background: var(--pr-slot-reserved-bg);
+  border-left: 3px solid var(--pr-slot-reserved-border);
+}
+
+.practice-room-booking .legend-color.my-reservation {
+  background: var(--pr-slot-mine-bg);
+  border-left: 3px solid var(--pr-slot-mine-border);
+}
+
+.practice-room-booking .legend-color.blocked {
+  background: var(--pr-slot-blocked-bg);
+  border-left: 3px solid var(--pr-slot-blocked-border);
+}
+
+.practice-room-booking .legend-color.past {
+  background: var(--pr-slot-past-bg);
+  border-left: 3px solid var(--paper-border, #e8dcc8);
+  opacity: 0.75;
+}
+
+.practice-room-booking .legend-color.exception {
+  background: var(--pr-slot-exception-bg);
+  border-left: 3px solid var(--pr-slot-exception-border);
+}
+
+.practice-room-booking .daily-limit-info {
+  flex-wrap: wrap;
+  background: var(--paper-tag-bg, #f0e6d6);
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-left: 3px solid var(--paper-accent, #8b5a2b);
+  border-radius: var(--paper-radius, 4px);
+  box-shadow: none;
+  margin-top: 12px;
+}
+
+.practice-room-booking .limit-text {
+  font-size: 0.82rem;
+  color: var(--paper-body, #4a3f32);
+}
+
+.practice-room-booking .limit-text strong {
+  color: var(--paper-accent, #8b5a2b);
+  font-size: 0.95rem;
+}
+
+.practice-room-booking .cherry-grade-booking-notice {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--paper-radius, 4px);
+  background: #faf0f0;
+  border: 1px solid #d4a0a0;
+  color: #8b4040;
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+/* ===== 주간 그리드 ===== */
+.practice-room-booking .week-view,
+.practice-room-booking .day-view-mobile {
+  background: var(--paper-card, #fffdf8);
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-radius: var(--paper-radius, 4px);
+  box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.06);
+  backdrop-filter: none;
+  margin-bottom: 0;
+}
+
+.practice-room-booking .week-grid {
+  background: var(--paper-border, #e8dcc8);
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-radius: var(--paper-radius, 4px);
+  min-width: 760px;
+}
+
+.practice-room-booking .time-column.header,
+.practice-room-booking .day-column.header {
+  background: var(--paper-tag-bg, #f0e6d6);
+  color: var(--paper-ink, #2c2416);
+  font-family: var(--paper-serif, Georgia, serif);
+}
+
+.practice-room-booking .day-column.header.today {
+  background: #f5efe4;
+  box-shadow: inset 0 -2px 0 var(--paper-accent, #8b5a2b);
+}
+
+.practice-room-booking .time-column,
+.practice-room-booking .day-column,
+.practice-room-booking .time-slot {
+  background: var(--paper-card, #fffdf8);
+}
+
+.practice-room-booking .time-label {
+  color: var(--paper-muted, #8b7355);
+  font-weight: 600;
+}
+
+.practice-room-booking .time-column.header .time-label {
+  color: var(--paper-ink, #2c2416);
+}
+
+.practice-room-booking .day-date {
+  color: var(--paper-accent, #8b5a2b);
+}
+
+/* 슬롯 상태 */
+.practice-room-booking .time-slot.available,
+.practice-room-booking .mobile-time-slot.available {
+  background: var(--pr-slot-available-bg);
+  border-left: 3px solid var(--pr-slot-available-border);
+  box-shadow: none;
+}
+
+.practice-room-booking .time-slot.available:hover {
+  background: #eaf2e6;
+  transform: none;
+  box-shadow: inset 0 0 0 1px rgba(143, 170, 143, 0.35);
+}
+
+.practice-room-booking .time-slot.reserved,
+.practice-room-booking .mobile-time-slot.reserved {
+  background: var(--pr-slot-reserved-bg);
+  border-left: 3px solid var(--pr-slot-reserved-border);
+  box-shadow: none;
+}
+
+.practice-room-booking .time-slot.my-reservation,
+.practice-room-booking .mobile-time-slot.my-reservation {
+  background: var(--pr-slot-mine-bg);
+  border-left: 3px solid var(--pr-slot-mine-border);
+  box-shadow: none;
+}
+
+.practice-room-booking .time-slot.blocked,
+.practice-room-booking .mobile-time-slot.blocked {
+  background: var(--pr-slot-blocked-bg);
+  border-left: 3px solid var(--pr-slot-blocked-border);
+  box-shadow: none;
+}
+
+.practice-room-booking .time-slot.exception,
+.practice-room-booking .mobile-time-slot.exception {
+  background: var(--pr-slot-exception-bg) !important;
+  border-left: 3px solid var(--pr-slot-exception-border) !important;
+  box-shadow: none !important;
+}
+
+.practice-room-booking .time-slot.past,
+.practice-room-booking .mobile-time-slot.past {
+  background: var(--pr-slot-past-bg);
+  border-left: 3px solid var(--paper-border, #e8dcc8);
+  opacity: 0.65;
+}
+
+.practice-room-booking .user-name,
+.practice-room-booking .reservation-user,
+.practice-room-booking .time-label-large {
+  color: var(--paper-ink, #2c2416);
+  text-shadow: none;
+}
+
+.practice-room-booking .available-label {
+  color: #5a7a5a;
+}
+
+.practice-room-booking .available-label::before {
+  content: '·';
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.practice-room-booking .past-label {
+  color: var(--paper-muted, #8b7355);
+}
+
+.practice-room-booking .blocked-header {
+  color: #8b4040;
+  font-size: 0.82rem;
+}
+
+.practice-room-booking .blocked-reason,
+.practice-room-booking .blocked-reason-small {
+  color: var(--paper-body, #4a3f32);
+  background: rgba(255, 253, 248, 0.85);
+  border-radius: 2px;
+}
+
+.practice-room-booking .exception-badge {
+  background: var(--pr-slot-exception-border);
+  border-radius: 2px;
+  font-size: 0.65rem;
+}
+
+/* 모바일 슬롯 — 목차 행 느낌 */
+.practice-room-booking .day-slots {
+  gap: 6px;
+}
+
+.practice-room-booking .mobile-time-slot {
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-radius: var(--paper-radius, 4px);
+  min-height: 64px;
+  overflow: hidden;
+}
+
+.practice-room-booking .mobile-slot-time {
+  background: var(--paper-tag-bg, #f0e6d6);
+  border-right: 1px solid var(--paper-border, #e8dcc8);
+  min-width: 72px;
+  padding: 10px 8px;
+}
+
+.practice-room-booking .time-label-large {
+  font-family: var(--paper-serif, Georgia, serif);
+  font-size: 1rem;
+}
+
+.practice-room-booking .time-label-small,
+.practice-room-booking .time-separator {
+  color: var(--paper-muted, #8b7355);
+}
+
+.practice-room-booking .mobile-cancel-btn {
+  margin-top: 6px;
+  padding: 5px 10px;
+  background: #faf0f0;
+  color: #8b4040;
+  border: 1px solid #d4a0a0;
+  border-radius: var(--paper-radius, 4px);
+  font-size: 0.72rem;
+}
+
+.practice-room-booking .mobile-cancel-btn:active {
+  background: #f0e0e0;
+  transform: none;
+}
+
+/* ===== 내 예약 ===== */
+.practice-room-booking .my-reservations-section {
+  padding: 20px 16px 16px;
+  margin-bottom: 0;
+}
+
+.practice-room-booking .my-reservations-section h2 {
+  margin: 4px 0 14px;
+  font-family: var(--paper-serif, Georgia, serif);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--paper-ink, #2c2416);
+}
+
+.practice-room-booking .my-reservation-item {
+  background: var(--paper-tag-bg, #f0e6d6);
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-left: 3px solid var(--paper-accent, #8b5a2b);
+  border-radius: var(--paper-radius, 4px);
+  padding: 14px;
+}
+
+.practice-room-booking .reservation-date,
+.practice-room-booking .reservation-time {
+  color: var(--paper-body, #4a3f32);
+  font-size: 0.88rem;
+}
+
+.practice-room-booking .reservation-purpose {
+  background: var(--paper-card, #fffdf8);
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-radius: var(--paper-radius, 4px);
+  color: var(--paper-muted, #8b7355);
+  font-style: italic;
+}
+
+.practice-room-booking .reservation-members {
+  background: var(--paper-card, #fffdf8);
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-left: 3px solid var(--paper-muted, #8b7355);
+  border-radius: var(--paper-radius, 4px);
+  color: var(--paper-body, #4a3f32);
+}
+
+.practice-room-booking .my-reservation-item .cancel-button {
+  background: #faf0f0;
+  color: #8b4040;
+  border: 1px solid #d4a0a0;
+  border-radius: var(--paper-radius, 4px);
+  font-size: 0.82rem;
+}
+
+.practice-room-booking .my-reservation-item .cancel-button:hover {
+  background: #f0e0e0;
+  transform: none;
+}
+
+.practice-room-booking .admin-badge,
+.practice-room-booking .admin-badge-modal {
+  background: var(--paper-tag-bg, #f0e6d6);
+  color: var(--paper-muted, #8b7355);
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-radius: var(--paper-radius, 4px);
+}
+
+/* ===== 모달 ===== */
+.practice-booking-modal-overlay {
+  background: rgba(44, 36, 22, 0.45);
+}
+
+.practice-booking-modal-overlay .modal-content {
+  background: var(--paper-card, #fffdf8);
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-radius: var(--paper-radius, 4px);
+  box-shadow: 4px 6px 0 rgba(139, 115, 85, 0.12);
+}
+
+.practice-booking-modal-overlay .modal-header {
+  border-bottom: 1px solid var(--paper-border, #e8dcc8);
+  padding: 16px 18px;
+}
+
+.practice-booking-modal-overlay .modal-header h3 {
+  font-family: var(--paper-serif, Georgia, serif);
+  font-size: 1.05rem;
+  color: var(--paper-ink, #2c2416);
+}
+
+.practice-booking-modal-overlay .close-button {
+  color: var(--paper-muted, #8b7355);
+  border-radius: var(--paper-radius, 4px);
+}
+
+.practice-booking-modal-overlay .close-button:hover {
+  background: var(--paper-tag-bg, #f0e6d6);
+  color: var(--paper-accent, #8b5a2b);
+}
+
+.practice-booking-modal-overlay .modal-body {
+  padding: 18px;
+}
+
+.practice-booking-modal-overlay .info-row {
+  background: var(--paper-tag-bg, #f0e6d6);
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-radius: var(--paper-radius, 4px);
+  color: var(--paper-body, #4a3f32);
+  font-size: 0.9rem;
+}
+
+.practice-booking-modal-overlay .info-row svg {
+  color: var(--paper-accent, #8b5a2b);
+}
+
+.practice-booking-modal-overlay .duration-selector label,
+.practice-booking-modal-overlay .members-input label,
+.practice-booking-modal-overlay .purpose-input label {
+  color: var(--paper-ink, #2c2416);
+  font-family: var(--paper-serif, Georgia, serif);
+}
+
+.practice-booking-modal-overlay .auto-selected {
+  color: #5a7a5a;
+  background: var(--pr-slot-available-bg);
+  border: 1px solid var(--pr-slot-available-border);
+  border-radius: 2px;
+}
+
+.practice-booking-modal-overlay .duration-button {
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-radius: var(--paper-radius, 4px);
+  background: var(--paper-card, #fffdf8);
+  color: var(--paper-body, #4a3f32);
+}
+
+.practice-booking-modal-overlay .duration-button:hover:not(.disabled) {
+  border-color: var(--paper-accent, #8b5a2b);
+  background: var(--paper-tag-bg, #f0e6d6);
+}
+
+.practice-booking-modal-overlay .duration-button.active {
+  background: var(--paper-accent, #8b5a2b);
+  border-color: var(--paper-accent, #8b5a2b);
+  color: var(--paper-card, #fffdf8);
+}
+
+.practice-booking-modal-overlay .duration-hint {
+  background: var(--paper-tag-bg, #f0e6d6);
+  border-left: 3px solid var(--paper-accent, #8b5a2b);
+  border-radius: var(--paper-radius, 4px);
+  color: var(--paper-body, #4a3f32);
+}
+
+.practice-booking-modal-overlay .duration-hint.daily-limit {
+  background: #f5efe4;
+  border-left-color: var(--paper-accent, #8b5a2b);
+  color: var(--paper-body, #4a3f32);
+}
+
+.practice-booking-modal-overlay .duration-info {
+  background: var(--paper-card, #fffdf8);
+  border: 1px dashed var(--paper-border, #e8dcc8);
+  color: var(--paper-muted, #8b7355);
+  border-radius: var(--paper-radius, 4px);
+}
+
+.practice-booking-modal-overlay .member-input-container input,
+.practice-booking-modal-overlay .purpose-input input {
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-radius: var(--paper-radius, 4px);
+  background: var(--paper-card, #fffdf8);
+  color: var(--paper-ink, #2c2416);
+}
+
+.practice-booking-modal-overlay .member-input-container input:focus,
+.practice-booking-modal-overlay .purpose-input input:focus {
+  border-color: var(--paper-accent, #8b5a2b);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(139, 90, 43, 0.12);
+}
+
+.practice-booking-modal-overlay .add-member-btn {
+  background: var(--paper-accent, #8b5a2b);
+  border-radius: var(--paper-radius, 4px);
+}
+
+.practice-booking-modal-overlay .add-member-btn:hover:not(:disabled) {
+  background: var(--primary-dark, #6b4423);
+}
+
+.practice-booking-modal-overlay .member-tag {
+  background: var(--paper-tag-bg, #f0e6d6);
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-radius: var(--paper-radius, 4px);
+  color: var(--paper-body, #4a3f32);
+}
+
+.practice-booking-modal-overlay .remove-member-btn {
+  color: var(--paper-muted, #8b7355);
+}
+
+.practice-booking-modal-overlay .remove-member-btn:hover {
+  background: #e8dcc8;
+  color: var(--paper-ink, #2c2416);
+}
+
+.practice-booking-modal-overlay .modal-footer {
+  border-top: 1px solid var(--paper-border, #e8dcc8);
+  padding: 14px 18px;
+}
+
+.practice-booking-modal-overlay .cancel-btn {
+  background: transparent;
+  color: var(--paper-muted, #8b7355);
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-radius: var(--paper-radius, 4px);
+}
+
+.practice-booking-modal-overlay .confirm-btn {
+  background: var(--paper-accent, #8b5a2b);
+  border-radius: var(--paper-radius, 4px);
+}
+
+.practice-booking-modal-overlay .confirm-btn:hover {
+  background: var(--primary-dark, #6b4423);
+  transform: none;
+}
+
+.practice-booking-modal-overlay .delete-btn {
+  background: #faf0f0;
+  color: #8b4040;
+  border: 1px solid #d4a0a0;
+  border-radius: var(--paper-radius, 4px);
+}
+
+.practice-booking-modal-overlay .delete-btn:hover {
+  background: #f0e0e0;
+  transform: none;
+}
+
+.practice-booking-modal-overlay .exception-notice {
+  background: var(--pr-slot-exception-bg);
+  padding: 10px 18px;
+  border-top: 1px solid var(--pr-slot-exception-border);
+}
+
+.practice-booking-modal-overlay .exception-notice p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--paper-body, #4a3f32);
+  text-align: center;
+}
+
+.practice-booking-modal-overlay .exception-notice__admin {
+  font-size: 0.75rem;
+  color: var(--paper-muted, #8b7355);
+}
+
+@media (max-width: 768px) {
+  .practice-room-booking {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .practice-room-booking .booking-header h1 {
+    font-size: 1.05rem;
+  }
+
+  .practice-room-booking .booking-header__sub {
+    font-size: 0.68rem;
+  }
+}
