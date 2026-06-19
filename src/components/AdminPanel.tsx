@@ -40,9 +40,12 @@ import {
   Copy,
   Check,
   Eye,
-  EyeOff
+  EyeOff,
+  FlaskConical
 } from 'lucide-react';
 import { db } from '../firebase';
+import { functions } from '../firebase';
+import { httpsCallable } from 'firebase/functions';
 import { startOfWeek, endOfWeek } from 'date-fns';
 import { migrateExistingMessages } from '../utils/chatService';
 import { 
@@ -95,8 +98,10 @@ import {
   type UserStatus,
   type AdminLog,
   type AdminAction,
-  type LogStats
+  type LogStats,
+  SUPER_ADMIN_NICKNAMES
 } from './AdminTypes';
+import AdminDesignLab from './AdminDesignLab';
 import './AdminUserPanel.css';
 import { FaUsers, FaUserShield, FaChartPie, FaFire } from "react-icons/fa";
 import { subscribeAdminVerification } from '../utils/adminSessionVerify';
@@ -239,6 +244,9 @@ const AdminPanel: React.FC = () => {
   );
 
   const adminLogName = (u: VeryusUser) => u.nickname?.trim() || '관리자';
+  const isSuperAdmin = Boolean(
+    currentUser?.nickname && SUPER_ADMIN_NICKNAMES.includes(currentUser.nickname)
+  );
 
   // Auth + Firestore users 문서로 권한 재확인 (라우트 통과 후에도 역할 변경·조작 방지)
   useEffect(() => {
@@ -564,6 +572,20 @@ const AdminPanel: React.FC = () => {
       }
 
       await deleteDoc(doc(db, 'users', user.uid));
+
+      try {
+        const deleteUserAuth = httpsCallable<{ uid: string }, { ok: boolean; alreadyDeleted?: boolean }>(
+          functions,
+          'deleteUserAuthAccount'
+        );
+        await deleteUserAuth({ uid: user.uid });
+      } catch (authDeleteError) {
+        console.error('Firebase Auth 사용자 삭제 실패:', authDeleteError);
+        alert(
+          'Firestore 데이터는 삭제되었으나 로그인 계정(Firebase Auth) 삭제에 실패했습니다.\n' +
+          '동일 이메일로 재가입이 불가할 수 있습니다. Functions 배포 상태를 확인하거나 다시 시도해 주세요.'
+        );
+      }
       
       // 로그 기록
       await logAdminAction(
@@ -1913,6 +1935,16 @@ const AdminPanel: React.FC = () => {
             <History size={18} />
             <span>관리자 로그</span>
           </button>
+          {isSuperAdmin && (
+            <button
+              type="button"
+              className={`tab-button ${activeTab === 'lab' ? 'active' : ''}`}
+              onClick={() => setActiveTab('lab')}
+            >
+              <FlaskConical size={18} />
+              <span>실험실</span>
+            </button>
+          )}
         </div>
       </nav>
 
@@ -1920,6 +1952,7 @@ const AdminPanel: React.FC = () => {
         {activeTab === 'users' && renderUsersPanel()}
         {activeTab === 'grades' && renderGradesPanel()}
         {activeTab === 'logs' && renderLogsPanel()}
+        {activeTab === 'lab' && isSuperAdmin && <AdminDesignLab />}
       </main>
 
       {/* 사용자 상세 모달 */}

@@ -72,7 +72,7 @@ export interface BulkAction {
   parameters?: Record<string, any>;
 }
 
-export type TabType = 'users' | 'grades' | 'logs';
+export type TabType = 'users' | 'grades' | 'logs' | 'lab';
 export type SortBy = 'nickname' | 'grade' | 'role' | 'createdAt' | 'lastLoginAt' | 'activityScore';
 export type SortOrder = 'asc' | 'desc';
 
@@ -213,6 +213,13 @@ export const checkAdminAccess = (user: AdminAccessUser): boolean => {
   if (!user) return false;
   if (user.nickname && SUPER_ADMIN_NICKNAMES.includes(user.nickname)) return true;
   return user.role === ROLE_SYSTEM.LEADER || user.role === ROLE_SYSTEM.ADMIN;
+};
+
+/** 홈 노트 본문 편집: 너래 + 운영진만 */
+export const canEditHomeNotebookBody = (user: AdminAccessUser): boolean => {
+  if (!user) return false;
+  if (user.nickname && SUPER_ADMIN_NICKNAMES.includes(user.nickname)) return true;
+  return user.role === ROLE_SYSTEM.ADMIN;
 };
 
 /** 익명 쪽지 관리 등 일부 기능은 지정 닉네임만 허용 */

@@ -1,23 +1,13 @@
-/* 게시글 관련 스타일 */
+/* 게시글 관련 스타일 — 웜 페이퍼 */
 
-/* 게시글 목록 */
 .post-item {
-  background: linear-gradient(135deg, 
-    rgba(255, 255, 255, 0.25) 0%, 
-    rgba(255, 255, 255, 0.15) 50%,
-    rgba(255, 255, 255, 0.1) 100%);
-  backdrop-filter: blur(20px) saturate(1.2);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  border-radius: 18px;
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.1),
-    0 4px 16px rgba(255, 255, 255, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.1);
-  transition: all var(--transition-normal);
+  background: var(--paper-card, #fffdf8);
+  border-radius: var(--paper-radius, 4px);
+  box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.08);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
   padding: 1.5rem 1.25rem 1.25rem 1.25rem;
   cursor: pointer;
-  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--paper-border, #e8dcc8);
   display: flex;
   flex-direction: column;
   min-height: 160px;
@@ -25,19 +15,10 @@
 }
 
 .post-item:hover {
-  background: linear-gradient(135deg, 
-    rgba(255, 255, 255, 0.35) 0%, 
-    rgba(255, 255, 255, 0.25) 50%,
-    rgba(255, 255, 255, 0.2) 100%);
-  backdrop-filter: blur(25px) saturate(1.5);
-  -webkit-backdrop-filter: blur(25px) saturate(1.5);
-  box-shadow: 
-    0 12px 40px rgba(0, 0, 0, 0.15),
-    0 8px 24px rgba(255, 255, 255, 0.2),
-    inset 0 2px 0 rgba(255, 255, 255, 0.4),
-    inset 0 -2px 0 rgba(255, 255, 255, 0.1);
-  transform: translateY(-4px) scale(1.02);
-  border-color: rgba(255, 255, 255, 0.4);
+  background: var(--paper-card, #fffdf8);
+  transform: none;
+  border-color: var(--paper-accent, #8b5a2b);
+  box-shadow: 3px 4px 0 rgba(139, 115, 85, 0.12);
 }
 
 .post-header {
@@ -57,31 +38,24 @@
 .post-category, .category-badge {
   display: inline-block;
   min-width: 44px;
-  padding: 4px 14px;
+  padding: 4px 10px;
   font-size: 13px;
   font-weight: 600;
-  color: #1a1a2e;
-  background: linear-gradient(135deg, 
-    rgba(255, 255, 255, 0.8) 0%, 
-    rgba(255, 255, 255, 0.6) 100%);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  border-radius: 12px;
-  margin-right: 0;
-  margin-left: 0;
+  color: var(--paper-tag-text, #6b5344);
+  background: var(--paper-tag-bg, #f0e6d6);
+  border: none;
+  border-radius: 2px;
   text-align: center;
-  vertical-align: middle;
-  letter-spacing: 0.02em;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  letter-spacing: 0.01em;
 }
 
 .post-title {
   margin: 0;
   font-size: 1.13rem;
   font-weight: 700;
-  color: #1a1a2e;
-  text-shadow: 0 1px 3px rgba(255, 255, 255, 0.5);
+  font-family: var(--paper-serif, Georgia, serif);
+  color: var(--paper-ink, #2c2416);
+  text-shadow: none;
   display: -webkit-box;
   vertical-align: middle;
   overflow: hidden;
@@ -97,7 +71,7 @@
 
 .post-content-preview {
   font-size: 1.05rem;
-  color: #000000;
+  color: var(--paper-body, #4a3f32);
   margin: 0.7rem 0 1.2rem 0;
   line-height: 1.7;
   min-height: 2.5em;
@@ -111,7 +85,7 @@
   align-items: center;
   gap: 0.7rem;
   font-size: 0.97rem;
-  color: #a855f7;
+  color: var(--paper-muted, #8b7355);
 }
 
 .post-author {
@@ -126,20 +100,28 @@
   align-items: center;
   gap: 0.2rem;
   font-weight: 500;
-  color: #7c3aed;
+  color: var(--paper-ink, #2c2416);
 }
 
-.author-grade-emoji {
-  font-size: 1.1em;
+.author-grade-label {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 2px;
+  background: var(--paper-tag-bg, #f0e6d6);
+  color: var(--paper-tag-text, #6b5344);
+  border: 1px solid var(--paper-border, #e8dcc8);
 }
 
 .author-role, .author-position {
-  background: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%);
-  color: white;
-  border-radius: 999px;
-  font-size: 0.8em;
+  background: transparent;
+  color: var(--paper-muted, #8b7355);
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-radius: 2px;
+  font-size: 0.68rem;
   font-weight: 500;
-  padding: 0.1em 0.7em;
+  padding: 1px 6px;
 }
 
 .post-date, .post-views {
@@ -148,7 +130,7 @@
   gap: 0.25rem;
   white-space: nowrap;
   font-size: 12px;
-  color: #000000;
+  color: var(--paper-muted, #8b7355);
   font-weight: 500;
 }
 
@@ -165,7 +147,7 @@
   align-items: center;
   gap: 1.1rem;
   font-size: 0.98rem;
-  color: #000000;
+  color: var(--paper-muted, #8b7355);
   font-weight: 500;
 }
 
@@ -173,7 +155,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  color: #000000;
+  color: inherit;
   font-weight: 600;
 }
 
@@ -267,19 +249,16 @@
 }
 
 .category-tag {
-  padding: 0.6rem 1.5rem;
-  border-radius: 25px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #A855F7 100%);
-  color: white;
+  padding: 0.35rem 0.75rem;
+  border-radius: 2px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--paper-tag-bg, #f0e6d6);
+  color: var(--paper-tag-text, #6b5344);
   margin-left: 1rem;
-  box-shadow: 
-    0 4px 12px rgba(139, 92, 246, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: none;
+  letter-spacing: 0;
+  border: 1px solid var(--paper-border, #e8dcc8);
   position: relative;
   overflow: hidden;
 }
@@ -401,16 +380,16 @@
   gap: 0.75rem;
   margin-bottom: 2rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  color: white;
+  border-bottom: 1px solid var(--paper-border, #e8dcc8);
+  color: var(--paper-ink, #2c2416);
 }
 
 .write-form-title {
   font-size: 1.6rem;
   font-weight: 700;
-  color: white;
+  color: var(--paper-ink, #2c2416);
   margin: 0;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  text-shadow: none;
 }
 
 .form-group {
@@ -421,8 +400,8 @@
   display: block;
   margin-bottom: 0.5rem;
   font-weight: 600;
-  color: white;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  color: var(--paper-body, #4a3f32);
+  text-shadow: none;
 }
 
 .title-input {
@@ -586,7 +565,7 @@
   align-items: center;
   justify-content: center;
   padding: 3rem 2rem;
-  color: #1a1a2e;
+  color: var(--paper-ink, #2c2416);
   text-align: center;
   gap: 1rem;
 }
@@ -594,8 +573,8 @@
 .loading-container span {
   font-size: 1.1rem;
   font-weight: 500;
-  color: #1a1a2e;
-  text-shadow: 0 2px 4px rgba(255, 255, 255, 0.5);
+  color: var(--paper-ink, #2c2416);
+  text-shadow: none;
 }
 
 .empty-posts {

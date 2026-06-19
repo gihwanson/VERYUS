@@ -6,16 +6,18 @@
 }
 
 .settings-card .theme-swatch-picker__desc {
-  color: rgba(255, 255, 255, 0.9);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  color: var(--paper-muted, #8b7355);
+  text-shadow: none;
 }
 
 .settings-card .theme-swatch-picker__label {
-  color: #1f2937;
+  color: var(--paper-ink, #2c2416);
 }
 
 .settings-card .theme-swatch-picker__swatch {
-  background: #ffffff;
+  background: var(--paper-card, #fffdf8);
+  border-color: var(--paper-border, #e8dcc8);
+  border-radius: var(--paper-radius, 4px);
 }
 
 .theme-swatch-picker__grid {

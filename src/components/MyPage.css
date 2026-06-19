@@ -1,24 +1,21 @@
-/* CSS 변수 정의 */
+/* CSS 변수 — 웜 페이퍼 */
 :root {
-  /* Colors */
-  --primary: #8A55CC;
-  --primary-light: #B497D6;
-  --primary-dark: #7C4DBC;
-  --primary-alpha-10: rgba(138, 85, 204, 0.1);
-  --primary-alpha-20: rgba(138, 85, 204, 0.2);
+  --primary: #8b5a2b;
+  --primary-light: #a07040;
+  --primary-dark: #6b4423;
+  --primary-alpha-10: rgba(139, 90, 43, 0.1);
+  --primary-alpha-20: rgba(139, 90, 43, 0.18);
   
-  /* Background Colors */
-  --bg-gradient: linear-gradient(135deg, #E5DAF5 0%, #D4C2F0 100%);
-  --bg-white: #FFFFFF;
-  --bg-light: #F9FAFB;
-  --bg-lighter: #F3F4F6;
-  --bg-card: #FFFFFF;
+  --bg-gradient: #f5f0e8;
+  --bg-white: #fffdf8;
+  --bg-light: #f5f0e8;
+  --bg-lighter: #ede6d8;
+  --bg-card: #fffdf8;
   
-  /* Text Colors */
-  --text-primary: #1F2937;
-  --text-secondary: #6B7280;
-  --text-muted: #9CA3AF;
-  --text-white: #FFFFFF;
+  --text-primary: #2c2416;
+  --text-secondary: #4a3f32;
+  --text-muted: #8b7355;
+  --text-white: #fffdf8;
   
   /* Border Colors */
   --border-light: #E5E7EB;
@@ -64,7 +61,7 @@
 }
 
 body {
-  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--paper-font-body, Georgia, 'Times New Roman', 'Batang', serif);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -72,7 +69,7 @@ body {
 /* MyPage Layout */
 .mypage-container {
   min-height: 100vh;
-  background: var(--primary-bg);
+  background: var(--paper-bg, #f5f0e8);
   padding: var(--space-lg);
 }
 
@@ -398,7 +395,7 @@ body {
   border: 2px solid #E5E7EB;
   border-radius: 12px;
   font-size: 16px;
-  font-family: 'Pretendard', sans-serif;
+  font-family: var(--paper-font-body, Georgia, 'Times New Roman', 'Batang', serif);
   transition: border-color 0.3s ease;
 }
 
@@ -412,7 +409,7 @@ body {
   border: 2px solid #E5E7EB;
   border-radius: 12px;
   font-size: 14px;
-  font-family: 'Pretendard', sans-serif;
+  font-family: var(--paper-font-body, Georgia, 'Times New Roman', 'Batang', serif);
   resize: vertical;
   min-height: 120px;
   transition: border-color 0.3s ease;
@@ -439,7 +436,7 @@ body {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
-  font-family: 'Pretendard', sans-serif;
+  font-family: var(--paper-font-body, Georgia, 'Times New Roman', 'Batang', serif);
 }
 
 .edit-btn {
@@ -488,7 +485,7 @@ body {
   border: 2px solid #E5E7EB;
   border-radius: 16px;
   font-size: 14px;
-  font-family: 'Pretendard', sans-serif;
+  font-family: var(--paper-font-body, Georgia, 'Times New Roman', 'Batang', serif);
   resize: vertical;
   min-height: 100px;
   transition: border-color 0.3s ease;
@@ -513,7 +510,7 @@ body {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
-  font-family: 'Pretendard', sans-serif;
+  font-family: var(--paper-font-body, Georgia, 'Times New Roman', 'Batang', serif);
 }
 
 .send-btn:hover {

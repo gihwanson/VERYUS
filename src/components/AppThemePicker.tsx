@@ -27,7 +27,7 @@ const AppThemePicker: React.FC = () => {
       options={APP_THEME_OPTIONS}
       selectedId={selected}
       onSelect={handleSelect}
-      description="앱 전체 배경·강조 색상을 선택하세요. 게시판, 홈, 콘테스트 등에 적용됩니다."
+      description="웜 페이퍼 화면 위에 적용할 강조 색상을 선택하세요. 버튼·링크·탭 등에 반영됩니다."
       ariaLabel="앱 테마 색상"
     />
   );

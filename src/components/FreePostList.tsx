@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 import type { DocumentData } from 'firebase/firestore';
 import { db } from '../firebase';
-import { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
+import { getGradeBadgeLabel, getGradeName } from '../utils/gradeDisplay';
 import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
 import { 
   ArrowLeft, 
@@ -520,24 +520,15 @@ const FreePostList: React.FC = () => {
         </div>
         <div className="action-buttons">
           <select
+            className="post-sort-select"
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortOption)}
-            style={{
-              background: 'rgba(255,255,255,0.18)',
-              color: '#FFFFFF',
-              border: '1px solid rgba(255,255,255,0.3)',
-              borderRadius: 8,
-              padding: '6px 8px',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              marginRight: '0.4rem'
-            }}
           >
-            <option value="latest" style={{ color: '#1f2937' }}>최신순</option>
-            <option value="oldest" style={{ color: '#1f2937' }}>오래된순</option>
-            <option value="likes" style={{ color: '#1f2937' }}>좋아요순</option>
-            <option value="comments" style={{ color: '#1f2937' }}>댓글순</option>
-            <option value="views" style={{ color: '#1f2937' }}>조회순</option>
+            <option value="latest">최신순</option>
+            <option value="oldest">오래된순</option>
+            <option value="likes">좋아요순</option>
+            <option value="comments">댓글순</option>
+            <option value="views">조회순</option>
           </select>
           <button 
             className="write-button" 
@@ -589,10 +580,10 @@ const FreePostList: React.FC = () => {
                 </div>
                 <div className="post-meta">
                   <div className="post-author">
-                    <span className="author-grade-emoji" title={getGradeName(post.writerGrade || '🍒')} style={{ fontSize: '1.1rem', marginRight: '0.3rem' }}>
-                      {getGradeEmoji(post.writerGrade || '🍒')}
+                    <span className="author-grade-label" title={getGradeName(post.writerGrade || '🍒')}>
+                      {getGradeBadgeLabel(post.writerGrade)}
                     </span>
-                    <span className="author-info" style={{ fontSize: '1.1rem', color: '#FFFFFF', fontWeight: 600, textDecoration: 'none' }}>
+                    <span className="author-info post-author-name--list">
                       {post.writerNickname}
                     </span>
                     <span className={`role-badge ${getPublicRoleBadge(post.writerRole, post.writerPosition)}`}>
@@ -621,26 +612,26 @@ const FreePostList: React.FC = () => {
                 </div>
               </div>
 
-              <div className="post-footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(139, 92, 246, 0.1)', color: '#FFFFFF', fontSize: '0.85rem', fontWeight: 500 }}>
-                <span className="post-stat" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#FFFFFF' }}>
-                  <Heart size={16} style={{ color: '#FFFFFF' }} />
+              <div className="post-footer post-stats-row">
+                <span className="post-stat post-stat-item">
+                  <Heart size={16} />
                   {post.likesCount || 0}
                 </span>
-                <span className="post-stat" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#FFFFFF' }}>
-                  <MessageCircle size={16} style={{ color: '#FFFFFF' }} />
+                <span className="post-stat post-stat-item">
+                  <MessageCircle size={16} />
                   {post.commentCount || 0}
                 </span>
-                <span className="post-date" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#FFFFFF' }}>
-                  <Clock size={16} style={{ color: '#FFFFFF' }} />
+                <span className="post-date post-stat-item">
+                  <Clock size={16} />
                   {formatDate(post.createdAt)}
                 </span>
-                <span className="post-views" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#FFFFFF' }}>
-                  <Eye size={16} style={{ color: '#FFFFFF' }} />
+                <span className="post-views post-stat-item">
+                  <Eye size={16} />
                   조회 {post.views || 0}
                 </span>
                 {post.bookmarks && post.bookmarks.length > 0 && (
-                  <span className="post-stat" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#FFFFFF' }}>
-                    <Bookmark size={16} style={{ color: '#FFFFFF' }} />
+                  <span className="post-stat post-stat-item">
+                    <Bookmark size={16} />
                     {post.bookmarks.length}
                   </span>
                 )}

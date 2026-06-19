@@ -11,7 +11,7 @@ const pageBg: React.CSSProperties = {
   width: '100%',
   minHeight: '100vh',
   margin: 0,
-  background: 'var(--app-page-gradient)',
+  background: 'var(--paper-bg, #f5f0e8)',
   borderRadius: 0,
   boxShadow: 'none',
   position: 'relative',
@@ -76,59 +76,13 @@ const SetList: React.FC = () => {
   const isPerformFullscreen = narrowScreen && viewMode === 'cards';
   const title = showManage ? '관리' : '진행';
 
-  const tabBtnStyle = (active: boolean, flex?: boolean): React.CSSProperties => ({
-    ...(flex ? { flex: 1, minWidth: 0 } : {}),
-    background: active ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.15)',
-    backdropFilter: 'blur(10px)',
-    color: 'white',
-    border: 'none',
-    borderRadius: 12,
-    padding: flex ? '12px 8px' : '10px 16px',
-    fontWeight: 600,
-    fontSize: flex ? 13 : undefined,
-    cursor: 'pointer',
-    transition: 'all 0.3s ease'
-  });
-
-  const homeBtnStyle: React.CSSProperties = {
-    marginTop: narrowScreen && !isPerformFullscreen ? 10 : 0,
-    padding: narrowScreen && !isPerformFullscreen ? '8px 14px' : '10px 18px',
-    borderRadius: narrowScreen && !isPerformFullscreen ? 10 : 12,
-    border: '1px solid rgba(255,255,255,0.35)',
-    background: 'rgba(255,255,255,0.15)',
-    backdropFilter: 'blur(8px)',
-    color: 'white',
-    fontWeight: 600,
-    fontSize: narrowScreen && !isPerformFullscreen ? 13 : 14,
-    cursor: 'pointer'
-  };
+  const tabBtnClass = (active: boolean, flex?: boolean) =>
+    `setlist-tab-btn${active ? ' setlist-tab-btn--active' : ''}${flex ? ' setlist-tab-btn--flex' : ''}`;
 
   if (loading) {
     return (
       <div style={{ ...pageBg, padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background:
-              'radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.1) 0%, transparent 50%), radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.08) 0%, transparent 50%)',
-            pointerEvents: 'none'
-          }}
-        />
-        <div
-          style={{
-            position: 'relative',
-            background: 'rgba(255, 255, 255, 0.15)',
-            backdropFilter: 'blur(15px)',
-            borderRadius: 20,
-            padding: 32,
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            textAlign: 'center',
-            color: 'white',
-            fontSize: 18,
-            fontWeight: 600
-          }}
-        >
+        <div className="setlist-loading-card" style={{ borderRadius: 4, padding: 32, textAlign: 'center', fontSize: 18, fontWeight: 600 }}>
           셋리스트 불러오는 중…
         </div>
       </div>
@@ -151,31 +105,21 @@ const SetList: React.FC = () => {
       }}
     >
       <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background:
-            'radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.1) 0%, transparent 50%), radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.08) 0%, transparent 50%)',
-          pointerEvents: 'none'
-        }}
-      />
-
-      <div
         className={`setlist-page-inner${showManage ? ' setlist-page-inner--manage' : ''}`}
         style={{ position: 'relative', zIndex: 1 }}
       >
         {isPerformFullscreen ? (
           <div className="setlist-page-header--compact">
-            <h1 style={{ color: 'white', fontWeight: 700, textShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>
-              🎴 {canManage ? '진행' : '셋리스트'}
+            <h1 className="setlist-page-title" style={{ fontSize: 15 }}>
+              {canManage ? '진행' : '셋리스트'}
             </h1>
             <div style={{ display: 'flex', gap: 6 }}>
               {canManage && (
-                <button type="button" onClick={() => setViewMode('manage')} style={tabBtnStyle(false)}>
+                <button type="button" onClick={() => setViewMode('manage')} className={tabBtnClass(false)}>
                   관리
                 </button>
               )}
-              <button type="button" onClick={() => navigate('/')} style={tabBtnStyle(false)}>
+              <button type="button" onClick={() => navigate('/')} className={tabBtnClass(false)}>
                 홈
               </button>
             </div>
@@ -183,28 +127,25 @@ const SetList: React.FC = () => {
         ) : narrowScreen ? (
           <div className={showManage ? 'setlist-page-header-block' : ''} style={{ marginBottom: showManage ? 0 : 16 }}>
             <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-              <h1
-                style={{
-                  color: 'white',
-                  fontWeight: 700,
-                  fontSize: 24,
-                  margin: 0,
-                  textShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                }}
-              >
+              <h1 className="setlist-page-title" style={{ fontSize: 24 }}>
                 {canManage ? `셋리스트 — ${title}` : '셋리스트 — 진행'}
               </h1>
-              <button type="button" onClick={() => navigate('/')} style={homeBtnStyle}>
+              <button
+                type="button"
+                onClick={() => navigate('/')}
+                className="setlist-home-btn"
+                style={{ marginTop: narrowScreen && !isPerformFullscreen ? 10 : 0 }}
+              >
                 ← 메인 메뉴
               </button>
             </div>
             {canManage && (
               <div style={{ display: 'flex', gap: 8, marginTop: 14, width: '100%', boxSizing: 'border-box' }}>
-                <button type="button" onClick={() => setViewMode('manage')} style={tabBtnStyle(viewMode === 'manage', true)}>
-                  📋 관리
+                <button type="button" onClick={() => setViewMode('manage')} className={tabBtnClass(viewMode === 'manage', true)}>
+                  관리
                 </button>
-                <button type="button" onClick={() => setViewMode('cards')} style={tabBtnStyle(viewMode === 'cards', true)}>
-                  🎴 진행
+                <button type="button" onClick={() => setViewMode('cards')} className={tabBtnClass(viewMode === 'cards', true)}>
+                  진행
                 </button>
               </div>
             )}
@@ -222,28 +163,20 @@ const SetList: React.FC = () => {
             }}
           >
             <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-              <h1
-                style={{
-                  color: 'white',
-                  fontWeight: 700,
-                  fontSize: 28,
-                  margin: 0,
-                  textShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                }}
-              >
+              <h1 className="setlist-page-title" style={{ fontSize: 28 }}>
                 {canManage ? `셋리스트 — ${title}` : '셋리스트 — 진행'}
               </h1>
-              <button type="button" onClick={() => navigate('/')} style={homeBtnStyle}>
+              <button type="button" onClick={() => navigate('/')} className="setlist-home-btn">
                 ← 메인 메뉴
               </button>
             </div>
             {canManage && (
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                <button type="button" onClick={() => setViewMode('manage')} style={tabBtnStyle(viewMode === 'manage')}>
-                  📋 관리
+                <button type="button" onClick={() => setViewMode('manage')} className={tabBtnClass(viewMode === 'manage')}>
+                  관리
                 </button>
-                <button type="button" onClick={() => setViewMode('cards')} style={tabBtnStyle(viewMode === 'cards')}>
-                  🎴 진행
+                <button type="button" onClick={() => setViewMode('cards')} className={tabBtnClass(viewMode === 'cards')}>
+                  진행
                 </button>
               </div>
             )}

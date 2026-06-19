@@ -1,8 +1,8 @@
 ﻿.games-page {
   min-height: 100vh;
   min-height: 100dvh;
-  background: var(--gradient-primary);
-  color: var(--app-page-text, #fff);
+  background: var(--paper-bg, #f5f0e8);
+  color: var(--paper-ink, #2c2416);
   padding: 24px 16px calc(100px + env(safe-area-inset-bottom, 0px));
 }
 

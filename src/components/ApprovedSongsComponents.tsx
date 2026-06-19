@@ -5,7 +5,7 @@ import { GRADE_ORDER } from './AdminTypes';
 
 // 탭 버튼 컴포넌트
 interface TabButtonProps {
-  icon: string;
+  icon?: string;
   label: string;
   isActive: boolean;
   onClick: () => void;
@@ -16,7 +16,7 @@ export const TabButton: React.FC<TabButtonProps> = ({ icon, label, isActive, onC
     onClick={onClick} 
     className={`approved-songs-tab ${isActive ? 'active' : ''}`}
   >
-    <span className="approved-songs-tab-icon">{icon}</span>
+    {icon ? <span className="approved-songs-tab-icon">{icon}</span> : null}
     <span>{label}</span>
   </button>
 );

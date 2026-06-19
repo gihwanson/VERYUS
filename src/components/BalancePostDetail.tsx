@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { arrayRemove, arrayUnion, deleteDoc, deleteField, doc, increment, onSnapshot, updateDoc } from 'firebase/firestore';
 import { AlertTriangle, ArrowLeft, Clock, Eye, Loader, Scale, Trash2 } from 'lucide-react';
 import { db } from '../firebase';
-import { getGradeEmoji } from '../utils/gradeDisplay';
+import { getGradeBadgeLabel } from '../utils/gradeDisplay';
 import { getPublicRoleBadge } from '../utils/publicRoleBadge';
 import CommentSection from './CommentSection';
 import '../styles/PostDetail.css';
@@ -231,7 +231,7 @@ const BalancePostDetail: React.FC = () => {
             <div className="post-detail-author balance-post-detail-author">
               <div className="author-section">
                 <span className="author-info balance-static-author">
-                  <span className="author-grade-emoji">{getGradeEmoji(post.writerGrade)}</span>
+                  <span className="author-grade-label">{getGradeBadgeLabel(post.writerGrade)}</span>
                   {post.writerNickname}
                 </span>
                 <span className={`role-badge ${getPublicRoleBadge(post.writerRole)}`}>

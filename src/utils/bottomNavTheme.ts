@@ -1,7 +1,10 @@
+import { getAccentForThemeId, getSavedAppTheme, syncPaperNavAccent } from './appTheme';
+
 export const BOTTOM_NAV_THEME_STORAGE_KEY = 'veryus_bottom_nav_theme';
 export const BOTTOM_NAV_THEME_CHANGE_EVENT = 'veryus-bottom-nav-theme-change';
 
 export type BottomNavThemeId =
+  | 'paper'
   | 'white'
   | 'dark'
   | 'sky'
@@ -43,6 +46,31 @@ interface BottomNavThemeVars {
 }
 
 const THEMES: Record<BottomNavThemeId, BottomNavThemeVars> = {
+  paper: {
+    navBg: 'rgba(255, 253, 248, 0.98)',
+    navBorder: '#e8dcc8',
+    navShadow: 'rgba(139, 115, 85, 0.08)',
+    navItemHover: 'rgba(139, 90, 43, 0.08)',
+    navItemActive: 'rgba(139, 90, 43, 0.14)',
+    navText: '#a89880',
+    navTextActive: '#8b5a2b',
+    navToggleBg: 'rgba(255, 253, 248, 0.98)',
+    navToggleHover: '#f0e6d6',
+    navToggleShadow: 'rgba(139, 115, 85, 0.12)',
+    navToggleShadowHover: 'rgba(139, 90, 43, 0.2)',
+    navSubmenuItemBg: '#fffdf8',
+    navSubmenuItemBorder: '#e8dcc8',
+    navSubmenuText: '#6b5344',
+    navSubmenuTextHover: '#2c2416',
+    navSubmenuIcon: '#8b7355',
+    navSubmenuHoverBg: '#f0e6d6',
+    navSubmenuHoverBorder: 'rgba(139, 90, 43, 0.25)',
+    navSearchInnerBg: '#f5f0e8',
+    navSearchInnerBorder: '#e8dcc8',
+    navSearchIcon: '#8b7355',
+    navSearchInput: '#2c2416',
+    navSearchPlaceholder: '#a89880',
+  },
   white: {
     navBg: 'rgba(255, 255, 255, 0.98)',
     navBorder: 'rgba(0, 0, 0, 0.08)',
@@ -221,6 +249,7 @@ const THEMES: Record<BottomNavThemeId, BottomNavThemeVars> = {
 };
 
 export const BOTTOM_NAV_THEME_OPTIONS: BottomNavThemeOption[] = [
+  { id: 'paper', label: '웜 페이퍼', preview: '#fffdf8' },
   { id: 'white', label: '흰색', preview: '#FFFFFF' },
   { id: 'dark', label: '다크', preview: '#1E1E28' },
   { id: 'sky', label: '하늘', preview: '#E8F4F8' },
@@ -267,15 +296,19 @@ export function getSavedBottomNavTheme(): BottomNavThemeId {
   } catch {
     /* ignore */
   }
-  return 'white';
+  return 'paper';
 }
 
 export function applyBottomNavTheme(themeId: BottomNavThemeId): void {
-  const theme = THEMES[themeId] ?? THEMES.white;
+  const theme = THEMES[themeId] ?? THEMES.paper;
   const root = document.documentElement;
 
   for (const [key, cssVar] of CSS_VAR_MAP) {
     root.style.setProperty(cssVar, theme[key]);
+  }
+
+  if (themeId === 'paper') {
+    syncPaperNavAccent(root, getAccentForThemeId(getSavedAppTheme()));
   }
 
   root.setAttribute('data-bottom-nav-theme', themeId);

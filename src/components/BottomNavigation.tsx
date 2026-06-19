@@ -1,7 +1,7 @@
 import React, { useState, useEffect, memo, useCallback, useRef } from 'react';
 import type { ReactElement } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, Bell, User, ChevronUp, Search, Grid3x3, ChevronDown, Menu, Settings } from 'lucide-react';
+import { Home, Bell, User, ChevronUp, Search, Grid3x3, ChevronDown, Menu, Settings, Calendar, Trophy, Music, Gamepad2, Piano, Mic } from 'lucide-react';
 import './BottomNavigation.css';
 import MemberNicknameSearch from './MemberNicknameSearch';
 import { checkAdminAccess } from './AdminTypes';
@@ -43,12 +43,12 @@ interface NavItem {
 
 const BOARD_ITEMS: BoardItem[] = [
   { name: '통합 검색', path: 'search', icon: Search, isSearch: true },
-  { name: '연습실예약', path: '/practice-room-booking', icon: () => <span style={{fontSize:16}}>📅</span>, emoji: '📅' },
-  { name: '합격곡', path: '/approved-songs', icon: () => <span style={{fontSize:16}}>🏆</span>, emoji: '🏆' },
-  { name: '셋리스트', path: '/setlist', icon: () => <span style={{fontSize:16}}>🎵</span>, emoji: '🎵' },
-  { name: '게임', path: '/games', icon: () => <span style={{fontSize:16}}>🎮</span>, emoji: '🎮' },
-  { name: '악기', path: '/instruments/piano', icon: () => <span style={{fontSize:16}}>🎹</span>, emoji: '🎹' },
-  { name: '콘테스트', path: '/contests', icon: () => <span style={{fontSize:16}}>🎤</span>, emoji: '🎤' },
+  { name: '연습실예약', path: '/practice-room-booking', icon: Calendar },
+  { name: '합격곡', path: '/approved-songs', icon: Trophy },
+  { name: '셋리스트', path: '/setlist', icon: Music },
+  { name: '게임', path: '/games', icon: Gamepad2 },
+  { name: '악기', path: '/instruments/piano', icon: Piano },
+  { name: '콘테스트', path: '/contests', icon: Mic },
 ];
 
 const getCurrentUser = (): User | null => {
@@ -195,7 +195,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
   const boardItems: BoardItem[] = [
     ...BOARD_ITEMS,
     ...(checkAdminAccess(currentUser) ? [
-      { name: '관리자 패널', path: '/admin', icon: Settings, emoji: '⚙️', isAdmin: true }
+      { name: '관리자 패널', path: '/admin', icon: Settings, isAdmin: true }
     ] : [])
   ];
 
@@ -471,11 +471,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
       onClick={() => handleBoardClick(board.path, board.isSearch, board.isComingSoon)}
       style={{ position: 'relative' }}
     >
-      {board.emoji ? (
-        <span style={{fontSize: 18}}>{board.emoji}</span>
-      ) : (
-        <board.icon size={16} />
-      )}
+      <board.icon size={16} />
       <span>{board.name}</span>
       {board.badge != null && board.badge > 0 && (
         <span className="board-submenu-badge">{board.badge > 99 ? '99+' : board.badge}</span>

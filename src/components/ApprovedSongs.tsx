@@ -420,13 +420,12 @@ const ApprovedSongs: React.FC = () => {
       <div className="approved-songs-bg-pattern" />
       
       <div className="approved-songs-content">
-        <h2 className="approved-songs-title">🎵 합격곡 관리 및 조회</h2>
+        <h2 className="approved-songs-title">합격곡 관리 및 조회</h2>
         
         {/* 메인 탭 네비게이션 */}
         <div className={`approved-songs-tabs ${!isAdmin ? 'two' : 'three'}`}>
           {isAdmin && (
             <TabButton
-              icon="➕"
               label="합격곡 등록"
               isActive={activeTab === 'register'}
               onClick={() => { 
@@ -437,7 +436,6 @@ const ApprovedSongs: React.FC = () => {
             />
           )}
           <TabButton
-            icon="📋"
             label="합격리스트"
             isActive={activeTab === 'list'}
             onClick={() => { 
@@ -445,7 +443,6 @@ const ApprovedSongs: React.FC = () => {
             }}
           />
           <TabButton
-            icon="🎤"
             label="버스킹용 합격곡 조회"
             isActive={activeTab === 'busking'}
             onClick={() => { 

@@ -433,8 +433,8 @@ const Settings: React.FC = () => {
           <Edit className="card-icon" />
           <h3>닉네임 / 소개 / 등급 / 가입일</h3>
         </div>
-        <div className="setting-item" style={{ display: 'grid', gap: 12 }}>
-          <label style={{ fontSize: 13, color: '#475569', fontWeight: 600 }}>닉네임</label>
+        <div className="setting-item settings-form-grid">
+          <label className="settings-field-label">닉네임</label>
           {editingNickname ? (
             <div className="nickname-edit">
               <input
@@ -470,7 +470,7 @@ const Settings: React.FC = () => {
           )}
 
           <div className="nickname-edit">
-            <label style={{ fontSize: 13, color: 'rgba(255,255,255,0.88)', fontWeight: 700 }}>한 줄 소개</label>
+            <label className="settings-field-label">한 줄 소개</label>
             <textarea
               value={newIntro}
               onChange={(e) => setNewIntro(e.target.value)}
@@ -480,8 +480,8 @@ const Settings: React.FC = () => {
               placeholder="한 줄 소개를 입력하세요."
             />
 
-            <label style={{ fontSize: 13, color: 'rgba(255,255,255,0.88)', fontWeight: 700 }}>등급</label>
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', margin: '0 0 8px' }}>
+            <label className="settings-field-label">등급</label>
+            <p className="settings-field-hint">
               변경 후 저장하면 <strong>운영진 승인</strong>을 거쳐 반영됩니다. 현재 표시 등급은{' '}
               <strong>
                 {user.grade} {GRADE_NAMES[user.grade || ''] || ''}
@@ -489,17 +489,7 @@ const Settings: React.FC = () => {
               입니다.
             </p>
             {user.pendingGrade && user.pendingGrade !== user.grade && (
-              <div
-                style={{
-                  fontSize: 13,
-                  padding: '10px 12px',
-                  borderRadius: 10,
-                  marginBottom: 10,
-                  background: 'rgba(127, 95, 255, 0.2)',
-                  border: '1px solid rgba(127, 95, 255, 0.35)',
-                  color: 'rgba(255,255,255,0.95)'
-                }}
-              >
+              <div className="settings-pending-notice">
                 승인 대기 중: {user.pendingGrade} {GRADE_NAMES[user.pendingGrade] || ''}
               </div>
             )}
@@ -514,26 +504,16 @@ const Settings: React.FC = () => {
                 </option>
               ))}
             </select>
-            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', margin: '6px 0 0' }}>
+            <p className="settings-field-hint settings-field-hint--small">
               승인 대기를 취소하려면 현재 반영 등급과 동일한 항목을 선택한 뒤 저장하세요.
             </p>
 
-            <label style={{ fontSize: 13, color: 'rgba(255,255,255,0.88)', fontWeight: 700 }}>가입일</label>
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', margin: '0 0 8px' }}>
+            <label className="settings-field-label">가입일</label>
+            <p className="settings-field-hint">
               가입일 변경은 <strong>운영진 승인</strong> 후 반영됩니다.
             </p>
             {user.pendingCreatedAt && (
-              <div
-                style={{
-                  fontSize: 13,
-                  padding: '10px 12px',
-                  borderRadius: 10,
-                  marginBottom: 10,
-                  background: 'rgba(59, 130, 246, 0.2)',
-                  border: '1px solid rgba(59, 130, 246, 0.35)',
-                  color: 'rgba(255,255,255,0.95)'
-                }}
-              >
+              <div className="settings-pending-notice settings-pending-notice--date">
                 가입일 변경 승인 대기: {user.pendingCreatedAt?.seconds
                   ? new Date(user.pendingCreatedAt.seconds * 1000).toLocaleDateString('ko-KR')
                   : ''}
@@ -551,7 +531,6 @@ const Settings: React.FC = () => {
             onClick={handleProfileMetaSave}
             className="save-btn"
             disabled={savingProfileMeta}
-            style={{ justifySelf: 'start' }}
           >
             <Save size={16} />
             {savingProfileMeta ? '저장 중...' : '저장'}
@@ -559,11 +538,11 @@ const Settings: React.FC = () => {
         </div>
       </div>
 
-      {/* 앱 테마 색상 */}
+      {/* 앱 강조 색상 */}
       <div className="settings-card">
         <div className="card-header">
           <Palette className="card-icon" />
-          <h3>앱 테마 색상</h3>
+          <h3>앱 강조 색상</h3>
         </div>
         <div className="setting-item">
           <AppThemePicker />

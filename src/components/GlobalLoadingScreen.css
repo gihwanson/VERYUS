@@ -7,19 +7,14 @@
 
 .global-loading.fullscreen {
   min-height: 100vh;
-  background: var(--gradient-primary);
+  min-height: 100dvh;
+  background: var(--paper-bg, #f5f0e8);
   position: relative;
   overflow: hidden;
 }
 
 .global-loading.fullscreen::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.12) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 48%);
+  display: none;
 }
 
 .global-loading.inline {
@@ -30,19 +25,19 @@
   position: relative;
   z-index: 1;
   width: min(320px, calc(100% - 32px));
-  border-radius: 20px;
+  border-radius: var(--paper-radius, 4px);
   padding: 28px 24px;
   text-align: center;
-  background: rgba(255, 255, 255, 0.22);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.32);
-  box-shadow: 0 12px 36px rgba(31, 41, 55, 0.24);
+  background: var(--paper-card, #fffdf8);
+  border: 1px solid var(--paper-border, #e8dcc8);
+  box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.06);
+  backdrop-filter: none;
 }
 
 .global-loading.inline .global-loading__card {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(138, 85, 204, 0.15);
-  box-shadow: 0 8px 24px rgba(138, 85, 204, 0.14);
+  background: var(--paper-card, #fffdf8);
+  border: 1px solid var(--paper-border, #e8dcc8);
+  box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.06);
 }
 
 .global-loading__spinner {
@@ -50,26 +45,27 @@
   height: 42px;
   margin: 0 auto 14px;
   border-radius: 50%;
-  border: 3px solid rgba(255, 255, 255, 0.35);
-  border-top-color: #ffffff;
+  border: 3px solid rgba(139, 90, 43, 0.15);
+  border-top-color: var(--paper-accent, #8b5a2b);
   animation: global-loading-spin 0.9s linear infinite;
 }
 
 .global-loading.inline .global-loading__spinner {
-  border: 3px solid rgba(138, 85, 204, 0.22);
-  border-top-color: var(--primary-color, #8a55cc);
+  border: 3px solid rgba(139, 90, 43, 0.15);
+  border-top-color: var(--paper-accent, #8b5a2b);
 }
 
 .global-loading__text {
   margin: 0;
-  color: #ffffff;
-  font-size: 14px;
+  color: var(--paper-ink, #2c2416);
+  font-family: var(--paper-font-body, Georgia, serif);
+  font-size: 15px;
   font-weight: 600;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.02em;
 }
 
 .global-loading.inline .global-loading__text {
-  color: #5b21b6;
+  color: var(--paper-ink, #2c2416);
 }
 
 @keyframes global-loading-spin {

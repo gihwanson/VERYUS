@@ -46,7 +46,8 @@ import {
   notifyStaffOnApprovedSongCountMilestones
 } from '../utils/approvedSongMilestone';
 import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
-import { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
+import { getGradeBadgeLabel, getGradeName } from '../utils/gradeDisplay';
+import { isEvaluationJudge } from '../utils/evaluationJudge';
 
 interface User {
   uid: string;
@@ -57,17 +58,6 @@ interface User {
   position?: string;
   isLoggedIn: boolean;
 }
-
-const EVALUATOR_ROLE = '평가자';
-
-const isEvaluationJudge = (user: User | null): boolean => {
-  if (!user) return false;
-  const normalizedRole = (user.role || '').trim();
-  return (
-    user.nickname === '너래' ||
-    normalizedRole === EVALUATOR_ROLE
-  );
-};
 
 interface EvaluationPost {
   id: string;
@@ -280,8 +270,13 @@ const EvaluationPostDetail: React.FC = () => {
     }
   };
 
+  const canEditPost =
+    user &&
+    post &&
+    (user.uid === post.writerUid || isEvaluationJudge(user));
+
   const handleEdit = () => {
-    if (!post || !user || user.uid !== post.writerUid) {
+    if (!canEditPost || !post) {
       alert('수정 권한이 없습니다.');
       return;
     }
@@ -335,8 +330,8 @@ const EvaluationPostDetail: React.FC = () => {
               <div className="post-detail-author">
                 <div className="author-section">
                   <span className="author-info" onClick={() => navigate(`/mypage/${post.writerUid}`)}>
-                    <span className="author-grade-emoji" title={getGradeName(post.writerGrade || '🍒')}>
-                      {getGradeEmoji(post.writerGrade || '🍒')}
+                    <span className="author-grade-label" title={getGradeName(post.writerGrade || '🍒')}>
+                      {getGradeBadgeLabel(post.writerGrade)}
                     </span>
                     {post.writerNickname}
                   </span>
@@ -756,15 +751,17 @@ const EvaluationPostDetail: React.FC = () => {
               </button>
             </div>
             
-            <div className="post-actions">
-              <button 
-                onClick={handleEdit} 
-                className="action-button"
-              >
-                <Edit size={20} />
-                수정
-              </button>
-            </div>
+            {canEditPost && (
+              <div className="post-actions">
+                <button 
+                  onClick={handleEdit} 
+                  className="action-button"
+                >
+                  <Edit size={20} />
+                  수정
+                </button>
+              </div>
+            )}
           </div>
         </article>
 

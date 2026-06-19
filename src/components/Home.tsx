@@ -10,8 +10,11 @@ import { auth } from '../firebase';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import {
   markBoardAsVisited,
-  getAllBoardNotificationStatus
+  getAllBoardNotificationStatus,
+  isPostNewSinceBoardVisit,
 } from '../utils/simpleBoardNotification';
+import { fetchHomeBoardPreviews, type HomeBoardPreviewMap } from '../utils/homeBoardPreviews';
+import HomeNotebookBody from './HomeNotebookBody';
 
 interface User {
   uid: string;
@@ -25,60 +28,18 @@ interface User {
 
 interface BoardItem {
   name: string;
-  icon: React.FC<{ size?: number }>;
   path: string;
-  color: string;
   boardType: 'free' | 'recording' | 'evaluation' | 'hallOfFame' | 'partner';
-  layoutClass: string;
   slug: string;
+  showLatestPreview?: boolean;
 }
 
 const BOARDS: BoardItem[] = [
-  {
-    name: '자유게시판',
-    icon: () => <span className="board-emoji">💬</span>,
-    path: '/free',
-    color: '#667eea',
-    boardType: 'free',
-    layoutClass: 'bubble-top-left',
-    slug: 'free'
-  },
-  {
-    name: '녹음게시판',
-    icon: () => <span className="board-emoji">🎙️</span>,
-    path: '/recording',
-    color: '#f093fb',
-    boardType: 'recording',
-    layoutClass: 'bubble-top-right',
-    slug: 'recording'
-  },
-  {
-    name: '명예의전당',
-    icon: () => <span className="board-emoji board-emoji--sm">🏅</span>,
-    path: '/hall-of-fame',
-    color: '#ff9ff3',
-    boardType: 'hallOfFame',
-    layoutClass: 'bubble-center',
-    slug: 'hall-of-fame'
-  },
-  {
-    name: '평가게시판',
-    icon: () => <span className="board-emoji">📝</span>,
-    path: '/evaluation',
-    color: '#ffeaa7',
-    boardType: 'evaluation',
-    layoutClass: 'bubble-bottom-left',
-    slug: 'evaluation'
-  },
-  {
-    name: '파트너모집',
-    icon: () => <span className="board-emoji">🤝</span>,
-    path: '/boards/partner',
-    color: '#55efc4',
-    boardType: 'partner',
-    layoutClass: 'bubble-bottom-right',
-    slug: 'partner'
-  }
+  { name: '자유게시판', path: '/free', boardType: 'free', slug: 'free', showLatestPreview: true },
+  { name: '녹음게시판', path: '/recording', boardType: 'recording', slug: 'recording', showLatestPreview: true },
+  { name: '명예의전당', path: '/hall-of-fame', boardType: 'hallOfFame', slug: 'hall-of-fame' },
+  { name: '평가게시판', path: '/evaluation', boardType: 'evaluation', slug: 'evaluation', showLatestPreview: true },
+  { name: '파트너모집', path: '/boards/partner', boardType: 'partner', slug: 'partner', showLatestPreview: true },
 ];
 
 const Home: React.FC = () => {
@@ -86,6 +47,9 @@ const Home: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [boardNotifications, setBoardNotifications] = useState<any[]>([]);
+  const [boardPreviews, setBoardPreviews] = useState<HomeBoardPreviewMap>({});
+  const [previewsLoading, setPreviewsLoading] = useState(true);
+  const [visitRevision, setVisitRevision] = useState(0);
   const navigate = useNavigate();
 
   const handleProfileClick = () => {
@@ -104,12 +68,22 @@ const Home: React.FC = () => {
     }
   };
 
+  const bumpVisitRevision = () => setVisitRevision((v) => v + 1);
+
   const navigateToBoard = (board: BoardItem) => {
     if (user?.uid) {
       markBoardAsVisited(user.uid, board.boardType);
       setBoardNotifications(getAllBoardNotificationStatus(user.uid));
+      bumpVisitRevision();
     }
     navigate(board.path);
+  };
+
+  const loadBoardPreviews = () => {
+    setPreviewsLoading(true);
+    void fetchHomeBoardPreviews()
+      .then(setBoardPreviews)
+      .finally(() => setPreviewsLoading(false));
   };
 
   const getBoardNotification = (boardType: string): boolean => {
@@ -151,10 +125,16 @@ const Home: React.FC = () => {
   }, [user?.uid]);
 
   useEffect(() => {
+    loadBoardPreviews();
+  }, []);
+
+  useEffect(() => {
     const handleFocus = () => {
       if (user?.uid) {
         setBoardNotifications(getAllBoardNotificationStatus(user.uid));
+        bumpVisitRevision();
       }
+      loadBoardPreviews();
     };
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
@@ -215,29 +195,54 @@ const Home: React.FC = () => {
           </div>
         </section>
 
-        <section className="boards-section" aria-label="게시판 바로가기">
-          <h2 className="boards-section__title">게시판</h2>
-          <div className="boards-cross-layout">
+        <section className="boards-section notebook-section notebook-section--index" aria-label="게시판 바로가기">
+          <h2 className="notebook-section__title">
+            <span className="notebook-section__numeral">I.</span>
+            <span>목차</span>
+          </h2>
+          <nav className="boards-notebook-list" aria-label="게시판 목록">
             {BOARDS.map((board) => {
               const hasNewPosts = getBoardNotification(board.boardType);
+              const previews = boardPreviews[board.boardType] ?? [];
+              const preview = previews[0];
+              const isPreviewNew =
+                preview &&
+                visitRevision >= 0 &&
+                isPostNewSinceBoardVisit(user?.uid, board.boardType, preview.createdAtMs);
+
               return (
-                <button
-                  key={board.path}
-                  type="button"
-                  className={`bubble-button ${board.layoutClass} bubble-${board.slug}`}
-                  onClick={() => navigateToBoard(board)}
-                  style={{ '--board-color': board.color } as React.CSSProperties}
-                >
-                  <span className="bubble-icon">
-                    <board.icon />
-                    {hasNewPosts && <span className="board-notification-dot" aria-label="새 글" />}
-                  </span>
-                  <span className="bubble-name">{board.name}</span>
-                </button>
+                <div key={board.path} className="notebook-index-group">
+                  <button
+                    type="button"
+                    className="notebook-index-row"
+                    onClick={() => navigateToBoard(board)}
+                  >
+                    <span className="notebook-index-item">{board.name}</span>
+                    {board.showLatestPreview && previewsLoading ? (
+                      <span className="notebook-index-inline-preview notebook-index-inline-preview--loading" aria-hidden>
+                        <span className="notebook-index-preview-skeleton" />
+                      </span>
+                    ) : preview ? (
+                      <span className="notebook-index-inline-preview" aria-hidden>
+                        <span className="notebook-index-inline-preview__text">
+                          <span className="notebook-index-preview__author">{preview.writerNickname}</span>
+                          <span className="notebook-index-preview__title">{preview.title}</span>
+                        </span>
+                        {isPreviewNew && (
+                          <span className="notebook-index-preview__new">NEW</span>
+                        )}
+                      </span>
+                    ) : hasNewPosts ? (
+                      <span className="notebook-index-item__dot" aria-label="새 글" />
+                    ) : null}
+                  </button>
+                </div>
               );
             })}
-          </div>
+          </nav>
         </section>
+
+        <HomeNotebookBody user={user} />
       </main>
     </div>
   );

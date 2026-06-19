@@ -163,6 +163,21 @@ service cloud.firestore {
       allow read, write: if signedIn();
     }
 
+    /** 홈 노트 본문 — 읽기: 로그인, 쓰기: 너래·운영진 */
+    function canEditHomeNotebook() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && (
+          userDoc().nickname == '너래' ||
+          userDoc().role == '운영진'
+        );
+    }
+
+    match /homeNotebook/{docId} {
+      allow read: if signedIn();
+      allow write: if canEditHomeNotebook();
+    }
+
     match /boardVisits/{docId} {
       allow read, write: if signedIn();
     }

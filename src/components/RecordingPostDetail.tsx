@@ -17,7 +17,7 @@ import {
   deleteDoc
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
+import { getGradeBadgeLabel, getGradeName } from '../utils/gradeDisplay';
 import { 
   ArrowLeft,
   Heart,
@@ -392,8 +392,8 @@ const RecordingPostDetail: React.FC = () => {
             <div className="post-detail-author">
               <div className="author-section">
                 <span className="author-info" onClick={() => navigate(`/mypage/${post.writerUid}`)}>
-                  <span className="author-grade-emoji" title={getGradeName(post.writerGrade || '🍒')}>
-                    {getGradeEmoji(post.writerGrade || '🍒')}
+                  <span className="author-grade-label" title={getGradeName(post.writerGrade || '🍒')}>
+                    {getGradeBadgeLabel(post.writerGrade)}
                   </span>
                   {post.writerNickname}
                 </span>

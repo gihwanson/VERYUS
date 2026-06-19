@@ -335,7 +335,7 @@ const Notifications: React.FC = () => {
           {/* 알림 목록 */}
           {filteredNotifications.length === 0 ? (
             <div className="notifications-empty-state">
-              <div className="notifications-empty-icon">🔕</div>
+              <Bell size={40} className="notifications-empty-icon-lucide" strokeWidth={1.5} />
               <p className="notifications-empty-text">
                 {filter === 'all' ? '새 알림이 없습니다' :
                  filter === 'unread' ? '읽지 않은 알림이 없습니다' :

@@ -1,0 +1,581 @@
+/**
+ * 기능 탭 페이지 — 웜 페이퍼 · 게시판 톤 통일
+ * (합격곡, 연습실, 셋리스트, 게임 허브, 콘테스트 잔여)
+ */
+
+/* ===== 공통: 기능 페이지 배경 ===== */
+.approved-songs-container,
+.practice-room-booking,
+.setlist-page--manage,
+.setlist-page-inner,
+.games-page {
+  background: var(--paper-bg, #f5f0e8) !important;
+  color: var(--paper-ink, #2c2416) !important;
+}
+
+.approved-songs-bg-pattern,
+.setlist-page > div[style*="radial-gradient"] {
+  display: none !important;
+}
+
+/* 인라인 흰 글자 덮어쓰기 — 셋리스트 */
+.setlist-page-inner h1,
+.setlist-page-inner h2,
+.setlist-page-inner h3,
+.setlist-page-inner h4,
+.setlist-page-inner p,
+.setlist-page-inner label,
+.setlist-page-inner strong,
+.setlist-page-inner span:not(.setlist-parade-bubble-text),
+.setlist-manage-form h1,
+.setlist-manage-form h2,
+.setlist-manage-form h3,
+.setlist-manage-form h4,
+.setlist-manage-form p,
+.setlist-manage-form label,
+.setlist-manage-form strong,
+.setlist-manage-form span,
+.setlist-manage-panel,
+.setlist-member-denied {
+  color: var(--paper-ink, #2c2416) !important;
+  text-shadow: none !important;
+}
+
+.setlist-manage-date-hint,
+.setlist-page-inner .setlist-muted {
+  color: var(--paper-muted, #8b7355) !important;
+}
+
+/* ===== 합격곡 ===== */
+.approved-songs-container {
+  padding: 20px;
+}
+
+.approved-songs-title {
+  color: var(--paper-ink, #2c2416) !important;
+  font-family: var(--paper-serif, Georgia, serif);
+  text-shadow: none !important;
+}
+
+.approved-songs-tab,
+.approved-songs-filter-tab {
+  background: var(--paper-card, #fffdf8) !important;
+  color: var(--paper-body, #4a3f32) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  border-radius: var(--paper-radius, 4px) !important;
+  backdrop-filter: none !important;
+  box-shadow: 2px 2px 0 rgba(139, 115, 85, 0.05) !important;
+}
+
+.approved-songs-tab:hover,
+.approved-songs-filter-tab:hover {
+  background: var(--paper-tag-bg, #f0e6d6) !important;
+}
+
+.approved-songs-tab.active,
+.approved-songs-filter-tab.active {
+  background: var(--paper-tag-bg, #f0e6d6) !important;
+  color: var(--paper-accent, #8b5a2b) !important;
+  border-color: var(--paper-accent, #8b5a2b) !important;
+}
+
+.approved-songs-back-btn {
+  background: var(--paper-card, #fffdf8) !important;
+  color: var(--paper-ink, #2c2416) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  backdrop-filter: none !important;
+}
+
+.approved-songs-label,
+.approved-songs-title-text,
+.approved-songs-members,
+.approved-songs-manage-title,
+.approved-songs-manage-nickname,
+.approved-songs-manage-date,
+.approved-songs-busking-title,
+.approved-songs-copy-header {
+  color: var(--paper-ink, #2c2416) !important;
+}
+
+.approved-songs-input,
+.approved-songs-member-input,
+.approved-songs-search-input,
+.approved-songs-copy-textarea {
+  background: var(--paper-card, #fffdf8) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  color: var(--paper-ink, #2c2416) !important;
+  backdrop-filter: none !important;
+}
+
+.approved-songs-input::placeholder,
+.approved-songs-member-input::placeholder,
+.approved-songs-search-input::placeholder {
+  color: var(--paper-muted, #a89880) !important;
+}
+
+.approved-songs-card,
+.approved-songs-busking-card,
+.approved-songs-busking-card-small,
+.approved-songs-copy-box,
+.approved-songs-manage-item {
+  background: var(--paper-card, #fffdf8) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  border-radius: var(--paper-radius, 4px) !important;
+  backdrop-filter: none !important;
+  box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.06) !important;
+}
+
+.approved-songs-list-item {
+  border-bottom-color: var(--paper-border, #e8dcc8) !important;
+}
+
+.approved-songs-manage-item--current-month {
+  background: var(--paper-tag-bg, #f0e6d6) !important;
+  border-color: var(--paper-accent, #8b5a2b) !important;
+  box-shadow: none !important;
+}
+
+.approved-songs-manage-item--current-month .approved-songs-manage-nickname,
+.approved-songs-manage-item--current-month .approved-songs-manage-date {
+  color: var(--paper-accent, #8b5a2b) !important;
+}
+
+.approved-songs-btn.add {
+  background: var(--paper-card, #fffdf8) !important;
+  color: var(--paper-ink, #2c2416) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+}
+
+/* ===== 연습실 예약 ===== */
+.practice-room-booking::before {
+  display: none !important;
+}
+
+.practice-room-booking .booking-header,
+.practice-room-booking .booking-controls,
+.practice-room-booking .week-view,
+.practice-room-booking .day-view-mobile,
+.practice-room-booking .booking-info,
+.practice-room-booking .color-legend,
+.practice-room-booking .calendar-container {
+  background: var(--paper-card, #fffdf8) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  border-radius: var(--paper-radius, 4px) !important;
+  box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.06) !important;
+  backdrop-filter: none !important;
+}
+
+.practice-room-booking .booking-header h1 {
+  color: var(--paper-ink, #2c2416) !important;
+  font-family: var(--paper-serif, Georgia, serif);
+}
+
+.practice-room-booking .booking-back-button,
+.practice-room-booking .refresh-button,
+.practice-room-booking .management-button {
+  color: var(--paper-accent, #8b5a2b) !important;
+}
+
+.practice-room-booking .booking-back-button:hover,
+.practice-room-booking .refresh-button:hover:not(:disabled),
+.practice-room-booking .management-button:hover {
+  background: var(--paper-tag-bg, #f0e6d6) !important;
+}
+
+.practice-room-booking .nav-button,
+.practice-room-booking .today-button {
+  background: var(--paper-accent, #8b5a2b) !important;
+  color: var(--paper-card, #fffdf8) !important;
+  box-shadow: none !important;
+}
+
+.practice-room-booking .nav-button:hover,
+.practice-room-booking .today-button:hover {
+  background: var(--primary-dark, #6b4423) !important;
+  transform: none !important;
+}
+
+.practice-room-booking .week-label,
+.practice-room-booking .day-header,
+.practice-room-booking .time-label,
+.practice-room-booking .current-week,
+.practice-room-booking .legend-item,
+.practice-room-booking .user-name,
+.practice-room-booking .slot-time {
+  color: var(--paper-ink, #2c2416) !important;
+}
+
+.practice-room-booking .week-grid {
+  background: var(--paper-border, #e8dcc8) !important;
+  border-color: var(--paper-border, #e8dcc8) !important;
+}
+
+.practice-room-booking .time-column,
+.practice-room-booking .day-column,
+.practice-room-booking .time-slot {
+  background: var(--paper-card, #fffdf8) !important;
+  color: var(--paper-ink, #2c2416) !important;
+}
+
+.practice-room-booking .color-legend {
+  background: var(--paper-tag-bg, #f0e6d6) !important;
+}
+
+.practice-room-booking .unlimited-admin-badge {
+  color: #3d6b4f !important;
+  background: #eef5ee !important;
+  border-color: #c5dcc8 !important;
+}
+
+/* ===== 셋리스트 — 카드·폼 ===== */
+.setlist-form-container,
+.setlist-card,
+.available-song-card,
+.song-item,
+.empty-state {
+  background: var(--paper-card, #fffdf8) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  border-radius: var(--paper-radius, 4px) !important;
+  color: var(--paper-ink, #2c2416) !important;
+  backdrop-filter: none !important;
+  box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.06) !important;
+}
+
+.setlist-card.active {
+  border-color: var(--paper-accent, #8b5a2b) !important;
+  background: var(--paper-tag-bg, #f0e6d6) !important;
+}
+
+.form-input,
+.setlist-manage-date-input {
+  background: var(--paper-card, #fffdf8) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  color: var(--paper-ink, #2c2416) !important;
+  color-scheme: light !important;
+}
+
+.form-input::placeholder {
+  color: var(--paper-muted, #a89880) !important;
+}
+
+.btn-primary {
+  background: var(--paper-accent, #8b5a2b) !important;
+  color: var(--paper-card, #fffdf8) !important;
+  border: 1px solid var(--primary-dark, #6b4423) !important;
+  backdrop-filter: none !important;
+}
+
+.btn-secondary {
+  background: var(--paper-card, #fffdf8) !important;
+  color: var(--paper-ink, #2c2416) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  backdrop-filter: none !important;
+}
+
+.song-number {
+  background: var(--paper-tag-bg, #f0e6d6) !important;
+  color: var(--paper-accent, #8b5a2b) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+}
+
+.active-badge {
+  background: var(--paper-tag-bg, #f0e6d6) !important;
+  color: var(--paper-accent, #8b5a2b) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+}
+
+.setlist-page-header-block {
+  border-bottom-color: var(--paper-border, #e8dcc8) !important;
+  background: var(--paper-card, #fffdf8) !important;
+}
+
+.setlist-manage-panel {
+  background: var(--paper-card, #fffdf8) !important;
+  border-bottom: 1px solid var(--paper-border, #e8dcc8) !important;
+  color: var(--paper-ink, #2c2416) !important;
+}
+
+.setlist-manage-date-label {
+  color: var(--paper-body, #4a3f32) !important;
+}
+
+.setlist-manage-modal-body {
+  background: var(--paper-card, #fffdf8) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  color: var(--paper-ink, #2c2416) !important;
+}
+
+.setlist-tab-btn,
+.setlist-home-btn {
+  background: var(--paper-card, #fffdf8) !important;
+  color: var(--paper-body, #4a3f32) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  border-radius: var(--paper-radius, 4px) !important;
+  backdrop-filter: none !important;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  padding: 10px 16px;
+  font-size: 14px;
+}
+
+.setlist-tab-btn--flex {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 8px;
+  font-size: 13px;
+}
+
+.setlist-home-btn {
+  margin-top: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+@media (min-width: 641px) {
+  .setlist-home-btn {
+    padding: 10px 18px;
+    font-size: 14px;
+  }
+}
+
+.setlist-tab-btn--active {
+  background: var(--paper-tag-bg, #f0e6d6) !important;
+  color: var(--paper-accent, #8b5a2b) !important;
+  border-color: var(--paper-accent, #8b5a2b) !important;
+}
+
+.setlist-page-title {
+  color: var(--paper-ink, #2c2416) !important;
+  font-family: var(--paper-serif, Georgia, serif);
+  font-weight: 700;
+  margin: 0;
+  text-shadow: none !important;
+}
+
+.setlist-loading-card {
+  background: var(--paper-card, #fffdf8) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  color: var(--paper-ink, #2c2416) !important;
+  backdrop-filter: none !important;
+}
+
+/* ===== 게임 허브 ===== */
+.games-page {
+  padding: 24px 16px calc(100px + env(safe-area-inset-bottom, 0px));
+}
+
+.games-title {
+  font-family: var(--paper-serif, Georgia, serif);
+  color: var(--paper-ink, #2c2416) !important;
+}
+
+.games-subtitle,
+.games-category-subtitle {
+  color: var(--paper-muted, #8b7355) !important;
+  opacity: 1 !important;
+}
+
+.games-back-btn {
+  background: var(--paper-card, #fffdf8) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  color: var(--paper-ink, #2c2416) !important;
+}
+
+.games-reset-notice {
+  background: var(--paper-tag-bg, #f0e6d6) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  color: var(--paper-body, #4a3f32) !important;
+}
+
+.games-card {
+  background: var(--paper-card, #fffdf8) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.06) !important;
+  backdrop-filter: none !important;
+  color: var(--paper-ink, #2c2416) !important;
+}
+
+.games-card:hover:not(:disabled) {
+  background: var(--paper-tag-bg, #f0e6d6) !important;
+  transform: translateY(-1px);
+}
+
+.games-card--solo,
+.games-card--coop {
+  border-color: var(--paper-border, #e8dcc8) !important;
+  background: var(--paper-card, #fffdf8) !important;
+}
+
+.games-card-art {
+  background: var(--paper-tag-bg, #f0e6d6) !important;
+  border-radius: var(--paper-radius, 4px) !important;
+}
+
+.games-card-desc,
+.games-card-body p {
+  color: var(--paper-muted, #8b7355) !important;
+  opacity: 1 !important;
+}
+
+.games-card-teaser {
+  color: var(--paper-accent, #8b5a2b) !important;
+}
+
+.games-hub-champions,
+.games-leaderboard-panel,
+.game-past-champions {
+  background: var(--paper-card, #fffdf8) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  backdrop-filter: none !important;
+  color: var(--paper-ink, #2c2416) !important;
+}
+
+.game-past-champions {
+  border-top-color: var(--paper-border, #e8dcc8) !important;
+}
+
+/* 게임 플레이 화면 — 패널만 페이퍼, 플레이 존 색상 유지 */
+.games-play-screen {
+  color: var(--paper-ink, #2c2416) !important;
+}
+
+.games-play-header {
+  background: var(--paper-card, #fffdf8) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  backdrop-filter: none !important;
+  color: var(--paper-ink, #2c2416) !important;
+}
+
+.typing-game-panel {
+  background: var(--paper-card, #fffdf8) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  color: var(--paper-ink, #2c2416) !important;
+  backdrop-filter: none !important;
+  box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.06) !important;
+}
+
+.typing-platform-badge,
+.typing-stat,
+.typing-rank-item,
+.typing-platform-tab {
+  background: var(--paper-tag-bg, #f0e6d6) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  color: var(--paper-ink, #2c2416) !important;
+}
+
+.typing-platform-tab.active {
+  background: var(--paper-tag-bg, #f0e6d6) !important;
+  border-color: var(--paper-accent, #8b5a2b) !important;
+  color: var(--paper-accent, #8b5a2b) !important;
+}
+
+.typing-input {
+  background: var(--paper-card, #fffdf8) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  color: var(--paper-ink, #2c2416) !important;
+}
+
+.typing-btn-primary {
+  background: var(--paper-accent, #8b5a2b) !important;
+  color: var(--paper-card, #fffdf8) !important;
+}
+
+.typing-btn-secondary {
+  background: var(--paper-card, #fffdf8) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  color: var(--paper-ink, #2c2416) !important;
+}
+
+.typing-leaderboard h3,
+.typing-rank-name,
+.typing-rank-meta,
+.typing-rank-score,
+.typing-empty,
+.typing-personal-best {
+  color: var(--paper-ink, #2c2416) !important;
+}
+
+.typing-progress-track {
+  background: var(--paper-border, #e8dcc8) !important;
+}
+
+.typing-progress-fill,
+.rhythm-progress-fill {
+  background: var(--paper-accent, #8b5a2b) !important;
+}
+
+.rhythm-meta-pill {
+  background: var(--paper-tag-bg, #f0e6d6) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  color: var(--paper-ink, #2c2416) !important;
+}
+
+.rhythm-beat-cell {
+  background: var(--paper-tag-bg, #f0e6d6) !important;
+  border-color: var(--paper-border, #e8dcc8) !important;
+  color: var(--paper-ink, #2c2416) !important;
+}
+
+.approved-songs-tab-icon {
+  display: none !important;
+}
+
+/* 게임 카드 — 이모지 아이콘 숨김, 텍스트 중심 */
+.games-card-art {
+  display: none !important;
+}
+
+/* ===== 설정 페이지 ===== */
+.settings-container {
+  background: var(--paper-bg, #f5f0e8) !important;
+  color: var(--paper-ink, #2c2416) !important;
+}
+
+.settings-container::before {
+  display: none !important;
+}
+
+.settings-card {
+  background: var(--paper-card, #fffdf8) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.06) !important;
+  backdrop-filter: none !important;
+}
+
+.settings-card .card-header h3,
+.settings-card .setting-item > span,
+.settings-card .user-name,
+.settings-card .nickname-display {
+  color: var(--paper-ink, #2c2416) !important;
+  text-shadow: none !important;
+}
+
+.settings-card .user-email,
+.settings-card .settings-field-label,
+.settings-card .settings-field-hint {
+  color: var(--paper-muted, #8b7355) !important;
+}
+
+.settings-card .card-icon {
+  color: var(--paper-accent, #8b5a2b) !important;
+}
+
+.settings-card .back-button {
+  color: var(--paper-ink, #2c2416) !important;
+}
+
+.settings-container .loading,
+.settings-container .error {
+  color: var(--paper-muted, #8b7355) !important;
+}
+
+.settings-container .error {
+  color: #9b4040 !important;
+}
+
+/* 반응속도·리듬 탭 존 — 게임성 색상 유지 */
+.reaction-zone,
+.rhythm-tap-zone {
+  color: #fffdf8 !important;
+}

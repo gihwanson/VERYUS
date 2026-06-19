@@ -25,11 +25,11 @@
 .contest-detail-container,
 .contest-participate-container,
 .contest-results-container {
-  color: var(--app-page-text, #ffffff);
+  color: var(--app-page-text, #2c2416);
 }
 
 .settings-container {
-  color: var(--app-page-text, #ffffff);
+  color: var(--app-page-text, #2c2416);
 }
 
 /* 밝은 카드/글라스 위 진한 글자 */
@@ -55,12 +55,12 @@
 .board-title,
 .top-nav .board-title,
 .board-header h1 {
-  color: var(--app-page-text, #ffffff) !important;
+  color: var(--app-page-text, #2c2416) !important;
 }
 
 .board-subtitle,
 .board-description {
-  color: var(--app-page-text-muted, rgba(255, 255, 255, 0.85)) !important;
+  color: var(--app-page-text-muted, #8b7355) !important;
 }
 
 .post-title,
@@ -103,15 +103,15 @@
 
 /* 설정 화면 테마 선택 라벨 */
 .settings-card .theme-swatch-picker__desc {
-  color: var(--app-page-text-muted, rgba(255, 255, 255, 0.9));
+  color: var(--app-page-text-muted, #8b7355);
 }
 
 .settings-card .theme-swatch-picker__label {
-  color: var(--app-card-text, #1f2937) !important;
+  color: var(--app-card-text, #2c2416) !important;
 }
 
 .settings-card .setting-item > span {
-  color: var(--app-page-text, #ffffff);
+  color: var(--app-page-text, #2c2416);
 }
 
 /* 로그인/회원가입 — 밝은 배경 */
@@ -132,11 +132,10 @@
 
 /* 콘테스트 UI */
 .contest-ui-refresh {
-  --cu-text: var(--app-page-text, #ffffff);
-  --cu-text-soft: var(--app-page-text-muted, rgba(255, 255, 255, 0.86));
+  --cu-text: var(--app-page-text, #2c2416);
+  --cu-text-soft: var(--app-page-text-muted, #8b7355);
 }
 
-/* 합격곡·명예의전당 — 헤더/탭은 페이지 위 흰 글자 유지 */
 .approved-songs-title,
 .approved-songs-tab,
 .hall-header,
@@ -144,18 +143,17 @@
 .hall-header p,
 .hall-score-guide,
 .hall-section-title {
-  color: var(--app-page-text, #ffffff) !important;
+  color: var(--app-page-text, #2c2416) !important;
 }
 
 .approved-songs-tab.active {
-  background: rgba(255, 255, 255, 0.95) !important;
-  color: var(--primary-color, #111827) !important;
+  background: var(--paper-tag-bg, #f0e6d6) !important;
+  color: var(--paper-accent, #8b5a2b) !important;
 }
 
-/* 게시판 목록 로딩 — 그라데이션 위 */
 .board-container .loading-container,
 .posts-container .loading-container {
-  color: var(--app-page-text, #ffffff) !important;
+  color: var(--app-page-text-muted, #8b7355) !important;
 }
 
 .board-container .loading-container .loading-spinner,

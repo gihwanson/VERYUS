@@ -39,14 +39,15 @@ import {
   Bell,
   BellOff,
   Music,
-  BarChart3
+  BarChart3,
+  Trophy
 } from 'lucide-react';
 import './MyPage.css';
 import { auth } from '../firebase';
 import { NotificationService } from '../utils/notificationService';
 import { enablePushNotifications, removeAllPushTokens } from '../utils/pushNotificationService';
 import { GRADE_NAMES, GRADE_ORDER, GRADE_SYSTEM } from './AdminTypes';
-import { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
+import { getGradeBadgeLabel, getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
 import { approvedSongCountsByNicknameFromDocs } from '../utils/approvedSongMilestone';
 
 interface User {
@@ -933,31 +934,8 @@ const MyPage: React.FC = () => {
 
   type MypageTabId = 'stats' | 'posts' | 'evaluations' | 'recordings' | 'approved' | 'guestbook';
 
-  const mypageTabBaseStyle = (tab: MypageTabId): React.CSSProperties => ({
-    flex: '1 1 28%',
-    minWidth: '76px',
-    padding: '12px 6px',
-    borderRadius: '12px',
-    border: 'none',
-    background: activeTab === tab ? 'rgba(255, 255, 255, 0.3)' : 'transparent',
-    color: 'white',
-    fontWeight: 600,
-    fontSize: '12px',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '4px',
-    transition: 'all 0.3s ease',
-    textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-  });
-
-  const onMypageTabEnter = (tab: MypageTabId) => (e: React.MouseEvent<HTMLButtonElement>) => {
-    if (activeTab !== tab) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-  };
-  const onMypageTabLeave = (tab: MypageTabId) => (e: React.MouseEvent<HTMLButtonElement>) => {
-    if (activeTab !== tab) e.currentTarget.style.background = 'transparent';
-  };
+  const mypageTabClass = (tab: MypageTabId) =>
+    `mypage-tab-btn${activeTab === tab ? ' mypage-tab-btn--active' : ''}`;
 
   const handleProfileImageClick = () => {
     fileInputRef.current?.click();
@@ -966,8 +944,7 @@ const MyPage: React.FC = () => {
   const getGuestbookGradeLabel = useCallback(
     (nickname: string) => {
       const grade = userMap[nickname.trim()]?.grade;
-      const g = grade || GRADE_SYSTEM.CHERRY;
-      return getGradeEmoji(g);
+      return getGradeBadgeLabel(grade || GRADE_SYSTEM.CHERRY);
     },
     [userMap]
   );
@@ -1213,112 +1190,20 @@ const MyPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        background: 'var(--app-page-gradient)',
-        backgroundAttachment: 'fixed',
-        position: 'relative',
-        overflow: 'hidden',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
-        {/* 배경 패턴 */}
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: `
-            radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-            radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-            radial-gradient(circle at 40% 80%, rgba(120, 119, 198, 0.2) 0%, transparent 50%)
-          `,
-          pointerEvents: 'none'
-        }} />
-        
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.1)',
-          backdropFilter: 'blur(15px)',
-          borderRadius: '24px',
-          padding: '40px',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-          color: 'white',
-          textAlign: 'center',
-          fontSize: '20px',
-          fontWeight: 600
-        }}>
-          🔄 마이페이지 로딩 중...
-        </div>
+      <div className="mypage-root mypage-root--centered">
+        <div className="mypage-loading-card">마이페이지 로딩 중…</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        background: 'var(--app-page-gradient)',
-        backgroundAttachment: 'fixed',
-        position: 'relative',
-        overflow: 'hidden',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
-        {/* 배경 패턴 */}
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: `
-            radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-            radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-            radial-gradient(circle at 40% 80%, rgba(120, 119, 198, 0.2) 0%, transparent 50%)
-          `,
-          pointerEvents: 'none'
-        }} />
-        
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.1)',
-          backdropFilter: 'blur(15px)',
-          borderRadius: '24px',
-          padding: '40px',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-          color: 'white',
-          textAlign: 'center'
-        }}>
-          <h2 style={{ color: 'white', marginBottom: '16px' }}>⚠️ 오류가 발생했습니다</h2>
-          <p style={{ color: 'rgba(255, 255, 255, 0.8)', marginBottom: '20px' }}>{error}</p>
-          <button 
-            onClick={() => setError(null)}
-            style={{
-              background: 'rgba(255, 255, 255, 0.2)',
-              backdropFilter: 'blur(10px)',
-              color: 'white',
-              border: '1px solid rgba(255, 255, 255, 0.3)',
-              borderRadius: '12px',
-              padding: '10px 20px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontSize: 16,
-              transition: 'all 0.3s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-              e.currentTarget.style.transform = 'translateY(-2px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            🔄 다시 시도
+      <div className="mypage-root mypage-root--centered">
+        <div className="mypage-error-card">
+          <h2>오류가 발생했습니다</h2>
+          <p className="mypage-muted" style={{ marginBottom: 20 }}>{error}</p>
+          <button type="button" className="mypage-text-btn" onClick={() => setError(null)}>
+            다시 시도
           </button>
         </div>
       </div>
@@ -1326,97 +1211,16 @@ const MyPage: React.FC = () => {
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'var(--app-page-gradient)',
-      backgroundAttachment: 'fixed',
-      position: 'relative',
-      overflow: 'hidden'
-    }}>
-      {/* 배경 패턴 */}
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: `
-          radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-          radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-          radial-gradient(circle at 40% 80%, rgba(120, 119, 198, 0.2) 0%, transparent 50%)
-        `,
-        pointerEvents: 'none'
-      }} />
-      
-      <div style={{
-        position: 'relative',
-        zIndex: 1,
-        padding: '20px',
-        minHeight: '100vh'
-      }}>
+    <div className="mypage-root">
+      <div className="mypage-inner">
       {/* 헤더 */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '24px'
-        }}>
-          <button 
-            onClick={() => navigate(-1)}
-            style={{
-              background: 'rgba(255, 255, 255, 0.2)',
-              backdropFilter: 'blur(10px)',
-              color: 'white',
-              border: '1px solid rgba(255, 255, 255, 0.3)',
-              borderRadius: '12px',
-              padding: '10px 16px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontSize: 14,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              transition: 'all 0.3s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-              e.currentTarget.style.transform = 'translateY(-2px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
+        <div className="mypage-header-bar">
+          <button type="button" className="mypage-text-btn" onClick={() => navigate(-1)}>
             <ArrowLeft size={16} />
             뒤로가기
           </button>
           {isOwner && (
-            <button 
-              onClick={() => navigate('/settings')}
-              style={{
-                background: 'rgba(255, 255, 255, 0.2)',
-                backdropFilter: 'blur(10px)',
-                color: 'white',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
-                borderRadius: '12px',
-                padding: '10px 16px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontSize: 14,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'all 0.3s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >
+            <button type="button" className="mypage-text-btn" onClick={() => navigate('/settings')}>
               <Settings size={16} />
               설정
           </button>
@@ -1434,7 +1238,7 @@ const MyPage: React.FC = () => {
             }}
           >
             <div className="mypage-notification-info">
-              {notificationsEnabled ? <Bell size={18} color="white" /> : <BellOff size={18} color="white" />}
+              {notificationsEnabled ? <Bell size={18} /> : <BellOff size={18} />}
               <div className="mypage-notification-texts">
                 <div className="mypage-notification-title">알림 받기</div>
                 <div className="mypage-notification-desc">새 댓글/답글 알림을 휴대폰으로 받을 수 있어요.</div>
@@ -1457,128 +1261,54 @@ const MyPage: React.FC = () => {
       )}
 
       {/* 프로필 히어로 섹션 */}
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.1)',
-          backdropFilter: 'blur(15px)',
-        borderRadius: '24px',
-          padding: '40px 32px',
-        marginBottom: '32px',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: '24px',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
-        }}>
-          <div style={{ 
-            minWidth: 120, 
-            minHeight: 120, 
-            marginBottom: 16, 
-            display: 'flex', 
-            justifyContent: 'center' 
-          }}>
-            <div style={{ 
-              width: 120, 
-              height: 120, 
-              border: '4px solid rgba(255, 255, 255, 0.3)', 
-              borderRadius: '50%',
-              overflow: 'hidden',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)', 
-              cursor: isOwner ? 'pointer' : 'default', 
-              position: 'relative',
-              background: 'rgba(255, 255, 255, 0.1)',
-              backdropFilter: 'blur(10px)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
+        <div className="mypage-profile-hero">
+          <div className="mypage-profile-avatar-wrap">
+            <div
+              className={`mypage-profile-avatar${isOwner ? '' : ' mypage-profile-avatar--readonly'}`}
+              onClick={isOwner ? handleProfileImageClick : undefined}
+              role={isOwner ? 'button' : undefined}
+              tabIndex={isOwner ? 0 : undefined}
+              onKeyDown={isOwner ? (e) => { if (e.key === 'Enter' || e.key === ' ') handleProfileImageClick(); } : undefined}
+            >
             {user?.profileImageUrl ? (
                 <img src={user.profileImageUrl} alt="프로필" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             ) : (
-                <User size={64} color="rgba(255, 255, 255, 0.8)" />
+                <User size={64} color="#8b7355" />
             )}
           </div>
         </div>
           <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, justifyContent: 'center' }}>
-              <span style={{ 
-                fontSize: 24, 
-                fontWeight: 700, 
-                color: 'white', 
-                textAlign: 'center',
-                textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
-              }}>{user?.nickname}</span>
+              <span className="mypage-profile-nickname">{user?.nickname}</span>
             {user?.role && user.role !== '일반' && user.role !== '평가자' && (
-                <span style={{
-                fontSize: 16,
-                color: '#fff',
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(255, 255, 255, 0.3)',
-                  borderRadius: 12,
-                  padding: '4px 16px',
-                fontWeight: 700,
-                marginLeft: 8,
-                letterSpacing: '0.02em',
-                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)',
-                display: 'inline-block',
-                verticalAlign: 'middle'
-              }}>{user.role}</span>
+                <span className="mypage-profile-role">{user.role}</span>
             )}
           </div>
-          <div style={{ 
-            marginTop: 8, 
-            fontSize: 16, 
-            color: 'rgba(255, 255, 255, 0.8)', 
-            textAlign: 'center',
-            textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-          }}>{user?.intro || '등록된 소개가 없습니다.'}</div>
-          <div style={{ marginTop: 12, color: 'rgba(255, 255, 255, 0.9)', fontWeight: 600, fontSize: 15 }}>
-            등급: {getGradeEmoji(user?.grade || GRADE_SYSTEM.CHERRY)} {getGradeName(user?.grade || GRADE_SYSTEM.CHERRY)}
+          <div className="mypage-profile-intro">{user?.intro || '등록된 소개가 없습니다.'}</div>
+          <div className="mypage-profile-grade">
+            등급: <span className="author-grade-label">{getGradeBadgeLabel(user?.grade || GRADE_SYSTEM.CHERRY)}</span>
           </div>
           {user?.pendingGrade && user.pendingGrade !== user.grade && (
-            <div
-              style={{
-                marginTop: 8,
-                fontSize: 13,
-                fontWeight: 600,
-                color: 'rgba(255, 255, 255, 0.95)',
-                background: 'rgba(127, 95, 255, 0.25)',
-                border: '1px solid rgba(255,255,255,0.35)',
-                borderRadius: 10,
-                padding: '8px 12px',
-                maxWidth: 360,
-                textAlign: 'center'
-              }}
-            >
-              승인 대기: {getGradeEmoji(user.pendingGrade)} {getGradeName(user.pendingGrade)} — 설정에서 요청한 등급입니다.
+            <div className="mypage-profile-pending">
+              승인 대기: {getGradeBadgeLabel(user.pendingGrade)} — 설정에서 요청한 등급입니다.
             </div>
           )}
-          <div style={{ marginTop: 8, fontSize: 14, color: 'rgba(255, 255, 255, 0.75)' }}>
+          <div className="mypage-profile-meta">
             가입일: {getCreatedDate(user?.createdAt)?.toLocaleDateString('ko-KR') || '-'}
           </div>
-          <div style={{ marginTop: 4, fontSize: 14, color: 'rgba(255, 255, 255, 0.75)' }}>
+          <div className="mypage-profile-meta" style={{ marginTop: 4 }}>
             활동기간: {Math.max(0, Math.floor(((Date.now()) - (getCreatedDate(user?.createdAt)?.getTime() || Date.now())) / (1000 * 60 * 60 * 24)))}일
           </div>
           {isOwner && user?.pendingCreatedAt && (
-            <div style={{ marginTop: 6, fontSize: 12, color: 'rgba(255,255,255,0.9)' }}>
+            <div className="mypage-profile-meta" style={{ marginTop: 6, fontSize: 12 }}>
               가입일 변경 승인 대기: {getCreatedDate(user.pendingCreatedAt)?.toLocaleDateString('ko-KR')}
             </div>
           )}
           {isOwner && (
             <button
+              type="button"
               onClick={() => navigate('/settings')}
-              style={{
-                marginTop: 14,
-                padding: '9px 18px',
-                borderRadius: 12,
-                border: '1px solid rgba(255, 255, 255, 0.3)',
-                background: 'rgba(255, 255, 255, 0.15)',
-                color: 'white',
-                fontWeight: 700,
-                cursor: 'pointer',
-                fontSize: 14
-              }}
+              className="mypage-profile-edit-btn"
             >
               설정에서 프로필 수정
             </button>
@@ -1587,78 +1317,28 @@ const MyPage: React.FC = () => {
       </div>
 
       {/* 탭 네비게이션 */}
-      <div
-        className="mypage-tabs-bar"
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '8px',
-          marginBottom: '24px',
-          background: 'rgba(255, 255, 255, 0.1)',
-          backdropFilter: 'blur(15px)',
-          borderRadius: '16px',
-          padding: '8px',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => setActiveTab('stats')}
-          style={mypageTabBaseStyle('stats')}
-          onMouseEnter={onMypageTabEnter('stats')}
-          onMouseLeave={onMypageTabLeave('stats')}
-        >
+      <div className="mypage-tabs-bar">
+        <button type="button" onClick={() => setActiveTab('stats')} className={mypageTabClass('stats')}>
           <BarChart3 size={15} />
           <span>활동통계</span>
         </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('posts')}
-          style={mypageTabBaseStyle('posts')}
-          onMouseEnter={onMypageTabEnter('posts')}
-          onMouseLeave={onMypageTabLeave('posts')}
-        >
+        <button type="button" onClick={() => setActiveTab('posts')} className={mypageTabClass('posts')}>
           <FileText size={15} />
           <span>내 글</span>
         </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('evaluations')}
-          style={mypageTabBaseStyle('evaluations')}
-          onMouseEnter={onMypageTabEnter('evaluations')}
-          onMouseLeave={onMypageTabLeave('evaluations')}
-        >
+        <button type="button" onClick={() => setActiveTab('evaluations')} className={mypageTabClass('evaluations')}>
           <Star size={15} />
           <span>평가</span>
         </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('recordings')}
-          style={mypageTabBaseStyle('recordings')}
-          onMouseEnter={onMypageTabEnter('recordings')}
-          onMouseLeave={onMypageTabLeave('recordings')}
-        >
+        <button type="button" onClick={() => setActiveTab('recordings')} className={mypageTabClass('recordings')}>
           <Mic size={15} />
           <span>녹음</span>
         </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('approved')}
-          style={mypageTabBaseStyle('approved')}
-          onMouseEnter={onMypageTabEnter('approved')}
-          onMouseLeave={onMypageTabLeave('approved')}
-        >
+        <button type="button" onClick={() => setActiveTab('approved')} className={mypageTabClass('approved')}>
           <Music size={15} />
           <span>합격곡</span>
         </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('guestbook')}
-          style={mypageTabBaseStyle('guestbook')}
-          onMouseEnter={onMypageTabEnter('guestbook')}
-          onMouseLeave={onMypageTabLeave('guestbook')}
-        >
+        <button type="button" onClick={() => setActiveTab('guestbook')} className={mypageTabClass('guestbook')}>
           <Users size={15} />
           <span>방명록</span>
         </button>
@@ -1666,22 +1346,15 @@ const MyPage: React.FC = () => {
 
       {/* 탭 컨텐츠 */}
       {activeTab && (
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.1)',
-          backdropFilter: 'blur(15px)',
-          borderRadius: '20px',
-          padding: '24px',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-          marginBottom: '24px'
-        }}>
+        <div className="mypage-panel">
         {activeTab === 'stats' && (
           <div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginBottom: '8px' }}>
+            <div className="mypage-stat-grid">
               <div
                 role="button"
                 tabIndex={0}
                 title="내가 쓴 글 목록 보기"
+                className="mypage-stat-card"
                 onClick={() => setStatsModal('posts')}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -1689,41 +1362,18 @@ const MyPage: React.FC = () => {
                     setStatsModal('posts');
                   }
                 }}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.1)',
-                  backdropFilter: 'blur(10px)',
-                  borderRadius: '16px',
-                  padding: '16px',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  cursor: 'pointer',
-                  transition: 'transform 0.15s ease, box-shadow 0.15s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
               >
-                <span style={{ fontSize: '24px' }}>📝</span>
+                <FileText size={22} className="mypage-stat-icon" aria-hidden />
                 <div>
-                  <div style={{ fontSize: '24px', fontWeight: 700, color: 'white', textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)' }}>
-                    {activityStats.postsCount}
-                  </div>
-                  <div style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.8)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)' }}>
-                    내가 쓴 글
-                  </div>
+                  <div className="mypage-stat-value">{activityStats.postsCount}</div>
+                  <div className="mypage-stat-label">내가 쓴 글</div>
                 </div>
               </div>
               <div
                 role="button"
                 tabIndex={0}
                 title="내가 쓴 댓글이 달린 글 목록 보기"
+                className="mypage-stat-card"
                 onClick={() => setStatsModal('comments')}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -1731,41 +1381,18 @@ const MyPage: React.FC = () => {
                     setStatsModal('comments');
                   }
                 }}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.1)',
-                  backdropFilter: 'blur(10px)',
-                  borderRadius: '16px',
-                  padding: '16px',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  cursor: 'pointer',
-                  transition: 'transform 0.15s ease, box-shadow 0.15s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
               >
-                <span style={{ fontSize: '24px' }}>💬</span>
+                <MessageCircle size={22} className="mypage-stat-icon" aria-hidden />
                 <div>
-                  <div style={{ fontSize: '24px', fontWeight: 700, color: 'white', textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)' }}>
-                    {activityStats.commentsCount}
-                  </div>
-                  <div style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.8)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)' }}>
-                    내가 쓴 댓글
-                  </div>
+                  <div className="mypage-stat-value">{activityStats.commentsCount}</div>
+                  <div className="mypage-stat-label">내가 쓴 댓글</div>
                 </div>
               </div>
               <div
                 role="button"
                 tabIndex={0}
                 title="받은 좋아요가 있는 글 목록 보기"
+                className="mypage-stat-card"
                 onClick={() => setStatsModal('likes')}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -1773,86 +1400,29 @@ const MyPage: React.FC = () => {
                     setStatsModal('likes');
                   }
                 }}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.1)',
-                  backdropFilter: 'blur(10px)',
-                  borderRadius: '16px',
-                  padding: '16px',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  cursor: 'pointer',
-                  transition: 'transform 0.15s ease, box-shadow 0.15s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
               >
-                <span style={{ fontSize: '24px' }}>❤️</span>
+                <Heart size={22} className="mypage-stat-icon" aria-hidden />
                 <div>
-                  <div style={{ fontSize: '24px', fontWeight: 700, color: 'white', textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)' }}>
-                    {activityStats.totalLikes}
-                  </div>
-                  <div style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.8)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)' }}>
-                    받은 좋아요
-                  </div>
+                  <div className="mypage-stat-value">{activityStats.totalLikes}</div>
+                  <div className="mypage-stat-label">받은 좋아요</div>
                 </div>
               </div>
-              <div
-                style={{
-                  background: 'rgba(255, 255, 255, 0.1)',
-                  backdropFilter: 'blur(10px)',
-                  borderRadius: '16px',
-                  padding: '16px',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '12px',
-                  minHeight: '88px'
-                }}
-              >
-                <span style={{ fontSize: '24px', lineHeight: 1 }} aria-hidden>🏆</span>
+              <div className="mypage-stat-card mypage-stat-card--static">
+                <Trophy size={22} className="mypage-stat-icon" aria-hidden />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
-                    style={{
-                      fontSize: '14px',
-                      fontWeight: 700,
-                      color: 'rgba(255, 255, 255, 0.95)',
-                      textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
-                      marginBottom: '8px'
-                    }}
-                  >
-                    합격곡 순위
-                  </div>
+                  <div className="mypage-stat-section-title">합격곡 순위</div>
                   {approvedSongLeaderboardLoading ? (
-                    <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.75)' }}>불러오는 중…</div>
+                    <div className="mypage-muted" style={{ fontSize: 13 }}>불러오는 중…</div>
                   ) : approvedSongLeaderboard.length === 0 ? (
-                    <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.75)' }}>
-                      집계할 합격곡이 없습니다
-                    </div>
+                    <div className="mypage-muted" style={{ fontSize: 13 }}>집계할 합격곡이 없습니다</div>
                   ) : (approvedSongs.length === 0 && !viewedProfileApprovedRank) ? (
-                    <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.75)' }}>
-                      합격곡 0곡 · 순위 없음
-                    </div>
+                    <div className="mypage-muted" style={{ fontSize: 13 }}>합격곡 0곡 · 순위 없음</div>
                   ) : viewedProfileApprovedRank ? (
-                    <div
-                      style={{
-                        fontSize: '16px',
-                        fontWeight: 800,
-                        color: 'white',
-                        textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-                      }}
-                    >
+                    <div className="mypage-stat-value" style={{ fontSize: 16 }}>
                       {viewedProfileApprovedRank.rank}위 · 합격곡 {viewedProfileApprovedRank.count}곡
                     </div>
                   ) : (
-                    <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.75)' }}>
+                    <div className="mypage-muted" style={{ fontSize: 13 }}>
                       합격곡 {approvedSongs.length}곡 · 순위 정보를 불러오지 못했습니다
                     </div>
                   )}
@@ -1864,23 +1434,10 @@ const MyPage: React.FC = () => {
         {activeTab === 'posts' && (
             <div>
             {myPosts.length === 0 ? (
-                <div style={{
-                  textAlign: 'center',
-                  padding: '40px 20px',
-                  color: 'rgba(255, 255, 255, 0.7)'
-                }}>
-                  <FileText size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
-                  <h3 style={{ 
-                    fontSize: '20px', 
-                    fontWeight: 600, 
-                    marginBottom: '8px',
-                    color: 'white',
-                    textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-                  }}>📝 작성한 글이 없습니다</h3>
-                  <p style={{ 
-                    fontSize: '14px',
-                    textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-                  }}>첫 번째 글을 작성해보세요!</p>
+                <div className="mypage-empty">
+                  <FileText size={48} aria-hidden />
+                  <h3 className="mypage-empty-title">작성한 글이 없습니다</h3>
+                  <p className="mypage-empty-desc">첫 번째 글을 작성해보세요.</p>
               </div>
             ) : (
               myPosts.map((post) => (

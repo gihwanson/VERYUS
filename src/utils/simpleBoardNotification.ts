@@ -57,18 +57,37 @@ export const markBoardAsVisited = (userId: string, boardType: string) => {
   }
 };
 
-// 게시판에 새 게시글이 있는지 확인 (항상 false 반환하여 알림 숨김)
-export const hasNewPosts = (userId: string, boardType: string): boolean => {
+// 게시판 마지막 방문 시각 (없으면 null)
+export const getBoardLastVisitedAt = (userId: string, boardType: string): number | null => {
   try {
     const key = `${VISIT_STORAGE_KEY}_${userId}`;
     const existingData = localStorage.getItem(key);
-    
-    if (!existingData) {
-      return true; // 처음 방문하는 경우만 알림 표시
-    }
-    
+    if (!existingData) return null;
     const visits: VisitRecord = JSON.parse(existingData);
-    return !visits[boardType]; // 방문 기록이 없으면 true, 있으면 false
+    return visits[boardType] ?? null;
+  } catch (error) {
+    console.error('게시판 방문 시각 조회 에러:', error);
+    return null;
+  }
+};
+
+/** 마지막 게시판 방문 이후 올라온 글이면 true */
+export const isPostNewSinceBoardVisit = (
+  userId: string | undefined,
+  boardType: string,
+  createdAtMs: number
+): boolean => {
+  if (!userId || !createdAtMs) return false;
+  const lastVisited = getBoardLastVisitedAt(userId, boardType);
+  if (lastVisited === null) return true;
+  return createdAtMs > lastVisited;
+};
+
+// 게시판에 새 게시글이 있는지 확인 (항상 false 반환하여 알림 숨김)
+export const hasNewPosts = (userId: string, boardType: string): boolean => {
+  try {
+    const lastVisited = getBoardLastVisitedAt(userId, boardType);
+    return lastVisited === null;
   } catch (error) {
     console.error('게시판 알림 확인 에러:', error);
     return false;

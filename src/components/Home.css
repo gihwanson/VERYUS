@@ -1,9 +1,9 @@
-/* Home 컴포넌트 - 심플하고 모던한 디자인 */
+/* Home — 웜 페이퍼 */
 .home-container {
   min-height: 100dvh;
   width: 100%;
-  background: var(--home-gradient, linear-gradient(160deg, #9AA5CC 0%, #9488B0 55%, #8E96C0 100%));
-  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--home-gradient, #f5f0e8);
+  font-family: var(--paper-font-body, Georgia, 'Times New Roman', 'Batang', serif);
   position: relative;
   overflow-x: hidden;
   padding: 0;
@@ -11,19 +11,8 @@
   box-sizing: border-box;
 }
 
-/* 배경 패턴 */
 .home-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: 
-    radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
-  pointer-events: none;
-  z-index: 0;
+  display: none;
 }
 
 /* 로딩 화면 */
@@ -33,14 +22,14 @@
   align-items: center;
   justify-content: center;
   height: 100vh;
-  color: white;
+  color: var(--paper-muted, #8b7355);
 }
 
 .loading-spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid rgba(255, 255, 255, 0.3);
-  border-top: 4px solid white;
+  border: 4px solid rgba(139, 90, 43, 0.15);
+  border-top: 4px solid var(--paper-accent, #8b5a2b);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 16px;
@@ -64,10 +53,8 @@
   justify-content: space-between;
   gap: 10px;
   padding: max(10px, env(safe-area-inset-top)) 14px 10px;
-  background: rgba(255, 255, 255, 0.12);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: var(--paper-card, #fffdf8);
+  border-bottom: 1px solid var(--paper-border, #e8dcc8);
 }
 
 .home-top-bar__profile {
@@ -77,11 +64,11 @@
   min-width: 0;
   flex: 1;
   padding: 4px 8px 4px 4px;
-  border: none;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-radius: var(--paper-radius, 4px);
+  background: var(--paper-tag-bg, #f0e6d6);
   cursor: pointer;
-  color: #fff;
+  color: var(--paper-ink, #2c2416);
 }
 
 .home-top-bar__nickname {
@@ -99,19 +86,19 @@
   gap: 6px;
   min-height: 40px;
   padding: 0 12px;
-  border: 1px solid rgba(239, 68, 68, 0.45);
-  border-radius: 999px;
-  background: rgba(239, 68, 68, 0.22);
-  color: #fff;
+  border: 1px solid #d4a0a0;
+  border-radius: var(--paper-radius, 4px);
+  background: #faf0f0;
+  color: #8b4040;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.2s, transform 0.2s;
+  transition: background 0.2s;
 }
 
 .home-top-bar__logout:active {
-  transform: scale(0.98);
-  background: rgba(239, 68, 68, 0.35);
+  transform: none;
+  background: #f0e0e0;
 }
 
 /* legacy — 하위 호환 */
@@ -147,7 +134,7 @@
 }
 
 .notification-icon-button svg {
-  color: white;
+  color: var(--paper-ink, #2c2416);
 }
 
 /* 알림 배지 */
@@ -243,12 +230,12 @@
 }
 
 .home-header-profile-avatar svg {
-  color: white;
+  color: var(--paper-muted, #8b7355);
   flex-shrink: 0;
 }
 
 .profile-name {
-  color: white;
+  color: var(--paper-ink, #2c2416);
   font-weight: 600;
   font-size: 8px;
   display: none;
@@ -348,32 +335,19 @@
 .home-title {
   font-size: 36px;
   font-weight: 800;
-  color: #ffffff !important;
+  font-family: var(--paper-serif, Georgia, serif);
+  color: var(--paper-ink, #2c2416) !important;
   margin: 0 0 8px 0;
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 255, 255, 0.2);
+  text-shadow: none;
   letter-spacing: -0.02em;
-  opacity: 1 !important;
-  filter: none !important;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  will-change: transform;
-  -webkit-backdrop-filter: none !important;
-  backdrop-filter: none !important;
 }
 
 .home-slogan {
   font-size: 16px;
-  color: #ffffff !important;
+  color: var(--paper-muted, #8b7355) !important;
   margin: 0;
-  font-weight: 600;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 15px rgba(255, 255, 255, 0.15);
-  opacity: 1 !important;
-  filter: none !important;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  will-change: transform;
-  -webkit-backdrop-filter: none !important;
-  backdrop-filter: none !important;
+  font-weight: 500;
+  text-shadow: none;
 }
 
 /* 게시판 섹션 */
@@ -391,7 +365,7 @@
   padding: 0 4px;
   font-size: 15px;
   font-weight: 800;
-  color: rgba(255, 255, 255, 0.92);
+  color: var(--paper-ink, #2c2416);
   letter-spacing: -0.02em;
 }
 
@@ -451,6 +425,12 @@
 
   .boards-section {
     align-items: center;
+  }
+
+  .notebook-section__title {
+    text-align: center;
+    width: 100%;
+    justify-content: center;
   }
 
   .boards-section__title {
@@ -522,15 +502,15 @@
   }
 }
 
-/* 물방울 스타일 게시판 버튼 */
+/* 게시판 버튼 — 웜 페이퍼 카드 */
 .bubble-button {
-  background: rgba(255, 255, 255, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 16px;
+  background: var(--paper-card, #fffdf8);
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-radius: var(--paper-radius, 4px);
   width: 140px;
   height: 140px;
   cursor: pointer;
-  transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -539,9 +519,8 @@
   justify-content: center;
   padding: 14px;
   font: inherit;
-  color: inherit;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  color: var(--paper-ink, #2c2416);
+  box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.08);
 }
 
 .bubble-button:active {
@@ -585,75 +564,39 @@
 }
 
 .bubble-button::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(circle at center, 
-    var(--board-color, #667eea) 0%, 
-    rgba(255, 255, 255, 0.1) 40%,
-    transparent 70%);
-  border-radius: 50%;
-  opacity: 0.15;
-  transition: all 0.4s ease;
-  filter: blur(2px);
+  display: none;
 }
 
 .bubble-button:hover::before {
-  opacity: 0.25;
-  transform: scale(1.1);
-  filter: blur(0px);
+  display: none;
 }
 
 .bubble-button:hover {
-  transform: translateY(-8px) scale(1.05);
+  border-color: var(--paper-accent, #8b5a2b);
+  box-shadow: 3px 4px 0 rgba(139, 115, 85, 0.12);
+  transform: none;
 }
 
 .bubble-icon {
   margin-bottom: 8px;
-  transition: all 0.3s ease;
   position: relative;
   z-index: 2;
-  /* 강화된 글래시모피즘 효과 */
-  background: linear-gradient(135deg, 
-    rgba(255, 255, 255, 0.3) 0%, 
-    rgba(255, 255, 255, 0.15) 50%,
-    rgba(255, 255, 255, 0.1) 100%);
-  backdrop-filter: blur(25px) saturate(1.5);
-  -webkit-backdrop-filter: blur(25px) saturate(1.5);
-  border: 2px solid rgba(255, 255, 255, 0.4);
+  background: var(--paper-tag-bg, #f0e6d6);
+  border: 1px solid var(--paper-border, #e8dcc8);
   border-radius: 50%;
-  width: 60px;
-  height: 60px;
+  width: 56px;
+  height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.15),
-    0 4px 16px rgba(255, 255, 255, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.2);
+  box-shadow: none;
 }
 
 .bubble-button:hover .bubble-icon {
-  transform: scale(1.15) rotate(5deg);
-  background: radial-gradient(circle at 30% 30%, 
-    rgba(255, 255, 255, 0.4) 0%,
-    var(--board-color, #667eea) 25%,
-    rgba(255, 255, 255, 0.2) 50%,
-    var(--board-color, #667eea) 75%,
-    rgba(255, 255, 255, 0.6) 100%);
-  backdrop-filter: blur(30px) saturate(2) brightness(1.1);
-  -webkit-backdrop-filter: blur(30px) saturate(2) brightness(1.1);
-  border: 2px solid rgba(255, 255, 255, 0.7);
-  box-shadow: 
-    0 15px 45px rgba(0, 0, 0, 0.25),
-    0 0 40px var(--board-color, #667eea),
-    0 0 20px rgba(255, 255, 255, 0.4),
-    inset 0 2px 0 rgba(255, 255, 255, 0.8),
-    inset 0 -2px 0 rgba(255, 255, 255, 0.2);
+  transform: none;
+  background: #e8dcc8;
+  border-color: var(--paper-accent, #8b5a2b);
+  box-shadow: none;
 }
 
 /* 이모지 스타일 개선 */
@@ -746,19 +689,18 @@
 .bubble-name {
   font-size: 13px;
   font-weight: 600;
-  color: white;
+  color: var(--paper-ink, #2c2416);
   margin: 0;
   position: relative;
   z-index: 2;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  text-shadow: none;
   line-height: 1.2;
-  transition: all 0.3s ease;
 }
 
 .bubble-button:hover .bubble-name {
-  color: white;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-  transform: translateY(-2px);
+  color: var(--paper-accent, #8b5a2b);
+  text-shadow: none;
+  transform: none;
 }
 
 /* 모바일 — 게시판 그리드 */

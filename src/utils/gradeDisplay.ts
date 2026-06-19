@@ -42,3 +42,8 @@ export function getGradeName(emojiOrKoreanLabel: string | undefined | null): str
   if (resolvedMixedEmoji) return GRADE_NAMES[resolvedMixedEmoji] || GRADE_NAMES[GRADE_SYSTEM.CHERRY];
   return GRADE_NAMES[GRADE_SYSTEM.CHERRY];
 }
+
+/** UI 배지용 — 이모지 대신 한글 등급명만 표시 */
+export function getGradeBadgeLabel(grade: string | undefined | null): string {
+  return getGradeName(grade);
+}

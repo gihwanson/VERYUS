@@ -199,9 +199,11 @@ const ContestResults: React.FC = () => {
     return '';
   };
 
-  const getGradeEmoji = (avg: number) => {
+  const getGradeLabel = (avg: number) => {
     const full = getGrade(avg);
-    return full ? full.split(' ')[0] : '';
+    if (!full) return '';
+    const parts = full.split(' ');
+    return parts.length > 1 ? parts.slice(1).join(' ') : full;
   };
 
   // 피평가자 표시 함수
@@ -483,7 +485,7 @@ const ContestResults: React.FC = () => {
                     color: 'var(--text-primary, #333)'
                   }}>
                     <span>{display}</span>
-                    <span className="contest-results-inline-grade" title={grade}>{getGradeEmoji(avg)}</span>
+                    <span className="contest-results-inline-grade" title={grade}>{getGradeLabel(avg)}</span>
                   </td>
                   <td style={{ 
                     padding: 8, 
@@ -619,7 +621,7 @@ const ContestResults: React.FC = () => {
                   <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>{getTargetDisplay(g.target)}</td>
                   <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>
                     <span>{g.score}</span>
-                    <span className="contest-results-inline-grade" title={getGrade(Number(g.score))}>{getGradeEmoji(Number(g.score))}</span>
+                    <span className="contest-results-inline-grade" title={getGrade(Number(g.score))}>{getGradeLabel(Number(g.score))}</span>
                   </td>
                   <td style={{ padding: 8, border: '1px solid #E5DAF5', maxWidth: 320, wordBreak: 'break-all', whiteSpace: 'pre-line', color: 'var(--text-primary, #333)', userSelect: 'text', WebkitUserSelect: 'text', MozUserSelect: 'text', msUserSelect: 'text' }}>
                     <BulletedComments comments={g.comment ? g.comment.split(',').map((s: string) => s.trim()).filter(Boolean) : []} />
@@ -657,7 +659,7 @@ const ContestResults: React.FC = () => {
                       <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>{getTargetDisplay(g.target)}</td>
                       <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>
                         <span>{g.score}</span>
-                        <span className="contest-results-inline-grade" title={getGrade(Number(g.score))}>{getGradeEmoji(Number(g.score))}</span>
+                        <span className="contest-results-inline-grade" title={getGrade(Number(g.score))}>{getGradeLabel(Number(g.score))}</span>
                       </td>
                       <td style={{ padding: 8, border: '1px solid #E5DAF5', maxWidth: 320, wordBreak: 'break-all', whiteSpace: 'pre-line', color: 'var(--text-primary, #333)', userSelect: 'text', WebkitUserSelect: 'text', MozUserSelect: 'text', msUserSelect: 'text' }}>
                         <BulletedComments comments={g.comment ? g.comment.split(',').map((s: string) => s.trim()).filter(Boolean) : []} />
@@ -710,7 +712,7 @@ const ContestResults: React.FC = () => {
                           color: 'var(--text-primary, #333)'
                         }}>
                           <span>{display}</span>
-                          <span className="contest-results-inline-grade" title={grade}>{getGradeEmoji(avg)}</span>
+                          <span className="contest-results-inline-grade" title={grade}>{getGradeLabel(avg)}</span>
                         </td>
                         <td style={{ 
                           padding: 8, 

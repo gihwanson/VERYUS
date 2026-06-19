@@ -1,15 +1,15 @@
 /* Modern, Trendy Admin Panel - Notion/Linear/Framer Inspired */
 :root {
-  --main-gradient: var(--gradient-primary);
-  --main-gradient-rev: var(--app-page-gradient);
-  --card-shadow: 0 12px 32px rgba(65, 30, 110, 0.16);
-  --card-radius: 22px;
-  --tab-active-bar: var(--gradient-primary);
-  --glass-bg: rgba(255, 255, 255, 0.24);
-  --glass-blur: blur(16px);
-  --badge-shadow: 0 6px 16px rgba(124, 58, 237, 0.2);
+  --main-gradient: var(--paper-bg, #f5f0e8);
+  --main-gradient-rev: var(--paper-bg, #f5f0e8);
+  --card-shadow: 2px 3px 0 rgba(139, 115, 85, 0.08);
+  --card-radius: 4px;
+  --tab-active-bar: var(--paper-accent, #8b5a2b);
+  --glass-bg: var(--paper-card, #fffdf8);
+  --glass-blur: none;
+  --badge-shadow: 2px 3px 0 rgba(139, 115, 85, 0.1);
   --transition: 0.18s cubic-bezier(.4,0,.2,1);
-  --number-font: 'Inter', 'SUIT', 'Pretendard', sans-serif;
+  --number-font: Georgia, 'Times New Roman', 'Batang', serif;
 }
 
 /* 다른 페이지의 body 배경을 바꾸지 않도록 .admin-container 에만 적용 */
@@ -17,7 +17,7 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--gradient-primary);
+  background: var(--paper-bg, #f5f0e8);
   font-family: var(--number-font);
   position: relative;
   /* 알림/폼 등에서 쓰는 변수 — OS 다크모드와 무관하게 항상 동일 */
@@ -30,14 +30,7 @@
 }
 
 .admin-container::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.12) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 48%);
-  z-index: 0;
+  display: none;
 }
 
 .admin-container > * {
@@ -47,12 +40,12 @@
 
 .admin-hero,
 .admin-header {
-  background: rgba(255, 255, 255, 0.2);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.32);
-  border-radius: 0 0 28px 28px;
-  box-shadow: 0 12px 36px rgba(65, 30, 110, 0.2);
-  backdrop-filter: blur(16px);
+  background: var(--paper-card, #fffdf8);
+  color: var(--paper-ink, #2c2416);
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-radius: 0 0 8px 8px;
+  box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.06);
+  backdrop-filter: none;
   padding: 20px 0 28px;
   margin-bottom: 0;
   position: relative;
@@ -80,19 +73,19 @@
   align-items: center;
   gap: 8px;
   padding: 8px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
+  border-radius: var(--paper-radius, 4px);
+  border: 1px solid var(--paper-border, #e8dcc8);
+  background: var(--paper-tag-bg, #f0e6d6);
+  color: var(--paper-ink, #2c2416);
   font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background var(--transition), border-color var(--transition), transform 0.15s ease;
+  transition: background var(--transition), border-color var(--transition);
 }
 
 .admin-back-link:hover {
-  background: rgba(255, 255, 255, 0.22);
-  border-color: rgba(255, 255, 255, 0.5);
+  background: #e8dcc8;
+  border-color: var(--paper-accent, #8b5a2b);
 }
 
 .admin-back-link:active {
@@ -105,10 +98,10 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   padding: 6px 12px;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  color: rgba(255, 255, 255, 0.95);
+  border-radius: var(--paper-radius, 4px);
+  background: var(--paper-tag-bg, #f0e6d6);
+  border: 1px solid var(--paper-border, #e8dcc8);
+  color: var(--paper-accent, #8b5a2b);
 }
 
 .admin-hero-title-row {
@@ -124,7 +117,7 @@
   text-align: center;
   font-size: 0.95rem;
   line-height: 1.5;
-  color: rgba(255, 255, 255, 0.88);
+  color: var(--paper-muted, #8b7355);
   font-weight: 500;
 }
 
@@ -134,9 +127,10 @@
   z-index: 25;
   margin: -12px 0 0;
   padding: 12px 0 16px;
-  background: linear-gradient(180deg, rgba(112, 74, 170, 0.42) 0%, rgba(112, 74, 170, 0.18) 70%, transparent 100%);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: var(--paper-bg, #f5f0e8);
+  border-bottom: 1px solid var(--paper-border, #e8dcc8);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .admin-tab-scroll {
@@ -263,11 +257,12 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #fff;
-  text-shadow: 0 2px 8px rgba(127,95,255,0.10);
+  font-family: var(--paper-serif, Georgia, serif);
+  color: var(--paper-ink, #2c2416);
+  text-shadow: none;
 }
 .admin-title svg {
-  color: #fff;
+  color: var(--paper-accent, #8b5a2b);
 }
 .header-actions .btn {
   font-size: 1rem;
@@ -313,50 +308,41 @@
   justify-content: center;
   gap: 8px;
   flex-shrink: 0;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.9);
-  color: #6d3e9e;
+  border-radius: var(--paper-radius, 4px);
+  background: var(--paper-card, #fffdf8);
+  color: var(--paper-muted, #8b7355);
   font-weight: 600;
   font-size: 0.92rem;
   padding: 10px 18px;
-  border: 1px solid rgba(138, 85, 204, 0.24);
+  border: 1px solid var(--paper-border, #e8dcc8);
   margin: 0;
-  transition: background var(--transition), color var(--transition), box-shadow var(--transition), border-color var(--transition), transform 0.15s ease;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
   position: relative;
-  box-shadow: 0 8px 18px rgba(65, 30, 110, 0.14);
+  box-shadow: none;
   cursor: pointer;
 }
 
-.tab-button svg {
-  flex-shrink: 0;
-  opacity: 0.9;
-}
-
-.tab-button span {
-  white-space: nowrap;
-}
-
 .tab-button:focus-visible {
-  outline: 2px solid #8a55cc;
+  outline: 2px solid var(--paper-accent, #8b5a2b);
   outline-offset: 2px;
 }
 
 .tab-button.active {
-  background: var(--tab-active-bar);
-  color: #fff;
-  border-color: transparent;
-  box-shadow: 0 10px 20px rgba(124, 58, 237, 0.28);
+  background: var(--paper-tag-bg, #f0e6d6);
+  color: var(--paper-accent, #8b5a2b);
+  border-color: var(--paper-accent, #8b5a2b);
+  box-shadow: none;
 }
 
 .tab-button:hover:not(.active) {
-  background: rgba(245, 243, 255, 0.96);
-  color: #5b21b6;
-  border-color: rgba(138, 85, 204, 0.35);
+  background: #f5f0e8;
+  color: var(--paper-ink, #2c2416);
+  border-color: var(--paper-accent, #8b5a2b);
 }
 
 .tab-button.active:hover {
-  filter: brightness(1.04);
-  color: #fff;
+  filter: none;
+  color: var(--paper-accent, #8b5a2b);
 }
 
 .admin-load-more-wrap {
@@ -3336,10 +3322,26 @@
 .admin-container .notification-content p,
 .admin-container .list-header h4,
 .admin-container .notifications-header h2 {
-  color: rgba(255, 255, 255, 0.96) !important;
+  color: var(--paper-ink, #2c2416) !important;
 }
 
 .admin-container .notification-meta,
 .admin-container .notification-meta span {
-  color: rgba(255, 255, 255, 0.78) !important;
+  color: var(--paper-muted, #8b7355) !important;
+}
+
+/* 웜 페이퍼 — 관리자 글라스 카드 덮어쓰기 */
+.admin-container .user-card,
+.admin-container .stat-card,
+.admin-container .modal-content,
+.admin-container .grade-approval-card,
+.admin-container .notification-item,
+.admin-container .log-item {
+  background: var(--paper-card, #fffdf8) !important;
+  background-image: none !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.08) !important;
+  color: var(--paper-ink, #2c2416) !important;
 }

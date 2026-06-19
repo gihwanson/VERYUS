@@ -1,0 +1,254 @@
+/**
+ * 소프트 모던 — 잔여 페이지 통일 오버라이드
+ * (기능별 CSS는 유지, 글래스/다크 톤만 정리)
+ */
+
+/* ===== 고객센터 ===== */
+.cc-page,
+.cc-loading {
+  color: #111827;
+}
+
+.cc-loading-spinner {
+  border-color: rgba(99, 102, 241, 0.15);
+  border-top-color: var(--primary-color, #6366F1);
+}
+
+.cc-header {
+  background: #fff;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  backdrop-filter: none;
+}
+
+.cc-title {
+  color: #111827;
+}
+
+.cc-back-btn {
+  background: #F3F4F6;
+  color: #374151;
+}
+
+.cc-back-btn:hover {
+  background: #E5E7EB;
+}
+
+.cc-tab {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: #6B7280;
+}
+
+.cc-tab:hover {
+  background: #F9FAFB;
+  color: #374151;
+}
+
+.cc-tab--active {
+  background: var(--primary-alpha-10, rgba(99, 102, 241, 0.08));
+  border-color: var(--primary-color, #6366F1);
+  color: var(--primary-color, #6366F1);
+}
+
+.cc-hint-box {
+  background: #EEF2FF;
+  border-color: rgba(99, 102, 241, 0.2);
+  color: #374151;
+}
+
+.cc-label {
+  color: #6B7280;
+}
+
+.cc-chip {
+  background: #F9FAFB;
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #374151;
+}
+
+.cc-chip:hover {
+  border-color: rgba(99, 102, 241, 0.25);
+  color: var(--primary-color, #6366F1);
+}
+
+.cc-chip--active {
+  background: var(--primary-color, #6366F1);
+  border-color: var(--primary-color, #6366F1);
+  color: #fff;
+}
+
+.cc-input,
+.cc-textarea {
+  background: #fff;
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #111827;
+}
+
+.cc-inquiry-card,
+.cc-inquiry-detail {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: none;
+}
+
+.cc-inquiry-title,
+.cc-inquiry-meta {
+  color: #374151;
+}
+
+.cc-msg--admin {
+  background: #EEF2FF;
+  color: #111827;
+}
+
+.cc-msg--user {
+  background: #F3F4F6;
+  color: #111827;
+}
+
+.cc-empty-state {
+  color: #6B7280;
+}
+
+/* ===== 연습실 예약 ===== */
+.practice-room-booking::before {
+  display: none;
+}
+
+.practice-room-booking .booking-header,
+.practice-room-booking .booking-controls,
+.practice-room-booking .week-view,
+.practice-room-booking .day-view-mobile,
+.practice-room-booking .booking-info,
+.practice-room-booking .legend {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: none;
+}
+
+.practice-room-booking .booking-header h1 {
+  color: var(--primary-color, #6366F1);
+}
+
+.practice-room-booking .unlimited-admin-badge {
+  color: #15803d;
+  background: #DCFCE7;
+  border-color: #BBF7D0;
+}
+
+.practice-room-booking .nav-button,
+.practice-room-booking .today-button {
+  background: var(--primary-color, #6366F1);
+}
+
+.practice-room-booking .nav-button:hover,
+.practice-room-booking .today-button:hover {
+  background: var(--primary-dark, #4F46E5);
+  transform: none;
+  box-shadow: none;
+}
+
+.practice-room-booking .week-label,
+.practice-room-booking .day-header,
+.practice-room-booking .time-label {
+  color: #374151;
+}
+
+/* ===== 게임 ===== */
+.games-page {
+  color: #111827;
+}
+
+.games-back-btn {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: #374151;
+}
+
+.games-subtitle {
+  color: #6B7280;
+  opacity: 1;
+}
+
+.games-card {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: none;
+  color: #111827;
+}
+
+.games-card:hover:not(:disabled) {
+  background: #fff;
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.games-card-icon {
+  background: var(--primary-alpha-10, rgba(99, 102, 241, 0.08));
+  color: var(--primary-color, #6366F1);
+}
+
+.games-card-desc {
+  color: #6B7280;
+}
+
+.games-hub-champions,
+.games-leaderboard-panel {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: none;
+}
+
+.games-play-screen {
+  color: #111827;
+}
+
+.games-play-header {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  backdrop-filter: none;
+}
+
+/* ===== 익명 채팅 (목록) — 채팅방 UI는 카카오톡 테마 유지 ===== */
+.anonymous-chat-list-page {
+  background: var(--gradient-primary, #F3F4F6);
+}
+
+.anonymous-chat-list-header,
+.anonymous-chat-list-section {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ===== 셋리스트 ===== */
+.setlist-form-container,
+.setlist-card {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: none;
+  color: #111827;
+}
+
+.setlist-card.active {
+  border-color: var(--primary-color, #6366F1);
+  background: #fff;
+  box-shadow: 0 0 0 2px var(--primary-alpha-20, rgba(99, 102, 241, 0.14));
+}
+
+.setlist-card h3,
+.setlist-card p,
+.setlist-card span {
+  color: inherit;
+}
+
+.active-badge {
+  backdrop-filter: none;
+  background: #10B981;
+  border-color: transparent;
+}

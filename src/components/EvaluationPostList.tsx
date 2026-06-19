@@ -15,7 +15,7 @@ import {
 } from 'firebase/firestore';
 import type { DocumentData } from 'firebase/firestore';
 import { db } from '../firebase';
-import { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
+import { getGradeBadgeLabel, getGradeName } from '../utils/gradeDisplay';
 import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
 import { 
   Plus, 
@@ -712,26 +712,18 @@ const EvaluationPostList: React.FC = () => {
           </form>
         </div>
         <div className="action-buttons">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            <label htmlFor="evaluation-sort-order" style={{ color: '#FFFFFF', fontSize: '0.85rem', fontWeight: 600 }}>
+          <div className="post-sort-wrap" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <label htmlFor="evaluation-sort-order" className="post-sort-label">
               정렬
             </label>
             <select
               id="evaluation-sort-order"
+              className="post-sort-select"
               value={sortOrder}
               onChange={(e) => setSortOrder(e.target.value as SortOrder)}
-              style={{
-                background: 'rgba(255,255,255,0.18)',
-                color: '#FFFFFF',
-                border: '1px solid rgba(255,255,255,0.3)',
-                borderRadius: 8,
-                padding: '6px 8px',
-                fontSize: '0.85rem',
-                fontWeight: 600
-              }}
             >
-              <option value="newest" style={{ color: '#1f2937' }}>최신순</option>
-              <option value="oldest" style={{ color: '#1f2937' }}>오래된순</option>
+              <option value="newest">최신순</option>
+              <option value="oldest">오래된순</option>
             </select>
           </div>
           <button 
@@ -784,10 +776,10 @@ const EvaluationPostList: React.FC = () => {
               </div>
               <div className="post-meta">
                 <div className="post-author">
-                  <span className="author-grade" title={getGradeName(post.writerGrade || '🍒')} style={{ fontSize: '1.1rem', marginRight: '0.3rem' }}>
-                    {getGradeEmoji(post.writerGrade || '🍒')}
+                  <span className="author-grade-label" title={getGradeName(post.writerGrade || '🍒')}>
+                    {getGradeBadgeLabel(post.writerGrade)}
                   </span>
-                  <span className="author-name" style={{ fontSize: '1.1rem', color: '#FFFFFF', fontWeight: 600, textDecoration: 'none' }}>
+                  <span className="author-name post-author-name--list">
                     {post.writerNickname}
                   </span>
                   <span className={`role-badge ${getPublicRoleBadge(post.writerRole, post.writerPosition)}`}>
@@ -801,24 +793,24 @@ const EvaluationPostList: React.FC = () => {
               <div className="post-content-preview">
                 {post.description}
               </div>
-              <div className="post-stats" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(139, 92, 246, 0.1)', color: '#FFFFFF', fontSize: '0.85rem', fontWeight: 500 }}>
-                <span className="post-stat" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#FFFFFF' }}>
-                  <Heart size={16} style={{ color: '#FFFFFF' }} />
+              <div className="post-stats post-stats-row">
+                <span className="post-stat post-stat-item">
+                  <Heart size={16} />
                   {post.likesCount || 0}
                 </span>
-                <span className="post-stat" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#FFFFFF' }}>
-                  <MessageCircle size={16} style={{ color: '#FFFFFF' }} />
+                <span className="post-stat post-stat-item">
+                  <MessageCircle size={16} />
                   {post.commentCount || 0}
                 </span>
-                <span className="post-date" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#FFFFFF' }}>
-                  <Clock size={16} style={{ color: '#FFFFFF' }} />
+                <span className="post-date post-stat-item">
+                  <Clock size={16} />
                   {formatDate(post.createdAt)}
                   <span style={{ opacity: 0.85, fontSize: '0.78rem' }}>
                     ({formatExactDateTime(post.createdAt)})
                   </span>
                 </span>
-                <span className="post-views" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#FFFFFF' }}>
-                  <Eye size={16} style={{ color: '#FFFFFF' }} />
+                <span className="post-views post-stat-item">
+                  <Eye size={16} />
                   조회 {post.views || 0}
                 </span>
                 <span className={`post-status-badge ${post.category === 'feedback' ? 'feedback' : post.status === '합격' ? 'approved' : post.status === '불합격' ? 'rejected' : 'pending'}`}>
@@ -850,10 +842,10 @@ const EvaluationPostList: React.FC = () => {
               </div>
               <div className="post-meta">
                 <div className="post-author">
-                  <span className="author-grade" title={getGradeName(post.writerGrade || '🍒')} style={{ fontSize: '1.1rem', marginRight: '0.3rem' }}>
-                    {getGradeEmoji(post.writerGrade || '🍒')}
+                  <span className="author-grade-label" title={getGradeName(post.writerGrade || '🍒')}>
+                    {getGradeBadgeLabel(post.writerGrade)}
                   </span>
-                  <span className="author-name" style={{ fontSize: '1.1rem', color: '#FFFFFF', fontWeight: 600, textDecoration: 'none' }}>
+                  <span className="author-name post-author-name--list">
                     {post.writerNickname}
                   </span>
                   <span className={`role-badge ${getPublicRoleBadge(post.writerRole, post.writerPosition)}`}>
@@ -867,24 +859,24 @@ const EvaluationPostList: React.FC = () => {
               <div className="post-content-preview">
                 {post.description}
               </div>
-              <div className="post-stats" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(139, 92, 246, 0.1)', color: '#FFFFFF', fontSize: '0.85rem', fontWeight: 500 }}>
-                <span className="post-stat" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#FFFFFF' }}>
-                  <Heart size={16} style={{ color: '#FFFFFF' }} />
+              <div className="post-stats post-stats-row">
+                <span className="post-stat post-stat-item">
+                  <Heart size={16} />
                   {post.likesCount || 0}
                 </span>
-                <span className="post-stat" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#FFFFFF' }}>
-                  <MessageCircle size={16} style={{ color: '#FFFFFF' }} />
+                <span className="post-stat post-stat-item">
+                  <MessageCircle size={16} />
                   {post.commentCount || 0}
                 </span>
-                <span className="post-date" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#FFFFFF' }}>
-                  <Clock size={16} style={{ color: '#FFFFFF' }} />
+                <span className="post-date post-stat-item">
+                  <Clock size={16} />
                   {formatDate(post.createdAt)}
                   <span style={{ opacity: 0.85, fontSize: '0.78rem' }}>
                     ({formatExactDateTime(post.createdAt)})
                   </span>
                 </span>
-                <span className="post-views" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#FFFFFF' }}>
-                  <Eye size={16} style={{ color: '#FFFFFF' }} />
+                <span className="post-views post-stat-item">
+                  <Eye size={16} />
                   조회 {post.views || 0}
                 </span>
                 <span className={`post-status-badge ${post.status === '합격' ? 'approved' : 'rejected'}`}>

@@ -14,7 +14,7 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
+import { getGradeBadgeLabel, getGradeName } from '../utils/gradeDisplay';
 import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
 import CommentSection from './CommentSection';
 import { 
@@ -370,8 +370,8 @@ const FreePostDetail: React.FC = () => {
   const authorBlock = (
     <>
       <span className="author-info" onClick={() => navigate(`/mypage/${post.writerUid}`)}>
-        <span className="author-grade-emoji" title={getGradeName(post.writerGrade || '🍒')}>
-          {getGradeEmoji(post.writerGrade || '🍒')}
+        <span className="author-grade-label" title={getGradeName(post.writerGrade || '🍒')}>
+          {getGradeBadgeLabel(post.writerGrade)}
         </span>
         {post.writerNickname}
       </span>

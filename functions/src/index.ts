@@ -9,6 +9,7 @@ export {
   deleteAnonymousChatRoom,
   scheduledAnonymousChatCleanup
 } from './anonymousChatCleanup';
+export { deleteUserAuthAccount } from './adminUserManagement';
 export { scheduledGameWeeklyReset } from './gameWeeklyReset';
 const WEB_APP_ORIGIN = 'https://veryusduet.web.app';
 

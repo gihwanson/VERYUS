@@ -1,103 +1,113 @@
-/* Global CSS Variables */
+/* Global CSS Variables — 웜 페이퍼 기본 */
 :root {
-  /* Colors - Christmas Theme */
-  --primary-color: #C41E3A;
-  --primary-light: #DC3545;
-  --primary-dark: #A01D2E;
-  --primary-alpha-10: rgba(196, 30, 58, 0.1);
-  --primary-alpha-20: rgba(196, 30, 58, 0.2);
-  --primary-alpha-30: rgba(196, 30, 58, 0.3);
-  
-  /* Christmas Accent Colors */
-  --christmas-red: #C41E3A;
-  --christmas-green: #228B22;
-  --christmas-gold: #FFD700;
-  --christmas-silver: #C0C0C0;
+  --paper-bg: #f5f0e8;
+  --paper-card: #fffdf8;
+  --paper-border: #e8dcc8;
+  --paper-ink: #2c2416;
+  --paper-muted: #8b7355;
+  --paper-body: #4a3f32;
+  --paper-accent: var(--primary-color, #8b5a2b);
+  --paper-tag-bg: #f0e6d6;
+  --paper-tag-text: #6b5344;
+  --paper-radius: 4px;
+  --paper-serif: Georgia, 'Times New Roman', 'Batang', serif;
+  --paper-font-body: Georgia, 'Times New Roman', 'Batang', 'Noto Serif KR', serif;
+  --paper-font-heading: Georgia, 'Times New Roman', 'Batang', serif;
 
-  /* Background Colors - Christmas Theme */
-  --primary-bg: linear-gradient(135deg, #E8F4F8 0%, #D1E7F0 50%, #B8D9E8 100%);
-  --card-bg: #FFFFFF;
-  --bg-gradient: linear-gradient(135deg, #E8F4F8 0%, #D1E7F0 50%, #B8D9E8 100%);
-  --bg-white: #FFFFFF;
-  --bg-light: #F0F8FC;
-  --bg-lighter: #E8F4F8;
-  --bg-input: #FAFAFA;
-  --bg-success: #F0FDF4;
-  --bg-error: #FEF2F2;
-  --hover-bg: #E8F4F8;
+  --primary-color: #8b5a2b;
+  --primary-light: #a07040;
+  --primary-dark: #6b4423;
+  --primary-alpha-10: rgba(139, 90, 43, 0.1);
+  --primary-alpha-20: rgba(139, 90, 43, 0.18);
+  --primary-alpha-30: rgba(139, 90, 43, 0.26);
 
-  /* Bottom Navigation Colors - Light Theme */
-  --nav-bg: rgba(255, 255, 255, 0.98);
-  --nav-border: rgba(0, 0, 0, 0.08);
-  --nav-shadow: rgba(0, 0, 0, 0.08);
-  --nav-item-hover: rgba(196, 30, 58, 0.08);
-  --nav-item-active: rgba(196, 30, 58, 0.12);
-  --nav-text: #6B7280;
-  --nav-text-active: #C41E3A;
-  --nav-badge-bg: linear-gradient(135deg, #FF4757 0%, #FF3838 100%);
-  --nav-badge-shadow: rgba(255, 71, 87, 0.3);
-  --nav-admin-bg: linear-gradient(135deg, #C41E3A 0%, #DC3545 100%);
-  --nav-admin-hover: linear-gradient(135deg, #A01D2E 0%, #C41E3A 100%);
-  --nav-search-bg: linear-gradient(135deg, #C41E3A 0%, #DC3545 100%);
-  --nav-search-hover: linear-gradient(135deg, #A01D2E 0%, #C41E3A 100%);
-  --nav-toggle-bg: rgba(255, 255, 255, 0.98);
-  --nav-toggle-hover: #F9FAFB;
-  --nav-toggle-shadow: rgba(0, 0, 0, 0.12);
-  --nav-toggle-shadow-hover: rgba(196, 30, 58, 0.2);
-  --nav-submenu-item-bg: #F3F4F6;
-  --nav-submenu-item-border: rgba(0, 0, 0, 0.08);
-  --nav-submenu-text: #374151;
-  --nav-submenu-text-hover: #1F2937;
-  --nav-submenu-icon: #4B5563;
-  --nav-submenu-hover-bg: #E5E7EB;
-  --nav-submenu-hover-border: rgba(196, 30, 58, 0.25);
-  --nav-search-inner-bg: #F3F4F6;
-  --nav-search-inner-border: rgba(0, 0, 0, 0.1);
-  --nav-search-icon: #6B7280;
-  --nav-search-input: #1F2937;
-  --nav-search-placeholder: #9CA3AF;
+  --christmas-red: #8b5a2b;
+  --christmas-green: #5c7a56;
+  --christmas-gold: #dcb478;
+  --christmas-silver: #c0b8a8;
+
+  --primary-bg: #fffdf8;
+  --card-bg: #fffdf8;
+  --bg-gradient: #f5f0e8;
+  --bg-white: #fffdf8;
+  --bg-light: #f5f0e8;
+  --bg-lighter: #ede6d8;
+  --bg-input: #fffdf8;
+  --bg-success: #eef5ee;
+  --bg-error: #fef2f2;
+  --hover-bg: #f0e6d6;
+
+  --nav-bg: rgba(255, 253, 248, 0.98);
+  --nav-border: #e8dcc8;
+  --nav-shadow: rgba(139, 115, 85, 0.08);
+  --nav-item-hover: rgba(139, 90, 43, 0.08);
+  --nav-item-active: rgba(139, 90, 43, 0.14);
+  --nav-text: #a89880;
+  --nav-text-active: #8b5a2b;
+  --nav-badge-bg: #8b5a2b;
+  --nav-badge-shadow: rgba(139, 90, 43, 0.25);
+  --nav-admin-bg: #6b4423;
+  --nav-admin-hover: #8b5a2b;
+  --nav-search-bg: #8b5a2b;
+  --nav-search-hover: #6b4423;
+  --nav-toggle-bg: rgba(255, 253, 248, 0.98);
+  --nav-toggle-hover: #f0e6d6;
+  --nav-toggle-shadow: rgba(139, 115, 85, 0.12);
+  --nav-toggle-shadow-hover: rgba(139, 90, 43, 0.2);
+  --nav-submenu-item-bg: #fffdf8;
+  --nav-submenu-item-border: #e8dcc8;
+  --nav-submenu-text: #6b5344;
+  --nav-submenu-text-hover: #2c2416;
+  --nav-submenu-icon: #8b7355;
+  --nav-submenu-hover-bg: #f0e6d6;
+  --nav-submenu-hover-border: rgba(139, 90, 43, 0.25);
+  --nav-search-inner-bg: #f5f0e8;
+  --nav-search-inner-border: #e8dcc8;
+  --nav-search-icon: #8b7355;
+  --nav-search-input: #2c2416;
+  --nav-search-placeholder: #a89880;
 
   /* Comment Item Colors */
-  --comment-bg: rgba(255, 255, 255, 0.08);
-  --comment-bg-hover: rgba(255, 255, 255, 0.12);
-  --comment-border: rgba(255, 255, 255, 0.15);
-  --comment-border-hover: rgba(139, 92, 246, 0.25);
-  --comment-header-border: rgba(139, 92, 246, 0.1);
-  --comment-actions-border: rgba(139, 92, 246, 0.08);
-  --comment-text: #2d2d44;
-  --comment-date: rgba(74, 74, 104, 0.7);
-  --comment-author: #2d2d44;
-  --comment-edit-bg: rgba(255, 255, 255, 0.1);
-  --comment-edit-border: rgba(255, 255, 255, 0.2);
-  --comment-input-bg: rgba(255, 255, 255, 0.1);
-  --comment-input-border: rgba(139, 92, 246, 0.2);
-  --comment-input-focus: #8A55CC;
-  --comment-input-focus-shadow: rgba(138, 85, 204, 0.1);
-  --comment-button-bg: rgba(255, 255, 255, 0.15);
-  --comment-button-border: rgba(139, 92, 246, 0.15);
-  --comment-button-text: #6B46C1;
-  --comment-button-hover-bg: rgba(139, 92, 246, 0.1);
-  --comment-button-hover-border: rgba(139, 92, 246, 0.3);
-  --comment-button-hover-text: #8B5CF6;
-  --comment-save-bg: #8A55CC;
-  --comment-save-hover: #7C4DBC;
-  --comment-cancel-bg: rgba(255, 255, 255, 0.2);
-  --comment-cancel-text: #6B7280;
-  --comment-cancel-hover-bg: rgba(255, 255, 255, 0.3);
-  --comment-cancel-hover-text: #4B5563;
-  --comment-reply-bg: rgba(139, 92, 246, 0.08);
-  --comment-reply-border: rgba(139, 92, 246, 0.3);
-  --comment-replies-border: rgba(139, 92, 246, 0.2);
-  --comment-mention-bg: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(168, 85, 247, 0.1) 100%);
-  --comment-mention-text: #8B5CF6;
-  --comment-mention-border: rgba(139, 92, 246, 0.2);
+  --comment-bg: #fffdf8;
+  --comment-bg-hover: #fffdf8;
+  --comment-border: #e8dcc8;
+  --comment-border-hover: rgba(139, 90, 43, 0.3);
+  --comment-header-border: #e8dcc8;
+  --comment-actions-border: #f0e6d6;
+  --comment-text: #2c2416;
+  --comment-date: #8b7355;
+  --comment-author: #2c2416;
+  --comment-edit-bg: #fffdf8;
+  --comment-edit-border: #e8dcc8;
+  --comment-input-bg: #fffdf8;
+  --comment-input-border: #e8dcc8;
+  --comment-input-focus: #8b5a2b;
+  --comment-input-focus-shadow: rgba(139, 90, 43, 0.1);
+  --comment-button-bg: #f5f0e8;
+  --comment-button-border: #e8dcc8;
+  --comment-button-text: #8b5a2b;
+  --comment-button-hover-bg: #f0e6d6;
+  --comment-button-hover-border: rgba(139, 90, 43, 0.3);
+  --comment-button-hover-text: #6b4423;
+  --comment-save-bg: #8b5a2b;
+  --comment-save-hover: #6b4423;
+  --comment-cancel-bg: #f5f0e8;
+  --comment-cancel-text: #8b7355;
+  --comment-cancel-hover-bg: #f0e6d6;
+  --comment-cancel-hover-text: #2c2416;
+  --comment-reply-bg: #f5f0e8;
+  --comment-reply-border: #e8dcc8;
+  --comment-replies-border: #e8dcc8;
+  --comment-mention-bg: #f0e6d6;
+  --comment-mention-text: #8b5a2b;
+  --comment-mention-border: #e8dcc8;
 
   /* Role Badge Colors */
-  --role-leader-bg: linear-gradient(135deg, #EF4444 0%, #F87171 100%);
-  --role-admin-bg: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%);
-  --role-subadmin-bg: linear-gradient(135deg, #10B981 0%, #34D399 100%);
-  --role-member-bg: linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%);
-  --role-text: white;
+  --role-leader-bg: #8b5a2b;
+  --role-admin-bg: #6b5344;
+  --role-subadmin-bg: #5c7a56;
+  --role-member-bg: #a89880;
+  --role-text: var(--paper-card, #fffdf8);
 
   /* Text Colors */
   --text-primary: #1F2937;
@@ -128,12 +138,12 @@
   /* 메인 콘텐츠 가로 폭 (셋리스트 데스크톱 셸과 동일 계열) */
   --app-content-max-width: 1400px;
 
-  /* Border Radius */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
-  --radius-2xl: 24px;
+  /* Border Radius — 웜 페이퍼 */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+  --radius-2xl: 12px;
   --radius-full: 9999px;
 
   /* Font Sizes */
@@ -146,17 +156,17 @@
   --text-3xl: 28px;
   --text-4xl: 36px;
 
-  /* Shadows - Christmas Theme */
-  --shadow-sm: 0 4px 6px rgba(196, 30, 58, 0.1);
-  --shadow-md: 0 8px 25px rgba(196, 30, 58, 0.15);
-  --shadow-lg: 0 20px 40px rgba(196, 30, 58, 0.2);
-  --shadow-color: rgba(196, 30, 58, 0.1);
+  /* Shadows */
+  --shadow-sm: 2px 3px 0 rgba(139, 115, 85, 0.06);
+  --shadow-md: 0 4px 12px rgba(139, 115, 85, 0.1);
+  --shadow-lg: 0 8px 24px rgba(139, 115, 85, 0.14);
+  --shadow-color: rgba(139, 115, 85, 0.1);
 
-  /* Button Styles - Christmas Theme */
-  --button-bg: #FFFFFF;
-  --button-hover-bg: #F0F8FC;
-  --button-primary-bg: var(--christmas-red);
-  --button-primary-hover: var(--primary-dark);
+  /* Button Styles */
+  --button-bg: #fffdf8;
+  --button-hover-bg: #f0e6d6;
+  --button-primary-bg: #8b5a2b;
+  --button-primary-hover: #6b4423;
   --button-text-color: #FFFFFF;
   --button-shadow: 0 2px 4px rgba(196, 30, 58, 0.2);
   --button-spacing: var(--space-md);
@@ -175,19 +185,19 @@
   --z-submenu: 999;
 
   /* New variables from the code block */
-  --gradient-primary: linear-gradient(135deg, #8E9BC8 0%, #9A8BB5 100%);
-  --home-gradient: linear-gradient(160deg, #9AA5CC 0%, #9488B0 55%, #8E96C0 100%);
-  --app-page-gradient: linear-gradient(135deg, #8E9BC8 0%, #9A8BB5 100%);
-  --app-accent: #A86B78;
-  --app-accent-light: #C08A96;
-  --app-accent-gradient: linear-gradient(135deg, #C08A96 0%, #8F5A66 100%);
-  --app-page-text: #ffffff;
-  --app-page-text-muted: rgba(255, 255, 255, 0.85);
-  --app-card-text: #111827;
-  --app-card-text-muted: #6b7280;
-  --app-glass-text: #1a1a2e;
-  --gradient-button: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
-  --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.15) 50%, rgba(255, 255, 255, 0.1) 100%);
+  --gradient-primary: #f5f0e8;
+  --home-gradient: linear-gradient(180deg, #f5f0e8 0%, #ede6d8 100%);
+  --app-page-gradient: #f5f0e8;
+  --app-accent: #8b5a2b;
+  --app-accent-light: #a07040;
+  --app-accent-gradient: linear-gradient(135deg, #a07040 0%, #6b4423 100%);
+  --app-page-text: #2c2416;
+  --app-page-text-muted: #8b7355;
+  --app-card-text: #2c2416;
+  --app-card-text-muted: #6b5344;
+  --app-glass-text: #2c2416;
+  --gradient-button: #8b5a2b;
+  --gradient-glass: #fffdf8;
   --spacing-xs: 0.25rem;
   --spacing-sm: 0.5rem;
   --spacing-md: 1rem;
@@ -203,38 +213,32 @@
   --comment-section-margin-top: 2rem;
   
   /* Comment Header */
-  --comment-header-border: rgba(139, 92, 246, 0.1);
+  --comment-header-border: #e8dcc8;
   --comment-header-padding: 1.5rem 2rem;
-  --comment-header-title-color: #2d2d44;
-  --comment-header-title-shadow: 0 1px 2px rgba(255, 255, 255, 0.3);
+  --comment-header-title-color: #2c2416;
+  --comment-header-title-shadow: none;
   
   /* Comment Form */
   --comment-form-padding: 1.5rem;
   --comment-form-margin-bottom: 1.5rem;
   
   /* Tab Buttons */
-  --tab-button-bg: rgba(255, 255, 255, 0.1);
-  --tab-button-border: rgba(139, 92, 246, 0.2);
-  --tab-button-color: #2d2d44;
-  --tab-button-active-bg: linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%);
-  --tab-button-active-color: white;
-  --tab-button-active-border: rgba(255, 255, 255, 0.3);
+  --tab-button-bg: #f5f0e8;
+  --tab-button-border: #e8dcc8;
+  --tab-button-color: #6b5344;
+  --tab-button-active-bg: #8b5a2b;
+  --tab-button-active-color: #fffdf8;
+  --tab-button-active-border: #8b5a2b;
   
   /* Comment Input */
   --comment-input-bg: rgba(255, 255, 255, 0.08);
   --comment-input-border: rgba(255, 255, 255, 0.2);
   --comment-input-color: #2d2d44;
   --comment-input-placeholder: rgba(45, 45, 68, 0.6);
-  --comment-input-focus-border: rgba(139, 92, 246, 0.4);
-  --comment-input-focus-bg: rgba(255, 255, 255, 0.12);
-  --comment-input-shadow: 
-    0 4px 16px rgba(139, 92, 246, 0.08),
-    0 2px 8px rgba(139, 92, 246, 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  --comment-input-focus-shadow: 
-    0 8px 24px rgba(139, 92, 246, 0.15),
-    0 4px 12px rgba(139, 92, 246, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  --comment-input-focus-border: var(--paper-accent, #8b5a2b);
+  --comment-input-focus-bg: #fffdf8;
+  --comment-input-shadow: none;
+  --comment-input-focus-shadow: 0 0 0 2px rgba(139, 90, 43, 0.12);
   
   /* Preview Content */
   --preview-content-bg: rgba(255, 255, 255, 0.08);

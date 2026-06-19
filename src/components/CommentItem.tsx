@@ -11,9 +11,10 @@ import { db } from '../firebase';
 import TagParser from './TagParser';
 import { Heart, MessageCircle, Edit, Trash2, Send, Clock } from 'lucide-react';
 import { getPublicRoleBadge } from '../utils/publicRoleBadge';
+import { getGradeBadgeLabel, getGradeName } from '../utils/gradeDisplay';
 import './CommentItem.css';
 import { NotificationService } from '../utils/notificationService';
-import { checkAdminAccess } from './AdminTypes';
+import { checkAdminAccess, GRADE_SYSTEM } from './AdminTypes';
 
 // Types
 interface Comment {
@@ -138,9 +139,14 @@ const CommentItem: React.FC<CommentItemProps> = ({
     return `${baseNickname} (${realNickname})`;
   }, [comment.writerNickname, comment.realWriterNickname, comment.isAnonymousWriter, user?.nickname]);
 
-  const displayGradeEmoji = useMemo(() => {
-    if (comment.isAnonymousWriter) return '🍒';
-    return comment.writerGrade || '🍒';
+  const displayGradeLabel = useMemo(() => {
+    if (comment.isAnonymousWriter) return getGradeBadgeLabel(GRADE_SYSTEM.CHERRY);
+    return getGradeBadgeLabel(comment.writerGrade);
+  }, [comment.isAnonymousWriter, comment.writerGrade]);
+
+  const displayGradeTitle = useMemo(() => {
+    if (comment.isAnonymousWriter) return getGradeName(GRADE_SYSTEM.CHERRY);
+    return getGradeName(comment.writerGrade);
   }, [comment.isAnonymousWriter, comment.writerGrade]);
 
   const displayRoleBadge = useMemo(() => {
@@ -372,8 +378,8 @@ const CommentItem: React.FC<CommentItemProps> = ({
       <div className="comment-header">
         <div className="comment-info">
           <div className="author-info">
-            <span className="comment-grade-emoji" title={displayGradeEmoji}>
-              {displayGradeEmoji}
+            <span className="author-grade-label" title={displayGradeTitle}>
+              {displayGradeLabel}
             </span>
             <span className="comment-author">{displayAuthorName}</span>
             {!comment.isAnonymousWriter && (

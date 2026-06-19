@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
-import { getGradeEmoji } from '../utils/gradeDisplay';
+import { getGradeBadgeLabel } from '../utils/gradeDisplay';
 import GlobalLoadingScreen from './GlobalLoadingScreen';
 import './HallOfFame.css';
 import { approvedSongCountsByNicknameFromDocs } from '../utils/approvedSongMilestone';
@@ -32,7 +32,7 @@ type HallCachePayload = {
   activityRanking: RankEntry[];
 };
 
-const MEDALS = ['🥇', '🥈', '🥉'];
+const MEDALS = ['1', '2', '3'];
 const SHOW_HALL_DEBUG_LOG = Boolean(import.meta.env.DEV);
 const HALL_CACHE_KEY = 'veryus_hall_of_fame_cache_v1';
 const RANKING_INITIAL_VISIBLE = 30;
@@ -430,10 +430,10 @@ const HallOfFame: React.FC = () => {
                       ) : (
                         visibleRows.map((entry, idx) => (
                           <tr key={`${section.key}-${entry.uid}-${idx}`}>
-                            <td>{MEDALS[idx] || `${idx + 1}`}</td>
+                            <td className="hall-rank">{MEDALS[idx] || `${idx + 1}`}</td>
                             <td>
                               <span className="hall-name-with-grade">
-                                <span className="hall-grade-inline">{getGradeEmoji(entry.grade)}</span>
+                                <span className="author-grade-label">{getGradeBadgeLabel(entry.grade)}</span>
                                 <span className="hall-name">{entry.nickname}</span>
                               </span>
                               {entry.role && entry.role !== '일반' && entry.role !== '평가자' && (
