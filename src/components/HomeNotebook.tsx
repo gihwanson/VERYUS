@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { toast } from 'react-toastify';
@@ -78,12 +78,12 @@ const HomeNotebook: React.FC = () => {
     navigate(board.path);
   };
 
-  const loadBoardPreviews = () => {
-    setPreviewsLoading(true);
+  const loadBoardPreviews = useCallback((silent = false) => {
+    if (!silent) setPreviewsLoading(true);
     void fetchHomeBoardPreviews()
       .then(setBoardPreviews)
       .finally(() => setPreviewsLoading(false));
-  };
+  }, []);
 
   const getBoardNotification = (boardType: string): boolean => {
     const notification = boardNotifications.find((n) => n.boardType === boardType);
@@ -125,19 +125,25 @@ const HomeNotebook: React.FC = () => {
 
   useEffect(() => {
     loadBoardPreviews();
-  }, []);
+  }, [loadBoardPreviews]);
 
   useEffect(() => {
+    let focusTimer: ReturnType<typeof setTimeout> | undefined;
     const handleFocus = () => {
-      if (user?.uid) {
-        setBoardNotifications(getAllBoardNotificationStatus(user.uid));
-        bumpVisitRevision();
-      }
-      loadBoardPreviews();
+      if (focusTimer) clearTimeout(focusTimer);
+      focusTimer = setTimeout(() => {
+        if (user?.uid) {
+          setBoardNotifications(getAllBoardNotificationStatus(user.uid));
+        }
+        loadBoardPreviews(true);
+      }, 400);
     };
     window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [user?.uid]);
+    return () => {
+      if (focusTimer) clearTimeout(focusTimer);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [user?.uid, loadBoardPreviews]);
 
   if (loading) {
     return <GlobalLoadingScreen message="홈 화면을 불러오는 중..." />;
@@ -217,7 +223,7 @@ const HomeNotebook: React.FC = () => {
                     onClick={() => navigateToBoard(board)}
                   >
                     <span className="notebook-index-item">{board.name}</span>
-                    {board.showLatestPreview && previewsLoading ? (
+                    {board.showLatestPreview && previewsLoading && !previews.length ? (
                       <span className="notebook-index-inline-preview notebook-index-inline-preview--loading" aria-hidden>
                         <span className="notebook-index-preview-skeleton" />
                       </span>

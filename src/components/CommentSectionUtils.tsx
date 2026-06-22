@@ -63,6 +63,7 @@ export interface Post {
 // URL 경로로부터 게시판 타입 결정
 export const getPostTypeFromPath = (): string => {
   const path = window.location.pathname;
+  if (path === '/' || path === '/home') return 'home';
   if (path.includes('/free/')) return 'free';
   if (path.includes('/recording/')) return 'recording';
   if (path.includes('/evaluation/')) return 'evaluation';
@@ -190,10 +191,10 @@ export const submitComment = async (
     lastCommentAt: new Date()
   });
   
-  // 댓글 알림: 게시글 작성자에게(본인이면 생략)
-  if (user.uid !== post.writerUid) {
+  // 댓글 알림: 게시글 작성자에게(본인이면 생략). 메인 본문은 단일 작성자 없음.
+  const postType = getPostTypeFromPath();
+  if (postType !== 'home' && post.writerUid && user.uid !== post.writerUid) {
     try {
-      const postType = getPostTypeFromPath();
       console.info('[comment] notify:attempt', {
         postId: post.id,
         postType,

@@ -25,6 +25,8 @@
 /* Individual Post Card — 웜 페이퍼 */
 .post-item, .post-card {
   background: var(--paper-card, #fffdf8);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border-radius: var(--paper-radius, 4px);
   box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.08);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -44,6 +46,8 @@
 
 .post-item:hover, .post-card:hover {
   background: var(--paper-card, #fffdf8);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   transform: none;
   border-color: var(--paper-accent, #8b5a2b);
   box-shadow: 3px 4px 0 rgba(139, 115, 85, 0.12);
@@ -652,7 +656,7 @@
   
   .post-item, .post-card {
     padding: 1rem;
-    border-radius: 16px;
+    border-radius: var(--paper-radius, 4px);
     min-height: 160px;
   }
   
@@ -669,7 +673,7 @@
   .post-category, .category-badge {
     font-size: 0.75rem;
     padding: 0.25rem 0.8rem;
-    border-radius: 12px;
+    border-radius: 2px;
   }
   
   .post-title {
@@ -733,7 +737,7 @@
 @media (max-width: 640px) {
   .post-item, .post-card {
     padding: 0.8rem;
-    border-radius: 14px;
+    border-radius: var(--paper-radius, 4px);
   }
   
   .post-title {

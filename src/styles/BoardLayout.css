@@ -403,7 +403,7 @@ html, body {
   
   .top-nav, .board-nav {
     padding: 0.8rem 1rem;
-    border-radius: 16px;
+    border-radius: var(--paper-radius, 4px);
   }
   
   .board-title-section {
@@ -421,11 +421,11 @@ html, body {
   
   .board-controls {
     padding: 1rem;
-    border-radius: 16px;
+    border-radius: var(--paper-radius, 4px);
   }
   
   .search-form {
-    border-radius: 14px;
+    border-radius: var(--paper-radius, 4px);
   }
   
   .search-input {
@@ -490,12 +490,12 @@ html, body {
   
   .top-nav, .board-nav {
     padding: 0.6rem 0.8rem;
-    border-radius: 14px;
+    border-radius: var(--paper-radius, 4px);
   }
   
   .board-controls {
     padding: 0.8rem;
-    border-radius: 14px;
+    border-radius: var(--paper-radius, 4px);
   }
   
   .search-input {

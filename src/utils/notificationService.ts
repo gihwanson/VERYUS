@@ -99,7 +99,8 @@ export class NotificationService {
       recording: '녹음',
       evaluation: '평가',
       balance: '밸런스',
-      partner: '파트너'
+      partner: '파트너',
+      home: '메인'
     };
     return labels[postType || ''] || '게시판';
   }
@@ -169,7 +170,8 @@ export class NotificationService {
       'recording': `/recording/${postId}`,
       'evaluation': `/evaluation/${postId}`,
       'balance': `/balance/${postId}`,
-      'partner': `/boards/partner/${postId}`
+      'partner': `/boards/partner/${postId}`,
+      'home': '/'
     };
     return routes[postType] || `/free/${postId}`;
   }

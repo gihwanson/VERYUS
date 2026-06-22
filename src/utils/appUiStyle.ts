@@ -23,7 +23,7 @@ export interface AppUiStyleOption {
 export const APP_UI_STYLE_OPTIONS: AppUiStyleOption[] = [
   {
     id: 'warm-paper',
-    label: '노트북 (현재)',
+    label: '웜페이지 (현재)',
     preview: 'linear-gradient(135deg, #f5f0e8 0%, #fffdf8 100%)',
   },
   {

@@ -1,4 +1,4 @@
-import { getAccentForThemeId, getSavedAppTheme, syncPaperNavAccent } from './appTheme';
+import { applyAppThemeNavSync, getSavedAppTheme } from './appTheme';
 import { getSavedAppUiStyle } from './appUiStyleStorage';
 
 export const BOTTOM_NAV_THEME_STORAGE_KEY = 'veryus_bottom_nav_theme';
@@ -317,9 +317,7 @@ export function applyBottomNavTheme(themeId: BottomNavThemeId): void {
     root.style.setProperty(cssVar, theme[key]);
   }
 
-  if (themeId === 'paper' && getSavedAppUiStyle() === 'warm-paper') {
-    syncPaperNavAccent(root, getAccentForThemeId(getSavedAppTheme()));
-  }
+  applyAppThemeNavSync(root, getSavedAppTheme());
 
   root.setAttribute('data-bottom-nav-theme', themeId);
   localStorage.setItem(BOTTOM_NAV_THEME_STORAGE_KEY, themeId);

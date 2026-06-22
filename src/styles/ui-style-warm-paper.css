@@ -13,8 +13,8 @@
 @import './warm-paper-board-nav.css';
 @import './warm-paper-post-body.css';
 @import '../components/Notifications.css';
-@import '../components/Settings.css';
 @import '../components/MyPage.css';
+@import '../components/Settings.css';
 @import './games.css';
 @import '../components/ApprovedSongs.css';
 @import '../components/PracticeRoomBooking.css';

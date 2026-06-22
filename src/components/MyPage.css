@@ -425,7 +425,9 @@ body {
   gap: 12px;
 }
 
-.edit-btn, .save-btn, .cancel-btn {
+.mypage-root .edit-btn,
+.mypage-root .save-btn,
+.mypage-root .cancel-btn {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -439,31 +441,31 @@ body {
   font-family: var(--paper-font-body, Georgia, 'Times New Roman', 'Batang', serif);
 }
 
-.edit-btn {
+.mypage-root .edit-btn {
   background: #F3F4F6;
   color: #6B7280;
 }
 
-.edit-btn:hover {
+.mypage-root .edit-btn:hover {
   background: #B497D6;
   color: white;
 }
 
-.save-btn {
+.mypage-root .save-btn {
   background: #10B981;
   color: white;
 }
 
-.save-btn:hover {
+.mypage-root .save-btn:hover {
   background: #059669;
 }
 
-.cancel-btn {
+.mypage-root .cancel-btn {
   background: #EF4444;
   color: white;
 }
 
-.cancel-btn:hover {
+.mypage-root .cancel-btn:hover {
   background: #DC2626;
 }
 
@@ -496,7 +498,7 @@ body {
   border-color: #B497D6;
 }
 
-.send-btn {
+.mypage-root .send-btn {
   align-self: flex-end;
   display: flex;
   align-items: center;
@@ -513,7 +515,7 @@ body {
   font-family: var(--paper-font-body, Georgia, 'Times New Roman', 'Batang', serif);
 }
 
-.send-btn:hover {
+.mypage-root .send-btn:hover {
   background: #8A55CC;
 }
 
@@ -729,8 +731,8 @@ body {
   margin-bottom: 24px;
 }
 
-.back-button,
-.settings-button {
+.mypage-root .back-button,
+.mypage-root .settings-button {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -746,8 +748,8 @@ body {
   font-size: 14px;
 }
 
-.back-button:hover,
-.settings-button:hover {
+.mypage-root .back-button:hover,
+.mypage-root .settings-button:hover {
   background: #F6F2FF;
   border-color: #8A55CC;
   transform: translateY(-1px);
@@ -759,7 +761,7 @@ body {
     gap: 12px;
   }
   
-  .settings-button {
+  .mypage-root .settings-button {
     width: 100%;
     justify-content: center;
   }
@@ -813,7 +815,7 @@ body {
   flex-shrink: 0;
 }
 
-.toggle-switch {
+.mypage-root .toggle-switch {
   position: relative;
   width: 56px;
   height: 32px;
@@ -825,11 +827,11 @@ body {
   padding: 0;
 }
 
-.toggle-switch.active {
+.mypage-root .toggle-switch.active {
   background: rgba(255, 255, 255, 0.4);
 }
 
-.toggle-slider {
+.mypage-root .toggle-slider {
   position: absolute;
   top: 4px;
   left: 4px;
@@ -841,7 +843,7 @@ body {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.toggle-switch.active .toggle-slider {
+.mypage-root .toggle-switch.active .toggle-slider {
   transform: translateX(24px);
 }
 

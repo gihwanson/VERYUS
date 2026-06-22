@@ -465,6 +465,35 @@
 @media (max-width: 768px) {
   .settings-container {
     padding: 15px;
+    background-attachment: scroll;
+    background: var(--app-page-gradient, linear-gradient(135deg, #8E9BC8 0%, #9A8BB5 100%));
+    color: white;
+  }
+
+  .settings-card {
+    background: rgba(255, 255, 255, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+  }
+
+  .back-button,
+  .edit-btn,
+  .cancel-btn,
+  .logout-btn {
+    background: rgba(255, 255, 255, 0.28);
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    color: white;
+  }
+
+  .save-btn,
+  .delete-btn,
+  .delete-confirm-btn {
+    border: 1px solid rgba(255, 255, 255, 0.35);
+  }
+
+  .nickname-input {
+    background: rgba(255, 255, 255, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    color: white;
   }
   
   .settings-header {

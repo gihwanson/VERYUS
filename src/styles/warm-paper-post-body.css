@@ -187,7 +187,6 @@ html[data-ui-style="warm-paper"] .post-stats .like-button span {
   }
 }
 
-html[data-ui-style="warm-paper"] .post-stat,
 html[data-ui-style="warm-paper"] .stat-button,
 html[data-ui-style="warm-paper"] .action-button {
   color: var(--paper-ink, #2c2416) !important;
@@ -196,6 +195,17 @@ html[data-ui-style="warm-paper"] .action-button {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   box-shadow: none !important;
+}
+
+/* 목록 — 좋아요·댓글 수는 박스 없이 아이콘+숫자만 */
+html[data-ui-style="warm-paper"] .post-stats-row .post-stat,
+html[data-ui-style="warm-paper"] .post-stats-row .post-stat-item,
+html[data-ui-style="warm-paper"] .post-footer .post-stat,
+html[data-ui-style="warm-paper"] .post-footer .post-stat-item {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
 }
 
 html[data-ui-style="warm-paper"] .stat-button:hover:not(:disabled),
@@ -467,4 +477,140 @@ html[data-ui-style="warm-paper"] .write-form-title {
 html[data-ui-style="warm-paper"] .message-textarea:focus {
   border-color: var(--primary-color, #8b5a2b) !important;
   box-shadow: 0 0 0 3px var(--primary-alpha-10, rgba(139, 90, 43, 0.1)) !important;
+}
+
+/* ===== 게시글 목록 — PC·모바일 동일 웜페이지 ===== */
+html[data-ui-style="warm-paper"] .posts-container {
+  background: var(--paper-bg, #f5f0e8) !important;
+}
+
+html[data-ui-style="warm-paper"] .post-item,
+html[data-ui-style="warm-paper"] .post-card {
+  background: var(--paper-card, #fffdf8) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  border-radius: var(--paper-radius, 4px) !important;
+  box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.08) !important;
+}
+
+html[data-ui-style="warm-paper"] .post-item:hover,
+html[data-ui-style="warm-paper"] .post-card:hover {
+  background: var(--paper-card, #fffdf8) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transform: none !important;
+  border-color: var(--paper-accent, #8b5a2b) !important;
+  box-shadow: 3px 4px 0 rgba(139, 115, 85, 0.12) !important;
+}
+
+html[data-ui-style="warm-paper"] .post-item:active,
+html[data-ui-style="warm-paper"] .post-card:active {
+  background-color: var(--paper-tag-bg, #f0e6d6) !important;
+  transform: scale(0.98) !important;
+}
+
+html[data-ui-style="warm-paper"] .post-content-preview {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: none !important;
+  border-top: 1px solid var(--paper-list-divider, #c4b49a) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+html[data-ui-style="warm-paper"] .request-song-banner,
+html[data-ui-style="warm-paper"] .board-info-banner {
+  background: transparent !important;
+  color: var(--paper-muted, #8b7355) !important;
+  border: none !important;
+  border-bottom: 1px dashed var(--paper-border, #e8dcc8) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html[data-ui-style="warm-paper"] .board-controls,
+html[data-ui-style="warm-paper"] .top-nav,
+html[data-ui-style="warm-paper"] .board-nav {
+  background: var(--paper-card, #fffdf8) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  border-radius: var(--paper-radius, 4px) !important;
+  box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.06) !important;
+}
+
+html[data-ui-style="warm-paper"] .board-header.glassmorphism,
+html[data-ui-style="warm-paper"] .board-container .glassmorphism {
+  background: var(--paper-card, #fffdf8) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  border-radius: var(--paper-radius, 4px) !important;
+  box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.06) !important;
+}
+
+html[data-ui-style="warm-paper"] .post-category,
+html[data-ui-style="warm-paper"] .category-badge {
+  background: var(--paper-tag-bg, #f0e6d6) !important;
+  border: none !important;
+  border-radius: 2px !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+
+html[data-ui-style="warm-paper"] .empty-posts {
+  background: var(--paper-card, #fffdf8) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  border-radius: var(--paper-radius, 4px) !important;
+  backdrop-filter: none !important;
+  color: var(--paper-muted, #8b7355) !important;
+}
+
+html[data-ui-style="warm-paper"] .empty-posts p,
+html[data-ui-style="warm-paper"] .empty-posts svg {
+  color: var(--paper-muted, #8b7355) !important;
+  text-shadow: none !important;
+  filter: none !important;
+}
+
+html[data-ui-style="warm-paper"] .reset-search {
+  background: var(--paper-accent, #8b5a2b) !important;
+  color: var(--paper-card, #fffdf8) !important;
+  border: 1px solid var(--paper-accent, #8b5a2b) !important;
+  border-radius: var(--paper-radius, 4px) !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+
+html[data-ui-style="warm-paper"] .audio-preview {
+  background: var(--paper-bg, #f5f0e8) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  border-radius: var(--paper-radius, 4px) !important;
+  backdrop-filter: none !important;
+}
+
+html[data-ui-style="warm-paper"] .audio-preview button {
+  background: var(--paper-accent, #8b5a2b) !important;
+}
+
+@media (max-width: 768px) {
+  html[data-ui-style="warm-paper"] .post-item,
+  html[data-ui-style="warm-paper"] .post-card,
+  html[data-ui-style="warm-paper"] .board-controls,
+  html[data-ui-style="warm-paper"] .top-nav,
+  html[data-ui-style="warm-paper"] .board-nav,
+  html[data-ui-style="warm-paper"] .search-form {
+    border-radius: var(--paper-radius, 4px) !important;
+  }
+
+  html[data-ui-style="warm-paper"] .post-category,
+  html[data-ui-style="warm-paper"] .category-badge,
+  html[data-ui-style="warm-paper"] .author-role,
+  html[data-ui-style="warm-paper"] .author-position {
+    border-radius: 2px !important;
+  }
 }

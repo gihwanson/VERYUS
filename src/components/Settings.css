@@ -497,6 +497,17 @@ select.nickname-input option {
   .settings-container {
     padding: 15px;
     padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+    background-attachment: scroll;
+  }
+
+  .settings-container .back-button,
+  .settings-container .save-btn,
+  .settings-container .edit-btn,
+  .settings-container .cancel-btn,
+  .settings-container .logout-btn,
+  .settings-container .delete-btn,
+  .settings-container .delete-confirm-btn {
+    min-height: 44px;
   }
 
   .settings-header {

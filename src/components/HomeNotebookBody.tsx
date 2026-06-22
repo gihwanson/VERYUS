@@ -1,21 +1,36 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { toast } from 'react-toastify';
-import { Pencil, Check, Plus, Trash2, ImagePlus, Type, Heading2, Calendar } from 'lucide-react';
+import {
+  Pencil,
+  Check,
+  Plus,
+  Trash2,
+  ImagePlus,
+  Type,
+  Heading2,
+  Calendar,
+} from 'lucide-react';
 import { storage, auth } from '../firebase';
 import { canEditHomeNotebookBody } from './AdminTypes';
+import HomeNotebookPhotoGallery from './HomeNotebookPhotoGallery';
 import {
   createNotebookBlockId,
   fetchHomeNotebookBody,
   saveHomeNotebookBody,
   sortNotebookBlocks,
+  splitNotebookBlocks,
   type HomeNotebookBlock,
   type HomeNotebookBlockType,
 } from '../utils/homeNotebookBody';
 interface HomeNotebookBodyProps {
   user: {
+    uid?: string;
+    email?: string;
     nickname?: string;
     role?: string;
+    grade?: string;
+    isLoggedIn?: boolean;
   } | null;
 }
 
@@ -49,6 +64,18 @@ const HomeNotebookBody: React.FC<HomeNotebookBodyProps> = ({ user }) => {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [pickingForBlockId, setPickingForBlockId] = useState<string | null>(null);
+
+  const commentUser = useMemo(() => {
+    if (!user?.uid) return null;
+    return {
+      uid: user.uid,
+      email: user.email || '',
+      nickname: user.nickname,
+      role: user.role,
+      grade: user.grade,
+      isLoggedIn: user.isLoggedIn ?? true,
+    };
+  }, [user]);
 
   const loadBody = useCallback(async () => {
     setLoading(true);
@@ -160,7 +187,7 @@ const HomeNotebookBody: React.FC<HomeNotebookBodyProps> = ({ user }) => {
       const storageRef = ref(storage, `homeNotebook/${Date.now()}_${file.name}`);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
-      updateBlock(blockId, { imageUrl: url });
+      updateBlock(blockId, { imageUrl: url, uploadedAt: Date.now() });
     } catch (error) {
       console.error('이미지 업로드 실패:', error);
       toast.error(
@@ -174,6 +201,10 @@ const HomeNotebookBody: React.FC<HomeNotebookBodyProps> = ({ user }) => {
   };
 
   const displayBlocks = editing ? draftBlocks : blocks;
+  const { imageBlocks, contentBlocks } = useMemo(
+    () => splitNotebookBlocks(displayBlocks),
+    [displayBlocks]
+  );
 
   const renderViewBlock = (block: HomeNotebookBlock) => {
     switch (block.type) {
@@ -193,16 +224,7 @@ const HomeNotebookBody: React.FC<HomeNotebookBodyProps> = ({ user }) => {
           </p>
         );
       case 'image':
-        return block.imageUrl ? (
-          <figure className="notebook-body__figure">
-            <div className="notebook-body__photo-frame">
-              <img src={block.imageUrl} alt={block.body || '베리어스 활동 사진'} loading="lazy" />
-            </div>
-            {block.body?.trim() && (
-              <figcaption className="notebook-body__caption">{block.body}</figcaption>
-            )}
-          </figure>
-        ) : null;
+        return null;
       case 'timeline':
         return (
           <div className="notebook-body__timeline-item">
@@ -386,13 +408,24 @@ const HomeNotebookBody: React.FC<HomeNotebookBodyProps> = ({ user }) => {
           </div>
         ) : (
           <div className="notebook-body__content">
-            {editing
-              ? displayBlocks.map(renderEditBlock)
-              : displayBlocks.map((block) => (
-                  <div key={block.id} className="notebook-body__block">
-                    {renderViewBlock(block)}
-                  </div>
-                ))}
+            {editing ? (
+              displayBlocks.map(renderEditBlock)
+            ) : (
+              <>
+                {imageBlocks.length > 0 && (
+                  <HomeNotebookPhotoGallery images={imageBlocks} user={commentUser} />
+                )}
+                {contentBlocks.map((block) => {
+                  const rendered = renderViewBlock(block);
+                  if (!rendered) return null;
+                  return (
+                    <div key={block.id} className="notebook-body__block">
+                      {rendered}
+                    </div>
+                  );
+                })}
+              </>
+            )}
           </div>
         )}
 
@@ -420,6 +453,7 @@ const HomeNotebookBody: React.FC<HomeNotebookBodyProps> = ({ user }) => {
             </button>
           </div>
         )}
+
       </article>
     </section>
   );

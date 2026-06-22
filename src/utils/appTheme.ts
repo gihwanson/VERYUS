@@ -234,8 +234,14 @@ export const APP_THEME_OPTIONS_CLASSIC: AppThemeOption[] = [
   { id: 'night', label: '나이트', preview: 'linear-gradient(135deg, #3D4A5C, #1A2332)' },
 ];
 
+/** 웜페이지 UI — 페이지 배경·강조색 미리보기 */
+export const APP_THEME_OPTIONS_WARM_PAPER: AppThemeOption[] = [
+  { id: 'paper', label: '브라운 (기본)', preview: 'linear-gradient(135deg, #f5f0e8, #ede6d8)' },
+  ...APP_THEME_OPTIONS_CLASSIC,
+];
+
 export function getAppThemeOptions(uiStyle: AppUiStyleId = getSavedAppUiStyle()): AppThemeOption[] {
-  return uiStyle === 'classic' ? APP_THEME_OPTIONS_CLASSIC : APP_THEME_OPTIONS;
+  return uiStyle === 'classic' ? APP_THEME_OPTIONS_CLASSIC : APP_THEME_OPTIONS_WARM_PAPER;
 }
 
 const CONTEST_BG_VARS = [
@@ -251,6 +257,41 @@ export function isAppThemeId(value: string): value is AppThemeId {
 }
 
 const PAPER_SURFACE: AppThemeVars = THEMES.paper;
+
+function getWarmPaperCardColor(themeId: AppThemeId): string {
+  return themeId === 'night' ? '#1e293b' : '#fffdf8';
+}
+
+function getWarmPaperBorderColor(themeId: AppThemeId, theme: AppThemeVars): string {
+  if (themeId === 'paper') return '#e8dcc8';
+  if (themeId === 'night') return 'rgba(148, 163, 184, 0.28)';
+  return theme.primaryAlpha30;
+}
+
+/** 웜페이지 — 테마별 배경·글자색 (클래식과 동일 팔레트, 가독성 유지) */
+function getWarmPaperSurfaceForTheme(themeId: AppThemeId): AppThemeVars {
+  const theme = THEMES[themeId] ?? THEMES.paper;
+  if (themeId === 'paper') {
+    return theme;
+  }
+  if (themeId === 'night') {
+    return {
+      ...theme,
+      gradientPrimary: theme.bgGradient,
+      homeGradient: theme.homeGradient,
+      appPageGradient: theme.bgGradient,
+      primaryBg: '#243040',
+    };
+  }
+  return {
+    ...theme,
+    gradientPrimary: theme.bgGradient,
+    homeGradient: theme.homeGradient,
+    appPageGradient: theme.bgGradient,
+    pageText: theme.cardText,
+    pageTextMuted: theme.cardTextMuted,
+  };
+}
 
 export interface AppAccentVars {
   primaryColor: string;
@@ -283,14 +324,26 @@ const BOTTOM_NAV_THEME_STORAGE_KEY = 'veryus_bottom_nav_theme';
 
 function getSavedBottomNavThemeId(): string {
   try {
-    return localStorage.getItem(BOTTOM_NAV_THEME_STORAGE_KEY) || 'paper';
+    const saved = localStorage.getItem(BOTTOM_NAV_THEME_STORAGE_KEY);
+    if (saved) return saved;
   } catch {
-    return 'paper';
+    /* ignore */
   }
+  return getSavedAppUiStyle() === 'classic' ? 'white' : 'paper';
 }
 
-/** 웜 페이퍼 하단 네비 — 앱 강조색과 동기화 */
-export function syncPaperNavAccent(root: HTMLElement, accent: AppAccentVars): void {
+/** 하단 네비 — 앱 테마 강조색 동기화 */
+export function syncNavAccentFromAppTheme(
+  root: HTMLElement,
+  accent: AppAccentVars,
+  options?: {
+    syncPaperSurface?: boolean;
+    surface?: Pick<AppThemeVars, 'pageTextMuted' | 'cardTextMuted' | 'pageText'>;
+    navCardBg?: string;
+    navBorder?: string;
+    isDarkNav?: boolean;
+  }
+): void {
   root.style.setProperty('--nav-text-active', accent.primaryColor);
   root.style.setProperty('--nav-item-hover', accent.primaryAlpha10);
   root.style.setProperty('--nav-item-active', accent.primaryAlpha20);
@@ -302,6 +355,58 @@ export function syncPaperNavAccent(root: HTMLElement, accent: AppAccentVars): vo
   root.style.setProperty('--nav-admin-hover', accent.primaryColor);
   root.style.setProperty('--nav-submenu-hover-border', accent.primaryAlpha30);
   root.style.setProperty('--nav-toggle-shadow-hover', accent.primaryAlpha30);
+  root.style.setProperty('--nav-toggle-shadow', accent.primaryAlpha20);
+
+  if (options?.syncPaperSurface && options.surface) {
+    const { surface, navCardBg = '#fffdf8', navBorder, isDarkNav = false } = options;
+
+    if (isDarkNav) {
+      root.style.setProperty('--nav-bg', 'rgba(30, 41, 59, 0.96)');
+      root.style.setProperty('--nav-toggle-bg', 'rgba(30, 41, 59, 0.96)');
+    } else {
+      root.style.setProperty('--nav-bg', 'rgba(255, 253, 248, 0.98)');
+      root.style.setProperty('--nav-toggle-bg', 'rgba(255, 253, 248, 0.98)');
+    }
+
+    root.style.setProperty('--nav-border', navBorder ?? accent.primaryAlpha20);
+    root.style.setProperty('--nav-text', surface.pageTextMuted);
+    root.style.setProperty('--nav-submenu-text', surface.cardTextMuted);
+    root.style.setProperty('--nav-submenu-icon', surface.pageTextMuted);
+    root.style.setProperty('--nav-submenu-item-bg', navCardBg);
+    root.style.setProperty('--nav-submenu-item-border', navBorder ?? accent.primaryAlpha20);
+    root.style.setProperty('--nav-submenu-hover-bg', accent.primaryAlpha10);
+    root.style.setProperty('--nav-submenu-text-hover', surface.pageText ?? accent.primaryDark);
+    root.style.setProperty('--nav-search-inner-bg', accent.primaryAlpha10);
+    root.style.setProperty('--nav-search-inner-border', accent.primaryAlpha20);
+    root.style.setProperty('--nav-search-icon', surface.pageTextMuted);
+    root.style.setProperty('--nav-search-input', surface.pageText ?? '#2c2416');
+    root.style.setProperty('--nav-search-placeholder', surface.pageTextMuted);
+    root.style.setProperty('--nav-toggle-hover', accent.primaryAlpha10);
+  }
+}
+
+/** @deprecated syncNavAccentFromAppTheme 사용 */
+export function syncPaperNavAccent(root: HTMLElement, accent: AppAccentVars): void {
+  syncNavAccentFromAppTheme(root, accent);
+}
+
+export function applyAppThemeNavSync(root: HTMLElement, appThemeId: AppThemeId): void {
+  const bottomNavTheme = getSavedBottomNavThemeId();
+  const accent = getAccentForThemeId(appThemeId);
+
+  if (getSavedAppUiStyle() === 'warm-paper' && bottomNavTheme === 'paper') {
+    const surface = getWarmPaperSurfaceForTheme(appThemeId);
+    syncNavAccentFromAppTheme(root, accent, {
+      syncPaperSurface: true,
+      surface,
+      navCardBg: getWarmPaperCardColor(appThemeId),
+      navBorder: getWarmPaperBorderColor(appThemeId, surface),
+      isDarkNav: appThemeId === 'night',
+    });
+    return;
+  }
+
+  syncNavAccentFromAppTheme(root, accent);
 }
 
 function applyClassicCommentThemeVars(root: HTMLElement, theme: AppThemeVars): void {
@@ -359,28 +464,34 @@ function applyClassicCommentThemeVars(root: HTMLElement, theme: AppThemeVars): v
   root.style.setProperty('--comment-author-shadow', 'none');
 }
 
-function applyCommentThemeVars(root: HTMLElement, accent: AppAccentVars): void {
-  const surface = PAPER_SURFACE;
+function applyCommentThemeVars(
+  root: HTMLElement,
+  accent: AppAccentVars,
+  surface: AppThemeVars = PAPER_SURFACE,
+  cardBg: string = '#fffdf8',
+  isDarkSurface = false
+): void {
   const accentGradient = `linear-gradient(135deg, ${accent.primaryLight} 0%, ${accent.primaryDark} 100%)`;
+  const borderColor = surface.primaryAlpha20;
 
-  root.style.setProperty('--comment-bg', surface.primaryBg);
-  root.style.setProperty('--comment-bg-hover', '#fffdf8');
-  root.style.setProperty('--comment-border', '#e8dcc8');
+  root.style.setProperty('--comment-bg', cardBg);
+  root.style.setProperty('--comment-bg-hover', isDarkSurface ? '#334155' : '#fffdf8');
+  root.style.setProperty('--comment-border', isDarkSurface ? 'rgba(148, 163, 184, 0.28)' : borderColor);
   root.style.setProperty('--comment-border-hover', accent.primaryAlpha30);
-  root.style.setProperty('--comment-header-border', '#e8dcc8');
+  root.style.setProperty('--comment-header-border', isDarkSurface ? 'rgba(148, 163, 184, 0.2)' : borderColor);
   root.style.setProperty('--comment-actions-border', accent.primaryAlpha10);
   root.style.setProperty('--comment-text', surface.cardText);
   root.style.setProperty('--comment-author', surface.cardText);
   root.style.setProperty('--comment-date', surface.cardTextMuted);
-  root.style.setProperty('--comment-edit-bg', '#fffdf8');
-  root.style.setProperty('--comment-edit-border', '#e8dcc8');
-  root.style.setProperty('--comment-button-bg', '#fffdf8');
-  root.style.setProperty('--comment-button-border', accent.primaryAlpha20);
+  root.style.setProperty('--comment-edit-bg', cardBg);
+  root.style.setProperty('--comment-edit-border', isDarkSurface ? 'rgba(148, 163, 184, 0.3)' : borderColor);
+  root.style.setProperty('--comment-button-bg', cardBg);
+  root.style.setProperty('--comment-button-border', isDarkSurface ? 'rgba(148, 163, 184, 0.25)' : borderColor);
   root.style.setProperty('--comment-button-text', accent.primaryDark);
   root.style.setProperty('--comment-button-hover-bg', accent.primaryAlpha10);
   root.style.setProperty('--comment-button-hover-border', accent.primaryAlpha30);
   root.style.setProperty('--comment-button-hover-text', accent.primaryColor);
-  root.style.setProperty('--comment-cancel-bg', surface.primaryBg);
+  root.style.setProperty('--comment-cancel-bg', isDarkSurface ? 'rgba(51, 65, 85, 0.5)' : surface.primaryBg);
   root.style.setProperty('--comment-cancel-text', surface.cardTextMuted);
   root.style.setProperty('--comment-cancel-hover-bg', accent.primaryAlpha10);
   root.style.setProperty('--comment-cancel-hover-text', surface.cardText);
@@ -390,23 +501,23 @@ function applyCommentThemeVars(root: HTMLElement, accent: AppAccentVars): void {
   root.style.setProperty('--comment-mention-text', accent.primaryColor);
   root.style.setProperty('--comment-mention-bg', accent.primaryAlpha10);
   root.style.setProperty('--comment-mention-border', accent.primaryAlpha20);
-  root.style.setProperty('--comment-section-border', '#e8dcc8');
+  root.style.setProperty('--comment-section-border', isDarkSurface ? 'rgba(148, 163, 184, 0.2)' : borderColor);
   root.style.setProperty('--comment-header-title-color', surface.cardText);
   root.style.setProperty('--comment-header-title-shadow', 'none');
-  root.style.setProperty('--tab-button-bg', '#fffdf8');
-  root.style.setProperty('--tab-button-border', accent.primaryAlpha20);
+  root.style.setProperty('--tab-button-bg', cardBg);
+  root.style.setProperty('--tab-button-border', isDarkSurface ? 'rgba(148, 163, 184, 0.25)' : borderColor);
   root.style.setProperty('--tab-button-color', surface.cardText);
   root.style.setProperty('--tab-button-active-bg', accentGradient);
-  root.style.setProperty('--tab-button-active-color', '#fffdf8');
+  root.style.setProperty('--tab-button-active-color', isDarkSurface ? '#ffffff' : '#fffdf8');
   root.style.setProperty('--tab-button-active-border', accent.primaryAlpha30);
-  root.style.setProperty('--comment-input-bg', '#fffdf8');
-  root.style.setProperty('--comment-input-border', '#e8dcc8');
+  root.style.setProperty('--comment-input-bg', cardBg);
+  root.style.setProperty('--comment-input-border', isDarkSurface ? 'rgba(148, 163, 184, 0.3)' : borderColor);
   root.style.setProperty('--comment-input-color', surface.cardText);
   root.style.setProperty('--comment-input-placeholder', surface.cardTextMuted);
   root.style.setProperty('--comment-input-focus-border', accent.primaryColor);
-  root.style.setProperty('--comment-input-focus-bg', '#fffdf8');
-  root.style.setProperty('--preview-content-bg', '#fffdf8');
-  root.style.setProperty('--preview-content-border', '#e8dcc8');
+  root.style.setProperty('--comment-input-focus-bg', cardBg);
+  root.style.setProperty('--preview-content-bg', cardBg);
+  root.style.setProperty('--preview-content-border', isDarkSurface ? 'rgba(148, 163, 184, 0.3)' : borderColor);
   root.style.setProperty('--preview-content-color', surface.cardText);
   root.style.setProperty('--secret-toggle-color', surface.cardText);
   root.style.setProperty('--empty-comments-color', surface.cardTextMuted);
@@ -560,14 +671,18 @@ function applyLegacyAppTheme(themeId: AppThemeId): void {
 
   applyLegacyCommentThemeVars(root, resolved, theme);
 
+  applyAppThemeNavSync(root, resolved);
+
   root.setAttribute('data-app-theme', resolved);
   localStorage.setItem(APP_THEME_STORAGE_KEY, resolved);
   window.dispatchEvent(new Event(APP_THEME_CHANGE_EVENT));
 }
 
 function applyWarmPaperAppTheme(themeId: AppThemeId): void {
-  const surface = PAPER_SURFACE;
+  const surface = getWarmPaperSurfaceForTheme(themeId);
   const accent = getAccentForThemeId(themeId);
+  const cardColor = getWarmPaperCardColor(themeId);
+  const borderColor = getWarmPaperBorderColor(themeId, surface);
   const root = document.documentElement;
 
   root.style.setProperty('--gradient-primary', surface.gradientPrimary);
@@ -580,9 +695,9 @@ function applyWarmPaperAppTheme(themeId: AppThemeId): void {
   root.style.setProperty('--app-card-text', surface.cardText);
   root.style.setProperty('--app-card-text-muted', surface.cardTextMuted);
   root.style.setProperty('--app-glass-text', surface.glassText);
-  root.style.setProperty('--paper-bg', surface.gradientPrimary);
-  root.style.setProperty('--paper-card', '#fffdf8');
-  root.style.setProperty('--paper-border', '#e8dcc8');
+  root.style.setProperty('--paper-bg', surface.bgGradient);
+  root.style.setProperty('--paper-card', cardColor);
+  root.style.setProperty('--paper-border', borderColor);
   root.style.setProperty('--paper-ink', surface.pageText);
   root.style.setProperty('--paper-muted', surface.pageTextMuted);
   root.style.setProperty('--paper-body', surface.cardTextMuted);
@@ -623,11 +738,9 @@ function applyWarmPaperAppTheme(themeId: AppThemeId): void {
   root.style.setProperty('--comment-input-focus', accent.primaryColor);
   root.style.setProperty('--comment-save-bg', accent.primaryColor);
 
-  applyCommentThemeVars(root, accent);
+  applyCommentThemeVars(root, accent, surface, cardColor, themeId === 'night');
 
-  if (getSavedBottomNavThemeId() === 'paper') {
-    syncPaperNavAccent(root, accent);
-  }
+  applyAppThemeNavSync(root, themeId);
 
   root.setAttribute('data-app-theme', themeId);
   localStorage.setItem(APP_THEME_STORAGE_KEY, themeId);

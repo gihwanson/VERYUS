@@ -561,8 +561,61 @@ html[data-ui-style="warm-paper"] .settings-card .card-icon {
   color: var(--paper-accent, #8b5a2b) !important;
 }
 
-html[data-ui-style="warm-paper"] .settings-card .back-button {
+html[data-ui-style="warm-paper"] .settings-container .back-button {
+  background: var(--paper-card, #fffdf8) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
   color: var(--paper-ink, #2c2416) !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+
+html[data-ui-style="warm-paper"] .settings-container .back-button:hover {
+  background: var(--paper-tag-bg, #f0e6d6) !important;
+}
+
+html[data-ui-style="warm-paper"] .settings-container .save-btn,
+html[data-ui-style="warm-paper"] .settings-container .edit-btn,
+html[data-ui-style="warm-paper"] .settings-container .cancel-btn,
+html[data-ui-style="warm-paper"] .settings-container .logout-btn,
+html[data-ui-style="warm-paper"] .settings-container .delete-btn,
+html[data-ui-style="warm-paper"] .settings-container .delete-confirm-btn {
+  backdrop-filter: none !important;
+}
+
+html[data-ui-style="warm-paper"] .settings-container .save-btn {
+  background: var(--paper-accent, #8b5a2b) !important;
+  border: 1px solid var(--primary-dark, #6b4423) !important;
+  color: var(--paper-card, #fffdf8) !important;
+}
+
+html[data-ui-style="warm-paper"] .settings-container .edit-btn,
+html[data-ui-style="warm-paper"] .settings-container .cancel-btn,
+html[data-ui-style="warm-paper"] .settings-container .logout-btn {
+  background: var(--paper-card, #fffdf8) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  color: var(--paper-body, #4a3f32) !important;
+}
+
+html[data-ui-style="warm-paper"] .settings-container .nickname-input,
+html[data-ui-style="warm-paper"] .settings-container textarea.nickname-input {
+  background: var(--paper-bg, #f5f0e8) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  color: var(--paper-ink, #2c2416) !important;
+  backdrop-filter: none !important;
+}
+
+html[data-ui-style="warm-paper"] .settings-container .toggle-switch {
+  background: var(--paper-border, #e8dcc8) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+}
+
+html[data-ui-style="warm-paper"] .settings-container .toggle-switch.active {
+  background: var(--paper-accent, #8b5a2b) !important;
+  border-color: var(--primary-dark, #6b4423) !important;
+}
+
+html[data-ui-style="warm-paper"] .settings-container .card-header {
+  border-bottom-color: var(--paper-border, #e8dcc8) !important;
 }
 
 html[data-ui-style="warm-paper"] .settings-container .loading,
@@ -572,6 +625,19 @@ html[data-ui-style="warm-paper"] .settings-container .error {
 
 html[data-ui-style="warm-paper"] .settings-container .error {
   color: #9b4040 !important;
+}
+
+@media (max-width: 768px) {
+  html[data-ui-style="warm-paper"] .settings-container {
+    background: var(--paper-bg, #f5f0e8) !important;
+    background-attachment: scroll !important;
+    color: var(--paper-ink, #2c2416) !important;
+  }
+
+  html[data-ui-style="warm-paper"] .settings-container .settings-card {
+    background: var(--paper-card, #fffdf8) !important;
+    border: 1px solid var(--paper-border, #e8dcc8) !important;
+  }
 }
 
 /* 반응속도·리듬 탭 존 — 게임성 색상 유지 */
