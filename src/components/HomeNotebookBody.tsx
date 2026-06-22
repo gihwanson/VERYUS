@@ -64,6 +64,8 @@ const HomeNotebookBody: React.FC<HomeNotebookBodyProps> = ({ user }) => {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [pickingForBlockId, setPickingForBlockId] = useState<string | null>(null);
+  /** 이번 편집에서 '사진' 추가로 연 업로드 블록 — 기존 사진은 편집 UI에 노출하지 않음 */
+  const [pendingImageBlockId, setPendingImageBlockId] = useState<string | null>(null);
 
   const commentUser = useMemo(() => {
     if (!user?.uid) return null;
@@ -96,11 +98,13 @@ const HomeNotebookBody: React.FC<HomeNotebookBodyProps> = ({ user }) => {
 
   const startEditing = () => {
     setDraftBlocks(blocks);
+    setPendingImageBlockId(null);
     setEditing(true);
   };
 
   const cancelEditing = () => {
     setDraftBlocks(blocks);
+    setPendingImageBlockId(null);
     setEditing(false);
   };
 
@@ -115,10 +119,13 @@ const HomeNotebookBody: React.FC<HomeNotebookBodyProps> = ({ user }) => {
     }
     setSaving(true);
     try {
-      await saveHomeNotebookBody(draftBlocks, user.nickname);
-      const saved = sortNotebookBlocks(draftBlocks);
-      setBlocks(saved);
-      setDraftBlocks(saved);
+      const blocksToSave = sortNotebookBlocks(
+        draftBlocks.filter((block) => block.type !== 'image' || Boolean(block.imageUrl))
+      );
+      await saveHomeNotebookBody(blocksToSave, user.nickname);
+      setBlocks(blocksToSave);
+      setDraftBlocks(blocksToSave);
+      setPendingImageBlockId(null);
       setEditing(false);
       toast.success('본문이 저장되었습니다.');
     } catch (error) {
@@ -150,12 +157,13 @@ const HomeNotebookBody: React.FC<HomeNotebookBodyProps> = ({ user }) => {
       id: blockId,
       type,
       text: type === 'heading' || type === 'timeline' ? '' : undefined,
-      body: type === 'text' || type === 'timeline' ? '' : undefined,
+      body: type === 'text' || type === 'timeline' || type === 'image' ? '' : undefined,
       date: type === 'timeline' ? '' : undefined,
       order: draftBlocks.length,
     };
     setDraftBlocks((prev) => [...prev, next]);
     if (type === 'image') {
+      setPendingImageBlockId(blockId);
       requestAnimationFrame(() => openImagePicker(blockId));
     }
   };
@@ -167,6 +175,9 @@ const HomeNotebookBody: React.FC<HomeNotebookBodyProps> = ({ user }) => {
   const removeBlock = (id: string) => {
     if (!window.confirm('이 블록을 삭제할까요?')) return;
     setDraftBlocks((prev) => prev.filter((b) => b.id !== id));
+    if (pendingImageBlockId === id) {
+      setPendingImageBlockId(null);
+    }
   };
 
   const handleImageUpload = async (blockId: string, file: File) => {
@@ -201,6 +212,15 @@ const HomeNotebookBody: React.FC<HomeNotebookBodyProps> = ({ user }) => {
   };
 
   const displayBlocks = editing ? draftBlocks : blocks;
+  const editBlocks = useMemo(
+    () =>
+      editing
+        ? draftBlocks.filter(
+            (block) => block.type !== 'image' || block.id === pendingImageBlockId
+          )
+        : draftBlocks,
+    [draftBlocks, editing, pendingImageBlockId]
+  );
   const { imageBlocks, contentBlocks } = useMemo(
     () => splitNotebookBlocks(displayBlocks),
     [displayBlocks]
@@ -283,7 +303,7 @@ const HomeNotebookBody: React.FC<HomeNotebookBodyProps> = ({ user }) => {
 
       {block.type === 'image' && (
         <>
-          {block.imageUrl ? (
+          {block.imageUrl && block.id === pendingImageBlockId ? (
             <div className="notebook-body__photo-frame notebook-body__photo-frame--edit">
               <img src={block.imageUrl} alt="" />
             </div>
@@ -297,7 +317,7 @@ const HomeNotebookBody: React.FC<HomeNotebookBodyProps> = ({ user }) => {
             <ImagePlus size={16} aria-hidden />
             {uploading && pickingForBlockId === block.id
               ? '업로드 중…'
-              : block.imageUrl
+              : block.imageUrl && block.id === pendingImageBlockId
                 ? '사진 변경'
                 : '사진 선택'}
           </button>
@@ -305,7 +325,7 @@ const HomeNotebookBody: React.FC<HomeNotebookBodyProps> = ({ user }) => {
             type="text"
             className="notebook-body__input"
             placeholder="사진 설명 (선택)"
-            value={block.body || ''}
+            value={block.body ?? ''}
             onChange={(e) => updateBlock(block.id, { body: e.target.value })}
           />
         </>
@@ -409,7 +429,7 @@ const HomeNotebookBody: React.FC<HomeNotebookBodyProps> = ({ user }) => {
         ) : (
           <div className="notebook-body__content">
             {editing ? (
-              displayBlocks.map(renderEditBlock)
+              editBlocks.map(renderEditBlock)
             ) : (
               <>
                 {imageBlocks.length > 0 && (

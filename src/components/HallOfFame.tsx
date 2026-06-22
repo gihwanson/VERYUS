@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
-import { getGradeBadgeLabel } from '../utils/gradeDisplay';
+import { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
 import GlobalLoadingScreen from './GlobalLoadingScreen';
 import { approvedSongCountsByNicknameFromDocs } from '../utils/approvedSongMilestone';
 
@@ -432,7 +432,9 @@ const HallOfFame: React.FC = () => {
                             <td className="hall-rank">{MEDALS[idx] || `${idx + 1}`}</td>
                             <td>
                               <span className="hall-name-with-grade">
-                                <span className="author-grade-label">{getGradeBadgeLabel(entry.grade)}</span>
+                                <span className="hall-grade-inline" title={getGradeName(entry.grade)}>
+                                  {getGradeEmoji(entry.grade)}
+                                </span>
                                 <span className="hall-name">{entry.nickname}</span>
                               </span>
                               {entry.role && entry.role !== '일반' && entry.role !== '평가자' && (

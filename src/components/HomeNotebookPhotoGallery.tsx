@@ -67,6 +67,188 @@ const useGridColumns = (): number => {
 const DECORATION_STYLES = ['pin', 'tape-tr', 'tape-tl', 'pin'] as const;
 type DecorationStyle = (typeof DECORATION_STYLES)[number];
 
+const ZOOM_MIN_SCALE = 1;
+const ZOOM_MAX_SCALE = 5;
+const ZOOM_DOUBLE_TAP_SCALE = 2.5;
+
+interface ZoomTransform {
+  scale: number;
+  x: number;
+  y: number;
+}
+
+const clampZoomScale = (scale: number): number =>
+  Math.min(ZOOM_MAX_SCALE, Math.max(ZOOM_MIN_SCALE, scale));
+
+const getTouchDistance = (touchA: React.Touch, touchB: React.Touch): number =>
+  Math.hypot(touchA.clientX - touchB.clientX, touchA.clientY - touchB.clientY);
+
+interface PhotoZoomViewProps {
+  imageUrl: string;
+  alt: string;
+  onClose: () => void;
+}
+
+const PhotoZoomView: React.FC<PhotoZoomViewProps> = ({ imageUrl, alt, onClose }) => {
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [transform, setTransform] = useState<ZoomTransform>({ scale: 1, x: 0, y: 0 });
+  const transformRef = useRef(transform);
+  const pinchRef = useRef<{ distance: number; scale: number } | null>(null);
+  const panRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(
+    null
+  );
+  const lastTapRef = useRef(0);
+
+  useEffect(() => {
+    transformRef.current = transform;
+  }, [transform]);
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    const blockTouchScroll = (event: TouchEvent) => {
+      if (event.touches.length > 0) event.preventDefault();
+    };
+    const blockWheelScroll = (event: WheelEvent) => {
+      event.preventDefault();
+      const delta = event.deltaY < 0 ? 0.12 : -0.12;
+      setTransform((prev) => {
+        const nextScale = clampZoomScale(prev.scale + delta);
+        if (nextScale <= 1) return { scale: 1, x: 0, y: 0 };
+        return { ...prev, scale: nextScale };
+      });
+    };
+
+    stage.addEventListener('touchmove', blockTouchScroll, { passive: false });
+    stage.addEventListener('wheel', blockWheelScroll, { passive: false });
+    return () => {
+      stage.removeEventListener('touchmove', blockTouchScroll);
+      stage.removeEventListener('wheel', blockWheelScroll);
+    };
+  }, []);
+
+  const handleTouchStart = (event: React.TouchEvent) => {
+    if (event.touches.length === 2) {
+      pinchRef.current = {
+        distance: getTouchDistance(event.touches[0], event.touches[1]),
+        scale: transformRef.current.scale,
+      };
+      panRef.current = null;
+      return;
+    }
+
+    if (event.touches.length === 1 && transformRef.current.scale > 1) {
+      panRef.current = {
+        startX: event.touches[0].clientX,
+        startY: event.touches[0].clientY,
+        originX: transformRef.current.x,
+        originY: transformRef.current.y,
+      };
+    }
+  };
+
+  const handleTouchMove = (event: React.TouchEvent) => {
+    if (event.touches.length === 2 && pinchRef.current) {
+      const distance = getTouchDistance(event.touches[0], event.touches[1]);
+      const ratio = distance / pinchRef.current.distance;
+      const nextScale = clampZoomScale(pinchRef.current.scale * ratio);
+      setTransform((prev) => ({
+        ...prev,
+        scale: nextScale,
+        x: nextScale <= 1 ? 0 : prev.x,
+        y: nextScale <= 1 ? 0 : prev.y,
+      }));
+      return;
+    }
+
+    if (event.touches.length === 1 && panRef.current) {
+      const dx = event.touches[0].clientX - panRef.current.startX;
+      const dy = event.touches[0].clientY - panRef.current.startY;
+      setTransform((prev) => ({
+        ...prev,
+        x: panRef.current!.originX + dx,
+        y: panRef.current!.originY + dy,
+      }));
+    }
+  };
+
+  const handleTouchEnd = (event: React.TouchEvent) => {
+    pinchRef.current = null;
+    panRef.current = null;
+
+    if (event.changedTouches.length === 1 && event.touches.length === 0) {
+      const now = Date.now();
+      const isDoubleTap = now - lastTapRef.current < 280;
+      lastTapRef.current = now;
+
+      if (isDoubleTap) {
+        if (transformRef.current.scale > 1.02) {
+          setTransform({ scale: 1, x: 0, y: 0 });
+        } else {
+          setTransform({ scale: ZOOM_DOUBLE_TAP_SCALE, x: 0, y: 0 });
+        }
+        lastTapRef.current = 0;
+        return;
+      }
+    }
+
+    if (transformRef.current.scale <= 1.02) {
+      setTransform({ scale: 1, x: 0, y: 0 });
+    }
+  };
+
+  const handleBackdropClick = () => {
+    if (transformRef.current.scale > 1) {
+      setTransform({ scale: 1, x: 0, y: 0 });
+      return;
+    }
+    onClose();
+  };
+
+  return (
+    <div
+      className="notebook-photo-zoom"
+      role="dialog"
+      aria-modal="true"
+      aria-label="사진 확대"
+      onClick={handleBackdropClick}
+    >
+      <button
+        type="button"
+        className="notebook-photo-zoom__close"
+        onClick={onClose}
+        aria-label="확대 닫기"
+      >
+        <X size={22} aria-hidden />
+      </button>
+
+      <div
+        ref={stageRef}
+        className="notebook-photo-zoom__stage"
+        onClick={(event) => event.stopPropagation()}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
+      >
+        <div
+          className="notebook-photo-zoom__transform"
+          style={{
+            transform: `translate3d(${transform.x}px, ${transform.y}px, 0) scale(${transform.scale})`,
+          }}
+        >
+          <img className="notebook-photo-zoom__img" src={imageUrl} alt={alt} draggable={false} />
+        </div>
+      </div>
+
+      {transform.scale <= 1 && (
+        <p className="notebook-photo-zoom__hint">손가락 벌려 확대 · 확대 후 한 손가락으로 이동</p>
+      )}
+    </div>
+  );
+};
+
 const getPhotoDecoration = (index: number): DecorationStyle =>
   DECORATION_STYLES[index % DECORATION_STYLES.length];
 
@@ -308,29 +490,12 @@ const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
         </div>
       </div>
 
-      {zoomed && (
-        <div
-          className="notebook-photo-zoom"
-          role="dialog"
-          aria-modal="true"
-          aria-label="사진 확대"
-          onClick={() => setZoomed(false)}
-        >
-          <button
-            type="button"
-            className="notebook-photo-zoom__close"
-            onClick={() => setZoomed(false)}
-            aria-label="확대 닫기"
-          >
-            <X size={22} aria-hidden />
-          </button>
-          <img
-            className="notebook-photo-zoom__img"
-            src={block.imageUrl}
-            alt={block.body?.trim() || '베리어스 활동 사진'}
-            onClick={(event) => event.stopPropagation()}
-          />
-        </div>
+      {zoomed && block.imageUrl && (
+        <PhotoZoomView
+          imageUrl={block.imageUrl}
+          alt={block.body?.trim() || '베리어스 활동 사진'}
+          onClose={() => setZoomed(false)}
+        />
       )}
     </>,
     document.body

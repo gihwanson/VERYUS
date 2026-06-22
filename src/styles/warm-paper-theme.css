@@ -119,16 +119,29 @@ html[data-ui-style="warm-paper"] .balance-post-author::after {
   color: var(--paper-muted, #8b7355) !important;
 }
 
-/* 등급 — 이모지 숨기고 텍스트 배지 */
-html[data-ui-style="warm-paper"] .author-grade-emoji,
-html[data-ui-style="warm-paper"] .balance-post-author-grade,
-html[data-ui-style="warm-paper"] .hall-grade-inline,
-html[data-ui-style="warm-paper"] .comment-grade-emoji,
-html[data-ui-style="warm-paper"] .post-author .author-grade:not(.author-grade-label) {
+/* 등급 — 게시판·명예의전당은 이모지 */
+html[data-ui-style="warm-paper"] .post-author .author-grade-label,
+html[data-ui-style="warm-paper"] .post-detail .author-grade-label,
+html[data-ui-style="warm-paper"] .hall-name-with-grade .author-grade-label {
   display: none !important;
 }
 
-html[data-ui-style="warm-paper"] .author-grade-label,
+html[data-ui-style="warm-paper"] .author-grade-emoji,
+html[data-ui-style="warm-paper"] .balance-post-author-grade,
+html[data-ui-style="warm-paper"] .hall-grade-inline {
+  display: inline !important;
+  font-size: 1.1rem;
+  margin-right: 0.15rem;
+  vertical-align: middle;
+  line-height: 1;
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  color: inherit !important;
+}
+
+/* 마이페이지·메시지 등 — 텍스트 배지 유지 */
+html[data-ui-style="warm-paper"] .mypage-profile-grade .author-grade-label,
 html[data-ui-style="warm-paper"] .grade-text-badge {
   display: inline-block;
   font-size: 0.68rem;
@@ -340,6 +353,33 @@ html[data-ui-style="warm-paper"] .logo-image {
   background: transparent !important;
   padding: 0 !important;
   border-radius: 0 !important;
+}
+
+/* 홈 브랜드 — 크림 배경에서 PC·모바일 동일하게 진한 잉크 (테마 pageText 상속 차단) */
+html[data-ui-style="warm-paper"] .home-title,
+html[data-ui-style="warm-paper"] .brand-text .home-title {
+  color: #2c2416 !important;
+  -webkit-text-fill-color: #2c2416 !important;
+  text-shadow: none !important;
+}
+
+html[data-ui-style="warm-paper"] .home-slogan,
+html[data-ui-style="warm-paper"] .brand-text .home-slogan {
+  color: #8b7355 !important;
+  -webkit-text-fill-color: #8b7355 !important;
+  text-shadow: none !important;
+}
+
+html[data-ui-style="warm-paper"][data-app-theme="night"] .home-title,
+html[data-ui-style="warm-paper"][data-app-theme="night"] .brand-text .home-title {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+
+html[data-ui-style="warm-paper"][data-app-theme="night"] .home-slogan,
+html[data-ui-style="warm-paper"][data-app-theme="night"] .brand-text .home-slogan {
+  color: rgba(248, 250, 252, 0.82) !important;
+  -webkit-text-fill-color: rgba(248, 250, 252, 0.82) !important;
 }
 
 /* 하단 네비 */
