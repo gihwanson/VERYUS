@@ -33,9 +33,7 @@ import {
   Eye,
   Bookmark
 } from 'lucide-react';
-import '../styles/PostList.css';
-import '../styles/BoardLayout.css';
-import { getGradeBadgeLabel } from '../utils/gradeDisplay';
+import { getPostListGradeSpanProps } from '../utils/gradeDisplay';
 
 interface Post {
   id: string;
@@ -482,9 +480,7 @@ const PartnerPostList: React.FC = () => {
                 </div>
                 <div className="post-meta">
                   <div className="post-author">
-                    <span className="author-grade-label">
-                      {getGradeBadgeLabel(post.writerGrade)}
-                    </span>
+                    <span {...getPostListGradeSpanProps(post.writerGrade)} />
                     <span className="author-info post-author-name--list">
                       {post.writerNickname}
                     </span>

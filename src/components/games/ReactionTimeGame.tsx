@@ -25,8 +25,6 @@ import {
 } from '../../utils/gameSounds';
 import { getReactionGrade } from '../../utils/reactionGrades';
 import { setLastPlayedGame } from '../../utils/lastPlayedGame';
-import '../../styles/variables.css';
-import '../../styles/games.css';
 
 type GamePhase =
   | 'idle'

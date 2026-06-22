@@ -12,8 +12,6 @@ import {
   type HomeNotebookBlock,
   type HomeNotebookBlockType,
 } from '../utils/homeNotebookBody';
-import '../styles/warm-paper-home-notebook.css';
-
 interface HomeNotebookBodyProps {
   user: {
     nickname?: string;

@@ -14,8 +14,6 @@ import { getRhythmBeatBestScoreDocId } from '../../utils/rhythmBeatScores';
 import { getTypingBestScoreDocId } from '../../utils/typingSpeedScores';
 import { getLastPlayedGame } from '../../utils/lastPlayedGame';
 import { LOCKED_PRACTICE_ROOM_AVAILABLE } from '../../data/lockedPracticeRoom';
-import '../../styles/variables.css';
-import '../../styles/games.css';
 
 interface GameItem {
   id: string;

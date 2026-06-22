@@ -3,7 +3,6 @@ import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getGradeBadgeLabel } from '../utils/gradeDisplay';
 import GlobalLoadingScreen from './GlobalLoadingScreen';
-import './HallOfFame.css';
 import { approvedSongCountsByNicknameFromDocs } from '../utils/approvedSongMilestone';
 
 type RankEntry = {

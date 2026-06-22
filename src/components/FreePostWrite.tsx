@@ -14,8 +14,6 @@ import {
 import { db } from '../firebase';
 import { NotificationService } from '../utils/notificationService';
 import { ArrowLeft, PenTool, Save, Loader, X } from 'lucide-react';
-import '../styles/PostWrite.css';
-import '../styles/BoardLayout.css';
 import '../styles/FreePostWrite.css';
 
 interface User {

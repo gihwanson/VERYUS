@@ -4,7 +4,6 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import { Mail, User, ArrowLeft, Loader } from 'lucide-react';
-import './ForgotPassword.css';
 
 const ForgotPassword: React.FC = () => {
   const [nickname, setNickname] = useState<string>('');

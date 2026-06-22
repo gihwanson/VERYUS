@@ -2,7 +2,6 @@ import React, { useState, useEffect, memo, useCallback, useRef } from 'react';
 import type { ReactElement } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, Bell, User, ChevronUp, Search, Grid3x3, ChevronDown, Menu, Settings, Calendar, Trophy, Music, Gamepad2, Piano, Mic } from 'lucide-react';
-import './BottomNavigation.css';
 import MemberNicknameSearch from './MemberNicknameSearch';
 import { checkAdminAccess } from './AdminTypes';
 import { lockPianoLandscape } from '../utils/pianoOrientation';

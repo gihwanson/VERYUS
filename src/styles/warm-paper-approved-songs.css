@@ -2,7 +2,7 @@
  * 합격곡 — 웜 페이퍼 노트 스타일
  */
 
-.approved-songs-container {
+html[data-ui-style="warm-paper"] .approved-songs-container {
   min-height: 100dvh;
   padding: calc(12px + env(safe-area-inset-top)) 16px calc(96px + env(safe-area-inset-bottom));
   font-family: var(--paper-font-body, Georgia, 'Times New Roman', 'Batang', serif);
@@ -10,7 +10,7 @@
   background: var(--paper-bg, #f5f0e8);
 }
 
-.approved-songs-shell {
+html[data-ui-style="warm-paper"] .approved-songs-shell {
   width: 100%;
   max-width: min(720px, 100%);
   margin: 0 auto;
@@ -20,12 +20,12 @@
 }
 
 /* ===== 헤더 ===== */
-.approved-songs-header {
+html[data-ui-style="warm-paper"] .approved-songs-header {
   text-align: center;
   padding: 8px 4px 4px;
 }
 
-.approved-songs-header h1 {
+html[data-ui-style="warm-paper"] .approved-songs-header h1 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -38,38 +38,38 @@
   letter-spacing: -0.02em;
 }
 
-.approved-songs-header__icon {
+html[data-ui-style="warm-paper"] .approved-songs-header__icon {
   color: var(--paper-accent, #8b5a2b);
   flex-shrink: 0;
 }
 
-.approved-songs-header__sub {
+html[data-ui-style="warm-paper"] .approved-songs-header__sub {
   margin: 6px 0 0;
   font-size: 0.78rem;
   color: var(--paper-muted, #8b7355);
 }
 
-.approved-songs-title {
+html[data-ui-style="warm-paper"] .approved-songs-title {
   display: none;
 }
 
 /* ===== 메인 탭 ===== */
-.approved-songs-tabs {
+html[data-ui-style="warm-paper"] .approved-songs-tabs {
   display: grid;
   gap: 8px;
   margin: 0;
   max-width: none;
 }
 
-.approved-songs-tabs.two {
+html[data-ui-style="warm-paper"] .approved-songs-tabs.two {
   grid-template-columns: repeat(2, 1fr);
 }
 
-.approved-songs-tabs.three {
+html[data-ui-style="warm-paper"] .approved-songs-tabs.three {
   grid-template-columns: repeat(3, 1fr);
 }
 
-.approved-songs-tab {
+html[data-ui-style="warm-paper"] .approved-songs-tab {
   min-height: 56px;
   padding: 10px 8px;
   background: var(--paper-card, #fffdf8);
@@ -84,23 +84,23 @@
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.approved-songs-tab:hover {
+html[data-ui-style="warm-paper"] .approved-songs-tab:hover {
   background: var(--paper-tag-bg, #f0e6d6);
 }
 
-.approved-songs-tab.active {
+html[data-ui-style="warm-paper"] .approved-songs-tab.active {
   background: var(--paper-tag-bg, #f0e6d6);
   color: var(--paper-accent, #8b5a2b);
   border-color: var(--paper-accent, #8b5a2b);
   box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.08);
 }
 
-.approved-songs-tab-icon {
+html[data-ui-style="warm-paper"] .approved-songs-tab-icon {
   font-size: 1.1rem;
 }
 
 /* ===== 패널 ===== */
-.approved-songs-panel {
+html[data-ui-style="warm-paper"] .approved-songs-panel {
   background: var(--paper-card, #fffdf8);
   border: 1px solid var(--paper-border, #e8dcc8);
   border-radius: var(--paper-radius, 4px);
@@ -109,7 +109,7 @@
   position: relative;
 }
 
-.approved-songs-panel__label {
+html[data-ui-style="warm-paper"] .approved-songs-panel__label {
   position: absolute;
   top: -9px;
   left: 14px;
@@ -123,12 +123,12 @@
 }
 
 /* ===== 필터 탭 ===== */
-.approved-songs-filter-tabs {
+html[data-ui-style="warm-paper"] .approved-songs-filter-tabs {
   gap: 8px;
   margin-bottom: 16px;
 }
 
-.approved-songs-filter-tab {
+html[data-ui-style="warm-paper"] .approved-songs-filter-tab {
   padding: 6px 12px;
   font-size: 0.78rem;
   font-family: inherit;
@@ -139,27 +139,27 @@
   backdrop-filter: none;
 }
 
-.approved-songs-filter-tab:hover {
+html[data-ui-style="warm-paper"] .approved-songs-filter-tab:hover {
   background: var(--paper-tag-bg, #f0e6d6);
 }
 
-.approved-songs-filter-tab.active {
+html[data-ui-style="warm-paper"] .approved-songs-filter-tab.active {
   background: var(--paper-tag-bg, #f0e6d6);
   color: var(--paper-accent, #8b5a2b);
   border-color: var(--paper-accent, #8b5a2b);
 }
 
 /* ===== 폼·검색 ===== */
-.approved-songs-label {
+html[data-ui-style="warm-paper"] .approved-songs-label {
   color: var(--paper-ink, #2c2416);
   font-family: var(--paper-serif, Georgia, serif);
   font-size: 0.88rem;
 }
 
-.approved-songs-input,
-.approved-songs-member-input,
-.approved-songs-search-input,
-.approved-songs-copy-textarea {
+html[data-ui-style="warm-paper"] .approved-songs-input,
+html[data-ui-style="warm-paper"] .approved-songs-member-input,
+html[data-ui-style="warm-paper"] .approved-songs-search-input,
+html[data-ui-style="warm-paper"] .approved-songs-copy-textarea {
   border: 1px solid var(--paper-border, #e8dcc8);
   border-radius: var(--paper-radius, 4px);
   background: var(--paper-card, #fffdf8);
@@ -168,21 +168,21 @@
   backdrop-filter: none;
 }
 
-.approved-songs-input:focus,
-.approved-songs-member-input:focus,
-.approved-songs-search-input:focus {
+html[data-ui-style="warm-paper"] .approved-songs-input:focus,
+html[data-ui-style="warm-paper"] .approved-songs-member-input:focus,
+html[data-ui-style="warm-paper"] .approved-songs-search-input:focus {
   outline: none;
   border-color: var(--paper-accent, #8b5a2b);
   box-shadow: 0 0 0 2px rgba(139, 90, 43, 0.12);
 }
 
-.approved-songs-input::placeholder,
-.approved-songs-member-input::placeholder,
-.approved-songs-search-input::placeholder {
+html[data-ui-style="warm-paper"] .approved-songs-input::placeholder,
+html[data-ui-style="warm-paper"] .approved-songs-member-input::placeholder,
+html[data-ui-style="warm-paper"] .approved-songs-search-input::placeholder {
   color: var(--paper-muted, #a89880);
 }
 
-.approved-songs-search {
+html[data-ui-style="warm-paper"] .approved-songs-search {
   margin-bottom: 16px;
   position: relative;
   display: flex;
@@ -190,21 +190,21 @@
   justify-content: center;
 }
 
-.approved-songs-search-icon {
+html[data-ui-style="warm-paper"] .approved-songs-search-icon {
   position: absolute;
   left: 14px;
   color: var(--paper-muted, #8b7355);
   pointer-events: none;
 }
 
-.approved-songs-search-input {
+html[data-ui-style="warm-paper"] .approved-songs-search-input {
   text-align: left;
   font-size: 0.9rem;
   padding-left: 38px;
 }
 
 /* ===== 버튼 ===== */
-.approved-songs-btn {
+html[data-ui-style="warm-paper"] .approved-songs-btn {
   border-radius: var(--paper-radius, 4px);
   font-family: inherit;
   font-size: 0.82rem;
@@ -213,35 +213,35 @@
   transition: background 0.15s ease;
 }
 
-.approved-songs-btn.save,
-.approved-songs-btn.search,
-.approved-songs-copy-button {
+html[data-ui-style="warm-paper"] .approved-songs-btn.save,
+html[data-ui-style="warm-paper"] .approved-songs-btn.search,
+html[data-ui-style="warm-paper"] .approved-songs-copy-button {
   background: var(--paper-accent, #8b5a2b);
   color: var(--paper-card, #fffdf8);
   border-color: var(--paper-accent, #8b5a2b);
   padding: 10px 18px;
 }
 
-.approved-songs-btn.save:hover,
-.approved-songs-btn.search:hover,
-.approved-songs-copy-button:hover {
+html[data-ui-style="warm-paper"] .approved-songs-btn.save:hover,
+html[data-ui-style="warm-paper"] .approved-songs-btn.search:hover,
+html[data-ui-style="warm-paper"] .approved-songs-copy-button:hover {
   background: var(--primary-dark, #6b4423);
 }
 
-.approved-songs-btn.cancel,
-.approved-songs-btn.delete,
-.approved-songs-btn.remove,
-.approved-songs-manage-delete {
+html[data-ui-style="warm-paper"] .approved-songs-btn.cancel,
+html[data-ui-style="warm-paper"] .approved-songs-btn.delete,
+html[data-ui-style="warm-paper"] .approved-songs-btn.remove,
+html[data-ui-style="warm-paper"] .approved-songs-manage-delete {
   background: #faf0f0;
   color: #8b4040;
   border-color: #d4a0a0;
 }
 
-.approved-songs-btn.cancel {
+html[data-ui-style="warm-paper"] .approved-songs-btn.cancel {
   padding: 10px 18px;
 }
 
-.approved-songs-btn.edit {
+html[data-ui-style="warm-paper"] .approved-songs-btn.edit {
   background: var(--paper-tag-bg, #f0e6d6);
   color: var(--paper-ink, #2c2416);
   border: 1px solid var(--paper-border, #e8dcc8);
@@ -249,25 +249,25 @@
   font-size: 0.75rem;
 }
 
-.approved-songs-btn.add {
+html[data-ui-style="warm-paper"] .approved-songs-btn.add {
   background: var(--paper-card, #fffdf8);
   color: var(--paper-ink, #2c2416);
   border: 1px solid var(--paper-border, #e8dcc8);
 }
 
-.approved-songs-btn.repair {
+html[data-ui-style="warm-paper"] .approved-songs-btn.repair {
   background: var(--paper-tag-bg, #f0e6d6);
   color: var(--paper-ink, #2c2416);
   border: 1px solid var(--paper-border, #e8dcc8);
   padding: 8px 14px;
 }
 
-.approved-songs-btn.repair:disabled {
+html[data-ui-style="warm-paper"] .approved-songs-btn.repair:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.approved-songs-btn.play-toggle {
+html[data-ui-style="warm-paper"] .approved-songs-btn.play-toggle {
   background: var(--paper-tag-bg, #f0e6d6);
   color: var(--paper-body, #4a3f32);
   border: 1px solid var(--paper-border, #e8dcc8);
@@ -275,12 +275,12 @@
   font-size: 0.78rem;
 }
 
-.approved-songs-actions {
+html[data-ui-style="warm-paper"] .approved-songs-actions {
   margin-top: 8px;
 }
 
 /* ===== 곡 리스트 — 목차형 ===== */
-.approved-songs-card {
+html[data-ui-style="warm-paper"] .approved-songs-card {
   background: transparent;
   border: none;
   box-shadow: none;
@@ -289,7 +289,7 @@
   overflow: visible;
 }
 
-.approved-songs-card--lined {
+html[data-ui-style="warm-paper"] .approved-songs-card--lined {
   border: 1px solid var(--paper-border, #e8dcc8);
   border-radius: var(--paper-radius, 4px);
   background-image: repeating-linear-gradient(
@@ -304,7 +304,7 @@
   padding: 4px 0;
 }
 
-.approved-songs-list-item {
+html[data-ui-style="warm-paper"] .approved-songs-list-item {
   padding: 12px 14px;
   border-bottom: 1px solid var(--paper-border, #e8dcc8);
   gap: 8px;
@@ -312,11 +312,11 @@
   align-items: flex-start;
 }
 
-.approved-songs-list-item:last-child {
+html[data-ui-style="warm-paper"] .approved-songs-list-item:last-child {
   border-bottom: none;
 }
 
-.approved-songs-list-item__main {
+html[data-ui-style="warm-paper"] .approved-songs-list-item__main {
   display: flex;
   align-items: center;
   width: 100%;
@@ -324,7 +324,7 @@
   gap: 10px;
 }
 
-.approved-songs-title-text {
+html[data-ui-style="warm-paper"] .approved-songs-title-text {
   font-family: var(--paper-serif, Georgia, serif);
   font-weight: 700;
   font-size: 0.95rem;
@@ -332,13 +332,13 @@
   flex: 1 1 180px;
 }
 
-.approved-songs-members {
+html[data-ui-style="warm-paper"] .approved-songs-members {
   font-size: 0.82rem;
   color: var(--paper-muted, #8b7355);
   flex: 1 1 120px;
 }
 
-.approved-songs-grade-badge {
+html[data-ui-style="warm-paper"] .approved-songs-grade-badge {
   font-size: 0.72rem;
   font-weight: 600;
   padding: 2px 8px;
@@ -348,19 +348,19 @@
   color: var(--paper-body, #4a3f32);
 }
 
-.approved-songs-list-item__audio {
+html[data-ui-style="warm-paper"] .approved-songs-list-item__audio {
   width: 100%;
   margin-top: 4px;
 }
 
-.approved-songs-audio-empty {
+html[data-ui-style="warm-paper"] .approved-songs-audio-empty {
   font-size: 0.78rem;
   color: var(--paper-muted, #8b7355);
   font-style: italic;
 }
 
 /* 오디오 플레이어 */
-.approved-songs-audio-player {
+html[data-ui-style="warm-paper"] .approved-songs-audio-player {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -372,7 +372,7 @@
   border-radius: var(--paper-radius, 4px);
 }
 
-.approved-songs-audio-play {
+html[data-ui-style="warm-paper"] .approved-songs-audio-play {
   flex-shrink: 0;
   width: 34px;
   height: 34px;
@@ -387,7 +387,7 @@
   padding: 0;
 }
 
-.approved-songs-audio-track {
+html[data-ui-style="warm-paper"] .approved-songs-audio-track {
   flex: 1;
   display: flex;
   align-items: center;
@@ -395,14 +395,14 @@
   min-width: 0;
 }
 
-.approved-songs-audio-time {
+html[data-ui-style="warm-paper"] .approved-songs-audio-time {
   font-size: 0.72rem;
   color: var(--paper-muted, #8b7355);
   min-width: 32px;
   font-variant-numeric: tabular-nums;
 }
 
-.approved-songs-audio-bar {
+html[data-ui-style="warm-paper"] .approved-songs-audio-bar {
   flex: 1;
   height: 5px;
   background: var(--paper-border, #e8dcc8);
@@ -411,7 +411,7 @@
   position: relative;
 }
 
-.approved-songs-audio-bar__fill {
+html[data-ui-style="warm-paper"] .approved-songs-audio-bar__fill {
   height: 100%;
   background: var(--paper-accent, #8b5a2b);
   border-radius: 2px;
@@ -419,7 +419,7 @@
 }
 
 /* ===== 버스킹 ===== */
-.approved-songs-busking-card {
+html[data-ui-style="warm-paper"] .approved-songs-busking-card {
   margin-top: 0;
   padding: 0;
   background: transparent;
@@ -427,7 +427,7 @@
   box-shadow: none;
 }
 
-.approved-songs-busking-title {
+html[data-ui-style="warm-paper"] .approved-songs-busking-title {
   font-family: var(--paper-serif, Georgia, serif);
   font-size: 1rem;
   font-weight: 700;
@@ -436,16 +436,16 @@
   text-align: left;
 }
 
-.approved-songs-busking-search {
+html[data-ui-style="warm-paper"] .approved-songs-busking-search {
   margin: 16px 0;
 }
 
 /* ===== 관리 ===== */
-.approved-songs-manage-section {
+html[data-ui-style="warm-paper"] .approved-songs-manage-section {
   margin: 0;
 }
 
-.approved-songs-manage-title {
+html[data-ui-style="warm-paper"] .approved-songs-manage-title {
   font-family: var(--paper-serif, Georgia, serif);
   font-size: 0.95rem;
   font-weight: 700;
@@ -453,67 +453,67 @@
   margin-bottom: 12px;
 }
 
-.approved-songs-manage-toolbar {
+html[data-ui-style="warm-paper"] .approved-songs-manage-toolbar {
   display: flex;
   justify-content: center;
   margin-bottom: 12px;
 }
 
-.approved-songs-manage-item {
+html[data-ui-style="warm-paper"] .approved-songs-manage-item {
   background: var(--paper-tag-bg, #f0e6d6);
   border: 1px solid var(--paper-border, #e8dcc8);
   border-radius: var(--paper-radius, 4px);
 }
 
-.approved-songs-manage-item--current-month {
+html[data-ui-style="warm-paper"] .approved-songs-manage-item--current-month {
   background: #f5efe4;
   border-color: var(--paper-accent, #8b5a2b);
   box-shadow: none;
 }
 
-.approved-songs-manage-item--current-month .approved-songs-manage-nickname,
-.approved-songs-manage-item--current-month .approved-songs-manage-date {
+html[data-ui-style="warm-paper"] .approved-songs-manage-item--current-month .approved-songs-manage-nickname,
+html[data-ui-style="warm-paper"] .approved-songs-manage-item--current-month .approved-songs-manage-date {
   color: var(--paper-accent, #8b5a2b);
 }
 
-.approved-songs-manage-nickname {
+html[data-ui-style="warm-paper"] .approved-songs-manage-nickname {
   color: var(--paper-ink, #2c2416);
   font-weight: 600;
 }
 
-.approved-songs-manage-date {
+html[data-ui-style="warm-paper"] .approved-songs-manage-date {
   color: var(--paper-muted, #8b7355);
 }
 
-.approved-songs-copy-box {
+html[data-ui-style="warm-paper"] .approved-songs-copy-box {
   margin-top: 14px;
 }
 
-.approved-songs-copy-header {
+html[data-ui-style="warm-paper"] .approved-songs-copy-header {
   color: var(--paper-ink, #2c2416);
   font-size: 0.88rem;
 }
 
-.approved-songs-repair-failures {
+html[data-ui-style="warm-paper"] .approved-songs-repair-failures {
   margin-bottom: 14px;
 }
 
-.approved-songs-repair-failures .approved-songs-manage-item {
+html[data-ui-style="warm-paper"] .approved-songs-repair-failures .approved-songs-manage-item {
   flex-direction: column;
   align-items: flex-start;
 }
 
-.approved-songs-repair-reason {
+html[data-ui-style="warm-paper"] .approved-songs-repair-reason {
   font-size: 0.78rem;
   color: #8b4040;
 }
 
-.approved-songs-repair-members {
+html[data-ui-style="warm-paper"] .approved-songs-repair-members {
   font-size: 0.78rem;
   color: var(--paper-body, #4a3f32);
 }
 
-.approved-songs-card--manage-list {
+html[data-ui-style="warm-paper"] .approved-songs-card--manage-list {
   max-height: 360px;
   overflow-y: auto;
   padding: 12px;
@@ -524,17 +524,17 @@
 }
 
 @media (max-width: 640px) {
-  .approved-songs-tabs.three {
+  html[data-ui-style="warm-paper"] .approved-songs-tabs.three {
     grid-template-columns: 1fr;
   }
 
-  .approved-songs-tab {
+  html[data-ui-style="warm-paper"] .approved-songs-tab {
     min-height: 48px;
     flex-direction: row;
     gap: 8px;
   }
 
-  .approved-songs-filter-tabs {
+  html[data-ui-style="warm-paper"] .approved-songs-filter-tabs {
     justify-content: flex-start;
   }
 }

@@ -2,7 +2,7 @@
  * 마이페이지 — 웜 페이퍼 · 노트북 톤
  */
 
-.mypage-root {
+html[data-ui-style="warm-paper"] .mypage-root {
   min-height: 100vh;
   background: var(--paper-bg, #f5f0e8) !important;
   color: var(--paper-ink, #2c2416) !important;
@@ -10,13 +10,13 @@
   overflow: hidden;
 }
 
-.mypage-root--centered {
+html[data-ui-style="warm-paper"] .mypage-root--centered {
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.mypage-inner {
+html[data-ui-style="warm-paper"] .mypage-inner {
   position: relative;
   z-index: 1;
   padding: 20px;
@@ -24,15 +24,15 @@
   box-sizing: border-box;
 }
 
-.mypage-bg-pattern {
+html[data-ui-style="warm-paper"] .mypage-bg-pattern {
   display: none !important;
 }
 
 /* 인라인 흰 글자·글래스 덮어쓰기 */
-.mypage-root [style*="color: 'white'"],
-.mypage-root [style*='color: "white"'],
-.mypage-root [style*="color: white"],
-.mypage-root [style*="rgba(255, 255, 255"],
+html[data-ui-style="warm-paper"] .mypage-root [style*="color: 'white'"],
+html[data-ui-style="warm-paper"] .mypage-root [style*='color: "white"'],
+html[data-ui-style="warm-paper"] .mypage-root [style*="color: white"],
+html[data-ui-style="warm-paper"] .mypage-root [style*="rgba(255, 255, 255"],
 .mypage-root h2,
 .mypage-root h3,
 .mypage-root h4,
@@ -48,14 +48,14 @@
   text-shadow: none !important;
 }
 
-.mypage-root .mypage-stat-label,
-.mypage-root .mypage-empty-desc,
-.mypage-root .mypage-list-meta,
-.mypage-root .mypage-muted {
+html[data-ui-style="warm-paper"] .mypage-root .mypage-stat-label,
+html[data-ui-style="warm-paper"] .mypage-root .mypage-empty-desc,
+html[data-ui-style="warm-paper"] .mypage-root .mypage-list-meta,
+html[data-ui-style="warm-paper"] .mypage-root .mypage-muted {
   color: var(--paper-muted, #8b7355) !important;
 }
 
-.mypage-header-bar {
+html[data-ui-style="warm-paper"] .mypage-header-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -63,7 +63,7 @@
   gap: 12px;
 }
 
-.mypage-text-btn {
+html[data-ui-style="warm-paper"] .mypage-text-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -78,12 +78,12 @@
   transition: background 0.15s ease;
 }
 
-.mypage-text-btn:hover {
+html[data-ui-style="warm-paper"] .mypage-text-btn:hover {
   background: var(--paper-tag-bg, #f0e6d6);
 }
 
-.mypage-loading-card,
-.mypage-error-card {
+html[data-ui-style="warm-paper"] .mypage-loading-card,
+html[data-ui-style="warm-paper"] .mypage-error-card {
   background: var(--paper-card, #fffdf8);
   border: 1px solid var(--paper-border, #e8dcc8);
   border-radius: var(--paper-radius, 4px);
@@ -95,13 +95,13 @@
   color: var(--paper-ink, #2c2416);
 }
 
-.mypage-error-card h2 {
+html[data-ui-style="warm-paper"] .mypage-error-card h2 {
   margin-bottom: 16px;
   font-family: var(--paper-serif, Georgia, serif);
 }
 
 /* 알림 카드 */
-.mypage-notification-card {
+html[data-ui-style="warm-paper"] .mypage-notification-card {
   background: var(--paper-card, #fffdf8) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
   border-radius: var(--paper-radius, 4px) !important;
@@ -109,30 +109,30 @@
   backdrop-filter: none !important;
 }
 
-.mypage-notification-title {
+html[data-ui-style="warm-paper"] .mypage-notification-title {
   color: var(--paper-ink, #2c2416) !important;
 }
 
-.mypage-notification-desc,
-.mypage-notification-loading,
-.mypage-account-hint {
+html[data-ui-style="warm-paper"] .mypage-notification-desc,
+html[data-ui-style="warm-paper"] .mypage-notification-loading,
+html[data-ui-style="warm-paper"] .mypage-account-hint {
   color: var(--paper-muted, #8b7355) !important;
 }
 
-.mypage-notification-info svg {
+html[data-ui-style="warm-paper"] .mypage-notification-info svg {
   color: var(--paper-accent, #8b5a2b) !important;
 }
 
-.toggle-switch {
+html[data-ui-style="warm-paper"] .toggle-switch {
   background: var(--paper-border, #e8dcc8) !important;
 }
 
-.toggle-switch.active {
+html[data-ui-style="warm-paper"] .toggle-switch.active {
   background: var(--paper-accent, #8b5a2b) !important;
 }
 
 /* 탭 바 */
-.mypage-tabs-bar {
+html[data-ui-style="warm-paper"] .mypage-tabs-bar {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -146,7 +146,7 @@
   align-content: flex-start;
 }
 
-.mypage-tab-btn {
+html[data-ui-style="warm-paper"] .mypage-tab-btn {
   flex: 1 1 28%;
   min-width: 76px;
   padding: 12px 6px;
@@ -165,27 +165,27 @@
   text-shadow: none;
 }
 
-.mypage-tab-btn svg {
+html[data-ui-style="warm-paper"] .mypage-tab-btn svg {
   color: var(--paper-muted, #8b7355);
   flex-shrink: 0;
 }
 
-.mypage-tab-btn:hover {
+html[data-ui-style="warm-paper"] .mypage-tab-btn:hover {
   background: var(--paper-tag-bg, #f0e6d6);
 }
 
-.mypage-tab-btn--active {
+html[data-ui-style="warm-paper"] .mypage-tab-btn--active {
   background: var(--paper-tag-bg, #f0e6d6) !important;
   color: var(--paper-accent, #8b5a2b) !important;
   border-color: var(--paper-border, #e8dcc8);
 }
 
-.mypage-tab-btn--active svg {
+html[data-ui-style="warm-paper"] .mypage-tab-btn--active svg {
   color: var(--paper-accent, #8b5a2b);
 }
 
 /* 탭 패널 */
-.mypage-panel {
+html[data-ui-style="warm-paper"] .mypage-panel {
   background: var(--paper-card, #fffdf8) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
   border-radius: var(--paper-radius, 4px) !important;
@@ -196,14 +196,14 @@
 }
 
 /* 활동 통계 카드 */
-.mypage-stat-grid {
+html[data-ui-style="warm-paper"] .mypage-stat-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 16px;
   margin-bottom: 8px;
 }
 
-.mypage-stat-card {
+html[data-ui-style="warm-paper"] .mypage-stat-card {
   background: var(--paper-bg, #f5f0e8) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
   border-radius: var(--paper-radius, 4px) !important;
@@ -218,62 +218,62 @@
   min-height: 0;
 }
 
-.mypage-stat-card:hover {
+html[data-ui-style="warm-paper"] .mypage-stat-card:hover {
   background: var(--paper-tag-bg, #f0e6d6) !important;
 }
 
-.mypage-stat-card--static {
+html[data-ui-style="warm-paper"] .mypage-stat-card--static {
   cursor: default;
   align-items: flex-start;
   min-height: 88px;
 }
 
-.mypage-stat-card--static:hover {
+html[data-ui-style="warm-paper"] .mypage-stat-card--static:hover {
   background: var(--paper-bg, #f5f0e8) !important;
 }
 
-.mypage-stat-icon {
+html[data-ui-style="warm-paper"] .mypage-stat-icon {
   color: var(--paper-accent, #8b5a2b);
   flex-shrink: 0;
 }
 
-.mypage-stat-value {
+html[data-ui-style="warm-paper"] .mypage-stat-value {
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.2;
 }
 
-.mypage-stat-label {
+html[data-ui-style="warm-paper"] .mypage-stat-label {
   font-size: 0.88rem;
 }
 
-.mypage-stat-section-title {
+html[data-ui-style="warm-paper"] .mypage-stat-section-title {
   font-size: 0.88rem;
   font-weight: 700;
   margin-bottom: 8px;
 }
 
 /* 목록·빈 상태 */
-.mypage-empty {
+html[data-ui-style="warm-paper"] .mypage-empty {
   text-align: center;
   padding: 40px 20px;
   color: var(--paper-muted, #8b7355);
 }
 
-.mypage-empty svg {
+html[data-ui-style="warm-paper"] .mypage-empty svg {
   margin-bottom: 16px;
   opacity: 0.45;
   color: var(--paper-muted, #8b7355);
 }
 
-.mypage-empty-title {
+html[data-ui-style="warm-paper"] .mypage-empty-title {
   font-size: 1.15rem;
   font-weight: 600;
   margin-bottom: 8px;
   font-family: var(--paper-serif, Georgia, serif);
 }
 
-.mypage-list-item {
+html[data-ui-style="warm-paper"] .mypage-list-item {
   background: var(--paper-bg, #f5f0e8) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
   border-radius: var(--paper-radius, 4px) !important;
@@ -285,21 +285,21 @@
   box-shadow: none !important;
 }
 
-.mypage-list-item:hover {
+html[data-ui-style="warm-paper"] .mypage-list-item:hover {
   background: var(--paper-tag-bg, #f0e6d6) !important;
 }
 
-.mypage-list-title {
+html[data-ui-style="warm-paper"] .mypage-list-title {
   font-weight: 700;
   font-size: 1rem;
   margin-bottom: 6px;
 }
 
-.mypage-list-meta {
+html[data-ui-style="warm-paper"] .mypage-list-meta {
   font-size: 0.82rem;
 }
 
-.mypage-profile-edit-btn {
+html[data-ui-style="warm-paper"] .mypage-profile-edit-btn {
   margin-top: 14px;
   padding: 9px 18px;
   border-radius: var(--paper-radius, 4px);
@@ -311,120 +311,120 @@
   font-size: 14px;
 }
 
-.mypage-profile-edit-btn:hover {
+html[data-ui-style="warm-paper"] .mypage-profile-edit-btn:hover {
   background: var(--paper-tag-bg, #f0e6d6);
 }
 
 /* 방명록 — 글래스 제거 */
-.mypage-guestbook-glass .guestbook-textarea {
+html[data-ui-style="warm-paper"] .mypage-guestbook-glass .guestbook-textarea {
   background: var(--paper-card, #fffdf8) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
   color: var(--paper-ink, #2c2416) !important;
 }
 
-.mypage-guestbook-glass .guestbook-textarea::placeholder {
+html[data-ui-style="warm-paper"] .mypage-guestbook-glass .guestbook-textarea::placeholder {
   color: var(--paper-muted, #a89880) !important;
 }
 
-.mypage-guestbook-glass .guestbook-textarea:focus {
+html[data-ui-style="warm-paper"] .mypage-guestbook-glass .guestbook-textarea:focus {
   border-color: var(--paper-accent, #8b5a2b) !important;
   outline: none;
 }
 
-.mypage-guestbook-glass .send-btn {
+html[data-ui-style="warm-paper"] .mypage-guestbook-glass .send-btn {
   background: var(--paper-accent, #8b5a2b) !important;
   border: 1px solid var(--primary-dark, #6b4423) !important;
   color: var(--paper-card, #fffdf8) !important;
 }
 
-.mypage-guestbook-glass .send-btn:hover {
+html[data-ui-style="warm-paper"] .mypage-guestbook-glass .send-btn:hover {
   background: var(--primary-dark, #6b4423) !important;
 }
 
-.mypage-guestbook-glass .guestbook-item {
+html[data-ui-style="warm-paper"] .mypage-guestbook-glass .guestbook-item {
   background: var(--paper-bg, #f5f0e8) !important;
   border-left: 3px solid var(--paper-accent, #8b5a2b) !important;
   border-radius: var(--paper-radius, 4px);
 }
 
-.mypage-guestbook-glass .guestbook-item:hover {
+html[data-ui-style="warm-paper"] .mypage-guestbook-glass .guestbook-item:hover {
   background: var(--paper-tag-bg, #f0e6d6) !important;
 }
 
-.mypage-guestbook-glass .message-author {
+html[data-ui-style="warm-paper"] .mypage-guestbook-glass .message-author {
   color: var(--paper-ink, #2c2416) !important;
 }
 
-.mypage-guestbook-glass .message-date,
-.mypage-guestbook-glass .message-content {
+html[data-ui-style="warm-paper"] .mypage-guestbook-glass .message-date,
+html[data-ui-style="warm-paper"] .mypage-guestbook-glass .message-content {
   color: var(--paper-body, #4a3f32) !important;
 }
 
-.guestbook-reply-banner {
+html[data-ui-style="warm-paper"] .guestbook-reply-banner {
   background: var(--paper-tag-bg, #f0e6d6) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
 }
 
-.guestbook-reply-banner-text {
+html[data-ui-style="warm-paper"] .guestbook-reply-banner-text {
   color: var(--paper-ink, #2c2416) !important;
 }
 
-.guestbook-reply-cancel {
+html[data-ui-style="warm-paper"] .guestbook-reply-cancel {
   background: var(--paper-card, #fffdf8) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
   color: var(--paper-body, #4a3f32) !important;
 }
 
 /* 보라 포인트 → 페이퍼 */
-.message-author {
+html[data-ui-style="warm-paper"] .message-author {
   color: var(--paper-accent, #8b5a2b) !important;
 }
 
-.edit-input:focus,
-.edit-textarea:focus,
-.guestbook-textarea:focus {
+html[data-ui-style="warm-paper"] .edit-input:focus,
+html[data-ui-style="warm-paper"] .edit-textarea:focus,
+html[data-ui-style="warm-paper"] .guestbook-textarea:focus {
   border-color: var(--paper-accent, #8b5a2b) !important;
 }
 
-.edit-btn:hover {
+html[data-ui-style="warm-paper"] .edit-btn:hover {
   background: var(--paper-tag-bg, #f0e6d6) !important;
   color: var(--paper-accent, #8b5a2b) !important;
 }
 
-.send-btn {
+html[data-ui-style="warm-paper"] .send-btn {
   background: var(--paper-accent, #8b5a2b) !important;
 }
 
-.send-btn:hover {
+html[data-ui-style="warm-paper"] .send-btn:hover {
   background: var(--primary-dark, #6b4423) !important;
 }
 
-.guestbook-item {
+html[data-ui-style="warm-paper"] .guestbook-item {
   border-left-color: var(--paper-accent, #8b5a2b) !important;
 }
 
-.mypage-panel h3,
-.mypage-panel span,
-.mypage-panel div {
+html[data-ui-style="warm-paper"] .mypage-panel h3,
+html[data-ui-style="warm-paper"] .mypage-panel span,
+html[data-ui-style="warm-paper"] .mypage-panel div {
   text-shadow: none !important;
 }
 
-.mypage-panel div[style*="color: 'white'"],
-.mypage-panel div[style*='color: "white"'],
-.mypage-panel div[style*="rgba(255, 255, 255"],
+html[data-ui-style="warm-paper"] .mypage-panel div[style*="color: 'white'"],
+html[data-ui-style="warm-paper"] .mypage-panel div[style*='color: "white"'],
+html[data-ui-style="warm-paper"] .mypage-panel div[style*="rgba(255, 255, 255"],
 .mypage-panel span[style*="rgba(255, 255, 255"],
 .mypage-panel p[style*="rgba(255, 255, 255"] {
   color: var(--paper-ink, #2c2416) !important;
 }
 
-.mypage-panel p[style*="rgba(255, 255, 255, 0.7)"],
-.mypage-panel p[style*="rgba(255, 255, 255, 0.8)"],
-.mypage-panel div[style*="rgba(255, 255, 255, 0.7)"],
-.mypage-panel div[style*="rgba(255, 255, 255, 0.75)"],
-.mypage-panel div[style*="rgba(255, 255, 255, 0.8)"] {
+html[data-ui-style="warm-paper"] .mypage-panel p[style*="rgba(255, 255, 255, 0.7)"],
+html[data-ui-style="warm-paper"] .mypage-panel p[style*="rgba(255, 255, 255, 0.8)"],
+html[data-ui-style="warm-paper"] .mypage-panel div[style*="rgba(255, 255, 255, 0.7)"],
+html[data-ui-style="warm-paper"] .mypage-panel div[style*="rgba(255, 255, 255, 0.75)"],
+html[data-ui-style="warm-paper"] .mypage-panel div[style*="rgba(255, 255, 255, 0.8)"] {
   color: var(--paper-muted, #8b7355) !important;
 }
-.mypage-panel div[role="button"]:not(.mypage-stat-card) {
+html[data-ui-style="warm-paper"] .mypage-panel div[role="button"]:not(.mypage-stat-card) {
   background: var(--paper-bg, #f5f0e8) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
   border-radius: var(--paper-radius, 4px) !important;
@@ -432,9 +432,9 @@
   box-shadow: none !important;
 }
 
-.mypage-panel .mypage-list-item,
-.mypage-panel div[style*="cursor: 'pointer'"],
-.mypage-panel div[style*='cursor: "pointer"'] {
+html[data-ui-style="warm-paper"] .mypage-panel .mypage-list-item,
+html[data-ui-style="warm-paper"] .mypage-panel div[style*="cursor: 'pointer'"],
+html[data-ui-style="warm-paper"] .mypage-panel div[style*='cursor: "pointer"'] {
   background: var(--paper-bg, #f5f0e8) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
   border-radius: var(--paper-radius, 4px) !important;
@@ -442,11 +442,11 @@
   box-shadow: none !important;
 }
 
-.mypage-empty-desc {
+html[data-ui-style="warm-paper"] .mypage-empty-desc {
   font-size: 0.88rem;
 }
 
-.settings-button:hover {
+html[data-ui-style="warm-paper"] .settings-button:hover {
   background: var(--paper-tag-bg, #f0e6d6) !important;
   border-color: var(--paper-accent, #8b5a2b) !important;
   box-shadow: none !important;

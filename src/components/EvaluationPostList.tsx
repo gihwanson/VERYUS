@@ -15,7 +15,7 @@ import {
 } from 'firebase/firestore';
 import type { DocumentData } from 'firebase/firestore';
 import { db } from '../firebase';
-import { getGradeBadgeLabel, getGradeName } from '../utils/gradeDisplay';
+import { getPostListGradeSpanProps } from '../utils/gradeDisplay';
 import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
 import { 
   Plus, 
@@ -29,8 +29,6 @@ import {
   Star,
   Eye
 } from 'lucide-react';
-import '../styles/PostList.css';
-import '../styles/BoardLayout.css';
 
 interface EvaluationPost {
   id: string;
@@ -776,9 +774,7 @@ const EvaluationPostList: React.FC = () => {
               </div>
               <div className="post-meta">
                 <div className="post-author">
-                  <span className="author-grade-label" title={getGradeName(post.writerGrade || '🍒')}>
-                    {getGradeBadgeLabel(post.writerGrade)}
-                  </span>
+                  <span {...getPostListGradeSpanProps(post.writerGrade)} />
                   <span className="author-name post-author-name--list">
                     {post.writerNickname}
                   </span>
@@ -842,9 +838,7 @@ const EvaluationPostList: React.FC = () => {
               </div>
               <div className="post-meta">
                 <div className="post-author">
-                  <span className="author-grade-label" title={getGradeName(post.writerGrade || '🍒')}>
-                    {getGradeBadgeLabel(post.writerGrade)}
-                  </span>
+                  <span {...getPostListGradeSpanProps(post.writerGrade)} />
                   <span className="author-name post-author-name--list">
                     {post.writerNickname}
                   </span>

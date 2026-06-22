@@ -5,7 +5,6 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Eye, EyeOff } from 'lucide-react';
 import { auth, db, storage } from '../firebase';
 import { useNavigate } from 'react-router-dom';
-import './Login.css';
 
 const Signup: React.FC = () => {
   const [formData, setFormData] = useState({

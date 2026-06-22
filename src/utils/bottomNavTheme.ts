@@ -1,4 +1,5 @@
 import { getAccentForThemeId, getSavedAppTheme, syncPaperNavAccent } from './appTheme';
+import { getSavedAppUiStyle } from './appUiStyleStorage';
 
 export const BOTTOM_NAV_THEME_STORAGE_KEY = 'veryus_bottom_nav_theme';
 export const BOTTOM_NAV_THEME_CHANGE_EVENT = 'veryus-bottom-nav-theme-change';
@@ -296,18 +297,27 @@ export function getSavedBottomNavTheme(): BottomNavThemeId {
   } catch {
     /* ignore */
   }
-  return 'paper';
+  return getSavedAppUiStyle() === 'classic' ? 'white' : 'paper';
+}
+
+/** 클래식 UI에서는 paper(노트북) 네비 팔레트를 white로 대체 */
+export function resolveBottomNavThemeForApply(themeId: BottomNavThemeId): BottomNavThemeId {
+  if (getSavedAppUiStyle() === 'classic' && themeId === 'paper') {
+    return 'white';
+  }
+  return themeId;
 }
 
 export function applyBottomNavTheme(themeId: BottomNavThemeId): void {
-  const theme = THEMES[themeId] ?? THEMES.paper;
+  const effectiveThemeId = resolveBottomNavThemeForApply(themeId);
+  const theme = THEMES[effectiveThemeId] ?? THEMES.white;
   const root = document.documentElement;
 
   for (const [key, cssVar] of CSS_VAR_MAP) {
     root.style.setProperty(cssVar, theme[key]);
   }
 
-  if (themeId === 'paper') {
+  if (themeId === 'paper' && getSavedAppUiStyle() === 'warm-paper') {
     syncPaperNavAccent(root, getAccentForThemeId(getSavedAppTheme()));
   }
 

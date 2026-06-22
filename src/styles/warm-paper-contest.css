@@ -3,7 +3,7 @@
  * contest-ui-refresh.css 이후 로드
  */
 
-.contest-ui-refresh {
+html[data-ui-style="warm-paper"] .contest-ui-refresh {
   --cu-bg: var(--paper-bg, #f5f0e8);
   --cu-card: var(--paper-card, #fffdf8);
   --cu-card-border: var(--paper-border, #e8dcc8);
@@ -14,25 +14,25 @@
   color: var(--paper-ink, #2c2416);
 }
 
-.contest-list-container,
-.contest-detail-container,
-.contest-create-container,
-.contest-ui-refresh.contest-participate-refresh {
+html[data-ui-style="warm-paper"] .contest-list-container,
+html[data-ui-style="warm-paper"] .contest-detail-container,
+html[data-ui-style="warm-paper"] .contest-create-container,
+html[data-ui-style="warm-paper"] .contest-ui-refresh.contest-participate-refresh {
   background: var(--paper-bg, #f5f0e8) !important;
   background-attachment: scroll !important;
   min-height: 100dvh;
 }
 
-.contest-list-pattern,
-.contest-detail-pattern,
-.contest-create-pattern {
+html[data-ui-style="warm-paper"] .contest-list-pattern,
+html[data-ui-style="warm-paper"] .contest-detail-pattern,
+html[data-ui-style="warm-paper"] .contest-create-pattern {
   display: none !important;
 }
 
-.contest-list-content,
-.contest-detail-content,
-.contest-create-content,
-.contest-results-content {
+html[data-ui-style="warm-paper"] .contest-list-content,
+html[data-ui-style="warm-paper"] .contest-detail-content,
+html[data-ui-style="warm-paper"] .contest-create-content,
+html[data-ui-style="warm-paper"] .contest-results-content {
   max-width: min(720px, 100%) !important;
   margin: 0 auto;
   padding: calc(12px + env(safe-area-inset-top)) 16px calc(96px + env(safe-area-inset-bottom)) !important;
@@ -40,13 +40,13 @@
 }
 
 /* ===== 헤더 ===== */
-.contest-ui-refresh .contest-header-row {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-header-row {
   margin-bottom: 20px;
   padding: 0 2px;
   align-items: flex-start !important;
 }
 
-.contest-ui-refresh .contest-title {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-title {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -60,19 +60,19 @@
   letter-spacing: -0.02em;
 }
 
-.contest-ui-refresh .contest-title__icon {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-title__icon {
   color: var(--paper-accent, #8b5a2b);
   flex-shrink: 0;
 }
 
-.contest-ui-refresh .contest-page-sub {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-page-sub {
   margin: 6px 0 0;
   font-size: 0.78rem;
   color: var(--paper-muted, #8b7355);
 }
 
-.contest-ui-refresh .btn.btn-primary,
-.contest-ui-refresh .contest-create-button {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .btn.btn-primary,
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-create-button {
   background: var(--paper-accent, #8b5a2b) !important;
   color: var(--paper-card, #fffdf8) !important;
   border: 1px solid var(--paper-accent, #8b5a2b) !important;
@@ -83,8 +83,8 @@
   font-weight: 700;
 }
 
-.contest-ui-refresh .contest-back-button,
-.contest-ui-refresh .contest-results-back {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-back-button,
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-results-back {
   background: var(--paper-card, #fffdf8) !important;
   color: var(--paper-body, #4a3f32) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
@@ -93,7 +93,7 @@
 }
 
 /* ===== 섹션·카드 ===== */
-.contest-ui-refresh .contest-section-label {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-section-label {
   position: relative;
   display: inline-block;
   margin: 0 0 12px !important;
@@ -106,11 +106,11 @@
   letter-spacing: 0.02em;
 }
 
-.contest-ui-refresh .contest-card,
-.contest-ui-refresh .contest-detail-summary-card,
-.contest-ui-refresh .contest-detail-section,
-.contest-ui-refresh .contest-results-panel,
-.contest-ui-refresh .contest-form {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-card,
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-detail-summary-card,
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-detail-section,
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-results-panel,
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-form {
   background: var(--paper-card, #fffdf8) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
   border-radius: var(--paper-radius, 4px) !important;
@@ -119,11 +119,11 @@
   padding: 18px !important;
 }
 
-.contest-ui-refresh .contest-card.ended {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-card.ended {
   opacity: 0.92;
 }
 
-.contest-ui-refresh .contest-card-title {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-card-title {
   font-family: var(--paper-serif, Georgia, serif) !important;
   font-size: 1.1rem !important;
   font-weight: 700 !important;
@@ -131,14 +131,14 @@
   margin-bottom: 10px !important;
 }
 
-.contest-ui-refresh .contest-detail-title {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-detail-title {
   font-family: var(--paper-serif, Georgia, serif) !important;
   color: var(--paper-ink, #2c2416) !important;
   text-shadow: none !important;
 }
 
 /* ===== 태그·배지 ===== */
-.contest-ui-refresh .contest-tag {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-tag {
   padding: 4px 10px !important;
   border-radius: var(--paper-radius, 4px) !important;
   font-size: 0.72rem !important;
@@ -146,47 +146,47 @@
   border: 1px solid var(--paper-border, #e8dcc8) !important;
 }
 
-.contest-ui-refresh .contest-tag.type {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-tag.type {
   background: var(--paper-tag-bg, #f0e6d6) !important;
   color: var(--paper-body, #4a3f32) !important;
 }
 
-.contest-ui-refresh .contest-tag.waiting {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-tag.waiting {
   background: #faf6ec !important;
   color: #8b6914 !important;
   border-color: #e8dcc8 !important;
 }
 
-.contest-ui-refresh .contest-tag.started {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-tag.started {
   background: #eef5ee !important;
   color: #3d6b4f !important;
   border-color: #c5dcc8 !important;
 }
 
-.contest-ui-refresh .contest-tag.ended,
-.contest-ui-refresh .contest-detail-badge.ended {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-tag.ended,
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-detail-badge.ended {
   background: #f3f0ea !important;
   color: var(--paper-muted, #8b7355) !important;
 }
 
-.contest-ui-refresh .contest-detail-badge.started {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-detail-badge.started {
   background: #eef5ee !important;
   color: #3d6b4f !important;
 }
 
-.contest-ui-refresh .contest-detail-badge.waiting {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-detail-badge.waiting {
   background: #faf6ec !important;
   color: #8b6914 !important;
 }
 
-.contest-ui-refresh .contest-date,
-.contest-ui-refresh .contest-detail-info-item {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-date,
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-detail-info-item {
   color: var(--paper-muted, #8b7355) !important;
   font-size: 0.82rem !important;
   font-weight: 500 !important;
 }
 
-.contest-ui-refresh .contest-top3-badge {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-top3-badge {
   background: var(--paper-tag-bg, #f0e6d6) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
   color: var(--paper-body, #4a3f32) !important;
@@ -195,7 +195,7 @@
 }
 
 /* ===== 버튼 ===== */
-.contest-ui-refresh .contest-button {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-button {
   border-radius: var(--paper-radius, 4px) !important;
   padding: 8px 14px !important;
   font-size: 0.82rem !important;
@@ -204,71 +204,71 @@
   box-shadow: none !important;
 }
 
-.contest-ui-refresh .contest-button.detail {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-button.detail {
   background: var(--paper-card, #fffdf8) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
   color: var(--paper-body, #4a3f32) !important;
 }
 
-.contest-ui-refresh .contest-button.participate {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-button.participate {
   background: var(--paper-accent, #8b5a2b) !important;
   border: 1px solid var(--paper-accent, #8b5a2b) !important;
   color: var(--paper-card, #fffdf8) !important;
 }
 
-.contest-ui-refresh .contest-button.end {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-button.end {
   background: #faf0f0 !important;
   border: 1px solid #d4a0a0 !important;
   color: #8b4040 !important;
 }
 
-.contest-ui-refresh .contest-start-btn {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-start-btn {
   background: var(--paper-accent, #8b5a2b) !important;
   color: var(--paper-card, #fffdf8) !important;
 }
 
-.contest-ui-refresh .contest-admin-tab-btn {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-admin-tab-btn {
   background: var(--paper-card, #fffdf8) !important;
   color: var(--paper-body, #4a3f32) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
   border-radius: var(--paper-radius, 4px) !important;
 }
 
-.contest-ui-refresh .contest-admin-tab-btn.active {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-admin-tab-btn.active {
   background: var(--paper-tag-bg, #f0e6d6) !important;
   color: var(--paper-accent, #8b5a2b) !important;
   border-color: var(--paper-accent, #8b5a2b) !important;
 }
 
-.contest-ui-refresh .contest-detail-add-button,
-.contest-ui-refresh .contest-targets-create-btn {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-detail-add-button,
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-targets-create-btn {
   background: var(--paper-accent, #8b5a2b) !important;
   color: var(--paper-card, #fffdf8) !important;
   border-radius: var(--paper-radius, 4px) !important;
 }
 
-.contest-ui-refresh .contest-detail-team-button.edit {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-detail-team-button.edit {
   background: var(--paper-tag-bg, #f0e6d6) !important;
   color: var(--paper-ink, #2c2416) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
 }
 
-.contest-ui-refresh .contest-detail-team-button.break,
-.contest-ui-refresh .contest-detail-team-button.danger,
-.contest-ui-refresh .contest-targets-cancel-btn {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-detail-team-button.break,
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-detail-team-button.danger,
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-targets-cancel-btn {
   background: #faf0f0 !important;
   color: #8b4040 !important;
   border: 1px solid #d4a0a0 !important;
 }
 
 /* ===== 폼·입력 ===== */
-.contest-ui-refresh .contest-input,
-.contest-ui-refresh .contest-select,
-.contest-ui-refresh .contest-detail-add-input,
-.contest-ui-refresh .contest-results-filter select,
-.contest-participate-refresh input,
-.contest-participate-refresh textarea,
-.contest-participate-refresh select {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-input,
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-select,
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-detail-add-input,
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-results-filter select,
+html[data-ui-style="warm-paper"] .contest-participate-refresh input,
+html[data-ui-style="warm-paper"] .contest-participate-refresh textarea,
+html[data-ui-style="warm-paper"] .contest-participate-refresh select {
   background: var(--paper-card, #fffdf8) !important;
   color: var(--paper-ink, #2c2416) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
@@ -276,45 +276,45 @@
   font-family: inherit;
 }
 
-.contest-ui-refresh .contest-label,
-.contest-ui-refresh .contest-detail-section-title {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-label,
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-detail-section-title {
   color: var(--paper-ink, #2c2416) !important;
   font-family: var(--paper-serif, Georgia, serif);
   text-shadow: none !important;
 }
 
-.contest-ui-refresh .contest-detail-section-divider {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-detail-section-divider {
   border-color: var(--paper-border, #e8dcc8) !important;
 }
 
 /* ===== 정보 박스 ===== */
-.contest-ui-refresh .contest-info-card {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-info-card {
   background: var(--paper-tag-bg, #f0e6d6) !important;
   border: 1px dashed var(--paper-border, #e8dcc8) !important;
   border-radius: var(--paper-radius, 4px) !important;
 }
 
-.contest-ui-refresh .contest-info-title {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-info-title {
   color: var(--paper-ink, #2c2416) !important;
 }
 
-.contest-ui-refresh .contest-info-list {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-info-list {
   color: var(--paper-body, #4a3f32) !important;
 }
 
-.contest-ui-refresh .contest-helper-box,
-.contest-ui-refresh .contest-list-header-box {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-helper-box,
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-list-header-box {
   background: var(--paper-tag-bg, #f0e6d6) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
   border-radius: var(--paper-radius, 4px) !important;
   color: var(--paper-body, #4a3f32) !important;
 }
 
-.contest-ui-refresh .contest-list-header-title {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-list-header-title {
   color: var(--paper-accent, #8b5a2b) !important;
 }
 
-.contest-ui-refresh .contest-type-hint {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-type-hint {
   margin-top: 8px;
   padding: 12px;
   border-radius: var(--paper-radius, 4px);
@@ -325,7 +325,7 @@
   color: var(--paper-body, #4a3f32);
 }
 
-.contest-ui-refresh .contest-type-hint__note {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-type-hint__note {
   margin-top: 8px;
   padding: 10px;
   background: var(--paper-card, #fffdf8);
@@ -336,77 +336,77 @@
 }
 
 /* ===== 참가자·팀 ===== */
-.contest-ui-refresh .contest-detail-participant-item {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-detail-participant-item {
   background: var(--paper-tag-bg, #f0e6d6) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
   color: var(--paper-ink, #2c2416) !important;
   border-radius: var(--paper-radius, 4px) !important;
 }
 
-.contest-ui-refresh .contest-detail-participant-item.selected {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-detail-participant-item.selected {
   border-color: var(--paper-accent, #8b5a2b) !important;
   background: #f5efe4 !important;
 }
 
-.contest-ui-refresh .contest-detail-participant-item.in-team {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-detail-participant-item.in-team {
   opacity: 0.75;
 }
 
-.contest-ui-refresh .contest-detail-participant-name {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-detail-participant-name {
   color: var(--paper-ink, #2c2416) !important;
 }
 
-.contest-ui-refresh .contest-detail-participant-status.submitted {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-detail-participant-status.submitted {
   color: #3d6b4f !important;
 }
 
-.contest-ui-refresh .contest-detail-participant-status.pending {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-detail-participant-status.pending {
   color: var(--paper-muted, #8b7355) !important;
 }
 
-.contest-ui-refresh .contest-team-member-badge {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-team-member-badge {
   color: var(--paper-muted, #8b7355) !important;
 }
 
 /* ===== 결과표 ===== */
-.contest-ui-refresh .contest-results-title {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-results-title {
   color: var(--paper-ink, #2c2416) !important;
   font-family: var(--paper-serif, Georgia, serif);
 }
 
-.contest-ui-refresh .contest-results-subtitle {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-results-subtitle {
   color: var(--paper-muted, #8b7355) !important;
 }
 
-.contest-ui-refresh .contest-results-table-scroll .contest-table {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-results-table-scroll .contest-table {
   background: var(--paper-card, #fffdf8) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
   box-shadow: none !important;
 }
 
-.contest-ui-refresh .contest-table th {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-table th {
   background: var(--paper-tag-bg, #f0e6d6) !important;
   color: var(--paper-ink, #2c2416) !important;
 }
 
-.contest-ui-refresh .contest-table td {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-table td {
   color: var(--paper-body, #4a3f32) !important;
   border-color: var(--paper-border, #e8dcc8) !important;
 }
 
 /* ===== 로딩·빈 상태 ===== */
-.contest-ui-refresh .contest-loading-state,
-.contest-ui-refresh .contest-empty-state {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-loading-state,
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-empty-state {
   color: var(--paper-muted, #8b7355) !important;
   font-style: italic;
 }
 
-.contest-ui-refresh .contest-loading-spinner {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-loading-spinner {
   border-color: rgba(139, 90, 43, 0.15) !important;
   border-top-color: var(--paper-accent, #8b5a2b) !important;
 }
 
-.contest-ui-refresh .contest-submit-button {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-submit-button {
   width: 100%;
   margin-top: 8px;
   padding: 12px 16px !important;
@@ -420,44 +420,44 @@
   cursor: pointer;
 }
 
-.contest-ui-refresh .contest-empty-icon {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-empty-icon {
   display: block;
   margin: 0 auto 8px;
   color: var(--paper-muted, #8b7355);
 }
 
 /* ===== 입장 제한 토글 ===== */
-.contest-ui-refresh .contest-entry-toggle-btn.restricted {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-entry-toggle-btn.restricted {
   background: #faf0f0 !important;
   color: #8b4040 !important;
   border: 1px solid #d4a0a0 !important;
 }
 
-.contest-ui-refresh .contest-entry-toggle-btn.opened {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-entry-toggle-btn.opened {
   background: #eef5ee !important;
   color: #3d6b4f !important;
   border: 1px solid #c5dcc8 !important;
 }
 
-.contest-ui-refresh .contest-entry-toggle-status.restricted {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-entry-toggle-status.restricted {
   color: #8b4040 !important;
 }
 
-.contest-ui-refresh .contest-entry-toggle-status.opened {
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-entry-toggle-status.opened {
   color: #3d6b4f !important;
 }
 
 /* ===== 라운드매치 투표 — 무대 영역은 유지, 바깥만 페이퍼 ===== */
-.contest-ui-refresh.rm-vote-container {
+html[data-ui-style="warm-paper"] .contest-ui-refresh.rm-vote-container {
   background: var(--paper-bg, #f5f0e8) !important;
 }
 
 @media (max-width: 640px) {
-  .contest-ui-refresh .contest-title {
+  html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-title {
     font-size: 1.25rem !important;
   }
 
-  .contest-ui-refresh .contest-card {
+  html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-card {
     padding: 14px !important;
   }
 }

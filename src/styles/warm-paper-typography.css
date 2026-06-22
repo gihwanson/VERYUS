@@ -3,110 +3,109 @@
  * (Pretendard/시스템 산세리프 잔재 제거, 노트·종이 감성 세리프)
  */
 
-:root {
+html[data-ui-style="warm-paper"] {
   --paper-font-body: Georgia, 'Times New Roman', 'Batang', 'Noto Serif KR', serif;
   --paper-font-heading: Georgia, 'Times New Roman', 'Batang', serif;
 }
 
-html,
-body,
-#root,
-.App,
-input,
-textarea,
-select,
-button {
+html[data-ui-style="warm-paper"] body,
+html[data-ui-style="warm-paper"] #root,
+html[data-ui-style="warm-paper"] .App,
+html[data-ui-style="warm-paper"] input,
+html[data-ui-style="warm-paper"] textarea,
+html[data-ui-style="warm-paper"] select,
+html[data-ui-style="warm-paper"] button {
   font-family: var(--paper-font-body) !important;
 }
 
 /* 페이지·기능 영역 — 개별 Pretendard 선언 덮어쓰기 */
-.home-container,
-.mypage-root,
-.mypage-container,
-.settings-container,
-.board-container,
-.post-detail-container,
-.posts-container,
-.approved-songs-container,
-.practice-room-booking,
-.games-page,
-.setlist-page-inner,
-.contest-list-container,
-.contest-detail-container,
-.contest-participate-container,
-.contest-results-container,
-.hall-of-fame-page,
-.notifications-page,
-.cc-page,
-.settings-container,
-.login-container,
-.signup-container,
-.write-page,
-.admin-container {
+html[data-ui-style="warm-paper"] .home-container,
+html[data-ui-style="warm-paper"] .mypage-root,
+html[data-ui-style="warm-paper"] .mypage-container,
+html[data-ui-style="warm-paper"] .settings-container,
+html[data-ui-style="warm-paper"] .board-container,
+html[data-ui-style="warm-paper"] .post-detail-container,
+html[data-ui-style="warm-paper"] .posts-container,
+html[data-ui-style="warm-paper"] .approved-songs-container,
+html[data-ui-style="warm-paper"] .practice-room-booking,
+html[data-ui-style="warm-paper"] .games-page,
+html[data-ui-style="warm-paper"] .setlist-page-inner,
+html[data-ui-style="warm-paper"] .contest-list-container,
+html[data-ui-style="warm-paper"] .contest-detail-container,
+html[data-ui-style="warm-paper"] .contest-participate-container,
+html[data-ui-style="warm-paper"] .contest-results-container,
+html[data-ui-style="warm-paper"] .hall-of-fame-page,
+html[data-ui-style="warm-paper"] .notifications-page,
+html[data-ui-style="warm-paper"] .cc-page,
+html[data-ui-style="warm-paper"] .settings-container,
+html[data-ui-style="warm-paper"] .login-container,
+html[data-ui-style="warm-paper"] .signup-container,
+html[data-ui-style="warm-paper"] .write-page,
+html[data-ui-style="warm-paper"] .admin-container {
   font-family: var(--paper-font-body) !important;
 }
 
 /* 제목 계열 */
-h1,
-h2,
-h3,
-.board-title,
-.top-nav .board-title,
-.approved-songs-title,
-.games-title,
-.setlist-page-title,
-.mypage-profile-nickname,
-.hall-header h2,
-.contest-header-title,
-.home-title {
+html[data-ui-style="warm-paper"] h1,
+html[data-ui-style="warm-paper"] h2,
+html[data-ui-style="warm-paper"] h3,
+html[data-ui-style="warm-paper"] .board-title,
+html[data-ui-style="warm-paper"] .top-nav .board-title,
+html[data-ui-style="warm-paper"] .approved-songs-title,
+html[data-ui-style="warm-paper"] .games-title,
+html[data-ui-style="warm-paper"] .setlist-page-title,
+html[data-ui-style="warm-paper"] .mypage-profile-nickname,
+html[data-ui-style="warm-paper"] .hall-header h2,
+html[data-ui-style="warm-paper"] .contest-header-title,
+html[data-ui-style="warm-paper"] .home-title {
   font-family: var(--paper-font-heading) !important;
   font-weight: 700;
   letter-spacing: 0.01em;
 }
 
 /* 본문·메타 */
-body,
-p,
-.post-content-preview,
-.post-detail-content,
-.comment-item .comment-text,
-.mypage-profile-intro,
-.games-subtitle,
-.board-subtitle {
+html[data-ui-style="warm-paper"] body,
+html[data-ui-style="warm-paper"] p,
+html[data-ui-style="warm-paper"] .post-content-preview,
+html[data-ui-style="warm-paper"] .post-detail-content,
+html[data-ui-style="warm-paper"] .comment-item .comment-text,
+html[data-ui-style="warm-paper"] .mypage-profile-intro,
+html[data-ui-style="warm-paper"] .games-subtitle,
+html[data-ui-style="warm-paper"] .board-subtitle {
   font-family: var(--paper-font-body) !important;
   line-height: 1.65;
 }
 
 /* 코드·숫자 패널 등은 예외 */
-code,
-pre,
-kbd,
-.mono,
-.admin-user-panel [class*='mono'],
-.piano-key-label {
+html[data-ui-style="warm-paper"] code,
+html[data-ui-style="warm-paper"] pre,
+html[data-ui-style="warm-paper"] kbd,
+html[data-ui-style="warm-paper"] .mono,
+html[data-ui-style="warm-paper"] .admin-user-panel [class*='mono'],
+html[data-ui-style="warm-paper"] .piano-key-label {
   font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace !important;
 }
 
 /* 피아노 연주 화면 — 무대 UI 폰트 유지 */
-.piano-page,
-.piano-page input,
-.piano-page button {
+html[data-ui-style="warm-paper"] .piano-page,
+html[data-ui-style="warm-paper"] .piano-page input,
+html[data-ui-style="warm-paper"] .piano-page button {
   font-family: inherit !important;
 }
 
 /* 익명 채팅 — 말풍선 가독성용 산세리프 유지 */
-.anonymous-chat-page,
-.anonymous-chat-list-page,
-.anonymous-chat-room-screen,
-.anonymous-note-bubble {
+html[data-ui-style="warm-paper"] .anonymous-chat-page,
+html[data-ui-style="warm-paper"] .anonymous-chat-list-page,
+html[data-ui-style="warm-paper"] .anonymous-chat-room-screen,
+html[data-ui-style="warm-paper"] .anonymous-note-bubble {
   font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif !important;
 }
 
-.anonymous-chat-page input,
-.anonymous-chat-page textarea,
-.anonymous-chat-page button,
-.anonymous-chat-room-screen input,
-.anonymous-chat-room-screen textarea,
-.anonymous-chat-room-screen button {
+html[data-ui-style="warm-paper"] .anonymous-chat-page input,
+html[data-ui-style="warm-paper"] .anonymous-chat-page textarea,
+html[data-ui-style="warm-paper"] .anonymous-chat-page button,
+html[data-ui-style="warm-paper"] .anonymous-chat-room-screen input,
+html[data-ui-style="warm-paper"] .anonymous-chat-room-screen textarea,
+html[data-ui-style="warm-paper"] .anonymous-chat-room-screen button {
   font-family: inherit !important;
 }

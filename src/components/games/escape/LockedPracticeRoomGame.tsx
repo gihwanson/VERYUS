@@ -22,8 +22,6 @@ import {
 } from '../../../utils/escapeRoomScores';
 import { setLastPlayedGame } from '../../../utils/lastPlayedGame';
 import { playGameComplete, playNewRecord, unlockGameAudio } from '../../../utils/gameSounds';
-import '../../../styles/variables.css';
-import '../../../styles/games.css';
 
 type Phase = 'intro' | 'play' | 'cleared';
 type CodeTarget = 'bag' | 'drawer' | 'door' | null;

@@ -1,0 +1,273 @@
+/**
+ * 앱 테마 — 글자색·대비 (테마 변경 시 가독성 유지)
+ */
+
+/* 그라데이션 페이지 기본 글자 */
+.board-container,
+.post-detail-container,
+.posts-container,
+.approved-songs-container,
+.hall-of-fame-page,
+.notifications-page,
+.practice-room-booking,
+.practice-room-management,
+.admin-container,
+.cc-page,
+.cc-loading,
+.global-loading.fullscreen,
+.anonymous-chat-page,
+.anonymous-chat-list-page,
+.anonymous-chat-room-screen:not(.theme-kakao),
+.write-page,
+.home-container,
+.contest-list-container,
+.contest-create-container,
+.contest-detail-container,
+.contest-participate-container,
+.contest-results-container {
+  color: var(--app-page-text, #ffffff);
+}
+
+.settings-container {
+  color: var(--app-page-text, #ffffff);
+}
+
+.settings-container .settings-card,
+.settings-container .setting-item,
+.settings-container .profile-info,
+.settings-container .card-header,
+.settings-container label,
+.settings-container .theme-swatch-picker__label {
+  color: var(--app-card-text, #111827) !important;
+}
+
+/* 밝은 카드/글라스 위 진한 글자 */
+.post-item,
+.post-card,
+.post-detail-card,
+.post-content-card,
+.login-card,
+.signup-card,
+.forgot-password-card,
+.theme-swatch-picker__swatch,
+.theme-swatch-picker__label,
+.notifications-panel-card,
+.practice-room-booking .booking-controls,
+.practice-room-booking .calendar-container,
+.practice-room-booking .time-slot:not(.selected):not(.booked),
+.hall-header-actions button,
+.back-to-main-button,
+.home-button {
+  color: var(--app-glass-text, #1a1a2e);
+}
+
+.board-title,
+.top-nav .board-title,
+.board-header h1 {
+  color: var(--app-page-text, #ffffff) !important;
+}
+
+.board-subtitle,
+.board-description {
+  color: var(--app-page-text-muted, rgba(255, 255, 255, 0.85)) !important;
+}
+
+.post-title,
+.post-content-preview,
+.post-category,
+.category-badge,
+.post-meta-item,
+.post-author,
+.post-date,
+.post-stats span {
+  color: var(--app-card-text, #111827) !important;
+}
+
+/* 게시글 본문·미리보기 — 페이지 흰 글자 상속 차단 */
+.post-detail-content,
+.post-detail-content p,
+.post-detail-content div,
+.post-detail-content span,
+.post-detail-content li,
+.post-content-preview,
+.post-content-preview p,
+.post-content-preview div,
+.post-content-preview span {
+  color: var(--app-card-text, #111827) !important;
+  text-shadow: none !important;
+}
+
+.post-detail-title,
+.post-detail .post-detail-title {
+  color: var(--app-card-text, #111827) !important;
+  text-shadow: none !important;
+}
+
+.post-item .post-author .author-info,
+.post-item .post-author .post-author-name--list,
+.post-item .post-author .author-name,
+.post-card .post-author .author-info,
+.post-card .post-author .post-author-name--list,
+.post-card .post-author .author-name {
+  color: var(--app-card-text, #111827) !important;
+  text-shadow: none !important;
+}
+
+/* 밸런스 게시판 미리보기 — 글라스 카드 안 */
+.post-item .balance-question-line,
+.post-card .balance-question-line,
+.post-item .balance-live-vote-title,
+.post-card .balance-live-vote-title,
+.post-item .balance-vote-labels,
+.post-card .balance-vote-labels {
+  color: var(--app-card-text, #111827) !important;
+  text-shadow: none;
+}
+
+.post-item .balance-question-vs,
+.post-card .balance-question-vs {
+  color: var(--primary-color, #c41e3a) !important;
+}
+
+/* 강조·링크 — 테마 accent */
+.board-container a:not(.post-item):not(.post-card),
+.post-detail-container a,
+.approved-songs-container a,
+.hall-of-fame-page a,
+.practice-room-booking a,
+.notifications-page a,
+.contest-ui-refresh a {
+  color: var(--primary-light, var(--primary-color));
+}
+
+/* 설정 화면 테마 선택 라벨 */
+.settings-card .theme-swatch-picker__desc {
+  color: var(--app-page-text-muted, rgba(255, 255, 255, 0.9));
+}
+
+.settings-card .theme-swatch-picker__label {
+  color: var(--app-card-text, #1f2937) !important;
+}
+
+.settings-card .setting-item > span {
+  color: var(--app-page-text, #ffffff);
+}
+
+/* 로그인/회원가입 — 밝은 배경 */
+.login-container,
+.signup-container {
+  color: var(--app-card-text, #1f2937);
+}
+
+/* 고객센터 */
+.cc-page,
+.cc-loading {
+  color: var(--app-page-text, #e2e8f0);
+}
+
+.cc-tab--active {
+  color: var(--primary-color) !important;
+}
+
+/* 콘테스트 UI */
+.contest-ui-refresh {
+  --cu-text: var(--app-page-text, #ffffff);
+  --cu-text-soft: var(--app-page-text-muted, rgba(255, 255, 255, 0.86));
+}
+
+/* 합격곡·명예의전당 — 헤더/탭은 페이지 위 흰 글자 유지 */
+.approved-songs-title,
+.approved-songs-tab,
+.hall-header,
+.hall-header h2,
+.hall-header p,
+.hall-score-guide,
+.hall-section-title {
+  color: var(--app-page-text, #ffffff) !important;
+}
+
+.approved-songs-tab.active {
+  background: rgba(255, 255, 255, 0.95) !important;
+  color: var(--primary-color, #111827) !important;
+}
+
+/* 게시판 목록 로딩 — 그라데이션 위 */
+.board-container .loading-container,
+.posts-container .loading-container {
+  color: var(--app-page-text, #ffffff) !important;
+}
+
+.board-container .loading-container .loading-spinner,
+.posts-container .loading-container .loading-spinner {
+  color: var(--primary-light, var(--primary-color)) !important;
+}
+
+/* 연습실 예약 — 글라스 패널 제목 */
+.practice-room-booking .booking-header h1,
+.practice-room-booking .booking-back-button,
+.practice-room-booking .refresh-button,
+.practice-room-booking .management-button {
+  color: var(--primary-color) !important;
+}
+
+.practice-room-booking .nav-button,
+.practice-room-booking .today-button {
+  background: var(--app-accent-gradient, var(--gradient-primary)) !important;
+  color: #fff !important;
+}
+
+/* 댓글 — 테마 변수 우선 (나이트 등 다크 테마 가독성) */
+.comment-section,
+.comment-section .comment-header h3,
+.comment-item,
+.comment-item .comment-text,
+.comment-item .comment-author,
+.comment-item .comment-date,
+.comment-item .comment-content,
+.comment-reply .comment-text,
+.comment-reply .comment-author {
+  color: var(--comment-text) !important;
+}
+
+.comment-item .comment-author {
+  color: var(--comment-author) !important;
+}
+
+.comment-item .comment-date {
+  color: var(--comment-date) !important;
+}
+
+.comment-section .tab-button {
+  color: var(--tab-button-color) !important;
+}
+
+.comment-section .tab-button.active {
+  color: var(--tab-button-active-color) !important;
+}
+
+.comment-section .comment-input,
+.comment-section .comment-edit-input {
+  color: var(--comment-input-color) !important;
+}
+
+.comment-section .comment-input::placeholder {
+  color: var(--comment-input-placeholder) !important;
+}
+
+.comment-item .comment-actions button {
+  color: var(--comment-button-text) !important;
+}
+
+.comment-section .secret-comment-toggle,
+.comment-section .secret-toggle {
+  color: var(--secret-toggle-color) !important;
+}
+
+/* 로딩 스피너 */
+.global-loading__spinner {
+  border-top-color: var(--primary-color, #8a55cc) !important;
+}
+
+.cc-loading-spinner {
+  border-top-color: var(--primary-light, #a78bfa) !important;
+}

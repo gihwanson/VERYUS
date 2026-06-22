@@ -2,7 +2,7 @@
  * 셋리스트 — 웜 페이퍼 노트 스타일
  */
 
-.setlist-page {
+html[data-ui-style="warm-paper"] .setlist-page {
   min-height: 100dvh;
   width: 100%;
   margin: 0;
@@ -15,12 +15,12 @@
   padding: calc(12px + env(safe-area-inset-top)) 16px calc(96px + env(safe-area-inset-bottom));
 }
 
-.setlist-page.setlist-page--manage,
-.setlist-page.setlist-page--fullscreen {
+html[data-ui-style="warm-paper"] .setlist-page.setlist-page--manage,
+html[data-ui-style="warm-paper"] .setlist-page.setlist-page--fullscreen {
   padding: 0;
 }
 
-.setlist-page-inner {
+html[data-ui-style="warm-paper"] .setlist-page-inner {
   width: 100%;
   max-width: min(920px, 100%);
   margin: 0 auto;
@@ -28,17 +28,17 @@
   z-index: 1;
 }
 
-.setlist-page--manage .setlist-page-inner--manage,
-.setlist-page--fullscreen .setlist-page-inner {
+html[data-ui-style="warm-paper"] .setlist-page--manage .setlist-page-inner--manage,
+html[data-ui-style="warm-paper"] .setlist-page--fullscreen .setlist-page-inner {
   max-width: none;
 }
 
 /* ===== 헤더 ===== */
-.setlist-page-header {
+html[data-ui-style="warm-paper"] .setlist-page-header {
   margin-bottom: 16px;
 }
 
-.setlist-page-header--compact {
+html[data-ui-style="warm-paper"] .setlist-page-header--compact {
   padding: max(10px, env(safe-area-inset-top)) 12px 10px;
   display: flex;
   align-items: center;
@@ -49,7 +49,7 @@
   margin-bottom: 0;
 }
 
-.setlist-page-header-block {
+html[data-ui-style="warm-paper"] .setlist-page-header-block {
   padding: max(12px, env(safe-area-inset-top)) 16px 14px;
   border-bottom: 1px solid var(--paper-border, #e8dcc8);
   background: var(--paper-card, #fffdf8);
@@ -57,12 +57,12 @@
   width: 100%;
 }
 
-.setlist-page-header__main {
+html[data-ui-style="warm-paper"] .setlist-page-header__main {
   flex: 1 1 220px;
   min-width: 0;
 }
 
-.setlist-page-header__row {
+html[data-ui-style="warm-paper"] .setlist-page-header__row {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -70,7 +70,7 @@
   gap: 16px;
 }
 
-.setlist-page-title {
+html[data-ui-style="warm-paper"] .setlist-page-title {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -82,56 +82,56 @@
   text-shadow: none;
 }
 
-.setlist-page-title--sm {
+html[data-ui-style="warm-paper"] .setlist-page-title--sm {
   font-size: 0.95rem;
 }
 
-.setlist-page-title--md {
+html[data-ui-style="warm-paper"] .setlist-page-title--md {
   font-size: 1.35rem;
 }
 
-.setlist-page-title--lg {
+html[data-ui-style="warm-paper"] .setlist-page-title--lg {
   font-size: 1.55rem;
 }
 
-.setlist-page-title__icon {
+html[data-ui-style="warm-paper"] .setlist-page-title__icon {
   color: var(--paper-accent, #8b5a2b);
   flex-shrink: 0;
 }
 
-.setlist-page-sub {
+html[data-ui-style="warm-paper"] .setlist-page-sub {
   margin: 6px 0 0;
   font-size: 0.78rem;
   color: var(--paper-muted, #8b7355);
 }
 
-.setlist-page-header__tabs {
+html[data-ui-style="warm-paper"] .setlist-page-header__tabs {
   display: flex;
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
 }
 
-.setlist-page-header__tabs--full {
+html[data-ui-style="warm-paper"] .setlist-page-header__tabs--full {
   margin-top: 14px;
   width: 100%;
 }
 
-.setlist-home-btn {
+html[data-ui-style="warm-paper"] .setlist-home-btn {
   margin-top: 10px;
 }
 
 /* ===== 탭 버튼 ===== */
-.setlist-tab-btn {
+html[data-ui-style="warm-paper"] .setlist-tab-btn {
   font-family: inherit;
 }
 
-.setlist-tab-btn--active {
+html[data-ui-style="warm-paper"] .setlist-tab-btn--active {
   font-weight: 700;
 }
 
 /* ===== 로딩 ===== */
-.setlist-loading-wrap {
+html[data-ui-style="warm-paper"] .setlist-loading-wrap {
   min-height: 100dvh;
   display: flex;
   align-items: center;
@@ -140,7 +140,7 @@
   background: var(--paper-bg, #f5f0e8);
 }
 
-.setlist-loading-card {
+html[data-ui-style="warm-paper"] .setlist-loading-card {
   padding: 32px 40px;
   text-align: center;
   font-size: 1rem;
@@ -149,7 +149,7 @@
 }
 
 /* ===== 관리 패널 ===== */
-.setlist-manage-panel {
+html[data-ui-style="warm-paper"] .setlist-manage-panel {
   background: var(--paper-card, #fffdf8) !important;
   border-bottom: 1px solid var(--paper-border, #e8dcc8) !important;
   color: var(--paper-ink, #2c2416) !important;
@@ -157,29 +157,29 @@
   box-shadow: none !important;
 }
 
-.setlist-manage-panel--error {
+html[data-ui-style="warm-paper"] .setlist-manage-panel--error {
   background: #faf0f0 !important;
   border-bottom-color: #d4a0a0 !important;
   color: #8b4040 !important;
 }
 
-.setlist-manage-panel h2,
-.setlist-manage-panel h3 {
+html[data-ui-style="warm-paper"] .setlist-manage-panel h2,
+html[data-ui-style="warm-paper"] .setlist-manage-panel h3 {
   color: var(--paper-ink, #2c2416) !important;
   font-family: var(--paper-serif, Georgia, serif) !important;
   text-shadow: none !important;
 }
 
-.setlist-manage-panel p {
+html[data-ui-style="warm-paper"] .setlist-manage-panel p {
   color: var(--paper-body, #4a3f32) !important;
 }
 
-.setlist-manage-panel strong {
+html[data-ui-style="warm-paper"] .setlist-manage-panel strong {
   color: var(--paper-accent, #8b5a2b) !important;
 }
 
-.setlist-manage-panel input[type="text"],
-.setlist-manage-panel select {
+html[data-ui-style="warm-paper"] .setlist-manage-panel input[type="text"],
+html[data-ui-style="warm-paper"] .setlist-manage-panel select {
   background: var(--paper-card, #fffdf8) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
   color: var(--paper-ink, #2c2416) !important;
@@ -187,30 +187,30 @@
   color-scheme: light !important;
 }
 
-.setlist-manage-panel input[type="text"]:focus,
-.setlist-manage-panel select:focus {
+html[data-ui-style="warm-paper"] .setlist-manage-panel input[type="text"]:focus,
+html[data-ui-style="warm-paper"] .setlist-manage-panel select:focus {
   outline: none;
   border-color: var(--paper-accent, #8b5a2b) !important;
   box-shadow: 0 0 0 2px rgba(139, 90, 43, 0.12);
 }
 
-.setlist-manage-panel button[type="button"]:not(.setlist-manage-chip):not(.btn-primary):not(.btn-secondary):not(.btn-danger) {
+html[data-ui-style="warm-paper"] .setlist-manage-panel button[type="button"]:not(.setlist-manage-chip):not(.btn-primary):not(.btn-secondary):not(.btn-danger) {
   background: var(--paper-tag-bg, #f0e6d6) !important;
   color: var(--paper-ink, #2c2416) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
   border-radius: var(--paper-radius, 4px) !important;
 }
 
-.setlist-manage-heading {
+html[data-ui-style="warm-paper"] .setlist-manage-heading {
   color: var(--paper-ink, #2c2416);
   font-family: var(--paper-serif, Georgia, serif);
 }
 
-.setlist-manage-sub {
+html[data-ui-style="warm-paper"] .setlist-manage-sub {
   color: var(--paper-body, #4a3f32);
 }
 
-.setlist-manage-chip {
+html[data-ui-style="warm-paper"] .setlist-manage-chip {
   padding: 8px 14px;
   border-radius: var(--paper-radius, 4px);
   border: 1px solid var(--paper-border, #e8dcc8);
@@ -223,13 +223,13 @@
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.setlist-manage-chip--active {
+html[data-ui-style="warm-paper"] .setlist-manage-chip--active {
   background: #f5efe4;
   border-color: var(--paper-accent, #8b5a2b);
   color: var(--paper-accent, #8b5a2b);
 }
 
-.setlist-manage-free-box {
+html[data-ui-style="warm-paper"] .setlist-manage-free-box {
   margin-bottom: 16px;
   padding: 14px;
   border-radius: var(--paper-radius, 4px);
@@ -237,7 +237,7 @@
   border: 1px dashed var(--paper-border, #e8dcc8);
 }
 
-.setlist-manage-free-box__head {
+html[data-ui-style="warm-paper"] .setlist-manage-free-box__head {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -246,13 +246,13 @@
   margin-bottom: 10px;
 }
 
-.setlist-manage-free-box__title {
+html[data-ui-style="warm-paper"] .setlist-manage-free-box__title {
   font-weight: 700;
   font-size: 0.88rem;
   color: var(--paper-ink, #2c2416);
 }
 
-.setlist-manage-badge-added {
+html[data-ui-style="warm-paper"] .setlist-manage-badge-added {
   font-size: 0.72rem;
   font-weight: 600;
   padding: 4px 10px;
@@ -262,7 +262,7 @@
   color: #3d6b4f;
 }
 
-.setlist-manage-input-row {
+html[data-ui-style="warm-paper"] .setlist-manage-input-row {
   display: flex;
   gap: 8px;
   margin-bottom: 8px;
@@ -271,12 +271,12 @@
   width: 100%;
 }
 
-.setlist-manage-modal-backdrop {
+html[data-ui-style="warm-paper"] .setlist-manage-modal-backdrop {
   background: rgba(44, 36, 22, 0.45) !important;
   backdrop-filter: none !important;
 }
 
-.setlist-manage-modal-body {
+html[data-ui-style="warm-paper"] .setlist-manage-modal-body {
   background: var(--paper-card, #fffdf8) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
   border-radius: var(--paper-radius, 4px) !important;
@@ -284,13 +284,13 @@
   color: var(--paper-ink, #2c2416) !important;
 }
 
-.setlist-member-denied {
+html[data-ui-style="warm-paper"] .setlist-member-denied {
   color: var(--paper-muted, #8b7355) !important;
   font-style: italic;
 }
 
 /* ===== 곡·카드·폼 ===== */
-.btn-danger {
+html[data-ui-style="warm-paper"] .btn-danger {
   background: #faf0f0 !important;
   color: #8b4040 !important;
   border: 1px solid #d4a0a0 !important;
@@ -298,38 +298,38 @@
   border-radius: var(--paper-radius, 4px) !important;
 }
 
-.btn-danger:hover {
+html[data-ui-style="warm-paper"] .btn-danger:hover {
   background: #f0e0e0 !important;
 }
 
-.empty-state {
+html[data-ui-style="warm-paper"] .empty-state {
   color: var(--paper-muted, #8b7355) !important;
   border: 2px dashed var(--paper-border, #e8dcc8) !important;
   font-style: italic;
 }
 
-.song-item {
+html[data-ui-style="warm-paper"] .song-item {
   border-radius: var(--paper-radius, 4px) !important;
 }
 
-.available-song-card:hover {
+html[data-ui-style="warm-paper"] .available-song-card:hover {
   transform: translateY(-1px);
   border-color: var(--paper-accent, #8b5a2b) !important;
 }
 
 /* ===== 진행 무대 (퍼레이드) — 노트 안의 무대 ===== */
-.setlist-perform-shell:not(.setlist-page--fullscreen .setlist-perform-shell) {
+html[data-ui-style="warm-paper"] .setlist-perform-shell:not(.setlist-page--fullscreen .setlist-perform-shell) {
   padding: 0 16px 16px;
 }
 
-.setlist-parade-wrap {
+html[data-ui-style="warm-paper"] .setlist-parade-wrap {
   border-radius: var(--paper-radius, 4px) !important;
   border: 2px solid var(--paper-border, #e8dcc8) !important;
   box-shadow: 2px 4px 0 rgba(139, 115, 85, 0.1) !important;
   /* 내부 밤하늘 그라데이션은 유지 */
 }
 
-.setlist-parade-nav-btn {
+html[data-ui-style="warm-paper"] .setlist-parade-nav-btn {
   background: rgba(255, 253, 248, 0.15) !important;
   border: 1px solid rgba(255, 253, 248, 0.35) !important;
   color: #fffdf8 !important;
@@ -337,137 +337,137 @@
 }
 
 /* ===== 채팅 — 노트 여백 스타일 ===== */
-.setlist-chat-panel {
+html[data-ui-style="warm-paper"] .setlist-chat-panel {
   background: var(--paper-card, #fffdf8) !important;
   border-top: 1px solid var(--paper-border, #e8dcc8) !important;
 }
 
-.setlist-chat-panel--desktop {
+html[data-ui-style="warm-paper"] .setlist-chat-panel--desktop {
   border: 1px solid var(--paper-border, #e8dcc8) !important;
   border-radius: var(--paper-radius, 4px) !important;
   box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.06);
 }
 
-.setlist-chat-header {
+html[data-ui-style="warm-paper"] .setlist-chat-header {
   border-bottom: 1px solid var(--paper-border, #e8dcc8) !important;
 }
 
-.setlist-chat-title {
+html[data-ui-style="warm-paper"] .setlist-chat-title {
   color: var(--paper-ink, #2c2416) !important;
   font-family: var(--paper-serif, Georgia, serif);
 }
 
-.setlist-chat-sub {
+html[data-ui-style="warm-paper"] .setlist-chat-sub {
   color: var(--paper-muted, #8b7355) !important;
 }
 
-.setlist-chat-empty {
+html[data-ui-style="warm-paper"] .setlist-chat-empty {
   color: var(--paper-muted, #8b7355) !important;
 }
 
-.setlist-chat-sender {
+html[data-ui-style="warm-paper"] .setlist-chat-sender {
   color: var(--paper-accent, #8b5a2b) !important;
 }
 
-.setlist-chat-msg--mine .setlist-chat-bubble {
+html[data-ui-style="warm-paper"] .setlist-chat-msg--mine .setlist-chat-bubble {
   background: var(--paper-accent, #8b5a2b) !important;
   color: var(--paper-card, #fffdf8) !important;
   border-bottom-right-radius: 4px !important;
 }
 
-.setlist-chat-msg--other .setlist-chat-bubble {
+html[data-ui-style="warm-paper"] .setlist-chat-msg--other .setlist-chat-bubble {
   background: var(--paper-tag-bg, #f0e6d6) !important;
   color: var(--paper-ink, #2c2416) !important;
   border: 1px solid var(--paper-border, #e8dcc8);
   border-bottom-left-radius: 4px !important;
 }
 
-.setlist-chat-time {
+html[data-ui-style="warm-paper"] .setlist-chat-time {
   color: var(--paper-muted, #8b7355) !important;
 }
 
-.setlist-chat-input-row {
+html[data-ui-style="warm-paper"] .setlist-chat-input-row {
   background: var(--paper-tag-bg, #f0e6d6) !important;
   border-top: 1px solid var(--paper-border, #e8dcc8) !important;
 }
 
-.setlist-chat-input {
+html[data-ui-style="warm-paper"] .setlist-chat-input {
   background: var(--paper-card, #fffdf8) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
   color: var(--paper-ink, #2c2416) !important;
   border-radius: var(--paper-radius, 4px) !important;
 }
 
-.setlist-chat-input::placeholder {
+html[data-ui-style="warm-paper"] .setlist-chat-input::placeholder {
   color: var(--paper-muted, #a89880) !important;
 }
 
-.setlist-chat-input:focus {
+html[data-ui-style="warm-paper"] .setlist-chat-input:focus {
   border-color: var(--paper-accent, #8b5a2b) !important;
   outline: none;
 }
 
-.setlist-chat-send {
+html[data-ui-style="warm-paper"] .setlist-chat-send {
   background: var(--paper-accent, #8b5a2b) !important;
   border-radius: 50% !important;
 }
 
-.setlist-chat-collapse-btn {
+html[data-ui-style="warm-paper"] .setlist-chat-collapse-btn {
   background: var(--paper-card, #fffdf8) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
   color: var(--paper-body, #4a3f32) !important;
 }
 
-.setlist-chat-unread-badge {
+html[data-ui-style="warm-paper"] .setlist-chat-unread-badge {
   background: #c45c5c !important;
   color: #fffdf8 !important;
 }
 
-.setlist-chat-participant-chip {
+html[data-ui-style="warm-paper"] .setlist-chat-participant-chip {
   background: var(--paper-tag-bg, #f0e6d6) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
   color: var(--paper-body, #4a3f32) !important;
 }
 
-.setlist-chat-participant-chip--me {
+html[data-ui-style="warm-paper"] .setlist-chat-participant-chip--me {
   border-color: var(--paper-accent, #8b5a2b) !important;
   color: var(--paper-accent, #8b5a2b) !important;
 }
 
-.setlist-chat-banner--error {
+html[data-ui-style="warm-paper"] .setlist-chat-banner--error {
   background: #faf0f0 !important;
   color: #8b4040 !important;
   border: 1px solid #d4a0a0;
 }
 
-.setlist-chat-banner--warn {
+html[data-ui-style="warm-paper"] .setlist-chat-banner--warn {
   background: var(--paper-tag-bg, #f0e6d6) !important;
   color: var(--paper-body, #4a3f32) !important;
 }
 
-.setlist-chat-date-divider span {
+html[data-ui-style="warm-paper"] .setlist-chat-date-divider span {
   background: var(--paper-tag-bg, #f0e6d6) !important;
   color: var(--paper-muted, #8b7355) !important;
   border: 1px solid var(--paper-border, #e8dcc8);
 }
 
-.setlist-chat-scroll-fab {
+html[data-ui-style="warm-paper"] .setlist-chat-scroll-fab {
   background: var(--paper-accent, #8b5a2b) !important;
   color: var(--paper-card, #fffdf8) !important;
 }
 
-.setlist-chat-char-count {
+html[data-ui-style="warm-paper"] .setlist-chat-char-count {
   color: var(--paper-muted, #8b7355) !important;
 }
 
 @media (min-width: 641px) {
-  .setlist-page-header-block {
+  html[data-ui-style="warm-paper"] .setlist-page-header-block {
     border-radius: var(--paper-radius, 4px) var(--paper-radius, 4px) 0 0;
     margin-top: 4px;
   }
 
-  .setlist-page:not(.setlist-page--manage):not(.setlist-page--fullscreen) .setlist-manage-shell,
-  .setlist-page:not(.setlist-page--manage):not(.setlist-page--fullscreen) .setlist-perform-shell {
+  html[data-ui-style="warm-paper"] .setlist-page:not(.setlist-page--manage):not(.setlist-page--fullscreen) .setlist-manage-shell,
+  html[data-ui-style="warm-paper"] .setlist-page:not(.setlist-page--manage):not(.setlist-page--fullscreen) .setlist-perform-shell {
     background: var(--paper-card, #fffdf8);
     border: 1px solid var(--paper-border, #e8dcc8);
     border-top: none;
@@ -477,7 +477,7 @@
 }
 
 @media (max-width: 640px) {
-  .setlist-page-title--lg {
+  html[data-ui-style="warm-paper"] .setlist-page-title--lg {
     font-size: 1.25rem;
   }
 }

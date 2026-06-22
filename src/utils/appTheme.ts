@@ -1,3 +1,5 @@
+import { getSavedAppUiStyle } from './appUiStyleStorage';
+
 export const APP_THEME_STORAGE_KEY = 'veryus_app_theme';
 export const APP_THEME_CHANGE_EVENT = 'veryus-app-theme-change';
 
@@ -287,6 +289,61 @@ export function syncPaperNavAccent(root: HTMLElement, accent: AppAccentVars): vo
   root.style.setProperty('--nav-toggle-shadow-hover', accent.primaryAlpha30);
 }
 
+function applyClassicCommentThemeVars(root: HTMLElement, theme: AppThemeVars): void {
+  const accentGradient = `linear-gradient(135deg, ${theme.primaryLight} 0%, ${theme.primaryDark} 100%)`;
+
+  root.style.setProperty('--comment-bg', 'rgba(255, 255, 255, 0.88)');
+  root.style.setProperty('--comment-bg-hover', 'rgba(255, 255, 255, 0.96)');
+  root.style.setProperty('--comment-border', theme.primaryAlpha20);
+  root.style.setProperty('--comment-border-hover', theme.primaryAlpha30);
+  root.style.setProperty('--comment-header-border', theme.primaryAlpha20);
+  root.style.setProperty('--comment-actions-border', theme.primaryAlpha10);
+  root.style.setProperty('--comment-text', theme.cardText);
+  root.style.setProperty('--comment-author', theme.cardText);
+  root.style.setProperty('--comment-date', theme.cardTextMuted);
+  root.style.setProperty('--comment-edit-bg', 'rgba(255, 255, 255, 0.95)');
+  root.style.setProperty('--comment-edit-border', theme.primaryAlpha20);
+  root.style.setProperty('--comment-button-bg', 'rgba(255, 255, 255, 0.9)');
+  root.style.setProperty('--comment-button-border', theme.primaryAlpha20);
+  root.style.setProperty('--comment-button-text', theme.primaryDark);
+  root.style.setProperty('--comment-button-hover-bg', theme.primaryAlpha10);
+  root.style.setProperty('--comment-button-hover-border', theme.primaryAlpha30);
+  root.style.setProperty('--comment-button-hover-text', theme.primaryColor);
+  root.style.setProperty('--comment-cancel-bg', 'rgba(255, 255, 255, 0.75)');
+  root.style.setProperty('--comment-cancel-text', theme.cardTextMuted);
+  root.style.setProperty('--comment-cancel-hover-bg', theme.primaryAlpha10);
+  root.style.setProperty('--comment-cancel-hover-text', theme.cardText);
+  root.style.setProperty('--comment-reply-bg', theme.primaryAlpha10);
+  root.style.setProperty('--comment-reply-border', theme.primaryAlpha30);
+  root.style.setProperty('--comment-replies-border', theme.primaryAlpha20);
+  root.style.setProperty('--comment-mention-text', theme.primaryColor);
+  root.style.setProperty('--comment-mention-bg', theme.primaryAlpha10);
+  root.style.setProperty('--comment-mention-border', theme.primaryAlpha20);
+  root.style.setProperty('--comment-section-border', theme.primaryAlpha20);
+  root.style.setProperty('--comment-header-title-color', theme.cardText);
+  root.style.setProperty('--comment-header-title-shadow', 'none');
+  root.style.setProperty('--tab-button-bg', 'rgba(255, 255, 255, 0.85)');
+  root.style.setProperty('--tab-button-border', theme.primaryAlpha20);
+  root.style.setProperty('--tab-button-color', theme.cardText);
+  root.style.setProperty('--tab-button-active-bg', accentGradient);
+  root.style.setProperty('--tab-button-active-color', '#ffffff');
+  root.style.setProperty('--tab-button-active-border', theme.primaryAlpha30);
+  root.style.setProperty('--comment-input-bg', 'rgba(255, 255, 255, 0.92)');
+  root.style.setProperty('--comment-input-border', theme.primaryAlpha20);
+  root.style.setProperty('--comment-input-color', theme.cardText);
+  root.style.setProperty('--comment-input-placeholder', theme.cardTextMuted);
+  root.style.setProperty('--comment-input-focus-border', theme.primaryColor);
+  root.style.setProperty('--comment-input-focus-bg', '#ffffff');
+  root.style.setProperty('--preview-content-bg', 'rgba(255, 255, 255, 0.92)');
+  root.style.setProperty('--preview-content-border', theme.primaryAlpha20);
+  root.style.setProperty('--preview-content-color', theme.cardText);
+  root.style.setProperty('--secret-toggle-color', theme.cardText);
+  root.style.setProperty('--empty-comments-color', theme.cardTextMuted);
+  root.style.setProperty('--comment-submit-bg', accentGradient);
+  root.style.setProperty('--comment-submit-hover-bg', accentGradient);
+  root.style.setProperty('--comment-author-shadow', 'none');
+}
+
 function applyCommentThemeVars(root: HTMLElement, accent: AppAccentVars): void {
   const surface = PAPER_SURFACE;
   const accentGradient = `linear-gradient(135deg, ${accent.primaryLight} 0%, ${accent.primaryDark} 100%)`;
@@ -350,15 +407,139 @@ export function getSavedAppTheme(): AppThemeId {
   } catch {
     /* ignore */
   }
-  return 'paper';
+  return getSavedAppUiStyle() === 'classic' ? 'purple' : 'paper';
 }
 
-export function applyAppTheme(themeId: AppThemeId): void {
+function resolveClassicThemeId(themeId: AppThemeId): Exclude<AppThemeId, 'paper'> | AppThemeId {
+  return themeId === 'paper' ? 'purple' : themeId;
+}
+
+function applyLegacyCommentThemeVars(
+  root: HTMLElement,
+  themeId: AppThemeId,
+  theme: AppThemeVars
+): void {
+  const isDarkSurface = themeId === 'night';
+  const accentGradient = `linear-gradient(135deg, ${theme.primaryLight} 0%, ${theme.primaryDark} 100%)`;
+
+  if (isDarkSurface) {
+    root.style.setProperty('--comment-bg', 'rgba(30, 41, 59, 0.9)');
+    root.style.setProperty('--comment-bg-hover', 'rgba(51, 65, 85, 0.95)');
+    root.style.setProperty('--comment-border', 'rgba(148, 163, 184, 0.28)');
+    root.style.setProperty('--comment-border-hover', 'rgba(129, 140, 248, 0.45)');
+    root.style.setProperty('--comment-header-border', 'rgba(148, 163, 184, 0.2)');
+    root.style.setProperty('--comment-actions-border', 'rgba(148, 163, 184, 0.18)');
+    root.style.setProperty('--comment-text', theme.pageText);
+    root.style.setProperty('--comment-author', theme.pageText);
+    root.style.setProperty('--comment-date', theme.pageTextMuted);
+    root.style.setProperty('--comment-edit-bg', 'rgba(15, 23, 42, 0.6)');
+    root.style.setProperty('--comment-edit-border', 'rgba(148, 163, 184, 0.3)');
+    root.style.setProperty('--comment-button-bg', 'rgba(51, 65, 85, 0.6)');
+    root.style.setProperty('--comment-button-border', 'rgba(148, 163, 184, 0.25)');
+    root.style.setProperty('--comment-button-text', theme.primaryLight);
+    root.style.setProperty('--comment-button-hover-bg', theme.primaryAlpha20);
+    root.style.setProperty('--comment-button-hover-border', theme.primaryAlpha30);
+    root.style.setProperty('--comment-button-hover-text', theme.pageText);
+    root.style.setProperty('--comment-cancel-bg', 'rgba(51, 65, 85, 0.5)');
+    root.style.setProperty('--comment-cancel-text', theme.pageTextMuted);
+    root.style.setProperty('--comment-cancel-hover-bg', 'rgba(71, 85, 105, 0.7)');
+    root.style.setProperty('--comment-cancel-hover-text', theme.pageText);
+    root.style.setProperty('--comment-reply-bg', 'rgba(51, 65, 85, 0.55)');
+    root.style.setProperty('--comment-reply-border', theme.primaryAlpha30);
+    root.style.setProperty('--comment-replies-border', 'rgba(148, 163, 184, 0.25)');
+    root.style.setProperty('--comment-mention-text', theme.primaryLight);
+    root.style.setProperty('--comment-mention-bg', theme.primaryAlpha20);
+    root.style.setProperty('--comment-mention-border', theme.primaryAlpha30);
+    root.style.setProperty('--comment-section-border', 'rgba(148, 163, 184, 0.2)');
+    root.style.setProperty('--comment-header-title-color', theme.pageText);
+    root.style.setProperty('--comment-header-title-shadow', 'none');
+    root.style.setProperty('--tab-button-bg', 'rgba(51, 65, 85, 0.55)');
+    root.style.setProperty('--tab-button-border', 'rgba(148, 163, 184, 0.25)');
+    root.style.setProperty('--tab-button-color', theme.pageTextMuted);
+    root.style.setProperty('--tab-button-active-bg', accentGradient);
+    root.style.setProperty('--tab-button-active-color', '#ffffff');
+    root.style.setProperty('--tab-button-active-border', theme.primaryAlpha30);
+    root.style.setProperty('--comment-input-bg', 'rgba(30, 41, 59, 0.85)');
+    root.style.setProperty('--comment-input-border', 'rgba(148, 163, 184, 0.3)');
+    root.style.setProperty('--comment-input-color', theme.pageText);
+    root.style.setProperty('--comment-input-placeholder', 'rgba(148, 163, 184, 0.75)');
+    root.style.setProperty('--comment-input-focus-border', theme.primaryLight);
+    root.style.setProperty('--comment-input-focus-bg', 'rgba(51, 65, 85, 0.9)');
+    root.style.setProperty('--preview-content-bg', 'rgba(30, 41, 59, 0.85)');
+    root.style.setProperty('--preview-content-border', 'rgba(148, 163, 184, 0.3)');
+    root.style.setProperty('--preview-content-color', theme.pageText);
+    root.style.setProperty('--secret-toggle-color', theme.pageTextMuted);
+    root.style.setProperty('--empty-comments-color', theme.pageTextMuted);
+    root.style.setProperty('--comment-submit-bg', accentGradient);
+    root.style.setProperty('--comment-submit-hover-bg', accentGradient);
+    root.style.setProperty('--comment-author-shadow', 'none');
+    return;
+  }
+
+  applyClassicCommentThemeVars(root, theme);
+}
+
+function applyLegacyAppTheme(themeId: AppThemeId): void {
+  const resolved = resolveClassicThemeId(themeId);
+  const theme = THEMES[resolved] ?? THEMES.purple;
+  const root = document.documentElement;
+
+  root.style.setProperty('--gradient-primary', theme.gradientPrimary);
+  root.style.setProperty('--home-gradient', theme.homeGradient);
+  root.style.setProperty('--app-page-gradient', theme.appPageGradient);
+  root.style.setProperty('--primary-bg', theme.primaryBg);
+  root.style.setProperty('--bg-gradient', theme.bgGradient);
+  root.style.setProperty('--primary-color', theme.primaryColor);
+  root.style.setProperty('--primary-dark', theme.primaryDark);
+  root.style.setProperty('--primary-light', theme.primaryLight);
+  root.style.setProperty('--christmas-red', theme.primaryColor);
+  root.style.setProperty('--primary-alpha-10', theme.primaryAlpha10);
+  root.style.setProperty('--primary-alpha-20', theme.primaryAlpha20);
+  root.style.setProperty('--primary-alpha-30', theme.primaryAlpha30);
+  root.style.setProperty('--shadow-sm', theme.shadowSm);
+  root.style.setProperty('--shadow-md', theme.shadowMd);
+  root.style.setProperty('--shadow-lg', theme.shadowLg);
+  root.style.setProperty('--shadow-color', theme.primaryAlpha20);
+  root.style.setProperty('--button-primary-bg', theme.primaryColor);
+  root.style.setProperty('--button-primary-hover', theme.primaryDark);
+
+  for (const cssVar of CONTEST_BG_VARS) {
+    root.style.setProperty(cssVar, theme.gradientPrimary);
+  }
+
+  root.style.setProperty('--app-accent', theme.primaryColor);
+  root.style.setProperty('--app-accent-light', theme.primaryLight);
+  root.style.setProperty(
+    '--app-accent-gradient',
+    `linear-gradient(135deg, ${theme.primaryLight} 0%, ${theme.primaryDark} 100%)`
+  );
+  root.style.setProperty('--cu-bg', theme.gradientPrimary);
+  root.style.setProperty('--main-gradient', theme.gradientPrimary);
+  root.style.setProperty('--main-gradient-rev', theme.appPageGradient);
+  root.style.setProperty('--tab-active-bar', theme.gradientPrimary);
+  root.style.setProperty('--contest-select-option-bg', theme.primaryColor);
+  root.style.setProperty('--app-page-text', theme.pageText);
+  root.style.setProperty('--app-page-text-muted', theme.pageTextMuted);
+  root.style.setProperty('--app-card-text', theme.cardText);
+  root.style.setProperty('--app-card-text-muted', theme.cardTextMuted);
+  root.style.setProperty('--app-glass-text', theme.glassText);
+  root.style.setProperty('--empty-comments-icon-color', theme.primaryColor);
+  root.style.setProperty('--secret-toggle-hover-color', theme.primaryColor);
+  root.style.setProperty('--comment-input-focus', theme.primaryColor);
+  root.style.setProperty('--comment-save-bg', theme.primaryColor);
+
+  applyLegacyCommentThemeVars(root, resolved, theme);
+
+  root.setAttribute('data-app-theme', themeId);
+  localStorage.setItem(APP_THEME_STORAGE_KEY, themeId);
+  window.dispatchEvent(new Event(APP_THEME_CHANGE_EVENT));
+}
+
+function applyWarmPaperAppTheme(themeId: AppThemeId): void {
   const surface = PAPER_SURFACE;
   const accent = getAccentForThemeId(themeId);
   const root = document.documentElement;
 
-  /* 웜 페이퍼 표면 — 항상 유지 */
   root.style.setProperty('--gradient-primary', surface.gradientPrimary);
   root.style.setProperty('--home-gradient', surface.homeGradient);
   root.style.setProperty('--app-page-gradient', surface.appPageGradient);
@@ -369,7 +550,6 @@ export function applyAppTheme(themeId: AppThemeId): void {
   root.style.setProperty('--app-card-text', surface.cardText);
   root.style.setProperty('--app-card-text-muted', surface.cardTextMuted);
   root.style.setProperty('--app-glass-text', surface.glassText);
-
   root.style.setProperty('--paper-bg', surface.gradientPrimary);
   root.style.setProperty('--paper-card', '#fffdf8');
   root.style.setProperty('--paper-border', '#e8dcc8');
@@ -379,8 +559,6 @@ export function applyAppTheme(themeId: AppThemeId): void {
   root.style.setProperty('--paper-accent', accent.primaryColor);
   root.style.setProperty('--paper-tag-bg', themeId === 'paper' ? '#f0e6d6' : accent.primaryAlpha20);
   root.style.setProperty('--paper-tag-text', surface.cardTextMuted);
-
-  /* 사용자 선택 강조색 */
   root.style.setProperty('--primary-color', accent.primaryColor);
   root.style.setProperty('--primary-dark', accent.primaryDark);
   root.style.setProperty('--primary-light', accent.primaryLight);
@@ -424,4 +602,12 @@ export function applyAppTheme(themeId: AppThemeId): void {
   root.setAttribute('data-app-theme', themeId);
   localStorage.setItem(APP_THEME_STORAGE_KEY, themeId);
   window.dispatchEvent(new Event(APP_THEME_CHANGE_EVENT));
+}
+
+export function applyAppTheme(themeId: AppThemeId): void {
+  if (getSavedAppUiStyle() === 'classic') {
+    applyLegacyAppTheme(themeId);
+    return;
+  }
+  applyWarmPaperAppTheme(themeId);
 }

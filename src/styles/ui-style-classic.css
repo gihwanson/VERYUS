@@ -1,0 +1,27 @@
+/**
+ * 클래식(이전) UI — git a716e80 기준 복원 스타일
+ * warm-paper 리디자인 이전 컴포넌트·레이아웃 CSS
+ */
+@import './classic/variables.css';
+@import './classic/index.css';
+@import './classic/app-theme-contrast.css';
+@import './classic/Home.css';
+@import './classic/MyPage.css';
+@import './classic/Settings.css';
+@import './classic/ApprovedSongs.css';
+@import './classic/HallOfFame.css';
+@import './classic/PracticeRoomBooking.css';
+@import './classic/Notifications.css';
+@import './classic/CustomerCenter.css';
+@import './classic/GlobalLoadingScreen.css';
+@import './classic/Login.css';
+@import './classic/ForgotPassword.css';
+@import './classic/layout.css';
+@import './classic/components.css';
+@import './classic/BottomNavigation.css';
+@import './classic/PostList.css';
+@import './classic/PostDetail.css';
+@import './classic/BoardLayout.css';
+@import './classic/posts.css';
+@import './classic/PostWrite.css';
+@import './classic/games.css';

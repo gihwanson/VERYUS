@@ -35,8 +35,6 @@ import {
   Pause,
   Play
 } from 'lucide-react';
-import '../styles/PostDetail.css';
-import '../styles/BoardLayout.css';
 import CommentSection from './CommentSection';
 import { useAudioPlayer } from '../App';
 import { stopBoardAudio } from '../utils/boardAudioPlayer';
@@ -46,7 +44,7 @@ import {
   notifyStaffOnApprovedSongCountMilestones
 } from '../utils/approvedSongMilestone';
 import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
-import { getGradeBadgeLabel, getGradeName } from '../utils/gradeDisplay';
+import { getPostListGradeSpanProps } from '../utils/gradeDisplay';
 import { isEvaluationJudge } from '../utils/evaluationJudge';
 
 interface User {
@@ -330,9 +328,7 @@ const EvaluationPostDetail: React.FC = () => {
               <div className="post-detail-author">
                 <div className="author-section">
                   <span className="author-info" onClick={() => navigate(`/mypage/${post.writerUid}`)}>
-                    <span className="author-grade-label" title={getGradeName(post.writerGrade || '🍒')}>
-                      {getGradeBadgeLabel(post.writerGrade)}
-                    </span>
+                    <span {...getPostListGradeSpanProps(post.writerGrade)} />
                     {post.writerNickname}
                   </span>
                   <span className={`role-badge ${getPublicRoleBadge(post.writerRole, post.writerPosition)}`}>

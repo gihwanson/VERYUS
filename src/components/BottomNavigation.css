@@ -1,11 +1,4 @@
-/* BottomNavigation.css */
-/* Import shared styles */
-@import url('../styles/variables.css');
-@import url('../styles/layout.css');
-@import url('../styles/components.css');
-
-/* Bottom Navigation Specific Styles */
-/* Additional styles that are specific to this component */
+/* BottomNavigation.css — layout/components는 ui-style 번들에서 로드 */
 
 /* 모바일에서 표시 */
 @media (max-width: 768px) {

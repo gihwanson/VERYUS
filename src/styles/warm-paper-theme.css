@@ -3,130 +3,130 @@
  */
 
 /* ===== 본문 글자색 (흰색 fallback 제거) ===== */
-.board-container,
-.post-detail-container,
-.posts-container,
-.approved-songs-container,
-.hall-of-fame-page,
-.notifications-page,
-.practice-room-booking,
-.admin-container,
-.cc-page,
-.write-page,
-.home-container,
-.contest-list-container,
-.contest-create-container,
-.contest-detail-container,
-.contest-participate-container,
-.contest-results-container,
-.settings-container,
-.login-container,
-.signup-container {
+html[data-ui-style="warm-paper"] .board-container,
+html[data-ui-style="warm-paper"] .post-detail-container,
+html[data-ui-style="warm-paper"] .posts-container,
+html[data-ui-style="warm-paper"] .approved-songs-container,
+html[data-ui-style="warm-paper"] .hall-of-fame-page,
+html[data-ui-style="warm-paper"] .notifications-page,
+html[data-ui-style="warm-paper"] .practice-room-booking,
+html[data-ui-style="warm-paper"] .admin-container,
+html[data-ui-style="warm-paper"] .cc-page,
+html[data-ui-style="warm-paper"] .write-page,
+html[data-ui-style="warm-paper"] .home-container,
+html[data-ui-style="warm-paper"] .contest-list-container,
+html[data-ui-style="warm-paper"] .contest-create-container,
+html[data-ui-style="warm-paper"] .contest-detail-container,
+html[data-ui-style="warm-paper"] .contest-participate-container,
+html[data-ui-style="warm-paper"] .contest-results-container,
+html[data-ui-style="warm-paper"] .settings-container,
+html[data-ui-style="warm-paper"] .login-container,
+html[data-ui-style="warm-paper"] .signup-container {
   color: var(--paper-ink, #2c2416) !important;
 }
 
-.board-title,
-.top-nav .board-title,
-.board-header h1,
-.board-subtitle,
-.board-description,
-.approved-songs-title,
-.hall-header h2,
-.hall-section-title,
-.settings-card .setting-item > span,
-.board-container .loading-container,
-.posts-container .loading-container,
-.board-container .loading-container span,
-.posts-container .loading-container span {
+html[data-ui-style="warm-paper"] .board-title,
+html[data-ui-style="warm-paper"] .top-nav .board-title,
+html[data-ui-style="warm-paper"] .board-header h1,
+html[data-ui-style="warm-paper"] .board-subtitle,
+html[data-ui-style="warm-paper"] .board-description,
+html[data-ui-style="warm-paper"] .approved-songs-title,
+html[data-ui-style="warm-paper"] .hall-header h2,
+html[data-ui-style="warm-paper"] .hall-section-title,
+html[data-ui-style="warm-paper"] .settings-card .setting-item > span,
+html[data-ui-style="warm-paper"] .board-container .loading-container,
+html[data-ui-style="warm-paper"] .posts-container .loading-container,
+html[data-ui-style="warm-paper"] .board-container .loading-container span,
+html[data-ui-style="warm-paper"] .posts-container .loading-container span {
   color: var(--paper-ink, #2c2416) !important;
   text-shadow: none !important;
 }
 
-.board-subtitle,
-.board-description,
-.approved-songs-tab,
-.hall-header p,
-.settings-card .theme-swatch-picker__desc {
+html[data-ui-style="warm-paper"] .board-subtitle,
+html[data-ui-style="warm-paper"] .board-description,
+html[data-ui-style="warm-paper"] .approved-songs-tab,
+html[data-ui-style="warm-paper"] .hall-header p,
+html[data-ui-style="warm-paper"] .settings-card .theme-swatch-picker__desc {
   color: var(--paper-muted, #8b7355) !important;
 }
 
 /* 게시글 카드 안 텍스트 */
-.post-card,
-.post-item,
-.post-detail-card,
-.post-content-card {
+html[data-ui-style="warm-paper"] .post-card,
+html[data-ui-style="warm-paper"] .post-item,
+html[data-ui-style="warm-paper"] .post-detail-card,
+html[data-ui-style="warm-paper"] .post-content-card {
   color: var(--paper-ink, #2c2416) !important;
 }
 
-.post-title,
-.post-content-preview,
-.post-category,
-.category-badge,
-.post-meta,
-.post-meta-item,
-.post-author,
-.post-author-name,
-.post-author-name--list,
-.author-info,
-.author-name,
-.post-date,
-.post-views,
-.post-stats,
-.post-stats-row,
-.post-footer,
-.post-stat-item,
-.post-stat,
-.role-badge {
+html[data-ui-style="warm-paper"] .post-title,
+html[data-ui-style="warm-paper"] .post-content-preview,
+html[data-ui-style="warm-paper"] .post-category,
+html[data-ui-style="warm-paper"] .category-badge,
+html[data-ui-style="warm-paper"] .post-meta,
+html[data-ui-style="warm-paper"] .post-meta-item,
+html[data-ui-style="warm-paper"] .post-author,
+html[data-ui-style="warm-paper"] .post-author-name,
+html[data-ui-style="warm-paper"] .post-author-name--list,
+html[data-ui-style="warm-paper"] .author-info,
+html[data-ui-style="warm-paper"] .author-name,
+html[data-ui-style="warm-paper"] .post-date,
+html[data-ui-style="warm-paper"] .post-views,
+html[data-ui-style="warm-paper"] .post-stats,
+html[data-ui-style="warm-paper"] .post-stats-row,
+html[data-ui-style="warm-paper"] .post-footer,
+html[data-ui-style="warm-paper"] .post-stat-item,
+html[data-ui-style="warm-paper"] .post-stat,
+html[data-ui-style="warm-paper"] .role-badge {
   color: var(--paper-ink, #2c2416) !important;
   text-shadow: none !important;
 }
 
-.post-content-preview,
-.post-date,
-.post-views,
-.post-stats-row,
-.post-footer {
+html[data-ui-style="warm-paper"] .post-content-preview,
+html[data-ui-style="warm-paper"] .post-date,
+html[data-ui-style="warm-paper"] .post-views,
+html[data-ui-style="warm-paper"] .post-stats-row,
+html[data-ui-style="warm-paper"] .post-footer {
   color: var(--paper-body, #4a3f32) !important;
 }
 
-.post-stats-row,
-.post-footer {
+html[data-ui-style="warm-paper"] .post-stats-row,
+html[data-ui-style="warm-paper"] .post-footer {
   color: var(--paper-muted, #8b7355) !important;
 }
 
 /* 밸런스 게시판 */
-.balance-question-line,
-.balance-vote-labels,
-.balance-post-footer,
-.balance-post-footer > span,
-.balance-post-author-name {
+html[data-ui-style="warm-paper"] .balance-question-line,
+html[data-ui-style="warm-paper"] .balance-vote-labels,
+html[data-ui-style="warm-paper"] .balance-post-footer,
+html[data-ui-style="warm-paper"] .balance-post-footer > span,
+html[data-ui-style="warm-paper"] .balance-post-author-name {
   color: var(--paper-ink, #2c2416) !important;
 }
 
-.balance-question-vs {
+html[data-ui-style="warm-paper"] .balance-question-vs {
   color: var(--paper-accent, var(--primary-color, #8b5a2b)) !important;
 }
 
-.balance-vote-bar {
+html[data-ui-style="warm-paper"] .balance-vote-bar {
   background: var(--paper-border, #e8dcc8) !important;
 }
 
-.balance-meta-item::after,
-.balance-post-author::after {
+html[data-ui-style="warm-paper"] .balance-meta-item::after,
+html[data-ui-style="warm-paper"] .balance-post-author::after {
   color: var(--paper-muted, #8b7355) !important;
 }
 
 /* 등급 — 이모지 숨기고 텍스트 배지 */
-.author-grade-emoji,
-.balance-post-author-grade,
-.hall-grade-inline,
-.comment-grade-emoji,
-.post-author .author-grade:not(.author-grade-label) {
+html[data-ui-style="warm-paper"] .author-grade-emoji,
+html[data-ui-style="warm-paper"] .balance-post-author-grade,
+html[data-ui-style="warm-paper"] .hall-grade-inline,
+html[data-ui-style="warm-paper"] .comment-grade-emoji,
+html[data-ui-style="warm-paper"] .post-author .author-grade:not(.author-grade-label) {
   display: none !important;
 }
 
-.author-grade-label,
-.grade-text-badge {
+html[data-ui-style="warm-paper"] .author-grade-label,
+html[data-ui-style="warm-paper"] .grade-text-badge {
   display: inline-block;
   font-size: 0.68rem;
   font-weight: 600;
@@ -140,9 +140,9 @@
   line-height: 1.4;
 }
 
-.author-role,
-.author-position,
-.role-badge {
+html[data-ui-style="warm-paper"] .author-role,
+html[data-ui-style="warm-paper"] .author-position,
+html[data-ui-style="warm-paper"] .role-badge {
   background: transparent !important;
   color: var(--paper-muted, #8b7355) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
@@ -152,38 +152,38 @@
 }
 
 /* 글래스 제거 */
-.post-detail-card,
-.post-content-card,
-.login-card,
-.signup-card,
-.settings-section,
-.settings-card,
-.approved-songs-header,
-.hall-card,
-.notifications-panel-card,
-.write-form,
-.board-container .loading-container {
+html[data-ui-style="warm-paper"] .post-detail-card,
+html[data-ui-style="warm-paper"] .post-content-card,
+html[data-ui-style="warm-paper"] .login-card,
+html[data-ui-style="warm-paper"] .signup-card,
+html[data-ui-style="warm-paper"] .settings-section,
+html[data-ui-style="warm-paper"] .settings-card,
+html[data-ui-style="warm-paper"] .approved-songs-header,
+html[data-ui-style="warm-paper"] .hall-card,
+html[data-ui-style="warm-paper"] .notifications-panel-card,
+html[data-ui-style="warm-paper"] .write-form,
+html[data-ui-style="warm-paper"] .board-container .loading-container {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
 
 /* 페이지 배경 */
-.board-container,
-.post-detail-container,
-.approved-songs-container,
-.hall-of-fame-page,
-.notifications-page,
-.practice-room-booking,
-.admin-container,
-.write-page,
-.home-container,
-.contest-list-container,
-.settings-container {
+html[data-ui-style="warm-paper"] .board-container,
+html[data-ui-style="warm-paper"] .post-detail-container,
+html[data-ui-style="warm-paper"] .approved-songs-container,
+html[data-ui-style="warm-paper"] .hall-of-fame-page,
+html[data-ui-style="warm-paper"] .notifications-page,
+html[data-ui-style="warm-paper"] .practice-room-booking,
+html[data-ui-style="warm-paper"] .admin-container,
+html[data-ui-style="warm-paper"] .write-page,
+html[data-ui-style="warm-paper"] .home-container,
+html[data-ui-style="warm-paper"] .contest-list-container,
+html[data-ui-style="warm-paper"] .settings-container {
   background: var(--paper-bg, #f5f0e8) !important;
 }
 
 /* 홈 — 노트 목차 */
-.boards-notebook-list {
+html[data-ui-style="warm-paper"] .boards-notebook-list {
   width: 100%;
   max-width: 420px;
   margin: 0 auto;
@@ -192,15 +192,15 @@
   box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.06);
 }
 
-.notebook-index-group {
+html[data-ui-style="warm-paper"] .notebook-index-group {
   border-bottom: 1px solid var(--paper-border, #e8dcc8);
 }
 
-.notebook-index-group:last-child {
+html[data-ui-style="warm-paper"] .notebook-index-group:last-child {
   border-bottom: none;
 }
 
-.notebook-index-row {
+html[data-ui-style="warm-paper"] .notebook-index-row {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -215,11 +215,11 @@
   transition: background 0.15s ease;
 }
 
-.notebook-index-row:hover {
+html[data-ui-style="warm-paper"] .notebook-index-row:hover {
   background: var(--paper-tag-bg, #f0e6d6);
 }
 
-.notebook-index-item {
+html[data-ui-style="warm-paper"] .notebook-index-item {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
@@ -231,7 +231,7 @@
   line-height: 1.25;
 }
 
-.notebook-index-inline-preview {
+html[data-ui-style="warm-paper"] .notebook-index-inline-preview {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -248,12 +248,12 @@
   pointer-events: none;
 }
 
-.notebook-index-inline-preview--loading {
+html[data-ui-style="warm-paper"] .notebook-index-inline-preview--loading {
   cursor: default;
   justify-content: flex-end;
 }
 
-.notebook-index-inline-preview__text {
+html[data-ui-style="warm-paper"] .notebook-index-inline-preview__text {
   min-width: 0;
   display: flex;
   align-items: baseline;
@@ -262,20 +262,20 @@
   overflow: hidden;
 }
 
-.notebook-index-preview__author {
+html[data-ui-style="warm-paper"] .notebook-index-preview__author {
   flex-shrink: 0;
   color: var(--paper-accent, var(--primary-color, #8b5a2b));
   font-weight: 600;
 }
 
-.notebook-index-preview__author::after {
+html[data-ui-style="warm-paper"] .notebook-index-preview__author::after {
   content: '·';
   margin-left: 6px;
   color: var(--paper-muted, #8b7355);
   font-weight: 400;
 }
 
-.notebook-index-preview__title {
+html[data-ui-style="warm-paper"] .notebook-index-preview__title {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -284,7 +284,7 @@
   font-weight: 400;
 }
 
-.notebook-index-preview__new {
+html[data-ui-style="warm-paper"] .notebook-index-preview__new {
   flex-shrink: 0;
   padding: 1px 6px;
   border-radius: 2px;
@@ -297,7 +297,7 @@
   line-height: 1.5;
 }
 
-.notebook-index-preview-skeleton {
+html[data-ui-style="warm-paper"] .notebook-index-preview-skeleton {
   display: block;
   height: 12px;
   width: min(140px, 42vw);
@@ -317,7 +317,7 @@
   100% { background-position: -100% 0; }
 }
 
-.notebook-index-item__dot {
+html[data-ui-style="warm-paper"] .notebook-index-item__dot {
   flex-shrink: 0;
   margin-left: auto;
   width: 7px;
@@ -327,11 +327,11 @@
 }
 
 /* 로고 — 과한 장식 제거 */
-.logo-section {
+html[data-ui-style="warm-paper"] .logo-section {
   animation: none !important;
 }
 
-.logo-image {
+html[data-ui-style="warm-paper"] .logo-image {
   filter: none !important;
   box-shadow: none !important;
   background: transparent !important;
@@ -340,81 +340,81 @@
 }
 
 /* 하단 네비 */
-.bottom-navigation {
+html[data-ui-style="warm-paper"] .bottom-navigation {
   backdrop-filter: none !important;
 }
 
 /* 관리자 */
-.admin-title,
-.admin-hero-subtitle,
-.design-lab__header h2,
-.design-lab__header p {
+html[data-ui-style="warm-paper"] .admin-title,
+html[data-ui-style="warm-paper"] .admin-hero-subtitle,
+html[data-ui-style="warm-paper"] .design-lab__header h2,
+html[data-ui-style="warm-paper"] .design-lab__header p {
   color: var(--paper-ink, #2c2416) !important;
 }
 
-.admin-tab-strip .tab-button.active {
+html[data-ui-style="warm-paper"] .admin-tab-strip .tab-button.active {
   color: var(--paper-accent, #8b5a2b) !important;
 }
 
-.approved-songs-tab.active {
+html[data-ui-style="warm-paper"] .approved-songs-tab.active {
   background: var(--paper-tag-bg, #f0e6d6) !important;
   color: var(--paper-accent, #8b5a2b) !important;
 }
 
 /* 댓글 */
-.comment-section,
-.comment-item,
-.comment-item .comment-text,
-.comment-item .comment-author {
+html[data-ui-style="warm-paper"] .comment-section,
+html[data-ui-style="warm-paper"] .comment-item,
+html[data-ui-style="warm-paper"] .comment-item .comment-text,
+html[data-ui-style="warm-paper"] .comment-item .comment-author {
   color: var(--comment-text, #2c2416) !important;
 }
 
-.comment-item .comment-date {
+html[data-ui-style="warm-paper"] .comment-item .comment-date {
   color: var(--comment-date, #8b7355) !important;
 }
 
 /* ===== 로딩 화면 통일 ===== */
-.global-loading.fullscreen {
+html[data-ui-style="warm-paper"] .global-loading.fullscreen {
   background: var(--paper-bg, #f5f0e8) !important;
 }
 
-.global-loading__card {
+html[data-ui-style="warm-paper"] .global-loading__card {
   background: var(--paper-card, #fffdf8) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
   backdrop-filter: none !important;
   box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.06) !important;
 }
 
-.global-loading__text {
+html[data-ui-style="warm-paper"] .global-loading__text {
   color: var(--paper-ink, #2c2416) !important;
 }
 
-.global-loading__spinner {
+html[data-ui-style="warm-paper"] .global-loading__spinner {
   border-color: rgba(139, 90, 43, 0.15) !important;
   border-top-color: var(--paper-accent, #8b5a2b) !important;
 }
 
-.loading-container,
-.loading-container span,
-.post-detail-container .loading-container,
-.board-container .loading-container,
-.posts-container .loading-container {
+html[data-ui-style="warm-paper"] .loading-container,
+html[data-ui-style="warm-paper"] .loading-container span,
+html[data-ui-style="warm-paper"] .post-detail-container .loading-container,
+html[data-ui-style="warm-paper"] .board-container .loading-container,
+html[data-ui-style="warm-paper"] .posts-container .loading-container {
   color: var(--paper-ink, #2c2416) !important;
   text-shadow: none !important;
 }
 
-.loading-container .loading-spinner,
-.loading-spinner {
+html[data-ui-style="warm-paper"] .loading-container .loading-spinner,
+html[data-ui-style="warm-paper"] .loading-spinner {
   color: var(--paper-accent, #8b5a2b) !important;
 }
 
-.setlist-loading-card,
-.mypage-loading-card {
+html[data-ui-style="warm-paper"] .setlist-loading-card,
+html[data-ui-style="warm-paper"] .mypage-loading-card {
   font-family: var(--paper-font-body, Georgia, serif) !important;
 }
 
 /* ===== CSS 변수 — 웜 페이퍼로 일괄 교체 ===== */
-:root {
+html[data-ui-style="warm-paper"] {
   --comment-input-bg: #fffdf8;
   --comment-input-border: #e8dcc8;
   --comment-input-color: #2c2416;
@@ -535,27 +535,27 @@
 }
 
 /* 글쓰기 폼 */
-.write-page,
-.write-form,
-.write-form-header,
-.write-form-title,
-.form-label {
+html[data-ui-style="warm-paper"] .write-page,
+html[data-ui-style="warm-paper"] .write-form,
+html[data-ui-style="warm-paper"] .write-form-header,
+html[data-ui-style="warm-paper"] .write-form-title,
+html[data-ui-style="warm-paper"] .form-label {
   color: var(--paper-ink, #2c2416) !important;
   text-shadow: none !important;
 }
 
-.write-form {
+html[data-ui-style="warm-paper"] .write-form {
   background: var(--paper-card, #fffdf8) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
   backdrop-filter: none !important;
   box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.06) !important;
 }
 
-.write-form-header {
+html[data-ui-style="warm-paper"] .write-form-header {
   border-bottom-color: var(--paper-border, #e8dcc8) !important;
 }
 
-.category-tag {
+html[data-ui-style="warm-paper"] .category-tag {
   background: var(--paper-tag-bg, #f0e6d6) !important;
   color: var(--paper-tag-text, #6b5344) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
@@ -565,12 +565,12 @@
   letter-spacing: 0 !important;
 }
 
-.category-tag::before {
+html[data-ui-style="warm-paper"] .category-tag::before {
   display: none !important;
 }
 
-.post-detail-meta,
-.post-detail-content {
+html[data-ui-style="warm-paper"] .post-detail-meta,
+html[data-ui-style="warm-paper"] .post-detail-content {
   background: var(--paper-card, #fffdf8) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
   backdrop-filter: none !important;
@@ -579,14 +579,14 @@
 }
 
 /* 역할 배지 — 그라데이션 제거 */
-.role-badge,
-.author-role,
-.author-position,
-.role-badge.리더,
-.role-badge.운영진,
-.role-badge.부운영진,
-.role-badge.회원,
-.role-badge.일반 {
+html[data-ui-style="warm-paper"] .role-badge,
+html[data-ui-style="warm-paper"] .author-role,
+html[data-ui-style="warm-paper"] .author-position,
+html[data-ui-style="warm-paper"] .role-badge.리더,
+html[data-ui-style="warm-paper"] .role-badge.운영진,
+html[data-ui-style="warm-paper"] .role-badge.부운영진,
+html[data-ui-style="warm-paper"] .role-badge.회원,
+html[data-ui-style="warm-paper"] .role-badge.일반 {
   background: transparent !important;
   color: var(--paper-muted, #8b7355) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
@@ -596,12 +596,12 @@
 }
 
 /* 마이페이지 */
-.mypage-container {
+html[data-ui-style="warm-paper"] .mypage-container {
   background: var(--paper-bg, #f5f0e8) !important;
   color: var(--paper-ink, #2c2416) !important;
 }
 
-.mypage-profile-hero {
+html[data-ui-style="warm-paper"] .mypage-profile-hero {
   background: var(--paper-card, #fffdf8);
   border: 1px solid var(--paper-border, #e8dcc8);
   border-radius: var(--paper-radius, 4px);
@@ -614,7 +614,7 @@
   box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.06);
 }
 
-.mypage-profile-avatar-wrap {
+html[data-ui-style="warm-paper"] .mypage-profile-avatar-wrap {
   min-width: 120px;
   min-height: 120px;
   margin-bottom: 16px;
@@ -622,7 +622,7 @@
   justify-content: center;
 }
 
-.mypage-profile-avatar {
+html[data-ui-style="warm-paper"] .mypage-profile-avatar {
   width: 120px;
   height: 120px;
   border: 2px solid var(--paper-border, #e8dcc8);
@@ -635,18 +635,18 @@
   justify-content: center;
 }
 
-.mypage-profile-avatar--readonly {
+html[data-ui-style="warm-paper"] .mypage-profile-avatar--readonly {
   cursor: default;
 }
 
-.mypage-profile-nickname {
+html[data-ui-style="warm-paper"] .mypage-profile-nickname {
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--paper-ink, #2c2416);
   font-family: var(--paper-serif, Georgia, serif);
 }
 
-.mypage-profile-role {
+html[data-ui-style="warm-paper"] .mypage-profile-role {
   font-size: 0.8rem;
   color: var(--paper-muted, #8b7355);
   border: 1px solid var(--paper-border, #e8dcc8);
@@ -655,21 +655,21 @@
   font-weight: 600;
 }
 
-.mypage-profile-intro {
+html[data-ui-style="warm-paper"] .mypage-profile-intro {
   margin-top: 8px;
   font-size: 1rem;
   color: var(--paper-body, #4a3f32);
   text-align: center;
 }
 
-.mypage-profile-grade {
+html[data-ui-style="warm-paper"] .mypage-profile-grade {
   margin-top: 12px;
   color: var(--paper-ink, #2c2416);
   font-weight: 600;
   font-size: 0.95rem;
 }
 
-.mypage-profile-pending {
+html[data-ui-style="warm-paper"] .mypage-profile-pending {
   margin-top: 8px;
   font-size: 0.82rem;
   font-weight: 600;
@@ -682,13 +682,13 @@
   text-align: center;
 }
 
-.mypage-profile-meta {
+html[data-ui-style="warm-paper"] .mypage-profile-meta {
   margin-top: 8px;
   font-size: 0.88rem;
   color: var(--paper-muted, #8b7355);
 }
 
-.message-author-grade {
+html[data-ui-style="warm-paper"] .message-author-grade {
   display: inline-block;
   font-size: 0.68rem;
   font-weight: 600;
@@ -699,7 +699,7 @@
   border: 1px solid var(--paper-border, #e8dcc8);
 }
 
-.contest-results-inline-grade {
+html[data-ui-style="warm-paper"] .contest-results-inline-grade {
   display: inline-block;
   font-size: 0.68rem;
   font-weight: 600;
@@ -710,19 +710,19 @@
   border: 1px solid var(--paper-border, #e8dcc8);
 }
 
-.hall-rank {
+html[data-ui-style="warm-paper"] .hall-rank {
   font-family: var(--paper-serif, Georgia, serif);
   font-weight: 700;
   color: var(--paper-accent, #8b5a2b);
 }
 
 /* 상태 배지 — 그라데이션 제거 */
-.open-badge,
-.closed-badge,
-.post-status-badge.approved,
-.post-status-badge.rejected,
-.post-status-badge.feedback,
-.post-status-badge.pending {
+html[data-ui-style="warm-paper"] .open-badge,
+html[data-ui-style="warm-paper"] .closed-badge,
+html[data-ui-style="warm-paper"] .post-status-badge.approved,
+html[data-ui-style="warm-paper"] .post-status-badge.rejected,
+html[data-ui-style="warm-paper"] .post-status-badge.feedback,
+html[data-ui-style="warm-paper"] .post-status-badge.pending {
   background: var(--paper-tag-bg, #f0e6d6) !important;
   color: var(--paper-tag-text, #6b5344) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
@@ -730,13 +730,13 @@
   box-shadow: none !important;
 }
 
-.audio-preview button {
+html[data-ui-style="warm-paper"] .audio-preview button {
   background: var(--paper-accent, #8b5a2b) !important;
   color: var(--paper-card, #fffdf8) !important;
   box-shadow: none !important;
 }
 
-.reset-search {
+html[data-ui-style="warm-paper"] .reset-search {
   background: var(--paper-accent, #8b5a2b) !important;
   color: var(--paper-card, #fffdf8) !important;
   border-radius: var(--paper-radius, 4px) !important;

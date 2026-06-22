@@ -3,8 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { collection, addDoc, doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ArrowLeft, UserPlus, Save, Loader, X } from 'lucide-react';
-import '../styles/PostWrite.css';
-import '../styles/BoardLayout.css';
 import '../styles/PartnerPostWrite.css';
 
 interface User {

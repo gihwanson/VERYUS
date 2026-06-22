@@ -3,9 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { collection, doc as firestoreDoc, getDoc, getDocs, limit, orderBy, query, where } from 'firebase/firestore';
 import { Loader, Plus, Scale } from 'lucide-react';
 import { db } from '../firebase';
-import { getGradeBadgeLabel } from '../utils/gradeDisplay';
-import '../styles/PostList.css';
-import '../styles/BoardLayout.css';
+import { getPostListGradeSpanProps } from '../utils/gradeDisplay';
 
 interface Post {
   id: string;
@@ -235,7 +233,7 @@ const BalancePostList: React.FC = () => {
                 </div>
                 <div className="post-footer balance-post-footer">
                   <span className="balance-post-author">
-                    <span className="author-grade-label">{getGradeBadgeLabel(post.writerGrade)}</span>
+                    <span {...getPostListGradeSpanProps(post.writerGrade, 'balance')} />
                     <span className="balance-post-author-name">{post.writerNickname || '익명'}</span>
                   </span>
                   <span className="balance-meta-item">투표 {totalVotes}</span>

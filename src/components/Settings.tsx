@@ -29,8 +29,8 @@ import {
   Palette
 } from 'lucide-react';
 import AppThemePicker from './AppThemePicker';
+import AppUiStylePicker from './AppUiStylePicker';
 import BottomNavThemePicker from './BottomNavThemePicker';
-import './Settings.css';
 
 interface User {
   uid: string;
@@ -535,6 +535,17 @@ const Settings: React.FC = () => {
             <Save size={16} />
             {savingProfileMeta ? '저장 중...' : '저장'}
           </button>
+        </div>
+      </div>
+
+      {/* 화면 디자인 */}
+      <div className="settings-card">
+        <div className="card-header">
+          <Palette className="card-icon" />
+          <h3>화면 디자인</h3>
+        </div>
+        <div className="setting-item">
+          <AppUiStylePicker />
         </div>
       </div>
 

@@ -1,0 +1,24 @@
+/* BottomNavigation.css */
+/* Import shared styles */
+/* Bottom Navigation Specific Styles */
+/* Additional styles that are specific to this component */
+
+/* 모바일에서 표시 */
+@media (max-width: 768px) {
+  .bottom-navigation {
+    display: block;
+  }
+}
+
+.bottom-navigation {
+  background: var(--nav-bg);
+  border-top-color: var(--nav-border);
+}
+
+.bottom-nav-item:hover {
+  background: var(--nav-item-hover);
+}
+
+.bottom-nav-item.active {
+  background: var(--nav-item-active);
+}

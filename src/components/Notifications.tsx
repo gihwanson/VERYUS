@@ -4,7 +4,6 @@ import { db } from '../firebase';
 import { Bell, MessageCircle, X, Heart, CheckCircle, XCircle, Users, AtSign, UserPlus, CheckCheck, Shield, Award, Trash2, Filter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { NotificationService } from '../utils/notificationService';
-import './Notifications.css';
 
 interface Notification {
   id: string;

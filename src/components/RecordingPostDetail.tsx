@@ -17,7 +17,7 @@ import {
   deleteDoc
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import { getGradeBadgeLabel, getGradeName } from '../utils/gradeDisplay';
+import { getPostListGradeSpanProps } from '../utils/gradeDisplay';
 import { 
   ArrowLeft,
   Heart,
@@ -35,8 +35,6 @@ import {
   Loader,
   MessageSquare
 } from 'lucide-react';
-import '../styles/PostDetail.css';
-import '../styles/BoardLayout.css';
 import CommentSection from './CommentSection';
 import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
 import { useAudioPlayer } from '../App';
@@ -392,9 +390,7 @@ const RecordingPostDetail: React.FC = () => {
             <div className="post-detail-author">
               <div className="author-section">
                 <span className="author-info" onClick={() => navigate(`/mypage/${post.writerUid}`)}>
-                  <span className="author-grade-label" title={getGradeName(post.writerGrade || '🍒')}>
-                    {getGradeBadgeLabel(post.writerGrade)}
-                  </span>
+                  <span {...getPostListGradeSpanProps(post.writerGrade)} />
                   {post.writerNickname}
                 </span>
                 <span className={`role-badge ${getPublicRoleBadge(post.writerRole, post.writerPosition)}`}>

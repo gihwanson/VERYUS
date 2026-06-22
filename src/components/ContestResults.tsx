@@ -4,10 +4,7 @@ import { doc, getDoc, collection, getDocs, query, orderBy } from 'firebase/fires
 import type { RoundDoc, RoundVote } from '../types/contest';
 import { parseRoundVoteFromDoc } from '../utils/contestParticipant';
 import { db } from '../firebase';
-import '../styles/components.css';
 import '../styles/contest-ui-refresh.css';
-import '../styles/warm-paper-contest.css';
-
 const ContestResults: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();

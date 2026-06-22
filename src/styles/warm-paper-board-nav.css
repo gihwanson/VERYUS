@@ -1,0 +1,31 @@
+/**
+ * 노트북 UI — 게시판·공통 레이아웃·하단 네비 CSS
+ * (컴포넌트에서 직접 import 하지 않고 warm-paper 번들에서만 로드)
+ */
+@import './layout.css';
+@import './components.css';
+@import './BoardLayout.css';
+@import './PostList.css';
+@import './PostDetail.css';
+@import './PostWrite.css';
+@import './posts.css';
+
+/* BottomNavigation.css — @import 제외, 네비 변수 오버라이드만 */
+.bottom-navigation {
+  background: var(--nav-bg);
+  border-top-color: var(--nav-border);
+}
+
+.bottom-nav-item:hover {
+  background: var(--nav-item-hover);
+}
+
+.bottom-nav-item.active {
+  background: var(--nav-item-active);
+}
+
+@media (max-width: 768px) {
+  .bottom-navigation {
+    display: block;
+  }
+}

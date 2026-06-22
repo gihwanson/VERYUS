@@ -4,8 +4,6 @@ import { collection, addDoc, serverTimestamp, getDoc, doc as firestoreDoc } from
 import { ref as storageRef, uploadBytes, getDownloadURL, uploadBytesResumable } from 'firebase/storage';
 import { db, storage } from '../firebase';
 import { ArrowLeft, Mic, X, FileAudio, Send } from 'lucide-react';
-import '../styles/PostWrite.css';
-import '../styles/BoardLayout.css';
 import '../styles/RecordingPostWrite.css';
 
 interface User {

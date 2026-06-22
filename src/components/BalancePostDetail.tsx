@@ -3,11 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { arrayRemove, arrayUnion, deleteDoc, deleteField, doc, increment, onSnapshot, updateDoc } from 'firebase/firestore';
 import { AlertTriangle, ArrowLeft, Clock, Eye, Loader, Scale, Trash2 } from 'lucide-react';
 import { db } from '../firebase';
-import { getGradeBadgeLabel } from '../utils/gradeDisplay';
+import { getPostListGradeSpanProps } from '../utils/gradeDisplay';
 import { getPublicRoleBadge } from '../utils/publicRoleBadge';
 import CommentSection from './CommentSection';
-import '../styles/PostDetail.css';
-import '../styles/BoardLayout.css';
 
 interface Post {
   id: string;
@@ -231,7 +229,7 @@ const BalancePostDetail: React.FC = () => {
             <div className="post-detail-author balance-post-detail-author">
               <div className="author-section">
                 <span className="author-info balance-static-author">
-                  <span className="author-grade-label">{getGradeBadgeLabel(post.writerGrade)}</span>
+                  <span {...getPostListGradeSpanProps(post.writerGrade)} />
                   {post.writerNickname}
                 </span>
                 <span className={`role-badge ${getPublicRoleBadge(post.writerRole)}`}>

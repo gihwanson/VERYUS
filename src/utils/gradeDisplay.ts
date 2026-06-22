@@ -3,6 +3,7 @@
  * (기존에는 여러 컴포넌트에서 getGradeEmoji가 항상 🍒만 반환해 등급 변경이 화면에 반영되지 않았음.)
  */
 import { GRADE_NAMES, GRADE_ORDER, GRADE_SYSTEM } from '../components/AdminTypes';
+import { getSavedAppUiStyle } from './appUiStyleStorage';
 
 const EMOJI_SET = new Set<string>(GRADE_ORDER as unknown as string[]);
 
@@ -46,4 +47,33 @@ export function getGradeName(emojiOrKoreanLabel: string | undefined | null): str
 /** UI 배지용 — 이모지 대신 한글 등급명만 표시 */
 export function getGradeBadgeLabel(grade: string | undefined | null): string {
   return getGradeName(grade);
+}
+
+export interface PostListGradeSpanProps {
+  className: string;
+  title: string;
+  children: string;
+}
+
+/** 게시판 목록 — 클래식은 이모지, 노트북은 한글 등급명 */
+export function getPostListGradeSpanProps(
+  grade: string | undefined | null,
+  variant: 'default' | 'balance' = 'default'
+): PostListGradeSpanProps {
+  const title = getGradeName(grade);
+  const isClassic = getSavedAppUiStyle() === 'classic';
+
+  if (isClassic) {
+    return {
+      className: variant === 'balance' ? 'balance-post-author-grade' : 'author-grade-emoji',
+      title,
+      children: getGradeEmoji(grade),
+    };
+  }
+
+  return {
+    className: 'author-grade-label',
+    title,
+    children: getGradeBadgeLabel(grade),
+  };
 }

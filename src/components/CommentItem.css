@@ -1,8 +1,4 @@
-/* CommentItem.css */
-/* Import shared styles */
-@import url('../styles/variables.css');
-@import url('../styles/layout.css');
-@import url('../styles/components.css');
+/* CommentItem.css — layout/components는 ui-style 번들에서 로드 */
 
 /* Comment Item Specific Styles */
 /* Additional styles that are specific to this component */

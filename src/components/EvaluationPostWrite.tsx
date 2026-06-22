@@ -5,8 +5,6 @@ import { ref as storageRef, uploadBytes, getDownloadURL, uploadBytesResumable } 
 import { db, storage } from '../firebase';
 import { ArrowLeft, Mic, X, FileAudio, Send } from 'lucide-react';
 import { startOfWeek, endOfWeek, format as formatDate } from 'date-fns';
-import '../styles/PostWrite.css';
-import '../styles/BoardLayout.css';
 import '../styles/EvaluationPostWrite.css';
 
 interface User {
@@ -96,6 +94,7 @@ const EvaluationPostWrite: React.FC = () => {
           setUploadProgress(progress);
         },
         (error) => {
+          console.error('평가게시판 파일 업로드 오류:', error);
           alert('파일 업로드 중 오류가 발생했습니다.');
           setUploading(false);
           setUploadProgress(null);

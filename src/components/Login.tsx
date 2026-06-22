@@ -4,7 +4,6 @@ import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firesto
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { auth, db } from '../firebase';
-import './Login.css';
 
 const EMAIL_LIKE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

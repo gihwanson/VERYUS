@@ -9,5 +9,17 @@ service firebase.storage {
       allow read: if request.auth != null;
       allow write: if request.auth != null;
     }
+
+    // 평가게시판 오디오 (EvaluationPostWrite.tsx → evaluations/{uid}/...)
+    match /evaluations/{userId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // 녹음게시판 오디오 (RecordingPostWrite.tsx → recordings/{uid}/...)
+    match /recordings/{userId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
   }
 } 

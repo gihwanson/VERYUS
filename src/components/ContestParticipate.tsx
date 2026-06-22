@@ -12,8 +12,6 @@ import {
 import ContestAccessBlock from './ContestAccessBlock';
 import RoundMatchVoteView from './roundMatch/RoundMatchVoteView';
 import '../styles/contest-ui-refresh.css';
-import '../styles/warm-paper-contest.css';
-
 const ContestParticipate: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();

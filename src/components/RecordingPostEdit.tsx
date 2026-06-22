@@ -13,8 +13,6 @@ import {
   Play,
   Pause
 } from 'lucide-react';
-import '../styles/PostWrite.css';
-import '../styles/BoardLayout.css';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../firebase';
 

@@ -1,5 +1,4 @@
 import React from 'react';
-import './GlobalLoadingScreen.css';
 
 interface GlobalLoadingScreenProps {
   message?: string;

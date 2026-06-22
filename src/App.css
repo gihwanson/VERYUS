@@ -1,5 +1,4 @@
 @import './styles/variables.css';
-@import './styles/components.css';
 
 /* 라우트(화면) 전환: 살짝 올라오며 페이드인 */
 .app-route-transition {
@@ -52,6 +51,13 @@
   flex-direction: column;
   gap: 0.6rem;
   padding: 1rem 1.1rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+html[data-ui-style="warm-paper"] .route-load-shell__card {
   border-radius: var(--paper-radius, 4px);
   background: var(--paper-card, #fffdf8);
   box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.06);
@@ -62,8 +68,12 @@
   position: relative;
   overflow: hidden;
   border-radius: 4px;
-  background: var(--paper-tag-bg, #f0e6d6);
+  background: rgba(255, 255, 255, 0.35);
   min-height: 14px;
+}
+
+html[data-ui-style="warm-paper"] .route-load-shell__shimmer {
+  background: var(--paper-tag-bg, #f0e6d6);
 }
 
 .route-load-shell__shimmer::after {
@@ -145,9 +155,13 @@ body {
   background: linear-gradient(135deg, #E8F4F8 0%, #D1E7F0 50%, #B8D9E8 100%);
   background-attachment: fixed;
   color: var(--text-primary);
-  font-family: var(--paper-font-body, Georgia, 'Times New Roman', 'Batang', serif);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   overflow-x: hidden !important;
   box-sizing: border-box !important;
+}
+
+html[data-ui-style="warm-paper"] body {
+  font-family: var(--paper-font-body, Georgia, 'Times New Roman', 'Batang', serif);
 }
 
 .app-container {

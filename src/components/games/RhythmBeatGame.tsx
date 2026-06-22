@@ -28,8 +28,6 @@ import {
 } from '../../utils/gameSounds';
 import { getRhythmGrade } from '../../utils/rhythmGrades';
 import { setLastPlayedGame } from '../../utils/lastPlayedGame';
-import '../../styles/variables.css';
-import '../../styles/games.css';
 
 type GamePhase = 'idle' | 'countdown' | 'playing' | 'finished';
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'skipped' | 'error';

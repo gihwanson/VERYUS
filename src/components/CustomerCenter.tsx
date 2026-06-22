@@ -18,7 +18,6 @@ import { db, auth } from '../firebase';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { ChevronLeft, Send, Inbox, PenSquare, Eye, EyeOff, MessageCircle, CheckCircle, Lock } from 'lucide-react';
 import { toast } from 'react-toastify';
-import './CustomerCenter.css';
 
 const NERAE_NICKNAME = '너래';
 

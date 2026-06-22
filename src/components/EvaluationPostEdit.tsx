@@ -3,8 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ArrowLeft, Save, Edit } from 'lucide-react';
-import '../styles/PostWrite.css';
-import '../styles/BoardLayout.css';
 import '../styles/EvaluationPostWrite.css';
 import { isEvaluationJudge } from '../utils/evaluationJudge';
 
