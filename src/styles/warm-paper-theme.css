@@ -32,6 +32,7 @@ html[data-ui-style="warm-paper"] .board-subtitle,
 html[data-ui-style="warm-paper"] .board-description,
 html[data-ui-style="warm-paper"] .approved-songs-title,
 html[data-ui-style="warm-paper"] .hall-header h2,
+html[data-ui-style="warm-paper"] .hall-section-head h3,
 html[data-ui-style="warm-paper"] .hall-section-title,
 html[data-ui-style="warm-paper"] .settings-card .setting-item > span,
 html[data-ui-style="warm-paper"] .board-container .loading-container,
@@ -46,6 +47,8 @@ html[data-ui-style="warm-paper"] .board-subtitle,
 html[data-ui-style="warm-paper"] .board-description,
 html[data-ui-style="warm-paper"] .approved-songs-tab,
 html[data-ui-style="warm-paper"] .hall-header p,
+html[data-ui-style="warm-paper"] .hall-section-head p,
+html[data-ui-style="warm-paper"] .hall-score-guide,
 html[data-ui-style="warm-paper"] .settings-card .theme-swatch-picker__desc {
   color: var(--paper-muted, #8b7355) !important;
 }
@@ -427,6 +430,9 @@ html[data-ui-style="warm-paper"] {
   --comment-submit-color: #fffdf8;
   --comment-submit-border: #6b4423;
   --comment-submit-hover-bg: #6b4423;
+  --message-textarea-focus-border: #8b5a2b;
+  --send-message-btn-bg: #8b5a2b;
+  --send-message-btn-hover-bg: #6b4423;
 
   --contest-create-bg: #f5f0e8;
   --contest-list-bg: #f5f0e8;
@@ -569,7 +575,6 @@ html[data-ui-style="warm-paper"] .category-tag::before {
   display: none !important;
 }
 
-html[data-ui-style="warm-paper"] .post-detail-meta,
 html[data-ui-style="warm-paper"] .post-detail-content {
   background: var(--paper-card, #fffdf8) !important;
   border: 1px solid var(--paper-border, #e8dcc8) !important;
@@ -714,6 +719,69 @@ html[data-ui-style="warm-paper"] .hall-rank {
   font-family: var(--paper-serif, Georgia, serif);
   font-weight: 700;
   color: var(--paper-accent, #8b5a2b);
+}
+
+/* 명예의전당 — 크림 배경에서 흰 글자·글래스 제거 */
+html[data-ui-style="warm-paper"] .hall-header {
+  background: var(--paper-card, #fffdf8) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  color: var(--paper-ink, #2c2416) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.06);
+}
+
+html[data-ui-style="warm-paper"] .hall-header-actions > span {
+  color: var(--paper-muted, #8b7355) !important;
+}
+
+html[data-ui-style="warm-paper"] .hall-score-guide {
+  border-top-color: var(--paper-border, #e8dcc8) !important;
+}
+
+html[data-ui-style="warm-paper"] .hall-section {
+  background: var(--paper-card, #fffdf8) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.06);
+}
+
+html[data-ui-style="warm-paper"] .hall-section-head h3 {
+  color: var(--paper-ink, #2c2416) !important;
+  text-shadow: none !important;
+}
+
+html[data-ui-style="warm-paper"] .hall-section-head p {
+  color: var(--paper-muted, #8b7355) !important;
+}
+
+html[data-ui-style="warm-paper"] .hall-table {
+  background: var(--paper-bg, #f5f0e8) !important;
+}
+
+html[data-ui-style="warm-paper"] .hall-table th {
+  background: var(--paper-tag-bg, #f0e6d6) !important;
+  color: var(--paper-accent, #8b5a2b) !important;
+  border-color: var(--paper-border, #e8dcc8) !important;
+}
+
+html[data-ui-style="warm-paper"] .hall-table th,
+html[data-ui-style="warm-paper"] .hall-table td {
+  border-color: var(--paper-border, #e8dcc8) !important;
+  color: var(--paper-ink, #2c2416) !important;
+}
+
+html[data-ui-style="warm-paper"] .hall-role {
+  background: var(--paper-tag-bg, #f0e6d6) !important;
+  color: var(--paper-tag-text, #6b5344) !important;
+}
+
+html[data-ui-style="warm-paper"] .hall-load-more-btn {
+  background: var(--paper-card, #fffdf8) !important;
+  color: var(--paper-accent, #8b5a2b) !important;
+  border: 1px solid var(--paper-border, #e8dcc8) !important;
+  box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.06) !important;
 }
 
 /* 상태 배지 — 그라데이션 제거 */

@@ -32,6 +32,23 @@ export function sortNotebookBlocks(blocks: HomeNotebookBlock[]): HomeNotebookBlo
   return [...blocks].sort((a, b) => a.order - b.order);
 }
 
+/** Firestore는 undefined 필드를 허용하지 않음 */
+function sanitizeBlockForFirestore(
+  block: HomeNotebookBlock,
+  order: number
+): Record<string, string | number> {
+  const doc: Record<string, string | number> = {
+    id: block.id,
+    type: block.type,
+    order,
+  };
+  if (block.text !== undefined) doc.text = block.text;
+  if (block.body !== undefined) doc.body = block.body;
+  if (block.imageUrl !== undefined) doc.imageUrl = block.imageUrl;
+  if (block.date !== undefined) doc.date = block.date;
+  return doc;
+}
+
 export async function fetchHomeNotebookBody(): Promise<HomeNotebookBlock[]> {
   const snap = await getDoc(doc(db, DOC_PATH[0], DOC_PATH[1]));
   if (!snap.exists()) return [];
@@ -43,10 +60,9 @@ export async function saveHomeNotebookBody(
   blocks: HomeNotebookBlock[],
   editorNickname: string
 ): Promise<void> {
-  const normalized = sortNotebookBlocks(blocks).map((block, index) => ({
-    ...block,
-    order: index,
-  }));
+  const normalized = sortNotebookBlocks(blocks).map((block, index) =>
+    sanitizeBlockForFirestore(block, index)
+  );
 
   await setDoc(
     doc(db, DOC_PATH[0], DOC_PATH[1]),

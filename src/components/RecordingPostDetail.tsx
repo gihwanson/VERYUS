@@ -417,7 +417,7 @@ const RecordingPostDetail: React.FC = () => {
           {/* 업로드된 파일명 표시 */}
           {post.fileName && (
             <div style={{
-              background: '#F6F2FF', color: '#8A55CC', borderRadius: '12px', padding: '8px 20px', margin: '0 auto 18px auto', maxWidth: 340, minWidth: 180, textAlign: 'center', fontWeight: 600, fontSize: '1rem'
+              background: 'var(--paper-tag-bg, #f0e6d6)', color: 'var(--primary-color, #8b5a2b)', borderRadius: '12px', padding: '8px 20px', margin: '0 auto 18px auto', maxWidth: 340, minWidth: 180, textAlign: 'center', fontWeight: 600, fontSize: '1rem'
             }}>
               파일명: {post.fileName}
             </div>
@@ -427,7 +427,7 @@ const RecordingPostDetail: React.FC = () => {
               {isPlaying ? <Pause size={32} /> : <Play size={32} />}
             </button>
             <div style={{ flex: 1, margin: '0 16px', display: 'flex', alignItems: 'center' }}>
-              <span style={{ fontSize: 13, color: '#8A55CC', minWidth: 38 }}>{formatTime(currentTime)}</span>
+              <span style={{ fontSize: 13, color: 'var(--primary-color, #8b5a2b)', minWidth: 38 }}>{formatTime(currentTime)}</span>
               <div
                 className="audio-progress-bar"
                 style={{ flex: 1, height: 8, background: '#E5DAF5', borderRadius: 4, margin: '0 8px', cursor: 'pointer', position: 'relative' }}
@@ -437,13 +437,13 @@ const RecordingPostDetail: React.FC = () => {
                   style={{
                     width: audioDuration ? `${(currentTime / audioDuration) * 100}%` : '0%',
                     height: '100%',
-                    background: 'linear-gradient(90deg, #8A55CC 60%, #B497D6 100%)',
+                    background: 'linear-gradient(90deg, var(--primary-color, #8b5a2b) 60%, var(--primary-light, #a07040) 100%)',
                     borderRadius: 4,
                     transition: 'width 0.1s',
                   }}
                 />
               </div>
-              <span style={{ fontSize: 13, color: '#8A55CC', minWidth: 38 }}>{formatTime(audioDuration || post.duration)}</span>
+              <span style={{ fontSize: 13, color: 'var(--primary-color, #8b5a2b)', minWidth: 38 }}>{formatTime(audioDuration || post.duration)}</span>
             </div>
             <audio ref={audioRef} src={post.audioUrl} preload="auto" />
           </div>
@@ -479,7 +479,7 @@ const RecordingPostDetail: React.FC = () => {
               href={post.audioUrl}
               download={post.fileName || 'recording.mp3'}
               className="stat-button"
-              style={{ marginLeft: 8, display: 'inline-flex', alignItems: 'center', gap: 4, color: '#8A55CC', textDecoration: 'none', fontWeight: 600 }}
+              style={{ marginLeft: 8, display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--primary-color, #8b5a2b)', textDecoration: 'none', fontWeight: 600 }}
               title="다운로드"
             >
               <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -501,8 +501,8 @@ const RecordingPostDetail: React.FC = () => {
       {/* 쪽지 모달 */}
       {showMessageModal && (
         <div className="modal-overlay" onClick={() => setShowMessageModal(false)}>
-          <div className="message-modal" onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, padding: 32, maxWidth: 360, margin: '120px auto', boxShadow: '0 8px 32px #E5DAF5' }}>
-            <h3 style={{ color: '#8A55CC', fontWeight: 700, marginBottom: 16 }}>{post.writerNickname}님에게 쪽지 보내기</h3>
+          <div className="message-modal" onClick={e => e.stopPropagation()} style={{ background: 'var(--paper-card, #fffdf8)', borderRadius: 16, padding: 32, maxWidth: 360, margin: '120px auto', boxShadow: '2px 3px 0 rgba(139, 115, 85, 0.08)', border: '1px solid var(--paper-border, #e8dcc8)' }}>
+            <h3 className="message-modal-title" style={{ fontWeight: 700, marginBottom: 16 }}>{post.writerNickname}님에게 쪽지 보내기</h3>
             <textarea
               value={messageContent}
               onChange={e => setMessageContent(e.target.value)}
@@ -512,7 +512,7 @@ const RecordingPostDetail: React.FC = () => {
                 minHeight: 80, 
                 maxHeight: 200,
                 borderRadius: 8, 
-                border: '1px solid #E5DAF5', 
+                border: '1px solid var(--paper-border, #e8dcc8)', 
                 padding: 12, 
                 marginBottom: 16,
                 resize: 'none',
@@ -527,7 +527,7 @@ const RecordingPostDetail: React.FC = () => {
               }}
             />
             <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-              <button onClick={() => setShowMessageModal(false)} style={{ background: '#eee', border: 'none', borderRadius: 8, padding: '8px 18px', color: '#8A55CC', fontWeight: 600, cursor: 'pointer' }}>취소</button>
+              <button onClick={() => setShowMessageModal(false)} style={{ background: '#eee', border: 'none', borderRadius: 8, padding: '8px 18px', color: 'var(--primary-color, #8b5a2b)', fontWeight: 600, cursor: 'pointer' }}>취소</button>
               <button onClick={async () => {
                 if (!messageContent.trim()) return alert('쪽지 내용을 입력하세요.');
                 await addDoc(collection(db, 'messages'), {
@@ -542,7 +542,7 @@ const RecordingPostDetail: React.FC = () => {
                 setShowMessageModal(false);
                 setMessageContent('');
                 alert('쪽지를 보냈습니다.');
-              }} style={{ background: '#8A55CC', border: 'none', borderRadius: 8, padding: '8px 18px', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>보내기</button>
+              }} style={{ background: 'var(--primary-color, #8b5a2b)', border: 'none', borderRadius: 8, padding: '8px 18px', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>보내기</button>
             </div>
           </div>
         </div>

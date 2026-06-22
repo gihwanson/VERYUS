@@ -4,8 +4,11 @@
 .settings-container {
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
   background: var(--app-page-gradient, linear-gradient(135deg, #8E9BC8 0%, #9A8BB5 100%));
+  background-attachment: fixed;
   min-height: 100vh;
+  min-height: 100dvh;
   padding: 20px;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
   color: white;
   position: relative;
   overflow-x: hidden;
@@ -189,6 +192,37 @@
 
 .setting-item:has(.theme-swatch-picker) {
   display: block;
+}
+
+.settings-card .card-header h3 {
+  color: white !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.settings-card .theme-swatch-picker__desc {
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.settings-card .theme-swatch-picker__swatch {
+  background: rgba(255, 255, 255, 0.94);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+}
+
+.settings-card .theme-swatch-picker__swatch.is-selected {
+  border-color: var(--primary-color, #A86B78);
+  box-shadow: 0 0 0 2px var(--primary-alpha-20, rgba(168, 107, 120, 0.25));
+}
+
+.settings-card .theme-swatch-picker__label {
+  color: var(--app-card-text, #1f2937) !important;
+  text-shadow: none;
+}
+
+.settings-card .theme-swatch-picker__check {
+  background: var(--primary-color, #A86B78);
 }
 
 /* 토글 스위치 */

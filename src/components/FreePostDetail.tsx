@@ -425,7 +425,7 @@ const FreePostDetail: React.FC = () => {
 
         <div className="post-detail-content">
           {post.category === 'request' && post.content.startsWith('신청 대상:') && (
-            <div style={{background:'#F6F2FF',color:'#8A55CC',borderRadius:8,padding:'10px 0',marginBottom:16,fontWeight:600,fontSize:'1.08rem',textAlign:'center'}}>
+            <div className="post-body-callout" style={{ padding: '10px 0', marginBottom: 16, fontWeight: 600, fontSize: '1.08rem', textAlign: 'center' }}>
               {(() => {
                 const match = post.content.match(/^신청 대상: (.+)/);
                 return match ? `"${match[1].split('\n')[0]}"에게 신청곡이 들어왔어요!` : '신청곡이 들어왔어요!';
@@ -556,7 +556,7 @@ const FreePostDetail: React.FC = () => {
       {showMessageModal && (
         <div className="modal-overlay" onClick={() => setShowMessageModal(false)}>
           <div className="message-modal" onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, padding: 32, maxWidth: 360, margin: '120px auto', boxShadow: '0 8px 32px #E5DAF5' }}>
-            <h3 style={{ color: '#8A55CC', fontWeight: 700, marginBottom: 16 }}>{post.writerNickname}님에게 쪽지 보내기</h3>
+            <h3 className="message-modal-title" style={{ fontWeight: 700, marginBottom: 16 }}>{post.writerNickname}님에게 쪽지 보내기</h3>
             <textarea
               value={messageContent}
               onChange={e => setMessageContent(e.target.value)}
@@ -581,7 +581,7 @@ const FreePostDetail: React.FC = () => {
               }}
             />
             <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-              <button onClick={() => setShowMessageModal(false)} style={{ background: '#eee', border: 'none', borderRadius: 8, padding: '8px 18px', color: '#8A55CC', fontWeight: 600, cursor: 'pointer' }}>취소</button>
+              <button type="button" onClick={() => setShowMessageModal(false)} className="post-body-outline-btn" style={{ borderRadius: 8, padding: '8px 18px', fontWeight: 600, cursor: 'pointer' }}>취소</button>
               <button onClick={async () => {
                 if (!messageContent.trim()) return alert('쪽지 내용을 입력하세요.');
                 await addDoc(collection(db, 'messages'), {
@@ -596,7 +596,7 @@ const FreePostDetail: React.FC = () => {
                 setShowMessageModal(false);
                 setMessageContent('');
                 alert('쪽지를 보냈습니다.');
-              }} style={{ background: '#8A55CC', border: 'none', borderRadius: 8, padding: '8px 18px', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>보내기</button>
+              }} className="post-body-primary-btn send-message-btn" style={{ borderRadius: 8, padding: '8px 18px', fontWeight: 600, cursor: 'pointer' }}>보내기</button>
             </div>
           </div>
         </div>

@@ -31,6 +31,7 @@ import {
 import AppThemePicker from './AppThemePicker';
 import AppUiStylePicker from './AppUiStylePicker';
 import BottomNavThemePicker from './BottomNavThemePicker';
+import { APP_UI_STYLE_CHANGE_EVENT, getSavedAppUiStyle } from '../utils/appUiStyle';
 
 interface User {
   uid: string;
@@ -52,6 +53,7 @@ interface User {
 const Settings: React.FC = () => {
   const navigate = useNavigate();
   const { profile } = useUserProfile();
+  const [uiStyle, setUiStyle] = useState(getSavedAppUiStyle);
   const [user, setUser] = useState<User | null>(null);
   const [newNickname, setNewNickname] = useState('');
   const [editingNickname, setEditingNickname] = useState(false);
@@ -145,6 +147,12 @@ const Settings: React.FC = () => {
 
     void loadLatestUser();
   }, [navigate, profile]);
+
+  useEffect(() => {
+    const syncUiStyle = () => setUiStyle(getSavedAppUiStyle());
+    window.addEventListener(APP_UI_STYLE_CHANGE_EVENT, syncUiStyle);
+    return () => window.removeEventListener(APP_UI_STYLE_CHANGE_EVENT, syncUiStyle);
+  }, []);
 
   const handleNicknameChange = async () => {
     if (!user || !newNickname.trim()) {
@@ -549,11 +557,11 @@ const Settings: React.FC = () => {
         </div>
       </div>
 
-      {/* 앱 강조 색상 */}
+      {/* 앱 테마 색상 */}
       <div className="settings-card">
         <div className="card-header">
           <Palette className="card-icon" />
-          <h3>앱 강조 색상</h3>
+          <h3>{uiStyle === 'classic' ? '앱 테마 색상' : '앱 강조 색상'}</h3>
         </div>
         <div className="setting-item">
           <AppThemePicker />

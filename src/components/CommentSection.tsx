@@ -346,7 +346,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
                   data={mentionUsers.map(u => ({ id: u.nickname, display: u.nickname }))}
                   markup="@{{id}}"
                   appendSpaceOnAdd
-                  style={{ backgroundColor: '#F6F2FF', color: '#8A55CC', fontWeight: 600, borderRadius: 4, padding: '2px 4px' }}
+                  style={{ backgroundColor: 'var(--comment-mention-bg, #f0e6d6)', color: 'var(--comment-mention-text, #8b5a2b)', fontWeight: 600, borderRadius: 4, padding: '2px 4px' }}
                   renderSuggestion={(entry, search, highlightedDisplay, index, focused) => (
                     <div
                       onMouseDown={e => {
@@ -359,8 +359,8 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
                         // react-mentions 내부적으로 하이라이트 처리됨
                       }}
                       style={{
-                        background: focused ? '#F6F2FF' : '#fff',
-                        color: focused ? '#8A55CC' : '#1F2937',
+                        background: focused ? 'var(--paper-tag-bg, #f0e6d6)' : '#fff',
+                        color: focused ? 'var(--primary-color, #8b5a2b)' : '#1F2937',
                         fontWeight: 600,
                         borderRadius: 4,
                         padding: '8px 16px',
@@ -418,7 +418,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
         </form>
       ) : (
         noCommentAuthMessage && (
-          <div style={{ textAlign: 'center', color: '#8A55CC', fontWeight: 600, margin: '18px 0 12px 0', fontSize: '1.05rem' }}>
+          <div className="comment-auth-notice" style={{ textAlign: 'center', fontWeight: 600, margin: '18px 0 12px 0', fontSize: '1.05rem' }}>
             {noCommentAuthMessage}
           </div>
         )

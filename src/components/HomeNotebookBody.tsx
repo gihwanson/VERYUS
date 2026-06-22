@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { toast } from 'react-toastify';
 import { Pencil, Check, Plus, Trash2, ImagePlus, Type, Heading2, Calendar } from 'lucide-react';
-import { storage } from '../firebase';
+import { storage, auth } from '../firebase';
 import { canEditHomeNotebookBody } from './AdminTypes';
 import {
   createNotebookBlockId,
@@ -26,14 +26,29 @@ const BLOCK_LABELS: Record<HomeNotebookBlockType, string> = {
   timeline: '활동 이력',
 };
 
+const IMAGE_ACCEPT =
+  'image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,image/*';
+
+const isImageFile = (file: File) =>
+  file.type.startsWith('image/') ||
+  /\.(jpe?g|png|gif|webp|heic|heif|bmp)$/i.test(file.name);
+
+const isPermissionDeniedError = (error: unknown): boolean => {
+  if (!error || typeof error !== 'object' || !('code' in error)) return false;
+  const code = String((error as { code: string }).code);
+  return code === 'permission-denied' || code === 'storage/unauthorized';
+};
+
 const HomeNotebookBody: React.FC<HomeNotebookBodyProps> = ({ user }) => {
   const canEdit = canEditHomeNotebookBody(user);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const [blocks, setBlocks] = useState<HomeNotebookBlock[]>([]);
   const [draftBlocks, setDraftBlocks] = useState<HomeNotebookBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [pickingForBlockId, setPickingForBlockId] = useState<string | null>(null);
 
   const loadBody = useCallback(async () => {
     setLoading(true);
@@ -63,7 +78,14 @@ const HomeNotebookBody: React.FC<HomeNotebookBodyProps> = ({ user }) => {
   };
 
   const handleSave = async () => {
-    if (!user?.nickname) return;
+    if (!canEdit || !user?.nickname) {
+      toast.error('본문을 편집할 권한이 없습니다. (리더·운영진만 가능)');
+      return;
+    }
+    if (!auth.currentUser) {
+      toast.error('로그인이 만료되었습니다. 다시 로그인해 주세요.');
+      return;
+    }
     setSaving(true);
     try {
       await saveHomeNotebookBody(draftBlocks, user.nickname);
@@ -74,15 +96,31 @@ const HomeNotebookBody: React.FC<HomeNotebookBodyProps> = ({ user }) => {
       toast.success('본문이 저장되었습니다.');
     } catch (error) {
       console.error('홈 본문 저장 실패:', error);
-      toast.error('저장 중 오류가 발생했습니다.');
+      toast.error(
+        isPermissionDeniedError(error)
+          ? '저장 권한이 없습니다. 리더 또는 운영진 계정인지 확인해 주세요.'
+          : '저장 중 오류가 발생했습니다.'
+      );
     } finally {
       setSaving(false);
     }
   };
 
+  const openImagePicker = useCallback(
+    (blockId: string) => {
+      if (uploading) return;
+      setPickingForBlockId(blockId);
+      requestAnimationFrame(() => {
+        imageInputRef.current?.click();
+      });
+    },
+    [uploading]
+  );
+
   const addBlock = (type: HomeNotebookBlockType) => {
+    const blockId = createNotebookBlockId();
     const next: HomeNotebookBlock = {
-      id: createNotebookBlockId(),
+      id: blockId,
       type,
       text: type === 'heading' || type === 'timeline' ? '' : undefined,
       body: type === 'text' || type === 'timeline' ? '' : undefined,
@@ -90,6 +128,9 @@ const HomeNotebookBody: React.FC<HomeNotebookBodyProps> = ({ user }) => {
       order: draftBlocks.length,
     };
     setDraftBlocks((prev) => [...prev, next]);
+    if (type === 'image') {
+      requestAnimationFrame(() => openImagePicker(blockId));
+    }
   };
 
   const updateBlock = (id: string, patch: Partial<HomeNotebookBlock>) => {
@@ -102,7 +143,15 @@ const HomeNotebookBody: React.FC<HomeNotebookBodyProps> = ({ user }) => {
   };
 
   const handleImageUpload = async (blockId: string, file: File) => {
-    if (!file.type.startsWith('image/')) {
+    if (!canEdit) {
+      toast.error('사진을 업로드할 권한이 없습니다. (리더·운영진만 가능)');
+      return;
+    }
+    if (!auth.currentUser) {
+      toast.error('로그인이 만료되었습니다. 다시 로그인해 주세요.');
+      return;
+    }
+    if (!isImageFile(file)) {
       toast.error('이미지 파일만 업로드할 수 있습니다.');
       return;
     }
@@ -114,7 +163,11 @@ const HomeNotebookBody: React.FC<HomeNotebookBodyProps> = ({ user }) => {
       updateBlock(blockId, { imageUrl: url });
     } catch (error) {
       console.error('이미지 업로드 실패:', error);
-      toast.error('이미지 업로드에 실패했습니다.');
+      toast.error(
+        isPermissionDeniedError(error)
+          ? '업로드 권한이 없습니다. 리더 또는 운영진 계정인지 확인해 주세요.'
+          : '이미지 업로드에 실패했습니다.'
+      );
     } finally {
       setUploading(false);
     }
@@ -212,23 +265,20 @@ const HomeNotebookBody: React.FC<HomeNotebookBodyProps> = ({ user }) => {
             <div className="notebook-body__photo-frame notebook-body__photo-frame--edit">
               <img src={block.imageUrl} alt="" />
             </div>
-          ) : (
-            <label className="notebook-body__upload-btn">
-              <ImagePlus size={16} aria-hidden />
-              {uploading ? '업로드 중…' : '사진 선택'}
-              <input
-                type="file"
-                accept="image/*"
-                hidden
-                disabled={uploading}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) void handleImageUpload(block.id, file);
-                  e.target.value = '';
-                }}
-              />
-            </label>
-          )}
+          ) : null}
+          <button
+            type="button"
+            className="notebook-body__upload-btn"
+            disabled={uploading}
+            onClick={() => openImagePicker(block.id)}
+          >
+            <ImagePlus size={16} aria-hidden />
+            {uploading && pickingForBlockId === block.id
+              ? '업로드 중…'
+              : block.imageUrl
+                ? '사진 변경'
+                : '사진 선택'}
+          </button>
           <input
             type="text"
             className="notebook-body__input"
@@ -269,6 +319,21 @@ const HomeNotebookBody: React.FC<HomeNotebookBodyProps> = ({ user }) => {
 
   return (
     <section className="notebook-section notebook-section--body" aria-label="본문">
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept={IMAGE_ACCEPT}
+        className="notebook-body__file-input"
+        disabled={uploading}
+        aria-hidden
+        tabIndex={-1}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file && pickingForBlockId) void handleImageUpload(pickingForBlockId, file);
+          e.target.value = '';
+          setPickingForBlockId(null);
+        }}
+      />
       <div className="notebook-section__header">
         <h2 className="notebook-section__title">
           <span className="notebook-section__numeral">Ⅱ.</span>

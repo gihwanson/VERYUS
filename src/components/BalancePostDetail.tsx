@@ -280,7 +280,7 @@ const BalancePostDetail: React.FC = () => {
             <span>{post.votesB || 0}표 ({ratioB}%)</span>
           </button>
           {myVote ? (
-            <div style={{ color: '#8A55CC', fontWeight: 700 }}>
+            <div style={{ color: 'var(--primary-color, #8b5a2b)', fontWeight: 700 }}>
               내 선택: {myVote === 'A' ? post.balanceOptionA : post.balanceOptionB} (다시 누르면 취소)
             </div>
           ) : (

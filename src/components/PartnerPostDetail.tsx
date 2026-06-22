@@ -503,7 +503,7 @@ const PartnerPostDetail: React.FC = () => {
             <p key={index}>{line}</p>
           ))}
           {isClosed && (
-            <div style={{marginTop:'1.5rem',padding:'1rem',background:'#F6F2FF',color:'#8A55CC',fontWeight:600,borderRadius:8,fontSize:'1.05rem',textAlign:'center'}}>
+            <div className="post-body-callout" style={{ marginTop: '1.5rem', padding: '1rem', fontWeight: 600, borderRadius: 8, fontSize: '1.05rem', textAlign: 'center' }}>
               (해당 게시글은 모집이 완료된 게시글입니다)
             </div>
           )}
@@ -513,7 +513,7 @@ const PartnerPostDetail: React.FC = () => {
             <div style={{marginTop:'1.5rem',textAlign:'center'}}>
               <button 
                 className="apply-btn"
-                style={{background: applicants.includes(user.uid) ? '#eee' : '#8A55CC', color: applicants.includes(user.uid) ? '#aaa' : '#fff', fontWeight:700, fontSize:'1.1rem', borderRadius:12, padding:'1rem 2rem', border:'none', boxShadow:'0 4px 16px rgba(124,58,237,0.2)', cursor:'pointer', transition:'all 0.3s ease'}}
+                style={{background: applicants.includes(user.uid) ? '#eee' : 'var(--primary-color, #8b5a2b)', color: applicants.includes(user.uid) ? '#aaa' : '#fff', fontWeight:700, fontSize:'1.1rem', borderRadius:12, padding:'1rem 2rem', border:'none', boxShadow:'0 4px 16px var(--primary-alpha-20, rgba(139, 90, 43, 0.18))', cursor:'pointer', transition:'all 0.3s ease'}}
                 onClick={handleApply}
                 onMouseEnter={(e) => {
                   if (!applicants.includes(user.uid)) {
@@ -523,7 +523,7 @@ const PartnerPostDetail: React.FC = () => {
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 16px rgba(124,58,237,0.2)';
+                  e.currentTarget.style.boxShadow = '0 4px 16px var(--primary-alpha-20, rgba(139, 90, 43, 0.18))';
                 }}
               >
                 {applicants.includes(user.uid) ? '지원 완료 (취소)' : '지원하기'}
@@ -576,7 +576,7 @@ const PartnerPostDetail: React.FC = () => {
                 </button>
                 <button 
                   className="close-btn partner-owner-action-btn"
-                  style={{ background:'#8A55CC', color:'#fff', fontWeight:700, fontSize:'1.05rem', borderRadius:8, padding:'0.7rem 1.5rem', border:'none', boxShadow:'0 2px 8px rgba(124,58,237,0.12)', cursor:'pointer'}}
+                  style={{ background:'var(--primary-color, #8b5a2b)', color:'#fff', fontWeight:700, fontSize:'1.05rem', borderRadius:8, padding:'0.7rem 1.5rem', border:'none', boxShadow:'0 2px 8px var(--primary-alpha-20, rgba(139, 90, 43, 0.18))', cursor:'pointer'}}
                   onClick={() => {
                     if(window.confirm('정말 모집완료 하겠습니까?')) handleClose();
                   }}
@@ -585,7 +585,7 @@ const PartnerPostDetail: React.FC = () => {
                 </button>
                 <button
                   className="applicants-btn partner-owner-action-btn"
-                  style={{ background:'#fff', color:'#8A55CC', fontWeight:700, fontSize:'1.05rem', borderRadius:8, padding:'0.7rem 1.5rem', border:'2px solid #8A55CC', boxShadow:'0 2px 8px rgba(124,58,237,0.08)', cursor:'pointer'}}
+                  style={{ background:'#fff', color:'var(--primary-color, #8b5a2b)', fontWeight:700, fontSize:'1.05rem', borderRadius:8, padding:'0.7rem 1.5rem', border:'2px solid var(--primary-color, #8b5a2b)', boxShadow:'0 2px 8px var(--primary-alpha-10, rgba(139, 90, 43, 0.1))', cursor:'pointer'}}
                   onClick={() => setShowApplicantsModal(true)}
                 >
                   지원자보기
@@ -593,7 +593,7 @@ const PartnerPostDetail: React.FC = () => {
               </div>
             )}
             {user && post.writerUid === user.uid && isClosed && (
-              <span className="closed-badge" style={{marginLeft:24, color:'#8A55CC', fontWeight:600}}>모집완료</span>
+              <span className="closed-badge" style={{marginLeft:24, color:'var(--primary-color, #8b5a2b)', fontWeight:600}}>모집완료</span>
             )}
           </div>
           <div className="post-actions">
@@ -643,7 +643,7 @@ const PartnerPostDetail: React.FC = () => {
                       {u.role && u.role !== '일반' && (
                         <span style={{
                           fontSize:'11px',
-                          background:'#8A55CC',
+                          background:'var(--primary-color, #8b5a2b)',
                           color:'white',
                           padding:'2px 6px',
                           borderRadius:4,

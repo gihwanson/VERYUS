@@ -22,6 +22,11 @@
   background: var(--gradient-primary) !important;
 }
 
+.settings-container {
+  background: var(--app-page-gradient, var(--gradient-primary)) !important;
+  background-attachment: fixed;
+}
+
 /* 카카오톡 테마 채팅방은 별도 유지 */
 .anonymous-chat-room-screen.theme-kakao {
   background: #b2c7d9 !important;

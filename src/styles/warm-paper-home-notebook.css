@@ -355,7 +355,25 @@ html[data-ui-style="warm-paper"] .notebook-body__upload-btn {
   color: var(--paper-ink, #2c2416);
   font-size: 0.85rem;
   font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
+}
+
+html[data-ui-style="warm-paper"] .notebook-body__upload-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+html[data-ui-style="warm-paper"] .notebook-body__file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 html[data-ui-style="warm-paper"] .notebook-body__photo-frame--edit {

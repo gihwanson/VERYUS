@@ -1,4 +1,4 @@
-import { getSavedAppUiStyle } from './appUiStyleStorage';
+import { getSavedAppUiStyle, type AppUiStyleId } from './appUiStyleStorage';
 
 export const APP_THEME_STORAGE_KEY = 'veryus_app_theme';
 export const APP_THEME_CHANGE_EVENT = 'veryus-app-theme-change';
@@ -223,6 +223,21 @@ export const APP_THEME_OPTIONS: AppThemeOption[] = [
   { id: 'night', label: '나이트', preview: 'linear-gradient(135deg, #9A9EC8, #8488B0)' },
 ];
 
+/** 클래식 UI — 페이지 배경 그라데이션 미리보기 (paper 제외) */
+export const APP_THEME_OPTIONS_CLASSIC: AppThemeOption[] = [
+  { id: 'purple', label: '퍼플', preview: 'linear-gradient(135deg, #8E9BC8, #9A8BB5)' },
+  { id: 'sky', label: '하늘', preview: 'linear-gradient(135deg, #8CB4C8, #7A9DB5)' },
+  { id: 'rose', label: '로즈', preview: 'linear-gradient(135deg, #D4A8B0, #B88A98)' },
+  { id: 'mint', label: '민트', preview: 'linear-gradient(135deg, #8FC4B0, #6A9E8A)' },
+  { id: 'sunset', label: '선셋', preview: 'linear-gradient(135deg, #D4B090, #B89070)' },
+  { id: 'lavender', label: '라벤더', preview: 'linear-gradient(135deg, #B8A8D4, #9488B8)' },
+  { id: 'night', label: '나이트', preview: 'linear-gradient(135deg, #3D4A5C, #1A2332)' },
+];
+
+export function getAppThemeOptions(uiStyle: AppUiStyleId = getSavedAppUiStyle()): AppThemeOption[] {
+  return uiStyle === 'classic' ? APP_THEME_OPTIONS_CLASSIC : APP_THEME_OPTIONS;
+}
+
 const CONTEST_BG_VARS = [
   '--contest-create-bg',
   '--contest-list-bg',
@@ -403,11 +418,26 @@ function applyCommentThemeVars(root: HTMLElement, accent: AppAccentVars): void {
 export function getSavedAppTheme(): AppThemeId {
   try {
     const saved = localStorage.getItem(APP_THEME_STORAGE_KEY);
-    if (saved && isAppThemeId(saved)) return saved;
+    if (saved && isAppThemeId(saved)) {
+      if (getSavedAppUiStyle() === 'classic' && saved === 'paper') {
+        return 'purple';
+      }
+      return saved;
+    }
   } catch {
     /* ignore */
   }
   return getSavedAppUiStyle() === 'classic' ? 'purple' : 'paper';
+}
+
+export function getDisplayAppThemeId(
+  themeId: AppThemeId,
+  uiStyle: AppUiStyleId = getSavedAppUiStyle()
+): AppThemeId {
+  if (uiStyle === 'classic' && themeId === 'paper') {
+    return 'purple';
+  }
+  return themeId;
 }
 
 function resolveClassicThemeId(themeId: AppThemeId): Exclude<AppThemeId, 'paper'> | AppThemeId {
@@ -530,8 +560,8 @@ function applyLegacyAppTheme(themeId: AppThemeId): void {
 
   applyLegacyCommentThemeVars(root, resolved, theme);
 
-  root.setAttribute('data-app-theme', themeId);
-  localStorage.setItem(APP_THEME_STORAGE_KEY, themeId);
+  root.setAttribute('data-app-theme', resolved);
+  localStorage.setItem(APP_THEME_STORAGE_KEY, resolved);
   window.dispatchEvent(new Event(APP_THEME_CHANGE_EVENT));
 }
 

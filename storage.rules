@@ -1,25 +1,43 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userData() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+
+    /** 홈 노트 본문 — 쓰기: 리더·운영진 (너래 = 리더, firestore.rules와 동일) */
+    function canEditHomeNotebook() {
+      return signedIn()
+        && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+        && (
+          userData().role == '리더' ||
+          userData().role == '운영진'
+        );
+    }
+
     match /profile-images/{userId}/{allPaths=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
     match /homeNotebook/{allPaths=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
+      allow read: if signedIn();
+      allow write: if canEditHomeNotebook();
     }
 
     // 평가게시판 오디오 (EvaluationPostWrite.tsx → evaluations/{uid}/...)
     match /evaluations/{userId}/{allPaths=**} {
-      allow read: if request.auth != null;
+      allow read: if signedIn();
       allow write: if request.auth != null && request.auth.uid == userId;
     }
 
     // 녹음게시판 오디오 (RecordingPostWrite.tsx → recordings/{uid}/...)
     match /recordings/{userId}/{allPaths=**} {
-      allow read: if request.auth != null;
+      allow read: if signedIn();
       allow write: if request.auth != null && request.auth.uid == userId;
     }
   }
-} 
+}

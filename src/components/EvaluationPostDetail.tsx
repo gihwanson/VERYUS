@@ -394,13 +394,13 @@ const EvaluationPostDetail: React.FC = () => {
               </div>
             )}
             {post.status === '합격' && (
-              <div style={{marginBottom: 12, color: '#8A55CC', fontWeight: 700, fontSize: '1.08rem', background:'#F6F2FF', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
+              <div style={{marginBottom: 12, color: 'var(--primary-color, #8b5a2b)', fontWeight: 700, fontSize: '1.08rem', background:'var(--paper-tag-bg, #f0e6d6)', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
                 해당 곡은 합격처리 되었습니다
               </div>
             )}
             {(!post.status || post.status === '대기') && (
               post.category === 'feedback' ? (
-                <div style={{marginBottom: 12, color: '#8A55CC', fontWeight: 700, fontSize: '1.08rem', background:'#F6F2FF', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
+                <div style={{marginBottom: 12, color: 'var(--primary-color, #8b5a2b)', fontWeight: 700, fontSize: '1.08rem', background:'var(--paper-tag-bg, #f0e6d6)', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
                   피드백을 남겨주세요!
                 </div>
               ) : (
@@ -411,7 +411,7 @@ const EvaluationPostDetail: React.FC = () => {
             )}
             {/* 함께한 멤버 노출 */}
             {Array.isArray(post.members) && post.members.length > 0 && (
-              <div style={{marginBottom: 10, color: '#8A55CC', fontWeight: 600, fontSize: '1.04rem', background:'#F6F2FF', borderRadius:12, padding:'8px 16px', textAlign:'center'}}>
+              <div style={{marginBottom: 10, color: 'var(--primary-color, #8b5a2b)', fontWeight: 600, fontSize: '1.04rem', background:'var(--paper-tag-bg, #f0e6d6)', borderRadius:12, padding:'8px 16px', textAlign:'center'}}>
                 함께한 멤버: {post.members.join(', ')}
               </div>
             )}
@@ -427,7 +427,7 @@ const EvaluationPostDetail: React.FC = () => {
             <div style={{marginBottom:18}}>
               {post.fileName && (
                 <div style={{
-                  background: '#F6F2FF', color: '#8A55CC', borderRadius: '12px', padding: '8px 20px', margin: '0 auto 18px auto', maxWidth: 340, minWidth: 180, textAlign: 'center', fontWeight: 600, fontSize: '1rem'
+                  background: 'var(--paper-tag-bg, #f0e6d6)', color: 'var(--primary-color, #8b5a2b)', borderRadius: '12px', padding: '8px 20px', margin: '0 auto 18px auto', maxWidth: 340, minWidth: 180, textAlign: 'center', fontWeight: 600, fontSize: '1rem'
                 }}>
                   파일명: {post.fileName}
                 </div>
@@ -437,7 +437,7 @@ const EvaluationPostDetail: React.FC = () => {
                 href={post.audioUrl}
                 download={post.fileName || 'evaluation.mp3'}
                 className="stat-button"
-                style={{ marginLeft: 8, display: 'inline-flex', alignItems: 'center', gap: 4, color: '#8A55CC', textDecoration: 'none', fontWeight: 600 }}
+                style={{ marginLeft: 8, display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--primary-color, #8b5a2b)', textDecoration: 'none', fontWeight: 600 }}
                 title="다운로드"
               >
                 <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -536,7 +536,7 @@ const EvaluationPostDetail: React.FC = () => {
                           console.error('합격 처리 중 오류:', e);
                           alert('합격 처리 중 오류가 발생했습니다.');
                         }
-                      }} style={{background:'#8A55CC',color:'#fff',fontWeight:700,padding:'8px 22px',borderRadius:8,border:'none',fontSize:16,cursor:'pointer'}}>합격</button>
+                      }} style={{background:'var(--primary-color, #8b5a2b)',color:'#fff',fontWeight:700,padding:'8px 22px',borderRadius:8,border:'none',fontSize:16,cursor:'pointer'}}>합격</button>
                       
                       <button onClick={async()=>{
                         if (!window.confirm('정말 불합격 처리하시겠습니까?')) return;
@@ -860,7 +860,7 @@ function AudioPlayer({ audioUrl, duration }: { audioUrl: string, duration?: numb
         {isPlaying ? <Pause size={32} /> : <Play size={32} />}
       </button>
       <div style={{ flex: 1, margin: '0 16px', display: 'flex', alignItems: 'center' }}>
-        <span style={{ fontSize: 13, color: '#8A55CC', minWidth: 38 }}>{formatTime(currentTime)}</span>
+        <span style={{ fontSize: 13, color: 'var(--primary-color, #8b5a2b)', minWidth: 38 }}>{formatTime(currentTime)}</span>
         <div
           className="audio-progress-bar"
           style={{ flex: 1, height: 8, background: '#E5DAF5', borderRadius: 4, margin: '0 8px', cursor: 'pointer', position: 'relative' }}
@@ -879,13 +879,13 @@ function AudioPlayer({ audioUrl, duration }: { audioUrl: string, duration?: numb
             style={{
               width: audioDuration ? `${(currentTime / audioDuration) * 100}%` : '0%',
               height: '100%',
-              background: 'linear-gradient(90deg, #8A55CC 60%, #B497D6 100%)',
+              background: 'linear-gradient(90deg, var(--primary-color, #8b5a2b) 60%, var(--primary-light, #a07040) 100%)',
               borderRadius: 4,
               transition: 'width 0.1s',
             }}
           />
         </div>
-        <span style={{ fontSize: 13, color: '#8A55CC', minWidth: 38 }}>{formatTime(audioDuration || duration || 0)}</span>
+        <span style={{ fontSize: 13, color: 'var(--primary-color, #8b5a2b)', minWidth: 38 }}>{formatTime(audioDuration || duration || 0)}</span>
       </div>
       <audio ref={audioRef} src={audioUrl} preload="auto" />
     </div>

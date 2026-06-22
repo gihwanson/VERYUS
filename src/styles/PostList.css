@@ -51,10 +51,10 @@
 
 /* Post Header */
 .post-header {
-  margin-bottom: 0.8rem;
+  margin-bottom: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.35rem;
 }
 
 .post-category-title {
@@ -118,10 +118,11 @@
   font-size: 0.95rem;
   line-height: 1.6;
   color: var(--paper-body, #4a3f32);
-  margin: 0.75rem 0;
-  padding: 0;
+  margin: 0;
+  padding: 0.75rem 0;
   background: transparent;
   border: none;
+  border-top: 1px solid var(--paper-list-divider, #c4b49a);
   border-radius: 0;
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -207,11 +208,12 @@
 
 .balance-post-footer {
   color: var(--paper-muted, #8b7355);
-  margin-top: 0.9rem;
+  margin-top: 0;
   gap: 1.15rem;
   flex-wrap: wrap;
-  padding-top: 0.5rem;
-  border-top: 1px solid var(--paper-border, #e8dcc8);
+  justify-content: flex-start;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--paper-list-divider, #c4b49a);
 }
 
 .balance-post-footer > span {
@@ -262,14 +264,16 @@
 .post-meta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  justify-content: flex-start;
+  gap: 0.5rem;
   font-size: 0.85rem;
-  color: #000000;
+  color: var(--paper-body, #4a3f32);
   font-weight: 500;
-  margin-top: auto;
-  padding-top: 0.75rem;
-  border-top: 1px solid rgba(139, 92, 246, 0.1);
+  margin-top: 0;
+  padding-top: 0.35rem;
+  border-top: none;
+  width: 100%;
+  text-align: left;
 }
 
 .post-main-info {
@@ -284,9 +288,13 @@
 .post-author {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 0.35rem;
   min-width: 0;
-  flex: 1;
+  flex: 0 1 auto;
+  width: 100%;
+  text-align: left;
 }
 
 .author-name {
@@ -671,9 +679,9 @@
   
   .post-content-preview {
     font-size: 0.9rem;
-    padding: 0.6rem 0.8rem;
-    margin: 0.6rem 0;
-    border-radius: 10px;
+    padding: 0.65rem 0;
+    margin: 0;
+    border-radius: 0;
     min-height: 50px;
   }
 
@@ -682,17 +690,17 @@
   }
 
   .balance-post-footer {
-    justify-content: flex-start;
-    margin-top: 1rem;
-    gap: 0.95rem;
+    margin-top: 0;
+    padding-top: 0.65rem;
   }
   
   .post-meta {
     font-size: 0.8rem;
-    gap: 0.75rem;
-    padding-top: 0.6rem;
-    flex-direction: column;
-    align-items: stretch;
+    gap: 0.5rem;
+    padding-top: 0.35rem;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
   }
   
   .post-main-info {
@@ -709,9 +717,10 @@
     border-radius: 8px;
   }
   
-  .post-stats {
+  .post-stats,
+  .post-stats-row {
     gap: 0.8rem;
-    justify-content: space-between;
+    justify-content: flex-start;
   }
   
   .open-badge, .closed-badge {
@@ -733,8 +742,10 @@
   
   .post-content-preview {
     font-size: 0.85rem;
-    padding: 0.5rem 0.7rem;
-    margin: 0.5rem 0;
+    padding: 0.65rem 0;
+    margin: 0;
+    -webkit-line-clamp: 2;
+    min-height: 40px;
   }
   
   .post-meta {
@@ -742,8 +753,10 @@
     gap: 0.5rem;
   }
   
-  .post-stats {
+  .post-stats,
+  .post-stats-row {
     gap: 0.6rem;
+    justify-content: flex-start;
   }
   
   .open-badge, .closed-badge {
@@ -798,6 +811,52 @@
   text-shadow: none !important;
 }
 
+/* 목록 — 작성자(등급·닉네임) 왼쪽 정렬 */
+.post-item .post-meta,
+.post-card .post-meta {
+  justify-content: flex-start !important;
+  align-items: flex-start !important;
+  text-align: left;
+}
+
+.post-item .post-author,
+.post-card .post-author {
+  justify-content: flex-start !important;
+  flex: 0 1 auto;
+  width: 100%;
+}
+
+.post-item .post-author .author-info,
+.post-item .post-author .post-author-name--list,
+.post-item .post-author .author-name,
+.post-item .post-author .author-grade-label,
+.post-item .post-author .author-grade-emoji,
+.post-card .post-author .author-info,
+.post-card .post-author .post-author-name--list,
+.post-card .post-author .author-name,
+.post-card .post-author .author-grade-label,
+.post-card .post-author .author-grade-emoji {
+  color: var(--paper-ink, #2c2416) !important;
+  text-shadow: none !important;
+  text-align: left;
+}
+
+.post-item .post-author .author-grade-emoji,
+.post-card .post-author .author-grade-emoji,
+.post-item .balance-post-author-grade,
+.post-card .balance-post-author-grade {
+  font-size: 1.1rem;
+  margin-right: 0.15rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.post-item .balance-post-author,
+.post-card .balance-post-author {
+  justify-content: flex-start;
+  width: 100%;
+}
+
 /* 목록 — 상세 페이지 CSS(.author-info 흰색) 유출 방지 */
 .post-item .post-author .author-info,
 .post-item .post-author .post-author-name--list,
@@ -831,12 +890,13 @@
 .post-stats-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--primary-alpha-10, rgba(139, 90, 43, 0.1));
-  color: var(--app-card-text-muted, #6b5344);
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  margin-top: 0;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--paper-list-divider, #c4b49a);
+  color: var(--paper-muted, #8b7355);
   font-size: 0.85rem;
   font-weight: 500;
 }
