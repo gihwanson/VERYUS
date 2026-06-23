@@ -108,7 +108,7 @@ const drawGhostBird = (
   stroke: string,
   alpha: number,
   nickname?: string,
-  labelOffsetY = 0
+  labelOffsetX = 0
 ) => {
   ctx.save();
   ctx.globalAlpha = alpha;
@@ -120,19 +120,25 @@ const drawGhostBird = (
   ctx.ellipse(0, 0, BIRD_R, BIRD_R - 2, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
+  ctx.restore();
 
   if (nickname) {
-    const label = truncateNickname(nickname);
-    ctx.font = 'bold 10px system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = 'rgba(0,0,0,0.55)';
-    ctx.fillStyle = '#fff';
-    ctx.strokeText(label, 0, -BIRD_R - 6 + labelOffsetY);
-    ctx.fillText(label, 0, -BIRD_R - 6 + labelOffsetY);
+    const label = truncateNickname(nickname, 10);
+    const lx = x + BIRD_R + 8 + labelOffsetX;
+    const ly = y;
+    ctx.save();
+    ctx.globalAlpha = 1;
+    ctx.font = 'bold 12px system-ui, -apple-system, "Segoe UI", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 4;
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeText(label, lx, ly);
+    ctx.fillText(label, lx, ly);
+    ctx.restore();
   }
-  ctx.restore();
 };
 
 const buildLeaderboard = (
@@ -529,7 +535,7 @@ const FlappyBirdGame: React.FC = () => {
 
         const alpha = ghost.isMe ? 0.55 : 0.4;
         const stroke = ghost.isMe ? '#0ea5e9' : 'rgba(255,255,255,0.55)';
-        const labelOffsetY = -((index % 4) * 11);
+        const labelOffsetX = (index % 5) * 12;
         drawGhostBird(
           ctx,
           GHOST_SELF_X,
@@ -538,7 +544,7 @@ const FlappyBirdGame: React.FC = () => {
           stroke,
           alpha,
           ghost.nickname,
-          labelOffsetY
+          labelOffsetX
         );
       });
     }
@@ -921,7 +927,13 @@ const FlappyBirdGame: React.FC = () => {
 
           <div
             className="flappy-game-area"
+            onContextMenu={(e) => e.preventDefault()}
+            onTouchStart={(e) => {
+              e.preventDefault();
+              flap();
+            }}
             onPointerDown={(e) => {
+              if (e.pointerType === 'touch') return;
               e.preventDefault();
               flap();
             }}

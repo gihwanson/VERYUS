@@ -1308,6 +1308,18 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
   user-select: none;
   -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  tap-highlight-color: transparent;
+  outline: none;
+  -webkit-touch-callout: none;
+  background: transparent;
+}
+
+.flappy-game-area:active,
+.flappy-game-area:focus,
+.flappy-game-area:focus-visible {
+  outline: none;
+  background: transparent;
 }
 
 .flappy-canvas {
@@ -1315,6 +1327,11 @@
   width: 100%;
   height: auto;
   vertical-align: top;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  tap-highlight-color: transparent;
+  outline: none;
+  pointer-events: none;
 }
 
 .flappy-overlay {
