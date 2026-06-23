@@ -26,7 +26,9 @@ interface Notification {
     | 'approved_song_milestone'
     | 'anonymous_chat'
     | 'anonymous_chat_ban'
-    | 'anonymous_chat_kick';
+    | 'anonymous_chat_kick'
+    | 'customer_center_inquiry'
+    | 'customer_center_reply';
   postId?: string;
   postTitle?: string;
   postType?: string;
@@ -119,7 +121,7 @@ const Notifications: React.FC = () => {
       case 'like':
         return notifications.filter(n => n.type === 'like');
       case 'system':
-        return notifications.filter(n => ['approval', 'rejection', 'grade_request_pending', 'grade_change_approved', 'grade_change_rejected', 'approved_song_milestone', 'partnership', 'partnership_closed', 'partnership_confirmed', 'anonymous_chat_ban', 'anonymous_chat_kick'].includes(n.type));
+        return notifications.filter(n => ['approval', 'rejection', 'grade_request_pending', 'grade_change_approved', 'grade_change_rejected', 'approved_song_milestone', 'partnership', 'partnership_closed', 'partnership_confirmed', 'anonymous_chat_ban', 'anonymous_chat_kick', 'customer_center_inquiry', 'customer_center_reply'].includes(n.type));
       default:
         return notifications;
     }

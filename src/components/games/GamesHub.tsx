@@ -10,7 +10,6 @@ import {
 import { detectGamePlatform } from '../../utils/gamePlatform';
 import { getEscapeRoomBestScoreDocId } from '../../utils/escapeRoomScores';
 import { getReactionBestScoreDocId } from '../../utils/reactionTimeScores';
-import { getRhythmBeatBestScoreDocId } from '../../utils/rhythmBeatScores';
 import { getTypingBestScoreDocId } from '../../utils/typingSpeedScores';
 import { getLastPlayedGame } from '../../utils/lastPlayedGame';
 import { LOCKED_PRACTICE_ROOM_AVAILABLE } from '../../data/lockedPracticeRoom';
@@ -54,14 +53,6 @@ const GAME_ITEMS: GameItem[] = [
     path: '/games/reaction-time',
     available: true,
   },
-  {
-    id: 'rhythm-beat',
-    title: '박자 맞추기',
-    description: 'BPM 85~115 메트로놈에 맞춰 탭하고 정확도로 순위에 도전하세요.',
-    emoji: '🥁',
-    path: '/games/rhythm-beat',
-    available: true,
-  },
 ];
 
 const GamesHub: React.FC = () => {
@@ -79,7 +70,6 @@ const GamesHub: React.FC = () => {
 
   const [myTypingCpm, setMyTypingCpm] = useState<number | null>(null);
   const [myReactionMs, setMyReactionMs] = useState<number | null>(null);
-  const [myRhythmAccuracy, setMyRhythmAccuracy] = useState<number | null>(null);
   const [myEscapeScore, setMyEscapeScore] = useState<number | null>(null);
 
   const nextResetLabel = useMemo(
@@ -93,7 +83,6 @@ const GamesHub: React.FC = () => {
     if (!user?.uid) return;
     const typingId = getTypingBestScoreDocId(user.uid, platform);
     const reactionId = getReactionBestScoreDocId(user.uid, platform);
-    const rhythmId = getRhythmBeatBestScoreDocId(user.uid, platform);
     const escapeId = getEscapeRoomBestScoreDocId(user.uid, platform);
 
     const unsubTyping = onSnapshot(
@@ -106,16 +95,6 @@ const GamesHub: React.FC = () => {
       doc(db, 'games', 'reactionTime', 'bestScores', reactionId),
       (snap) => {
         setMyReactionMs(snap.exists() ? Number(snap.data()?.durationMs) || null : null);
-      }
-    );
-    const unsubRhythm = onSnapshot(
-      doc(db, 'games', 'rhythmBeat', 'bestScores', rhythmId),
-      (snap) => {
-        setMyRhythmAccuracy(
-          snap.exists() && snap.data()?.accuracy !== undefined
-            ? Number(snap.data()?.accuracy)
-            : null
-        );
       }
     );
     const unsubEscape = onSnapshot(
@@ -132,7 +111,6 @@ const GamesHub: React.FC = () => {
     return () => {
       unsubTyping();
       unsubReaction();
-      unsubRhythm();
       unsubEscape();
     };
   }, [platform, user?.uid]);
@@ -148,9 +126,6 @@ const GamesHub: React.FC = () => {
     }
     if (game.id === 'reaction-time' && myReactionMs) {
       return `내 최고 ${Math.round(myReactionMs)}ms`;
-    }
-    if (game.id === 'rhythm-beat' && myRhythmAccuracy != null) {
-      return `내 최고 ${myRhythmAccuracy}%`;
     }
     if (game.id === 'locked-practice-room' && myEscapeScore != null) {
       return `내 최고 ${myEscapeScore}점`;

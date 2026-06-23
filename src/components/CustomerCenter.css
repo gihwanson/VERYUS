@@ -466,6 +466,18 @@
   gap: 10px;
 }
 
+.cc-chat-loading {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--paper-muted, #8b7355);
+  font-size: 0.88rem;
+  min-height: 120px;
+}
+
 .cc-msg {
   display: flex;
   flex-direction: column;

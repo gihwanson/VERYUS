@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   collection,
@@ -18,6 +18,7 @@ import { db, auth } from '../firebase';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { ChevronLeft, Send, Inbox, PenSquare, Eye, EyeOff, MessageCircle, CheckCircle, Lock } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { NotificationService } from '../utils/notificationService';
 
 const NERAE_NICKNAME = '너래';
 
@@ -73,25 +74,29 @@ const CustomerCenter: React.FC = () => {
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatSending, setChatSending] = useState(false);
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
-  const shouldAutoScrollRef = useRef(true);
+  const stickToBottomRef = useRef(true);
+  const lastMessageCountRef = useRef(0);
 
-  const isNearBottom = useCallback(() => {
-    const container = messagesContainerRef.current;
-    if (!container) return true;
-    const distanceToBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-    return distanceToBottom < 80;
-  }, []);
+  const selectedInquiryId = selectedInquiry?.id ?? null;
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' });
+  }, []);
+
+  const handleMessagesScroll = useCallback(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
-    container.scrollTo({ top: container.scrollHeight, behavior });
+    const distanceFromBottom =
+      container.scrollHeight - container.clientHeight - container.scrollTop;
+    stickToBottomRef.current = distanceFromBottom < 80;
   }, []);
 
   // 모바일 키보드 대응: visualViewport 높이에 맞춰 컨테이너 조정
@@ -167,61 +172,119 @@ const CustomerCenter: React.FC = () => {
     return () => unsub();
   }, [user, isNerae]);
 
-  // selectedInquiry를 실시간 목록과 동기화 (closed 상태 등 반영)
+  // selectedInquiry를 실시간 목록과 동기화 (closed 상태 등 반영, 참조는 불필요하게 바꾸지 않음)
   useEffect(() => {
-    if (!selectedInquiry) return;
-    const updated = inquiries.find((i) => i.id === selectedInquiry.id);
-    if (updated && updated !== selectedInquiry) {
-      setSelectedInquiry(updated);
-    }
-  }, [inquiries, selectedInquiry]);
+    if (!selectedInquiryId) return;
+    const updated = inquiries.find((i) => i.id === selectedInquiryId);
+    if (!updated) return;
+    setSelectedInquiry((prev) => {
+      if (!prev || prev.id !== updated.id) return prev;
+      if (
+        prev.closed === updated.closed &&
+        prev.unreadByAdmin === updated.unreadByAdmin &&
+        prev.unreadByMember === updated.unreadByMember &&
+        prev.lastMessage === updated.lastMessage &&
+        (prev.lastMessageAt?.seconds ?? 0) === (updated.lastMessageAt?.seconds ?? 0) &&
+        prev.senderNickname === updated.senderNickname &&
+        prev.isAnonymous === updated.isAnonymous
+      ) {
+        return prev;
+      }
+      return updated;
+    });
+  }, [inquiries, selectedInquiryId]);
 
   useEffect(() => {
-    if (!selectedInquiry) return;
-    shouldAutoScrollRef.current = true;
-  }, [selectedInquiry?.id]);
+    if (!selectedInquiryId) return;
+    stickToBottomRef.current = true;
+    lastMessageCountRef.current = 0;
+  }, [selectedInquiryId]);
 
   // Subscribe to messages when a conversation is selected
   useEffect(() => {
-    if (!selectedInquiry) {
+    if (!selectedInquiryId) {
       setMessages([]);
+      setMessagesLoading(false);
       return;
     }
 
+    let cancelled = false;
+    setMessagesLoading(true);
+
     const q = query(
-      collection(db, 'customerInquiries', selectedInquiry.id, 'messages'),
+      collection(db, 'customerInquiries', selectedInquiryId, 'messages'),
       orderBy('createdAt', 'asc')
     );
 
-    const unsub = onSnapshot(q, (snap) => {
-      const msgs: ChatMessage[] = snap.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      })) as ChatMessage[];
+    const applyMessages = (msgs: ChatMessage[]) => {
+      if (cancelled) return;
       setMessages(msgs);
-    });
+      setMessagesLoading(false);
+    };
 
-    // Mark as read
+    getDocs(q)
+      .then((snap) => {
+        applyMessages(
+          snap.docs.map((d) => ({
+            id: d.id,
+            ...d.data(),
+          })) as ChatMessage[]
+        );
+      })
+      .catch((error) => {
+        console.error('문의 메시지 초기 로드 실패:', error);
+        if (!cancelled) setMessagesLoading(false);
+      });
+
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        applyMessages(
+          snap.docs.map((d) => ({
+            id: d.id,
+            ...d.data(),
+          })) as ChatMessage[]
+        );
+      },
+      (error) => {
+        console.error('문의 메시지 구독 에러:', error);
+        if (!cancelled) setMessagesLoading(false);
+      }
+    );
+
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+  }, [selectedInquiryId]);
+
+  // 채팅방 입장 시 읽음 처리 (문의 id가 바뀔 때만)
+  useEffect(() => {
+    if (!selectedInquiryId) return;
     const readField = isNerae ? 'adminLastReadAt' : 'memberLastReadAt';
     const unreadField = isNerae ? 'unreadByAdmin' : 'unreadByMember';
-    updateDoc(doc(db, 'customerInquiries', selectedInquiry.id), {
+    updateDoc(doc(db, 'customerInquiries', selectedInquiryId), {
       [readField]: serverTimestamp(),
       [unreadField]: false,
     }).catch(() => {});
+  }, [selectedInquiryId, isNerae]);
 
-    return () => unsub();
-  }, [selectedInquiry, isNerae]);
-
-  useLayoutEffect(() => {
-    if (!selectedInquiry || messages.length === 0) return;
-    if (shouldAutoScrollRef.current || isNearBottom()) {
-      const behavior = shouldAutoScrollRef.current ? 'auto' : 'smooth';
-      shouldAutoScrollRef.current = false;
-      requestAnimationFrame(() => {
-        scrollToBottom(behavior);
-      });
+  useEffect(() => {
+    if (!selectedInquiryId || messages.length === 0) return;
+    if (!stickToBottomRef.current) {
+      lastMessageCountRef.current = messages.length;
+      return;
     }
-  }, [messages, selectedInquiry?.id, scrollToBottom, isNearBottom]);
+
+    const prevCount = lastMessageCountRef.current;
+    const grew = messages.length > prevCount;
+    lastMessageCountRef.current = messages.length;
+
+    const behavior = grew && prevCount > 0 ? 'smooth' : 'auto';
+    requestAnimationFrame(() => {
+      scrollToBottom(behavior);
+    });
+  }, [messages, selectedInquiryId, scrollToBottom]);
 
   const handleSubmit = useCallback(async () => {
     if (!user) return;
@@ -259,6 +322,14 @@ const CustomerCenter: React.FC = () => {
         createdAt: serverTimestamp(),
       });
 
+      void NotificationService.notifyNeraeOfCustomerInquiry({
+        fromUid: user.uid,
+        senderLabel: isAnonymous ? '익명' : realNickname,
+        categoryLabel: getCategoryLabel(category),
+        messagePreview: content.trim(),
+        inquiryId: inquiryRef.id,
+      });
+
       toast.success('문의가 접수되었습니다!');
       setContent('');
       setCategory('');
@@ -275,7 +346,7 @@ const CustomerCenter: React.FC = () => {
   const handleSendChat = useCallback(async () => {
     if (!selectedInquiry || !chatInput.trim() || !user) return;
     setChatSending(true);
-    shouldAutoScrollRef.current = true;
+    stickToBottomRef.current = true;
     const myRole: 'member' | 'admin' = isNerae ? 'admin' : 'member';
     const text = chatInput.trim();
     setChatInput('');
@@ -298,20 +369,25 @@ const CustomerCenter: React.FC = () => {
         [readField]: serverTimestamp(),
       });
 
-      // 너래가 답변하면 멤버에게 알림 발송
       if (isNerae) {
         const inquiryDoc = await getDoc(doc(db, 'customerInquiries', selectedInquiry.id));
         const inquiryData = inquiryDoc.data();
         if (inquiryData?.senderUid) {
-          await addDoc(collection(db, 'notifications'), {
+          void NotificationService.notifyMemberOfCustomerCenterReply({
             toUid: inquiryData.senderUid,
-            type: 'customer_center_reply',
-            message: '고객센터에서 답변이 도착했습니다.',
-            link: '/customer-center',
-            createdAt: serverTimestamp(),
-            isRead: false,
+            replyPreview: text,
           });
         }
+      } else {
+        void NotificationService.notifyNeraeOfCustomerInquiry({
+          fromUid: user.uid,
+          senderLabel: selectedInquiry.isAnonymous
+            ? '익명'
+            : selectedInquiry.senderNickname || user.nickname || '회원',
+          categoryLabel: getCategoryLabel(selectedInquiry.category),
+          messagePreview: text,
+          inquiryId: selectedInquiry.id,
+        });
       }
     } catch (err) {
       console.error(err);
@@ -564,8 +640,18 @@ const CustomerCenter: React.FC = () => {
             </div>
           </div>
 
-          <div ref={messagesContainerRef} className="cc-chat-messages">
-            {messages.map((msg) => {
+          <div
+            ref={messagesContainerRef}
+            className="cc-chat-messages"
+            onScroll={handleMessagesScroll}
+          >
+            {messagesLoading && messages.length === 0 ? (
+              <div className="cc-chat-loading">
+                <div className="cc-loading-spinner" />
+                <p>메시지를 불러오는 중...</p>
+              </div>
+            ) : (
+              messages.map((msg) => {
               const isMine = isNerae
                 ? msg.senderRole === 'admin'
                 : msg.senderRole === 'member';
@@ -580,7 +666,9 @@ const CustomerCenter: React.FC = () => {
                   <span className="cc-msg-time">{formatTime(msg.createdAt)}</span>
                 </div>
               );
-            })}
+            })
+            )}
+            <div ref={messagesEndRef} aria-hidden />
           </div>
 
           {selectedInquiry.closed ? (

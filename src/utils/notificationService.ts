@@ -18,7 +18,9 @@ export interface NotificationData {
     | 'grade_request_pending'
     | 'grade_change_approved'
     | 'grade_change_rejected'
-    | 'approved_song_milestone';
+    | 'approved_song_milestone'
+    | 'customer_center_inquiry'
+    | 'customer_center_reply';
   toUid: string;
   /** 알림을 보낸 사람의 uid (있으면 자기 자신에게 보내기 방지에 사용) */
   fromUid?: string;
@@ -79,6 +81,10 @@ export class NotificationService {
 
     if (type === 'partnership' || type === 'partnership_closed' || type === 'partnership_confirmed') {
       return postId ? `/boards/partner/${postId}` : '/boards/partner';
+    }
+
+    if (type === 'customer_center_inquiry' || type === 'customer_center_reply') {
+      return '/customer-center';
     }
 
     if (postId && postType) {
@@ -196,7 +202,9 @@ export class NotificationService {
       grade_change_rejected: '등급 변경 요청이 반려되었습니다.',
       approved_song_milestone: '회원이 합격곡 마일스톤을 달성했습니다.',
       anonymous_chat_ban: '익명채팅방 퇴장 안내가 도착했습니다.',
-      anonymous_chat_kick: '익명채팅방에서보내졌습니다.'
+      anonymous_chat_kick: '익명채팅방에서보내졌습니다.',
+      customer_center_inquiry: '고객센터에 새 문의가 접수되었습니다.',
+      customer_center_reply: '고객센터에서 답변이 도착했습니다.'
     };
     return messages[type] || '새 알림이 있습니다.';
   }
@@ -474,6 +482,67 @@ export class NotificationService {
       postType: 'partner',
       message
     });
+  }
+
+  /** 고객센터 문의·추가 메시지 접수 시 너래에게 알림(푸시 트리거 포함) */
+  static async notifyNeraeOfCustomerInquiry(params: {
+    fromUid: string;
+    senderLabel: string;
+    categoryLabel: string;
+    messagePreview: string;
+    inquiryId?: string;
+  }): Promise<void> {
+    const { fromUid, senderLabel, categoryLabel, messagePreview, inquiryId } = params;
+    try {
+      const neraeSnap = await getDocs(
+        query(collection(db, 'users'), where('nickname', '==', '너래'))
+      );
+      const preview = this.clampText(messagePreview, 72);
+      const message = `[고객센터] ${categoryLabel} — ${senderLabel}: ${preview}`;
+
+      await Promise.all(
+        neraeSnap.docs.map(async (userDoc) => {
+          const toUid = userDoc.id;
+          if (!toUid || toUid === fromUid) return;
+          await this.createNotification({
+            type: 'customer_center_inquiry',
+            toUid,
+            fromUid,
+            fromNickname: senderLabel,
+            postId: inquiryId,
+            postTitle: '고객센터 문의',
+            message,
+            route: '/customer-center'
+          });
+        })
+      );
+    } catch (error) {
+      console.error('고객센터 문의 알림(너래) 전송 실패:', error);
+    }
+  }
+
+  /** 고객센터 답변 시 문의 작성자에게 알림(푸시 트리거 포함) */
+  static async notifyMemberOfCustomerCenterReply(params: {
+    toUid: string;
+    replyPreview?: string;
+  }): Promise<void> {
+    const { toUid, replyPreview } = params;
+    const preview = replyPreview ? this.clampText(replyPreview, 72) : '';
+    const message = preview
+      ? `고객센터에서 답변이 도착했습니다. — ${preview}`
+      : '고객센터에서 답변이 도착했습니다.';
+    try {
+      await this.createNotification({
+        type: 'customer_center_reply',
+        toUid,
+        fromNickname: 'VERYUS 고객센터',
+        postTitle: '고객센터',
+        message,
+        route: '/customer-center'
+      });
+    } catch (error) {
+      console.error('고객센터 답변 알림 전송 실패:', error);
+    }
   }
 
   /** 등급 변경 승인 대기가 생겼을 때 리더·운영진·너래에게 알림(푸시 트리거 포함) */

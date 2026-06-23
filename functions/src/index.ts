@@ -26,7 +26,8 @@ const getRouteByPostType = (postType: string, postId: string): string => {
 
 const getNotificationRoute = (data: FirebaseFirestore.DocumentData): string => {
   const roomId = (data.roomId as string | undefined) || '';
-  const directRoute = (data.route as string | undefined) || '';
+  const directRoute =
+    (data.route as string | undefined) || (data.link as string | undefined) || '';
   if (directRoute) {
     if (directRoute === '/anonymous-chat' && roomId) {
       return `/anonymous-chat?roomId=${encodeURIComponent(roomId)}`;
@@ -65,6 +66,10 @@ const getNotificationRoute = (data: FirebaseFirestore.DocumentData): string => {
     notificationType === 'anonymous_chat_kick'
   ) {
     return roomId ? `/anonymous-chat?roomId=${encodeURIComponent(roomId)}` : '/anonymous-chat';
+  }
+
+  if (notificationType === 'customer_center_inquiry' || notificationType === 'customer_center_reply') {
+    return '/customer-center';
   }
 
   if (postId) {
