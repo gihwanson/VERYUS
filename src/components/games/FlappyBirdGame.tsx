@@ -37,6 +37,7 @@ import {
   unlockGameAudio,
 } from '../../utils/gameSounds';
 import { setLastPlayedGame } from '../../utils/lastPlayedGame';
+import { getDeterministicPipeGapY } from '../../utils/flappyBirdPipes';
 
 type GamePhase = 'idle' | 'playing' | 'paused' | 'gameover';
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'skipped' | 'error';
@@ -65,23 +66,39 @@ const PIPE_W = 52;
 const PIPE_GAP = 128;
 const BASE_PIPE_SPEED = 2.6;
 const PIPE_SPAWN_DISTANCE = 210;
-const MAX_GAP_DELTA = 100;
 const GROUND_H = 48;
 const TARGET_FRAME_MS = 1000 / 60;
 const MAX_DELTA_MS = 50;
 const INVINCIBLE_MS = 900;
 const RESTART_DELAY_MS = 900;
 const SESSION_SYNC_MS = 450;
-const GHOST_SELF_X = BIRD_X - 26;
-const RIVAL_GHOST_COLORS = ['#c4b5fd', '#fda4af'] as const;
+const GHOST_SELF_X = BIRD_X;
+const LEADERBOARD_GHOST_LIMIT = 20;
+const GHOST_PALETTE = [
+  '#c4b5fd',
+  '#fda4af',
+  '#86efac',
+  '#fcd34d',
+  '#f9a8d4',
+  '#93c5fd',
+  '#fdba74',
+  '#a5f3fc',
+  '#d8b4fe',
+  '#bef264',
+  '#fca5a5',
+  '#67e8f9',
+] as const;
 
-interface RivalGhost {
+interface RankGhost {
   uid: string;
   nickname: string;
   points: FlappyReplayPoint[];
   color: string;
-  x: number;
+  isMe: boolean;
 }
+
+const truncateNickname = (name: string, max = 8): string =>
+  name.length > max ? `${name.slice(0, max)}…` : name;
 
 const drawGhostBird = (
   ctx: CanvasRenderingContext2D,
@@ -89,7 +106,9 @@ const drawGhostBird = (
   y: number,
   fill: string,
   stroke: string,
-  alpha: number
+  alpha: number,
+  nickname?: string,
+  labelOffsetY = 0
 ) => {
   ctx.save();
   ctx.globalAlpha = alpha;
@@ -101,6 +120,18 @@ const drawGhostBird = (
   ctx.ellipse(0, 0, BIRD_R, BIRD_R - 2, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
+
+  if (nickname) {
+    const label = truncateNickname(nickname);
+    ctx.font = 'bold 10px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillStyle = '#fff';
+    ctx.strokeText(label, 0, -BIRD_R - 6 + labelOffsetY);
+    ctx.fillText(label, 0, -BIRD_R - 6 + labelOffsetY);
+  }
   ctx.restore();
 };
 
@@ -135,7 +166,7 @@ const FlappyBirdGame: React.FC = () => {
   const groundOffsetRef = useRef(0);
   const lastFrameRef = useRef(0);
   const invincibleUntilRef = useRef(0);
-  const lastGapYRef = useRef(CANVAS_H / 2);
+  const pipeIndexRef = useRef(0);
   const endedRef = useRef(false);
   const canRestartRef = useRef(true);
   const idleAnimRef = useRef<number | null>(null);
@@ -144,9 +175,9 @@ const FlappyBirdGame: React.FC = () => {
   const replayRecorderRef = useRef(new FlappyReplayRecorder());
   const lastSessionSyncRef = useRef(0);
   const pendingReplayRef = useRef<FlappyReplayPoint[]>([]);
-  const ghostDataRef = useRef<{ my: FlappyReplayPoint[]; rivals: RivalGhost[] }>({
+  const ghostDataRef = useRef<{ my: FlappyReplayPoint[]; ranked: RankGhost[] }>({
     my: [],
-    rivals: [],
+    ranked: [],
   });
 
   const user = useMemo(() => {
@@ -331,29 +362,39 @@ const FlappyBirdGame: React.FC = () => {
     return me?.replay && me.replay.length > 0 ? me.replay : [];
   }, [bestScores, platform, user?.uid]);
 
-  const rivalGhosts = useMemo((): RivalGhost[] => {
-    return bestScores
-      .filter(
-        (s) =>
-          s.platform === platform &&
-          s.uid !== user?.uid &&
-          s.replay &&
-          s.replay.length > 1
-      )
-      .sort((a, b) => b.durationMs - a.durationMs)
-      .slice(0, 2)
-      .map((s, i) => ({
-        uid: s.uid,
-        nickname: s.nickname,
-        points: s.replay!,
-        color: RIVAL_GHOST_COLORS[i] ?? '#c4b5fd',
-        x: BIRD_X - 48 - i * 22,
-      }));
+  const rankedGhosts = useMemo((): RankGhost[] => {
+    const ranked = buildLeaderboard(bestScores, platform).slice(0, LEADERBOARD_GHOST_LIMIT);
+    const ghosts: RankGhost[] = [];
+    let colorIdx = 0;
+
+    for (const entry of ranked) {
+      const doc = bestScores.find((s) => s.uid === entry.uid && s.platform === platform);
+      if (!doc?.replay || doc.replay.length < 2) continue;
+
+      const isMe = entry.uid === user?.uid;
+      ghosts.push({
+        uid: entry.uid,
+        nickname: entry.nickname,
+        points: doc.replay,
+        color: isMe ? '#7dd3fc' : GHOST_PALETTE[colorIdx % GHOST_PALETTE.length],
+        isMe,
+      });
+      if (!isMe) colorIdx += 1;
+    }
+    return ghosts;
   }, [bestScores, platform, user?.uid]);
 
+  const rivalGhosts = useMemo(
+    () => rankedGhosts.filter((g) => !g.isMe),
+    [rankedGhosts]
+  );
+
   useEffect(() => {
-    ghostDataRef.current = { my: myReplayPoints, rivals: rivalGhosts };
-  }, [myReplayPoints, rivalGhosts]);
+    ghostDataRef.current = {
+      my: myReplayPoints,
+      ranked: rankedGhosts,
+    };
+  }, [myReplayPoints, rankedGhosts]);
 
   const platformSessions = useMemo(
     () => activeSessions.filter((s) => s.platform === platform),
@@ -479,34 +520,27 @@ const FlappyBirdGame: React.FC = () => {
     }
 
     const elapsed = gameElapsedRef.current;
-    const { my: myGhost, rivals } = ghostDataRef.current;
+    const { ranked } = ghostDataRef.current;
 
     if (phaseRef.current === 'playing' || phaseRef.current === 'paused') {
-      for (const rival of rivals) {
-        const sample = sampleReplay(rival.points, elapsed);
-        if (sample) {
-          drawGhostBird(
-            ctx,
-            rival.x,
-            sample.y,
-            rival.color,
-            'rgba(255,255,255,0.5)',
-            sample.finished ? 0.28 : 0.42
-          );
-        }
-      }
+      ranked.forEach((ghost, index) => {
+        const sample = sampleReplay(ghost.points, elapsed);
+        if (!sample || sample.finished) return;
 
-      const selfSample = sampleReplay(myGhost, elapsed);
-      if (selfSample && myGhost.length > 0) {
+        const alpha = ghost.isMe ? 0.55 : 0.4;
+        const stroke = ghost.isMe ? '#0ea5e9' : 'rgba(255,255,255,0.55)';
+        const labelOffsetY = -((index % 4) * 11);
         drawGhostBird(
           ctx,
           GHOST_SELF_X,
-          selfSample.y,
-          '#7dd3fc',
-          '#0ea5e9',
-          selfSample.finished ? 0.38 : 0.62
+          sample.y,
+          ghost.color,
+          stroke,
+          alpha,
+          ghost.nickname,
+          labelOffsetY
         );
-      }
+      });
     }
 
     const by = birdYRef.current;
@@ -599,12 +633,8 @@ const FlappyBirdGame: React.FC = () => {
   }, []);
 
   const spawnPipe = useCallback(() => {
-    const minGap = PIPE_GAP / 2 + 40;
-    const maxGap = CANVAS_H - GROUND_H - PIPE_GAP / 2 - 40;
-    const delta = (Math.random() * 2 - 1) * MAX_GAP_DELTA;
-    let gapY = lastGapYRef.current + delta;
-    gapY = Math.max(minGap, Math.min(maxGap, gapY));
-    lastGapYRef.current = gapY;
+    const gapY = getDeterministicPipeGapY(pipeIndexRef.current);
+    pipeIndexRef.current += 1;
     pipesRef.current.push({ x: CANVAS_W + 10, gapY, scored: false });
   }, []);
 
@@ -623,7 +653,7 @@ const FlappyBirdGame: React.FC = () => {
     scoreRef.current = 0;
     groundOffsetRef.current = 0;
     lastFrameRef.current = 0;
-    lastGapYRef.current = CANVAS_H / 2;
+    pipeIndexRef.current = 0;
     invincibleUntilRef.current = performance.now() + INVINCIBLE_MS;
     setSessionPreviousBest(myBestScoreRef.current);
     setDisplayScore(0);
@@ -666,7 +696,7 @@ const FlappyBirdGame: React.FC = () => {
       );
 
       const selfGhostSample = sampleReplay(ghostDataRef.current.my, gameElapsedRef.current);
-      if (selfGhostSample) {
+      if (selfGhostSample && !selfGhostSample.finished) {
         const nextGhostScore = Math.floor(selfGhostSample.score);
         setGhostLiveScore((prev) => (prev === nextGhostScore ? prev : nextGhostScore));
       }
@@ -877,12 +907,15 @@ const FlappyBirdGame: React.FC = () => {
                   <span style={{ color: '#7dd3fc' }}>●</span> 하늘색 = 나의 분신 (최고 기록)
                 </span>
               )}
-              {rivalGhosts.map((g) => (
-                <span key={g.uid}>
-                  <span style={{ color: g.color }}>●</span> {g.nickname} 분신
+              {rivalGhosts.length > 0 && (
+                <span>
+                  <span style={{ color: GHOST_PALETTE[0] }}>●</span> 순위권 분신 {rivalGhosts.length}명
+                  {rivalGhosts.length <= 4
+                    ? ` (${rivalGhosts.map((g) => g.nickname).join(', ')})`
+                    : ''}
                 </span>
-              ))}
-              <span>🐦 = 지금 플레이 중</span>
+              )}
+              <span>🐦 = 지금 플레이 중 · 사망 시 분신 사라짐</span>
             </div>
           )}
 

@@ -41,6 +41,7 @@ import {
 import { ChorusChainPlayer } from '../utils/chorusChainPlayer';
 import { ChorusAudioMixer } from '../utils/chorusAudioMixer';
 import { Mic, Square, Send, Trash2, Loader, Play, Pause, Layers, Heart, MessageCircle } from 'lucide-react';
+import ChorusAudioPlayer from './ChorusAudioPlayer';
 import { toast } from 'react-toastify';
 import '../styles/ChorusLayerSection.css';
 
@@ -1155,7 +1156,11 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
                 </span>
               ) : audioPreviewUrl ? (
                 <div className="chorus-compose__preview">
-                  <audio src={audioPreviewUrl} controls preload="metadata" />
+                  <ChorusAudioPlayer
+                    src={audioPreviewUrl}
+                    durationHint={duration}
+                    className="chorus-compose__preview-player"
+                  />
                   <button type="button" className="chorus-compose__preview-clear" onClick={clearPreview}>
                     취소
                   </button>

@@ -1,0 +1,66 @@
+.chorus-audio-player {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0.45rem 0.55rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.chorus-audio-player audio {
+  display: none;
+}
+
+.chorus-audio-player__play {
+  flex-shrink: 0;
+  width: 2.35rem;
+  height: 2.35rem;
+  border: none;
+  border-radius: 50%;
+  background: #e11d48;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(225, 29, 72, 0.25);
+}
+
+.chorus-audio-player__play:active {
+  transform: scale(0.96);
+}
+
+.chorus-audio-player__track {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.chorus-audio-player__range {
+  width: 100%;
+  min-width: 0;
+  height: 4px;
+  margin: 0;
+  accent-color: #e11d48;
+  cursor: pointer;
+}
+
+.chorus-audio-player__time {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.chorus-audio-player--detail {
+  padding: 0.55rem 0.65rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.95);
+}

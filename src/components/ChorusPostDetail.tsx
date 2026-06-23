@@ -26,6 +26,7 @@ import {
   Layers,
 } from 'lucide-react';
 import ChorusLayerSection, { type ChorusLayerSectionHandle } from './ChorusLayerSection';
+import ChorusAudioPlayer from './ChorusAudioPlayer';
 import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
 import { stopBoardAudio } from '../utils/boardAudioPlayer';
 import '../styles/ChorusPostWrite.css';
@@ -256,7 +257,11 @@ const ChorusPostDetail: React.FC = () => {
         <div className="post-detail-content">
           {post.description && <div className="chorus-description">{post.description}</div>}
           <div className="chorus-player-block">
-            <audio src={post.audioUrl} controls preload="metadata" className="chorus-base-audio" />
+            <ChorusAudioPlayer
+              src={post.audioUrl}
+              durationHint={post.duration}
+              className="chorus-audio-player--detail chorus-base-audio-player"
+            />
             {user && (
               <div className="chorus-player-block__actions">
                 <button

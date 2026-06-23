@@ -637,12 +637,13 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  width: 100%;
+  min-width: 0;
 }
 
-.chorus-compose__preview audio {
+.chorus-compose__preview-player {
   flex: 1;
   min-width: 0;
-  height: 32px;
 }
 
 .chorus-compose__preview-clear {
@@ -882,9 +883,8 @@
   padding: 0.2rem;
 }
 
-.chorus-base-audio {
+.chorus-base-audio-player {
   width: 100%;
-  margin-top: 0.25rem;
 }
 
 .chorus-player-block__head {

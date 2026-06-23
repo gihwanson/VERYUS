@@ -11,6 +11,7 @@ import {
   type ChorusRecorderHandle,
 } from '../utils/chorusAudioRecorder';
 import { uploadChorusAudio, recordingBlobFileName, waitForFirebaseAuth, formatUploadError } from '../utils/chorusAudioUpload';
+import ChorusAudioPlayer from './ChorusAudioPlayer';
 import { toast } from 'react-toastify';
 import '../styles/ChorusPostWrite.css';
 
@@ -338,10 +339,9 @@ const ChorusPostWrite: React.FC = () => {
             {audioPreviewUrl && (
               <div className="chorus-post-write__preview">
                 <CheckCircle2 size={20} className="chorus-post-write__preview-check" />
-                <div>
+                <div className="chorus-post-write__preview-body">
                   <strong>녹음 완료!</strong>
-                  <audio src={audioPreviewUrl} controls preload="metadata" />
-                  {duration > 0 && <span className="chorus-post-write__file-meta">{formatAudioDuration(duration)}</span>}
+                  <ChorusAudioPlayer src={audioPreviewUrl} durationHint={duration} />
                 </div>
                 <button type="button" onClick={clearPreview} className="chorus-post-write__clear">다시 녹음</button>
               </div>
