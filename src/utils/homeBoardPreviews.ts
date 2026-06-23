@@ -31,6 +31,7 @@ const POST_BOARDS: Array<{ boardType: string; postType: string }> = [
   { boardType: 'recording', postType: 'recording' },
   { boardType: 'evaluation', postType: 'evaluation' },
   { boardType: 'partner', postType: 'partner' },
+  { boardType: 'chorus', postType: 'chorus' },
 ];
 
 async function fetchPostBoardPreviews(postType: string): Promise<BoardPreviewItem[]> {

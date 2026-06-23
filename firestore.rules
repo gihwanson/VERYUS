@@ -315,6 +315,31 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      /** 플래피 버드: 현재 플레이 중인 세션 (실시간 진행 표시) */
+      match /activeSessions/{sessionId} {
+        allow read: if signedIn();
+        allow create, update: if signedIn()
+          && gameId == 'flappyBird'
+          && request.resource.data.uid == request.auth.uid
+          && sessionId == request.resource.data.uid + '_' + request.resource.data.platform
+          && request.resource.data.platform in ['pc', 'mobile']
+          && request.resource.data.score is number
+          && request.resource.data.score >= 0
+          && request.resource.data.score <= 9999
+          && request.resource.data.birdY is number
+          && request.resource.data.birdY >= 0
+          && request.resource.data.birdY <= 520
+          && request.resource.data.elapsedMs is number
+          && request.resource.data.elapsedMs >= 0
+          && request.resource.data.elapsedMs <= 120000
+          && request.resource.data.personalBest is number
+          && request.resource.data.personalBest >= 0
+          && request.resource.data.personalBest <= 9999;
+        allow delete: if signedIn()
+          && gameId == 'flappyBird'
+          && resource.data.uid == request.auth.uid;
+      }
+
       /** 사용자·플랫폼별 최고 기록 (uid_pc / uid_mobile) */
       match /bestScores/{scoreId} {
         allow read: if signedIn();
@@ -341,6 +366,19 @@ service cloud.firestore {
               && request.resource.data.rankScore is number
               && request.resource.data.rankScore >= 0
               && request.resource.data.rankScore <= 9999999)
+            || (gameId == 'flappyBird'
+              && request.resource.data.durationMs >= 0
+              && request.resource.data.durationMs <= 9999
+              && (!('replay' in request.resource.data)
+                || (request.resource.data.replay is list
+                  && request.resource.data.replay.size() <= 400))
+              && (!('lastRunScore' in request.resource.data)
+                || (request.resource.data.lastRunScore is number
+                  && request.resource.data.lastRunScore >= 0
+                  && request.resource.data.lastRunScore <= 9999))
+              && (!('lastRunReplay' in request.resource.data)
+                || (request.resource.data.lastRunReplay is list
+                  && request.resource.data.lastRunReplay.size() <= 400)))
           );
         allow update: if signedIn()
           && resource.data.uid == request.auth.uid
@@ -366,6 +404,19 @@ service cloud.firestore {
               && request.resource.data.rankScore is number
               && request.resource.data.rankScore >= 0
               && request.resource.data.rankScore <= 9999999)
+            || (gameId == 'flappyBird'
+              && request.resource.data.durationMs >= 0
+              && request.resource.data.durationMs <= 9999
+              && (!('replay' in request.resource.data)
+                || (request.resource.data.replay is list
+                  && request.resource.data.replay.size() <= 400))
+              && (!('lastRunScore' in request.resource.data)
+                || (request.resource.data.lastRunScore is number
+                  && request.resource.data.lastRunScore >= 0
+                  && request.resource.data.lastRunScore <= 9999))
+              && (!('lastRunReplay' in request.resource.data)
+                || (request.resource.data.lastRunReplay is list
+                  && request.resource.data.lastRunReplay.size() <= 400)))
           );
         allow delete: if false;
       }

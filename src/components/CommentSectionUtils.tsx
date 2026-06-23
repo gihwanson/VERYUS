@@ -68,6 +68,7 @@ export const getPostTypeFromPath = (): string => {
   if (path.includes('/recording/')) return 'recording';
   if (path.includes('/evaluation/')) return 'evaluation';
   if (path.includes('/balance/')) return 'balance';
+  if (path.includes('/chorus/')) return 'chorus';
   if (path.includes('/boards/partner/')) return 'partner';
   return 'free'; // 기본값
 };

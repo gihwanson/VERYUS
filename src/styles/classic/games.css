@@ -163,6 +163,10 @@
   background: linear-gradient(135deg, rgba(34, 197, 94, 0.35), rgba(20, 184, 166, 0.25));
 }
 
+.games-card-art--flappy-bird {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.35), rgba(34, 197, 94, 0.25));
+}
+
 .games-card-teaser {
   margin: 6px 0 0 !important;
   font-size: 12px !important;
@@ -1289,4 +1293,230 @@
 .escape-hint-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+/* 플래피 버드 */
+.flappy-game-area {
+  position: relative;
+  margin: 0 auto;
+  max-width: 360px;
+  border-radius: 12px;
+  overflow: hidden;
+  touch-action: none;
+  overscroll-behavior: none;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.flappy-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  vertical-align: top;
+}
+
+.flappy-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.flappy-overlay--result {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.flappy-overlay--paused {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.flappy-overlay-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.flappy-overlay-score {
+  margin: 8px 0 0;
+  font-size: 36px;
+  font-weight: 800;
+  color: #fde68a;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.flappy-overlay-hint {
+  margin: 12px 0 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.flappy-live-score {
+  text-align: center;
+  margin: 12px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.flappy-speed-hint {
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+/* 실시간 진행 트랙 */
+.flappy-race-track {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.flappy-race-track-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.flappy-race-track-title {
+  font-weight: 700;
+}
+
+.flappy-race-track-max {
+  opacity: 0.7;
+}
+
+.flappy-race-track-bar {
+  position: relative;
+  height: 36px;
+  margin: 4px 0 6px;
+}
+
+.flappy-race-track-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 4px;
+  transform: translateY(-50%);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.flappy-race-milestone {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.flappy-race-milestone-tick {
+  width: 2px;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.45);
+  border-radius: 1px;
+}
+
+.flappy-race-milestone-label {
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+.flappy-race-milestone--me .flappy-race-milestone-tick {
+  background: #7dd3fc;
+}
+
+.flappy-race-marker {
+  position: absolute;
+  top: 14px;
+  transform: translateX(-50%);
+  font-size: 14px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+  transition: left 0.15s linear;
+}
+
+.flappy-race-marker--me {
+  font-size: 16px;
+  z-index: 3;
+}
+
+.flappy-race-marker--ghost {
+  opacity: 0.85;
+  z-index: 2;
+}
+
+.flappy-race-marker--live {
+  opacity: 0.9;
+  z-index: 1;
+}
+
+.flappy-race-live-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  font-size: 11px;
+  opacity: 0.9;
+}
+
+.flappy-race-live-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+}
+
+.flappy-race-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4ade80;
+  flex-shrink: 0;
+  animation: flappy-live-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes flappy-live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.flappy-race-hint {
+  margin: 6px 0 0;
+  font-size: 11px;
+  opacity: 0.75;
+}
+
+.flappy-ghost-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: 8px 0 0;
+  font-size: 11px;
+  opacity: 0.9;
+}
+
+.flappy-ghost-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }

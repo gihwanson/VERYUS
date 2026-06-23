@@ -1,6 +1,6 @@
 import type { GamePlatform } from './gamePlatform';
 
-export type GameId = 'typingSpeed' | 'reactionTime' | 'rhythmBeat';
+export type GameId = 'typingSpeed' | 'reactionTime' | 'rhythmBeat' | 'flappyBird';
 
 export interface GamePastChampion {
   id: string;

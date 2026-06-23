@@ -1,0 +1,102 @@
+export interface MixerTrack {
+  id: string;
+  url: string;
+  label?: string;
+}
+
+export class ChorusAudioMixer {
+  private elements = new Map<string, HTMLAudioElement>();
+  private muted = new Set<string>();
+  private playing = false;
+
+  setTracks(tracks: MixerTrack[]) {
+    const nextIds = new Set(tracks.map((t) => t.id));
+    for (const [id, el] of this.elements) {
+      if (!nextIds.has(id)) {
+        el.pause();
+        el.src = '';
+        this.elements.delete(id);
+        this.muted.delete(id);
+      }
+    }
+    for (const track of tracks) {
+      let el = this.elements.get(track.id);
+      if (!el) {
+        el = new Audio();
+        el.preload = 'auto';
+        this.elements.set(track.id, el);
+      }
+      if (el.src !== track.url) {
+        el.src = track.url;
+      }
+    }
+  }
+
+  isMuted(id: string): boolean {
+    return this.muted.has(id);
+  }
+
+  setMuted(id: string, muted: boolean) {
+    const el = this.elements.get(id);
+    if (!el) return;
+    if (muted) {
+      this.muted.add(id);
+      el.volume = 0;
+    } else {
+      this.muted.delete(id);
+      el.volume = 1;
+    }
+  }
+
+  toggleMute(id: string): boolean {
+    const next = !this.isMuted(id);
+    this.setMuted(id, next);
+    return next;
+  }
+
+  get isPlaying(): boolean {
+    return this.playing;
+  }
+
+  async playAll(): Promise<void> {
+    const els = [...this.elements.values()];
+    if (els.length === 0) return;
+
+    els.forEach((el) => {
+      el.currentTime = 0;
+    });
+
+    await Promise.all(
+      els.map((el) =>
+        el.play().catch(() => {
+          /* ignore autoplay block on individual tracks */
+        })
+      )
+    );
+    this.playing = true;
+  }
+
+  pauseAll() {
+    for (const el of this.elements.values()) {
+      el.pause();
+    }
+    this.playing = false;
+  }
+
+  stopAll() {
+    for (const el of this.elements.values()) {
+      el.pause();
+      el.currentTime = 0;
+    }
+    this.playing = false;
+  }
+
+  dispose() {
+    this.stopAll();
+    for (const el of this.elements.values()) {
+      el.src = '';
+    }
+    this.elements.clear();
+    this.muted.clear();
+  }
+}

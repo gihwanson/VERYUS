@@ -9,6 +9,7 @@ import {
 } from '../../utils/gameWeek';
 import { detectGamePlatform } from '../../utils/gamePlatform';
 import { getEscapeRoomBestScoreDocId } from '../../utils/escapeRoomScores';
+import { getFlappyBirdBestScoreDocId } from '../../utils/flappyBirdScores';
 import { getReactionBestScoreDocId } from '../../utils/reactionTimeScores';
 import { getTypingBestScoreDocId } from '../../utils/typingSpeedScores';
 import { getLastPlayedGame } from '../../utils/lastPlayedGame';
@@ -53,6 +54,14 @@ const GAME_ITEMS: GameItem[] = [
     path: '/games/reaction-time',
     available: true,
   },
+  {
+    id: 'flappy-bird',
+    title: '플래피 버드',
+    description: '파이프를 피해 날아가며 최고 점수에 도전하세요.',
+    emoji: '🐦',
+    path: '/games/flappy-bird',
+    available: true,
+  },
 ];
 
 const GamesHub: React.FC = () => {
@@ -70,6 +79,7 @@ const GamesHub: React.FC = () => {
 
   const [myTypingCpm, setMyTypingCpm] = useState<number | null>(null);
   const [myReactionMs, setMyReactionMs] = useState<number | null>(null);
+  const [myFlappyScore, setMyFlappyScore] = useState<number | null>(null);
   const [myEscapeScore, setMyEscapeScore] = useState<number | null>(null);
 
   const nextResetLabel = useMemo(
@@ -83,6 +93,7 @@ const GamesHub: React.FC = () => {
     if (!user?.uid) return;
     const typingId = getTypingBestScoreDocId(user.uid, platform);
     const reactionId = getReactionBestScoreDocId(user.uid, platform);
+    const flappyId = getFlappyBirdBestScoreDocId(user.uid, platform);
     const escapeId = getEscapeRoomBestScoreDocId(user.uid, platform);
 
     const unsubTyping = onSnapshot(
@@ -95,6 +106,12 @@ const GamesHub: React.FC = () => {
       doc(db, 'games', 'reactionTime', 'bestScores', reactionId),
       (snap) => {
         setMyReactionMs(snap.exists() ? Number(snap.data()?.durationMs) || null : null);
+      }
+    );
+    const unsubFlappy = onSnapshot(
+      doc(db, 'games', 'flappyBird', 'bestScores', flappyId),
+      (snap) => {
+        setMyFlappyScore(snap.exists() ? Number(snap.data()?.durationMs) || null : null);
       }
     );
     const unsubEscape = onSnapshot(
@@ -111,6 +128,7 @@ const GamesHub: React.FC = () => {
     return () => {
       unsubTyping();
       unsubReaction();
+      unsubFlappy();
       unsubEscape();
     };
   }, [platform, user?.uid]);
@@ -126,6 +144,9 @@ const GamesHub: React.FC = () => {
     }
     if (game.id === 'reaction-time' && myReactionMs) {
       return `내 최고 ${Math.round(myReactionMs)}ms`;
+    }
+    if (game.id === 'flappy-bird' && myFlappyScore != null) {
+      return `내 최고 ${myFlappyScore}점`;
     }
     if (game.id === 'locked-practice-room' && myEscapeScore != null) {
       return `내 최고 ${myEscapeScore}점`;

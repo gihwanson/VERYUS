@@ -3,7 +3,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions';
 
 const KST = 'Asia/Seoul';
-const GAME_IDS = ['typingSpeed', 'reactionTime', 'rhythmBeat'] as const;
+const GAME_IDS = ['typingSpeed', 'reactionTime', 'rhythmBeat', 'flappyBird'] as const;
 const PLATFORMS = ['pc', 'mobile'] as const;
 
 type GameId = (typeof GAME_IDS)[number];
@@ -116,6 +116,10 @@ const pickChampion = (gameId: GameId, docs: ScoreDoc[]): ScoreDoc | null => {
       return aDuration - bDuration;
     }
 
+    if (gameId === 'flappyBird') {
+      return bDuration - aDuration;
+    }
+
     return aDuration - bDuration;
   });
 
@@ -193,6 +197,12 @@ const archiveAndResetGame = async (gameId: GameId, weekKey: string) => {
       { merge: true }
     );
     logger.info('레거시 타자 기록 정리 완료', { gameId, weekKey });
+  }
+
+  if (gameId === 'flappyBird') {
+    const activeSessionsRef = db.collection(`games/${gameId}/activeSessions`);
+    await deleteCollectionInBatches(activeSessionsRef);
+    logger.info('플래피 버드 활성 세션 정리 완료', { gameId, weekKey });
   }
 };
 

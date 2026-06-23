@@ -27,7 +27,7 @@ export interface NotificationData {
   fromNickname: string;
   postId?: string;
   postTitle?: string;
-  postType?: 'free' | 'recording' | 'evaluation' | 'balance' | 'partner';
+  postType?: 'free' | 'recording' | 'evaluation' | 'balance' | 'partner' | 'chorus';
   commentId?: string;
   message?: string;
   route?: string;
@@ -106,6 +106,7 @@ export class NotificationService {
       evaluation: '평가',
       balance: '밸런스',
       partner: '파트너',
+      chorus: '이어부르기',
       home: '메인'
     };
     return labels[postType || ''] || '게시판';
@@ -177,6 +178,7 @@ export class NotificationService {
       'evaluation': `/evaluation/${postId}`,
       'balance': `/balance/${postId}`,
       'partner': `/boards/partner/${postId}`,
+      'chorus': `/chorus/${postId}`,
       'home': '/'
     };
     return routes[postType] || `/free/${postId}`;

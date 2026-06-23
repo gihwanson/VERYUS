@@ -124,3 +124,17 @@ export const playRhythmTap = (errorMs: number) => {
 export const playRhythmMiss = () => {
   tone(220, 0.08, 'sawtooth', 0.04);
 };
+
+export const playFlappyFlap = () => {
+  tone(320, 0.06, 'square', 0.05);
+  gameVibrate(6);
+};
+
+export const playFlappyScore = () => {
+  tone(523, 0.05, 'triangle', 0.05);
+};
+
+export const playFlappyHit = () => {
+  tone(120, 0.2, 'sawtooth', 0.07);
+  gameVibrate([40, 30, 40]);
+};

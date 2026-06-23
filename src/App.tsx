@@ -146,6 +146,9 @@ const RecordingPostList = lazy(() => import('./components/RecordingPostList'));
 const RecordingPostWrite = lazy(() => import('./components/RecordingPostWrite'));
 const RecordingPostDetail = lazy(() => import('./components/RecordingPostDetail'));
 const RecordingPostEdit = lazy(() => import('./components/RecordingPostEdit'));
+const ChorusPostList = lazy(() => import('./components/ChorusPostList'));
+const ChorusPostWrite = lazy(() => import('./components/ChorusPostWrite'));
+const ChorusPostDetail = lazy(() => import('./components/ChorusPostDetail'));
 const Notifications = lazy(() => import('./components/Notifications'));
 const ContestList = lazy(() => import('./components/ContestList'));
 const ContestCreate = lazy(() => import('./components/ContestCreate'));
@@ -170,6 +173,7 @@ const GamesHub = lazy(() => import('./components/games/GamesHub'));
 const TypingSpeedGame = lazy(() => import('./components/games/TypingSpeedGame'));
 const ReactionTimeGame = lazy(() => import('./components/games/ReactionTimeGame'));
 const RhythmBeatGame = lazy(() => import('./components/games/RhythmBeatGame'));
+const FlappyBirdGame = lazy(() => import('./components/games/FlappyBirdGame'));
 const LockedPracticeRoomGame = lazy(() => import('./components/games/escape/LockedPracticeRoomGame'));
 const Piano = lazy(() => import('./components/Piano'));
 const DrumKit = lazy(() => import('./components/DrumKit'));
@@ -1094,6 +1098,11 @@ function App() {
               <Route path="/recording/write" element={<RecordingPostWrite />} />
               <Route path="/recording/:id" element={<RecordingPostDetail />} />
               <Route path="/recording/edit/:id" element={<RecordingPostEdit />} />
+
+              {/* 방구석 합창 게시판 */}
+              <Route path="/chorus" element={<ChorusPostList />} />
+              <Route path="/chorus/write" element={<ProtectedRoute><ChorusPostWrite /></ProtectedRoute>} />
+              <Route path="/chorus/:id" element={<ChorusPostDetail />} />
               
               {/* 알림 라우트 */}
               <Route 
@@ -1146,6 +1155,7 @@ function App() {
               <Route path="/games/typing-speed" element={<ProtectedRoute><TypingSpeedGame /></ProtectedRoute>} />
               <Route path="/games/reaction-time" element={<ProtectedRoute><ReactionTimeGame /></ProtectedRoute>} />
               <Route path="/games/rhythm-beat" element={<ProtectedRoute><RhythmBeatGame /></ProtectedRoute>} />
+              <Route path="/games/flappy-bird" element={<ProtectedRoute><FlappyBirdGame /></ProtectedRoute>} />
               <Route path="/games/locked-practice-room" element={<ProtectedRoute><LockedPracticeRoomGame /></ProtectedRoute>} />
 
               {/* 악기 — 피아노 · 드럼 */}

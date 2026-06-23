@@ -28,7 +28,7 @@ interface User {
 interface BoardItem {
   name: string;
   path: string;
-  boardType: 'free' | 'recording' | 'evaluation' | 'hallOfFame' | 'partner';
+  boardType: 'free' | 'recording' | 'evaluation' | 'hallOfFame' | 'partner' | 'chorus';
   slug: string;
   showLatestPreview?: boolean;
 }
@@ -38,6 +38,7 @@ const BOARDS: BoardItem[] = [
   { name: '녹음게시판', path: '/recording', boardType: 'recording', slug: 'recording', showLatestPreview: true },
   { name: '명예의전당', path: '/hall-of-fame', boardType: 'hallOfFame', slug: 'hall-of-fame' },
   { name: '평가게시판', path: '/evaluation', boardType: 'evaluation', slug: 'evaluation', showLatestPreview: true },
+  { name: '이어 부르기', path: '/chorus', boardType: 'chorus', slug: 'chorus', showLatestPreview: true },
   { name: '파트너모집', path: '/boards/partner', boardType: 'partner', slug: 'partner', showLatestPreview: true },
 ];
 

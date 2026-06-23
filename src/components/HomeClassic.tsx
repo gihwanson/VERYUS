@@ -27,7 +27,7 @@ interface BoardItem {
   icon: React.FC<{ size?: number }>;
   path: string;
   color: string;
-  boardType: 'free' | 'recording' | 'evaluation' | 'hallOfFame' | 'partner';
+  boardType: 'free' | 'recording' | 'evaluation' | 'hallOfFame' | 'partner' | 'chorus';
   layoutClass: string;
   slug: string;
 }
@@ -68,6 +68,15 @@ const BOARDS: BoardItem[] = [
     boardType: 'evaluation',
     layoutClass: 'bubble-bottom-left',
     slug: 'evaluation'
+  },
+  {
+    name: '이어 부르기',
+    icon: () => <span className="board-emoji">🎤</span>,
+    path: '/chorus',
+    color: '#fb7185',
+    boardType: 'chorus',
+    layoutClass: 'bubble-chorus',
+    slug: 'chorus'
   },
   {
     name: '파트너모집',

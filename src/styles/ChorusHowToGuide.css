@@ -1,0 +1,82 @@
+.chorus-howto {
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(225, 29, 72, 0.06), rgba(244, 63, 94, 0.04));
+  border: 1px solid rgba(225, 29, 72, 0.15);
+  padding: 1rem 1.1rem;
+}
+
+.chorus-howto__heading {
+  margin: 0 0 0.75rem;
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #be123c;
+}
+
+.chorus-howto__steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.chorus-howto--compact .chorus-howto__steps {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.75rem;
+}
+
+.chorus-howto__step {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.chorus-howto--compact .chorus-howto__step {
+  align-items: center;
+  flex: 1;
+  min-width: 7rem;
+}
+
+.chorus-howto__num {
+  flex-shrink: 0;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 50%;
+  background: #e11d48;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chorus-howto__icon {
+  flex-shrink: 0;
+  color: #e11d48;
+  margin-top: 1px;
+}
+
+.chorus-howto__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.chorus-howto__text strong {
+  font-size: 0.88rem;
+  color: #1e1b2e;
+}
+
+.chorus-howto__text span {
+  font-size: 0.8rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.chorus-howto--compact .chorus-howto__text strong {
+  font-size: 0.78rem;
+}
