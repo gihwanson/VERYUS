@@ -78,7 +78,7 @@ const ChorusPostWrite: React.FC = () => {
     };
   }, []);
 
-  const applyBlobPreview = async (blob: Blob, name: string) => {
+  const applyBlobPreview = async (blob: Blob, name: string, fallbackDuration = 0) => {
     revokePreviewUrl();
     const url = URL.createObjectURL(blob);
     previewUrlRef.current = url;
@@ -86,11 +86,12 @@ const ChorusPostWrite: React.FC = () => {
     setAudioPreviewUrl(url);
     setFileName(name);
     const dur = await extractAudioDuration(url);
-    setDuration(dur);
+    setDuration(dur > 0 ? dur : fallbackDuration);
   };
 
   const stopRecordingAndGetBlob = async (): Promise<Blob | null> => {
     if (!recorderRef.current) return null;
+    const recordedSeconds = recordingSeconds;
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -104,7 +105,7 @@ const ChorusPostWrite: React.FC = () => {
         return null;
       }
       const ext = blob.type.includes('mp4') ? 'm4a' : 'webm';
-      await applyBlobPreview(blob, recordingBlobFileName(ext));
+      await applyBlobPreview(blob, recordingBlobFileName(ext), recordedSeconds);
       return blob;
     } catch {
       alert('녹음 저장에 실패했습니다.');

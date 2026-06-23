@@ -1296,6 +1296,27 @@
 }
 
 /* 플래피 버드 */
+html.flappy-touch-lock,
+body.flappy-touch-lock {
+  overscroll-behavior-y: none;
+}
+
+.flappy-touch-page {
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.flappy-touch-page,
+.flappy-touch-page * {
+  -webkit-tap-highlight-color: transparent;
+  tap-highlight-color: transparent;
+}
+
+.flappy-touch-page--active .typing-game-panel {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
 .flappy-game-area {
   position: relative;
   margin: 0 auto;
@@ -1312,14 +1333,17 @@
   tap-highlight-color: transparent;
   outline: none;
   -webkit-touch-callout: none;
-  background: transparent;
+  -webkit-user-drag: none;
+  background: #4ec0ca;
+  isolation: isolate;
+  contain: layout paint;
 }
 
 .flappy-game-area:active,
 .flappy-game-area:focus,
 .flappy-game-area:focus-visible {
   outline: none;
-  background: transparent;
+  background: #4ec0ca;
 }
 
 .flappy-canvas {
@@ -1332,6 +1356,9 @@
   tap-highlight-color: transparent;
   outline: none;
   pointer-events: none;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  background-color: #4ec0ca;
 }
 
 .flappy-overlay {

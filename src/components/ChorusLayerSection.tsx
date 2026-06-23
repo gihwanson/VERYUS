@@ -28,6 +28,8 @@ import { getPostListGradeSpanProps } from '../utils/gradeDisplay';
 import {
   startChorusRecording,
   startChorusHarmonyRecording,
+  previewChorusReference,
+  playChorusMix,
   extractAudioDuration,
   formatAudioDuration,
   type ChorusRecorderHandle,
@@ -198,7 +200,13 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
   const [mixingKey, setMixingKey] = useState<string | null>(null);
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [replyDraft, setReplyDraft] = useState('');
+  const [harmonyPrepLeft, setHarmonyPrepLeft] = useState<number | null>(null);
+  const [harmonyPreparing, setHarmonyPreparing] = useState(false);
+  const [harmonyMixPlaying, setHarmonyMixPlaying] = useState(false);
+  const [referencePreviewPlaying, setReferencePreviewPlaying] = useState(false);
   const recorderRef = useRef<ChorusRecorderHandle | null>(null);
+  const referencePreviewStopRef = useRef<(() => void) | null>(null);
+  const harmonyMixStopRef = useRef<(() => void) | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const previewUrlRef = useRef<string | null>(null);
   const chainPlayerRef = useRef<ChorusChainPlayer | null>(null);
@@ -302,6 +310,18 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
     return items.sort((a, b) => commentTime(a.createdAt) - commentTime(b.createdAt));
   }, [chainLayers, topLevelTextComments, topLevelBaseHarmonies]);
 
+  const stopReferencePreview = useCallback(() => {
+    referencePreviewStopRef.current?.();
+    referencePreviewStopRef.current = null;
+    setReferencePreviewPlaying(false);
+  }, []);
+
+  const stopHarmonyMixPreview = useCallback(() => {
+    harmonyMixStopRef.current?.();
+    harmonyMixStopRef.current = null;
+    setHarmonyMixPlaying(false);
+  }, []);
+
   const clearPreview = useCallback(() => {
     if (previewUrlRef.current) {
       URL.revokeObjectURL(previewUrlRef.current);
@@ -310,7 +330,8 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
     setAudioPreviewUrl(null);
     setAudioBlob(null);
     setDuration(0);
-  }, []);
+    stopHarmonyMixPreview();
+  }, [stopHarmonyMixPreview]);
 
   const stopAllPlayback = useCallback(() => {
     chainPlayerRef.current?.stop();
@@ -320,13 +341,18 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
     setSoloPlayingKey(null);
     mixerRef.current?.stopAll();
     setMixingKey(null);
+    stopReferencePreview();
+    stopHarmonyMixPreview();
     onChainPlayingChange?.(false);
-  }, [onChainPlayingChange]);
+  }, [onChainPlayingChange, stopReferencePreview, stopHarmonyMixPreview]);
 
   const clearHarmonyTarget = useCallback(() => {
+    stopReferencePreview();
+    setHarmonyPrepLeft(null);
+    setHarmonyPreparing(false);
     setHarmonyTarget(null);
     clearPreview();
-  }, [clearPreview]);
+  }, [clearPreview, stopReferencePreview]);
 
   const startHarmonyOn = useCallback(
     (target: HarmonyTarget) => {
@@ -355,7 +381,7 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
       }
 
       setHarmonyTarget(anchor);
-      toast.info(`${anchor.label} — 원곡을 들으며 화음을 녹음해 보세요`);
+      toast.info(`${anchor.label} — 🎤를 누르면 3초 후 원곡과 함께 녹음이 시작됩니다`);
     },
     [user, stopAllPlayback, clearPreview, repliesByParent, harmonyLayers, chainLayers]
   );
@@ -420,14 +446,16 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       recorderRef.current?.cancel();
+      stopReferencePreview();
+      stopHarmonyMixPreview();
       clearPreview();
       chainPlayerRef.current?.dispose();
       soloAudioRef.current?.pause();
       mixerRef.current?.dispose();
     };
-  }, [clearPreview]);
+  }, [clearPreview, stopReferencePreview, stopHarmonyMixPreview]);
 
-  const applyBlobPreview = async (blob: Blob) => {
+  const applyBlobPreview = async (blob: Blob, fallbackDuration = 0) => {
     if (previewUrlRef.current) {
       URL.revokeObjectURL(previewUrlRef.current);
       previewUrlRef.current = null;
@@ -437,11 +465,12 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
     setAudioBlob(blob);
     setAudioPreviewUrl(url);
     const dur = await extractAudioDuration(url);
-    setDuration(dur);
+    setDuration(dur > 0 ? dur : fallbackDuration);
   };
 
   const stopRecordingAndGetBlob = async (): Promise<Blob | null> => {
     if (!recorderRef.current) return null;
+    const recordedSeconds = recordingSeconds;
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -454,7 +483,7 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
         toast.warn('녹음된 내용이 없습니다.');
         return null;
       }
-      await applyBlobPreview(blob);
+      await applyBlobPreview(blob, recordedSeconds);
       return blob;
     } catch {
       toast.error('녹음 저장에 실패했습니다.');
@@ -462,11 +491,52 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
     }
   };
 
+  const handlePreviewReference = async () => {
+    if (!harmonyTarget || harmonyPreparing || recording) return;
+    try {
+      stopAllPlayback();
+      stopReferencePreview();
+      const stop = await previewChorusReference(harmonyTarget.audioUrl, () => {
+        referencePreviewStopRef.current = null;
+        setReferencePreviewPlaying(false);
+      });
+      referencePreviewStopRef.current = stop;
+      setReferencePreviewPlaying(true);
+      toast.info('원곡 미리듣기 중 — 다시 누르면 정지');
+    } catch {
+      toast.error('원곡을 재생할 수 없습니다. 소리를 켜고 다시 시도해 주세요.');
+    }
+  };
+
+  const handleToggleReferencePreview = async () => {
+    if (referencePreviewPlaying) {
+      stopReferencePreview();
+      return;
+    }
+    await handlePreviewReference();
+  };
+
+  const handlePreviewHarmonyMix = () => {
+    if (!harmonyTarget || !audioPreviewUrl) return;
+    if (harmonyMixPlaying) {
+      stopHarmonyMixPreview();
+      return;
+    }
+    stopAllPlayback();
+    harmonyMixStopRef.current = playChorusMix(harmonyTarget.audioUrl, audioPreviewUrl, () => {
+      harmonyMixStopRef.current = null;
+      setHarmonyMixPlaying(false);
+    });
+    setHarmonyMixPlaying(true);
+    toast.info('원곡과 화음을 함께 재생합니다');
+  };
+
   const handleToggleRecording = async () => {
     if (!user) {
       toast.info('로그인이 필요합니다.');
       return;
     }
+    if (harmonyPreparing) return;
     if (recording) {
       await stopRecordingAndGetBlob();
       return;
@@ -474,10 +544,19 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
     try {
       stopAllPlayback();
       clearPreview();
-      const handle = harmonyTarget
-        ? await startChorusHarmonyRecording(harmonyTarget.audioUrl)
-        : await startChorusRecording();
-      recorderRef.current = handle;
+      if (harmonyTarget) {
+        setHarmonyPreparing(true);
+        setHarmonyPrepLeft(3);
+        const handle = await startChorusHarmonyRecording(harmonyTarget.audioUrl, {
+          onPrepTick: (secondsLeft) => setHarmonyPrepLeft(secondsLeft),
+        });
+        recorderRef.current = handle;
+        setHarmonyPrepLeft(null);
+        setHarmonyPreparing(false);
+      } else {
+        const handle = await startChorusRecording();
+        recorderRef.current = handle;
+      }
       setRecording(true);
       setRecordingSeconds(0);
       timerRef.current = setInterval(() => {
@@ -492,6 +571,10 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
         });
       }, 1000);
     } catch {
+      setHarmonyPrepLeft(null);
+      setHarmonyPreparing(false);
+      recorderRef.current?.cancel();
+      recorderRef.current = null;
       toast.error(harmonyTarget ? '원곡 재생 또는 마이크 권한을 확인해 주세요.' : '마이크 권한이 필요합니다.');
     }
   };
@@ -1121,7 +1204,7 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
 
   const canSubmit = Boolean(draft.trim() || audioBlob || recording);
   const composePlaceholder = harmonyTarget
-    ? '원곡을 들으며 화음을 녹음해 주세요 (메모 선택)'
+    ? '화음 메모 (선택) — 🎤 누르면 3초 후 원곡과 함께 녹음'
     : '댓글을 남기거나, 🎤로 이어 불러요';
 
   return (
@@ -1142,9 +1225,27 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
             <div className="chorus-compose__harmony-banner">
               <Layers size={15} aria-hidden />
               <span>{harmonyTarget.label}에 화음 쌓는 중</span>
+              <button
+                type="button"
+                className="chorus-compose__harmony-preview"
+                onClick={() => void handleToggleReferencePreview()}
+                disabled={harmonyPreparing || recording}
+              >
+                {referencePreviewPlaying ? <Pause size={13} /> : <Play size={13} />}
+                원곡 듣기
+              </button>
               <button type="button" className="chorus-compose__harmony-cancel" onClick={clearHarmonyTarget}>
                 취소
               </button>
+            </div>
+          )}
+          {harmonyPreparing && harmonyPrepLeft !== null && (
+            <div className="chorus-compose__harmony-prep" role="status">
+              <span className="chorus-compose__harmony-prep-label">원곡 재생 준비</span>
+              <span className="chorus-compose__harmony-prep-count">
+                {harmonyPrepLeft > 0 ? harmonyPrepLeft : '시작'}
+              </span>
+              <span className="chorus-compose__harmony-prep-hint">원곡이 곧 재생됩니다. 화음 준비!</span>
             </div>
           )}
           {(recording || audioPreviewUrl) && (
@@ -1152,18 +1253,33 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
               {recording ? (
                 <span className="chorus-compose__rec-live">
                   <span className="chorus-compose__rec-dot" />
-                  {harmonyTarget ? '화음 녹음 중' : '녹음 중'} {formatAudioDuration(recordingSeconds)}
+                  {harmonyTarget ? '원곡 + 화음 녹음 중' : '녹음 중'} {formatAudioDuration(recordingSeconds)}
                 </span>
               ) : audioPreviewUrl ? (
-                <div className="chorus-compose__preview">
-                  <ChorusAudioPlayer
-                    src={audioPreviewUrl}
-                    durationHint={duration}
-                    className="chorus-compose__preview-player"
-                  />
-                  <button type="button" className="chorus-compose__preview-clear" onClick={clearPreview}>
-                    취소
-                  </button>
+                <div className="chorus-compose__preview-block">
+                  <div className="chorus-compose__preview">
+                    <ChorusAudioPlayer
+                      src={audioPreviewUrl}
+                      durationHint={duration}
+                      className="chorus-compose__preview-player"
+                    />
+                    <button type="button" className="chorus-compose__preview-clear" onClick={clearPreview}>
+                      취소
+                    </button>
+                  </div>
+                  {harmonyTarget && (
+                    <div className="chorus-compose__mix-preview">
+                      <button
+                        type="button"
+                        className={`chorus-compose__mix-btn${harmonyMixPlaying ? ' chorus-compose__mix-btn--active' : ''}`}
+                        onClick={handlePreviewHarmonyMix}
+                      >
+                        {harmonyMixPlaying ? <Pause size={14} /> : <Layers size={14} />}
+                        원곡과 함께 듣기
+                      </button>
+                      <span className="chorus-compose__mix-hint">위 플레이어는 화음만 들립니다</span>
+                    </div>
+                  )}
                 </div>
               ) : null}
             </div>
@@ -1187,9 +1303,25 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
               type="button"
               className={`chorus-compose__mic${recording ? ' chorus-compose__mic--active' : ''}${harmonyTarget ? ' chorus-compose__mic--harmony' : ''}`}
               onClick={handleToggleRecording}
-              disabled={submitting}
-              title={recording ? '녹음 끝내기' : harmonyTarget ? '화음 녹음' : '녹음하기'}
-              aria-label={recording ? '녹음 끝내기' : harmonyTarget ? '화음 녹음' : '녹음하기'}
+              disabled={submitting || harmonyPreparing}
+              title={
+                harmonyPreparing
+                  ? '준비 중…'
+                  : recording
+                    ? '녹음 끝내기'
+                    : harmonyTarget
+                      ? '3초 후 원곡과 함께 화음 녹음'
+                      : '녹음하기'
+              }
+              aria-label={
+                harmonyPreparing
+                  ? '준비 중'
+                  : recording
+                    ? '녹음 끝내기'
+                    : harmonyTarget
+                      ? '화음 녹음'
+                      : '녹음하기'
+              }
             >
               {recording ? <Square size={18} /> : <Mic size={18} />}
             </button>

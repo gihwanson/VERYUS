@@ -163,6 +163,7 @@ const getPipeSpeed = (score: number): number =>
 const FlappyBirdGame: React.FC = () => {
   const navigate = useNavigate();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const gameAreaRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
   const phaseRef = useRef<GamePhase>('idle');
   const birdYRef = useRef(CANVAS_H / 2);
@@ -245,10 +246,21 @@ const FlappyBirdGame: React.FC = () => {
     canvas.style.width = `${CANVAS_W}px`;
     canvas.style.height = `${CANVAS_H}px`;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
     if (ctx) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
+  }, []);
+
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    html.classList.add('flappy-touch-lock');
+    body.classList.add('flappy-touch-lock');
+    return () => {
+      html.classList.remove('flappy-touch-lock');
+      body.classList.remove('flappy-touch-lock');
+    };
   }, []);
 
   useEffect(() => {
@@ -809,6 +821,30 @@ const FlappyBirdGame: React.FC = () => {
   }, [flap]);
 
   useEffect(() => {
+    const area = gameAreaRef.current;
+    if (!area) return;
+
+    const blockTouch = (e: TouchEvent) => {
+      e.preventDefault();
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      e.preventDefault();
+      flap();
+    };
+
+    area.addEventListener('touchstart', onTouchStart, { passive: false });
+    area.addEventListener('touchmove', blockTouch, { passive: false });
+    area.addEventListener('touchend', blockTouch, { passive: false });
+
+    return () => {
+      area.removeEventListener('touchstart', onTouchStart);
+      area.removeEventListener('touchmove', blockTouch);
+      area.removeEventListener('touchend', blockTouch);
+    };
+  }, [flap]);
+
+  useEffect(() => {
     const onVisibilityChange = () => {
       if (!document.hidden) return;
       pauseGame();
@@ -864,7 +900,11 @@ const FlappyBirdGame: React.FC = () => {
   }, [navigate, platform, stopIdleAnim, stopLoop, user?.uid]);
 
   return (
-    <div className="games-page">
+    <div
+      className={`games-page flappy-touch-page${
+        phase === 'playing' || phase === 'paused' ? ' flappy-touch-page--active' : ''
+      }`}
+    >
       <GameConfetti show={showConfetti} />
       <div className="games-content">
         <header className="games-header">
@@ -926,12 +966,9 @@ const FlappyBirdGame: React.FC = () => {
           )}
 
           <div
+            ref={gameAreaRef}
             className="flappy-game-area"
             onContextMenu={(e) => e.preventDefault()}
-            onTouchStart={(e) => {
-              e.preventDefault();
-              flap();
-            }}
             onPointerDown={(e) => {
               if (e.pointerType === 'touch') return;
               e.preventDefault();

@@ -5,6 +5,15 @@ export interface ChorusRecorderHandle {
   cancel: () => void;
 }
 
+export interface HarmonyRecordingOptions {
+  /** 녹음 시작 전 준비 시간(초). 기본 3초 */
+  prepSeconds?: number;
+  /** 카운트다운 틱 (1~prepSeconds, 0=곧 시작) */
+  onPrepTick?: (secondsLeft: number) => void;
+  /** 원곡 재생이 시작될 때 */
+  onReferenceStart?: () => void;
+}
+
 const PREFERRED_MIME = [
   'audio/webm;codecs=opus',
   'audio/webm',
@@ -12,21 +21,23 @@ const PREFERRED_MIME = [
   'audio/ogg;codecs=opus',
 ];
 
+const DEFAULT_HARMONY_PREP_SECONDS = 3;
+
 function pickMimeType(): string | undefined {
   if (typeof MediaRecorder === 'undefined') return undefined;
   return PREFERRED_MIME.find((t) => MediaRecorder.isTypeSupported(t));
 }
 
-export async function startChorusRecording(): Promise<ChorusRecorderHandle> {
-  return startMicRecording();
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** 원곡을 들으며 마이크만 녹음 (화음 레이어용) */
-export async function startChorusHarmonyRecording(referenceUrl: string): Promise<ChorusRecorderHandle> {
-  const refAudio = new Audio(referenceUrl);
-  refAudio.preload = 'auto';
-
-  await new Promise<void>((resolve, reject) => {
+function waitForAudioReady(audio: HTMLAudioElement): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (audio.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
+      resolve();
+      return;
+    }
     const onReady = () => {
       cleanup();
       resolve();
@@ -36,37 +47,198 @@ export async function startChorusHarmonyRecording(referenceUrl: string): Promise
       reject(new Error('원곡을 불러올 수 없습니다.'));
     };
     const cleanup = () => {
-      refAudio.removeEventListener('canplaythrough', onReady);
-      refAudio.removeEventListener('error', onError);
+      audio.removeEventListener('canplaythrough', onReady);
+      audio.removeEventListener('error', onError);
     };
-    refAudio.addEventListener('canplaythrough', onReady, { once: true });
-    refAudio.addEventListener('error', onError, { once: true });
-    refAudio.load();
+    audio.addEventListener('canplaythrough', onReady, { once: true });
+    audio.addEventListener('error', onError, { once: true });
+    audio.load();
   });
+}
 
-  refAudio.currentTime = 0;
-  void refAudio.play().catch(() => {
-    /* 일부 환경에서 사용자 제스처 없이 재생 실패 — 녹음은 계속 */
-  });
+async function unlockAudioPlayback(): Promise<void> {
+  const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!Ctx) return;
+  const ctx = new Ctx();
+  if (ctx.state === 'suspended') {
+    await ctx.resume();
+  }
+  await ctx.close();
+}
 
-  const micHandle = await startMicRecording();
+/** 녹음 중 원곡을 스피커로 재생 (마이크 녹음과 분리) */
+class ReferencePlayback {
+  private audio: HTMLAudioElement;
+  private ctx: AudioContext | null = null;
+  private source: MediaElementAudioSourceNode | null = null;
+  private wired = false;
+
+  constructor(url: string) {
+    this.audio = new Audio();
+    this.audio.preload = 'auto';
+    this.audio.setAttribute('playsinline', 'true');
+    this.audio.src = url;
+  }
+
+  async prepare(): Promise<void> {
+    await waitForAudioReady(this.audio);
+  }
+
+  private wireContext(): void {
+    if (this.wired) return;
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx) return;
+    this.ctx = new Ctx();
+    this.source = this.ctx.createMediaElementSource(this.audio);
+    const gain = this.ctx.createGain();
+    gain.gain.value = 1;
+    this.source.connect(gain);
+    gain.connect(this.ctx.destination);
+    this.wired = true;
+  }
+
+  async start(): Promise<void> {
+    await unlockAudioPlayback();
+    this.wireContext();
+    if (this.ctx?.state === 'suspended') {
+      await this.ctx.resume();
+    }
+    this.audio.currentTime = 0;
+    try {
+      await this.audio.play();
+    } catch {
+      throw new Error('원곡 재생에 실패했습니다. 소리를 켜고 다시 시도해 주세요.');
+    }
+  }
+
+  stop(): void {
+    this.audio.pause();
+    this.audio.currentTime = 0;
+    if (this.ctx) {
+      void this.ctx.close();
+      this.ctx = null;
+      this.source = null;
+      this.wired = false;
+    }
+    this.audio.removeAttribute('src');
+    this.audio.load();
+  }
+
+  onEnded(handler: () => void): void {
+    this.audio.addEventListener('ended', handler, { once: true });
+  }
+}
+
+export async function startChorusRecording(): Promise<ChorusRecorderHandle> {
+  return startMicRecording();
+}
+
+/** 원곡을 들으며 마이크만 녹음 (화음 레이어용) */
+export async function startChorusHarmonyRecording(
+  referenceUrl: string,
+  options: HarmonyRecordingOptions = {}
+): Promise<ChorusRecorderHandle> {
+  const prepSeconds = options.prepSeconds ?? DEFAULT_HARMONY_PREP_SECONDS;
+  const ref = new ReferencePlayback(referenceUrl);
+  await ref.prepare();
+
+  const micPromise = startMicRecording();
+
+  for (let left = prepSeconds; left >= 1; left--) {
+    options.onPrepTick?.(left);
+    await delay(1000);
+  }
+  options.onPrepTick?.(0);
+
+  const micHandle = await micPromise;
+  try {
+    await ref.start();
+    options.onReferenceStart?.();
+  } catch (error) {
+    micHandle.cancel();
+    ref.stop();
+    throw error;
+  }
 
   return {
     stop: async () => {
-      refAudio.pause();
-      refAudio.src = '';
+      ref.stop();
       return micHandle.stop();
     },
     cancel: () => {
-      refAudio.pause();
-      refAudio.src = '';
+      ref.stop();
       micHandle.cancel();
     },
   };
 }
 
+/** 레이어 녹음 전 원곡만 미리 듣기 */
+export async function previewChorusReference(
+  referenceUrl: string,
+  onEnded?: () => void
+): Promise<() => void> {
+  const ref = new ReferencePlayback(referenceUrl);
+  await ref.prepare();
+  let stopped = false;
+  const stop = () => {
+    if (stopped) return;
+    stopped = true;
+    ref.stop();
+    onEnded?.();
+  };
+  ref.onEnded(stop);
+  await ref.start();
+  return stop;
+}
+
+/** 원곡 + 화음 녹음을 함께 재생. 정지 함수 반환 */
+export function playChorusMix(
+  referenceUrl: string,
+  overlayUrl: string,
+  onEnded?: () => void
+): () => void {
+  const parent = new Audio(referenceUrl);
+  const overlay = new Audio(overlayUrl);
+  parent.preload = 'auto';
+  overlay.preload = 'auto';
+  parent.setAttribute('playsinline', 'true');
+  overlay.setAttribute('playsinline', 'true');
+  parent.currentTime = 0;
+  overlay.currentTime = 0;
+
+  void unlockAudioPlayback().then(() => {
+    void parent.play().catch(() => {});
+    void overlay.play().catch(() => {});
+  });
+
+  let stopped = false;
+  const stop = () => {
+    if (stopped) return;
+    stopped = true;
+    parent.pause();
+    overlay.pause();
+    parent.removeAttribute('src');
+    overlay.removeAttribute('src');
+    parent.load();
+    overlay.load();
+    onEnded?.();
+  };
+
+  parent.addEventListener('ended', stop, { once: true });
+  overlay.addEventListener('ended', () => {
+    if (parent.paused || parent.ended) stop();
+  });
+
+  return stop;
+}
+
 async function startMicRecording(): Promise<ChorusRecorderHandle> {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: {
+      echoCancellation: true,
+      noiseSuppression: true,
+    },
+  });
   const mimeType = pickMimeType();
   const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
   const chunks: BlobPart[] = [];
@@ -112,21 +284,71 @@ async function startMicRecording(): Promise<ChorusRecorderHandle> {
   });
 }
 
-export function extractAudioDuration(url: string, tryCount = 0): Promise<number> {
+export function readFiniteAudioDuration(seconds: number): number | null {
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
+}
+
+/** WebM 등 duration 메타데이터가 비어 있을 때 실제 길이 추정 */
+export function probeAudioElementDuration(audio: HTMLAudioElement): Promise<number> {
+  const direct = readFiniteAudioDuration(audio.duration);
+  if (direct) return Promise.resolve(direct);
+
   return new Promise((resolve) => {
-    const audio = new Audio(url);
-    audio.addEventListener('loadedmetadata', () => {
-      if (audio.duration && isFinite(audio.duration) && audio.duration > 0) {
-        resolve(audio.duration);
-      } else if (tryCount < 5) {
-        setTimeout(() => {
-          extractAudioDuration(url, tryCount + 1).then(resolve);
-        }, 200);
-      } else {
-        resolve(0);
+    let settled = false;
+    const finish = (value: number) => {
+      if (settled) return;
+      settled = true;
+      audio.removeEventListener('timeupdate', onTimeUpdate);
+      audio.removeEventListener('error', onError);
+      try {
+        audio.currentTime = 0;
+      } catch {
+        /* ignore */
       }
-    });
-    audio.addEventListener('error', () => resolve(0));
+      resolve(value);
+    };
+
+    const onError = () => finish(0);
+    const onTimeUpdate = () => {
+      const probed = readFiniteAudioDuration(audio.duration);
+      if (probed) finish(probed);
+    };
+
+    audio.addEventListener('timeupdate', onTimeUpdate);
+    audio.addEventListener('error', onError, { once: true });
+
+    try {
+      audio.currentTime = 1e101;
+    } catch {
+      finish(0);
+      return;
+    }
+
+    window.setTimeout(() => finish(readFiniteAudioDuration(audio.duration) ?? 0), 3000);
+  });
+}
+
+export function extractAudioDuration(url: string): Promise<number> {
+  return new Promise((resolve) => {
+    const audio = new Audio();
+    audio.preload = 'metadata';
+    audio.src = url;
+
+    const done = (value: number) => {
+      audio.pause();
+      audio.removeAttribute('src');
+      audio.load();
+      resolve(value);
+    };
+
+    audio.addEventListener('error', () => done(0), { once: true });
+    audio.addEventListener(
+      'loadedmetadata',
+      () => {
+        void probeAudioElementDuration(audio).then(done);
+      },
+      { once: true }
+    );
   });
 }
 
