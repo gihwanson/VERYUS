@@ -66,12 +66,14 @@ async function unlockAudioPlayback(): Promise<void> {
   await ctx.close();
 }
 
-/** 녹음 중 원곡을 스피커로 재생 (마이크 녹음과 분리) */
+/**
+ * 녹음 중 상대 녹음(원곡)을 스피커로 재생.
+ * Web Audio API(createMediaElementSource)는 Firebase 등 cross-origin URL에서
+ * CORS 없이 무음이 되므로 HTMLAudioElement 재생만 사용한다.
+ */
 class ReferencePlayback {
   private audio: HTMLAudioElement;
-  private ctx: AudioContext | null = null;
-  private source: MediaElementAudioSourceNode | null = null;
-  private wired = false;
+  private primed = false;
 
   constructor(url: string) {
     this.audio = new Audio();
@@ -84,25 +86,27 @@ class ReferencePlayback {
     await waitForAudioReady(this.audio);
   }
 
-  private wireContext(): void {
-    if (this.wired) return;
-    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctx) return;
-    this.ctx = new Ctx();
-    this.source = this.ctx.createMediaElementSource(this.audio);
-    const gain = this.ctx.createGain();
-    gain.gain.value = 1;
-    this.source.connect(gain);
-    gain.connect(this.ctx.destination);
-    this.wired = true;
+  /** 사용자 제스처 직후 호출 — 카운트다운 후에도 autoplay가 유지되도록 무음 재생 */
+  async primeMuted(): Promise<void> {
+    await unlockAudioPlayback();
+    this.audio.volume = 0;
+    this.audio.currentTime = 0;
+    try {
+      await this.audio.play();
+      this.primed = true;
+    } catch {
+      this.primed = false;
+      this.audio.volume = 1;
+    }
   }
 
   async start(): Promise<void> {
     await unlockAudioPlayback();
-    this.wireContext();
-    if (this.ctx?.state === 'suspended') {
-      await this.ctx.resume();
+    if (this.primed) {
+      this.audio.pause();
+      this.primed = false;
     }
+    this.audio.volume = 1;
     this.audio.currentTime = 0;
     try {
       await this.audio.play();
@@ -112,14 +116,10 @@ class ReferencePlayback {
   }
 
   stop(): void {
+    this.primed = false;
     this.audio.pause();
     this.audio.currentTime = 0;
-    if (this.ctx) {
-      void this.ctx.close();
-      this.ctx = null;
-      this.source = null;
-      this.wired = false;
-    }
+    this.audio.volume = 1;
     this.audio.removeAttribute('src');
     this.audio.load();
   }
@@ -141,6 +141,7 @@ export async function startChorusHarmonyRecording(
   const prepSeconds = options.prepSeconds ?? DEFAULT_HARMONY_PREP_SECONDS;
   const ref = new ReferencePlayback(referenceUrl);
   await ref.prepare();
+  await ref.primeMuted();
 
   const micPromise = startMicRecording();
 
