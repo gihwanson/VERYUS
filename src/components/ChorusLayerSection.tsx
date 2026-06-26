@@ -42,6 +42,7 @@ import {
 } from '../utils/chorusAudioUpload';
 import { ChorusChainPlayer } from '../utils/chorusChainPlayer';
 import { ChorusAudioMixer } from '../utils/chorusAudioMixer';
+import { createChorusPlaybackAudio } from '../utils/chorusAudioPlayback';
 import { Mic, Square, Send, Trash2, Loader, Play, Pause, Layers, Heart, MessageCircle } from 'lucide-react';
 import ChorusAudioPlayer from './ChorusAudioPlayer';
 import { toast } from 'react-toastify';
@@ -1054,7 +1055,7 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
     }
     stopAllPlayback();
     if (!soloAudioRef.current) {
-      soloAudioRef.current = new Audio();
+      soloAudioRef.current = createChorusPlaybackAudio();
       soloAudioRef.current.addEventListener('ended', () => setSoloPlayingKey(null));
     }
     soloAudioRef.current.src = item.audioUrl;
@@ -1071,7 +1072,7 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
     }
     stopAllPlayback();
     if (!soloAudioRef.current) {
-      soloAudioRef.current = new Audio();
+      soloAudioRef.current = createChorusPlaybackAudio();
       soloAudioRef.current.addEventListener('ended', () => setSoloPlayingKey(null));
     }
     soloAudioRef.current.src = harmony.audioUrl;

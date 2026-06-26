@@ -97,6 +97,16 @@
   text-shadow: none !important;
 }
 
+/* 이어부르기 댓글 — post-detail 밖 chorus 섹션 흰 글자 상속 차단 */
+.post-detail-container .chorus-layer-section .chorus-chain-item__author,
+.post-detail-container .chorus-layer-section .chorus-text-comment__meta,
+.post-detail-container .chorus-layer-section .chorus-text-comment__meta strong,
+.post-detail-container .chorus-layer-section .chorus-reply-item__meta strong,
+.post-detail-container .chorus-layer-section .chorus-harmony-item__label {
+  color: var(--comment-author, #1f2937) !important;
+  text-shadow: none !important;
+}
+
 .post-detail-title,
 .post-detail .post-detail-title {
   color: var(--app-card-text, #111827) !important;

@@ -4,6 +4,13 @@
   border-radius: 16px;
   background: var(--paper-card, #fffdf8);
   border: 1px solid var(--paper-border, #e8dcc8);
+  color: var(--comment-text, #374151);
+}
+
+/* post-detail-container(그라데이션 배경) 흰 글자 상속 차단 — 밝은 댓글 카드 가독성 */
+.post-detail-container .chorus-layer-section,
+.post-detail-container .chorus-layer-section--lite {
+  color: var(--comment-text, #374151) !important;
 }
 
 .chorus-layer-section__header h2 {
@@ -115,6 +122,7 @@
 
 .chorus-layer-item__author {
   font-weight: 600;
+  color: var(--comment-author, #1f2937);
 }
 
 .chorus-layer-item__dur {
@@ -527,6 +535,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
+  color: var(--comment-author, #1f2937);
 }
 
 .chorus-chain-item__starter {
@@ -861,6 +870,22 @@
   gap: 0.3rem;
   font-size: 0.8rem;
   margin-bottom: 0.2rem;
+  color: var(--comment-author, #1f2937);
+}
+
+.chorus-text-comment__meta strong,
+.chorus-reply-item__meta strong,
+.chorus-harmony-item__label {
+  color: var(--comment-author, #1f2937);
+}
+
+.post-detail-container .chorus-chain-item__author,
+.post-detail-container .chorus-text-comment__meta,
+.post-detail-container .chorus-text-comment__meta strong,
+.post-detail-container .chorus-reply-item__meta strong,
+.post-detail-container .chorus-harmony-item__label {
+  color: var(--comment-author, #1f2937) !important;
+  text-shadow: none !important;
 }
 
 .chorus-text-comment__body {
@@ -1275,6 +1300,7 @@
   gap: 0.3rem;
   font-size: 0.78rem;
   margin-bottom: 0;
+  color: var(--comment-author, #1f2937);
 }
 
 .chorus-reply-item__head {

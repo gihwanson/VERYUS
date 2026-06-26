@@ -1,3 +1,5 @@
+import { configureChorusPlaybackAudio, createChorusPlaybackAudio } from './chorusAudioPlayback';
+
 export type RecordingState = 'idle' | 'recording' | 'stopped';
 
 export interface ChorusRecorderHandle {
@@ -14,6 +16,11 @@ export interface HarmonyRecordingOptions {
   onReferenceStart?: () => void;
 }
 
+interface MicRecordingOptions {
+  /** 원곡을 스피커로 들으며 녹음할 때 — 에코 캔슬·노이즈 억제 활성화 */
+  harmonyMode?: boolean;
+}
+
 const PREFERRED_MIME = [
   'audio/webm;codecs=opus',
   'audio/webm',
@@ -22,10 +29,40 @@ const PREFERRED_MIME = [
 ];
 
 const DEFAULT_HARMONY_PREP_SECONDS = 3;
+const RECORD_BITRATE = 192_000;
+const RECORD_TIMESLICE_MS = 100;
 
 function pickMimeType(): string | undefined {
   if (typeof MediaRecorder === 'undefined') return undefined;
   return PREFERRED_MIME.find((t) => MediaRecorder.isTypeSupported(t));
+}
+
+function buildMicConstraints(harmonyMode: boolean): MediaStreamConstraints {
+  return {
+    audio: {
+      echoCancellation: harmonyMode,
+      noiseSuppression: harmonyMode,
+      autoGainControl: true,
+      channelCount: { ideal: 1 },
+      sampleRate: { ideal: 48_000 },
+      sampleSize: { ideal: 16 },
+    },
+  };
+}
+
+function createMediaRecorder(stream: MediaStream, mimeType?: string): MediaRecorder {
+  const base: MediaRecorderOptions = mimeType ? { mimeType } : {};
+  const withBitrate: MediaRecorderOptions = { ...base, audioBitsPerSecond: RECORD_BITRATE };
+
+  if (typeof MediaRecorder === 'undefined') {
+    throw new Error('이 브라우저에서는 녹음을 지원하지 않습니다.');
+  }
+
+  try {
+    return new MediaRecorder(stream, withBitrate);
+  } catch {
+    return mimeType ? new MediaRecorder(stream, base) : new MediaRecorder(stream);
+  }
 }
 
 function delay(ms: number): Promise<void> {
@@ -66,6 +103,74 @@ async function unlockAudioPlayback(): Promise<void> {
   await ctx.close();
 }
 
+interface MicPipeline {
+  recorder: MediaRecorder;
+  chunks: BlobPart[];
+  cleanup: () => void;
+}
+
+/**
+ * 마이크 → 고역 통과(저음 잡음 제거) → 컴프레서 → MediaRecorder
+ * Web Audio 미지원 시 원본 스트림으로 폴백
+ */
+async function openMicPipeline(options: MicRecordingOptions = {}): Promise<MicPipeline> {
+  const harmonyMode = options.harmonyMode ?? false;
+  const micStream = await navigator.mediaDevices.getUserMedia(buildMicConstraints(harmonyMode));
+
+  let recordStream: MediaStream = micStream;
+  let audioContext: AudioContext | null = null;
+
+  try {
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (Ctx) {
+      audioContext = new Ctx({ sampleRate: 48_000 });
+      const source = audioContext.createMediaStreamSource(micStream);
+      const destination = audioContext.createMediaStreamDestination();
+
+      const highpass = audioContext.createBiquadFilter();
+      highpass.type = 'highpass';
+      highpass.frequency.value = 80;
+      highpass.Q.value = 0.7;
+
+      const compressor = audioContext.createDynamicsCompressor();
+      compressor.threshold.value = -22;
+      compressor.knee.value = 18;
+      compressor.ratio.value = 3;
+      compressor.attack.value = 0.006;
+      compressor.release.value = 0.2;
+
+      source.connect(highpass);
+      highpass.connect(compressor);
+      compressor.connect(destination);
+
+      recordStream = destination.stream;
+    }
+  } catch {
+    audioContext = null;
+    recordStream = micStream;
+  }
+
+  const mimeType = pickMimeType();
+  const recorder = createMediaRecorder(recordStream, mimeType);
+  const chunks: BlobPart[] = [];
+
+  recorder.addEventListener('dataavailable', (e) => {
+    if (e.data.size > 0) chunks.push(e.data);
+  });
+
+  const cleanup = () => {
+    micStream.getTracks().forEach((track) => track.stop());
+    recordStream.getTracks().forEach((track) => {
+      if (!micStream.getTracks().includes(track)) track.stop();
+    });
+    if (audioContext && audioContext.state !== 'closed') {
+      void audioContext.close();
+    }
+  };
+
+  return { recorder, chunks, cleanup };
+}
+
 /**
  * 녹음 중 상대 녹음(원곡)을 스피커로 재생.
  * Web Audio API(createMediaElementSource)는 Firebase 등 cross-origin URL에서
@@ -76,10 +181,7 @@ class ReferencePlayback {
   private primed = false;
 
   constructor(url: string) {
-    this.audio = new Audio();
-    this.audio.preload = 'auto';
-    this.audio.setAttribute('playsinline', 'true');
-    this.audio.src = url;
+    this.audio = createChorusPlaybackAudio(url);
   }
 
   async prepare(): Promise<void> {
@@ -130,7 +232,7 @@ class ReferencePlayback {
 }
 
 export async function startChorusRecording(): Promise<ChorusRecorderHandle> {
-  return startMicRecording();
+  return startMicRecording({ harmonyMode: false });
 }
 
 /** 원곡을 들으며 마이크만 녹음 (화음 레이어용) */
@@ -143,15 +245,13 @@ export async function startChorusHarmonyRecording(
   await ref.prepare();
   await ref.primeMuted();
 
-  const micPromise = startMicRecording();
-
   for (let left = prepSeconds; left >= 1; left--) {
     options.onPrepTick?.(left);
     await delay(1000);
   }
   options.onPrepTick?.(0);
 
-  const micHandle = await micPromise;
+  const micHandle = await startMicRecording({ harmonyMode: true });
   try {
     await ref.start();
     options.onReferenceStart?.();
@@ -198,12 +298,8 @@ export function playChorusMix(
   overlayUrl: string,
   onEnded?: () => void
 ): () => void {
-  const parent = new Audio(referenceUrl);
-  const overlay = new Audio(overlayUrl);
-  parent.preload = 'auto';
-  overlay.preload = 'auto';
-  parent.setAttribute('playsinline', 'true');
-  overlay.setAttribute('playsinline', 'true');
+  const parent = createChorusPlaybackAudio(referenceUrl);
+  const overlay = createChorusPlaybackAudio(overlayUrl);
   parent.currentTime = 0;
   overlay.currentTime = 0;
 
@@ -233,30 +329,17 @@ export function playChorusMix(
   return stop;
 }
 
-async function startMicRecording(): Promise<ChorusRecorderHandle> {
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: {
-      echoCancellation: true,
-      noiseSuppression: true,
-    },
-  });
-  const mimeType = pickMimeType();
-  const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
-  const chunks: BlobPart[] = [];
-
-  recorder.addEventListener('dataavailable', (e) => {
-    if (e.data.size > 0) chunks.push(e.data);
-  });
-
-  const stopTracks = () => stream.getTracks().forEach((t) => t.stop());
+async function startMicRecording(options: MicRecordingOptions = {}): Promise<ChorusRecorderHandle> {
+  const { recorder, chunks, cleanup } = await openMicPipeline(options);
+  const mimeType = recorder.mimeType || pickMimeType();
 
   return new Promise((resolve, reject) => {
     recorder.addEventListener('error', () => {
-      stopTracks();
+      cleanup();
       reject(new Error('녹음 중 오류가 발생했습니다.'));
     });
 
-    recorder.start(250);
+    recorder.start(RECORD_TIMESLICE_MS);
 
     resolve({
       stop: () =>
@@ -264,13 +347,14 @@ async function startMicRecording(): Promise<ChorusRecorderHandle> {
           recorder.addEventListener(
             'stop',
             () => {
-              stopTracks();
+              cleanup();
               const type = recorder.mimeType || mimeType || 'audio/webm';
               res(new Blob(chunks, { type }));
             },
             { once: true }
           );
           if (recorder.state === 'inactive') {
+            cleanup();
             rej(new Error('녹음이 이미 종료되었습니다.'));
             return;
           }
@@ -278,7 +362,7 @@ async function startMicRecording(): Promise<ChorusRecorderHandle> {
         }),
       cancel: () => {
         if (recorder.state !== 'inactive') recorder.stop();
-        stopTracks();
+        cleanup();
         chunks.length = 0;
       },
     });
@@ -331,7 +415,7 @@ export function probeAudioElementDuration(audio: HTMLAudioElement): Promise<numb
 
 export function extractAudioDuration(url: string): Promise<number> {
   return new Promise((resolve) => {
-    const audio = new Audio();
+    const audio = createChorusPlaybackAudio();
     audio.preload = 'metadata';
     audio.src = url;
 

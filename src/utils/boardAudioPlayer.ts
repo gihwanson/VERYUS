@@ -1,3 +1,5 @@
+import { createChorusPlaybackAudio } from './chorusAudioPlayback';
+
 /** 게시판 목록·상세에서 하나의 오디오만 재생 (동시 재생 방지) */
 let activeAudio: HTMLAudioElement | null = null;
 let activeOwnerId = '';
@@ -34,7 +36,7 @@ export function playBoardAudio(
 ): HTMLAudioElement {
   stopBoardAudio();
 
-  const audio = new Audio(url);
+  const audio = createChorusPlaybackAudio(url);
   activeAudio = audio;
   activeOwnerId = ownerId;
 

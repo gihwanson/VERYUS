@@ -1,14 +1,12 @@
+import { createChorusPlaybackAudio } from './chorusAudioPlayback';
+
 export class ChorusChainPlayer {
-  private audio = new Audio();
+  private audio = createChorusPlaybackAudio();
   private urls: string[] = [];
   private index = 0;
   private playing = false;
   private onIndexChange: ((index: number) => void) | null = null;
   private onStateChange: ((playing: boolean) => void) | null = null;
-
-  constructor() {
-    this.audio.preload = 'auto';
-  }
 
   setUrls(urls: string[]) {
     this.urls = urls.filter(Boolean);

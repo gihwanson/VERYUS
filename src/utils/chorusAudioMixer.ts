@@ -1,3 +1,5 @@
+import { createChorusPlaybackAudio } from './chorusAudioPlayback';
+
 export interface MixerTrack {
   id: string;
   url: string;
@@ -22,8 +24,7 @@ export class ChorusAudioMixer {
     for (const track of tracks) {
       let el = this.elements.get(track.id);
       if (!el) {
-        el = new Audio();
-        el.preload = 'auto';
+        el = createChorusPlaybackAudio();
         this.elements.set(track.id, el);
       }
       if (el.src !== track.url) {

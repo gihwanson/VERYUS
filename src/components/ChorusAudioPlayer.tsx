@@ -5,6 +5,7 @@ import {
   probeAudioElementDuration,
   readFiniteAudioDuration,
 } from '../utils/chorusAudioRecorder';
+import { configureChorusPlaybackAudio } from '../utils/chorusAudioPlayback';
 import '../styles/ChorusAudioPlayer.css';
 
 interface Props {
@@ -46,6 +47,11 @@ const ChorusAudioPlayer: React.FC<Props> = ({ src, className, durationHint }) =>
     stopRaf();
     rafRef.current = requestAnimationFrame(tick);
   }, [stopRaf, tick]);
+
+  useEffect(() => {
+    const el = audioRef.current;
+    if (el) configureChorusPlaybackAudio(el);
+  }, []);
 
   useEffect(() => {
     const el = audioRef.current;
@@ -149,7 +155,7 @@ const ChorusAudioPlayer: React.FC<Props> = ({ src, className, durationHint }) =>
 
   return (
     <div className={`chorus-audio-player${className ? ` ${className}` : ''}`}>
-      <audio ref={audioRef} src={src} preload="metadata" />
+      <audio ref={audioRef} src={src} preload="auto" />
       <button
         type="button"
         className="chorus-audio-player__play"
