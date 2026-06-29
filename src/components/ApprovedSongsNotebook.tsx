@@ -16,7 +16,9 @@ import {
   parseFirestoreDate,
   isJoinedInCurrentMonth,
   validateSongForm, 
-  convertFirestoreData 
+  convertFirestoreData,
+  findDuplicateApprovedSong,
+  confirmDuplicateApprovedSongRegistration
 } from './ApprovedSongsUtils';
 import {
   TabButton,
@@ -115,6 +117,13 @@ const ApprovedSongsNotebook: React.FC = () => {
     if (!validateSongForm(form)) {
       alert('곡 제목과 모든 닉네임을 입력해주세요.');
       return;
+    }
+    const trimmedMembers = form.members.map((m) => m.trim()).filter(Boolean);
+    if (!editId) {
+      const duplicate = findDuplicateApprovedSong(songs, form.title, trimmedMembers);
+      if (duplicate && !confirmDuplicateApprovedSongRegistration(duplicate)) {
+        return;
+      }
     }
     try {
       const isEdit = !!editId;

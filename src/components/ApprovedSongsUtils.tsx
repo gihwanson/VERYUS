@@ -198,6 +198,44 @@ export const validateSongForm = (form: { title: string; members: string[] }): bo
   return form.title.trim() !== '' && !form.members.some(m => !m.trim());
 };
 
+const normalizeApprovedSongTitle = (title: string) =>
+  title.replace(/\s/g, '').toLowerCase();
+
+const normalizeApprovedSongMembers = (members: string[]) =>
+  members.map((m) => m.trim()).filter(Boolean).sort();
+
+/** 곡 제목과 닉네임(멤버) 조합이 기존 합격곡과 중복인지 확인 */
+export const findDuplicateApprovedSong = (
+  songs: ApprovedSong[],
+  title: string,
+  members: string[],
+  excludeId?: string | null
+): ApprovedSong | undefined => {
+  const normalizedTitle = normalizeApprovedSongTitle(title);
+  const normalizedMembers = normalizeApprovedSongMembers(members);
+
+  return songs.find((song) => {
+    if (excludeId && song.id === excludeId) return false;
+    const songTitle = normalizeApprovedSongTitle(song.titleNoSpace || song.title);
+    if (songTitle !== normalizedTitle) return false;
+    const songMembers = normalizeApprovedSongMembers(
+      Array.isArray(song.members) ? song.members.map((m) => String(m)) : []
+    );
+    if (songMembers.length !== normalizedMembers.length) return false;
+    return songMembers.every((m, i) => m === normalizedMembers[i]);
+  });
+};
+
+/** 중복 합격곡 등록 시 사용자 확인 */
+export const confirmDuplicateApprovedSongRegistration = (duplicate: ApprovedSong): boolean => {
+  const membersLabel = normalizeApprovedSongMembers(
+    Array.isArray(duplicate.members) ? duplicate.members.map((m) => String(m)) : []
+  ).join(', ');
+  return window.confirm(
+    `이미 등록된 곡입니다.\n\n곡명: ${duplicate.title}\n닉네임: ${membersLabel}\n\n그래도 등록하시겠습니까?`
+  );
+};
+
 // Firestore 데이터를 ApprovedSong 타입으로 변환
 export const convertFirestoreData = (doc: any): ApprovedSong => {
   const data = doc.data();
