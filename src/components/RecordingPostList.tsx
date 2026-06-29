@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { scheduleScrollRestore } from '../utils/boardListScroll';
 import { stopBoardAudio, toggleBoardAudio } from '../utils/boardAudioPlayer';
+import { toast } from 'react-toastify';
 import { 
   collection, 
   query, 
@@ -405,8 +406,14 @@ const RecordingPostList: React.FC = () => {
 
   const handlePlayPause = (postId: string, audioUrl: string) => {
     const ownerId = `recording-list:${postId}`;
-    const state = toggleBoardAudio(audioUrl, ownerId, () => setCurrentlyPlaying(null));
-    setCurrentlyPlaying(state === 'playing' ? postId : null);
+    void toggleBoardAudio(
+      audioUrl,
+      ownerId,
+      () => setCurrentlyPlaying(null),
+      (message) => toast.error(message)
+    ).then((state) => {
+      setCurrentlyPlaying(state === 'playing' ? postId : null);
+    });
   };
 
   useEffect(() => {

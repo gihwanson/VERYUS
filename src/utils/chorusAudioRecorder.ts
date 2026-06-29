@@ -1,4 +1,4 @@
-import { configureChorusPlaybackAudio, createChorusPlaybackAudio } from './chorusAudioPlayback';
+import { configureChorusPlaybackAudio, createChorusPlaybackAudio, playChorusAudio } from './chorusAudioPlayback';
 
 export type RecordingState = 'idle' | 'recording' | 'stopped';
 
@@ -22,9 +22,10 @@ interface MicRecordingOptions {
 }
 
 const PREFERRED_MIME = [
+  'audio/mp4;codecs=mp4a.40.2',
+  'audio/mp4',
   'audio/webm;codecs=opus',
   'audio/webm',
-  'audio/mp4',
   'audio/ogg;codecs=opus',
 ];
 
@@ -296,16 +297,22 @@ export async function previewChorusReference(
 export function playChorusMix(
   referenceUrl: string,
   overlayUrl: string,
-  onEnded?: () => void
+  onEnded?: () => void,
+  onFail?: (message: string) => void
 ): () => void {
   const parent = createChorusPlaybackAudio(referenceUrl);
   const overlay = createChorusPlaybackAudio(overlayUrl);
   parent.currentTime = 0;
   overlay.currentTime = 0;
 
-  void unlockAudioPlayback().then(() => {
-    void parent.play().catch(() => {});
-    void overlay.play().catch(() => {});
+  void unlockAudioPlayback().then(async () => {
+    const results = await Promise.all([
+      playChorusAudio(parent, referenceUrl, { onFail }),
+      playChorusAudio(overlay, overlayUrl, { onFail }),
+    ]);
+    if (!results.some(Boolean)) {
+      stop();
+    }
   });
 
   let stopped = false;

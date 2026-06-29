@@ -1,4 +1,4 @@
-import { createChorusPlaybackAudio } from './chorusAudioPlayback';
+import { createChorusPlaybackAudio, playChorusAudio } from './chorusAudioPlayback';
 
 /** 게시판 목록·상세에서 하나의 오디오만 재생 (동시 재생 방지) */
 let activeAudio: HTMLAudioElement | null = null;
@@ -29,14 +29,15 @@ export function stopBoardAudio(ownerId?: string): void {
   activeOwnerId = '';
 }
 
-export function playBoardAudio(
+export async function playBoardAudio(
   url: string,
   ownerId: string,
-  onEnded?: () => void
-): HTMLAudioElement {
+  onEnded?: () => void,
+  onFail?: (message: string) => void
+): Promise<HTMLAudioElement | null> {
   stopBoardAudio();
 
-  const audio = createChorusPlaybackAudio(url);
+  const audio = createChorusPlaybackAudio();
   activeAudio = audio;
   activeOwnerId = ownerId;
 
@@ -49,20 +50,28 @@ export function playBoardAudio(
   };
 
   audio.addEventListener('ended', cleanup, { once: true });
-  void audio.play().catch(() => cleanup());
 
+  const ok = await playChorusAudio(audio, url, {
+    onFail: (message) => {
+      cleanup();
+      onFail?.(message);
+    },
+  });
+
+  if (!ok) return null;
   return audio;
 }
 
-export function toggleBoardAudio(
+export async function toggleBoardAudio(
   url: string,
   ownerId: string,
-  onEnded?: () => void
-): 'playing' | 'paused' {
+  onEnded?: () => void,
+  onFail?: (message: string) => void
+): Promise<'playing' | 'paused'> {
   if (isBoardAudioPlaying(ownerId)) {
     stopBoardAudio(ownerId);
     return 'paused';
   }
-  playBoardAudio(url, ownerId, onEnded);
-  return 'playing';
+  const audio = await playBoardAudio(url, ownerId, onEnded, onFail);
+  return audio ? 'playing' : 'paused';
 }

@@ -1,4 +1,4 @@
-import { createChorusPlaybackAudio } from './chorusAudioPlayback';
+import { createChorusPlaybackAudio, playChorusAudio } from './chorusAudioPlayback';
 
 export class ChorusChainPlayer {
   private audio = createChorusPlaybackAudio();
@@ -7,6 +7,7 @@ export class ChorusChainPlayer {
   private playing = false;
   private onIndexChange: ((index: number) => void) | null = null;
   private onStateChange: ((playing: boolean) => void) | null = null;
+  private onFail: ((message: string) => void) | null = null;
 
   setUrls(urls: string[]) {
     this.urls = urls.filter(Boolean);
@@ -21,6 +22,10 @@ export class ChorusChainPlayer {
 
   onPlayingChange(cb: (playing: boolean) => void) {
     this.onStateChange = cb;
+  }
+
+  onPlaybackFail(cb: (message: string) => void) {
+    this.onFail = cb;
   }
 
   get isPlaying() {
@@ -46,7 +51,6 @@ export class ChorusChainPlayer {
       return;
     }
     this.onIndexChange?.(this.index);
-    this.audio.src = url;
     this.audio.onended = () => {
       if (this.index + 1 < this.urls.length) {
         this.index += 1;
@@ -57,9 +61,11 @@ export class ChorusChainPlayer {
         this.onIndexChange?.(-1);
       }
     };
-    try {
-      await this.audio.play();
-    } catch {
+
+    const ok = await playChorusAudio(this.audio, url, {
+      onFail: (message) => this.onFail?.(message),
+    });
+    if (!ok) {
       this.stop();
     }
   }

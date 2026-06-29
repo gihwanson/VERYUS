@@ -42,7 +42,7 @@ import {
 } from '../utils/chorusAudioUpload';
 import { ChorusChainPlayer } from '../utils/chorusChainPlayer';
 import { ChorusAudioMixer } from '../utils/chorusAudioMixer';
-import { createChorusPlaybackAudio } from '../utils/chorusAudioPlayback';
+import { createChorusPlaybackAudio, playChorusAudio } from '../utils/chorusAudioPlayback';
 import { Mic, Square, Send, Trash2, Loader, Play, Pause, Layers, Heart, MessageCircle } from 'lucide-react';
 import ChorusAudioPlayer from './ChorusAudioPlayer';
 import { toast } from 'react-toastify';
@@ -397,6 +397,7 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
       onChainPlayingChange?.(playing);
       if (!playing) setActivePhraseIndex(-1);
     });
+    player.onPlaybackFail((message) => toast.error(message));
     chainPlayerRef.current = player;
     mixerRef.current = new ChorusAudioMixer();
     return () => {
@@ -1047,7 +1048,7 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
     await player.play(0);
   };
 
-  const handlePlaySingle = (item: ChainItem) => {
+  const handlePlaySingle = async (item: ChainItem) => {
     if (soloPlayingKey === item.key) {
       soloAudioRef.current?.pause();
       setSoloPlayingKey(null);
@@ -1058,13 +1059,13 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
       soloAudioRef.current = createChorusPlaybackAudio();
       soloAudioRef.current.addEventListener('ended', () => setSoloPlayingKey(null));
     }
-    soloAudioRef.current.src = item.audioUrl;
-    soloAudioRef.current.currentTime = 0;
-    void soloAudioRef.current.play();
-    setSoloPlayingKey(item.key);
+    const ok = await playChorusAudio(soloAudioRef.current, item.audioUrl, {
+      onFail: (message) => toast.error(message),
+    });
+    setSoloPlayingKey(ok ? item.key : null);
   };
 
-  const handlePlayHarmonySolo = (harmony: ChorusLayer) => {
+  const handlePlayHarmonySolo = async (harmony: ChorusLayer) => {
     if (soloPlayingKey === harmony.id) {
       soloAudioRef.current?.pause();
       setSoloPlayingKey(null);
@@ -1075,10 +1076,10 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
       soloAudioRef.current = createChorusPlaybackAudio();
       soloAudioRef.current.addEventListener('ended', () => setSoloPlayingKey(null));
     }
-    soloAudioRef.current.src = harmony.audioUrl;
-    soloAudioRef.current.currentTime = 0;
-    void soloAudioRef.current.play();
-    setSoloPlayingKey(harmony.id);
+    const ok = await playChorusAudio(soloAudioRef.current, harmony.audioUrl, {
+      onFail: (message) => toast.error(message),
+    });
+    setSoloPlayingKey(ok ? harmony.id : null);
   };
 
   const handlePlayMix = async (parentKey: string, parentUrl: string) => {
@@ -1097,8 +1098,8 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
       { id: 'parent', url: parentUrl },
       ...harmonies.map((h) => ({ id: h.id, url: h.audioUrl, label: h.writerNickname })),
     ]);
-    await mixer.playAll();
-    setMixingKey(parentKey);
+    const ok = await mixer.playAll((message) => toast.error(message));
+    setMixingKey(ok ? parentKey : null);
   };
 
   const renderHarmonyThreadCard = (h: ChorusLayer) => {

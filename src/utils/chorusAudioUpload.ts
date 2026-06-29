@@ -1,6 +1,7 @@
 import { ref as storageRef, uploadBytes, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, storage } from '../firebase';
+import { prepareChorusAudioForUpload } from './chorusAudioTranscode';
 
 function sanitizeFileName(fileName: string): string {
   return fileName.replace(/[/\\?%*:|"<>]/g, '_').trim() || 'audio.webm';
@@ -66,13 +67,16 @@ export async function uploadChorusAudio(
   fileName: string,
   onProgress?: (percent: number) => void
 ): Promise<string> {
-  const safeName = sanitizeFileName(fileName);
+  const prepared = await prepareChorusAudioForUpload(blob, fileName);
+  const uploadBlob = prepared.blob;
+  const baseName = fileName.replace(/\.[^.]+$/, '');
+  const safeName = sanitizeFileName(`${baseName}.${prepared.extension}`);
   const path = `chorus/${userId}/${Date.now()}_${safeName}`;
   const fileRef = storageRef(storage, path);
-  const metadata = { contentType: blobContentType(blob, safeName) };
+  const metadata = { contentType: blobContentType(uploadBlob, safeName) };
 
   if (onProgress) {
-    const task = uploadBytesResumable(fileRef, blob, metadata);
+    const task = uploadBytesResumable(fileRef, uploadBlob, metadata);
     await new Promise<void>((resolve, reject) => {
       task.on(
         'state_changed',
@@ -91,7 +95,7 @@ export async function uploadChorusAudio(
     return getDownloadURL(task.snapshot.ref);
   }
 
-  await uploadBytes(fileRef, blob, metadata);
+  await uploadBytes(fileRef, uploadBlob, metadata);
   return getDownloadURL(fileRef);
 }
 

@@ -5,7 +5,8 @@ import {
   probeAudioElementDuration,
   readFiniteAudioDuration,
 } from '../utils/chorusAudioRecorder';
-import { configureChorusPlaybackAudio } from '../utils/chorusAudioPlayback';
+import { configureChorusPlaybackAudio, playChorusAudio } from '../utils/chorusAudioPlayback';
+import { toast } from 'react-toastify';
 import '../styles/ChorusAudioPlayer.css';
 
 interface Props {
@@ -126,14 +127,17 @@ const ChorusAudioPlayer: React.FC<Props> = ({ src, className, durationHint }) =>
     };
   }, [src, applyDuration, startRaf, stopRaf]);
 
-  const togglePlay = () => {
+  const togglePlay = async () => {
     const el = audioRef.current;
     if (!el) return;
     if (playing) {
       el.pause();
       return;
     }
-    void el.play().catch(() => {});
+    if (!src?.trim()) return;
+    await playChorusAudio(el, src, {
+      onFail: (message) => toast.error(message),
+    });
   };
 
   const handleSeek = (next: number) => {

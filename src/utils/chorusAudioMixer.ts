@@ -1,4 +1,4 @@
-import { createChorusPlaybackAudio } from './chorusAudioPlayback';
+import { createChorusPlaybackAudio, playChorusAudio } from './chorusAudioPlayback';
 
 export interface MixerTrack {
   id: string;
@@ -59,22 +59,25 @@ export class ChorusAudioMixer {
     return this.playing;
   }
 
-  async playAll(): Promise<void> {
+  async playAll(onFail?: (message: string) => void): Promise<boolean> {
     const els = [...this.elements.values()];
-    if (els.length === 0) return;
+    if (els.length === 0) return false;
 
     els.forEach((el) => {
       el.currentTime = 0;
     });
 
-    await Promise.all(
+    const results = await Promise.all(
       els.map((el) =>
-        el.play().catch(() => {
-          /* ignore autoplay block on individual tracks */
+        playChorusAudio(el, el.src, {
+          onFail: (message) => onFail?.(message),
         })
       )
     );
-    this.playing = true;
+
+    const ok = results.some(Boolean);
+    this.playing = ok;
+    return ok;
   }
 
   pauseAll() {
