@@ -199,11 +199,6 @@ service cloud.firestore {
       allow read, write: if signedIn();
     }
 
-    match /appSettings/{docId} {
-      allow read: if signedIn();
-      allow write: if isNeraeOrLeader();
-    }
-
     match /practiceSongs/{docId} {
       allow read, write: if signedIn();
     }

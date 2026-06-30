@@ -3,13 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { collection, query, getDocs, addDoc, deleteDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ArrowLeft, Plus, Trash2, Calendar, CheckCircle, XCircle } from 'lucide-react';
-import {
-  DEFAULT_PRACTICE_ROOM_SETTINGS,
-  isPracticeRoomSettingsDoc,
-  savePracticeRoomSettings,
-  subscribePracticeRoomSettings,
-  type PracticeRoomSettings,
-} from '../utils/practiceRoomSettings';
 import './PracticeRoomManagement.css';
 
 interface BlockingRule {
@@ -38,10 +31,6 @@ const PracticeRoomManagement: React.FC = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [reason, setReason] = useState('');
-  const [practiceRoomSettings, setPracticeRoomSettings] = useState<PracticeRoomSettings>(
-    DEFAULT_PRACTICE_ROOM_SETTINGS
-  );
-  const [settingsLoading, setSettingsLoading] = useState(false);
 
   const weekdayNames = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -61,50 +50,17 @@ const PracticeRoomManagement: React.FC = () => {
     
     console.log('✅ 규칙 로딩 시작');
     loadRules();
-    const unsubscribe = subscribePracticeRoomSettings(setPracticeRoomSettings);
-    return unsubscribe;
   }, []);
-
-  const handleToggleSameDayBooking = async () => {
-    const nextValue = !practiceRoomSettings.blockSameDayBooking;
-    const confirmMessage = nextValue
-      ? '당일 예약 제한을 켜시겠습니까?\n\n일반 회원은 오늘 날짜에 예약할 수 없습니다.\n(너래, 리더는 제한 없음)'
-      : '당일 예약 제한을 해제하시겠습니까?\n\n모든 회원이 오늘 날짜에도 예약할 수 있습니다.';
-
-    if (!confirm(confirmMessage)) return;
-
-    setSettingsLoading(true);
-    try {
-      await savePracticeRoomSettings(
-        { blockSameDayBooking: nextValue },
-        currentUser?.nickname || '관리자'
-      );
-      setPracticeRoomSettings((prev) => ({
-        ...prev,
-        blockSameDayBooking: nextValue,
-      }));
-      alert(nextValue ? '당일 예약 제한이 적용되었습니다.' : '당일 예약 제한이 해제되었습니다.');
-    } catch (error) {
-      console.error('연습실 설정 저장 실패:', error);
-      alert('설정 저장에 실패했습니다. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.');
-    } finally {
-      setSettingsLoading(false);
-    }
-  };
 
   const loadRules = async () => {
     try {
       console.log('차단 규칙 로딩 시작...');
       const q = query(collection(db, 'blockingRules'));
       const snapshot = await getDocs(q);
-      const data = snapshot.docs
-        .filter((ruleDoc) =>
-          !isPracticeRoomSettingsDoc(ruleDoc.id, ruleDoc.data() as Record<string, unknown>)
-        )
-        .map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as BlockingRule[];
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as BlockingRule[];
       
       console.log('차단 규칙 로딩됨:', data.length, '개');
       setRules(data);
@@ -225,40 +181,6 @@ const PracticeRoomManagement: React.FC = () => {
       </div>
 
       <div className="management-content">
-        <div className="settings-section">
-          <div className="section-header settings-section-header">
-            <h2>📅 예약 정책</h2>
-          </div>
-          <div className="settings-card">
-            <div className="settings-card-main">
-              <div>
-                <h3 className="settings-card-title">당일 예약 제한</h3>
-                <p className="settings-card-desc">
-                  켜면 일반 회원은 오늘 날짜에 예약할 수 없습니다. 너래·리더는 제한 없이 예약 가능합니다.
-                </p>
-              </div>
-              <button
-                type="button"
-                className={`settings-toggle-btn ${practiceRoomSettings.blockSameDayBooking ? 'active' : 'inactive'}`}
-                onClick={handleToggleSameDayBooking}
-                disabled={settingsLoading}
-              >
-                {practiceRoomSettings.blockSameDayBooking ? (
-                  <>
-                    <CheckCircle size={16} />
-                    <span>제한 중</span>
-                  </>
-                ) : (
-                  <>
-                    <XCircle size={16} />
-                    <span>해제됨</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-
         <div className="section-header">
           <h2>🔄 반복 차단 규칙</h2>
           <button className="add-rule-btn" onClick={() => setShowAddModal(true)}>
