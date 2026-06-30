@@ -182,6 +182,7 @@ const FlappyBirdGame: React.FC = () => {
   const replayRecorderRef = useRef(new FlappyReplayRecorder());
   const lastSessionSyncRef = useRef(0);
   const pendingReplayRef = useRef<FlappyReplayPoint[]>([]);
+  const scrollLockYRef = useRef(0);
   const ghostDataRef = useRef<{ my: FlappyReplayPoint[]; ranked: RankGhost[] }>({
     my: [],
     ranked: [],
@@ -252,16 +253,47 @@ const FlappyBirdGame: React.FC = () => {
     }
   }, []);
 
+  const scrollLocked = phase === 'playing' || phase === 'paused';
+
   useEffect(() => {
+    if (!scrollLocked) return;
+
     const html = document.documentElement;
     const body = document.body;
+    scrollLockYRef.current = window.scrollY;
     html.classList.add('flappy-touch-lock');
     body.classList.add('flappy-touch-lock');
+    body.style.overflow = 'hidden';
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollLockYRef.current}px`;
+    body.style.left = '0';
+    body.style.right = '0';
+    body.style.width = '100%';
+
     return () => {
       html.classList.remove('flappy-touch-lock');
       body.classList.remove('flappy-touch-lock');
+      body.style.overflow = '';
+      body.style.position = '';
+      body.style.top = '';
+      body.style.left = '';
+      body.style.right = '';
+      body.style.width = '';
+      const y = scrollLockYRef.current;
+      if (y > 0) window.scrollTo(0, y);
     };
-  }, []);
+  }, [scrollLocked]);
+
+  useEffect(() => {
+    if (!scrollLocked) return;
+
+    const blockDocumentTouchMove = (e: TouchEvent) => {
+      if (e.cancelable) e.preventDefault();
+    };
+
+    document.addEventListener('touchmove', blockDocumentTouchMove, { passive: false });
+    return () => document.removeEventListener('touchmove', blockDocumentTouchMove);
+  }, [scrollLocked]);
 
   useEffect(() => {
     const unsub = onSnapshot(

@@ -1298,12 +1298,19 @@
 /* 플래피 버드 */
 html.flappy-touch-lock,
 body.flappy-touch-lock {
-  overscroll-behavior-y: none;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
 }
 
 .flappy-touch-page {
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
+}
+
+.flappy-touch-page--active {
+  touch-action: none;
+  overscroll-behavior: none;
 }
 
 .flappy-touch-page,

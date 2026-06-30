@@ -5,6 +5,14 @@ import { collection, query, where, getDocs, addDoc, deleteDoc, doc, Timestamp, o
 import { db } from '../firebase';
 import { SUPER_ADMIN_NICKNAMES, GRADE_SYSTEM } from './AdminTypes';
 import { getGradeEmoji } from '../utils/gradeDisplay';
+import {
+  DEFAULT_PRACTICE_ROOM_SETTINGS,
+  isPracticeRoomSettingsDoc,
+  isSameDayBookingRestricted,
+  SAME_DAY_BOOKING_BLOCK_REASON,
+  subscribePracticeRoomSettings,
+  type PracticeRoomSettings,
+} from '../utils/practiceRoomSettings';
 import { Calendar, Clock, User, X, ChevronLeft, ChevronRight, Info, RefreshCw, LogIn, LogOut, Users, Music2, Settings } from 'lucide-react';
 interface Reservation {
   id: string;
@@ -99,6 +107,9 @@ const PracticeRoomBookingNotebook: React.FC = () => {
   const [weeklyReservationCount, setWeeklyReservationCount] = useState(0);
   const [checkedInMembers, setCheckedInMembers] = useState<CheckIn[]>([]);
   const [myCheckIn, setMyCheckIn] = useState<CheckIn | null>(null);
+  const [practiceRoomSettings, setPracticeRoomSettings] = useState<PracticeRoomSettings>(
+    DEFAULT_PRACTICE_ROOM_SETTINGS
+  );
   const isUnlimitedUser = Boolean(
     currentUser?.nickname && SUPER_ADMIN_NICKNAMES.includes(currentUser.nickname)
   );
@@ -141,6 +152,11 @@ const PracticeRoomBookingNotebook: React.FC = () => {
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribePracticeRoomSettings(setPracticeRoomSettings);
+    return unsubscribe;
   }, []);
 
   useEffect(() => {
@@ -337,10 +353,14 @@ const PracticeRoomBookingNotebook: React.FC = () => {
       const q = query(collection(db, 'blockingRules'));
       const snapshot = await getDocs(q);
       
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as BlockingRule[];
+      const data = snapshot.docs
+        .filter((ruleDoc) =>
+          !isPracticeRoomSettingsDoc(ruleDoc.id, ruleDoc.data() as Record<string, unknown>)
+        )
+        .map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as BlockingRule[];
       
       // 활성화된 규칙만 필터링
       const activeRules = data.filter(r => r.isActive);
@@ -565,6 +585,11 @@ const PracticeRoomBookingNotebook: React.FC = () => {
     
     // 차단 규칙 체크
     const ruleCheck = isBlockedByRule(date);
+    const sameDayRestricted = isSameDayBookingRestricted(
+      date,
+      practiceRoomSettings,
+      currentUser
+    );
     
     for (let hour = OPEN_TIME; hour < CLOSE_TIME; hour++) {
       const timeStr = `${String(hour).padStart(2, '0')}:00`;
@@ -615,6 +640,10 @@ const PracticeRoomBookingNotebook: React.FC = () => {
         blockReason = ruleCheck.reason || '규칙에 의한 차단';
         blockedBy = '자동 규칙';
         console.log(`🔄 규칙 차단 발견: ${dateStr} ${timeStr}`, ruleCheck.reason);
+      } else if (sameDayRestricted) {
+        isBlocked = true;
+        blockReason = SAME_DAY_BOOKING_BLOCK_REASON;
+        blockedBy = '예약 정책';
       }
       
       // 디버깅 로그
@@ -688,6 +717,14 @@ const PracticeRoomBookingNotebook: React.FC = () => {
   ) => {
     if (!isUnlimitedUser && isCherryGradeUser()) {
       alert(CHERRY_GRADE_BOOKING_MESSAGE);
+      return;
+    }
+
+    if (
+      !options?.ignoreBlocks &&
+      isSameDayBookingRestricted(date, practiceRoomSettings, currentUser)
+    ) {
+      alert(SAME_DAY_BOOKING_BLOCK_REASON);
       return;
     }
 
@@ -832,6 +869,14 @@ const PracticeRoomBookingNotebook: React.FC = () => {
 
     if (!isUnlimitedUser && isCherryGradeUser()) {
       alert(CHERRY_GRADE_BOOKING_MESSAGE);
+      return;
+    }
+
+    if (isSameDayBookingRestricted(bookingDate, practiceRoomSettings, currentUser)) {
+      alert(SAME_DAY_BOOKING_BLOCK_REASON);
+      isBookingInProgress.current = false;
+      setLoading(false);
+      setShowBookingModal(false);
       return;
     }
 
@@ -1475,7 +1520,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
               무제한
             </span>
           )}
-          {isUnlimitedUser && (
+          {isAdmin && (
             <button
               type="button"
               className="management-button"
@@ -1505,6 +1550,12 @@ const PracticeRoomBookingNotebook: React.FC = () => {
           role="status"
         >
           🍒 체리 등급 회원은 연습실 예약을 이용할 수 없습니다. 체리 등급을 졸업(딸기 등급 이상)한 후 예약해 주세요.
+        </div>
+      )}
+
+      {isSameDayBookingRestricted(selectedDate, practiceRoomSettings, currentUser) && (
+        <div className="same-day-booking-notice" role="status">
+          📅 당일 예약이 제한되어 있습니다. 내일 이후 날짜를 선택해 주세요.
         </div>
       )}
 
