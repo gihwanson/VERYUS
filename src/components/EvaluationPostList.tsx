@@ -80,6 +80,24 @@ const getCreatedAtMs = (value: any): number => {
   return Number.isNaN(parsed) ? 0 : parsed;
 };
 
+const getEvaluationStatusBadgeClass = (post: Pick<EvaluationPost, 'category' | 'status'>): string => {
+  if (post.category === 'feedback') return 'feedback';
+  if (post.status === '합격') return 'approved';
+  if (post.status === '불합격') return 'rejected';
+  return 'pending';
+};
+
+const getEvaluationStatusLabel = (
+  post: Pick<EvaluationPost, 'category' | 'status'>,
+  fallback = '대기'
+): string => {
+  if (post.category === 'feedback') return '피드백';
+  return post.status || fallback;
+};
+
+const getEvaluationPostCardClass = (post: Pick<EvaluationPost, 'category' | 'status'>): string =>
+  `post-card post-card--eval-${getEvaluationStatusBadgeClass(post)}`;
+
 const EvaluationPostList: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -761,7 +779,7 @@ const EvaluationPostList: React.FC = () => {
           posts.map((post, index) => (
             <article
               key={post.id}
-              className="post-card"
+              className={getEvaluationPostCardClass(post)}
               data-post-id={post.id}
               onClick={() => handlePostClick(post.id)}
               ref={index === posts.length - 1 ? lastPostElementRef : null}
@@ -809,8 +827,8 @@ const EvaluationPostList: React.FC = () => {
                   <Eye size={16} />
                   조회 {post.views || 0}
                 </span>
-                <span className={`post-status-badge ${post.category === 'feedback' ? 'feedback' : post.status === '합격' ? 'approved' : post.status === '불합격' ? 'rejected' : 'pending'}`}>
-                  {post.category === 'feedback' ? '피드백' : (post.status || '대기')}
+                <span className={`post-status-badge ${getEvaluationStatusBadgeClass(post)}`}>
+                  {getEvaluationStatusLabel(post)}
                 </span>
               </div>
             </article>
@@ -825,7 +843,7 @@ const EvaluationPostList: React.FC = () => {
           {hiddenCompletedPosts.slice(0, hiddenCompletedVisibleCount).map((post) => (
             <article
               key={`hidden-${post.id}`}
-              className="post-card"
+              className={getEvaluationPostCardClass(post)}
               data-post-id={post.id}
               onClick={() => handlePostClick(post.id)}
               style={{ opacity: 0.88 }}
@@ -873,8 +891,8 @@ const EvaluationPostList: React.FC = () => {
                   <Eye size={16} />
                   조회 {post.views || 0}
                 </span>
-                <span className={`post-status-badge ${post.status === '합격' ? 'approved' : 'rejected'}`}>
-                  {post.status || '평가완료'}
+                <span className={`post-status-badge ${getEvaluationStatusBadgeClass(post)}`}>
+                  {getEvaluationStatusLabel(post, '평가완료')}
                 </span>
               </div>
             </article>
