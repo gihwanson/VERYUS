@@ -56,6 +56,14 @@ export function buildRosterSessionStats(
     });
 }
 
+export function canSelfWithdrawLineupItem(item: FreeSongLineupItem, userNickname: string): boolean {
+  if (item.completedAt) return false;
+  const nick = userNickname.trim();
+  if (!nick) return false;
+  const members = (item.members ?? []).map((m) => String(m).trim());
+  return members.includes(nick);
+}
+
 export function canCompleteLineupItem(
   item: FreeSongLineupItem,
   userNickname: string,

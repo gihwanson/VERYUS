@@ -18,6 +18,7 @@ import {
   normalizeLineup,
   removeSubmissionFromState,
   reorderPendingLineup,
+  selfWithdrawFromState,
 } from './freeSongSetlistMutations';
 
 export { normalizeLineup } from './freeSongSetlistMutations';
@@ -111,6 +112,52 @@ export function useFreeSongLineup(setlistId: string | undefined) {
             freeSongSubmissions: next.submissions,
             freeSongLineup: next.lineup,
           };
+        });
+      });
+    },
+    [setlistId, withLoading]
+  );
+
+  const selfWithdrawFromLineup = useCallback(
+    async (submissionId: string, withdrawnBy: string) => {
+      if (!setlistId) return false;
+      return withLoading(async () => {
+        const ok = await mutateSetlistFreeSong(setlistId, (state) => {
+          const next = selfWithdrawFromState(
+            state.submissions,
+            state.lineup,
+            state.selfWithdrawals,
+            submissionId,
+            withdrawnBy,
+            Timestamp.now()
+          );
+          if (!next) return null;
+          return {
+            freeSongSubmissions: next.submissions,
+            freeSongLineup: next.lineup,
+            freeSongSelfWithdrawals: next.freeSongSelfWithdrawals,
+          };
+        });
+        if (!ok) {
+          alert('제거에 실패했습니다. 본인이 포함된 미완료 곡만 제거할 수 있습니다.');
+        }
+        return ok;
+      });
+    },
+    [setlistId, withLoading]
+  );
+
+  const dismissWithdrawalNotice = useCallback(
+    async (noticeId: string) => {
+      if (!setlistId) return false;
+      return withLoading(async () => {
+        return mutateSetlistFreeSong(setlistId, (state) => {
+          const index = state.selfWithdrawals.findIndex((n) => n.id === noticeId && !n.dismissedAt);
+          if (index < 0) return null;
+          const next = state.selfWithdrawals.map((n, i) =>
+            i === index ? { ...n, dismissedAt: Timestamp.now() } : n
+          );
+          return { freeSongSelfWithdrawals: next };
         });
       });
     },
@@ -236,6 +283,8 @@ export function useFreeSongLineup(setlistId: string | undefined) {
     actionLoading,
     addToLineup,
     removeFromLineup,
+    selfWithdrawFromLineup,
+    dismissWithdrawalNotice,
     moveLineupItem,
     completeLineupItem,
     resetSessionStats,

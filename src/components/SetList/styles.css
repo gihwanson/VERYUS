@@ -2084,6 +2084,44 @@
   white-space: nowrap;
 }
 
+.free-song-withdrawal-notices {
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  background: rgba(251, 191, 36, 0.12);
+}
+
+.free-song-withdrawal-notices__list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.free-song-withdrawal-notices__item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+}
+
+.free-song-withdrawal-notices__body {
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.free-song-withdrawal-notices__meta {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  opacity: 0.75;
+}
+
 .free-song-stats-list {
   display: flex;
   flex-direction: column;

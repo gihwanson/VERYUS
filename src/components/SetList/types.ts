@@ -1,4 +1,4 @@
-import type { FreeSongLineupItem, FreeSongSubmission } from './FreeSong/types';
+import type { FreeSongLineupItem, FreeSongSelfWithdrawalNotice, FreeSongSubmission } from './FreeSong/types';
 
 export interface Song {
   id: string;
@@ -100,6 +100,8 @@ export interface SetListData {
   freeSongLineup?: FreeSongLineupItem[];
   /** 사용자가 전송한 자유곡 합격곡 목록 */
   freeSongSubmissions?: FreeSongSubmission[];
+  /** 멤버 스스로 진행 순서에서 제거한 알림 */
+  freeSongSelfWithdrawals?: FreeSongSelfWithdrawalNotice[];
   /** 이번 세션 자유곡 완료 통계 (닉네임 → 곡 수) */
   freeSongMemberStats?: Record<string, number>;
 }

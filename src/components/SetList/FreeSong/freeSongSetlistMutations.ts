@@ -5,7 +5,7 @@ import {
   type Transaction,
 } from 'firebase/firestore';
 import { db } from '../../../firebase';
-import type { FreeSongLineupItem } from './types';
+import type { FreeSongLineupItem, FreeSongSelfWithdrawalNotice } from './types';
 import type { FreeSongSubmission } from './types';
 import { normalizeSubmissions } from './freeSongSubmissionUtils';
 
@@ -19,11 +19,27 @@ export function normalizeLineup(lineup: FreeSongLineupItem[] | undefined): FreeS
 export function readSetlistFreeSongState(data: Record<string, unknown> | undefined): {
   submissions: FreeSongSubmission[];
   lineup: FreeSongLineupItem[];
+  selfWithdrawals: FreeSongSelfWithdrawalNotice[];
 } {
   return {
     submissions: normalizeSubmissions(data?.freeSongSubmissions),
     lineup: normalizeLineup(data?.freeSongLineup as FreeSongLineupItem[] | undefined),
+    selfWithdrawals: normalizeSelfWithdrawals(data?.freeSongSelfWithdrawals),
   };
+}
+
+export function normalizeSelfWithdrawals(
+  raw: unknown
+): FreeSongSelfWithdrawalNotice[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null;
+      const row = item as FreeSongSelfWithdrawalNotice;
+      if (!row.id || !row.title || !row.withdrawnBy) return null;
+      return row;
+    })
+    .filter((item): item is FreeSongSelfWithdrawalNotice => item !== null);
 }
 
 export function removeSubmissionFromState(
@@ -63,10 +79,52 @@ export function reorderPendingLineup(
   return normalizeLineup(merged);
 }
 
+export function selfWithdrawFromState(
+  submissions: FreeSongSubmission[],
+  lineup: FreeSongLineupItem[],
+  selfWithdrawals: FreeSongSelfWithdrawalNotice[],
+  submissionId: string,
+  withdrawnBy: string,
+  withdrawnAt: FreeSongSelfWithdrawalNotice['withdrawnAt']
+): {
+  submissions: FreeSongSubmission[];
+  lineup: FreeSongLineupItem[];
+  freeSongSelfWithdrawals: FreeSongSelfWithdrawalNotice[];
+} | null {
+  const nick = withdrawnBy.trim();
+  if (!nick) return null;
+
+  const item = lineup.find((row) => row.submissionId === submissionId);
+  if (!item || item.completedAt) return null;
+
+  const members = (item.members ?? []).map((m) => String(m).trim());
+  if (!members.includes(nick)) return null;
+
+  const removed = removeSubmissionFromState(submissions, lineup, submissionId);
+  const notice: FreeSongSelfWithdrawalNotice = {
+    id: `${submissionId}_${Date.now()}`,
+    submissionId,
+    title: item.title,
+    members: item.members ?? [],
+    submittedBy: item.submittedBy,
+    withdrawnBy: nick,
+    withdrawnAt,
+  };
+
+  return {
+    ...removed,
+    freeSongSelfWithdrawals: [...selfWithdrawals, notice],
+  };
+}
+
 export async function mutateSetlistFreeSong(
   setlistId: string,
   mutator: (
-    state: { submissions: FreeSongSubmission[]; lineup: FreeSongLineupItem[] },
+    state: {
+      submissions: FreeSongSubmission[];
+      lineup: FreeSongLineupItem[];
+      selfWithdrawals: FreeSongSelfWithdrawalNotice[];
+    },
     transaction: Transaction
   ) => Record<string, unknown> | null
 ): Promise<boolean> {

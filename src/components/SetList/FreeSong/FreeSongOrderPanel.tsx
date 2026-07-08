@@ -1,7 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import type { SetListData } from '../types';
 import { useFreeSongLineup } from './useFreeSongLineup';
-import { canCompleteLineupItem, filterIncompleteLineup } from './freeSongStatsUtils';
+import {
+  canCompleteLineupItem,
+  canSelfWithdrawLineupItem,
+  filterIncompleteLineup,
+} from './freeSongStatsUtils';
+import { normalizeSelfWithdrawals } from './freeSongSetlistMutations';
 import { FreeSongEmptyState, SongRow } from './FreeSongShared';
 
 interface FreeSongOrderPanelProps {
@@ -10,16 +15,40 @@ interface FreeSongOrderPanelProps {
   canManage: boolean;
 }
 
+function formatWithdrawalTime(value: unknown): string {
+  if (!value) return '';
+  if (typeof value === 'object' && value !== null && 'toDate' in value) {
+    return (value as { toDate: () => Date }).toDate().toLocaleString('ko-KR', {
+      month: 'numeric',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
+  return '';
+}
+
 const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
   activeSetList,
   userNickname,
   canManage,
 }) => {
-  const { actionLoading, completeLineupItem, moveLineupItem, removeFromLineup, normalizeLineup } =
-    useFreeSongLineup(activeSetList?.id);
+  const {
+    actionLoading,
+    completeLineupItem,
+    moveLineupItem,
+    removeFromLineup,
+    selfWithdrawFromLineup,
+    dismissWithdrawalNotice,
+    normalizeLineup,
+  } = useFreeSongLineup(activeSetList?.id);
   const lineup = normalizeLineup(activeSetList?.freeSongLineup);
   const pendingLineup = filterIncompleteLineup(lineup);
   const completedCount = lineup.length - pendingLineup.length;
+
+  const pendingNotices = useMemo(() => {
+    return normalizeSelfWithdrawals(activeSetList?.freeSongSelfWithdrawals).filter((n) => !n.dismissedAt);
+  }, [activeSetList?.freeSongSelfWithdrawals]);
 
   if (!activeSetList) {
     return (
@@ -40,9 +69,22 @@ const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
     );
   };
 
-  const handleRemove = async (submissionId: string) => {
+  const handleAdminRemove = async (submissionId: string) => {
     if (!confirm('이 곡을 진행 순서에서 제거하시겠습니까?\n제거 시 전송한 멤버가 다시 곡을 전송할 수 있습니다.')) return;
     await removeFromLineup(submissionId, lineup, activeSetList.freeSongSubmissions);
+  };
+
+  const handleSelfWithdraw = async (submissionId: string, title: string) => {
+    if (
+      !confirm(
+        `"${title}"을(를) 진행 순서에서 제거하시겠습니까?\n\n` +
+          '· 관리자에게 알림이 전달됩니다\n' +
+          '· 제거 후 해당 곡을 다시 전송할 수 있습니다'
+      )
+    ) {
+      return;
+    }
+    await selfWithdrawFromLineup(submissionId, userNickname);
   };
 
   const pendingIndexMap = new Map(pendingLineup.map((item, index) => [item.submissionId, index]));
@@ -54,11 +96,44 @@ const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
         <p className="setlist-manage-sub free-song-desc">
           오늘 자유곡 버스킹 진행 순서입니다. 무대가 끝나면 <strong>완료</strong> 버튼을 눌러 주세요.
           {canManage && pendingLineup.length > 1 && ' 순서는 ↑↓ 버튼으로 변경할 수 있습니다.'}
+          {!canManage && ' 본인이 포함된 곡은 직접 제거할 수 있습니다.'}
           {completedCount > 0 && (
             <span className="free-song-admin-count"> · {completedCount}곡 완료</span>
           )}
         </p>
       </div>
+
+      {canManage && pendingNotices.length > 0 && (
+        <div className="setlist-manage-panel free-song-withdrawal-notices">
+          <h3 className="free-song-section-title">멤버 제거 알림 ({pendingNotices.length})</h3>
+          <p className="free-song-desc free-song-desc--admin">
+            참가 멤버가 진행 순서에서 스스로 곡을 제거했습니다.
+          </p>
+          <ul className="free-song-withdrawal-notices__list">
+            {pendingNotices.map((notice) => (
+              <li key={notice.id} className="free-song-withdrawal-notices__item">
+                <div className="free-song-withdrawal-notices__body">
+                  <strong>{notice.withdrawnBy}</strong>님이 「{notice.title}」을(를) 진행 순서에서 제거했습니다.
+                  <span className="free-song-withdrawal-notices__meta">
+                    전송: {notice.submittedBy}
+                    {formatWithdrawalTime(notice.withdrawnAt)
+                      ? ` · ${formatWithdrawalTime(notice.withdrawnAt)}`
+                      : ''}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="free-song-btn free-song-btn--ghost"
+                  disabled={actionLoading}
+                  onClick={() => dismissWithdrawalNotice(notice.id)}
+                >
+                  확인
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="setlist-manage-panel">
         {lineup.length === 0 ? (
@@ -68,6 +143,7 @@ const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
             {lineup.map((item, index) => {
               const isCompleted = Boolean(item.completedAt);
               const showComplete = canCompleteLineupItem(item, userNickname, canManage);
+              const showSelfWithdraw = !canManage && canSelfWithdrawLineupItem(item, userNickname);
               const pendingIndex = pendingIndexMap.get(item.submissionId);
 
               const orderActions =
@@ -95,12 +171,23 @@ const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
                       type="button"
                       className="free-song-btn free-song-btn--cancel"
                       disabled={actionLoading}
-                      onClick={() => handleRemove(item.submissionId)}
+                      onClick={() => handleAdminRemove(item.submissionId)}
                     >
                       제거
                     </button>
                   </>
                 ) : null;
+
+              const selfWithdrawAction = showSelfWithdraw ? (
+                <button
+                  type="button"
+                  className="free-song-btn free-song-btn--cancel"
+                  disabled={actionLoading}
+                  onClick={() => handleSelfWithdraw(item.submissionId, item.title)}
+                >
+                  내 곡 제거
+                </button>
+              ) : null;
 
               const completeAction = showComplete ? (
                 <button
@@ -116,9 +203,10 @@ const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
               ) : null;
 
               const action =
-                orderActions || completeAction ? (
+                orderActions || selfWithdrawAction || completeAction ? (
                   <div className="free-song-row__actions">
                     {orderActions}
+                    {selfWithdrawAction}
                     {completeAction}
                   </div>
                 ) : undefined;

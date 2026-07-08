@@ -22,6 +22,18 @@ export interface FreeSongLineupItem {
   completedBy?: string;
 }
 
+/** 멤버가 진행 순서에서 스스로 제거한 기록 (관리자 알림용) */
+export interface FreeSongSelfWithdrawalNotice {
+  id: string;
+  submissionId: string;
+  title: string;
+  members: string[];
+  submittedBy: string;
+  withdrawnBy: string;
+  withdrawnAt: Timestamp;
+  dismissedAt?: Timestamp;
+}
+
 export interface FreeSongPerformerStats {
   performers: Record<string, number>;
   updatedAt?: Timestamp;
