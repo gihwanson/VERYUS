@@ -41,7 +41,8 @@ import {
   Check,
   Eye,
   EyeOff,
-  FlaskConical
+  FlaskConical,
+  Mail
 } from 'lucide-react';
 import { db } from '../firebase';
 import { functions } from '../firebase';
@@ -107,6 +108,10 @@ import { FaUsers, FaUserShield, FaChartPie, FaFire } from "react-icons/fa";
 import { subscribeAdminVerification } from '../utils/adminSessionVerify';
 import type { VeryusUser } from '../utils/veryusUserStorage';
 import { NotificationService } from '../utils/notificationService';
+import { collectApprovedSongsForNickname } from '../utils/approvedSongMemberCleanup';
+import { saveApprovedSongDeletionAudit } from '../utils/approvedSongDeletionAudit';
+import { markEmailRegistrationDeleted } from '../utils/emailRegistrationHistory';
+import AdminEmailHistoryPanel from './AdminEmailHistoryPanel';
 
 const AdminPanel: React.FC = () => {
   const navigate = useNavigate();
@@ -122,9 +127,15 @@ const AdminPanel: React.FC = () => {
     if (tabParam === 'approvals' || tabParam === 'grades') {
       setActiveTab('grades');
     }
+    if (tabParam === 'emails') {
+      setActiveTab('emails');
+    }
     const navState = location.state as { openAdminTab?: string } | null;
     if (navState?.openAdminTab === 'approvals') {
       setActiveTab('grades');
+    }
+    if (navState?.openAdminTab === 'emails') {
+      setActiveTab('emails');
     }
   }, [location.search, location.state]);
 
@@ -186,11 +197,14 @@ const AdminPanel: React.FC = () => {
 
   const [passwordResetLoadingUid, setPasswordResetLoadingUid] = useState<string | null>(null);
   const [passwordResetMessage, setPasswordResetMessage] = useState<string>('');
+  const [deleteConfirmUser, setDeleteConfirmUser] = useState<AdminUser | null>(null);
+  const [deletingUserUid, setDeletingUserUid] = useState<string | null>(null);
 
   // 사용자 목록 가져오기 (useCallback으로 최적화) - useEffect보다 먼저 정의
-  const fetchUsers = useCallback(async () => {
+  const fetchUsers = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent === true;
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       // orderBy('createdAt')만 쓰면 createdAt 필드가 없는 문서는 쿼리 결과에서 제외됨.
       // 회원가입 이메일 중복(where email ==)은 그 문서를 찾으므로 관리자 목록과 불일치가 날 수 있음.
       const snapshot = await getDocs(collection(db, 'users'));
@@ -205,7 +219,7 @@ const AdminPanel: React.FC = () => {
       console.error('사용자 목록 가져오기 실패:', error);
       alert('사용자 목록을 가져오는데 실패했습니다.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
@@ -430,6 +444,12 @@ const AdminPanel: React.FC = () => {
       if (editingUser.grade !== user.grade) {
         changes.grade = { before: user.grade, after: editingUser.grade };
       }
+      if (Boolean(editingUser.isRegularMember) !== Boolean(user.isRegularMember)) {
+        changes.isRegularMember = {
+          before: Boolean(user.isRegularMember),
+          after: Boolean(editingUser.isRegularMember)
+        };
+      }
 
       const userPatch: {
         nickname: string;
@@ -437,6 +457,7 @@ const AdminPanel: React.FC = () => {
         grade: string;
         pendingGrade?: ReturnType<typeof deleteField>;
         pendingGradeRequestedAt?: ReturnType<typeof deleteField>;
+        isRegularMember?: boolean | ReturnType<typeof deleteField>;
       } = {
         nickname: editingUser.nickname,
         role: editingUser.role,
@@ -445,6 +466,9 @@ const AdminPanel: React.FC = () => {
       if (changes.grade) {
         userPatch.pendingGrade = deleteField();
         userPatch.pendingGradeRequestedAt = deleteField();
+      }
+      if (changes.isRegularMember) {
+        userPatch.isRegularMember = editingUser.isRegularMember ? true : deleteField();
       }
 
       await updateDoc(userRef, userPatch);
@@ -540,31 +564,71 @@ const AdminPanel: React.FC = () => {
     }
   };
 
+  const dedupeDocsByRef = <T extends { ref: DocumentReference }>(docs: T[]): T[] =>
+    Array.from(new Map(docs.map((docSnap) => [docSnap.ref.path, docSnap])).values());
+
   // 사용자 삭제 (로그 및 관련 데이터 정리 포함)
-  const handleDeleteUser = async (user: AdminUser) => {
-    if (!window.confirm(`정말로 ${user.nickname}님을 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없으며, 사용자의 모든 게시물과 댓글이 삭제됩니다.`)) return;
-    
-    if (!currentUser) return;
+  const requestDeleteUser = (user: AdminUser) => {
+    if (deletingUserUid) return;
+    setDeleteConfirmUser(user);
+  };
+
+  const executeDeleteUser = async (user: AdminUser) => {
+    if (!currentUser) {
+      alert('관리자 세션을 확인할 수 없습니다. 페이지를 새로고침한 뒤 다시 시도해 주세요.');
+      return;
+    }
+
+    setDeleteConfirmUser(null);
+    setDeletingUserUid(user.uid);
 
     try {
       const refsToDelete: DocumentReference[] = [];
 
-      const [postsByUid, postsByNick, commentsByUid, commentsByNick] = await Promise.all([
+      const [postsByUid, postsByNick, commentsByUid, commentsByNick, approvedSongsToRemove] = await Promise.all([
         getDocs(query(collection(db, 'posts'), where('writerUid', '==', user.uid))),
         user.nickname
           ? getDocs(query(collection(db, 'posts'), where('writerNickname', '==', user.nickname)))
-          : Promise.resolve({ docs: [] as { ref: DocumentReference }[] }),
+          : Promise.resolve({ docs: [] as { ref: DocumentReference; id: string; data: () => Record<string, unknown> }[] }),
         getDocs(query(collection(db, 'comments'), where('writerUid', '==', user.uid))),
         user.nickname
           ? getDocs(query(collection(db, 'comments'), where('writerNickname', '==', user.nickname)))
-          : Promise.resolve({ docs: [] as { ref: DocumentReference }[] }),
+          : Promise.resolve({ docs: [] as { ref: DocumentReference; id: string; data: () => Record<string, unknown> }[] }),
+        user.nickname
+          ? collectApprovedSongsForNickname(user.nickname)
+          : Promise.resolve([]),
       ]);
 
+      const postDocs = dedupeDocsByRef([...postsByUid.docs, ...postsByNick.docs]);
+      const commentDocs = dedupeDocsByRef([...commentsByUid.docs, ...commentsByNick.docs]);
+
+      const deletedPosts = postDocs.map((docSnap) => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          title: String(data.title || data.titleNoSpace || '(제목 없음)'),
+        };
+      });
+
+      const deletedComments = commentDocs.map((docSnap) => {
+        const data = docSnap.data();
+        const preview = String(data.content || data.text || '').trim().slice(0, 120);
+        return {
+          id: docSnap.id,
+          preview: preview || '(내용 없음)',
+        };
+      });
+
+      const deletedApprovedSongs = approvedSongsToRemove.map((song) => ({
+        id: song.id,
+        title: song.title,
+        members: song.members,
+      }));
+
       refsToDelete.push(
-        ...postsByUid.docs.map((d) => d.ref),
-        ...postsByNick.docs.map((d) => d.ref),
-        ...commentsByUid.docs.map((d) => d.ref),
-        ...commentsByNick.docs.map((d) => d.ref)
+        ...postDocs.map((d) => d.ref),
+        ...commentDocs.map((d) => d.ref),
+        ...approvedSongsToRemove.map((song) => song.ref)
       );
 
       if (refsToDelete.length > 0) {
@@ -572,6 +636,14 @@ const AdminPanel: React.FC = () => {
       }
 
       await deleteDoc(doc(db, 'users', user.uid));
+
+      if (user.email) {
+        await markEmailRegistrationDeleted(
+          user.email,
+          user.uid,
+          adminLogName(currentUser)
+        );
+      }
 
       try {
         const deleteUserAuth = httpsCallable<{ uid: string }, { ok: boolean; alreadyDeleted?: boolean }>(
@@ -586,22 +658,50 @@ const AdminPanel: React.FC = () => {
           '동일 이메일로 재가입이 불가할 수 있습니다. Functions 배포 상태를 확인하거나 다시 시도해 주세요.'
         );
       }
+
+      if (deletedApprovedSongs.length > 0) {
+        await saveApprovedSongDeletionAudit({
+          deletedMemberUid: user.uid,
+          deletedMemberNickname: user.nickname,
+          deletedByUid: currentUser.uid,
+          deletedByNickname: adminLogName(currentUser),
+          approvedSongs: deletedApprovedSongs,
+        });
+      }
       
       // 로그 기록
       await logAdminAction(
         currentUser.uid,
         adminLogName(currentUser),
         'user_delete',
-        `${user.nickname}님의 계정을 삭제했습니다.`,
+        `${user.nickname}님의 계정을 삭제했습니다. (게시물 ${deletedPosts.length}·댓글 ${deletedComments.length}·합격곡 ${deletedApprovedSongs.length})`,
         user.uid,
-        user.nickname
+        user.nickname,
+        undefined,
+        {
+          posts: deletedPosts.length,
+          comments: deletedComments.length,
+          approvedSongs: deletedApprovedSongs.length,
+        }
       );
       
-      await fetchUsers();
-      alert('사용자가 성공적으로 삭제되었습니다.');
+      // 서버 동기화 전에 로컬 목록을 먼저 갱신해 삭제 결과를 즉시 반영한다.
+      setUsers((prev) => prev.filter((u) => u.uid !== user.uid));
+      setSelectedUserUids((prev) => prev.filter((uid) => uid !== user.uid));
+      setSelectedUser((prev) => (prev?.uid === user.uid ? null : prev));
+      setVisibleUsersCount((prev) => Math.max(USERS_PAGE_SIZE, prev - 1));
+
+      // 백그라운드 재조회로 최종 상태를 동기화한다.
+      void fetchUsers({ silent: true });
+      alert(
+        `사용자가 성공적으로 삭제되었습니다.\n\n` +
+        `게시물 ${deletedPosts.length}개 · 댓글 ${deletedComments.length}개 · 합격곡 ${deletedApprovedSongs.length}개`
+      );
     } catch (error) {
       console.error('사용자 삭제 실패:', error);
-      alert('사용자 삭제에 실패했습니다.');
+      alert('사용자 삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      setDeletingUserUid(null);
     }
   };
 
@@ -1284,7 +1384,8 @@ const AdminPanel: React.FC = () => {
                   onEdit={() => setEditingUser(user)}
                   onSave={() => handleUpdateUser(user)}
                   onCancel={() => setEditingUser(null)}
-                  onDelete={() => handleDeleteUser(user)}
+                  onDelete={() => requestDeleteUser(user)}
+                  isDeleting={deletingUserUid === user.uid}
                   onView={() => setSelectedUser(user)}
                   onStatusChange={() => openStatusModal(user)}
                   editingUser={editingUser || undefined}
@@ -1926,6 +2027,14 @@ const AdminPanel: React.FC = () => {
           </button>
           <button
             type="button"
+            className={`tab-button ${activeTab === 'emails' ? 'active' : ''}`}
+            onClick={() => setActiveTab('emails')}
+          >
+            <Mail size={18} />
+            <span>이메일 이력</span>
+          </button>
+          <button
+            type="button"
             className={`tab-button ${activeTab === 'logs' ? 'active' : ''}`}
             onClick={() => {
               setActiveTab('logs');
@@ -1951,9 +2060,65 @@ const AdminPanel: React.FC = () => {
       <main className="admin-main tab-content">
         {activeTab === 'users' && renderUsersPanel()}
         {activeTab === 'grades' && renderGradesPanel()}
+        {activeTab === 'emails' && <AdminEmailHistoryPanel />}
         {activeTab === 'logs' && renderLogsPanel()}
         {activeTab === 'lab' && isSuperAdmin && <AdminDesignLab />}
       </main>
+
+      {deletingUserUid && (
+        <div className="admin-delete-progress-banner" role="status" aria-live="polite">
+          회원 데이터를 삭제하는 중입니다. 창을 닫지 마세요…
+        </div>
+      )}
+
+      {deleteConfirmUser && (
+        <div
+          className="modal-overlay"
+          onClick={() => {
+            if (!deletingUserUid) setDeleteConfirmUser(null);
+          }}
+        >
+          <div className="modal-content admin-delete-confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>회원 삭제</h2>
+              <button
+                type="button"
+                className="close-btn"
+                onClick={() => setDeleteConfirmUser(null)}
+                disabled={Boolean(deletingUserUid)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <p className="admin-delete-confirm-lead">
+                <strong>{deleteConfirmUser.nickname}</strong>님을 삭제하시겠습니까?
+              </p>
+              <p className="admin-delete-confirm-warning">
+                이 작업은 되돌릴 수 없으며, 해당 회원의 게시물·댓글·합격곡(듀엣 포함)이 모두 삭제됩니다.
+              </p>
+            </div>
+            <div className="modal-actions admin-delete-confirm-actions">
+              <button
+                type="button"
+                className="action-btn delete-btn"
+                onClick={() => void executeDeleteUser(deleteConfirmUser)}
+                disabled={Boolean(deletingUserUid)}
+              >
+                {deletingUserUid ? '삭제 중…' : '삭제하기'}
+              </button>
+              <button
+                type="button"
+                className="action-btn cancel-btn"
+                onClick={() => setDeleteConfirmUser(null)}
+                disabled={Boolean(deletingUserUid)}
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 사용자 상세 모달 */}
       {selectedUser && (

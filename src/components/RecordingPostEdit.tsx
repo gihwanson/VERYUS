@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../firebase';
+import { rejectBoardAttachmentIfTooLarge } from '../utils/boardAttachmentLimits';
 
 interface User {
   uid: string;
@@ -151,6 +152,8 @@ const RecordingPostEdit: React.FC = () => {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user || !post) return;
+
+    if (rejectBoardAttachmentIfTooLarge(file, file.name, e.target)) return;
 
     // 오디오 파일만 허용 (영상 파일 차단)
     const audioMimeTypes = ['audio/mpeg', 'audio/mp3', 'audio/mp4', 'audio/m4a', 'audio/wav', 'audio/wave', 'audio/x-wav', 'audio/aac', 'audio/x-aac', 'audio/flac', 'audio/x-flac', 'audio/ogg', 'audio/x-ogg', 'audio/webm', 'audio/x-ms-wma', 'audio/caf', 'audio/amr', 'audio/x-amr', 'audio/3gpp', 'audio/x-3gpp'];

@@ -66,3 +66,48 @@ export const deleteUserAuthAccount = onCall(
     }
   }
 );
+
+/**
+ * Firestore users에 없는 이메일의 Firebase Auth 잔존 계정을 제거해 재가입을 허용합니다.
+ * (관리자 삭제 후 Auth만 남은 경우 등)
+ */
+export const reclaimEmailForSignup = onCall(
+  {
+    region: 'asia-northeast3',
+    timeoutSeconds: 30
+  },
+  async (request) => {
+    const email = String(request.data?.email || '').trim().toLowerCase();
+    if (!email || !email.includes('@')) {
+      throw new HttpsError('invalid-argument', '유효한 이메일이 필요합니다.');
+    }
+
+    const usersSnap = await admin
+      .firestore()
+      .collection('users')
+      .where('email', '==', email)
+      .limit(1)
+      .get();
+
+    if (!usersSnap.empty) {
+      throw new HttpsError(
+        'failed-precondition',
+        '현재 사용 중인 이메일입니다.'
+      );
+    }
+
+    try {
+      const userRecord = await admin.auth().getUserByEmail(email);
+      await admin.auth().deleteUser(userRecord.uid);
+      logger.info('재가입용 Auth 계정 회수 완료', { email, uid: userRecord.uid });
+      return { ok: true, reclaimed: true };
+    } catch (error: unknown) {
+      const code = (error as { code?: string })?.code;
+      if (code === 'auth/user-not-found') {
+        return { ok: true, reclaimed: false };
+      }
+      logger.error('재가입용 Auth 계정 회수 실패', { email, error });
+      throw new HttpsError('internal', '이메일 재가입 준비에 실패했습니다.');
+    }
+  }
+);

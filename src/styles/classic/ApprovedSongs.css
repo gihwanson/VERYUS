@@ -55,6 +55,17 @@
   max-width: var(--app-content-max-width);
 }
 
+.approved-songs-tabs.four {
+  grid-template-columns: repeat(2, 1fr);
+  max-width: var(--app-content-max-width);
+}
+
+@media (min-width: 768px) {
+  .approved-songs-tabs.four {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
 .approved-songs-tab {
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(15px);

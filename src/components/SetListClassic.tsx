@@ -2,8 +2,22 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SetListManagerClassic from './SetList/SetListManagerClassic';
 import SetListCards from './SetList/SetListCards';
+import FreeSongPanel from './SetList/FreeSong/FreeSongPanel';
+import FreeSongAdminPanel from './SetList/FreeSong/FreeSongAdminPanel';
+import FreeSongOrderPanel from './SetList/FreeSong/FreeSongOrderPanel';
+import FreeSongStatsPanel from './SetList/FreeSong/FreeSongStatsPanel';
+import BuskingMemberRosterPanel from './SetList/BuskingMember/BuskingMemberRosterPanel';
+import BuskingNav, { type BuskingCategory, type FreeSongView, type SetlistView } from './SetList/BuskingNav';
+import BuskingSessionShell from './SetList/BuskingSessionShell';
 import { useSetListData } from './SetList/hooks/useSetListData';
-import { canManageSetList } from './SetList/setListPermissions';
+import { useBuskingSession } from './SetList/hooks/useBuskingSession';
+import { useBuskingSessionBootstrap } from './SetList/hooks/useBuskingSessionBootstrap';
+import { useFreeSongSubmissions } from './SetList/FreeSong/useFreeSongSubmissions';
+import {
+  canAccessBuskingManage,
+  canHostBuskingSession,
+  canManageBuskingSession,
+} from './SetList/buskingSessionPermissions';
 import './SetList/styles.css';
 
 const pageBg: React.CSSProperties = {
@@ -15,20 +29,48 @@ const pageBg: React.CSSProperties = {
   borderRadius: 0,
   boxShadow: 'none',
   position: 'relative',
-  overflow: 'hidden'
+  overflow: 'hidden',
 };
 
 const SetListClassic: React.FC = () => {
   const navigate = useNavigate();
   const userString = localStorage.getItem('veryus_user');
   const user = userString ? JSON.parse(userString) : null;
-  const canManage = canManageSetList(user?.role);
+  const sessionUser = user?.uid
+    ? { uid: user.uid, nickname: user.nickname || '', role: user.role }
+    : null;
 
-  const [viewMode, setViewMode] = useState<'manage' | 'cards'>(canManage ? 'manage' : 'cards');
-  const { songs, setLists, activeSetList, loading } = useSetListData();
+  const canAccessManage = canAccessBuskingManage(user?.role);
+  const canHost = canHostBuskingSession(sessionUser);
+
+  const [category, setCategory] = useState<BuskingCategory>('freeSong');
+  const [freeSongView, setFreeSongView] = useState<FreeSongView>(canAccessManage ? 'roster' : 'submit');
+  const [setlistView, setSetlistView] = useState<SetlistView>(canAccessManage ? 'manage' : 'cards');
+
+  const { songs, setLists, loading } = useSetListData();
+  const {
+    activeSetList,
+    setSelectedSessionId,
+    liveSessionsToday,
+    hostHasLiveSession,
+    needsSessionPicker,
+  } = useBuskingSession(setLists, sessionUser);
+
+  const canManageCurrent = canManageBuskingSession(activeSetList, sessionUser);
+
+  const { bootstrapping, bootstrapError, retryBootstrap, awaitingVenue, createSession } =
+    useBuskingSessionBootstrap(setLists, hostHasLiveSession, canHost, sessionUser);
+
+  const submissionsState = useFreeSongSubmissions(
+    activeSetList,
+    user?.nickname || '',
+    user?.uid || '',
+    loading
+  );
 
   const goToPerformView = useCallback(() => {
-    setViewMode('cards');
+    setCategory('setlist');
+    setSetlistView('cards');
   }, []);
 
   const [narrowScreen, setNarrowScreen] = useState(
@@ -44,14 +86,22 @@ const SetListClassic: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!canManage && viewMode === 'manage') {
-      setViewMode('cards');
+    if (!canManageCurrent && setlistView === 'manage') {
+      setSetlistView('cards');
     }
-  }, [canManage, viewMode]);
+  }, [canManageCurrent, setlistView]);
 
-  // 진행 탭: 하단 네비 자동 접기 (채팅 입력창 가림 방지)
   useEffect(() => {
-    const performActive = viewMode === 'cards';
+    if (!canManageCurrent && freeSongView === 'admin') {
+      setFreeSongView('submit');
+    }
+    if (!canManageCurrent && freeSongView === 'roster') {
+      setFreeSongView('submit');
+    }
+  }, [canManageCurrent, freeSongView]);
+
+  useEffect(() => {
+    const performActive = category === 'setlist' && setlistView === 'cards';
     try {
       if (performActive) {
         sessionStorage.setItem('setlistPerformMode', '1');
@@ -70,37 +120,20 @@ const SetListClassic: React.FC = () => {
       }
       window.dispatchEvent(new Event('veryus-bottom-nav-sync'));
     };
-  }, [viewMode]);
+  }, [category, setlistView]);
 
-  const showManage = canManage && viewMode === 'manage';
-  const isPerformFullscreen = narrowScreen && viewMode === 'cards';
-  const title = showManage ? '관리' : '진행';
+  const showSetlistManage = category === 'setlist' && canManageCurrent && setlistView === 'manage';
+  const isPerformFullscreen = category === 'setlist' && narrowScreen && setlistView === 'cards';
 
-  const tabBtnStyle = (active: boolean, flex?: boolean): React.CSSProperties => ({
-    ...(flex ? { flex: 1, minWidth: 0 } : {}),
-    background: active ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.15)',
+  const tabBtnStyle: React.CSSProperties = {
+    background: 'rgba(255, 255, 255, 0.15)',
     backdropFilter: 'blur(10px)',
     color: 'white',
     border: 'none',
     borderRadius: 12,
-    padding: flex ? '12px 8px' : '10px 16px',
+    padding: '10px 16px',
     fontWeight: 600,
-    fontSize: flex ? 13 : undefined,
     cursor: 'pointer',
-    transition: 'all 0.3s ease'
-  });
-
-  const homeBtnStyle: React.CSSProperties = {
-    marginTop: narrowScreen && !isPerformFullscreen ? 10 : 0,
-    padding: narrowScreen && !isPerformFullscreen ? '8px 14px' : '10px 18px',
-    borderRadius: narrowScreen && !isPerformFullscreen ? 10 : 12,
-    border: '1px solid rgba(255,255,255,0.35)',
-    background: 'rgba(255,255,255,0.15)',
-    backdropFilter: 'blur(8px)',
-    color: 'white',
-    fontWeight: 600,
-    fontSize: narrowScreen && !isPerformFullscreen ? 13 : 14,
-    cursor: 'pointer'
   };
 
   if (loading) {
@@ -112,7 +145,7 @@ const SetListClassic: React.FC = () => {
             inset: 0,
             background:
               'radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.1) 0%, transparent 50%), radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.08) 0%, transparent 50%)',
-            pointerEvents: 'none'
+            pointerEvents: 'none',
           }}
         />
         <div
@@ -126,28 +159,89 @@ const SetListClassic: React.FC = () => {
             textAlign: 'center',
             color: 'white',
             fontSize: 18,
-            fontWeight: 600
+            fontWeight: 600,
           }}
         >
-          셋리스트 불러오는 중…
+          버스킹 불러오는 중…
         </div>
       </div>
     );
   }
 
+  const isBuskingFullWidth = category === 'freeSong' || showSetlistManage || isPerformFullscreen;
+
   const pageClassName = [
+    'setlist-page',
+    `setlist-page--${category}`,
     isPerformFullscreen && 'setlist-page--fullscreen',
-    showManage && 'setlist-page--manage'
+    showSetlistManage && 'setlist-page--manage',
   ]
     .filter(Boolean)
     .join(' ');
+
+  const renderFreeSongContent = () => {
+    if (freeSongView === 'roster' && canManageCurrent) {
+      return (
+        <BuskingMemberRosterPanel
+          activeSetList={activeSetList}
+          canManage={canManageCurrent}
+          variant="freeSong"
+        />
+      );
+    }
+    if (freeSongView === 'admin' && canManageCurrent) {
+      return (
+        <FreeSongAdminPanel
+          activeSetList={activeSetList}
+          submissionsState={submissionsState}
+          userUid={user?.uid || ''}
+        />
+      );
+    }
+    if (freeSongView === 'order') {
+      return (
+        <FreeSongOrderPanel
+          activeSetList={activeSetList}
+          userNickname={user?.nickname || ''}
+          canManage={canManageCurrent}
+        />
+      );
+    }
+    if (freeSongView === 'stats') {
+      return <FreeSongStatsPanel activeSetList={activeSetList} canManage={canManageCurrent} />;
+    }
+    return (
+      <FreeSongPanel
+        activeSetList={activeSetList}
+        userNickname={user?.nickname || ''}
+        userUid={user?.uid || ''}
+        submissionsState={submissionsState}
+      />
+    );
+  };
+
+  const renderCategoryContent = () => {
+    if (category === 'freeSong') {
+      return renderFreeSongContent();
+    }
+    if (showSetlistManage) {
+      return (
+        <SetListManagerClassic
+          setLists={setLists}
+          activeSetList={activeSetList}
+          onAfterSessionActivated={goToPerformView}
+        />
+      );
+    }
+    return <SetListCards songs={songs} activeSetList={activeSetList} fullscreen={isPerformFullscreen} />;
+  };
 
   return (
     <div
       className={pageClassName}
       style={{
         ...pageBg,
-        padding: isPerformFullscreen || showManage ? 0 : '20px'
+        padding: isBuskingFullWidth ? 0 : '20px',
       }}
     >
       <div
@@ -156,109 +250,63 @@ const SetListClassic: React.FC = () => {
           inset: 0,
           background:
             'radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.1) 0%, transparent 50%), radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.08) 0%, transparent 50%)',
-          pointerEvents: 'none'
+          pointerEvents: 'none',
         }}
       />
 
       <div
-        className={`setlist-page-inner${showManage ? ' setlist-page-inner--manage' : ''}`}
+        className={`setlist-page-inner${showSetlistManage ? ' setlist-page-inner--manage' : ''}`}
         style={{ position: 'relative', zIndex: 1 }}
       >
         {isPerformFullscreen ? (
           <div className="setlist-page-header--compact">
-            <h1 style={{ color: 'white', fontWeight: 700, textShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>
-              🎴 {canManage ? '진행' : '셋리스트'}
+            <h1 style={{ color: 'white', fontWeight: 700, textShadow: '0 2px 4px rgba(0,0,0,0.2)', margin: 0, fontSize: 15 }}>
+              셋리스트 · 무대 진행
             </h1>
             <div style={{ display: 'flex', gap: 6 }}>
-              {canManage && (
-                <button type="button" onClick={() => setViewMode('manage')} style={tabBtnStyle(false)}>
-                  관리
+              <button type="button" onClick={() => setCategory('freeSong')} style={tabBtnStyle}>
+                ← 자유곡
+              </button>
+              {canManageCurrent && (
+                <button type="button" onClick={() => setSetlistView('manage')} style={tabBtnStyle}>
+                  편성
                 </button>
               )}
-              <button type="button" onClick={() => navigate('/')} style={tabBtnStyle(false)}>
+              <button type="button" onClick={() => navigate('/')} style={tabBtnStyle}>
                 홈
               </button>
             </div>
           </div>
-        ) : narrowScreen ? (
-          <div className={showManage ? 'setlist-page-header-block' : ''} style={{ marginBottom: showManage ? 0 : 16 }}>
-            <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-              <h1
-                style={{
-                  color: 'white',
-                  fontWeight: 700,
-                  fontSize: 24,
-                  margin: 0,
-                  textShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                }}
-              >
-                {canManage ? `셋리스트 — ${title}` : '셋리스트 — 진행'}
-              </h1>
-              <button type="button" onClick={() => navigate('/')} style={homeBtnStyle}>
-                ← 메인 메뉴
-              </button>
-            </div>
-            {canManage && (
-              <div style={{ display: 'flex', gap: 8, marginTop: 14, width: '100%', boxSizing: 'border-box' }}>
-                <button type="button" onClick={() => setViewMode('manage')} style={tabBtnStyle(viewMode === 'manage', true)}>
-                  📋 관리
-                </button>
-                <button type="button" onClick={() => setViewMode('cards')} style={tabBtnStyle(viewMode === 'cards', true)}>
-                  🎴 진행
-                </button>
-              </div>
-            )}
-          </div>
         ) : (
-          <div
-            className={showManage ? 'setlist-page-header-block' : ''}
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'flex-start',
-              marginBottom: showManage ? 0 : 16,
-              flexWrap: 'wrap',
-              gap: '16px'
-            }}
-          >
-            <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-              <h1
-                style={{
-                  color: 'white',
-                  fontWeight: 700,
-                  fontSize: 28,
-                  margin: 0,
-                  textShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                }}
-              >
-                {canManage ? `셋리스트 — ${title}` : '셋리스트 — 진행'}
-              </h1>
-              <button type="button" onClick={() => navigate('/')} style={homeBtnStyle}>
-                ← 메인 메뉴
-              </button>
-            </div>
-            {canManage && (
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                <button type="button" onClick={() => setViewMode('manage')} style={tabBtnStyle(viewMode === 'manage')}>
-                  📋 관리
-                </button>
-                <button type="button" onClick={() => setViewMode('cards')} style={tabBtnStyle(viewMode === 'cards')}>
-                  🎴 진행
-                </button>
-              </div>
-            )}
-          </div>
+          <BuskingNav
+            category={category}
+            onCategoryChange={setCategory}
+            freeSongView={freeSongView}
+            onFreeSongViewChange={setFreeSongView}
+            setlistView={setlistView}
+            onSetlistViewChange={setSetlistView}
+            canManage={canManageCurrent}
+            onHome={() => navigate('/')}
+          />
         )}
 
-        {showManage ? (
-          <SetListManagerClassic
-            setLists={setLists}
+        <div className={`busking-content busking-content--${category}`}>
+          <BuskingSessionShell
             activeSetList={activeSetList}
-            onAfterSessionActivated={goToPerformView}
-          />
-        ) : (
-          <SetListCards songs={songs} activeSetList={activeSetList} fullscreen={isPerformFullscreen} />
-        )}
+            liveSessionsToday={liveSessionsToday}
+            needsSessionPicker={needsSessionPicker && !awaitingVenue}
+            awaitingVenue={awaitingVenue}
+            bootstrapping={bootstrapping}
+            bootstrapError={bootstrapError}
+            user={sessionUser}
+            canManageCurrent={canManageCurrent}
+            setSelectedSessionId={setSelectedSessionId}
+            onCreateSession={createSession}
+            onRetryBootstrap={retryBootstrap}
+          >
+            {renderCategoryContent()}
+          </BuskingSessionShell>
+        </div>
       </div>
     </div>
   );

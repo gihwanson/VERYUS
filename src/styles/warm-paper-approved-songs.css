@@ -69,6 +69,16 @@ html[data-ui-style="warm-paper"] .approved-songs-tabs.three {
   grid-template-columns: repeat(3, 1fr);
 }
 
+html[data-ui-style="warm-paper"] .approved-songs-tabs.four {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (min-width: 640px) {
+  html[data-ui-style="warm-paper"] .approved-songs-tabs.four {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
 html[data-ui-style="warm-paper"] .approved-songs-tab {
   min-height: 56px;
   padding: 10px 8px;

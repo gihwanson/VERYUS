@@ -4,7 +4,11 @@ import { doc, setDoc, updateDoc, query, collection, where, getDocs, serverTimest
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Eye, EyeOff } from 'lucide-react';
 import { auth, db, storage } from '../firebase';
+import { functions } from '../firebase';
+import { httpsCallable } from 'firebase/functions';
 import { useNavigate } from 'react-router-dom';
+import { recordEmailRegistration } from '../utils/emailRegistrationHistory';
+import { NotificationService } from '../utils/notificationService';
 
 const Signup: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -201,7 +205,34 @@ const Signup: React.FC = () => {
     let userDocCreated = false;
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, emailTrim, formData.password);
+      const reclaimEmail = httpsCallable<{ email: string }, { ok: boolean; reclaimed?: boolean }>(
+        functions,
+        'reclaimEmailForSignup'
+      );
+
+      const tryReclaim = async () => {
+        try {
+          await reclaimEmail({ email: emailTrim });
+        } catch (reclaimError) {
+          console.warn('이메일 재가입 준비:', reclaimError);
+        }
+      };
+
+      await tryReclaim();
+
+      let userCredential;
+      try {
+        userCredential = await createUserWithEmailAndPassword(auth, emailTrim, formData.password);
+      } catch (signupError: unknown) {
+        const signupErr = signupError as { code?: string };
+        if (signupErr.code === 'auth/email-already-in-use') {
+          await tryReclaim();
+          userCredential = await createUserWithEmailAndPassword(auth, emailTrim, formData.password);
+        } else {
+          throw signupError;
+        }
+      }
+
       const user = userCredential.user;
       createdUser = user;
 
@@ -219,6 +250,16 @@ const Signup: React.FC = () => {
         createdAt: serverTimestamp()
       });
       userDocCreated = true;
+
+      const registrationMeta = await recordEmailRegistration(emailTrim, user.uid, nicknameTrim);
+      if (registrationMeta.isReRegistration) {
+        void NotificationService.notifyStaffOfEmailReRegistration({
+          email: emailTrim,
+          newNickname: nicknameTrim,
+          newUid: user.uid,
+          previousNicknames: registrationMeta.previousNicknames,
+        });
+      }
 
       let profileImageUrl: string | null = null;
       if (profileImage) {
@@ -258,7 +299,7 @@ const Signup: React.FC = () => {
       }
       const err = error as { code?: string; message?: string };
       if (err.code === 'auth/email-already-in-use') {
-        setError('이미 등록된 이메일입니다. 로그인 화면에서 시도하거나 비밀번호 찾기를 이용해주세요.');
+        setError('이메일 재가입 처리에 실패했습니다. 잠시 후 다시 시도하거나 운영진에게 문의해 주세요.');
       } else {
         setError(getErrorMessage(err.code));
       }

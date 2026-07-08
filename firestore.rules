@@ -148,11 +148,49 @@ service cloud.firestore {
       allow read, write: if signedIn();
     }
 
+    function canManageSetList() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && (
+          userDoc().role == '리더' ||
+          userDoc().role == '조장'
+        );
+    }
+
+    function isLeaderRole() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && userDoc().role == '리더';
+    }
+
+    function isSetlistHost() {
+      return signedIn()
+        && resource.data.hostUid == request.auth.uid;
+    }
+
     match /setlists/{setlistId} {
-      allow read, write: if signedIn();
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.hostUid == request.auth.uid
+        && request.resource.data.status == 'live';
+      allow update: if signedIn();
+      allow delete: if canManageSetList()
+        && (
+          isLeaderRole() ||
+          isSetlistHost() ||
+          !('hostUid' in resource.data)
+        );
       match /chatMessages/{msgId} {
         allow read, write: if signedIn();
       }
+    }
+
+    match /buskingStats/{docId} {
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update: if signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['performers', 'updatedAt']);
+      allow delete: if canManageSetList();
     }
 
     match /playlistSongs/{docId} {
@@ -183,6 +221,22 @@ service cloud.firestore {
     }
 
     match /blockingRules/{docId} {
+      allow read, write: if signedIn();
+    }
+
+    match /admin_deletion_records/{docId} {
+      allow read, write: if signedIn();
+    }
+
+    match /approved_song_deletion_audit/{docId} {
+      allow read, write: if signedIn();
+    }
+
+    match /emailRegistrationHistory/{docId} {
+      allow read, write: if signedIn();
+    }
+
+    match /practiceRoomSettings/{docId} {
       allow read, write: if signedIn();
     }
 

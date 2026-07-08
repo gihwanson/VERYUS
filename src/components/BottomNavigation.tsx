@@ -44,7 +44,7 @@ const BOARD_ITEMS: BoardItem[] = [
   { name: '통합 검색', path: 'search', icon: Search, isSearch: true },
   { name: '연습실예약', path: '/practice-room-booking', icon: Calendar },
   { name: '합격곡', path: '/approved-songs', icon: Trophy },
-  { name: '셋리스트', path: '/setlist', icon: Music },
+  { name: '버스킹', path: '/setlist', icon: Music },
   { name: '게임', path: '/games', icon: Gamepad2 },
   { name: '악기', path: '/instruments/piano', icon: Piano },
   { name: '콘테스트', path: '/contests', icon: Mic },

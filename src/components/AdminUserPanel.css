@@ -1004,6 +1004,14 @@
   background: linear-gradient(90deg, #ff5858 0%, #f09819 100%);
   color: #fff;
 }
+.action-btn:disabled,
+.user-actions .action-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+  box-shadow: none;
+}
 .action-btn.save-btn {
   background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%);
   color: #fff;
@@ -1037,6 +1045,21 @@
   gap: 12px;
   margin-bottom: 8px;
   width: 100%;
+}
+.edit-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: #4b5563;
+  cursor: pointer;
+  user-select: none;
+}
+.edit-checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #7f5fff;
 }
 .edit-input, .edit-select {
   width: 100%;
@@ -2478,6 +2501,321 @@
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
+/* 삭제 내역 탭 */
+.deletions-panel {
+  padding: 24px;
+}
+
+.deletions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.deletions-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.deletions-header h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 8px;
+}
+
+.deletions-header p {
+  color: #64748b;
+  font-size: 1rem;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.refresh-deletions-btn,
+.cleanup-orphan-songs-btn {
+  border: none;
+  border-radius: 12px;
+  padding: 12px 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.refresh-deletions-btn {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.cleanup-orphan-songs-btn {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: #fff;
+}
+
+.refresh-deletions-btn:hover:not(:disabled),
+.cleanup-orphan-songs-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.refresh-deletions-btn:disabled,
+.cleanup-orphan-songs-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.deletions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.deletion-record-card {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
+}
+
+.deletion-record-summary {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.deletion-record-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.deletion-record-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #991b1b;
+  margin-bottom: 6px;
+}
+
+.deletion-record-title strong {
+  font-size: 1.05rem;
+}
+
+.deletion-record-title span {
+  color: #64748b;
+  font-size: 0.92rem;
+}
+
+.deletion-record-meta,
+.deletion-record-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  color: #64748b;
+  font-size: 0.88rem;
+}
+
+.deletion-record-counts span {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
+.deletion-record-details {
+  padding: 0 20px 20px;
+  display: grid;
+  gap: 16px;
+}
+
+.deletion-record-details section h4 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  color: #334155;
+}
+
+.deletion-record-details ul {
+  margin: 0;
+  padding-left: 18px;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.deletion-record-details li + li {
+  margin-top: 4px;
+}
+
+.deletion-songs-list {
+  list-style: none;
+  padding-left: 0 !important;
+}
+
+.deletion-songs-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.deletion-song-title {
+  font-weight: 600;
+}
+
+.deletion-song-members {
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.deletion-empty-section {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.88rem;
+}
+
+/* 이메일 가입 이력 탭 */
+.email-history-panel {
+  padding: 24px;
+}
+
+.email-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.email-history-header h2 {
+  margin: 0 0 8px;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.email-history-header p {
+  margin: 0;
+  color: #64748b;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.email-history-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 18px;
+  background: #f1f5f9;
+  color: #334155;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.email-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.email-history-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  overflow: hidden;
+}
+
+.email-history-summary {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.email-history-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: #1e293b;
+  margin-bottom: 6px;
+}
+
+.email-history-badge {
+  background: #ede9fe;
+  color: #5b21b6;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.email-history-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  color: #64748b;
+  font-size: 0.88rem;
+}
+
+.email-history-entries {
+  list-style: none;
+  margin: 0;
+  padding: 0 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.email-history-entry {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.email-history-entry--active {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.email-history-entry--deleted {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.email-history-entry-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+}
+
+.email-history-entry-sub {
+  margin-top: 4px;
+  font-size: 0.84rem;
+  color: #64748b;
+}
+
 /* 반응형 */
 @media (max-width: 768px) {
   .logs-header {
@@ -3283,6 +3621,49 @@
 .grade-approval-tools-body {
   padding: 0 18px 18px;
   border-top: 1px solid rgba(127, 95, 255, 0.1);
+}
+
+.admin-delete-progress-banner {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 5000;
+  max-width: min(92vw, 420px);
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: rgba(30, 41, 59, 0.92);
+  color: #fff;
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-align: center;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.28);
+}
+
+.admin-delete-confirm-modal .admin-delete-confirm-lead {
+  margin: 0 0 10px;
+  font-size: 1.05rem;
+  line-height: 1.5;
+}
+
+.admin-delete-confirm-modal .admin-delete-confirm-warning {
+  margin: 0;
+  color: #b45309;
+  line-height: 1.55;
+  font-weight: 600;
+}
+
+.admin-delete-confirm-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+.admin-delete-confirm-actions .action-btn {
+  min-width: 108px;
+  justify-content: center;
 }
 
 /* Final admin glass lock layer (do not remove)

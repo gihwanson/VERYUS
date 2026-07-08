@@ -283,6 +283,26 @@
   line-height: 1.5;
 }
 
+.always-open-notice {
+  margin: 0 16px 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #065f46;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.always-open-period {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
 .duration-hint.daily-limit {
   background: #eff6ff;
   border-left: 3px solid #3b82f6;

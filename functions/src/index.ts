@@ -9,7 +9,7 @@ export {
   deleteAnonymousChatRoom,
   scheduledAnonymousChatCleanup
 } from './anonymousChatCleanup';
-export { deleteUserAuthAccount } from './adminUserManagement';
+export { deleteUserAuthAccount, reclaimEmailForSignup } from './adminUserManagement';
 export { scheduledGameWeeklyReset } from './gameWeeklyReset';
 const WEB_APP_ORIGIN = 'https://veryusduet.web.app';
 
@@ -41,6 +41,10 @@ const getNotificationRoute = (data: FirebaseFirestore.DocumentData): string => {
 
   if (notificationType === 'grade_request_pending') {
     return '/admin?tab=approvals';
+  }
+
+  if (notificationType === 'email_re_registration') {
+    return '/admin?tab=emails';
   }
 
   if (notificationType === 'approved_song_milestone') {

@@ -9,16 +9,17 @@ import {
   filterSongsByType, 
   filterSongsBySearch, 
   searchBuskingSongs, 
-  getUniqueMembers,
+  getBuskingMembers,
+  getRegularMembers,
   getMemberFirstApprovedDates,
   formatApprovedDateKorean,
   isApprovedInCurrentMonth,
-  parseFirestoreDate,
-  isJoinedInCurrentMonth,
   validateSongForm, 
   convertFirestoreData,
   findDuplicateApprovedSong,
-  confirmDuplicateApprovedSongRegistration
+  confirmDuplicateApprovedSongRegistration,
+  buildUserMapFromSnapshot,
+  filterSongsWithExistingMembers,
 } from './ApprovedSongsUtils';
 import {
   TabButton,
@@ -34,6 +35,7 @@ import {
   approvedSongCountsByNicknameFromDocs,
   notifyStaffOnApprovedSongCountMilestones
 } from '../utils/approvedSongMilestone';
+import ApprovedSongDeletionHistory from './ApprovedSongDeletionHistory';
 
 const ApprovedSongsNotebook: React.FC = () => {
   type RepairFailureItem = {
@@ -45,7 +47,7 @@ const ApprovedSongsNotebook: React.FC = () => {
 
   const [songs, setSongs] = useState<ApprovedSong[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'register' | 'list' | 'busking'>('list');
+  const [activeTab, setActiveTab] = useState<'register' | 'list' | 'busking' | 'deletions'>('list');
   const [form, setForm] = useState({ title: '', members: [''] });
   const [editId, setEditId] = useState<string | null>(null);
   const [buskingMembers, setBuskingMembers] = useState<string[]>(['']);
@@ -54,7 +56,6 @@ const ApprovedSongsNotebook: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [userMap, setUserMap] = useState<UserMap>({});
   const [allNicknames, setAllNicknames] = useState<string[]>([]);
-  const [hasLoadedUsers, setHasLoadedUsers] = useState(false);
   const [buskingTab, setBuskingTab] = useState<TabType>('all');
   const [manageTab, setManageTab] = useState<TabType>('all');
   const [audioMap, setAudioMap] = useState<Record<string, { audioUrl: string; duration?: number }>>({});
@@ -79,39 +80,28 @@ const ApprovedSongsNotebook: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  const shouldLoadUsers = activeTab === 'busking' || manageTab === 'manage' || buskingTab === 'grade';
+  const shouldLoadUsers = true;
 
   useEffect(() => {
-    if (!shouldLoadUsers || hasLoadedUsers) return;
-
-    let cancelled = false;
-    const loadUsers = async () => {
-      try {
-        const snap = await getDocs(collection(db, 'users'));
-        if (cancelled) return;
-
-        const map: UserMap = {};
-        const nicknames: string[] = [];
-        snap.docs.forEach((snapshotDoc) => {
-          const data = snapshotDoc.data();
-          if (data.nickname) {
-            map[data.nickname] = { grade: data.grade, createdAt: data.createdAt };
-            nicknames.push(data.nickname);
-          }
-        });
+    const unsubscribe = onSnapshot(
+      collection(db, 'users'),
+      (snap) => {
+        const { map, nicknames } = buildUserMapFromSnapshot(snap.docs);
         setUserMap(map);
         setAllNicknames(nicknames);
-        setHasLoadedUsers(true);
-      } catch (error) {
+      },
+      (error) => {
         console.error('유저 정보 로딩 실패:', error);
       }
-    };
+    );
 
-    void loadUsers();
-    return () => {
-      cancelled = true;
-    };
-  }, [shouldLoadUsers, hasLoadedUsers]);
+    return () => unsubscribe();
+  }, []);
+
+  const validSongs = useMemo(
+    () => filterSongsWithExistingMembers(songs, userMap),
+    [songs, userMap]
+  );
 
   const handleSave = async () => {
     if (!validateSongForm(form)) {
@@ -120,7 +110,7 @@ const ApprovedSongsNotebook: React.FC = () => {
     }
     const trimmedMembers = form.members.map((m) => m.trim()).filter(Boolean);
     if (!editId) {
-      const duplicate = findDuplicateApprovedSong(songs, form.title, trimmedMembers);
+      const duplicate = findDuplicateApprovedSong(validSongs, form.title, trimmedMembers);
       if (duplicate && !confirmDuplicateApprovedSongRegistration(duplicate)) {
         return;
       }
@@ -176,7 +166,7 @@ const ApprovedSongsNotebook: React.FC = () => {
 
   const handleBuskingSearch = () => {
     const attendees = buskingMembers.map(m => m.trim()).filter(Boolean);
-    const result = searchBuskingSongs(songs, attendees);
+    const result = searchBuskingSongs(validSongs, attendees);
     setFilteredSongs(result);
   };
 
@@ -373,8 +363,8 @@ const ApprovedSongsNotebook: React.FC = () => {
 
   // 필터링된 곡 리스트
   const displayedSongs = useMemo(
-    () => filterSongsBySearch(filterSongsByType(songs, songType), searchTerm),
-    [songs, songType, searchTerm]
+    () => filterSongsBySearch(filterSongsByType(validSongs, songType), searchTerm),
+    [validSongs, songType, searchTerm]
   );
 
   const buskingDisplayedSongs = useMemo(
@@ -385,26 +375,19 @@ const ApprovedSongsNotebook: React.FC = () => {
   // 관리 탭에서만 닉네임 집계 계산
   const uniqueMembers = useMemo(() => {
     if (manageTab !== 'manage') return [];
-    return getUniqueMembers(songs).sort((a, b) => a.localeCompare(b, 'ko'));
-  }, [songs, manageTab]);
+    return getBuskingMembers(validSongs, userMap);
+  }, [validSongs, userMap, manageTab]);
 
   const uniqueMembersText = useMemo(() => uniqueMembers.join('\n'), [uniqueMembers]);
 
   const memberFirstApprovedDates = useMemo(() => {
     if (manageTab !== 'manage') return {};
-    return getMemberFirstApprovedDates(songs);
-  }, [songs, manageTab]);
+    return getMemberFirstApprovedDates(validSongs);
+  }, [validSongs, manageTab]);
 
   const otherMembers = useMemo(() => {
     if (manageTab !== 'manage') return [];
-    const uniqueSet = new Set(uniqueMembers);
-    return allNicknames
-      .filter(nickname => {
-        if (uniqueSet.has(nickname)) return false;
-        const joinDate = parseFirestoreDate(userMap[nickname]?.createdAt);
-        return !isJoinedInCurrentMonth(joinDate);
-      })
-      .sort((a, b) => a.localeCompare(b, 'ko'));
+    return getRegularMembers(allNicknames, uniqueMembers, userMap);
   }, [allNicknames, uniqueMembers, userMap, manageTab]);
 
   const otherMembersText = useMemo(() => otherMembers.join('\n'), [otherMembers]);
@@ -433,7 +416,7 @@ const ApprovedSongsNotebook: React.FC = () => {
           <p className="approved-songs-header__sub">합격 기록 · 버스킹 조회</p>
         </header>
 
-        <nav className={`approved-songs-tabs ${!isAdmin ? 'two' : 'three'}`} aria-label="합격곡 메뉴">
+        <nav className={`approved-songs-tabs ${!isAdmin ? 'two' : 'four'}`} aria-label="합격곡 메뉴">
           {isAdmin && (
             <TabButton
               label="합격곡 등록"
@@ -461,6 +444,13 @@ const ApprovedSongsNotebook: React.FC = () => {
               setFilteredSongs([]);
             }}
           />
+          {isAdmin && (
+            <TabButton
+              label="삭제 내역"
+              isActive={activeTab === 'deletions'}
+              onClick={() => setActiveTab('deletions')}
+            />
+          )}
         </nav>
 
         <section className="approved-songs-panel" aria-live="polite">
@@ -472,6 +462,9 @@ const ApprovedSongsNotebook: React.FC = () => {
           )}
           {activeTab === 'busking' && (
             <span className="approved-songs-panel__label">버스킹</span>
+          )}
+          {activeTab === 'deletions' && (
+            <span className="approved-songs-panel__label">삭제 내역</span>
           )}
 
         {/* 합격곡 등록/수정 폼 */}
@@ -762,6 +755,10 @@ const ApprovedSongsNotebook: React.FC = () => {
               </div>
             )}
           </div>
+        )}
+
+        {activeTab === 'deletions' && isAdmin && (
+          <ApprovedSongDeletionHistory isLeader={isLeader} />
         )}
         </section>
       </div>

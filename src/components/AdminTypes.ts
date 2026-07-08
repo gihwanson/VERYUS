@@ -28,6 +28,8 @@ export interface AdminUser {
   /** 설정에서 요청한 가입일(승인 전). 없으면 승인 대기 없음 */
   pendingCreatedAt?: Timestamp | Date;
   pendingCreatedAtRequestedAt?: Timestamp | Date;
+  /** true이면 합격곡이 있어도 합격곡 관리 탭에서 일반멤버로 분류 */
+  isRegularMember?: boolean;
 }
 
 export interface UserStats {
@@ -72,7 +74,30 @@ export interface BulkAction {
   parameters?: Record<string, any>;
 }
 
-export type TabType = 'users' | 'grades' | 'logs' | 'lab';
+export type TabType = 'users' | 'grades' | 'logs' | 'emails' | 'lab';
+
+export interface DeletedApprovedSongSummary {
+  id: string;
+  title: string;
+  members: string[];
+}
+
+/** 관리자 패널 회원 삭제 시 자동 삭제된 합격곡 감사 기록 */
+export type ApprovedSongDeletionSource = 'member_delete' | 'orphan_cleanup';
+
+export interface ApprovedSongAutoDeletionRecord {
+  id: string;
+  source?: ApprovedSongDeletionSource;
+  deletedMemberUid: string;
+  deletedMemberNickname: string;
+  deletedByUid: string;
+  deletedByNickname: string;
+  deletedAt: Timestamp | Date;
+  approvedSongs: DeletedApprovedSongSummary[];
+  songCount?: number;
+  /** orphan_cleanup 시 DB에 없던(삭제된) 닉네임 목록 */
+  orphanMemberNicknames?: string[];
+}
 export type SortBy = 'nickname' | 'grade' | 'role' | 'createdAt' | 'lastLoginAt' | 'activityScore';
 export type SortOrder = 'asc' | 'desc';
 

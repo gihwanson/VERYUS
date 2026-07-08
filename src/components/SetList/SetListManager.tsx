@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import SetListForm from './components/SetListForm';
-import { canManageSetList } from './setListPermissions';
+import { canManageBuskingSession } from './buskingSessionPermissions';
 import type { SetListData } from './types';
 
 interface SetListManagerProps {
@@ -16,7 +16,7 @@ const SetListManager: React.FC<SetListManagerProps> = ({
 }) => {
   const userString = localStorage.getItem('veryus_user');
   const user = userString ? JSON.parse(userString) : null;
-  const isLeader = canManageSetList(user?.role);
+  const canManageSession = canManageBuskingSession(activeSetList, user);
 
   const handleSetListDeleted = useCallback(() => {}, []);
   const handleSetListActivated = useCallback(() => {}, []);
@@ -26,7 +26,7 @@ const SetListManager: React.FC<SetListManagerProps> = ({
       <SetListForm
         setLists={setLists}
         activeSetList={activeSetList}
-        isLeader={isLeader}
+        isLeader={canManageSession}
         onSetListDeleted={handleSetListDeleted}
         onSetListActivated={handleSetListActivated}
         onAfterSessionActivated={onAfterSessionActivated}

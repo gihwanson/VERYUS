@@ -7,9 +7,7 @@ import {
   getSetListSessionDateISO,
   toLocalDateISO
 } from '../setListSessionDate';
-
-/** 리더 워크스페이스 자동 준비(생성/활성화) 중복 실행 방지 — 스냅샷으로 activeSetList가 오면 해제 */
-let setListLeaderWorkspaceBootstrapLock = false;
+import BuskingMemberRosterPanel from '../BuskingMember/BuskingMemberRosterPanel';
 
 interface SetListFormProps {
   setLists: SetListData[];
@@ -28,17 +26,9 @@ const SetListFormClassic: React.FC<SetListFormProps> = ({
   onSetListDeleted,
   onSetListActivated
 }) => {
-  const participantInputPhase = Boolean(
-    activeSetList && activeSetList.participantRegistrationComplete !== true
-  );
-  const passedSongRegistrationPhase = Boolean(
-    activeSetList && activeSetList.participantRegistrationComplete === true
-  );
+  const canEditSetlist = Boolean(isLeader && activeSetList);
 
   const [participants, setParticipants] = useState<string[]>(['']);
-
-  const [workspaceBootstrapping, setWorkspaceBootstrapping] = useState(false);
-  const [workspaceBootstrapError, setWorkspaceBootstrapError] = useState<string | null>(null);
 
   const [showSetListModal, setShowSetListModal] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -51,81 +41,6 @@ const SetListFormClassic: React.FC<SetListFormProps> = ({
   const [reorderingSongIndex, setReorderingSongIndex] = useState<number | null>(null);
   const [sessionDateDraft, setSessionDateDraft] = useState('');
   const [savingSessionDate, setSavingSessionDate] = useState(false);
-
-  // 활성 셋리스트가 생기면 자동 준비 락·로딩·에러 정리
-  useEffect(() => {
-    if (activeSetList) {
-      setWorkspaceBootstrapping(false);
-      setWorkspaceBootstrapError(null);
-      setListLeaderWorkspaceBootstrapLock = false;
-    }
-  }, [activeSetList]);
-
-  // 리더이고 활성 셋리스트가 없을 때: 미완료가 있으면 첫 항목을 조용히 활성화, 없으면 기본 셋리스트 1건 생성
-  useEffect(() => {
-    if (!isLeader || activeSetList) return;
-
-    const incomplete = setLists.filter((l) => !l.isCompleted);
-    const hasActiveIncomplete = incomplete.some((l) => l.isActive);
-    if (hasActiveIncomplete) return;
-
-    if (setListLeaderWorkspaceBootstrapLock) return;
-
-    const activateSilently = async (setList: SetListData) => {
-      const ops = setLists.map((list) =>
-        updateDoc(doc(db, 'setlists', list.id!), {
-          isActive: false,
-          updatedAt: Timestamp.now()
-        })
-      );
-      ops.push(
-        updateDoc(doc(db, 'setlists', setList.id!), {
-          isActive: true,
-          updatedAt: Timestamp.now()
-        })
-      );
-      await Promise.all(ops);
-      onSetListActivated();
-    };
-
-    const createDefaultSetList = async () => {
-      const userString = localStorage.getItem('veryus_user');
-      const user = userString ? JSON.parse(userString) : null;
-      const sessionDate = toLocalDateISO(new Date());
-      await addDoc(collection(db, 'setlists'), {
-        name: buildSetListName(sessionDate),
-        sessionDate,
-        participants: [''],
-        songs: [],
-        participantRegistrationComplete: false,
-        createdBy: user?.nickname || user?.email || '리더',
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-        isActive: true,
-        isCompleted: false
-      });
-      onSetListActivated();
-    };
-
-    setListLeaderWorkspaceBootstrapLock = true;
-    setWorkspaceBootstrapping(true);
-    setWorkspaceBootstrapError(null);
-
-    (async () => {
-      try {
-        if (incomplete.length >= 1) {
-          await activateSilently(incomplete[0]);
-        } else {
-          await createDefaultSetList();
-        }
-      } catch (e) {
-        console.error('셋리스트 자동 준비 실패:', e);
-        setWorkspaceBootstrapError('셋리스트를 자동으로 준비하지 못했습니다. 네트워크를 확인하거나 잠시 후 다시 시도해 주세요.');
-        setWorkspaceBootstrapping(false);
-        setListLeaderWorkspaceBootstrapLock = false;
-      }
-    })();
-  }, [isLeader, setLists, activeSetList, onSetListActivated]);
 
   // 기존 셋리스트가 있으면 참가자 목록 초기화
   useEffect(() => {
@@ -155,7 +70,7 @@ const SetListFormClassic: React.FC<SetListFormProps> = ({
   const participantsKey = confirmedParticipants.join('|');
 
   useEffect(() => {
-    if (!passedSongRegistrationPhase || confirmedParticipants.length === 0) {
+    if (!canEditSetlist || confirmedParticipants.length === 0) {
       setSelectedSongParticipant('');
       setParticipantPassedSongs([]);
       return;
@@ -163,7 +78,7 @@ const SetListFormClassic: React.FC<SetListFormProps> = ({
     if (!selectedSongParticipant || !confirmedParticipants.includes(selectedSongParticipant)) {
       setSelectedSongParticipant(confirmedParticipants[0]);
     }
-  }, [passedSongRegistrationPhase, participantsKey]);
+  }, [canEditSetlist, participantsKey]);
 
   useEffect(() => {
     setNicknameCardSlotCount(3);
@@ -183,7 +98,7 @@ const SetListFormClassic: React.FC<SetListFormProps> = ({
   }, [activeSetList?.songs]);
 
   useEffect(() => {
-    if (!passedSongRegistrationPhase || !selectedSongParticipant || !activeSetList) {
+    if (!canEditSetlist || !selectedSongParticipant || !activeSetList) {
       setParticipantPassedSongs([]);
       return;
     }
@@ -214,47 +129,42 @@ const SetListFormClassic: React.FC<SetListFormProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [passedSongRegistrationPhase, selectedSongParticipant, activeSetList?.id, participantsKey]);
+  }, [canEditSetlist, selectedSongParticipant, activeSetList?.id, participantsKey]);
 
   const addParticipant = () => {
-    if (!participantInputPhase) return;
     setParticipants([...participants, '']);
   };
 
   const removeParticipant = (index: number) => {
-    if (!participantInputPhase) return;
     if (participants.length > 1) {
       const updatedParticipants = participants.filter((_, i) => i !== index);
       setParticipants(updatedParticipants);
-      
-      // 활성 셋리스트가 있으면 참가자 업데이트
-    if (activeSetList && isLeader && participantInputPhase) {
-      const validParticipants = updatedParticipants.map(p => p.trim()).filter(Boolean);
-      updateSetListParticipants(validParticipants);
-    }
+
+      if (activeSetList && isLeader) {
+        const validParticipants = updatedParticipants.map((p) => p.trim()).filter(Boolean);
+        updateSetListParticipants(validParticipants);
+      }
     }
   };
 
   const updateParticipant = (index: number, value: string) => {
-    if (!participantInputPhase) return;
     const updated = [...participants];
     updated[index] = value;
     setParticipants(updated);
-    
-    // 활성 셋리스트가 있으면 참가자 업데이트
-    if (activeSetList && isLeader && participantInputPhase) {
-      const validParticipants = updated.map(p => p.trim()).filter(Boolean);
+
+    if (activeSetList && isLeader) {
+      const validParticipants = updated.map((p) => p.trim()).filter(Boolean);
       updateSetListParticipants(validParticipants);
     }
   };
 
   const updateSetListParticipants = async (newParticipants: string[]) => {
-    if (!activeSetList || !isLeader || !participantInputPhase) return;
-    
+    if (!activeSetList || !isLeader) return;
+
     try {
       await updateDoc(doc(db, 'setlists', activeSetList.id!), {
         participants: newParticipants,
-        updatedAt: Timestamp.now()
+        updatedAt: Timestamp.now(),
       });
     } catch (error) {
       console.error('참가자 업데이트 실패:', error);
@@ -275,43 +185,6 @@ const SetListFormClassic: React.FC<SetListFormProps> = ({
     } catch (error) {
       console.error('셋리스트 삭제 실패:', error);
       alert('삭제에 실패했습니다.');
-    }
-  };
-
-  const returnToParticipantPhase = async () => {
-    if (!activeSetList || !isLeader || !passedSongRegistrationPhase) return;
-    try {
-      await updateDoc(doc(db, 'setlists', activeSetList.id!), {
-        participantRegistrationComplete: false,
-        updatedAt: Timestamp.now()
-      });
-      onSetListActivated();
-    } catch (error) {
-      console.error('참가자 편집 복귀 실패:', error);
-      alert('참가자 추가 화면으로 돌아가지 못했습니다.');
-    }
-  };
-
-  const completeParticipantPhase = async () => {
-    if (!activeSetList || !isLeader || !participantInputPhase) return;
-    const valid = participants.map((p) => p.trim()).filter(Boolean);
-    if (valid.length < 1) {
-      alert('참가자를 1명 이상 입력해 주세요.');
-      return;
-    }
-    if (!confirm('참가자를 확정하고 합격곡 등록 단계로 이동할까요?')) {
-      return;
-    }
-    try {
-      await updateDoc(doc(db, 'setlists', activeSetList.id!), {
-        participants: valid,
-        participantRegistrationComplete: true,
-        updatedAt: Timestamp.now()
-      });
-      onSetListActivated();
-    } catch (error) {
-      console.error('참가자 확정 실패:', error);
-      alert('참가자 확정에 실패했습니다.');
     }
   };
 
@@ -560,6 +433,7 @@ const SetListFormClassic: React.FC<SetListFormProps> = ({
     try {
       // 셋리스트를 완료 상태로 변경 (비활성화)
       await updateDoc(doc(db, 'setlists', setList.id!), {
+        status: 'ended',
         isActive: false,
         isCompleted: true,
         completedAt: Timestamp.now(),
@@ -576,18 +450,6 @@ const SetListFormClassic: React.FC<SetListFormProps> = ({
 
   return (
     <div className="setlist-manage-form">
-      {isLeader && workspaceBootstrapping && !activeSetList && (
-        <div className="setlist-manage-panel setlist-manage-panel--status" style={{ textAlign: 'center', lineHeight: 1.5 }}>
-          셋리스트를 준비하는 중입니다… 잠시만 기다려 주세요.
-        </div>
-      )}
-
-      {isLeader && workspaceBootstrapError && !activeSetList && (
-        <div className="setlist-manage-panel setlist-manage-panel--error">
-          {workspaceBootstrapError}
-        </div>
-      )}
-
       {isLeader && activeSetList && (
         <div className="setlist-manage-panel setlist-manage-panel--date">
           <label className="setlist-manage-date-label" htmlFor="setlist-session-date">
@@ -607,129 +469,18 @@ const SetListFormClassic: React.FC<SetListFormProps> = ({
         </div>
       )}
 
-      {/* 1단계: 참가자 입력 (리더) */}
-      {isLeader && activeSetList && participantInputPhase && (
-      <div className="setlist-manage-panel">
-        <h2 style={{ color: 'white', fontSize: 20, marginBottom: 16, fontWeight: 700 }}>
-          👥 참가자 · <span style={{ fontWeight: 600, fontSize: 16, opacity: 0.95 }}>{sessionTitleLabel}</span>
-        </h2>
-
-        <p style={{ color: 'rgba(255,255,255,0.88)', fontSize: 14, margin: '0 0 16px 0', lineHeight: 1.5 }}>
-          진행에 참여할 참가자 닉네임을 입력한 뒤, <strong style={{ color: 'white' }}>완료</strong>를 눌러 주세요.
-        </p>
-
-        <div style={{ marginBottom: 16 }}>
-          <h3 style={{ color: 'white', fontSize: 16, marginBottom: 12, fontWeight: 600 }}>
-            참가자 목록
-          </h3>
-          {participants.map((participant, index) => (
-            <div key={index} style={{ 
-              display: 'flex', 
-              gap: window.innerWidth < 768 ? '4px' : '8px', 
-              marginBottom: 8, 
-              alignItems: 'center',
-              width: '100%',
-              flexWrap: window.innerWidth < 768 ? 'wrap' : 'nowrap'
-            }}>
-              <input
-                type="text"
-                placeholder={`참가자 ${index + 1}`}
-                value={participant}
-                onChange={(e) => updateParticipant(index, e.target.value)}
-                style={{
-                  flex: 1,
-                  minWidth: window.innerWidth < 768 ? '120px' : '200px',
-                  padding: window.innerWidth < 768 ? '6px 8px' : '8px 12px',
-                  borderRadius: 8,
-                  border: '1px solid rgba(255, 255, 255, 0.3)',
-                  background: 'rgba(255, 255, 255, 0.1)',
-                  color: 'white',
-                  fontSize: window.innerWidth < 768 ? '12px' : '14px',
-                  outline: 'none',
-                  boxSizing: 'border-box'
-                }}
-              />
-              {participants.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeParticipant(index)}
-                  style={{
-                    background: 'rgba(220, 38, 38, 0.8)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 8,
-                    padding: window.innerWidth < 768 ? '6px 8px' : '8px 12px',
-                    cursor: 'pointer',
-                    fontSize: window.innerWidth < 768 ? '10px' : '14px',
-                    flexShrink: 0
-                  }}
-                >
-                  삭제
-                </button>
-              )}
-            </div>
-          ))}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <button
-                  type="button"
-                  onClick={addParticipant}
-                  style={{
-                    background: 'rgba(34, 197, 94, 0.8)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 8,
-                    padding: '8px 16px',
-                    cursor: 'pointer',
-                    fontSize: 14,
-                    fontWeight: 600
-                  }}
-                >
-                  + 참가자 추가
-                </button>
-                {participants.filter((p) => p.trim()).length >= 1 && (
-                  <button
-                    type="button"
-                    onClick={completeParticipantPhase}
-                    style={{
-                      background: 'rgba(59, 130, 246, 0.9)',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: 8,
-                      padding: '8px 16px',
-                      cursor: 'pointer',
-                      fontSize: 14,
-                      fontWeight: 600
-                    }}
-                  >
-                    완료
-                  </button>
-                )}
-          </div>
-        </div>
-      </div>
+      {isLeader && activeSetList && (
+        <BuskingMemberRosterPanel
+          activeSetList={activeSetList}
+          canManage={isLeader}
+          variant="setlist"
+          sessionTitleLabel={sessionTitleLabel}
+        />
       )}
 
-      {/* 2단계: 합격곡 등록 (리더) */}
-      {isLeader && activeSetList && passedSongRegistrationPhase && (
+      {isLeader && activeSetList && canEditSetlist && (
         <div className="setlist-manage-panel">
           <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              onClick={returnToParticipantPhase}
-              style={{
-                padding: '8px 14px',
-                borderRadius: 10,
-                border: '1px solid rgba(255,255,255,0.35)',
-                background: 'rgba(255,255,255,0.12)',
-                backdropFilter: 'blur(8px)',
-                color: 'white',
-                fontWeight: 600,
-                fontSize: 13,
-                cursor: 'pointer'
-              }}
-            >
-              ← 이전 (참가자 추가)
-            </button>
             <button
               type="button"
               onClick={() => setShowSetListModal(true)}

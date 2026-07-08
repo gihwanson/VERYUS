@@ -1053,17 +1053,42 @@
   text-align: center;
 }
 
-/* 셋리스트 — 관리 탭 풀 너비 */
-.setlist-page--manage {
+/* 셋리스트 · 자유곡 — 관리/편성 탭 풀 너비 */
+.setlist-page--manage,
+.setlist-page--freeSong {
   width: 100%;
   max-width: 100%;
   padding: 0 !important;
   box-sizing: border-box;
+  min-height: 100dvh;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
-.setlist-page--manage .setlist-page-inner--manage {
+.setlist-page--manage .setlist-page-inner--manage,
+.setlist-page--freeSong .setlist-page-inner {
   width: 100%;
   max-width: 100%;
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.setlist-page--freeSong .busking-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+}
+
+.setlist-page--freeSong .free-song-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
   min-height: 0;
 }
 
@@ -1702,4 +1727,938 @@
   padding: 32px 24px;
   text-align: center;
   color: rgba(255, 255, 255, 0.9);
+}
+
+/* ===== 버스킹 네비게이션 ===== */
+.busking-nav {
+  margin-bottom: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.busking-nav--freeSong {
+  background: linear-gradient(180deg, rgba(180, 83, 9, 0.22) 0%, rgba(120, 53, 15, 0.08) 100%);
+  border-bottom-color: rgba(251, 191, 36, 0.25);
+}
+
+.busking-nav--setlist {
+  background: linear-gradient(180deg, rgba(30, 64, 175, 0.22) 0%, rgba(30, 58, 138, 0.08) 100%);
+  border-bottom-color: rgba(96, 165, 250, 0.25);
+}
+
+.busking-nav__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: max(12px, env(safe-area-inset-top)) 16px 10px;
+}
+
+.busking-nav__brand {
+  flex: 1;
+  min-width: 0;
+}
+
+.busking-nav__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: white;
+  letter-spacing: -0.02em;
+}
+
+.busking-nav__title-icon {
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.busking-nav__subtitle {
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.busking-nav__home {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  color: white;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* 모드 선택 카드 */
+.busking-mode-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 0 16px 14px;
+}
+
+.busking-mode-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 12px;
+  border-radius: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.12);
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.busking-mode-card--free.busking-mode-card--active {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.35) 0%, rgba(217, 119, 6, 0.28) 100%);
+  border-color: rgba(251, 191, 36, 0.75);
+  color: white;
+  box-shadow: 0 4px 20px rgba(251, 191, 36, 0.15);
+}
+
+.busking-mode-card--setlist.busking-mode-card--active {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.35) 0%, rgba(37, 99, 235, 0.28) 100%);
+  border-color: rgba(96, 165, 250, 0.75);
+  color: white;
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.15);
+}
+
+.busking-mode-card__icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.busking-mode-card--active .busking-mode-card__icon {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.busking-mode-card__text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.busking-mode-card__label {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.busking-mode-card__desc {
+  font-size: 11px;
+  line-height: 1.35;
+  opacity: 0.85;
+}
+
+/* 서브 네비게이션 */
+.busking-subnav {
+  display: flex;
+  gap: 0;
+  padding: 0 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.busking-subnav--freeSong {
+  background: rgba(180, 83, 9, 0.1);
+}
+
+.busking-subnav--setlist {
+  background: rgba(30, 64, 175, 0.1);
+}
+
+.busking-subnav__btn {
+  flex: 1;
+  padding: 12px 8px;
+  border: none;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.65);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.busking-subnav__btn--active {
+  color: white;
+  font-weight: 700;
+}
+
+.busking-subnav--freeSong .busking-subnav__btn--active {
+  border-bottom-color: #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
+}
+
+.busking-subnav--setlist .busking-subnav__btn--active {
+  border-bottom-color: #60a5fa;
+  background: rgba(96, 165, 250, 0.1);
+}
+
+.busking-back-bar {
+  padding: 10px 16px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(30, 64, 175, 0.08);
+}
+
+.busking-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(96, 165, 250, 0.45);
+  background: rgba(59, 130, 246, 0.18);
+  color: white;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.busking-back-btn:hover {
+  background: rgba(59, 130, 246, 0.28);
+}
+
+/* 콘텐츠 영역 */
+.busking-content {
+  width: 100%;
+}
+
+.busking-content--freeSong {
+  border-top: 3px solid rgba(251, 191, 36, 0.35);
+}
+
+.busking-content--setlist {
+  border-top: 3px solid rgba(96, 165, 250, 0.35);
+}
+
+.setlist-page--freeSong .setlist-manage-panel {
+  border-bottom-color: rgba(251, 191, 36, 0.12);
+}
+
+.setlist-page--setlist .setlist-manage-panel {
+  border-bottom-color: rgba(96, 165, 250, 0.12);
+}
+
+/* (레거시 — 일부 참조 유지) */
+.setlist-page-header__controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.setlist-category-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.setlist-category-tabs--full {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.setlist-category-btn {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  color: white;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.setlist-category-btn--flex {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 8px;
+  font-size: 13px;
+}
+
+.setlist-category-btn--active {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* ===== 자유곡 전송 패널 ===== */
+.free-song-panel {
+  width: 100%;
+}
+
+.free-song-heading {
+  font-size: 20px;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.free-song-desc {
+  font-size: 14px;
+  margin: 0;
+  line-height: 1.5;
+  opacity: 0.9;
+}
+
+.free-song-desc--admin {
+  margin-bottom: 16px;
+}
+
+.free-song-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 12px 0;
+}
+
+.free-song-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.free-song-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.free-song-row__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.free-song-row__title {
+  font-weight: 600;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.free-song-row__badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.25);
+  border: 1px solid rgba(34, 197, 94, 0.45);
+  color: #bbf7d0;
+}
+
+.free-song-list--order .free-song-row--completed {
+  opacity: 0.72;
+}
+
+.free-song-btn--complete {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.55) 0%, rgba(22, 163, 74, 0.65) 100%);
+  color: white;
+  border: 1px solid rgba(134, 239, 172, 0.5);
+}
+
+.free-song-complete-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #86efac;
+  white-space: nowrap;
+}
+
+.free-song-stats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.free-song-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.free-song-stats-rank {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(251, 191, 36, 0.25);
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.free-song-stats-name {
+  flex: 1;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.free-song-stats-count {
+  font-weight: 700;
+  font-size: 14px;
+  color: #fde68a;
+}
+
+.free-song-row__members {
+  font-size: 13px;
+  opacity: 0.8;
+  margin-top: 4px;
+}
+
+.free-song-row__action {
+  flex-shrink: 0;
+}
+
+.free-song-btn {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: none;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.free-song-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.free-song-btn--submit {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.6) 0%, rgba(37, 99, 235, 0.7) 100%);
+  color: white;
+  border: 1px solid rgba(147, 197, 253, 0.5);
+}
+
+.free-song-btn--cancel {
+  background: rgba(220, 38, 38, 0.2);
+  color: #fecaca;
+  border: 1px solid rgba(252, 165, 165, 0.4);
+}
+
+.free-song-empty {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  text-align: center;
+}
+
+.free-song-empty-sub {
+  font-size: 14px;
+  opacity: 0.85;
+  margin: 0;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.free-song-user-group {
+  margin-bottom: 16px;
+}
+
+.free-song-user-group:last-child {
+  margin-bottom: 0;
+}
+
+.free-song-user-name {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  opacity: 0.9;
+}
+
+/* ===== 자유곡 서브 탭 ===== */
+.setlist-freesong-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.setlist-freesong-tabs--full {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.setlist-freesong-tab {
+  background: rgba(251, 191, 36, 0.15);
+  backdrop-filter: blur(10px);
+  color: white;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.setlist-freesong-tab--flex {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 6px;
+  font-size: 12px;
+}
+
+.setlist-freesong-tab--active {
+  background: rgba(251, 191, 36, 0.35);
+  border-color: rgba(251, 191, 36, 0.65);
+}
+
+.free-song-row__order {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(251, 191, 36, 0.3);
+  border: 2px solid rgba(251, 191, 36, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 14px;
+  color: white;
+}
+
+.free-song-list--order .free-song-row {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.free-song-row__actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.free-song-btn--ghost {
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 8px 10px;
+  min-width: 36px;
+}
+
+.free-song-admin-count {
+  opacity: 0.85;
+  font-weight: 600;
+}
+
+.free-song-submit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.free-song-submit-header .free-song-heading {
+  margin: 0;
+}
+
+.free-song-submission-quota {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.25);
+  border: 1px solid rgba(96, 165, 250, 0.45);
+  color: #bfdbfe;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.free-song-submission-quota--full {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(248, 113, 113, 0.45);
+  color: #fecaca;
+}
+
+.free-song-stats-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.free-song-stats-header .free-song-section-title {
+  margin: 0;
+}
+
+.free-song-btn--reset {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fecaca;
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  padding: 8px 14px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.free-song-btn--reset:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ===== 멤버 편성 ===== */
+.busking-roster-add-btn {
+  margin-top: 12px;
+}
+
+.busking-roster-complete-btn {
+  margin-top: 16px;
+  width: 100%;
+}
+
+.busking-roster-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.busking-roster-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(251, 191, 36, 0.2);
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  color: white;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.busking-roster-chip__remove {
+  border: none;
+  background: rgba(0, 0, 0, 0.2);
+  color: white;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+}
+
+.busking-member-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.busking-member-modal {
+  width: min(480px, 100%);
+  max-height: min(85vh, 720px);
+  display: flex;
+  flex-direction: column;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+
+.busking-member-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.busking-member-modal__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: white;
+}
+
+.busking-member-modal__close {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  padding: 4px;
+}
+
+.busking-member-modal__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.busking-member-modal__search-icon {
+  color: rgba(255, 255, 255, 0.5);
+  flex-shrink: 0;
+}
+
+.busking-member-modal__search-input {
+  flex: 1;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: white;
+  font-size: 14px;
+  outline: none;
+}
+
+.busking-member-modal__body {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 200px;
+  max-height: 50vh;
+}
+
+.busking-member-modal__status {
+  padding: 24px 16px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+}
+
+.busking-member-modal__list {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+}
+
+.busking-member-modal__item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+  cursor: pointer;
+  text-align: left;
+  margin-bottom: 6px;
+  transition: background 0.15s ease;
+}
+
+.busking-member-modal__item--selected {
+  background: rgba(59, 130, 246, 0.25);
+  border-color: rgba(96, 165, 250, 0.5);
+}
+
+.busking-member-modal__item-name {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.busking-member-modal__item-meta {
+  font-size: 12px;
+  opacity: 0.75;
+  margin-left: auto;
+}
+
+.busking-member-modal__check {
+  font-weight: 800;
+  color: #93c5fd;
+  margin-left: 4px;
+}
+
+.busking-member-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.busking-member-modal__count {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* ===== 버스킹 세션 바 ===== */
+.busking-session-bar {
+  width: 100%;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.busking-session-bar__current {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+}
+
+.busking-session-bar__icon {
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.busking-session-bar__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.busking-session-bar__label {
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.75;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.busking-session-bar__name {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+  word-break: keep-all;
+}
+
+.busking-session-bar__toggle {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.busking-session-bar__chevron--open {
+  transform: rotate(180deg);
+}
+
+.busking-session-bar__panel {
+  padding: 0 16px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.busking-session-bar__list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.busking-session-bar__item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.busking-session-bar__item--active {
+  border-color: rgba(251, 191, 36, 0.55);
+  background: rgba(251, 191, 36, 0.15);
+}
+
+.busking-session-bar__check {
+  font-weight: 800;
+  color: #fbbf24;
+}
+
+.busking-session-bar__empty {
+  margin: 10px 0 0;
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.busking-session-bar__create,
+.busking-session-bar__end {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.busking-session-picker__desc {
+  margin: 0 16px 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  opacity: 0.88;
+}
+
+.busking-session-create__form {
+  padding: 0 16px 16px;
+}
+
+.busking-session-create__label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.busking-session-create__input {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.busking-session-create__error {
+  color: #fca5a5;
+  font-size: 13px;
+  margin: 0 0 8px;
+}
+
+.busking-session-create__footer {
+  margin-top: 8px;
+  padding: 0;
+  border-top: none;
+}
+
+.busking-member-modal__actions {
+  display: flex;
+  gap: 8px;
 }

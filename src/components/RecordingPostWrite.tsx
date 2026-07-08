@@ -5,6 +5,7 @@ import { ref as storageRef, uploadBytes, getDownloadURL, uploadBytesResumable } 
 import { db, storage } from '../firebase';
 import { ArrowLeft, Mic, X, FileAudio, Send } from 'lucide-react';
 import '../styles/RecordingPostWrite.css';
+import { rejectBoardAttachmentIfTooLarge } from '../utils/boardAttachmentLimits';
 
 interface User {
   uid: string;
@@ -60,6 +61,8 @@ const RecordingPostWrite: React.FC = () => {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
+
+    if (rejectBoardAttachmentIfTooLarge(file, file.name, e.target)) return;
 
     const audioMimeTypes = [
       'audio/mpeg',
@@ -155,6 +158,9 @@ const RecordingPostWrite: React.FC = () => {
 
   const handleSubmit = async () => {
     if (!user || !audioBlob) return;
+    const attachmentName = fileName || (audioBlob instanceof File ? audioBlob.name : 'audio.wav');
+    if (rejectBoardAttachmentIfTooLarge(audioBlob, attachmentName)) return;
+
     if (!title.trim()) {
       alert('제목을 입력해주세요.');
       return;
@@ -288,7 +294,7 @@ const RecordingPostWrite: React.FC = () => {
               <div className="rec-post-write__upload-inner">
                 <FileAudio className="rec-post-write__upload-icon" size={36} strokeWidth={1.5} aria-hidden />
                 <strong>탭하여 오디오 파일 선택</strong>
-                <span>MP3 · M4A · WAV 등 (영상 파일은 업로드할 수 없습니다)</span>
+                <span>MP3 · M4A · WAV 등 · 최대 20MB (영상 파일은 업로드할 수 없습니다)</span>
               </div>
             </label>
 

@@ -49,6 +49,208 @@
   max-width: var(--app-content-max-width);
 }
 
+.approved-songs-tabs.four {
+  grid-template-columns: repeat(2, 1fr);
+  max-width: var(--app-content-max-width);
+}
+
+@media (min-width: 768px) {
+  .approved-songs-tabs.four {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.approved-song-deletion-history {
+  max-width: var(--app-content-max-width);
+  margin: 0 auto;
+}
+
+.approved-song-deletion-history__intro h3 {
+  margin: 0 0 8px;
+  font-size: 1.15rem;
+  color: var(--paper-ink, #2c2416);
+}
+
+.approved-song-deletion-history__intro p {
+  margin: 0 0 20px;
+  color: var(--paper-ink-muted, #6b5c4a);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.approved-song-deletion-history__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.approved-song-deletion-history__search {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-radius: var(--paper-radius, 4px);
+  background: var(--paper-card, #fffdf8);
+}
+
+.approved-song-deletion-history__search input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 0.92rem;
+  color: var(--paper-ink, #2c2416);
+}
+
+.approved-song-deletion-history__search button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--paper-ink-muted, #6b5c4a);
+  display: flex;
+  align-items: center;
+}
+
+.approved-song-deletion-history__refresh,
+.approved-song-deletion-history__cleanup {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  border-radius: var(--paper-radius, 4px);
+  padding: 10px 14px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.approved-song-deletion-history__refresh {
+  background: var(--paper-tag-bg, #f0e6d6);
+  color: var(--paper-ink, #2c2416);
+}
+
+.approved-song-deletion-history__cleanup {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.approved-song-deletion-history__empty {
+  text-align: center;
+  color: var(--paper-ink-muted, #6b5c4a);
+  padding: 32px 16px;
+}
+
+.approved-song-deletion-history__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.approved-song-deletion-history__card {
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-radius: var(--paper-radius, 4px);
+  background: var(--paper-card, #fffdf8);
+  overflow: hidden;
+}
+
+.approved-song-deletion-history__card--orphan {
+  border-color: #c4b5fd;
+  background: #faf5ff;
+}
+
+.approved-song-deletion-history__card--orphan .approved-song-deletion-history__title-row {
+  color: #5b21b6;
+}
+
+.approved-song-deletion-history__summary {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.approved-song-deletion-history__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: #991b1b;
+  margin-bottom: 6px;
+}
+
+.approved-song-deletion-history__title-row span {
+  color: var(--paper-ink-muted, #6b5c4a);
+  font-size: 0.88rem;
+}
+
+.approved-song-deletion-history__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  color: var(--paper-ink-muted, #6b5c4a);
+  font-size: 0.84rem;
+}
+
+.approved-song-deletion-history__warning {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: var(--paper-radius, 4px);
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  color: #9a3412;
+  font-size: 0.84rem;
+}
+
+.approved-song-deletion-history__songs {
+  list-style: none;
+  margin: 0;
+  padding: 0 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.approved-song-deletion-history__songs li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--paper-radius, 4px);
+  background: var(--paper-tag-bg, #f0e6d6);
+  font-size: 0.88rem;
+}
+
+.approved-song-deletion-history__song--with-others {
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+}
+
+.approved-song-deletion-history__song-title {
+  font-weight: 600;
+}
+
+.approved-song-deletion-history__song-members {
+  color: var(--paper-ink-muted, #6b5c4a);
+}
+
+.approved-song-deletion-history__song-alert {
+  width: 100%;
+  color: #9a3412;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
 .approved-songs-tab {
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(15px);

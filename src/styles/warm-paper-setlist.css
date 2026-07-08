@@ -16,7 +16,8 @@ html[data-ui-style="warm-paper"] .setlist-page {
 }
 
 html[data-ui-style="warm-paper"] .setlist-page.setlist-page--manage,
-html[data-ui-style="warm-paper"] .setlist-page.setlist-page--fullscreen {
+html[data-ui-style="warm-paper"] .setlist-page.setlist-page--fullscreen,
+html[data-ui-style="warm-paper"] .setlist-page.setlist-page--freeSong {
   padding: 0;
 }
 
@@ -29,7 +30,8 @@ html[data-ui-style="warm-paper"] .setlist-page-inner {
 }
 
 html[data-ui-style="warm-paper"] .setlist-page--manage .setlist-page-inner--manage,
-html[data-ui-style="warm-paper"] .setlist-page--fullscreen .setlist-page-inner {
+html[data-ui-style="warm-paper"] .setlist-page--fullscreen .setlist-page-inner,
+html[data-ui-style="warm-paper"] .setlist-page--freeSong .setlist-page-inner {
   max-width: none;
 }
 
@@ -480,4 +482,306 @@ html[data-ui-style="warm-paper"] .setlist-chat-char-count {
   html[data-ui-style="warm-paper"] .setlist-page-title--lg {
     font-size: 1.25rem;
   }
+}
+
+/* ===== 버스킹 네비게이션 — 웜 페이퍼 ===== */
+html[data-ui-style="warm-paper"] .busking-nav--freeSong {
+  background: linear-gradient(180deg, #faf3e8 0%, var(--paper-card, #fffdf8) 100%);
+  border-bottom-color: #e8c878;
+}
+
+html[data-ui-style="warm-paper"] .busking-nav--setlist {
+  background: linear-gradient(180deg, #eef3fa 0%, var(--paper-card, #fffdf8) 100%);
+  border-bottom-color: #a8c4e8;
+}
+
+html[data-ui-style="warm-paper"] .busking-nav__title {
+  font-family: var(--paper-serif, Georgia, serif);
+  color: var(--paper-ink, #2c2416);
+  text-shadow: none;
+}
+
+html[data-ui-style="warm-paper"] .busking-nav__title-icon {
+  color: var(--paper-accent, #8b5a2b);
+}
+
+html[data-ui-style="warm-paper"] .busking-nav__subtitle {
+  color: var(--paper-muted, #8b7355);
+}
+
+html[data-ui-style="warm-paper"] .busking-nav__home {
+  background: var(--paper-card, #fffdf8);
+  border-color: var(--paper-border, #e8dcc8);
+  color: var(--paper-ink, #2c2416);
+  font-family: inherit;
+}
+
+html[data-ui-style="warm-paper"] .busking-mode-card {
+  background: var(--paper-card, #fffdf8);
+  border-color: var(--paper-border, #e8dcc8);
+  color: var(--paper-muted, #8b7355);
+  font-family: inherit;
+}
+
+html[data-ui-style="warm-paper"] .busking-mode-card--free.busking-mode-card--active {
+  background: linear-gradient(135deg, #fdf6e8 0%, #f5e6c8 100%);
+  border-color: #c9a050;
+  color: var(--paper-ink, #2c2416);
+  box-shadow: 2px 3px 0 rgba(139, 115, 85, 0.1);
+}
+
+html[data-ui-style="warm-paper"] .busking-mode-card--setlist.busking-mode-card--active {
+  background: linear-gradient(135deg, #eef4fc 0%, #d8e6f8 100%);
+  border-color: #6b8fc4;
+  color: var(--paper-ink, #2c2416);
+  box-shadow: 2px 3px 0 rgba(107, 143, 196, 0.12);
+}
+
+html[data-ui-style="warm-paper"] .busking-mode-card__icon {
+  background: var(--paper-bg, #f5f0e8);
+}
+
+html[data-ui-style="warm-paper"] .busking-mode-card--active .busking-mode-card__icon {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+html[data-ui-style="warm-paper"] .busking-mode-card__label {
+  color: var(--paper-ink, #2c2416);
+}
+
+html[data-ui-style="warm-paper"] .busking-subnav {
+  border-top-color: var(--paper-border, #e8dcc8);
+}
+
+html[data-ui-style="warm-paper"] .busking-subnav--freeSong {
+  background: #faf6ef;
+}
+
+html[data-ui-style="warm-paper"] .busking-subnav--setlist {
+  background: #f4f7fb;
+}
+
+html[data-ui-style="warm-paper"] .busking-subnav__btn {
+  color: var(--paper-muted, #8b7355);
+  font-family: inherit;
+}
+
+html[data-ui-style="warm-paper"] .busking-subnav__btn--active {
+  color: var(--paper-ink, #2c2416);
+}
+
+html[data-ui-style="warm-paper"] .busking-subnav--freeSong .busking-subnav__btn--active {
+  border-bottom-color: #c9a050;
+  background: rgba(201, 160, 80, 0.1);
+}
+
+html[data-ui-style="warm-paper"] .busking-subnav--setlist .busking-subnav__btn--active {
+  border-bottom-color: #6b8fc4;
+  background: rgba(107, 143, 196, 0.1);
+}
+
+html[data-ui-style="warm-paper"] .busking-back-bar {
+  background: #f4f7fb;
+  border-top-color: var(--paper-border, #e8dcc8);
+}
+
+html[data-ui-style="warm-paper"] .busking-back-btn {
+  background: var(--paper-card, #fffdf8);
+  border-color: #a8c4e8;
+  color: #3d5a80;
+  font-family: inherit;
+}
+
+html[data-ui-style="warm-paper"] .busking-content--freeSong {
+  border-top-color: #e8c878;
+}
+
+html[data-ui-style="warm-paper"] .busking-content--setlist {
+  border-top-color: #a8c4e8;
+}
+
+/* (레거시) */
+html[data-ui-style="warm-paper"] .setlist-category-btn {
+  background: var(--paper-card, #fffdf8);
+  color: var(--paper-ink, #2c2416);
+  border: 1px solid var(--paper-border, #e8dcc8);
+  font-family: inherit;
+}
+
+html[data-ui-style="warm-paper"] .setlist-category-btn--active {
+  background: var(--paper-accent, #8b5a2b);
+  color: var(--paper-card, #fffdf8);
+  border-color: var(--paper-accent, #8b5a2b);
+}
+
+html[data-ui-style="warm-paper"] .setlist-category-tabs--full {
+  margin-top: 12px;
+}
+
+/* ===== 자유곡 전송 패널 ===== */
+html[data-ui-style="warm-paper"] .free-song-panel .setlist-manage-panel {
+  background: var(--paper-card, #fffdf8);
+  color: var(--paper-ink, #2c2416);
+  border-bottom: 1px solid var(--paper-border, #e8dcc8);
+}
+
+html[data-ui-style="warm-paper"] .free-song-row {
+  background: var(--paper-bg, #f5f0e8);
+  border: 1px solid var(--paper-border, #e8dcc8);
+}
+
+html[data-ui-style="warm-paper"] .free-song-btn--complete {
+  background: #2d6a3e;
+  border-color: #2d6a3e;
+  color: var(--paper-card, #fffdf8);
+}
+
+html[data-ui-style="warm-paper"] .free-song-complete-label {
+  color: #2d6a3e;
+}
+
+html[data-ui-style="warm-paper"] .free-song-stats-row {
+  background: var(--paper-bg, #f5f0e8);
+  border-color: var(--paper-border, #e8dcc8);
+}
+
+html[data-ui-style="warm-paper"] .free-song-stats-rank {
+  background: var(--paper-accent, #8b5a2b);
+  border-color: var(--paper-accent, #8b5a2b);
+  color: var(--paper-card, #fffdf8);
+}
+
+html[data-ui-style="warm-paper"] .free-song-stats-count {
+  color: var(--paper-accent, #8b5a2b);
+}
+
+html[data-ui-style="warm-paper"] .busking-session-bar {
+  background: var(--paper-card, #fffdf8);
+  border-bottom-color: var(--paper-border, #e8dcc8);
+}
+
+html[data-ui-style="warm-paper"] .busking-session-bar__label,
+html[data-ui-style="warm-paper"] .busking-session-bar__name,
+html[data-ui-style="warm-paper"] .busking-session-picker__desc {
+  color: var(--paper-ink, #2c2416);
+}
+
+html[data-ui-style="warm-paper"] .busking-session-bar__label {
+  color: var(--paper-muted, #8b7355);
+}
+
+html[data-ui-style="warm-paper"] .busking-session-bar__toggle,
+html[data-ui-style="warm-paper"] .busking-session-bar__item {
+  background: var(--paper-bg, #f5f0e8);
+  border-color: var(--paper-border, #e8dcc8);
+  color: var(--paper-ink, #2c2416);
+}
+
+html[data-ui-style="warm-paper"] .busking-session-bar__item--active {
+  background: #faf3e8;
+  border-color: #e8c878;
+}
+
+html[data-ui-style="warm-paper"] .busking-roster-chip {
+  background: #faf3e8;
+  border-color: #e8c878;
+  color: var(--paper-ink, #2c2416);
+}
+
+html[data-ui-style="warm-paper"] .busking-member-modal {
+  background: var(--paper-card, #fffdf8);
+  border-color: var(--paper-border, #e8dcc8);
+}
+
+html[data-ui-style="warm-paper"] .busking-member-modal__title,
+html[data-ui-style="warm-paper"] .busking-member-modal__item {
+  color: var(--paper-ink, #2c2416);
+}
+
+html[data-ui-style="warm-paper"] .busking-member-modal__search-input {
+  background: var(--paper-bg, #f5f0e8);
+  color: var(--paper-ink, #2c2416);
+  border: 1px solid var(--paper-border, #e8dcc8);
+}
+
+html[data-ui-style="warm-paper"] .busking-member-modal__item {
+  background: var(--paper-bg, #f5f0e8);
+}
+
+html[data-ui-style="warm-paper"] .busking-member-modal__item--selected {
+  background: #eef4fc;
+  border-color: #6b8fc4;
+}
+
+html[data-ui-style="warm-paper"] .busking-member-modal__status,
+html[data-ui-style="warm-paper"] .busking-member-modal__count {
+  color: var(--paper-muted, #8b7355);
+}
+
+html[data-ui-style="warm-paper"] .free-song-submission-quota {
+  background: #eef4fc;
+  border-color: #6b8fc4;
+  color: #2c5282;
+}
+
+html[data-ui-style="warm-paper"] .free-song-submission-quota--full {
+  background: #fce8e8;
+  border-color: #d4a0a0;
+  color: #8b3a3a;
+}
+
+html[data-ui-style="warm-paper"] .free-song-btn--reset {
+  background: #fce8e8;
+  border-color: #d4a0a0;
+  color: #8b3a3a;
+}
+
+html[data-ui-style="warm-paper"] .free-song-row__badge {
+  background: rgba(34, 120, 60, 0.12);
+  border-color: rgba(34, 120, 60, 0.3);
+  color: #1a5c32;
+}
+
+html[data-ui-style="warm-paper"] .free-song-btn--submit {
+  background: var(--paper-accent, #8b5a2b);
+  border-color: var(--paper-accent, #8b5a2b);
+  color: var(--paper-card, #fffdf8);
+}
+
+html[data-ui-style="warm-paper"] .free-song-btn--cancel {
+  background: rgba(180, 50, 50, 0.1);
+  border-color: rgba(180, 50, 50, 0.3);
+  color: #8b2020;
+}
+
+html[data-ui-style="warm-paper"] .free-song-row__members,
+html[data-ui-style="warm-paper"] .free-song-desc,
+html[data-ui-style="warm-paper"] .free-song-empty-sub {
+  color: var(--paper-muted, #8b7355);
+  opacity: 1;
+}
+
+html[data-ui-style="warm-paper"] .setlist-freesong-tab {
+  background: var(--paper-card, #fffdf8);
+  color: var(--paper-ink, #2c2416);
+  border: 1px solid var(--paper-border, #e8dcc8);
+  font-family: inherit;
+}
+
+html[data-ui-style="warm-paper"] .setlist-freesong-tab--active {
+  background: var(--paper-accent, #8b5a2b);
+  color: var(--paper-card, #fffdf8);
+  border-color: var(--paper-accent, #8b5a2b);
+}
+
+html[data-ui-style="warm-paper"] .free-song-row__order {
+  background: var(--paper-accent, #8b5a2b);
+  border-color: var(--paper-accent, #8b5a2b);
+  color: var(--paper-card, #fffdf8);
+}
+
+html[data-ui-style="warm-paper"] .free-song-btn--ghost {
+  background: var(--paper-card, #fffdf8);
+  color: var(--paper-ink, #2c2416);
+  border-color: var(--paper-border, #e8dcc8);
 }

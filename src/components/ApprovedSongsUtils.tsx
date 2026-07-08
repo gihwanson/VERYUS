@@ -22,12 +22,27 @@ export interface UserMap {
   [nickname: string]: {
     grade?: string;
     createdAt?: unknown;
+    isRegularMember?: boolean;
   };
 }
 
 export type SongType = 'all' | 'solo' | 'duet';
 export type SortType = 'title' | 'latest';
 export type TabType = 'all' | 'solo' | 'duet' | 'manage' | 'grade';
+
+/** 멤버 전원이 현재 등록 회원인 합격곡만 표시 (삭제된 회원 포함 곡·듀엣 제외) */
+export const filterSongsWithExistingMembers = (
+  songs: ApprovedSong[],
+  userMap: UserMap
+): ApprovedSong[] => {
+  return songs.filter((song) => {
+    const members = Array.isArray(song.members)
+      ? song.members.map((member) => String(member).trim()).filter(Boolean)
+      : [];
+    if (members.length === 0) return false;
+    return members.every((member) => Boolean(userMap[member]));
+  });
+};
 
 // 곡 필터링 함수
 export const filterSongsByType = (songs: ApprovedSong[], songType: SongType): ApprovedSong[] => {
@@ -138,6 +153,31 @@ export const getUniqueMembers = (songs: ApprovedSong[]): string[] => {
   return Array.from(new Set(allMembers));
 };
 
+/** 합격곡 관리 탭 버스킹멤버 (일반멤버 전환·삭제된 회원 제외) */
+export const getBuskingMembers = (songs: ApprovedSong[], userMap: UserMap): string[] => {
+  return getUniqueMembers(songs)
+    .filter((nickname) => Boolean(userMap[nickname]))
+    .filter((nickname) => !userMap[nickname]?.isRegularMember)
+    .sort((a, b) => a.localeCompare(b, 'ko'));
+};
+
+/** 합격곡 관리 탭 일반멤버 */
+export const getRegularMembers = (
+  allNicknames: string[],
+  buskingMembers: string[],
+  userMap: UserMap
+): string[] => {
+  const buskingSet = new Set(buskingMembers);
+  return allNicknames
+    .filter((nickname) => {
+      if (userMap[nickname]?.isRegularMember) return true;
+      if (buskingSet.has(nickname)) return false;
+      const joinDate = parseFirestoreDate(userMap[nickname]?.createdAt);
+      return !isJoinedInCurrentMonth(joinDate);
+    })
+    .sort((a, b) => a.localeCompare(b, 'ko'));
+};
+
 // 멤버별 최초 합격곡 등재일
 export const getMemberFirstApprovedDates = (songs: ApprovedSong[]): Record<string, Date> => {
   const dates: Record<string, Date> = {};
@@ -192,6 +232,25 @@ export const isJoinedInCurrentMonth = (
   date: Date | undefined,
   referenceDate: Date = new Date()
 ): boolean => isApprovedInCurrentMonth(date, referenceDate);
+
+export const buildUserMapFromSnapshot = (
+  docs: Array<{ data: () => Record<string, unknown> }>
+): { map: UserMap; nicknames: string[] } => {
+  const map: UserMap = {};
+  const nicknames: string[] = [];
+  docs.forEach((snapshotDoc) => {
+    const data = snapshotDoc.data();
+    const nickname = typeof data.nickname === 'string' ? data.nickname : '';
+    if (!nickname) return;
+    map[nickname] = {
+      grade: typeof data.grade === 'string' ? data.grade : undefined,
+      createdAt: data.createdAt,
+      isRegularMember: Boolean(data.isRegularMember),
+    };
+    nicknames.push(nickname);
+  });
+  return { map, nicknames };
+};
 
 // 폼 데이터 검증
 export const validateSongForm = (form: { title: string; members: string[] }): boolean => {

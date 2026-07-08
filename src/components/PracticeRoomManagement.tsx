@@ -3,6 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { collection, query, getDocs, addDoc, deleteDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ArrowLeft, Plus, Trash2, Calendar, CheckCircle, XCircle } from 'lucide-react';
+import {
+  loadPracticeRoomAlwaysOpenSettings,
+  savePracticeRoomAlwaysOpenSettings,
+  type PracticeRoomAlwaysOpenSettings,
+} from '../utils/practiceRoomAlwaysOpen';
 import './PracticeRoomManagement.css';
 
 interface BlockingRule {
@@ -32,6 +37,11 @@ const PracticeRoomManagement: React.FC = () => {
   const [endDate, setEndDate] = useState('');
   const [reason, setReason] = useState('');
 
+  const [alwaysOpenEnabled, setAlwaysOpenEnabled] = useState(false);
+  const [alwaysOpenStartDate, setAlwaysOpenStartDate] = useState('');
+  const [alwaysOpenEndDate, setAlwaysOpenEndDate] = useState('');
+  const [alwaysOpenSaving, setAlwaysOpenSaving] = useState(false);
+
   const weekdayNames = ['일', '월', '화', '수', '목', '금', '토'];
 
   useEffect(() => {
@@ -50,7 +60,57 @@ const PracticeRoomManagement: React.FC = () => {
     
     console.log('✅ 규칙 로딩 시작');
     loadRules();
+    loadAlwaysOpenSettings();
   }, []);
+
+  const loadAlwaysOpenSettings = async () => {
+    try {
+      const settings = await loadPracticeRoomAlwaysOpenSettings();
+      if (settings) {
+        setAlwaysOpenEnabled(settings.enabled);
+        setAlwaysOpenStartDate(settings.startDate);
+        setAlwaysOpenEndDate(settings.endDate);
+      }
+    } catch (error) {
+      console.error('상시개방 설정 로딩 실패:', error);
+    }
+  };
+
+  const handleSaveAlwaysOpen = async () => {
+    if (alwaysOpenEnabled) {
+      if (!alwaysOpenStartDate) {
+        alert('상시개방 시작 날짜를 선택해주세요.');
+        return;
+      }
+      if (!alwaysOpenEndDate) {
+        alert('상시개방 종료 날짜를 선택해주세요.');
+        return;
+      }
+      if (alwaysOpenEndDate < alwaysOpenStartDate) {
+        alert('종료 날짜는 시작 날짜보다 이후여야 합니다.');
+        return;
+      }
+    }
+
+    setAlwaysOpenSaving(true);
+    try {
+      const payload: PracticeRoomAlwaysOpenSettings = {
+        enabled: alwaysOpenEnabled,
+        startDate: alwaysOpenStartDate,
+        endDate: alwaysOpenEndDate,
+      };
+      await savePracticeRoomAlwaysOpenSettings(
+        payload,
+        currentUser?.nickname || '관리자'
+      );
+      alert('상시개방 설정이 저장되었습니다.');
+    } catch (error) {
+      console.error('상시개방 설정 저장 실패:', error);
+      alert('상시개방 설정 저장에 실패했습니다.');
+    } finally {
+      setAlwaysOpenSaving(false);
+    }
+  };
 
   const loadRules = async () => {
     try {
@@ -181,6 +241,52 @@ const PracticeRoomManagement: React.FC = () => {
       </div>
 
       <div className="management-content">
+        <section className="always-open-section">
+          <div className="section-header">
+            <h2>🟢 상시개방 설정</h2>
+          </div>
+          <p className="always-open-description">
+            활성화하면 설정한 기간 동안 예약이 불가하며, 사용자에게 상시개방 안내가 표시됩니다.
+          </p>
+          <label className="always-open-toggle">
+            <input
+              type="checkbox"
+              checked={alwaysOpenEnabled}
+              onChange={(e) => setAlwaysOpenEnabled(e.target.checked)}
+            />
+            <span>상시개방 활성화</span>
+          </label>
+          <div className={`always-open-dates ${alwaysOpenEnabled ? '' : 'disabled'}`}>
+            <div className="form-group">
+              <label>시작 날짜 <span className="required">*</span></label>
+              <input
+                type="date"
+                value={alwaysOpenStartDate}
+                onChange={(e) => setAlwaysOpenStartDate(e.target.value)}
+                disabled={!alwaysOpenEnabled}
+              />
+            </div>
+            <div className="form-group">
+              <label>종료 날짜 <span className="required">*</span></label>
+              <input
+                type="date"
+                value={alwaysOpenEndDate}
+                onChange={(e) => setAlwaysOpenEndDate(e.target.value)}
+                min={alwaysOpenStartDate}
+                disabled={!alwaysOpenEnabled}
+              />
+            </div>
+          </div>
+          <button
+            type="button"
+            className="save-always-open-btn"
+            onClick={handleSaveAlwaysOpen}
+            disabled={alwaysOpenSaving}
+          >
+            {alwaysOpenSaving ? '저장 중...' : '상시개방 설정 저장'}
+          </button>
+        </section>
+
         <div className="section-header">
           <h2>🔄 반복 차단 규칙</h2>
           <button className="add-rule-btn" onClick={() => setShowAddModal(true)}>

@@ -42,10 +42,11 @@ interface UserCardProps {
   onSave: () => void;
   onCancel: () => void;
   onDelete: () => void;
+  isDeleting?: boolean;
   onView: () => void;
   onStatusChange?: () => void;
   editingUser?: AdminUser;
-  onEditChange: (field: string, value: string) => void;
+  onEditChange: (field: string, value: string | boolean) => void;
   existingLeaderUid?: string;
 }
 
@@ -56,6 +57,7 @@ export const UserCard: React.FC<UserCardProps> = ({
   onSave,
   onCancel,
   onDelete,
+  isDeleting = false,
   onView,
   onStatusChange,
   editingUser,
@@ -112,9 +114,17 @@ export const UserCard: React.FC<UserCardProps> = ({
                 상태
               </button>
             )}
-            <button type="button" className="action-btn delete-btn" onClick={onDelete}>
+            <button
+              type="button"
+              className="action-btn delete-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              disabled={isDeleting}
+            >
               <Trash2 size={14} aria-hidden />
-              삭제
+              {isDeleting ? '삭제 중…' : '삭제'}
             </button>
           </>
         ) : (
@@ -166,6 +176,14 @@ export const UserCard: React.FC<UserCardProps> = ({
               ))}
             </select>
           </div>
+          <label className="edit-checkbox-label">
+            <input
+              type="checkbox"
+              checked={Boolean(editingUser.isRegularMember)}
+              onChange={(e) => onEditChange('isRegularMember', e.target.checked)}
+            />
+            일반멤버로 전환
+          </label>
         </div>
       )}
     </div>

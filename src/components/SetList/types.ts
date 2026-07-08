@@ -1,3 +1,5 @@
+import type { FreeSongLineupItem, FreeSongSubmission } from './FreeSong/types';
+
 export interface Song {
   id: string;
   title: string;
@@ -79,17 +81,34 @@ export interface SetListData {
   createdBy: string;
   createdAt: any;
   updatedAt: any;
+  /** @deprecated 전역 활성 플래그 — status 사용 권장 */
   isActive: boolean;
   isCompleted?: boolean; // 완료 여부
+  /** 버스킹 세션 상태: live(진행 중) | ended(종료) */
+  status?: 'live' | 'ended';
+  /** 세션 호스트(조장) uid */
+  hostUid?: string;
+  /** 세션 호스트 닉네임 */
+  hostNickname?: string;
+  /** 현장명 (예: 홍대 버스킹존) */
+  venueLabel?: string;
+  completedAt?: any;
   currentSongIndex?: number;
   /** 관리 탭에서 참가자 확정(완료) 후 true — 그 전에는 진행 탭에서 곡 등록 UI를 쓰지 않음 */
   participantRegistrationComplete?: boolean;
+  /** 관리자가 선택한 자유곡 진행 순서 */
+  freeSongLineup?: FreeSongLineupItem[];
+  /** 사용자가 전송한 자유곡 합격곡 목록 */
+  freeSongSubmissions?: FreeSongSubmission[];
+  /** 이번 세션 자유곡 완료 통계 (닉네임 → 곡 수) */
+  freeSongMemberStats?: Record<string, number>;
 }
 
-/** 참가자 단계가 끝나 곡·카드 등록 단계로 넘어갔는지 (Firestore 플래그 또는 레거시 데이터 존재 시 true) */
+/** 곡·카드 등록 가능 여부 (참가 멤버가 있거나 기존 등록 데이터가 있으면 true) */
 export function isSongRegistrationPhase(list: SetListData | null): boolean {
   if (!list) return false;
-  if (list.participantRegistrationComplete === true) return true;
+  const participants = (list.participants ?? []).map((p) => String(p).trim()).filter(Boolean);
+  if (participants.length > 0) return true;
   if ((list.songs?.length ?? 0) > 0) return true;
   if ((list.flexibleCards?.length ?? 0) > 0) return true;
   if ((list.requestSongCards?.length ?? 0) > 0) return true;

@@ -5,6 +5,12 @@ import { collection, query, where, getDocs, addDoc, deleteDoc, doc, Timestamp, o
 import { db } from '../firebase';
 import { SUPER_ADMIN_NICKNAMES, GRADE_SYSTEM } from './AdminTypes';
 import { getGradeEmoji } from '../utils/gradeDisplay';
+import {
+  loadPracticeRoomAlwaysOpenSettings,
+  isDateInAlwaysOpenPeriod,
+  ALWAYS_OPEN_NOTICE,
+  type PracticeRoomAlwaysOpenSettings,
+} from '../utils/practiceRoomAlwaysOpen';
 import { Calendar, Clock, User, X, ChevronLeft, ChevronRight, Info, RefreshCw, LogIn, LogOut, Users, Music2, Settings } from 'lucide-react';
 interface Reservation {
   id: string;
@@ -84,6 +90,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
   const [blockReason, setBlockReason] = useState('');
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
   const [blockingRules, setBlockingRules] = useState<BlockingRule[]>([]);
+  const [alwaysOpenSettings, setAlwaysOpenSettings] = useState<PracticeRoomAlwaysOpenSettings | null>(null);
   const [purpose, setPurpose] = useState('');
   const [duration, setDuration] = useState(1);
   const [maxAvailableDuration, setMaxAvailableDuration] = useState<number>(1);
@@ -152,6 +159,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
       calculateWeeklyReservationCount();
       loadBlockedSlots();
       loadBlockingRules();
+      loadAlwaysOpenSettings();
     }
   }, [selectedDate, currentUser]);
 
@@ -257,6 +265,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
         calculateDailyUsedHours();
         calculateWeeklyReservationCount();
         loadBlockedSlots();
+        loadAlwaysOpenSettings();
       } else {
         console.log('예약 처리 중이라 자동 새로고침 생략');
       }
@@ -355,6 +364,20 @@ const PracticeRoomBookingNotebook: React.FC = () => {
       console.error('차단 규칙 로딩 실패:', error);
     }
   };
+
+  const loadAlwaysOpenSettings = async () => {
+    try {
+      const settings = await loadPracticeRoomAlwaysOpenSettings();
+      setAlwaysOpenSettings(settings);
+    } catch (error) {
+      console.error('상시개방 설정 로딩 실패:', error);
+    }
+  };
+
+  const isAlwaysOpenDate = (date: Date) =>
+    isDateInAlwaysOpenPeriod(date, alwaysOpenSettings);
+
+  const selectedDateAlwaysOpen = isAlwaysOpenDate(selectedDate);
 
   const loadMyReservations = async () => {
     if (!currentUser) return;
@@ -563,6 +586,9 @@ const PracticeRoomBookingNotebook: React.FC = () => {
     const dateStr = formatDate(date);
     const now = new Date();
     
+    // 상시개방 기간이면 모든 슬롯 예약 불가
+    const alwaysOpen = isAlwaysOpenDate(date);
+    
     // 차단 규칙 체크
     const ruleCheck = isBlockedByRule(date);
     
@@ -591,7 +617,12 @@ const PracticeRoomBookingNotebook: React.FC = () => {
       let blockId = undefined;
       let isException = false;
       
-      if (individualSlot) {
+      if (alwaysOpen) {
+        isBlocked = true;
+        blockReason = '상시개방';
+        blockedBy = '상시개방 기간';
+        isException = false;
+      } else if (individualSlot) {
         // 개별 설정이 있는 경우
         if (individualSlot.isException) {
           // 예외 허용: 규칙 무시하고 예약 가능
@@ -625,9 +656,9 @@ const PracticeRoomBookingNotebook: React.FC = () => {
       slots.push({
         time: timeStr,
         endTime: endTimeStr,
-        isAvailable: !reservation && !isPast && !isBlocked,
+        isAvailable: !reservation && !isPast && !isBlocked && !alwaysOpen,
         isPast: isPast,
-        isBlocked: isBlocked,
+        isBlocked: isBlocked || alwaysOpen,
         isException: isException,
         blockReason: blockReason,
         blockedBy: blockedBy,
@@ -686,6 +717,11 @@ const PracticeRoomBookingNotebook: React.FC = () => {
     date: Date,
     options?: { ignoreBlocks?: boolean; ignoreReservations?: boolean }
   ) => {
+    if (isAlwaysOpenDate(date)) {
+      alert(`🟢 ${ALWAYS_OPEN_NOTICE}`);
+      return;
+    }
+
     if (!isUnlimitedUser && isCherryGradeUser()) {
       alert(CHERRY_GRADE_BOOKING_MESSAGE);
       return;
@@ -745,6 +781,11 @@ const PracticeRoomBookingNotebook: React.FC = () => {
     
     // 과거 시간은 클릭 불가
     if (slot.isPast) {
+      return;
+    }
+
+    if (isAlwaysOpenDate(date)) {
+      alert(`🟢 ${ALWAYS_OPEN_NOTICE}`);
       return;
     }
     
@@ -1505,6 +1546,15 @@ const PracticeRoomBookingNotebook: React.FC = () => {
           role="status"
         >
           🍒 체리 등급 회원은 연습실 예약을 이용할 수 없습니다. 체리 등급을 졸업(딸기 등급 이상)한 후 예약해 주세요.
+        </div>
+      )}
+
+      {selectedDateAlwaysOpen && alwaysOpenSettings && (
+        <div className="always-open-notice" role="status">
+          🟢 {ALWAYS_OPEN_NOTICE}
+          <span className="always-open-period">
+            ({alwaysOpenSettings.startDate} ~ {alwaysOpenSettings.endDate})
+          </span>
         </div>
       )}
 
