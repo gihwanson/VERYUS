@@ -2067,6 +2067,24 @@
   color: #bbf7d0;
 }
 
+.free-song-row__badge--submitted {
+  background: rgba(56, 189, 248, 0.22);
+  border-color: rgba(56, 189, 248, 0.42);
+  color: #bae6fd;
+}
+
+.free-song-row__badge--selected {
+  background: rgba(34, 197, 94, 0.25);
+  border-color: rgba(34, 197, 94, 0.45);
+  color: #bbf7d0;
+}
+
+.free-song-row__badge--rejected {
+  background: rgba(244, 63, 94, 0.22);
+  border-color: rgba(244, 63, 94, 0.42);
+  color: #fecdd3;
+}
+
 .free-song-list--order .free-song-row--completed {
   opacity: 0.72;
 }

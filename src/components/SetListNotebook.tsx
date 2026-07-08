@@ -138,7 +138,7 @@ const SetListNotebook: React.FC = () => {
         <FreeSongAdminPanel
           activeSetList={activeSetList}
           submissionsState={submissionsState}
-          userUid={user?.uid || ''}
+          userNickname={user?.nickname || ''}
         />
       );
     }

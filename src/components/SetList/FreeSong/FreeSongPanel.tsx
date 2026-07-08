@@ -20,6 +20,7 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
 }) => {
   const {
     mySubmissions,
+    myRejectedSubmissions,
     mySubmissionCount,
     submissionLimit,
     canSubmitMore,
@@ -34,6 +35,7 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
     actionLoading,
     submitSong,
     cancelSubmission,
+    dismissRejectedSubmission,
   } = submissionsState;
 
   if (!activeSetList) {
@@ -68,6 +70,11 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
 
   const handleCancel = async (submission: FreeSongSubmission, asPartner = false) => {
     await cancelSubmission(submission, userUid, asPartner ? { actorNickname: userNickname } : undefined);
+  };
+
+  const handleDismissRejected = async (submission: FreeSongSubmission) => {
+    if (!confirm(`"${submission.title}" 거부 알림을 삭제하시겠습니까?`)) return;
+    await dismissRejectedSubmission(submission.id, userUid);
   };
 
   if (participants.length === 0) {
@@ -116,9 +123,9 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
         </p>
       </div>
 
-      {mySubmissions.length > 0 && (
+      {(mySubmissions.length > 0 || myRejectedSubmissions.length > 0) && (
         <div className="setlist-manage-panel">
-          <h3 className="free-song-section-title">내 전송 현황 ({mySubmissions.length})</h3>
+          <h3 className="free-song-section-title">내 전송 현황 ({mySubmissions.length + myRejectedSubmissions.length})</h3>
           <div className="free-song-list">
             {mySubmissions.map((sub) => (
               <SongRow
@@ -126,15 +133,41 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
                 title={sub.title}
                 members={sub.members}
                 badge={lineupSubmissionIds.has(sub.id) ? '선정됨' : '전송됨'}
+                badgeVariant={lineupSubmissionIds.has(sub.id) ? 'selected' : 'submitted'}
                 action={
-                  <button
-                    type="button"
-                    className="free-song-btn free-song-btn--cancel"
-                    disabled={actionLoading}
-                    onClick={() => handleCancel(sub)}
-                  >
-                    취소
-                  </button>
+                  lineupSubmissionIds.has(sub.id) ? (
+                    undefined
+                  ) : (
+                    <button
+                      type="button"
+                      className="free-song-btn free-song-btn--cancel"
+                      disabled={actionLoading}
+                      onClick={() => handleCancel(sub)}
+                    >
+                    전송취소
+                    </button>
+                  )
+                }
+              />
+            ))}
+            {myRejectedSubmissions.map((sub) => (
+              <SongRow
+                key={sub.id}
+                title={sub.title}
+                members={sub.members}
+                badge="거부됨"
+                badgeVariant="rejected"
+                action={
+                  <div className="free-song-row__actions">
+                    <button
+                      type="button"
+                      className="free-song-btn free-song-btn--ghost"
+                      disabled={actionLoading}
+                      onClick={() => handleDismissRejected(sub)}
+                    >
+                      알림삭제
+                    </button>
+                  </div>
                 }
               />
             ))}
@@ -156,15 +189,20 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
                 members={song.members}
                 submittedBy={submission.submittedBy}
                 badge="파트너 전송됨"
+                badgeVariant="submitted"
                 action={
-                  <button
-                    type="button"
-                    className="free-song-btn free-song-btn--cancel"
-                    disabled={actionLoading}
-                    onClick={() => handleCancel(submission, true)}
-                  >
-                    취소
-                  </button>
+                  lineupSubmissionIds.has(submission.id) ? (
+                    undefined
+                  ) : (
+                    <button
+                      type="button"
+                      className="free-song-btn free-song-btn--cancel"
+                      disabled={actionLoading}
+                      onClick={() => handleCancel(submission, true)}
+                    >
+                      전송취소
+                    </button>
+                  )
                 }
               />
             ))}

@@ -8,21 +8,21 @@ import { FreeSongEmptyState, SongRow } from './FreeSongShared';
 interface FreeSongAdminPanelProps {
   activeSetList: SetListData | null;
   submissionsState: FreeSongSubmissionsState;
-  userUid: string;
+  userNickname: string;
 }
 
 const FreeSongAdminPanel: React.FC<FreeSongAdminPanelProps> = ({
   activeSetList,
   submissionsState,
-  userUid,
+  userNickname,
 }) => {
-  const { submissions, loading, actionLoading: submitActionLoading, cancelSubmission } = submissionsState;
+  const { activeSubmissions, loading, actionLoading: submitActionLoading, rejectSubmission } = submissionsState;
   const { actionLoading: lineupActionLoading, addToLineup, normalizeLineup } = useFreeSongLineup(activeSetList?.id);
 
   const actionLoading = submitActionLoading || lineupActionLoading;
   const lineup = normalizeLineup(activeSetList?.freeSongLineup);
   const lineupSubmissionIds = new Set(lineup.map((item) => item.submissionId));
-  const pendingSubmissions = submissions.filter((sub) => !lineupSubmissionIds.has(sub.id));
+  const pendingSubmissions = activeSubmissions.filter((sub) => !lineupSubmissionIds.has(sub.id));
 
   if (!activeSetList) {
     return (
@@ -47,8 +47,8 @@ const FreeSongAdminPanel: React.FC<FreeSongAdminPanelProps> = ({
     await addToLineup(submission, lineup);
   };
 
-  const handleCancelSubmission = async (submission: FreeSongSubmission) => {
-    await cancelSubmission(submission, userUid, { asManager: true });
+  const handleRejectSubmission = async (submission: FreeSongSubmission) => {
+    await rejectSubmission(submission, userNickname);
   };
 
   return (
@@ -57,8 +57,8 @@ const FreeSongAdminPanel: React.FC<FreeSongAdminPanelProps> = ({
         <h2 className="setlist-manage-heading free-song-heading">곡 선정</h2>
         <p className="setlist-manage-sub free-song-desc">
           전송된 합격곡 중 버스킹에 사용할 곡을 선택하세요. 순서 변경은 <strong>진행 순서</strong> 탭에서 할 수 있습니다.
-          {submissions.length > 0 && (
-            <span className="free-song-admin-count"> · 총 {submissions.length}곡 전송됨</span>
+          {activeSubmissions.length > 0 && (
+            <span className="free-song-admin-count"> · 총 {activeSubmissions.length}곡 전송됨</span>
           )}
         </p>
       </div>
@@ -67,7 +67,7 @@ const FreeSongAdminPanel: React.FC<FreeSongAdminPanelProps> = ({
         <h3 className="free-song-section-title">전송 목록 ({pendingSubmissions.length})</h3>
         {pendingSubmissions.length === 0 ? (
           <p className="free-song-empty-sub">
-            {submissions.length === 0
+            {activeSubmissions.length === 0
               ? '아직 전송된 곡이 없습니다. 사용자가 자유곡 · 곡 전송 탭에서 합격곡을 내면 여기에 표시됩니다.'
               : '모든 전송 곡이 진행 순서에 추가되었습니다.'}
           </p>
@@ -84,6 +84,7 @@ const FreeSongAdminPanel: React.FC<FreeSongAdminPanelProps> = ({
                       title={sub.title}
                       members={sub.members}
                       badge="전송됨"
+                      badgeVariant="submitted"
                       action={
                         <div className="free-song-row__actions">
                           <button
@@ -98,9 +99,9 @@ const FreeSongAdminPanel: React.FC<FreeSongAdminPanelProps> = ({
                             type="button"
                             className="free-song-btn free-song-btn--cancel"
                             disabled={actionLoading}
-                            onClick={() => handleCancelSubmission(sub)}
+                            onClick={() => handleRejectSubmission(sub)}
                           >
-                            취소
+                            거부
                           </button>
                         </div>
                       }

@@ -1,5 +1,7 @@
 import type { Timestamp } from 'firebase/firestore';
 
+export type FreeSongSubmissionStatus = 'pending' | 'rejected';
+
 export interface FreeSongSubmission {
   id: string;
   approvedSongId: string;
@@ -8,6 +10,9 @@ export interface FreeSongSubmission {
   submittedBy: string;
   submittedByUid: string;
   createdAt: Timestamp;
+  status?: FreeSongSubmissionStatus;
+  rejectedAt?: Timestamp;
+  rejectedBy?: string;
 }
 
 /** 관리자가 선택한 자유곡 진행 순서 항목 */

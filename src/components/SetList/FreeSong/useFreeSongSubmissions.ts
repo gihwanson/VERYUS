@@ -22,6 +22,7 @@ import {
   findSubmissionBySongId,
   isPartnerSubmitted,
   canCancelAsPartner,
+  isRejectedSubmission,
   normalizeSubmissions,
   FREE_SONG_SUBMISSION_LIMIT,
 } from './freeSongSubmissionUtils';
@@ -43,8 +44,9 @@ function countUserSubmissions(submissions: FreeSongSubmission[], userUid: string
   const nick = normalizeBuskingNickname(userNickname);
   return submissions.filter(
     (s) =>
-      s.submittedByUid === userUid ||
-      (!s.submittedByUid && normalizeBuskingNickname(s.submittedBy) === nick)
+      !isRejectedSubmission(s) &&
+      (s.submittedByUid === userUid ||
+        (!s.submittedByUid && normalizeBuskingNickname(s.submittedBy) === nick))
   ).length;
 }
 
@@ -143,18 +145,25 @@ export function useFreeSongSubmissions(
     [approvedSongs, participants]
   );
 
-  const submittedSongIds = new Set(submissions.map((s) => s.approvedSongId));
   const isParticipant = isBuskingParticipant(activeSetList, normalizedNickname);
-  const mySubmissions = submissions.filter(
+  const activeSubmissions = submissions.filter((s) => !isRejectedSubmission(s));
+  const submittedSongIds = new Set(activeSubmissions.map((s) => s.approvedSongId));
+  const mySubmissions = activeSubmissions.filter(
     (s) =>
       s.submittedByUid === userUid ||
       (!s.submittedByUid && normalizeBuskingNickname(s.submittedBy) === normalizedNickname)
+  );
+  const myRejectedSubmissions = submissions.filter(
+    (s) =>
+      isRejectedSubmission(s) &&
+      (s.submittedByUid === userUid ||
+        (!s.submittedByUid && normalizeBuskingNickname(s.submittedBy) === normalizedNickname))
   );
   const mySubmissionCount = mySubmissions.length;
   const canSubmitMore = mySubmissionCount < FREE_SONG_SUBMISSION_LIMIT;
   const partnerSubmittedSongs = eligibleApprovedSongs
     .map((song) => {
-      const submission = findSubmissionBySongId(submissions, song.id);
+      const submission = findSubmissionBySongId(activeSubmissions, song.id);
       if (
         !submission ||
         submission.submittedByUid === userUid ||
@@ -305,9 +314,88 @@ export function useFreeSongSubmissions(
     [setlistId, activeSetList, withLoading]
   );
 
+  const rejectSubmission = useCallback(
+    async (submission: FreeSongSubmission, rejectedBy: string) => {
+      if (!setlistId || !activeSetList) return false;
+      const rejectedByName = normalizeBuskingNickname(rejectedBy) || '관리자';
+      if (
+        !confirm(
+          `${submission.submittedBy}님이 전송한 "${submission.title}"을(를) 거부하시겠습니까?\n` +
+            '거부된 곡은 전송 내역에 남고, 해당 멤버는 같은 곡을 다시 전송할 수 있습니다.'
+        )
+      ) {
+        return false;
+      }
+
+      return withLoading(async () => {
+        try {
+          const ok = await mutateSetlistFreeSong(setlistId, (state) => {
+            const index = state.submissions.findIndex((s) => s.id === submission.id);
+            if (index < 0) return null;
+            if (state.submissions[index].status === 'rejected') return null;
+
+            const nextSubmissions = [...state.submissions];
+            nextSubmissions[index] = {
+              ...nextSubmissions[index],
+              status: 'rejected',
+              rejectedBy: rejectedByName,
+              rejectedAt: Timestamp.now(),
+            };
+
+            return {
+              freeSongSubmissions: nextSubmissions,
+              freeSongLineup: state.lineup.filter((row) => row.submissionId !== submission.id),
+            };
+          });
+          if (!ok) {
+            alert('거부 처리에 실패했습니다. 이미 처리된 전송일 수 있습니다.');
+            return false;
+          }
+          return true;
+        } catch (error) {
+          console.error('자유곡 거부 처리 실패:', error);
+          alert('거부 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+          return false;
+        }
+      });
+    },
+    [setlistId, activeSetList, withLoading]
+  );
+
+  const dismissRejectedSubmission = useCallback(
+    async (submissionId: string, actorUid: string) => {
+      if (!setlistId || !activeSetList) return false;
+      return withLoading(async () => {
+        try {
+          const ok = await mutateSetlistFreeSong(setlistId, (state) => {
+            const target = state.submissions.find((s) => s.id === submissionId);
+            if (!target) return null;
+            if (target.status !== 'rejected') return null;
+            if (target.submittedByUid !== actorUid) return null;
+            return {
+              freeSongSubmissions: state.submissions.filter((s) => s.id !== submissionId),
+            };
+          });
+          if (!ok) {
+            alert('삭제에 실패했습니다. 이미 처리되었거나 권한이 없습니다.');
+            return false;
+          }
+          return true;
+        } catch (error) {
+          console.error('거부 전송 삭제 실패:', error);
+          alert('삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+          return false;
+        }
+      });
+    },
+    [setlistId, activeSetList, withLoading]
+  );
+
   return {
     submissions,
+    activeSubmissions,
     mySubmissions,
+    myRejectedSubmissions,
     mySubmissionCount,
     submissionLimit: FREE_SONG_SUBMISSION_LIMIT,
     canSubmitMore,
@@ -322,6 +410,8 @@ export function useFreeSongSubmissions(
     actionLoading,
     submitSong,
     cancelSubmission,
+    rejectSubmission,
+    dismissRejectedSubmission,
   };
 }
 
