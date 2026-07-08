@@ -33,11 +33,11 @@ const MODE_INFO = {
 } as const;
 
 const FREE_SONG_VIEWS: { id: FreeSongView; label: string; adminOnly?: boolean }[] = [
-  { id: 'roster', label: '멤버 편성' },
+  { id: 'roster', label: '멤버 편성', adminOnly: true },
   { id: 'submit', label: '곡 전송' },
   { id: 'admin', label: '곡 선정', adminOnly: true },
   { id: 'order', label: '진행 순서' },
-  { id: 'stats', label: '통계' },
+  { id: 'stats', label: '통계', adminOnly: true },
 ];
 
 const SETLIST_VIEWS: { id: SetlistView; label: string; adminOnly?: boolean }[] = [

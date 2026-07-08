@@ -3,13 +3,21 @@ import {
   collection,
   doc,
   getDocs,
+  query,
+  where,
   Timestamp,
 } from 'firebase/firestore';
 import { db } from '../../../firebase';
 import type { SetListData } from '../types';
 import type { ApprovedSong } from '../../ApprovedSongsUtils';
 import type { FreeSongSubmission } from './types';
-import { isBuskingParticipant, getBuskingParticipants, isApprovedSongEligibleForBusking } from '../BuskingMember/buskingParticipantsUtils';
+import {
+  getBuskingParticipants,
+  isApprovedSongEligibleForBusking,
+  isBuskingParticipant,
+  isUserInApprovedSong,
+  normalizeBuskingNickname,
+} from '../BuskingMember/buskingParticipantsUtils';
 import {
   findSubmissionBySongId,
   isPartnerSubmitted,
@@ -32,9 +40,29 @@ function sortSubmissions(submissions: FreeSongSubmission[]): FreeSongSubmission[
 }
 
 function countUserSubmissions(submissions: FreeSongSubmission[], userUid: string, userNickname: string): number {
+  const nick = normalizeBuskingNickname(userNickname);
   return submissions.filter(
-    (s) => s.submittedByUid === userUid || (!s.submittedByUid && s.submittedBy === userNickname)
+    (s) =>
+      s.submittedByUid === userUid ||
+      (!s.submittedByUid && normalizeBuskingNickname(s.submittedBy) === nick)
   ).length;
+}
+
+function mapApprovedSongDoc(d: { id: string; data: () => Record<string, unknown> }): ApprovedSong {
+  const data = d.data();
+  return {
+    id: d.id,
+    ...data,
+    members: Array.isArray(data.members) ? data.members : [],
+  } as ApprovedSong;
+}
+
+function filterMyApprovedSongs(songs: ApprovedSong[], userNickname: string): ApprovedSong[] {
+  const nick = normalizeBuskingNickname(userNickname);
+  if (!nick) return [];
+  return songs
+    .filter((song) => isUserInApprovedSong(song, nick))
+    .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'ko'));
 }
 
 export function useFreeSongSubmissions(
@@ -49,6 +77,9 @@ export function useFreeSongSubmissions(
   const loadingRef = useRef(false);
 
   const setlistId = activeSetList?.id;
+  const normalizedNickname = normalizeBuskingNickname(userNickname);
+  const participantsKey = JSON.stringify(getBuskingParticipants(activeSetList));
+
   const submissions = useMemo(
     () => sortSubmissions(normalizeSubmissions(activeSetList?.freeSongSubmissions)),
     [activeSetList?.freeSongSubmissions]
@@ -65,33 +96,47 @@ export function useFreeSongSubmissions(
   const loading = setlistLoading || approvedSongsLoading;
 
   useEffect(() => {
-    if (!userNickname) {
+    if (!normalizedNickname) {
       setApprovedSongs([]);
       return;
     }
+
+    let cancelled = false;
     setApprovedSongsLoading(true);
-    getDocs(collection(db, 'approvedSongs'))
-      .then((snap) => {
-        const songs = snap.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-          members: Array.isArray(d.data().members) ? d.data().members : [],
-        })) as ApprovedSong[];
-        setApprovedSongs(
-          songs
-            .filter((song) => song.members.some((m) => String(m).trim() === userNickname))
-            .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'ko'))
+
+    const loadApprovedSongs = async () => {
+      try {
+        const byQuerySnap = await getDocs(
+          query(collection(db, 'approvedSongs'), where('members', 'array-contains', normalizedNickname))
         );
-      })
-      .catch((error) => {
+        const byQuery = byQuerySnap.docs.map(mapApprovedSongDoc);
+
+        let songs = byQuery;
+        if (byQuery.length === 0) {
+          const allSnap = await getDocs(collection(db, 'approvedSongs'));
+          songs = allSnap.docs.map(mapApprovedSongDoc);
+        }
+
+        if (!cancelled) {
+          setApprovedSongs(filterMyApprovedSongs(songs, normalizedNickname));
+        }
+      } catch (error) {
         console.error('합격곡 로드 실패:', error);
-      })
-      .finally(() => setApprovedSongsLoading(false));
-  }, [userNickname]);
+        if (!cancelled) setApprovedSongs([]);
+      } finally {
+        if (!cancelled) setApprovedSongsLoading(false);
+      }
+    };
+
+    void loadApprovedSongs();
+    return () => {
+      cancelled = true;
+    };
+  }, [normalizedNickname]);
 
   const participants = useMemo(
     () => getBuskingParticipants(activeSetList),
-    [activeSetList?.participants]
+    [activeSetList?.id, participantsKey]
   );
   const eligibleApprovedSongs = useMemo(
     () => approvedSongs.filter((song) => isApprovedSongEligibleForBusking(song, participants)),
@@ -99,19 +144,25 @@ export function useFreeSongSubmissions(
   );
 
   const submittedSongIds = new Set(submissions.map((s) => s.approvedSongId));
-  const isParticipant = isBuskingParticipant(activeSetList, userNickname);
+  const isParticipant = isBuskingParticipant(activeSetList, normalizedNickname);
   const mySubmissions = submissions.filter(
-    (s) => s.submittedByUid === userUid || (!s.submittedByUid && s.submittedBy === userNickname)
+    (s) =>
+      s.submittedByUid === userUid ||
+      (!s.submittedByUid && normalizeBuskingNickname(s.submittedBy) === normalizedNickname)
   );
   const mySubmissionCount = mySubmissions.length;
   const canSubmitMore = mySubmissionCount < FREE_SONG_SUBMISSION_LIMIT;
   const partnerSubmittedSongs = eligibleApprovedSongs
     .map((song) => {
       const submission = findSubmissionBySongId(submissions, song.id);
-      if (!submission || submission.submittedByUid === userUid || submission.submittedBy === userNickname) {
+      if (
+        !submission ||
+        submission.submittedByUid === userUid ||
+        normalizeBuskingNickname(submission.submittedBy) === normalizedNickname
+      ) {
         return null;
       }
-      if (!isPartnerSubmitted(submission, userNickname)) return null;
+      if (!isPartnerSubmitted(submission, normalizedNickname)) return null;
       return { song, submission };
     })
     .filter((item): item is { song: ApprovedSong; submission: FreeSongSubmission } => item != null);
@@ -132,15 +183,15 @@ export function useFreeSongSubmissions(
   const submitSong = useCallback(
     async (song: ApprovedSong, submittedByUid: string) => {
       if (!setlistId || !activeSetList) return false;
-      if (!isBuskingParticipant(activeSetList, userNickname)) {
+      if (!isBuskingParticipant(activeSetList, normalizedNickname)) {
         alert('버스킹 참가 멤버만 합격곡을 전송할 수 있습니다. 멤버 편성을 확인해 주세요.');
         return false;
       }
       if (!isApprovedSongEligibleForBusking(song, participants)) {
-        alert('버스킹 참가 멤버 전원이 포함된 합격곡만 전송할 수 있습니다.');
+        alert('합격곡 멤버 전원이 참가 멤버에 포함되어야 전송할 수 있습니다.');
         return false;
       }
-      if (!song.members.some((m) => String(m).trim() === userNickname)) {
+      if (!isUserInApprovedSong(song, normalizedNickname)) {
         alert('본인이 멤버로 포함된 합격곡만 전송할 수 있습니다.');
         return false;
       }
@@ -150,7 +201,7 @@ export function useFreeSongSubmissions(
         approvedSongId: song.id,
         title: song.title,
         members: song.members,
-        submittedBy: userNickname,
+        submittedBy: normalizedNickname,
         submittedByUid,
         createdAt: Timestamp.now(),
       };
@@ -161,7 +212,7 @@ export function useFreeSongSubmissions(
             const existing = findSubmissionBySongId(state.submissions, song.id);
             if (existing) return null;
 
-            if (countUserSubmissions(state.submissions, submittedByUid, userNickname) >= FREE_SONG_SUBMISSION_LIMIT) {
+            if (countUserSubmissions(state.submissions, submittedByUid, normalizedNickname) >= FREE_SONG_SUBMISSION_LIMIT) {
               return null;
             }
 
@@ -171,7 +222,7 @@ export function useFreeSongSubmissions(
           if (!ok) {
             const freshExisting = findSubmissionBySongId(submissions, song.id);
             if (freshExisting) {
-              if (isPartnerSubmitted(freshExisting, userNickname)) {
+              if (isPartnerSubmitted(freshExisting, normalizedNickname)) {
                 alert('파트너가 이미 전송을 했습니다.');
               } else {
                 alert('이미 전송된 곡입니다.');
@@ -193,7 +244,7 @@ export function useFreeSongSubmissions(
         }
       });
     },
-    [setlistId, activeSetList, userNickname, userUid, participants, submissions, mySubmissionCount, withLoading]
+    [setlistId, activeSetList, normalizedNickname, userUid, participants, submissions, mySubmissionCount, withLoading]
   );
 
   const cancelSubmission = useCallback(
@@ -266,6 +317,7 @@ export function useFreeSongSubmissions(
     approvedSongs,
     lineupSubmissionIds,
     isParticipant,
+    participants,
     loading,
     actionLoading,
     submitSong,

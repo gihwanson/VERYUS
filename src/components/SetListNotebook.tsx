@@ -76,10 +76,7 @@ const SetListNotebook: React.FC = () => {
   }, [canManageCurrent, setlistView]);
 
   useEffect(() => {
-    if (!canManageCurrent && freeSongView === 'admin') {
-      setFreeSongView('submit');
-    }
-    if (!canManageCurrent && freeSongView === 'roster') {
+    if (!canManageCurrent && (freeSongView === 'admin' || freeSongView === 'roster' || freeSongView === 'stats')) {
       setFreeSongView('submit');
     }
   }, [canManageCurrent, freeSongView]);
@@ -154,7 +151,7 @@ const SetListNotebook: React.FC = () => {
         />
       );
     }
-    if (freeSongView === 'stats') {
+    if (freeSongView === 'stats' && canManageCurrent) {
       return <FreeSongStatsPanel activeSetList={activeSetList} canManage={canManageCurrent} />;
     }
     return (

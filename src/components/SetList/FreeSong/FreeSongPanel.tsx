@@ -3,7 +3,6 @@ import type { SetListData } from '../types';
 import type { FreeSongSubmissionsState } from './useFreeSongSubmissions';
 import type { FreeSongSubmission } from './types';
 import type { ApprovedSong } from '../../ApprovedSongsUtils';
-import { getBuskingParticipants } from '../BuskingMember/buskingParticipantsUtils';
 import { FreeSongEmptyState, SongRow } from './FreeSongShared';
 
 interface FreeSongPanelProps {
@@ -27,15 +26,15 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
     partnerSubmittedSongs,
     availableSongs,
     eligibleApprovedSongs,
+    approvedSongs,
     lineupSubmissionIds,
     isParticipant,
+    participants,
     loading,
     actionLoading,
     submitSong,
     cancelSubmission,
   } = submissionsState;
-
-  const participants = getBuskingParticipants(activeSetList);
 
   if (!activeSetList) {
     return (
@@ -94,6 +93,9 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
           </p>
           <p className="free-song-desc" style={{ marginTop: 12 }}>
             참가 멤버: {participants.join(', ')}
+          </p>
+          <p className="free-song-desc" style={{ marginTop: 8 }}>
+            조장에게 멤버 편성에 본인 닉네임({userNickname.trim() || '미확인'})이 포함되었는지 확인해 주세요.
           </p>
         </div>
       </div>
@@ -176,11 +178,13 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
           <p className="free-song-empty-sub">
             {!canSubmitMore
               ? `전송 한도(${submissionLimit}곡)에 도달했습니다. 진행 완료 또는 관리자 제거 후 추가 전송이 가능합니다.`
-              : eligibleApprovedSongs.length === 0
-                ? '버스킹 참가 멤버 전원이 포함된 합격곡만 전송할 수 있습니다.'
-                : mySubmissions.length > 0 || partnerSubmittedSongs.length > 0
-                  ? '전송 가능한 합격곡을 모두 전송했습니다.'
-                  : '전송할 수 있는 합격곡이 없습니다.'}
+              : approvedSongs.length === 0
+                ? '본인이 멤버로 등록된 합격곡이 없습니다.'
+                : eligibleApprovedSongs.length === 0
+                  ? '합격곡 멤버 전원이 참가 멤버에 포함된 곡만 전송할 수 있습니다.'
+                  : mySubmissions.length > 0 || partnerSubmittedSongs.length > 0
+                    ? '전송 가능한 합격곡을 모두 전송했습니다.'
+                    : '전송할 수 있는 합격곡이 없습니다.'}
           </p>
         ) : (
           <div className="free-song-list">
