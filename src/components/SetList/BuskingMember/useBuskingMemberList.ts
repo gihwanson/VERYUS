@@ -31,12 +31,28 @@ export function useBuskingMemberList(enabled: boolean) {
     setLoading(true);
     setError(null);
     try {
-      const snap = await getDocs(collection(db, 'users'));
+      const [usersSnap, approvedSongsSnap] = await Promise.all([
+        getDocs(collection(db, 'users')),
+        getDocs(collection(db, 'approvedSongs')),
+      ]);
+
+      // 버스킹 멤버: 합격곡 members 에 한 번이라도 등록된 닉네임
+      const buskingMemberSet = new Set<string>();
+      for (const songDoc of approvedSongsSnap.docs) {
+        const members = songDoc.data().members;
+        if (!Array.isArray(members)) continue;
+        members.forEach((member) => {
+          const nickname = String(member ?? '').trim();
+          if (nickname) buskingMemberSet.add(nickname);
+        });
+      }
+
       const list: BuskingMemberOption[] = [];
-      for (const d of snap.docs) {
+      for (const d of usersSnap.docs) {
         const data = d.data();
         const nickname = String(data.nickname ?? '').trim();
         if (!nickname) continue;
+        if (!buskingMemberSet.has(nickname)) continue;
         list.push({
           nickname,
           grade: data.grade ? String(data.grade) : undefined,
