@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { SetListData } from '../types';
 import { useFreeSongLineup } from './useFreeSongLineup';
 import {
@@ -7,6 +7,13 @@ import {
   filterIncompleteLineup,
 } from './freeSongStatsUtils';
 import { normalizeSelfWithdrawals } from './freeSongSetlistMutations';
+import {
+  getDefaultManualTitle,
+  isManualLineupItem,
+  parseMemberInput,
+  requiresManualTitleInput,
+  type FreeSongManualLineupKind,
+} from './freeSongLineupUtils';
 import { FreeSongEmptyState, SongRow } from './FreeSongShared';
 
 interface FreeSongOrderPanelProps {
@@ -35,6 +42,7 @@ const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
 }) => {
   const {
     actionLoading,
+    addManualToLineup,
     completeLineupItem,
     moveLineupItem,
     removeFromLineup,
@@ -42,6 +50,9 @@ const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
     dismissWithdrawalNotice,
     normalizeLineup,
   } = useFreeSongLineup(activeSetList?.id);
+  const [manualKind, setManualKind] = useState<FreeSongManualLineupKind>('other');
+  const [manualTitle, setManualTitle] = useState('');
+  const [manualMembers, setManualMembers] = useState('');
   const lineup = normalizeLineup(activeSetList?.freeSongLineup);
   const pendingLineup = filterIncompleteLineup(lineup);
   const completedCount = lineup.length - pendingLineup.length;
@@ -69,9 +80,47 @@ const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
     );
   };
 
-  const handleAdminRemove = async (submissionId: string) => {
-    if (!confirm('이 곡을 진행 순서에서 제거하시겠습니까?\n제거 시 전송한 멤버가 다시 곡을 전송할 수 있습니다.')) return;
+  const handleAdminRemove = async (submissionId: string, title: string, manual: boolean) => {
+    const message = manual
+      ? `"${title}"을(를) 진행 순서에서 제거하시겠습니까?`
+      : '이 곡을 진행 순서에서 제거하시겠습니까?\n제거 시 전송한 멤버가 다시 곡을 전송할 수 있습니다.';
+    if (!confirm(message)) return;
     await removeFromLineup(submissionId, lineup, activeSetList.freeSongSubmissions);
+  };
+
+  const handleQuickManualAdd = async (kind: Extract<FreeSongManualLineupKind, 'request' | 'openMic'>) => {
+    const title = getDefaultManualTitle(kind);
+    const ok = await addManualToLineup({
+      kind,
+      title,
+      addedBy: userNickname,
+    });
+    if (ok) return;
+    alert('추가에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+  };
+
+  const handleManualFormAdd = async () => {
+    const title = manualTitle.trim() || getDefaultManualTitle(manualKind);
+    if (!title) {
+      alert('곡 제목을 입력해 주세요.');
+      return;
+    }
+
+    const ok = await addManualToLineup({
+      kind: manualKind,
+      title,
+      members: parseMemberInput(manualMembers),
+      addedBy: userNickname,
+    });
+
+    if (!ok) {
+      alert('추가에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+      return;
+    }
+
+    setManualTitle('');
+    setManualMembers('');
+    setManualKind('other');
   };
 
   const handleSelfWithdraw = async (submissionId: string, title: string) => {
@@ -87,8 +136,6 @@ const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
     await selfWithdrawFromLineup(submissionId, userNickname);
   };
 
-  const pendingIndexMap = new Map(pendingLineup.map((item, index) => [item.submissionId, index]));
-
   return (
     <div className="free-song-panel">
       <div className="setlist-manage-panel">
@@ -96,6 +143,7 @@ const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
         <p className="setlist-manage-sub free-song-desc">
           오늘 자유곡 버스킹 진행 순서입니다. 무대가 끝나면 <strong>완료</strong> 버튼을 눌러 주세요.
           {canManage && pendingLineup.length > 1 && ' 순서는 ↑↓ 버튼으로 변경할 수 있습니다.'}
+          {canManage && ' 신청곡·오픈마이크·합격곡 외 곡은 아래에서 직접 추가할 수 있습니다.'}
           {!canManage && ' 본인이 포함된 곡은 직접 제거할 수 있습니다.'}
           {completedCount > 0 && (
             <span className="free-song-admin-count"> · {completedCount}곡 완료</span>
@@ -136,23 +184,26 @@ const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
       )}
 
       <div className="setlist-manage-panel">
-        {lineup.length === 0 ? (
-          <p className="free-song-empty-sub">아직 확정된 자유곡 순서가 없습니다. 곡 선정 탭에서 곡을 추가하세요.</p>
+        {pendingLineup.length === 0 ? (
+          <p className="free-song-empty-sub">
+            {lineup.length === 0
+              ? '아직 확정된 자유곡 순서가 없습니다. 곡 선정 탭에서 곡을 추가하세요.'
+              : '진행 대기 중인 곡이 없습니다. 모든 곡이 완료되었습니다.'}
+          </p>
         ) : (
           <div className="free-song-list free-song-list--order">
-            {lineup.map((item, index) => {
-              const isCompleted = Boolean(item.completedAt);
+            {pendingLineup.map((item, index) => {
+              const isManual = isManualLineupItem(item);
               const showComplete = canCompleteLineupItem(item, userNickname, canManage);
               const showSelfWithdraw = !canManage && canSelfWithdrawLineupItem(item, userNickname);
-              const pendingIndex = pendingIndexMap.get(item.submissionId);
 
               const orderActions =
-                canManage && !isCompleted && pendingIndex != null ? (
+                canManage ? (
                   <>
                     <button
                       type="button"
                       className="free-song-btn free-song-btn--ghost"
-                      disabled={actionLoading || pendingIndex === 0}
+                      disabled={actionLoading || index === 0}
                       onClick={() => moveLineupItem(item.submissionId, 'up', lineup)}
                       aria-label="위로"
                     >
@@ -161,7 +212,7 @@ const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
                     <button
                       type="button"
                       className="free-song-btn free-song-btn--ghost"
-                      disabled={actionLoading || pendingIndex === pendingLineup.length - 1}
+                      disabled={actionLoading || index === pendingLineup.length - 1}
                       onClick={() => moveLineupItem(item.submissionId, 'down', lineup)}
                       aria-label="아래로"
                     >
@@ -171,7 +222,7 @@ const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
                       type="button"
                       className="free-song-btn free-song-btn--cancel"
                       disabled={actionLoading}
-                      onClick={() => handleAdminRemove(item.submissionId)}
+                      onClick={() => handleAdminRemove(item.submissionId, item.title, isManual)}
                     >
                       제거
                     </button>
@@ -198,8 +249,6 @@ const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
                 >
                   완료
                 </button>
-              ) : isCompleted ? (
-                <span className="free-song-complete-label">완료됨</span>
               ) : null;
 
               const action =
@@ -217,8 +266,6 @@ const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
                   order={index + 1}
                   title={item.title}
                   members={item.members}
-                  submittedBy={item.submittedBy}
-                  badge={isCompleted ? '완료' : undefined}
                   action={action}
                 />
               );
@@ -226,6 +273,85 @@ const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
           </div>
         )}
       </div>
+
+      {canManage && (
+        <div className="setlist-manage-panel free-song-manual-entry">
+          <h3 className="free-song-section-title">수기 추가</h3>
+          <p className="free-song-desc free-song-desc--admin">
+            합격곡 전송 없이 진행 순서에 바로 넣을 수 있습니다.
+          </p>
+          <div className="free-song-manual-entry__quick">
+            <button
+              type="button"
+              className="free-song-btn free-song-btn--submit"
+              disabled={actionLoading}
+              onClick={() => handleQuickManualAdd('request')}
+            >
+              신청곡 추가
+            </button>
+            <button
+              type="button"
+              className="free-song-btn free-song-btn--submit"
+              disabled={actionLoading}
+              onClick={() => handleQuickManualAdd('openMic')}
+            >
+              오픈마이크 추가
+            </button>
+          </div>
+          <div className="free-song-manual-entry__form">
+            <label className="free-song-manual-entry__label" htmlFor="free-song-manual-kind">
+              종류
+            </label>
+            <select
+              id="free-song-manual-kind"
+              className="free-song-manual-entry__input"
+              value={manualKind}
+              onChange={(event) => setManualKind(event.target.value as FreeSongManualLineupKind)}
+              disabled={actionLoading}
+            >
+              <option value="other">기타</option>
+              <option value="request">신청곡</option>
+              <option value="openMic">오픈마이크</option>
+            </select>
+            <label className="free-song-manual-entry__label" htmlFor="free-song-manual-title">
+              곡 제목
+            </label>
+            <input
+              id="free-song-manual-title"
+              type="text"
+              className="free-song-manual-entry__input"
+              value={manualTitle}
+              onChange={(event) => setManualTitle(event.target.value)}
+              placeholder={
+                requiresManualTitleInput(manualKind)
+                  ? '예: Someone Like You'
+                  : getDefaultManualTitle(manualKind)
+              }
+              disabled={actionLoading}
+            />
+            <label className="free-song-manual-entry__label" htmlFor="free-song-manual-members">
+              멤버 (선택)
+            </label>
+            <input
+              id="free-song-manual-members"
+              type="text"
+              className="free-song-manual-entry__input"
+              value={manualMembers}
+              onChange={(event) => setManualMembers(event.target.value)}
+              placeholder="닉네임을 쉼표로 구분해 입력"
+              disabled={actionLoading}
+            />
+            <button
+              type="button"
+              className="free-song-btn free-song-btn--submit free-song-manual-entry__submit"
+              disabled={actionLoading}
+              onClick={handleManualFormAdd}
+            >
+              순서에 추가
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

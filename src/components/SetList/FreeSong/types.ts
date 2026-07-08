@@ -15,14 +15,18 @@ export interface FreeSongSubmission {
   rejectedBy?: string;
 }
 
+export type FreeSongLineupItemKind = 'approved' | 'request' | 'openMic' | 'other' | 'custom';
+
 /** 관리자가 선택한 자유곡 진행 순서 항목 */
 export interface FreeSongLineupItem {
   submissionId: string;
-  approvedSongId: string;
+  approvedSongId?: string;
   title: string;
   members: string[];
   submittedBy: string;
   order: number;
+  /** approved(기본): 멤버 전송·선정, request/openMic/other/custom: 관리자 수기 입력 */
+  kind?: FreeSongLineupItemKind;
   completedAt?: Timestamp;
   completedBy?: string;
 }

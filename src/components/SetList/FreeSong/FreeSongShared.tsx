@@ -9,9 +9,16 @@ export const SongRow: React.FC<{
   submittedBy?: string;
   action?: React.ReactNode;
   badge?: string;
-  badgeVariant?: 'selected' | 'submitted' | 'rejected' | 'default';
+  badgeVariant?: 'selected' | 'submitted' | 'rejected' | 'manual' | 'default';
   order?: number;
-}> = ({ title, members, submittedBy, action, badge, badgeVariant = 'default', order }) => (
+}> = ({ title, members, submittedBy, action, badge, badgeVariant = 'default', order }) => {
+  const memberText = formatMembers(members);
+  const metaText =
+    submittedBy && memberText
+      ? `${submittedBy} · ${memberText}`
+      : submittedBy || memberText;
+
+  return (
   <div className="free-song-row">
     {order != null && <div className="free-song-row__order">{order}</div>}
     <div className="free-song-row__info">
@@ -19,13 +26,12 @@ export const SongRow: React.FC<{
         {title}
         {badge && <span className={`free-song-row__badge free-song-row__badge--${badgeVariant}`}>{badge}</span>}
       </div>
-      <div className="free-song-row__members">
-        {submittedBy ? `${submittedBy} · ${formatMembers(members)}` : formatMembers(members)}
-      </div>
+      {metaText ? <div className="free-song-row__members">{metaText}</div> : null}
     </div>
     {action && <div className="free-song-row__action">{action}</div>}
   </div>
-);
+  );
+};
 
 export const FreeSongEmptyState: React.FC<{ title: string; subtitle?: string }> = ({ title, subtitle }) => (
   <div className="setlist-manage-panel free-song-panel">

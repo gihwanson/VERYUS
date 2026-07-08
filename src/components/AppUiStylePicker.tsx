@@ -28,7 +28,7 @@ const AppUiStylePicker: React.FC = () => {
       options={APP_UI_STYLE_OPTIONS}
       selectedId={selected}
       onSelect={handleSelect}
-      description="웜페이지 스타일이 익숙하지 않다면 클래식(이전) 디자인으로 되돌릴 수 있습니다. 선택 시 화면이 새로고침되며, 앱 테마 색상 설정은 그대로 유지됩니다."
+      description="웜페이지(현재) 디자인이 기본으로 적용됩니다. 선택 시 화면이 새로고침되며, 앱 테마 색상 설정은 그대로 유지됩니다."
       ariaLabel="화면 디자인 스타일"
     />
   );

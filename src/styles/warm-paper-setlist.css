@@ -793,6 +793,31 @@ html[data-ui-style="warm-paper"] .free-song-row__badge--rejected {
   color: #8b2c35;
 }
 
+html[data-ui-style="warm-paper"] .free-song-row__badge--manual {
+  background: #fff4db;
+  border-color: #e8c468;
+  color: #8b6914;
+}
+
+html[data-ui-style="warm-paper"] .free-song-manual-entry {
+  border-color: #e8dcc8;
+  background: #fff9ef;
+}
+
+html[data-ui-style="warm-paper"] .free-song-manual-entry__label {
+  color: var(--paper-text, #2c2416);
+}
+
+html[data-ui-style="warm-paper"] .free-song-manual-entry__input {
+  border-color: #e8dcc8;
+  background: #fffdf8;
+  color: var(--paper-text, #2c2416);
+}
+
+html[data-ui-style="warm-paper"] .free-song-manual-entry__input::placeholder {
+  color: #a89880;
+}
+
 html[data-ui-style="warm-paper"] .free-song-btn--submit {
   background: var(--paper-accent, #8b5a2b);
   border-color: var(--paper-accent, #8b5a2b);

@@ -10,6 +10,10 @@ export function isAppUiStyleId(value: string): value is AppUiStyleId {
 export function getSavedAppUiStyle(): AppUiStyleId {
   try {
     const saved = localStorage.getItem(APP_UI_STYLE_STORAGE_KEY);
+    if (saved === 'classic') {
+      localStorage.setItem(APP_UI_STYLE_STORAGE_KEY, 'warm-paper');
+      return 'warm-paper';
+    }
     if (saved && isAppUiStyleId(saved)) return saved;
   } catch {
     /* ignore */
@@ -18,7 +22,8 @@ export function getSavedAppUiStyle(): AppUiStyleId {
 }
 
 export function applyAppUiStyleAttribute(styleId: AppUiStyleId): void {
-  document.documentElement.setAttribute('data-ui-style', styleId);
-  localStorage.setItem(APP_UI_STYLE_STORAGE_KEY, styleId);
+  const resolvedStyleId: AppUiStyleId = styleId === 'classic' ? 'warm-paper' : styleId;
+  document.documentElement.setAttribute('data-ui-style', resolvedStyleId);
+  localStorage.setItem(APP_UI_STYLE_STORAGE_KEY, resolvedStyleId);
   window.dispatchEvent(new Event(APP_UI_STYLE_CHANGE_EVENT));
 }

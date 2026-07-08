@@ -20,8 +20,20 @@ import {
   reorderPendingLineup,
   selfWithdrawFromState,
 } from './freeSongSetlistMutations';
+import {
+  createManualLineupId,
+  isManualLineupItem,
+  type FreeSongManualLineupKind,
+} from './freeSongLineupUtils';
 
 export { normalizeLineup } from './freeSongSetlistMutations';
+
+export interface ManualLineupInput {
+  kind: FreeSongManualLineupKind;
+  title: string;
+  members?: string[];
+  addedBy: string;
+}
 
 export function useFreeSongLineup(setlistId: string | undefined) {
   const [actionLoading, setActionLoading] = useState(false);
@@ -98,6 +110,35 @@ export function useFreeSongLineup(setlistId: string | undefined) {
     [setlistId, withLoading]
   );
 
+  const addManualToLineup = useCallback(
+    async (input: ManualLineupInput) => {
+      if (!setlistId) return false;
+      const title = input.title.trim();
+      if (!title) {
+        alert('곡 제목을 입력해 주세요.');
+        return false;
+      }
+
+      return withLoading(async () => {
+        return mutateSetlistFreeSong(setlistId, (state) => {
+          const next = [
+            ...state.lineup,
+            {
+              submissionId: createManualLineupId(),
+              title,
+              members: input.members ?? [],
+              submittedBy: input.addedBy,
+              kind: input.kind,
+              order: state.lineup.length,
+            },
+          ];
+          return { freeSongLineup: normalizeLineup(next) };
+        });
+      });
+    },
+    [setlistId, withLoading]
+  );
+
   const removeFromLineup = useCallback(
     async (
       submissionId: string,
@@ -107,6 +148,17 @@ export function useFreeSongLineup(setlistId: string | undefined) {
       if (!setlistId) return false;
       return withLoading(async () => {
         return mutateSetlistFreeSong(setlistId, (state) => {
+          const item = state.lineup.find((row) => row.submissionId === submissionId);
+          if (!item) return null;
+
+          if (isManualLineupItem(item)) {
+            return {
+              freeSongLineup: normalizeLineup(
+                state.lineup.filter((row) => row.submissionId !== submissionId)
+              ),
+            };
+          }
+
           const next = removeSubmissionFromState(state.submissions, state.lineup, submissionId);
           return {
             freeSongSubmissions: next.submissions,
@@ -282,6 +334,7 @@ export function useFreeSongLineup(setlistId: string | undefined) {
   return {
     actionLoading,
     addToLineup,
+    addManualToLineup,
     removeFromLineup,
     selfWithdrawFromLineup,
     dismissWithdrawalNotice,

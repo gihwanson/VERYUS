@@ -1,5 +1,4 @@
 import { applyAppThemeNavSync, getSavedAppTheme } from './appTheme';
-import { getSavedAppUiStyle } from './appUiStyleStorage';
 
 export const BOTTOM_NAV_THEME_STORAGE_KEY = 'veryus_bottom_nav_theme';
 export const BOTTOM_NAV_THEME_CHANGE_EVENT = 'veryus-bottom-nav-theme-change';
@@ -297,14 +296,10 @@ export function getSavedBottomNavTheme(): BottomNavThemeId {
   } catch {
     /* ignore */
   }
-  return getSavedAppUiStyle() === 'classic' ? 'white' : 'paper';
+  return 'paper';
 }
 
-/** 클래식 UI에서는 paper(노트북) 네비 팔레트를 white로 대체 */
 export function resolveBottomNavThemeForApply(themeId: BottomNavThemeId): BottomNavThemeId {
-  if (getSavedAppUiStyle() === 'classic' && themeId === 'paper') {
-    return 'white';
-  }
   return themeId;
 }
 

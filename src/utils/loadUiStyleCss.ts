@@ -8,11 +8,7 @@ let loadedStyle: AppUiStyleId | null = null;
 export async function loadUiStyleCss(style: AppUiStyleId = getSavedAppUiStyle()): Promise<void> {
   if (loadedStyle === style) return;
 
-  if (style === 'warm-paper') {
-    await import('../styles/ui-style-warm-paper.css');
-  } else {
-    await import('../styles/ui-style-classic.css');
-  }
+  await import('../styles/ui-style-warm-paper.css');
 
   loadedStyle = style;
 }
