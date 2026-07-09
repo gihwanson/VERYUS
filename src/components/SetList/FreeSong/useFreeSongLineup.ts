@@ -10,6 +10,11 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { db } from '../../../firebase';
+import type { SetListData } from '../types';
+import {
+  canManageBuskingSession,
+  type BuskingSessionUser,
+} from '../buskingSessionPermissions';
 import type { FreeSongLineupItem, FreeSongPerformerStats } from './types';
 import { normalizeSubmissions } from './freeSongSubmissionUtils';
 import type { FreeSongSubmission } from './types';
@@ -35,9 +40,19 @@ export interface ManualLineupInput {
   addedBy: string;
 }
 
-export function useFreeSongLineup(setlistId: string | undefined) {
+export function useFreeSongLineup(
+  setlistId: string | undefined,
+  session?: SetListData | null,
+  user?: BuskingSessionUser | null
+) {
   const [actionLoading, setActionLoading] = useState(false);
   const loadingRef = useRef(false);
+
+  const requireSessionManager = useCallback((): boolean => {
+    if (canManageBuskingSession(session, user)) return true;
+    alert('본인이 연 버스킹 세션만 수정할 수 있습니다. 리더·너래만 다른 세션을 관리할 수 있습니다.');
+    return false;
+  }, [session, user]);
 
   const withLoading = useCallback(async <T,>(fn: () => Promise<T>): Promise<T | false> => {
     if (!setlistId || loadingRef.current) return false;
@@ -87,6 +102,7 @@ export function useFreeSongLineup(setlistId: string | undefined) {
       _currentLineup: FreeSongLineupItem[]
     ) => {
       if (!setlistId) return false;
+      if (!requireSessionManager()) return false;
       return withLoading(async () => {
         const ok = await mutateSetlistFreeSong(setlistId, (state) => {
           if (state.lineup.some((item) => item.submissionId === submission.id)) return null;
@@ -107,7 +123,7 @@ export function useFreeSongLineup(setlistId: string | undefined) {
         return ok;
       });
     },
-    [setlistId, withLoading]
+    [setlistId, withLoading, requireSessionManager]
   );
 
   const addManualToLineup = useCallback(
@@ -118,6 +134,7 @@ export function useFreeSongLineup(setlistId: string | undefined) {
         alert('곡 제목을 입력해 주세요.');
         return false;
       }
+      if (!requireSessionManager()) return false;
 
       return withLoading(async () => {
         return mutateSetlistFreeSong(setlistId, (state) => {
@@ -136,7 +153,7 @@ export function useFreeSongLineup(setlistId: string | undefined) {
         });
       });
     },
-    [setlistId, withLoading]
+    [setlistId, withLoading, requireSessionManager]
   );
 
   const removeFromLineup = useCallback(
@@ -146,6 +163,7 @@ export function useFreeSongLineup(setlistId: string | undefined) {
       _currentSubmissions?: FreeSongSubmission[]
     ) => {
       if (!setlistId) return false;
+      if (!requireSessionManager()) return false;
       return withLoading(async () => {
         return mutateSetlistFreeSong(setlistId, (state) => {
           const item = state.lineup.find((row) => row.submissionId === submissionId);
@@ -167,7 +185,7 @@ export function useFreeSongLineup(setlistId: string | undefined) {
         });
       });
     },
-    [setlistId, withLoading]
+    [setlistId, withLoading, requireSessionManager]
   );
 
   const selfWithdrawFromLineup = useCallback(
@@ -202,6 +220,7 @@ export function useFreeSongLineup(setlistId: string | undefined) {
   const dismissWithdrawalNotice = useCallback(
     async (noticeId: string) => {
       if (!setlistId) return false;
+      if (!requireSessionManager()) return false;
       return withLoading(async () => {
         return mutateSetlistFreeSong(setlistId, (state) => {
           const index = state.selfWithdrawals.findIndex((n) => n.id === noticeId && !n.dismissedAt);
@@ -213,12 +232,13 @@ export function useFreeSongLineup(setlistId: string | undefined) {
         });
       });
     },
-    [setlistId, withLoading]
+    [setlistId, withLoading, requireSessionManager]
   );
 
   const moveLineupItem = useCallback(
     async (submissionId: string, direction: 'up' | 'down', _currentLineup: FreeSongLineupItem[]) => {
       if (!setlistId) return false;
+      if (!requireSessionManager()) return false;
       return withLoading(async () => {
         const ok = await mutateSetlistFreeSong(setlistId, (state) => {
           const reordered = reorderPendingLineup(state.lineup, submissionId, direction);
@@ -228,7 +248,7 @@ export function useFreeSongLineup(setlistId: string | undefined) {
         return ok;
       });
     },
-    [setlistId, withLoading]
+    [setlistId, withLoading, requireSessionManager]
   );
 
   const completeLineupItem = useCallback(
@@ -245,6 +265,14 @@ export function useFreeSongLineup(setlistId: string | undefined) {
       if (!item) return false;
       if (item.completedAt) {
         alert('이미 완료 처리된 곡입니다.');
+        return false;
+      }
+
+      const canComplete =
+        canManageBuskingSession(session, user) ||
+        (item.members ?? []).map((m) => String(m).trim()).includes(_completedBy.trim());
+      if (!canComplete) {
+        alert('본인이 포함된 곡이거나 세션 관리 권한이 있어야 완료할 수 있습니다.');
         return false;
       }
 
@@ -290,12 +318,13 @@ export function useFreeSongLineup(setlistId: string | undefined) {
       }
       return result;
     },
-    [setlistId, withLoading]
+    [setlistId, withLoading, session, user]
   );
 
   const resetSessionStats = useCallback(
     async (currentLineup: FreeSongLineupItem[] | undefined) => {
       if (!setlistId) return false;
+      if (!requireSessionManager()) return false;
       if (
         !confirm(
           '이번 세션 통계를 초기화할까요?\n\n' +
@@ -318,7 +347,7 @@ export function useFreeSongLineup(setlistId: string | undefined) {
         return true;
       });
     },
-    [setlistId, withLoading]
+    [setlistId, withLoading, requireSessionManager]
   );
 
   const removeSubmissionFromLineup = useCallback(

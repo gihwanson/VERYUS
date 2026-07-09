@@ -1816,6 +1816,12 @@
   transition: all 0.2s ease;
 }
 
+.busking-mode-card--disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .busking-mode-card--free.busking-mode-card--active {
   background: linear-gradient(135deg, rgba(251, 191, 36, 0.35) 0%, rgba(217, 119, 6, 0.28) 100%);
   border-color: rgba(251, 191, 36, 0.75);

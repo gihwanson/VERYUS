@@ -7,7 +7,7 @@ import FreeSongAdminPanel from './SetList/FreeSong/FreeSongAdminPanel';
 import FreeSongOrderPanel from './SetList/FreeSong/FreeSongOrderPanel';
 import FreeSongStatsPanel from './SetList/FreeSong/FreeSongStatsPanel';
 import BuskingMemberRosterPanel from './SetList/BuskingMember/BuskingMemberRosterPanel';
-import BuskingNav, { type BuskingCategory, type FreeSongView, type SetlistView } from './SetList/BuskingNav';
+import BuskingNav, { type BuskingCategory, type FreeSongView, type SetlistView, SETLIST_CATEGORY_ENABLED } from './SetList/BuskingNav';
 import BuskingSessionShell from './SetList/BuskingSessionShell';
 import { useSetListData } from './SetList/hooks/useSetListData';
 import { useBuskingSession } from './SetList/hooks/useBuskingSession';
@@ -54,24 +54,32 @@ const SetListClassic: React.FC = () => {
     liveSessionsToday,
     hostHasLiveSession,
     needsSessionPicker,
-  } = useBuskingSession(setLists, sessionUser);
+  } = useBuskingSession(setLists, sessionUser, category);
 
   const canManageCurrent = canManageBuskingSession(activeSetList, sessionUser);
 
   const { bootstrapping, bootstrapError, retryBootstrap, awaitingVenue, createSession } =
-    useBuskingSessionBootstrap(setLists, hostHasLiveSession, canHost, sessionUser);
+    useBuskingSessionBootstrap(setLists, hostHasLiveSession, canHost, sessionUser, category);
 
   const submissionsState = useFreeSongSubmissions(
     activeSetList,
     user?.nickname || '',
     user?.uid || '',
-    loading
+    loading,
+    user?.role
   );
 
   const goToPerformView = useCallback(() => {
+    if (!SETLIST_CATEGORY_ENABLED) return;
     setCategory('setlist');
     setSetlistView('cards');
   }, []);
+
+  useEffect(() => {
+    if (!SETLIST_CATEGORY_ENABLED && category === 'setlist') {
+      setCategory('freeSong');
+    }
+  }, [category]);
 
   const [narrowScreen, setNarrowScreen] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches
@@ -192,6 +200,8 @@ const SetListClassic: React.FC = () => {
           activeSetList={activeSetList}
           submissionsState={submissionsState}
           userNickname={user?.nickname || ''}
+          userUid={user?.uid}
+          userRole={user?.role}
         />
       );
     }
@@ -200,12 +210,14 @@ const SetListClassic: React.FC = () => {
         <FreeSongOrderPanel
           activeSetList={activeSetList}
           userNickname={user?.nickname || ''}
+          userUid={user?.uid}
+          userRole={user?.role}
           canManage={canManageCurrent}
         />
       );
     }
     if (freeSongView === 'stats' && canManageCurrent) {
-      return <FreeSongStatsPanel activeSetList={activeSetList} canManage={canManageCurrent} />;
+      return <FreeSongStatsPanel activeSetList={activeSetList} canManage={canManageCurrent} userUid={user?.uid} userNickname={user?.nickname} userRole={user?.role} />;
     }
     return (
       <FreeSongPanel
@@ -289,6 +301,7 @@ const SetListClassic: React.FC = () => {
 
         <div className={`busking-content busking-content--${category}`}>
           <BuskingSessionShell
+            category={category}
             activeSetList={activeSetList}
             liveSessionsToday={liveSessionsToday}
             needsSessionPicker={needsSessionPicker && !awaitingVenue}

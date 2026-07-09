@@ -1,9 +1,17 @@
+import type { BuskingCategory } from './BuskingNav';
+import {
+  isFreeSongParticipant,
+  isSetlistParticipant,
+} from './BuskingMember/buskingParticipantsUtils';
 import type { SetListData } from './types';
 import { formatSetListDateLabel, getSetListSessionDateISO, toLocalDateISO } from './setListSessionDate';
 
 export type BuskingSessionStatus = 'live' | 'ended';
 
+export type BuskingSessionScope = BuskingCategory;
+
 const SESSION_STORAGE_PREFIX = 'veryus_busking_session_';
+const LEGACY_SESSION_STORAGE_PREFIX = 'veryus_busking_session_';
 
 /** hostUid·status·venueLabel 이 있는 새 버스킹 세션 */
 export function isNewModelBuskingSession(list: SetListData): boolean {
@@ -50,9 +58,28 @@ function getCreatedAtMs(list: SetListData): number {
   return 0;
 }
 
+/** 세션이 해당 카테고리에 속하는지 (필드 없음 = 레거시 자유곡 세션) */
+export function sessionMatchesCategory(list: SetListData, category: BuskingSessionScope): boolean {
+  if (!list.buskingCategory) {
+    return category === 'freeSong';
+  }
+  return list.buskingCategory === category;
+}
+
+function filterSessionsByCategory(
+  sessions: SetListData[],
+  category: BuskingSessionScope
+): SetListData[] {
+  return sessions.filter((list) => sessionMatchesCategory(list, category));
+}
+
 /** 세션 선택 UI에 표시할 오늘 live 세션 (레거시 isActive 문서 제외) */
-export function getLiveSessionsForDate(setLists: SetListData[], sessionDate: string): SetListData[] {
-  return setLists
+export function getLiveSessionsForDate(
+  setLists: SetListData[],
+  sessionDate: string,
+  category?: BuskingSessionScope
+): SetListData[] {
+  const live = setLists
     .filter(
       (list) =>
         isNewModelBuskingSession(list) &&
@@ -60,6 +87,7 @@ export function getLiveSessionsForDate(setLists: SetListData[], sessionDate: str
         getSetListSessionDateISO(list) === sessionDate
     )
     .sort((a, b) => getCreatedAtMs(b) - getCreatedAtMs(a));
+  return category ? filterSessionsByCategory(live, category) : live;
 }
 
 function getLegacyLiveSessionsForDate(setLists: SetListData[], sessionDate: string): SetListData[] {
@@ -71,7 +99,9 @@ function getLegacyLiveSessionsForDate(setLists: SetListData[], sessionDate: stri
 export function isParticipantInSession(list: SetListData, nickname: string): boolean {
   const nick = nickname.trim();
   if (!nick) return false;
-  return (list.participants ?? []).some((p) => String(p).trim() === nick);
+  const inSetlist = (list.participants ?? []).some((p) => String(p).trim() === nick);
+  if (inSetlist) return true;
+  return (list.freeSongParticipants ?? []).some((p) => String(p).trim() === nick);
 }
 
 export function formatBuskingSessionLabel(list: SetListData): string {
@@ -87,9 +117,13 @@ export function formatBuskingSessionLabel(list: SetListData): string {
 export function findHostLiveSession(
   setLists: SetListData[],
   hostUid: string,
-  sessionDate = toLocalDateISO(new Date())
+  sessionDate = toLocalDateISO(new Date()),
+  category?: BuskingSessionScope
 ): SetListData | undefined {
-  const matches = setLists.filter(
+  const pool = category
+    ? filterSessionsByCategory(setLists, category)
+    : setLists;
+  const matches = pool.filter(
     (list) =>
       list.hostUid === hostUid &&
       isLiveSession(list) &&
@@ -101,9 +135,13 @@ export function findHostLiveSession(
 export function hasHostLiveSession(
   setLists: SetListData[],
   hostUid: string,
-  sessionDate = toLocalDateISO(new Date())
+  sessionDate = toLocalDateISO(new Date()),
+  category?: BuskingSessionScope
 ): boolean {
-  return setLists.some(
+  const pool = category
+    ? filterSessionsByCategory(setLists, category)
+    : setLists;
+  return pool.some(
     (list) =>
       list.hostUid === hostUid &&
       isLiveSession(list) &&
@@ -116,6 +154,17 @@ export interface PickBuskingSessionOptions {
   userUid: string;
   userNickname: string;
   isLeader: boolean;
+  category: BuskingSessionScope;
+}
+
+function isCategoryParticipant(
+  list: SetListData,
+  nickname: string,
+  category: BuskingSessionScope
+): boolean {
+  return category === 'freeSong'
+    ? isFreeSongParticipant(list, nickname)
+    : isSetlistParticipant(list, nickname);
 }
 
 /** 자동 선택 가능한 세션이 있으면 반환, 없으면 null → 선택 UI 필요 */
@@ -124,22 +173,38 @@ export function pickBuskingSession(
   options: PickBuskingSessionOptions
 ): SetListData | null {
   const today = toLocalDateISO(new Date());
-  const todayLive = getLiveSessionsForDate(setLists, today);
-  const legacyLive = getLegacyLiveSessionsForDate(setLists, today);
+  const todayLive = getLiveSessionsForDate(setLists, today, options.category);
+  const legacyLive = filterSessionsByCategory(
+    getLegacyLiveSessionsForDate(setLists, today),
+    options.category
+  );
 
   if (options.selectedSessionId) {
     const selected = setLists.find((list) => list.id === options.selectedSessionId);
-    if (selected && isLiveSession(selected)) return selected;
+    if (
+      selected &&
+      isLiveSession(selected) &&
+      sessionMatchesCategory(selected, options.category)
+    ) {
+      return selected;
+    }
+  }
+
+  // 셋리스트는 저장된 선택만 사용 — 자동 연결 없음
+  if (options.category === 'setlist') {
+    return null;
   }
 
   const ownHost = todayLive.filter((list) => list.hostUid === options.userUid);
   if (ownHost.length === 1) return ownHost[0];
 
-  const memberOf = todayLive.filter((list) => isParticipantInSession(list, options.userNickname));
+  const memberOf = todayLive.filter((list) =>
+    isCategoryParticipant(list, options.userNickname, options.category)
+  );
   if (memberOf.length === 1) return memberOf[0];
 
   const legacyMemberOf = legacyLive.filter((list) =>
-    isParticipantInSession(list, options.userNickname)
+    isCategoryParticipant(list, options.userNickname, options.category)
   );
   if (legacyMemberOf.length === 1) return legacyMemberOf[0];
 
@@ -149,19 +214,36 @@ export function pickBuskingSession(
   return null;
 }
 
-export function readStoredBuskingSessionId(userUid: string): string | null {
+function sessionStorageKey(userUid: string, category: BuskingSessionScope): string {
+  return `${SESSION_STORAGE_PREFIX}${category}_${userUid}`;
+}
+
+export function readStoredBuskingSessionId(
+  userUid: string,
+  category: BuskingSessionScope = 'freeSong'
+): string | null {
   if (!userUid) return null;
   try {
-    return sessionStorage.getItem(`${SESSION_STORAGE_PREFIX}${userUid}`);
+    const scoped = sessionStorage.getItem(sessionStorageKey(userUid, category));
+    if (scoped) return scoped;
+    // 레거시: 분리 전 공통 키 — 자유곡에만 이전
+    if (category === 'freeSong') {
+      return sessionStorage.getItem(`${LEGACY_SESSION_STORAGE_PREFIX}${userUid}`);
+    }
+    return null;
   } catch {
     return null;
   }
 }
 
-export function writeStoredBuskingSessionId(userUid: string, sessionId: string | null): void {
+export function writeStoredBuskingSessionId(
+  userUid: string,
+  sessionId: string | null,
+  category: BuskingSessionScope = 'freeSong'
+): void {
   if (!userUid) return;
   try {
-    const key = `${SESSION_STORAGE_PREFIX}${userUid}`;
+    const key = sessionStorageKey(userUid, category);
     if (sessionId) sessionStorage.setItem(key, sessionId);
     else sessionStorage.removeItem(key);
   } catch {

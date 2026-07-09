@@ -697,8 +697,14 @@ const AnonymousNoteBubble: React.FC = () => {
               <span className="bubble-loading">...</span>
             ) : (
               <>
-                <span className="bubble-label">{currentNote?.publicNickname ? `${currentNote.publicNickname} 님이 보낸 쪽지입니다` : '익명이 보낸 쪽지입니다'}</span>
-                <span className="bubble-text">{currentNote?.text || '익명 쪽지 남겨줘 🙂'}</span>
+                <span className="bubble-label">
+                  {currentNote
+                    ? currentNote.publicNickname
+                      ? `${currentNote.publicNickname} 님이 보낸 쪽지입니다`
+                      : '누군가 보낸 쪽지입니다'
+                    : '아직 쪽지가 없어요'}
+                </span>
+                <span className="bubble-text">{currentNote?.text || '쪽지 남겨줘 🙂'}</span>
                 <span className="bubble-hint">&lt;말풍선을 클릭하여 쪽지를 작성하세요&gt;</span>
               </>
             )}
@@ -710,9 +716,9 @@ const AnonymousNoteBubble: React.FC = () => {
           className="anonymous-note-list-toggle"
           onClick={handleOpenListModal}
           onMouseDown={(e) => e.stopPropagation()}
-          title="활성·비활성 익명 쪽지 목록"
+          title="활성·비활성 쪽지 목록"
           aria-expanded={showListModal}
-          aria-label="익명 쪽지 목록 보기"
+          aria-label="쪽지 목록 보기"
         >
           <List size={20} strokeWidth={2.25} aria-hidden />
         </button>
@@ -793,12 +799,12 @@ const AnonymousNoteBubble: React.FC = () => {
         document.body
       )}
 
-      {/* 익명 쪽지 목록 (일반 사용자) */}
+      {/* 쪽지 목록 (일반 사용자) */}
       {showListModal && typeof document !== 'undefined' && createPortal(
         <div className="anonymous-note-modal-overlay" onClick={handleCloseListModal}>
           <div className="anonymous-note-modal user-notes-list-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>익명 쪽지 목록</h3>
+              <h3>쪽지 목록</h3>
               <button
                 type="button"
                 className="modal-close-btn"
@@ -828,7 +834,7 @@ const AnonymousNoteBubble: React.FC = () => {
                           <li key={note.id} className="user-note-li user-note-li--active">
                             <p className="user-note-text">{note.text}</p>
                             <div className="user-note-footer">
-                              <span className="user-note-anon">{note.publicNickname || '익명'}</span>
+                              <span className="user-note-anon">{note.publicNickname || '닉네임 없음'}</span>
                             </div>
                           </li>
                         ))}
@@ -848,7 +854,7 @@ const AnonymousNoteBubble: React.FC = () => {
                           <li key={note.id} className="user-note-li user-note-li--inactive">
                             <p className="user-note-text">{note.text}</p>
                             <div className="user-note-footer">
-                              <span className="user-note-anon">{note.publicNickname || '익명'}</span>
+                              <span className="user-note-anon">{note.publicNickname || '닉네임 없음'}</span>
                             </div>
                           </li>
                         ))}
@@ -868,7 +874,7 @@ const AnonymousNoteBubble: React.FC = () => {
         <div className="anonymous-note-modal-overlay" onClick={() => setShowAdminModal(false)}>
           <div className="anonymous-note-modal admin-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>익명 쪽지 관리자 뷰</h3>
+              <h3>쪽지 관리자 뷰</h3>
               <button 
                 className="modal-close-btn"
                 onClick={() => setShowAdminModal(false)}
@@ -930,7 +936,7 @@ const AnonymousNoteBubble: React.FC = () => {
                                   {note.authorUid && <span className="admin-note-uid"> ({note.authorUid.substring(0, 8)}...)</span>}
                                 </span>
                               ) : (
-                                <span className="admin-note-author anonymous">익명</span>
+                                <span className="admin-note-author anonymous">작성자 미상</span>
                               )}
                               {note.createdAt && (
                                 <span className="admin-note-date">

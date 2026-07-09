@@ -12,9 +12,9 @@ import type { SetListData } from '../types';
 import type { ApprovedSong } from '../../ApprovedSongsUtils';
 import type { FreeSongSubmission } from './types';
 import {
-  getBuskingParticipants,
+  getFreeSongParticipants,
   isApprovedSongEligibleForBusking,
-  isBuskingParticipant,
+  isFreeSongParticipant,
   isUserInApprovedSong,
   normalizeBuskingNickname,
 } from '../BuskingMember/buskingParticipantsUtils';
@@ -29,6 +29,10 @@ import {
   FREE_SONG_SUBMISSION_LIMIT,
 } from './freeSongSubmissionUtils';
 import { mutateSetlistFreeSong, removeSubmissionFromState } from './freeSongSetlistMutations';
+import {
+  canManageBuskingSession,
+  type BuskingSessionUser,
+} from '../buskingSessionPermissions';
 
 function sortSubmissions(submissions: FreeSongSubmission[]): FreeSongSubmission[] {
   return submissions.slice().sort((a, b) => {
@@ -63,7 +67,8 @@ export function useFreeSongSubmissions(
   activeSetList: SetListData | null,
   userNickname: string,
   userUid: string,
-  setlistLoading: boolean
+  setlistLoading: boolean,
+  userRole?: string | null
 ) {
   const [approvedSongs, setApprovedSongs] = useState<ApprovedSong[]>([]);
   const [approvedSongsLoading, setApprovedSongsLoading] = useState(false);
@@ -72,7 +77,7 @@ export function useFreeSongSubmissions(
 
   const setlistId = activeSetList?.id;
   const normalizedNickname = normalizeBuskingNickname(userNickname);
-  const participantsKey = JSON.stringify(getBuskingParticipants(activeSetList));
+  const participantsKey = JSON.stringify(getFreeSongParticipants(activeSetList));
 
   const submissions = useMemo(
     () => sortSubmissions(normalizeSubmissions(activeSetList?.freeSongSubmissions)),
@@ -129,7 +134,7 @@ export function useFreeSongSubmissions(
   }, [normalizedNickname]);
 
   const participants = useMemo(
-    () => getBuskingParticipants(activeSetList),
+    () => getFreeSongParticipants(activeSetList),
     [activeSetList?.id, participantsKey]
   );
   const eligibleApprovedSongs = useMemo(
@@ -137,7 +142,7 @@ export function useFreeSongSubmissions(
     [approvedSongs, participants]
   );
 
-  const isParticipant = isBuskingParticipant(activeSetList, normalizedNickname);
+  const isParticipant = isFreeSongParticipant(activeSetList, normalizedNickname);
   const activeSubmissions = submissions.filter((s) => !isRejectedSubmission(s));
   const submittedSongIds = new Set(activeSubmissions.map((s) => s.approvedSongId));
   const mySubmissions = activeSubmissions.filter(
@@ -185,7 +190,7 @@ export function useFreeSongSubmissions(
   const submitSong = useCallback(
     async (song: ApprovedSong, submittedByUid: string) => {
       if (!setlistId || !activeSetList) return false;
-      if (!isBuskingParticipant(activeSetList, normalizedNickname)) {
+      if (!isFreeSongParticipant(activeSetList, normalizedNickname)) {
         alert('버스킹 참가 멤버만 합격곡을 전송할 수 있습니다. 멤버 편성을 확인해 주세요.');
         return false;
       }
@@ -335,6 +340,10 @@ export function useFreeSongSubmissions(
   const rejectSubmission = useCallback(
     async (submission: FreeSongSubmission, rejectedBy: string) => {
       if (!setlistId || !activeSetList) return false;
+      if (!canManageBuskingSession(activeSetList, { uid: userUid, nickname: normalizedNickname, role: userRole })) {
+        alert('본인이 연 버스킹 세션만 수정할 수 있습니다. 리더·너래만 다른 세션을 관리할 수 있습니다.');
+        return false;
+      }
       const rejectedByName = normalizeBuskingNickname(rejectedBy) || '관리자';
       if (
         !confirm(

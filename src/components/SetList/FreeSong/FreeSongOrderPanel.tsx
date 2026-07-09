@@ -19,6 +19,8 @@ import { FreeSongEmptyState, SongRow } from './FreeSongShared';
 interface FreeSongOrderPanelProps {
   activeSetList: SetListData | null;
   userNickname: string;
+  userUid?: string;
+  userRole?: string | null;
   canManage: boolean;
 }
 
@@ -38,6 +40,8 @@ function formatWithdrawalTime(value: unknown): string {
 const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
   activeSetList,
   userNickname,
+  userUid,
+  userRole,
   canManage,
 }) => {
   const {
@@ -49,7 +53,11 @@ const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
     selfWithdrawFromLineup,
     dismissWithdrawalNotice,
     normalizeLineup,
-  } = useFreeSongLineup(activeSetList?.id);
+  } = useFreeSongLineup(activeSetList?.id, activeSetList, {
+    uid: userUid,
+    nickname: userNickname,
+    role: userRole,
+  });
   const [manualKind, setManualKind] = useState<FreeSongManualLineupKind>('other');
   const [manualTitle, setManualTitle] = useState('');
   const [manualMembers, setManualMembers] = useState('');

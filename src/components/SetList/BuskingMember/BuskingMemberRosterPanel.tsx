@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { db } from '../../../firebase';
 import type { SetListData } from '../types';
-import { getBuskingParticipants } from './buskingParticipantsUtils';
+import { getFreeSongParticipants, getSetlistParticipants } from './buskingParticipantsUtils';
 import BuskingMemberPickerModal from './BuskingMemberPickerModal';
 
 interface BuskingMemberRosterPanelProps {
@@ -21,14 +21,19 @@ const BuskingMemberRosterPanel: React.FC<BuskingMemberRosterPanelProps> = ({
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const participants = getBuskingParticipants(activeSetList);
+  const participants =
+    variant === 'freeSong'
+      ? getFreeSongParticipants(activeSetList)
+      : getSetlistParticipants(activeSetList);
+
+  const participantField = variant === 'freeSong' ? 'freeSongParticipants' : 'participants';
 
   const saveParticipants = async (next: string[]) => {
     if (!activeSetList?.id || !canManage) return false;
     setSaving(true);
     try {
       await updateDoc(doc(db, 'setlists', activeSetList.id), {
-        participants: next,
+        [participantField]: next,
         updatedAt: serverTimestamp(),
       });
       return true;
@@ -124,7 +129,7 @@ const BuskingMemberRosterPanel: React.FC<BuskingMemberRosterPanelProps> = ({
         initialSelected={participants}
         onClose={() => setModalOpen(false)}
         onConfirm={handleConfirmModal}
-        title="버스킹 참가 멤버 선택"
+        title={variant === 'freeSong' ? '자유곡 참가 멤버 선택' : '셋리스트 참가 멤버 선택'}
       />
     </div>
   );

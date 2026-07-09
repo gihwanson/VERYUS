@@ -168,12 +168,48 @@ service cloud.firestore {
         && resource.data.hostUid == request.auth.uid;
     }
 
+    function isBuskingSessionManager() {
+      return isSetlistHost() || isLeaderRole() || isNerae();
+    }
+
+    function isBuskingSessionParticipant() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && (
+          userDoc().nickname in resource.data.get('participants', [])
+          || userDoc().nickname in resource.data.get('freeSongParticipants', [])
+        );
+    }
+
+    function touchesBuskingManagementFields() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'participants',
+        'freeSongParticipants',
+        'status',
+        'isActive',
+        'isCompleted',
+        'completedAt',
+        'songs',
+        'flexibleCards',
+        'requestSongCards',
+        'hostUid',
+        'hostNickname',
+        'venueLabel',
+        'name',
+        'sessionDate',
+        'freeSongMemberStats'
+      ]);
+    }
+
     match /setlists/{setlistId} {
       allow read: if signedIn();
       allow create: if signedIn()
         && request.resource.data.hostUid == request.auth.uid
         && request.resource.data.status == 'live';
-      allow update: if signedIn();
+      allow update: if signedIn() && (
+        isBuskingSessionManager() ||
+        (isBuskingSessionParticipant() && !touchesBuskingManagementFields())
+      );
       allow delete: if canManageSetList()
         && (
           isLeaderRole() ||

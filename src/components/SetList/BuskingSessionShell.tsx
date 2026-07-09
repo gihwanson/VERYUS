@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { doc, Timestamp, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import type { SetListData } from './types';
+import type { BuskingCategory } from './BuskingNav';
 import BuskingSessionBar from './BuskingSessionBar';
 import BuskingSessionPickerModal, { BuskingSessionCreateModal } from './BuskingSessionPickerModal';
 import { FreeSongEmptyState } from './FreeSong/FreeSongShared';
@@ -9,6 +10,7 @@ import type { BuskingSessionUser } from './buskingSessionPermissions';
 import { canHostBuskingSession } from './buskingSessionPermissions';
 
 interface BuskingSessionShellProps {
+  category: BuskingCategory;
   activeSetList: SetListData | null;
   liveSessionsToday: SetListData[];
   needsSessionPicker: boolean;
@@ -18,12 +20,13 @@ interface BuskingSessionShellProps {
   user: BuskingSessionUser | null;
   canManageCurrent: boolean;
   setSelectedSessionId: (id: string | null) => void;
-  onCreateSession: (venueLabel: string) => Promise<string | false>;
+  onCreateSession: (venueLabel: string, category: BuskingCategory) => Promise<string | false>;
   onRetryBootstrap?: () => void;
   children: React.ReactNode;
 }
 
 const BuskingSessionShell: React.FC<BuskingSessionShellProps> = ({
+  category,
   activeSetList,
   liveSessionsToday,
   needsSessionPicker,
@@ -59,7 +62,7 @@ const BuskingSessionShell: React.FC<BuskingSessionShellProps> = ({
   };
 
   const handleCreate = async (venueLabel: string) => {
-    const sessionId = await onCreateSession(venueLabel);
+    const sessionId = await onCreateSession(venueLabel, category);
     if (sessionId) {
       setSelectedSessionId(sessionId);
       setShowCreate(false);
@@ -69,6 +72,7 @@ const BuskingSessionShell: React.FC<BuskingSessionShellProps> = ({
   return (
     <>
       <BuskingSessionBar
+        category={category}
         activeSetList={activeSetList}
         liveSessionsToday={liveSessionsToday}
         user={user}
@@ -111,13 +115,25 @@ const BuskingSessionShell: React.FC<BuskingSessionShellProps> = ({
         </div>
       ) : !activeSetList && !needsSessionPicker && !awaitingVenue && !showCreate && !canHost ? (
         <FreeSongEmptyState
-          title="참가 중인 버스킹이 없습니다."
-          subtitle="조장이 버스킹을 열면 여기서 곡 전송·진행 순서를 확인할 수 있습니다."
+          title={category === 'setlist' ? '참가 중인 셋리스트가 없습니다.' : '참가 중인 버스킹이 없습니다.'}
+          subtitle={
+            category === 'setlist'
+              ? '위에서 버스킹을 선택하거나, 관리자가 셋리스트를 편성하면 이곳에 표시됩니다.'
+              : '조장이 버스킹을 열면 여기서 곡 전송·진행 순서를 확인할 수 있습니다.'
+          }
         />
       ) : !activeSetList && !needsSessionPicker && !awaitingVenue && !showCreate && canHost ? (
         <div className="setlist-manage-panel free-song-panel">
-          <p className="free-song-empty">오늘 진행 중인 내 버스킹이 없습니다.</p>
-          <p className="free-song-empty-sub">「+ 새 버스킹 열기」로 현장을 등록하고 시작하세요.</p>
+          <p className="free-song-empty">
+            {category === 'setlist'
+              ? '오늘 진행 중인 셋리스트 세션이 없습니다.'
+              : '오늘 진행 중인 내 버스킹이 없습니다.'}
+          </p>
+          <p className="free-song-empty-sub">
+            {category === 'setlist'
+              ? '「+ 새 버스킹 열기」로 셋리스트 전용 세션을 시작하세요.'
+              : '「+ 새 버스킹 열기」로 현장을 등록하고 시작하세요.'}
+          </p>
           <button
             type="button"
             className="free-song-btn free-song-btn--submit"

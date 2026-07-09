@@ -9,15 +9,23 @@ interface FreeSongAdminPanelProps {
   activeSetList: SetListData | null;
   submissionsState: FreeSongSubmissionsState;
   userNickname: string;
+  userUid?: string;
+  userRole?: string | null;
 }
 
 const FreeSongAdminPanel: React.FC<FreeSongAdminPanelProps> = ({
   activeSetList,
   submissionsState,
   userNickname,
+  userUid,
+  userRole,
 }) => {
   const { activeSubmissions, loading, actionLoading: submitActionLoading, rejectSubmission } = submissionsState;
-  const { actionLoading: lineupActionLoading, addToLineup, normalizeLineup } = useFreeSongLineup(activeSetList?.id);
+  const { actionLoading: lineupActionLoading, addToLineup, normalizeLineup } = useFreeSongLineup(
+    activeSetList?.id,
+    activeSetList,
+    { uid: userUid, nickname: userNickname, role: userRole }
+  );
 
   const actionLoading = submitActionLoading || lineupActionLoading;
   const lineup = normalizeLineup(activeSetList?.freeSongLineup);

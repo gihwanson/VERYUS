@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { addDoc, collection, Timestamp } from 'firebase/firestore';
 import { db } from '../../../firebase';
-import type { SetListData } from '../types';
+import type { BuskingCategory } from '../BuskingNav';
+import type { BuskingSessionScope } from '../buskingSessionUtils';
 import { buildBuskingSessionName } from '../buskingSessionUtils';
+import type { SetListData } from '../types';
 import { toLocalDateISO } from '../setListSessionDate';
 
 let bootstrapLock = false;
@@ -12,12 +14,13 @@ export interface BuskingSessionBootstrapUser {
   nickname: string;
 }
 
-/** 조장·리더가 버스킹에 들어왔을 때 본인 호스트 세션이 없으면 생성 UI 표시 (다른 세션은 건드리지 않음) */
+/** 조장·리더가 자유곡에 들어왔을 때 본인 호스트 세션이 없으면 생성 UI 표시 */
 export function useBuskingSessionBootstrap(
   setLists: SetListData[],
   hostHasLiveSession: boolean,
   canHost: boolean,
-  user: BuskingSessionBootstrapUser | null
+  user: BuskingSessionBootstrapUser | null,
+  category: BuskingCategory
 ) {
   const [bootstrapping, setBootstrapping] = useState(false);
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
@@ -40,12 +43,16 @@ export function useBuskingSessionBootstrap(
   }, [hostHasLiveSession]);
 
   useEffect(() => {
+    if (category !== 'freeSong') {
+      setAwaitingVenue(false);
+      return;
+    }
     if (!canHost || !user?.uid || hostHasLiveSession || bootstrapLock) return;
     setAwaitingVenue(true);
-  }, [canHost, user?.uid, hostHasLiveSession, setLists, retryTick]);
+  }, [category, canHost, user?.uid, hostHasLiveSession, setLists, retryTick]);
 
   const createSession = useCallback(
-    async (venueLabel: string): Promise<string | false> => {
+    async (venueLabel: string, sessionCategory: BuskingSessionScope): Promise<string | false> => {
       if (!user?.uid) return false;
       if (bootstrapLock) return false;
 
@@ -63,8 +70,10 @@ export function useBuskingSessionBootstrap(
           venueLabel: venue,
           hostUid: user.uid,
           hostNickname,
+          buskingCategory: sessionCategory,
           status: 'live',
           participants: [],
+          freeSongParticipants: [],
           songs: [],
           participantRegistrationComplete: false,
           createdBy: hostNickname,

@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { MapPin, ChevronDown } from 'lucide-react';
+import type { BuskingCategory } from './BuskingNav';
 import type { SetListData } from './types';
 import { formatBuskingSessionLabel } from './buskingSessionUtils';
 import { canHostBuskingSession, canManageBuskingSession, type BuskingSessionUser } from './buskingSessionPermissions';
 
 interface BuskingSessionBarProps {
+  category: BuskingCategory;
   activeSetList: SetListData | null;
   liveSessionsToday: SetListData[];
   user: BuskingSessionUser | null;
@@ -14,6 +16,7 @@ interface BuskingSessionBarProps {
 }
 
 const BuskingSessionBar: React.FC<BuskingSessionBarProps> = ({
+  category,
   activeSetList,
   liveSessionsToday,
   user,
@@ -25,6 +28,8 @@ const BuskingSessionBar: React.FC<BuskingSessionBarProps> = ({
   const canHost = canHostBuskingSession(user);
   const canManage = canManageBuskingSession(activeSetList, user);
 
+  const sessionLabel = category === 'setlist' ? '참가 중인 셋리스트' : '참가 중인 버스킹';
+
   if (!activeSetList && liveSessionsToday.length === 0 && !canHost) return null;
 
   return (
@@ -32,7 +37,7 @@ const BuskingSessionBar: React.FC<BuskingSessionBarProps> = ({
       <div className="busking-session-bar__current">
         <MapPin size={16} className="busking-session-bar__icon" aria-hidden />
         <div className="busking-session-bar__info">
-          <span className="busking-session-bar__label">참가 중인 버스킹</span>
+          <span className="busking-session-bar__label">{sessionLabel}</span>
           <span className="busking-session-bar__name">
             {activeSetList ? formatBuskingSessionLabel(activeSetList) : '세션을 선택해 주세요'}
           </span>

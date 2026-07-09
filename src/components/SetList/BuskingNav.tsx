@@ -5,6 +5,9 @@ export type BuskingCategory = 'freeSong' | 'setlist';
 export type FreeSongView = 'roster' | 'submit' | 'admin' | 'order' | 'stats';
 export type SetlistView = 'manage' | 'cards';
 
+/** false면 셋리스트 카테고리 진입 비활성 (개발 중) */
+export const SETLIST_CATEGORY_ENABLED = false;
+
 interface BuskingNavProps {
   category: BuskingCategory;
   onCategoryChange: (category: BuskingCategory) => void;
@@ -27,7 +30,7 @@ const MODE_INFO = {
   setlist: {
     icon: ClipboardList,
     label: '셋리스트',
-    desc: '정해진 곡 순서로 무대 진행',
+    desc: '(개발중)',
     accentClass: 'busking-mode-card--setlist',
   },
 } as const;
@@ -109,14 +112,20 @@ const BuskingNav: React.FC<BuskingNavProps> = ({
           const info = MODE_INFO[mode];
           const Icon = info.icon;
           const active = category === mode;
+          const disabled = mode === 'setlist' && !SETLIST_CATEGORY_ENABLED;
           return (
             <button
               key={mode}
               type="button"
               role="tab"
               aria-selected={active}
-              onClick={() => onCategoryChange(mode)}
-              className={`busking-mode-card ${info.accentClass}${active ? ' busking-mode-card--active' : ''}`}
+              aria-disabled={disabled}
+              disabled={disabled}
+              onClick={() => {
+                if (disabled) return;
+                onCategoryChange(mode);
+              }}
+              className={`busking-mode-card ${info.accentClass}${active ? ' busking-mode-card--active' : ''}${disabled ? ' busking-mode-card--disabled' : ''}`}
             >
               <span className="busking-mode-card__icon" aria-hidden>
                 <Icon size={22} strokeWidth={2.2} />

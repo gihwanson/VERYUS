@@ -71,7 +71,10 @@ export interface SetListData {
   name: string;
   /** 세션 날짜 (YYYY-MM-DD, 로컬 타임존) */
   sessionDate?: string;
+  /** 셋리스트 카테고리 참가 멤버 */
   participants: string[];
+  /** 자유곡 카테고리 참가 멤버 (셋리스트 participants와 별도) */
+  freeSongParticipants?: string[];
   songs: SetListItem[]; // 기존 곡들
   flexibleCards?: FlexibleCard[]; // 유연한 카드들 (별도 필드)
   requestSongCards?: RequestSongCard[]; // 신청곡 카드들 (별도 필드)
@@ -92,6 +95,8 @@ export interface SetListData {
   hostNickname?: string;
   /** 현장명 (예: 홍대 버스킹존) */
   venueLabel?: string;
+  /** 버스킹 개최 용도: 자유곡 전용 | 셋리스트 전용 (없으면 자유곡으로 간주) */
+  buskingCategory?: 'freeSong' | 'setlist';
   completedAt?: any;
   currentSongIndex?: number;
   /** 관리 탭에서 참가자 확정(완료) 후 true — 그 전에는 진행 탭에서 곡 등록 UI를 쓰지 않음 */

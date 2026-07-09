@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import type { SetListData } from '../types';
-import { getBuskingParticipants } from '../BuskingMember/buskingParticipantsUtils';
+import { getFreeSongParticipants } from '../BuskingMember/buskingParticipantsUtils';
 import { useFreeSongLineup, useGlobalFreeSongStats } from './useFreeSongLineup';
 import { buildRosterSessionStats, computeStatsFromLineup } from './freeSongStatsUtils';
 import { FreeSongEmptyState } from './FreeSongShared';
@@ -8,14 +8,24 @@ import { FreeSongEmptyState } from './FreeSongShared';
 interface FreeSongStatsPanelProps {
   activeSetList: SetListData | null;
   canManage?: boolean;
+  userUid?: string;
+  userNickname?: string;
+  userRole?: string | null;
 }
 
 const FreeSongStatsPanel: React.FC<FreeSongStatsPanelProps> = ({
   activeSetList,
   canManage = false,
+  userUid,
+  userNickname,
+  userRole,
 }) => {
   const { globalStats, loading: globalLoading } = useGlobalFreeSongStats();
-  const { actionLoading, resetSessionStats } = useFreeSongLineup(activeSetList?.id);
+  const { actionLoading, resetSessionStats } = useFreeSongLineup(activeSetList?.id, activeSetList, {
+    uid: userUid,
+    nickname: userNickname,
+    role: userRole,
+  });
 
   const completedStats = useMemo(
     () => computeStatsFromLineup(activeSetList?.freeSongLineup),
@@ -23,7 +33,7 @@ const FreeSongStatsPanel: React.FC<FreeSongStatsPanelProps> = ({
   );
 
   const rosterSessionStats = useMemo(() => {
-    const participants = getBuskingParticipants(activeSetList);
+    const participants = getFreeSongParticipants(activeSetList);
     return buildRosterSessionStats(participants, completedStats);
   }, [activeSetList, completedStats]);
 
@@ -47,7 +57,7 @@ const FreeSongStatsPanel: React.FC<FreeSongStatsPanelProps> = ({
     return <FreeSongEmptyState title="통계 불러오는 중…" />;
   }
 
-  const participants = getBuskingParticipants(activeSetList);
+  const participants = getFreeSongParticipants(activeSetList);
 
   return (
     <div className="free-song-panel">

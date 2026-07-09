@@ -4,21 +4,52 @@ export function normalizeBuskingNickname(value: unknown): string {
   return String(value ?? '').trim();
 }
 
-export function getBuskingParticipants(list: SetListData | null | undefined): string[] {
-  return (list?.participants ?? [])
-    .map((p) => normalizeBuskingNickname(p))
-    .filter(Boolean);
+function normalizeParticipantList(values: unknown[] | undefined): string[] {
+  return (values ?? []).map((p) => normalizeBuskingNickname(p)).filter(Boolean);
 }
 
-export function isBuskingParticipant(
+/** 셋리스트 카테고리 참가 멤버 */
+export function getSetlistParticipants(list: SetListData | null | undefined): string[] {
+  return normalizeParticipantList(list?.participants);
+}
+
+/**
+ * 자유곡 카테고리 참가 멤버 (셋리스트 participants와 별도 필드만 사용).
+ */
+export function getFreeSongParticipants(list: SetListData | null | undefined): string[] {
+  if (!list) return [];
+  return normalizeParticipantList(list.freeSongParticipants);
+}
+
+/** @deprecated getSetlistParticipants 또는 getFreeSongParticipants 사용 */
+export function getBuskingParticipants(list: SetListData | null | undefined): string[] {
+  return getSetlistParticipants(list);
+}
+
+export function isSetlistParticipant(
   list: SetListData | null | undefined,
   nickname: string
 ): boolean {
   const nick = normalizeBuskingNickname(nickname);
   if (!nick) return false;
-  const participants = getBuskingParticipants(list);
-  if (participants.length === 0) return false;
-  return participants.includes(nick);
+  return getSetlistParticipants(list).includes(nick);
+}
+
+export function isFreeSongParticipant(
+  list: SetListData | null | undefined,
+  nickname: string
+): boolean {
+  const nick = normalizeBuskingNickname(nickname);
+  if (!nick) return false;
+  return getFreeSongParticipants(list).includes(nick);
+}
+
+/** @deprecated isFreeSongParticipant 또는 isSetlistParticipant 사용 */
+export function isBuskingParticipant(
+  list: SetListData | null | undefined,
+  nickname: string
+): boolean {
+  return isSetlistParticipant(list, nickname);
 }
 
 export function isUserInApprovedSong(song: { members: string[] }, nickname: string): boolean {
