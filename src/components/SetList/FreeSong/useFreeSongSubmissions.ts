@@ -20,10 +20,12 @@ import {
 } from '../BuskingMember/buskingParticipantsUtils';
 import {
   findSubmissionBySongId,
+  findMemberOverSubmissionQuota,
   isPartnerSubmitted,
   canCancelAsPartner,
   isRejectedSubmission,
   normalizeSubmissions,
+  countUserQuotaSubmissions,
   FREE_SONG_SUBMISSION_LIMIT,
 } from './freeSongSubmissionUtils';
 import { mutateSetlistFreeSong, removeSubmissionFromState } from './freeSongSetlistMutations';
@@ -38,16 +40,6 @@ function sortSubmissions(submissions: FreeSongSubmission[]): FreeSongSubmission[
       (typeof b.createdAt === 'number' ? b.createdAt : 0);
     return bMs - aMs;
   });
-}
-
-function countUserSubmissions(submissions: FreeSongSubmission[], userUid: string, userNickname: string): number {
-  const nick = normalizeBuskingNickname(userNickname);
-  return submissions.filter(
-    (s) =>
-      !isRejectedSubmission(s) &&
-      (s.submittedByUid === userUid ||
-        (!s.submittedByUid && normalizeBuskingNickname(s.submittedBy) === nick))
-  ).length;
 }
 
 function mapApprovedSongDoc(d: { id: string; data: () => Record<string, unknown> }): ApprovedSong {
@@ -160,7 +152,8 @@ export function useFreeSongSubmissions(
         (!s.submittedByUid && normalizeBuskingNickname(s.submittedBy) === normalizedNickname))
   );
   const mySubmissionCount = mySubmissions.length;
-  const canSubmitMore = mySubmissionCount < FREE_SONG_SUBMISSION_LIMIT;
+  const quotaSubmissionCount = countUserQuotaSubmissions(activeSubmissions, userUid, normalizedNickname);
+  const canSubmitMore = quotaSubmissionCount < FREE_SONG_SUBMISSION_LIMIT;
   const partnerSubmittedSongs = eligibleApprovedSongs
     .map((song) => {
       const submission = findSubmissionBySongId(activeSubmissions, song.id);
@@ -221,7 +214,14 @@ export function useFreeSongSubmissions(
             const existing = findSubmissionBySongId(state.submissions, song.id);
             if (existing) return null;
 
-            if (countUserSubmissions(state.submissions, submittedByUid, normalizedNickname) >= FREE_SONG_SUBMISSION_LIMIT) {
+            if (
+              findMemberOverSubmissionQuota(
+                state.submissions,
+                song.members,
+                submittedByUid,
+                normalizedNickname
+              )
+            ) {
               return null;
             }
 
@@ -236,12 +236,30 @@ export function useFreeSongSubmissions(
               } else {
                 alert('이미 전송된 곡입니다.');
               }
-            } else if (mySubmissionCount >= FREE_SONG_SUBMISSION_LIMIT) {
-              alert(
-                `최대 ${FREE_SONG_SUBMISSION_LIMIT}곡까지 전송할 수 있습니다. 진행 완료 또는 관리자 제거 후 추가 전송이 가능합니다.`
-              );
             } else {
-              alert('전송에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+              const overQuotaMember = findMemberOverSubmissionQuota(
+                submissions,
+                song.members,
+                submittedByUid,
+                normalizedNickname
+              );
+              if (overQuotaMember) {
+                if (overQuotaMember === normalizedNickname) {
+                  alert(
+                    `최대 ${FREE_SONG_SUBMISSION_LIMIT}곡까지 전송할 수 있습니다. 본인 전송·파트너 전송 곡을 합쳐 집계됩니다.`
+                  );
+                } else {
+                  alert(
+                    `파트너 ${overQuotaMember}님은 이미 최대 ${FREE_SONG_SUBMISSION_LIMIT}곡 한도에 도달했습니다.`
+                  );
+                }
+              } else if (quotaSubmissionCount >= FREE_SONG_SUBMISSION_LIMIT) {
+                alert(
+                  `최대 ${FREE_SONG_SUBMISSION_LIMIT}곡까지 전송할 수 있습니다. 본인 전송·파트너 전송 곡을 합쳐 집계됩니다.`
+                );
+              } else {
+                alert('전송에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+              }
             }
             return false;
           }
@@ -253,7 +271,7 @@ export function useFreeSongSubmissions(
         }
       });
     },
-    [setlistId, activeSetList, normalizedNickname, userUid, participants, submissions, mySubmissionCount, withLoading]
+    [setlistId, activeSetList, normalizedNickname, userUid, participants, submissions, quotaSubmissionCount, withLoading]
   );
 
   const cancelSubmission = useCallback(
@@ -397,6 +415,7 @@ export function useFreeSongSubmissions(
     mySubmissions,
     myRejectedSubmissions,
     mySubmissionCount,
+    quotaSubmissionCount,
     submissionLimit: FREE_SONG_SUBMISSION_LIMIT,
     canSubmitMore,
     partnerSubmittedSongs,

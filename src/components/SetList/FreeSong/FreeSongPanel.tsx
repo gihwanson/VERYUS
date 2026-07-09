@@ -22,6 +22,7 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
     mySubmissions,
     myRejectedSubmissions,
     mySubmissionCount,
+    quotaSubmissionCount,
     submissionLimit,
     canSubmitMore,
     partnerSubmittedSongs,
@@ -53,7 +54,7 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
 
   const handleSubmit = async (song: ApprovedSong) => {
     if (!canSubmitMore) {
-      alert(`최대 ${submissionLimit}곡까지 전송할 수 있습니다. 진행 완료 또는 관리자 제거 후 추가 전송이 가능합니다.`);
+      alert(`최대 ${submissionLimit}곡까지 전송할 수 있습니다. 본인 전송·파트너 전송 곡을 합쳐 집계됩니다.`);
       return;
     }
     const partnerEntry = partnerSubmittedSongs.find((item) => item.song.id === song.id);
@@ -115,11 +116,11 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
         <div className="free-song-submit-header">
           <h2 className="setlist-manage-heading free-song-heading">곡 전송</h2>
           <span className={`free-song-submission-quota${!canSubmitMore ? ' free-song-submission-quota--full' : ''}`}>
-            {mySubmissionCount}/{submissionLimit}
+            {quotaSubmissionCount}/{submissionLimit}
           </span>
         </div>
         <p className="setlist-manage-sub free-song-desc">
-          참가 멤버로 편성되어 합격곡을 전송할 수 있습니다. 최대 {submissionLimit}곡까지 전송 가능하며, 무대 완료 또는 관리자 제거 시 다시 전송할 수 있습니다.
+          참가 멤버로 편성되어 합격곡을 전송할 수 있습니다. 최대 {submissionLimit}곡까지 전송 가능하며, 파트너가 전송한 곡도 한도에 포함됩니다.
         </p>
       </div>
 
@@ -179,7 +180,7 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
         <div className="setlist-manage-panel">
           <h3 className="free-song-section-title">파트너 전송 완료 ({partnerSubmittedSongs.length})</h3>
           <p className="free-song-desc" style={{ marginBottom: 12 }}>
-            파트너가 이미 전송한 합격곡은 중복 전송할 수 없습니다.
+            파트너가 이미 전송한 합격곡은 중복 전송할 수 없으며, 전송 한도에도 포함됩니다.
           </p>
           <div className="free-song-list">
             {partnerSubmittedSongs.map(({ song, submission }) => (
@@ -215,7 +216,7 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
         {availableSongs.length === 0 ? (
           <p className="free-song-empty-sub">
             {!canSubmitMore
-              ? `전송 한도(${submissionLimit}곡)에 도달했습니다. 진행 완료 또는 관리자 제거 후 추가 전송이 가능합니다.`
+              ? `전송 한도(${submissionLimit}곡)에 도달했습니다. 본인 전송·파트너 전송 곡을 합쳐 집계됩니다.`
               : approvedSongs.length === 0
                 ? '본인이 멤버로 등록된 합격곡이 없습니다.'
                 : eligibleApprovedSongs.length === 0
