@@ -10,6 +10,7 @@ import {
   filterSongsBySearch, 
   searchBuskingSongs, 
   getBuskingMembers,
+  getApprovedSongMembers,
   getRegularMembers,
   getMemberFirstApprovedDates,
   formatApprovedDateKorean,
@@ -373,6 +374,11 @@ const ApprovedSongsNotebook: React.FC = () => {
   );
 
   // 관리 탭에서만 닉네임 집계 계산
+  const approvedSongMembers = useMemo(() => {
+    if (manageTab !== 'manage') return [];
+    return getApprovedSongMembers(validSongs, userMap);
+  }, [validSongs, userMap, manageTab]);
+
   const uniqueMembers = useMemo(() => {
     if (manageTab !== 'manage') return [];
     return getBuskingMembers(validSongs, userMap);
@@ -387,8 +393,8 @@ const ApprovedSongsNotebook: React.FC = () => {
 
   const otherMembers = useMemo(() => {
     if (manageTab !== 'manage') return [];
-    return getRegularMembers(allNicknames, uniqueMembers, userMap);
-  }, [allNicknames, uniqueMembers, userMap, manageTab]);
+    return getRegularMembers(allNicknames, uniqueMembers, userMap, validSongs);
+  }, [allNicknames, uniqueMembers, userMap, validSongs, manageTab]);
 
   const otherMembersText = useMemo(() => otherMembers.join('\n'), [otherMembers]);
 
@@ -566,7 +572,7 @@ const ApprovedSongsNotebook: React.FC = () => {
                 )}
                 <div className="approved-songs-card approved-songs-card--manage-list">
                   <ul className="approved-songs-manage-list">
-                    {uniqueMembers.map(nickname => (
+                    {approvedSongMembers.map(nickname => (
                       <li
                         key={nickname}
                         className={`approved-songs-manage-item${

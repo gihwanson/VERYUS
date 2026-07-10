@@ -1,5 +1,5 @@
 import { Timestamp } from 'firebase/firestore';
-import { GRADE_ORDER } from './AdminTypes';
+import { GRADE_ORDER, GRADE_SYSTEM } from './AdminTypes';
 
 // 타입 정의
 export interface ApprovedSong {
@@ -153,24 +153,36 @@ export const getUniqueMembers = (songs: ApprovedSong[]): string[] => {
   return Array.from(new Set(allMembers));
 };
 
-/** 합격곡 관리 탭 버스킹멤버 (일반멤버 전환·삭제된 회원 제외) */
-export const getBuskingMembers = (songs: ApprovedSong[], userMap: UserMap): string[] => {
+/** 합격곡 관리 탭 등재 닉네임 (관리 목록용, 일반멤버 전환·삭제된 회원 제외) */
+export const getApprovedSongMembers = (songs: ApprovedSong[], userMap: UserMap): string[] => {
   return getUniqueMembers(songs)
     .filter((nickname) => Boolean(userMap[nickname]))
     .filter((nickname) => !userMap[nickname]?.isRegularMember)
     .sort((a, b) => a.localeCompare(b, 'ko'));
 };
 
+/** 합격곡 관리 탭 버스킹멤버 (당월 최초 등재·일반멤버 전환·삭제된 회원 제외) */
+export const getBuskingMembers = (songs: ApprovedSong[], userMap: UserMap): string[] => {
+  const firstApprovedDates = getMemberFirstApprovedDates(songs);
+  return getApprovedSongMembers(songs, userMap).filter(
+    (nickname) => !isApprovedInCurrentMonth(firstApprovedDates[nickname])
+  );
+};
+
 /** 합격곡 관리 탭 일반멤버 */
 export const getRegularMembers = (
   allNicknames: string[],
   buskingMembers: string[],
-  userMap: UserMap
+  userMap: UserMap,
+  songs: ApprovedSong[] = []
 ): string[] => {
   const buskingSet = new Set(buskingMembers);
+  const firstApprovedDates = getMemberFirstApprovedDates(songs);
   return allNicknames
     .filter((nickname) => {
+      if (userMap[nickname]?.grade === GRADE_SYSTEM.CRESCENT) return false;
       if (userMap[nickname]?.isRegularMember) return true;
+      if (isApprovedInCurrentMonth(firstApprovedDates[nickname])) return true;
       if (buskingSet.has(nickname)) return false;
       const joinDate = parseFirestoreDate(userMap[nickname]?.createdAt);
       return !isJoinedInCurrentMonth(joinDate);
