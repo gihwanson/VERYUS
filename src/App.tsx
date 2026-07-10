@@ -207,12 +207,11 @@ const RouteTransition: React.FC<{ children: React.ReactNode }> = ({ children }) 
   );
 };
 
-/** 플로팅 고객센터 버튼 (우측 하단 고정) */
+/** 플로팅 고객센터 버튼 — 메인보드(/)에서만 표시 */
 const FloatingCSButton: React.FC<{ hasUnread?: boolean }> = ({ hasUnread }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const hiddenPaths = ['/customer-center', '/anonymous-chat', '/login', '/signup', '/instruments/piano', '/instruments/drums', '/piano'];
-  if (hiddenPaths.some((p) => location.pathname.startsWith(p))) return null;
+  if (location.pathname !== '/') return null;
 
   return (
     <button onClick={() => navigate('/customer-center')} className="floating-cs-btn" title="고객센터">

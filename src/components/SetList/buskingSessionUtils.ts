@@ -4,7 +4,7 @@ import {
   isSetlistParticipant,
 } from './BuskingMember/buskingParticipantsUtils';
 import type { SetListData } from './types';
-import { formatSetListDateLabel, getSetListSessionDateISO, toLocalDateISO } from './setListSessionDate';
+import { formatSetListDateLabel, getSetListSessionDateISO } from './setListSessionDate';
 
 export type BuskingSessionStatus = 'live' | 'ended';
 
@@ -73,27 +73,30 @@ function filterSessionsByCategory(
   return sessions.filter((list) => sessionMatchesCategory(list, category));
 }
 
-/** 세션 선택 UI에 표시할 오늘 live 세션 (레거시 isActive 문서 제외) */
+/** 진행 중(live) 버스킹 세션 — 날짜와 무관, 명시적 종료 전까지 유지 */
+export function getLiveSessions(
+  setLists: SetListData[],
+  category?: BuskingSessionScope
+): SetListData[] {
+  const live = setLists
+    .filter((list) => isNewModelBuskingSession(list) && isLiveSession(list))
+    .sort((a, b) => getCreatedAtMs(b) - getCreatedAtMs(a));
+  return category ? filterSessionsByCategory(live, category) : live;
+}
+
+/** 특정 sessionDate 라벨의 live 세션만 (표시·필터용) */
 export function getLiveSessionsForDate(
   setLists: SetListData[],
   sessionDate: string,
   category?: BuskingSessionScope
 ): SetListData[] {
-  const live = setLists
-    .filter(
-      (list) =>
-        isNewModelBuskingSession(list) &&
-        isLiveSession(list) &&
-        getSetListSessionDateISO(list) === sessionDate
-    )
-    .sort((a, b) => getCreatedAtMs(b) - getCreatedAtMs(a));
-  return category ? filterSessionsByCategory(live, category) : live;
+  return getLiveSessions(setLists, category).filter(
+    (list) => getSetListSessionDateISO(list) === sessionDate
+  );
 }
 
-function getLegacyLiveSessionsForDate(setLists: SetListData[], sessionDate: string): SetListData[] {
-  return setLists.filter(
-    (list) => isLegacyLiveSession(list) && getSetListSessionDateISO(list) === sessionDate
-  );
+function getLegacyLiveSessions(setLists: SetListData[]): SetListData[] {
+  return setLists.filter((list) => isLegacyLiveSession(list));
 }
 
 export function isParticipantInSession(list: SetListData, nickname: string): boolean {
@@ -117,36 +120,24 @@ export function formatBuskingSessionLabel(list: SetListData): string {
 export function findHostLiveSession(
   setLists: SetListData[],
   hostUid: string,
-  sessionDate = toLocalDateISO(new Date()),
   category?: BuskingSessionScope
 ): SetListData | undefined {
   const pool = category
     ? filterSessionsByCategory(setLists, category)
     : setLists;
-  const matches = pool.filter(
-    (list) =>
-      list.hostUid === hostUid &&
-      isLiveSession(list) &&
-      getSetListSessionDateISO(list) === sessionDate
-  );
+  const matches = pool.filter((list) => list.hostUid === hostUid && isLiveSession(list));
   return matches.sort((a, b) => getCreatedAtMs(b) - getCreatedAtMs(a))[0];
 }
 
 export function hasHostLiveSession(
   setLists: SetListData[],
   hostUid: string,
-  sessionDate = toLocalDateISO(new Date()),
   category?: BuskingSessionScope
 ): boolean {
   const pool = category
     ? filterSessionsByCategory(setLists, category)
     : setLists;
-  return pool.some(
-    (list) =>
-      list.hostUid === hostUid &&
-      isLiveSession(list) &&
-      getSetListSessionDateISO(list) === sessionDate
-  );
+  return pool.some((list) => list.hostUid === hostUid && isLiveSession(list));
 }
 
 export interface PickBuskingSessionOptions {
@@ -172,12 +163,8 @@ export function pickBuskingSession(
   setLists: SetListData[],
   options: PickBuskingSessionOptions
 ): SetListData | null {
-  const today = toLocalDateISO(new Date());
-  const todayLive = getLiveSessionsForDate(setLists, today, options.category);
-  const legacyLive = filterSessionsByCategory(
-    getLegacyLiveSessionsForDate(setLists, today),
-    options.category
-  );
+  const liveSessions = getLiveSessions(setLists, options.category);
+  const legacyLive = filterSessionsByCategory(getLegacyLiveSessions(setLists), options.category);
 
   if (options.selectedSessionId) {
     const selected = setLists.find((list) => list.id === options.selectedSessionId);
@@ -195,10 +182,10 @@ export function pickBuskingSession(
     return null;
   }
 
-  const ownHost = todayLive.filter((list) => list.hostUid === options.userUid);
+  const ownHost = liveSessions.filter((list) => list.hostUid === options.userUid);
   if (ownHost.length === 1) return ownHost[0];
 
-  const memberOf = todayLive.filter((list) =>
+  const memberOf = liveSessions.filter((list) =>
     isCategoryParticipant(list, options.userNickname, options.category)
   );
   if (memberOf.length === 1) return memberOf[0];
@@ -208,8 +195,8 @@ export function pickBuskingSession(
   );
   if (legacyMemberOf.length === 1) return legacyMemberOf[0];
 
-  if (options.isLeader && todayLive.length === 1) return todayLive[0];
-  if (options.isLeader && todayLive.length === 0 && legacyLive.length === 1) return legacyLive[0];
+  if (options.isLeader && liveSessions.length === 1) return liveSessions[0];
+  if (options.isLeader && liveSessions.length === 0 && legacyLive.length === 1) return legacyLive[0];
 
   return null;
 }

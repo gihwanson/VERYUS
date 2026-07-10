@@ -2421,6 +2421,28 @@
   color: #fecaca;
 }
 
+.free-song-section-title--inline {
+  margin: 0;
+}
+
+.free-song-submit-header .free-song-section-title--inline {
+  flex: 1;
+  min-width: 0;
+}
+
+.free-song-submit-modal__body {
+  padding: 8px 12px 12px;
+}
+
+.free-song-submit-modal__list {
+  gap: 8px;
+}
+
+.free-song-submit-modal__list .free-song-row {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
 .free-song-stats-header {
   display: flex;
   align-items: center;

@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { SetListData } from '../types';
 import type { FreeSongSubmissionsState } from './useFreeSongSubmissions';
 import type { FreeSongSubmission } from './types';
 import type { ApprovedSong } from '../../ApprovedSongsUtils';
 import { FreeSongEmptyState, SongRow } from './FreeSongShared';
+import FreeSongSubmitModal from './FreeSongSubmitModal';
 
 interface FreeSongPanelProps {
   activeSetList: SetListData | null;
@@ -21,7 +22,6 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
   const {
     mySubmissions,
     myRejectedSubmissions,
-    mySubmissionCount,
     quotaSubmissionCount,
     submissionLimit,
     canSubmitMore,
@@ -38,6 +38,8 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
     cancelSubmission,
     dismissRejectedSubmission,
   } = submissionsState;
+
+  const [submitModalOpen, setSubmitModalOpen] = useState(false);
 
   if (!activeSetList) {
     return (
@@ -66,6 +68,9 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
     const ok = await submitSong(song, userUid);
     if (ok) {
       alert(`"${song.title}" 전송이 완료되었습니다.`);
+      if (quotaSubmissionCount + 1 >= submissionLimit) {
+        setSubmitModalOpen(false);
+      }
     }
   };
 
@@ -122,6 +127,31 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
         <p className="setlist-manage-sub free-song-desc">
           참가 멤버로 편성되어 합격곡을 전송할 수 있습니다. 최대 {submissionLimit}곡까지 전송 가능하며, 파트너가 전송한 곡도 한도에 포함됩니다.
         </p>
+        <p className="free-song-desc" style={{ marginTop: 12, marginBottom: 12 }}>
+          내 합격곡 {approvedSongs.length}곡
+        </p>
+        {availableSongs.length === 0 ? (
+          <p className="free-song-empty-sub">
+            {!canSubmitMore
+              ? `전송 한도(${submissionLimit}곡)에 도달했습니다. 본인 전송·파트너 전송 곡을 합쳐 집계됩니다.`
+              : approvedSongs.length === 0
+                ? '본인이 멤버로 등록된 합격곡이 없습니다.'
+                : eligibleApprovedSongs.length === 0
+                  ? '합격곡 멤버 전원이 참가 멤버에 포함된 곡만 전송할 수 있습니다.'
+                  : mySubmissions.length > 0 || partnerSubmittedSongs.length > 0
+                    ? '전송 가능한 합격곡을 모두 전송했습니다.'
+                    : '전송할 수 있는 합격곡이 없습니다.'}
+          </p>
+        ) : (
+          <button
+            type="button"
+            className="free-song-btn free-song-btn--submit"
+            disabled={actionLoading || !canSubmitMore}
+            onClick={() => setSubmitModalOpen(true)}
+          >
+            합격곡 선택하여 전송
+          </button>
+        )}
       </div>
 
       {(mySubmissions.length > 0 || myRejectedSubmissions.length > 0) && (
@@ -211,42 +241,17 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
         </div>
       )}
 
-      <div className="setlist-manage-panel">
-        <h3 className="free-song-section-title">합격곡 전송</h3>
-        {availableSongs.length === 0 ? (
-          <p className="free-song-empty-sub">
-            {!canSubmitMore
-              ? `전송 한도(${submissionLimit}곡)에 도달했습니다. 본인 전송·파트너 전송 곡을 합쳐 집계됩니다.`
-              : approvedSongs.length === 0
-                ? '본인이 멤버로 등록된 합격곡이 없습니다.'
-                : eligibleApprovedSongs.length === 0
-                  ? '합격곡 멤버 전원이 참가 멤버에 포함된 곡만 전송할 수 있습니다.'
-                  : mySubmissions.length > 0 || partnerSubmittedSongs.length > 0
-                    ? '전송 가능한 합격곡을 모두 전송했습니다.'
-                    : '전송할 수 있는 합격곡이 없습니다.'}
-          </p>
-        ) : (
-          <div className="free-song-list">
-            {availableSongs.map((song) => (
-              <SongRow
-                key={song.id}
-                title={song.title}
-                members={song.members}
-                action={
-                  <button
-                    type="button"
-                    className="free-song-btn free-song-btn--submit"
-                    disabled={actionLoading || !canSubmitMore}
-                    onClick={() => handleSubmit(song)}
-                  >
-                    전송
-                  </button>
-                }
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      <FreeSongSubmitModal
+        open={submitModalOpen}
+        songs={availableSongs}
+        totalApprovedCount={approvedSongs.length}
+        quotaSubmissionCount={quotaSubmissionCount}
+        submissionLimit={submissionLimit}
+        canSubmitMore={canSubmitMore}
+        actionLoading={actionLoading}
+        onClose={() => setSubmitModalOpen(false)}
+        onSubmit={handleSubmit}
+      />
     </div>
   );
 };

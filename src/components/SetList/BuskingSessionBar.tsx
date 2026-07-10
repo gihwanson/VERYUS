@@ -79,7 +79,7 @@ const BuskingSessionBar: React.FC<BuskingSessionBarProps> = ({
               })}
             </ul>
           ) : (
-            <p className="busking-session-bar__empty">오늘 진행 중인 버스킹이 없습니다.</p>
+            <p className="busking-session-bar__empty">진행 중인 버스킹이 없습니다.</p>
           )}
           {canHost && (
             <button type="button" className="free-song-btn free-song-btn--submit busking-session-bar__create" onClick={() => { onOpenCreate(); setExpanded(false); }}>

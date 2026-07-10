@@ -3,13 +3,12 @@ import type { BuskingCategory } from '../BuskingNav';
 import type { SetListData } from '../types';
 import { canManageAnyBuskingSession } from '../buskingSessionPermissions';
 import {
-  getLiveSessionsForDate,
+  getLiveSessions,
   hasHostLiveSession,
   pickBuskingSession,
   readStoredBuskingSessionId,
   writeStoredBuskingSessionId,
 } from '../buskingSessionUtils';
-import { toLocalDateISO } from '../setListSessionDate';
 
 export interface BuskingSessionUser {
   uid: string;
@@ -45,15 +44,14 @@ export function useBuskingSession(
     [userUid, category]
   );
 
-  const today = toLocalDateISO(new Date());
   const liveSessionsToday = useMemo(
-    () => getLiveSessionsForDate(setLists, today, category),
-    [setLists, today, category]
+    () => getLiveSessions(setLists, category),
+    [setLists, category]
   );
 
   const hostHasLiveSession = useMemo(
-    () => (userUid ? hasHostLiveSession(setLists, userUid, today, category) : false),
-    [setLists, userUid, today, category]
+    () => (userUid ? hasHostLiveSession(setLists, userUid, category) : false),
+    [setLists, userUid, category]
   );
 
   const activeSetList = useMemo(
@@ -84,6 +82,5 @@ export function useBuskingSession(
     liveSessionsToday,
     hostHasLiveSession,
     needsSessionPicker,
-    today,
   };
 }

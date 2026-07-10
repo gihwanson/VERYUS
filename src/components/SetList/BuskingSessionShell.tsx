@@ -126,8 +126,8 @@ const BuskingSessionShell: React.FC<BuskingSessionShellProps> = ({
         <div className="setlist-manage-panel free-song-panel">
           <p className="free-song-empty">
             {category === 'setlist'
-              ? '오늘 진행 중인 셋리스트 세션이 없습니다.'
-              : '오늘 진행 중인 내 버스킹이 없습니다.'}
+              ? '진행 중인 셋리스트 세션이 없습니다.'
+              : '진행 중인 내 버스킹이 없습니다.'}
           </p>
           <p className="free-song-empty-sub">
             {category === 'setlist'
