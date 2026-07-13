@@ -42,9 +42,12 @@ import {
 } from '../../../utils/sichuanRecords';
 import {
   createSichuanRoom,
+  dissolveSichuanRoom,
   finishSichuanRoom,
   joinSichuanRoom,
   leaveSichuanRoom,
+  pruneClosedSichuanRooms,
+  pruneStaleSichuanLobbies,
   roomTitle,
   setSichuanPlayerReady,
   sichuanMaxPlayers,
@@ -54,6 +57,7 @@ import {
   subscribeSichuanRoom,
   teamLabel,
   teamScore,
+  touchSichuanLobbyPresence,
   updateSichuanProgress,
   type SichuanMode,
   type SichuanPlayer,
@@ -72,7 +76,18 @@ import './SichuanGame.css';
 
 type Screen = 'menu' | 'lobby' | 'play' | 'result';
 
-const PROGRESS_SYNC_MS = 400;
+interface MatchResultSnapshot {
+  mode: SichuanMode;
+  players: SichuanPlayer[];
+  myScore: number;
+  myPairs: number;
+  myRemaining: number;
+  elapsedSec: number;
+}
+
+const PROGRESS_SYNC_MS = 700;
+const MATCH_PATH_MS = 100;
+const AUTO_SHUFFLE_MS = 180;
 
 const posKey = (p: SichuanPos) => `${p.r},${p.c}`;
 
@@ -132,6 +147,7 @@ const SichuanGame: React.FC = () => {
   const [stuck, setStuck] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [resultTitle, setResultTitle] = useState('');
+  const [resultSnapshot, setResultSnapshot] = useState<MatchResultSnapshot | null>(null);
   const [hintFlash, setHintFlash] = useState(false);
   const [floatScore, setFloatScore] = useState<string | null>(null);
   const [combo, setCombo] = useState(0);
@@ -154,11 +170,17 @@ const SichuanGame: React.FC = () => {
   const pairsRef = useRef(pairs);
   const finishedRef = useRef(finished);
   const shuffleLeftRef = useRef(shuffleLeft);
+  const seedRef = useRef(seed);
   const syncTimerRef = useRef<number | null>(null);
   const pathTimerRef = useRef<number | null>(null);
+  const autoShuffleTimerRef = useRef<number | null>(null);
+  const playersThrottleRef = useRef<number | null>(null);
+  const pendingPlayersRef = useRef<SichuanPlayer[] | null>(null);
+  const playersRef = useRef<SichuanPlayer[]>([]);
   const countdownTimersRef = useRef<number[]>([]);
   const finishLockRef = useRef(false);
   const matchingLockRef = useRef(false);
+  const audioUnlockedRef = useRef(false);
   const lastMatchAtRef = useRef(0);
   const comboRef = useRef(0);
   const comboBonusRef = useRef(0);
@@ -166,12 +188,29 @@ const SichuanGame: React.FC = () => {
   const playScrollRef = useRef({ x: 0, y: 0 });
   const elapsedSecRef = useRef(0);
   const myTeamRef = useRef<0 | 1 | null>(null);
+  const roomRef = useRef<SichuanRoom | null>(null);
+  const myUidRef = useRef<string | undefined>(undefined);
+  const modeRef = useRef<SichuanMode | 'solo'>('solo');
+  const screenRef = useRef<Screen>('menu');
 
-  /** 클릭 포커스로 인한 스크롤 점프 방지 */
-  const preventFocusScroll = (e: React.MouseEvent | React.TouchEvent) => {
-    if ('button' in e && e.button !== 0) return;
-    e.preventDefault();
-  };
+  useEffect(() => {
+    roomRef.current = room;
+  }, [room]);
+  useEffect(() => {
+    myUidRef.current = myUid;
+  }, [myUid]);
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
+  useEffect(() => {
+    screenRef.current = screen;
+  }, [screen]);
+  useEffect(() => {
+    seedRef.current = seed;
+  }, [seed]);
+  useEffect(() => {
+    playersRef.current = players;
+  }, [players]);
 
   const lockScrollDuringMatch = () => {
     playScrollRef.current = { x: window.scrollX, y: window.scrollY };
@@ -193,12 +232,57 @@ const SichuanGame: React.FC = () => {
       setOpenRooms([]);
       return;
     }
+    const pruneAll = () => {
+      void pruneStaleSichuanLobbies().catch(() => undefined);
+      void pruneClosedSichuanRooms().catch(() => undefined);
+    };
+    pruneAll();
+    const pruneTimer = window.setInterval(pruneAll, 12_000);
     const unsub = subscribeSichuanLobbies(
       setOpenRooms,
       () => setError('방 목록을 불러오지 못했습니다. 규칙을 배포했는지 확인해 주세요.')
     );
-    return () => unsub();
+    return () => {
+      unsub();
+      window.clearInterval(pruneTimer);
+    };
   }, [screen, myUid]);
+
+  // 로비 대기 중 생존 신호 (유령 참가자 정리용)
+  useEffect(() => {
+    if (screen !== 'lobby' || !room?.id || !myUid) return;
+    void touchSichuanLobbyPresence(room.id, myUid);
+    const t = window.setInterval(() => {
+      void touchSichuanLobbyPresence(room.id, myUid);
+    }, 20_000);
+    return () => window.clearInterval(t);
+  }, [screen, room?.id, myUid]);
+
+  // 탭 닫기/새로고침 시 로비·게임 잔여 참가 정리 (유령 방 방지)
+  useEffect(() => {
+    const leaveOnUnload = () => {
+      const currentRoom = roomRef.current;
+      const uid = myUidRef.current;
+      if (!currentRoom || !uid || modeRef.current === 'solo') return;
+      if (screenRef.current === 'menu') return;
+      const isHost = currentRoom.hostUid === uid;
+      if (
+        screenRef.current === 'result' ||
+        currentRoom.status === 'finished' ||
+        ((screenRef.current === 'lobby' || currentRoom.status === 'lobby') && isHost)
+      ) {
+        void dissolveSichuanRoom(currentRoom.id);
+        return;
+      }
+      void leaveSichuanRoom(currentRoom.id, uid);
+    };
+    window.addEventListener('pagehide', leaveOnUnload);
+    window.addEventListener('beforeunload', leaveOnUnload);
+    return () => {
+      window.removeEventListener('pagehide', leaveOnUnload);
+      window.removeEventListener('beforeunload', leaveOnUnload);
+    };
+  }, []);
 
   useEffect(() => {
     if (screen !== 'menu' || !myUid) {
@@ -268,8 +352,8 @@ const SichuanGame: React.FC = () => {
     clearCountdownTimers();
     setPlayArmed(false);
     matchingLockRef.current = true;
-    const steps = ['준비', '3', '2', '1', '시작!'];
-    const delays = [0, 800, 1600, 2400, 3200];
+    const steps = ['3', '2', '1', '시작!'];
+    const delays = [0, 700, 1400, 2100];
     steps.forEach((label, i) => {
       const id = window.setTimeout(() => setCountdownLabel(label), delays[i]);
       countdownTimersRef.current.push(id);
@@ -278,11 +362,22 @@ const SichuanGame: React.FC = () => {
       setCountdownLabel(null);
       setPlayArmed(true);
       matchingLockRef.current = false;
-    }, 3900);
+    }, 3200);
     countdownTimersRef.current.push(doneId);
   }, [clearCountdownTimers]);
 
   useEffect(() => () => clearCountdownTimers(), [clearCountdownTimers]);
+
+  useEffect(
+    () => () => {
+      if (autoShuffleTimerRef.current !== null) {
+        window.clearTimeout(autoShuffleTimerRef.current);
+      }
+      if (pathTimerRef.current !== null) window.clearTimeout(pathTimerRef.current);
+      if (syncTimerRef.current !== null) window.clearTimeout(syncTimerRef.current);
+    },
+    []
+  );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -363,6 +458,86 @@ const SichuanGame: React.FC = () => {
     }, PROGRESS_SYNC_MS);
   }, [flushProgress, mode, room]);
 
+  const scheduleProgressSyncRef = useRef(scheduleProgressSync);
+  useEffect(() => {
+    scheduleProgressSyncRef.current = scheduleProgressSync;
+  }, [scheduleProgressSync]);
+
+  const ensureAudio = useCallback(() => {
+    if (audioUnlockedRef.current) return;
+    audioUnlockedRef.current = true;
+    unlockGameAudio();
+  }, []);
+
+  const applyShuffleBoard = useCallback((sourceBoard: SichuanBoard, consumeCount: number): SichuanBoard => {
+    let current = sourceBoard;
+    let left = shuffleLeftRef.current;
+    let used = 0;
+    while (used < consumeCount && left > 0) {
+      const nextSeed = (seedRef.current + Date.now() + used * 9973) >>> 0;
+      current = reshuffleSichuanBoard(current, nextSeed);
+      seedRef.current = nextSeed;
+      left -= 1;
+      used += 1;
+      if (hasAnySichuanMatch(current)) break;
+    }
+    if (used > 0) {
+      boardRef.current = current;
+      shuffleLeftRef.current = left;
+      setBoard(current);
+      setSeed(seedRef.current);
+      setShuffleLeft(left);
+      setSelected(null);
+      setPath(null);
+      setHintPair(null);
+      comboRef.current = 0;
+      setCombo(0);
+      playSichuanShuffle();
+      if (modeRef.current !== 'solo') scheduleProgressSyncRef.current();
+    }
+    const stillStuck =
+      countRemainingTiles(current) > 0 && !hasAnySichuanMatch(current);
+    setStuck(stillStuck);
+    return current;
+  }, []);
+
+  const scheduleAutoShuffleIfNeeded = useCallback(
+    (nextBoard: SichuanBoard) => {
+      if (autoShuffleTimerRef.current !== null) {
+        window.clearTimeout(autoShuffleTimerRef.current);
+        autoShuffleTimerRef.current = null;
+      }
+      const remaining = countRemainingTiles(nextBoard);
+      if (remaining <= 0 || finishedRef.current) {
+        setStuck(false);
+        return;
+      }
+      if (hasAnySichuanMatch(nextBoard)) {
+        setStuck(false);
+        return;
+      }
+      setStuck(true);
+      if (shuffleLeftRef.current <= 0) return;
+
+      autoShuffleTimerRef.current = window.setTimeout(() => {
+        autoShuffleTimerRef.current = null;
+        if (finishedRef.current || matchingLockRef.current) return;
+        if (shuffleLeftRef.current <= 0) return;
+        if (hasAnySichuanMatch(boardRef.current)) {
+          setStuck(false);
+          return;
+        }
+        applyShuffleBoard(boardRef.current, shuffleLeftRef.current);
+      }, AUTO_SHUFFLE_MS);
+    },
+    [applyShuffleBoard]
+  );
+
+  useEffect(() => {
+    if (!playArmed || finished || screen !== 'play') return;
+    scheduleAutoShuffleIfNeeded(boardRef.current);
+  }, [playArmed, finished, screen, seed, scheduleAutoShuffleIfNeeded]);
+
   useEffect(() => {
     if (!room?.id) return;
     let startedForSeed: number | null = null;
@@ -371,7 +546,11 @@ const SichuanGame: React.FC = () => {
     const unsubRoom = subscribeSichuanRoom(room.id, (next) => {
       if (!next) {
         // 종료 후 방 삭제는 정상 — 결과 화면 유지
-        if (finishedAnnounced || finishedRef.current) {
+        if (
+          finishedAnnounced ||
+          finishedRef.current ||
+          screenRef.current === 'result'
+        ) {
           setRoom(null);
           return;
         }
@@ -405,6 +584,7 @@ const SichuanGame: React.FC = () => {
         setFloatScore(null);
         setFirstClearBanner(null);
         setResultMeta(null);
+        setResultSnapshot(null);
         setScreen('play');
         startCountdown();
         if (myUid) {
@@ -428,6 +608,24 @@ const SichuanGame: React.FC = () => {
         setCountdownLabel(null);
         setPlayArmed(true);
         setFinished(true);
+        finishedRef.current = true;
+
+        // 스로틀 중이던 최신 참가자 상태를 결과 화면에 고정
+        if (playersThrottleRef.current !== null) {
+          window.clearTimeout(playersThrottleRef.current);
+          playersThrottleRef.current = null;
+        }
+        const finalPlayers = pendingPlayersRef.current ?? playersRef.current;
+        setPlayers(finalPlayers);
+        setResultSnapshot({
+          mode: next.mode,
+          players: finalPlayers.map((p) => ({ ...p })),
+          myScore: scoreRef.current,
+          myPairs: pairsRef.current,
+          myRemaining: countRemainingTiles(boardRef.current),
+          elapsedSec: elapsedSecRef.current,
+        });
+
         const myTeam = myTeamRef.current;
         let title = next.winnerLabel || '경기 종료';
         const isDraw = next.winnerTeam === null;
@@ -464,10 +662,26 @@ const SichuanGame: React.FC = () => {
         }
       }
     });
-    const unsubPlayers = subscribeSichuanPlayers(room.id, setPlayers);
+    const unsubPlayers = subscribeSichuanPlayers(room.id, (list) => {
+      // 플레이 중 HUD 갱신은 짧게 모아 보드 입력 렉을 줄임
+      if (screenRef.current === 'play') {
+        pendingPlayersRef.current = list;
+        if (playersThrottleRef.current !== null) return;
+        playersThrottleRef.current = window.setTimeout(() => {
+          playersThrottleRef.current = null;
+          if (pendingPlayersRef.current) setPlayers(pendingPlayersRef.current);
+        }, 160);
+        return;
+      }
+      setPlayers(list);
+    });
     return () => {
       unsubRoom();
       unsubPlayers();
+      if (playersThrottleRef.current !== null) {
+        window.clearTimeout(playersThrottleRef.current);
+        playersThrottleRef.current = null;
+      }
     };
   }, [myUid, room?.id, startCountdown, clearCountdownTimers, nickname]);
 
@@ -578,36 +792,34 @@ const SichuanGame: React.FC = () => {
     if (players.some((p) => p.finished && p.remaining > 0)) return;
     if (finishLockRef.current) return;
 
-    const timer = window.setTimeout(() => {
-      if (finishLockRef.current) return;
-      finishLockRef.current = true;
-      const t0 = teamScore(players, 0);
-      const t1 = teamScore(players, 1);
-      let winnerTeam: 0 | 1 | null = null;
-      let label = '무승부';
-      if (t0 > t1) {
-        winnerTeam = 0;
-        label = `${teamLabel(room.mode, 0)} 승리!`;
-      } else if (t1 > t0) {
-        winnerTeam = 1;
-        label = `${teamLabel(room.mode, 1)} 승리!`;
-      }
+    finishLockRef.current = true;
+    const t0 = teamScore(players, 0);
+    const t1 = teamScore(players, 1);
+    let winnerTeam: 0 | 1 | null = null;
+    let label = '무승부';
+    if (t0 > t1) {
+      winnerTeam = 0;
+      label = `${teamLabel(room.mode, 0)} 승리!`;
+    } else if (t1 > t0) {
+      winnerTeam = 1;
+      label = `${teamLabel(room.mode, 1)} 승리!`;
+    }
 
-      const firstClearer = players
-        .filter((p) => p.remaining === 0)
-        .sort((a, b) => (a.updatedAtMs || 0) - (b.updatedAtMs || 0))[0];
-      if (firstClearer) {
-        label = `${firstClearer.nickname} 선클리어! · ${label}`;
-      }
+    const firstClearer = players
+      .filter((p) => p.remaining === 0)
+      .sort((a, b) => (a.updatedAtMs || 0) - (b.updatedAtMs || 0))[0];
+    if (firstClearer) {
+      label = `${firstClearer.nickname} 선클리어! · ${label}`;
+    }
 
-      void finishSichuanRoom({
-        roomId: room.id,
-        winnerTeam,
-        winnerLabel: label,
-      });
-    }, anyoneCleared ? 900 : 250);
-
-    return () => window.clearTimeout(timer);
+    void finishSichuanRoom({
+      roomId: room.id,
+      winnerTeam,
+      winnerLabel: label,
+    }).catch((e) => {
+      finishLockRef.current = false;
+      console.error('사천성 종료 처리 실패:', e);
+    });
   }, [isHost, mode, players, room]);
 
   // 상대가 먼저 클리어했는지 배너
@@ -627,9 +839,6 @@ const SichuanGame: React.FC = () => {
   const handleMatch = (a: SichuanPos, b: SichuanPos, matchPath: SichuanMatchPath) => {
     matchingLockRef.current = true;
     lockScrollDuringMatch();
-    if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur();
-    }
     setHintPair(null);
     setPath(matchPath);
     playSichuanMatch();
@@ -660,7 +869,7 @@ const SichuanGame: React.FC = () => {
           : `+${gained}`;
       setFloatScore(floatLabel);
       if (floatTimerRef.current !== null) window.clearTimeout(floatTimerRef.current);
-      floatTimerRef.current = window.setTimeout(() => setFloatScore(null), 750);
+      floatTimerRef.current = window.setTimeout(() => setFloatScore(null), 650);
 
       setBoard(nextBoard);
       setSelected(null);
@@ -672,17 +881,12 @@ const SichuanGame: React.FC = () => {
       boardRef.current = nextBoard;
       matchingLockRef.current = false;
 
-      requestAnimationFrame(() => {
-        restoreScrollIfJumped();
-        requestAnimationFrame(restoreScrollIfJumped);
-      });
-
-      const noMoves = remaining > 0 && !hasAnySichuanMatch(nextBoard);
-      setStuck(noMoves);
+      requestAnimationFrame(restoreScrollIfJumped);
 
       if (remaining === 0) {
         finishedRef.current = true;
         setFinished(true);
+        setStuck(false);
         if (mode === 'solo') {
           endSoloOrLocal(
             nextCombo >= 3 ? `보드 클리어! COMBO x${nextCombo}` : '보드 클리어!',
@@ -701,17 +905,15 @@ const SichuanGame: React.FC = () => {
       }
 
       if (mode !== 'solo') scheduleProgressSync();
-    }, 260);
+      // 연결 가능한 패가 없으면 자동 셔플
+      scheduleAutoShuffleIfNeeded(nextBoard);
+    }, MATCH_PATH_MS);
   };
 
   const onTileClick = (r: number, c: number) => {
     if (finished || screen !== 'play' || matchingLockRef.current || !playArmed) return;
-    unlockGameAudio();
-    lockScrollDuringMatch();
-    if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur();
-    }
-    const cell = board[r][c];
+    ensureAudio();
+    const cell = boardRef.current[r]?.[c];
     if (!cell) return;
 
     const pos = { r, c };
@@ -727,7 +929,7 @@ const SichuanGame: React.FC = () => {
       return;
     }
 
-    const matchPath = canConnectSichuan(board, selected, pos);
+    const matchPath = canConnectSichuan(boardRef.current, selected, pos);
     if (matchPath) {
       handleMatch(selected, pos, matchPath);
       return;
@@ -737,37 +939,27 @@ const SichuanGame: React.FC = () => {
     comboRef.current = 0;
     setCombo(0);
     setHintFlash(true);
-    window.setTimeout(() => setHintFlash(false), 280);
-    if (board[selected.r][selected.c] !== cell) {
+    window.setTimeout(() => setHintFlash(false), 220);
+    if (boardRef.current[selected.r]?.[selected.c] !== cell) {
       setSelected(pos);
     }
   };
 
   const onShuffle = () => {
-    if (finished || shuffleLeft <= 0 || matchingLockRef.current || !playArmed) return;
-    unlockGameAudio();
-    const nextSeed = (seed + Date.now()) >>> 0;
-    const reshuffled = reshuffleSichuanBoard(board, nextSeed);
-    setBoard(reshuffled);
-    setSeed(nextSeed);
-    setShuffleLeft((n) => n - 1);
-    setSelected(null);
-    setPath(null);
-    setHintPair(null);
-    setStuck(!hasAnySichuanMatch(reshuffled));
-    comboRef.current = 0;
-    setCombo(0);
-    playSichuanShuffle();
-    if (mode !== 'solo') scheduleProgressSync();
+    if (finished || shuffleLeftRef.current <= 0 || matchingLockRef.current || !playArmed) return;
+    ensureAudio();
+    applyShuffleBoard(boardRef.current, 1);
   };
 
   const onHint = () => {
     if (finished || matchingLockRef.current || !playArmed) return;
-    unlockGameAudio();
-    const hint = findSichuanHint(board);
+    ensureAudio();
+    const hint = findSichuanHint(boardRef.current);
     if (!hint) {
-      setStuck(true);
-      setError('연결 가능한 패가 없습니다. 셔플을 사용해 주세요.');
+      scheduleAutoShuffleIfNeeded(boardRef.current);
+      if (shuffleLeftRef.current <= 0) {
+        setError('연결 가능한 패가 없고 셔플도 남아 있지 않습니다.');
+      }
       return;
     }
     setError(null);
@@ -893,20 +1085,22 @@ const SichuanGame: React.FC = () => {
   };
 
   const leaveAndMenu = async () => {
-    if (room && myUid) {
+    const current = room;
+    const uid = myUid;
+    if (current && uid) {
       // 게임 중 이탈이면 패배 전적 먼저 기록 (결과 스냅샷을 못 받는 경우 대비)
       if (
         mode !== 'solo' &&
-        room.status === 'playing' &&
+        current.status === 'playing' &&
         !finishedRef.current
       ) {
         finishedRef.current = true;
         try {
           const rec = await applySichuanMatchResult({
-            uid: myUid,
+            uid,
             nickname,
             outcome: 'loss',
-            matchKey: `${room.id}_${room.seed || seed}`,
+            matchKey: `${current.id}_${current.seed || seed}`,
           });
           setMyRecord(rec);
         } catch (e) {
@@ -914,15 +1108,32 @@ const SichuanGame: React.FC = () => {
         }
       }
       try {
-        await leaveSichuanRoom(room.id, myUid);
+        const isHost = current.hostUid === uid;
+        if (screen === 'result' || current.status === 'finished') {
+          // 경기 종료 후: 방 무조건 제거
+          await dissolveSichuanRoom(current.id);
+        } else if (
+          (screen === 'lobby' || current.status === 'lobby') &&
+          isHost
+        ) {
+          // 방장이 로비에서 나가면 방 해산
+          await dissolveSichuanRoom(current.id);
+        } else {
+          await leaveSichuanRoom(current.id, uid);
+        }
       } catch {
-        /* ignore */
+        try {
+          await dissolveSichuanRoom(current.id);
+        } catch {
+          /* ignore */
+        }
       }
     }
     if (syncTimerRef.current !== null) window.clearTimeout(syncTimerRef.current);
     matchingLockRef.current = false;
     setRoom(null);
     setPlayers([]);
+    setResultSnapshot(null);
     setScreen('menu');
     setError(null);
   };
@@ -1037,8 +1248,11 @@ const SichuanGame: React.FC = () => {
                   disabled={!id || finished || !playArmed}
                   aria-hidden={!id}
                   aria-label={face ? `${face.name} ${face.label}` : undefined}
-                  onMouseDown={preventFocusScroll}
-                  onClick={() => onTileClick(r, c)}
+                  onPointerDown={(e) => {
+                    if (e.pointerType === 'mouse' && e.button !== 0) return;
+                    e.preventDefault();
+                    onTileClick(r, c);
+                  }}
                 >
                   {face ? (
                     <>
@@ -1076,31 +1290,42 @@ const SichuanGame: React.FC = () => {
     </div>
   );
 
-  const renderRivalPanel = (compact = false) => {
-    if (mode === 'solo' || !room) return null;
-    const t0 = teamScore(players, 0);
-    const t1 = teamScore(players, 1);
+  const renderRivalPanel = (
+    compact = false,
+    opts?: { mode: SichuanMode; players: SichuanPlayer[] }
+  ) => {
+    const panelMode = opts?.mode ?? (mode === 'solo' ? null : room?.mode ?? null);
+    const panelPlayers = opts?.players ?? players;
+    if (!panelMode) return null;
+    if (!opts && (mode === 'solo' || !room)) return null;
+
+    const t0 = teamScore(panelPlayers, 0);
+    const t1 = teamScore(panelPlayers, 1);
+    const myTeam = opts
+      ? panelPlayers.find((p) => p.uid === myUid)?.team ?? myTeamRef.current
+      : myPlayer?.team ?? myTeamRef.current;
+
     if (compact) {
       return (
         <div className="sichuan-rivals sichuan-rivals--strip" aria-label="상대 점수">
-          <div className={myPlayer?.team === 0 ? 'is-mine' : undefined}>
-            <span>{teamLabel(room.mode, 0)}</span>
+          <div className={myTeam === 0 ? 'is-mine' : undefined}>
+            <span>{teamLabel(panelMode, 0)}</span>
             <strong>{t0}</strong>
           </div>
-          <div className={myPlayer?.team === 1 ? 'is-mine' : undefined}>
-            <span>{teamLabel(room.mode, 1)}</span>
+          <div className={myTeam === 1 ? 'is-mine' : undefined}>
+            <span>{teamLabel(panelMode, 1)}</span>
             <strong>{t1}</strong>
           </div>
         </div>
       );
     }
     return (
-      <div className="sichuan-rivals">
-        <div className={`sichuan-team-card${myPlayer?.team === 0 ? ' is-mine' : ''}`}>
-          <strong>{teamLabel(room.mode, 0)}</strong>
+      <div className="sichuan-rivals sichuan-rivals--result" aria-label="경기 결과 상세">
+        <div className={`sichuan-team-card${myTeam === 0 ? ' is-mine' : ''}`}>
+          <strong>{teamLabel(panelMode, 0)}</strong>
           <span>{t0}점</span>
           <ul>
-            {players
+            {panelPlayers
               .filter((p) => p.team === 0)
               .map((p) => (
                 <li key={p.uid}>
@@ -1111,11 +1336,11 @@ const SichuanGame: React.FC = () => {
               ))}
           </ul>
         </div>
-        <div className={`sichuan-team-card sichuan-team-card--b${myPlayer?.team === 1 ? ' is-mine' : ''}`}>
-          <strong>{teamLabel(room.mode, 1)}</strong>
+        <div className={`sichuan-team-card sichuan-team-card--b${myTeam === 1 ? ' is-mine' : ''}`}>
+          <strong>{teamLabel(panelMode, 1)}</strong>
           <span>{t1}점</span>
           <ul>
-            {players
+            {panelPlayers
               .filter((p) => p.team === 1)
               .map((p) => (
                 <li key={p.uid}>
@@ -1617,7 +1842,7 @@ const SichuanGame: React.FC = () => {
             {stuck && (
               <div className="sichuan-stuck-slot is-on" role="status">
                 {shuffleLeft > 0
-                  ? '연결 불가 · 셔플하세요'
+                  ? '연결 불가 · 자동 셔플 중…'
                   : mode === 'solo'
                     ? '셔플 없음 · 다시 시작하세요'
                     : '셔플 없음 · 기권 또는 대기'}
@@ -1657,7 +1882,9 @@ const SichuanGame: React.FC = () => {
           <div className="sichuan-result">
             <h2>{resultTitle}</h2>
             <p>
-              점수 {score} · {pairs}쌍 · {formatSichuanTime(elapsedSec)} · 남은 타일 {remaining}
+              {resultSnapshot
+                ? `내 점수 ${resultSnapshot.myScore} · ${resultSnapshot.myPairs}쌍 · ${formatSichuanTime(resultSnapshot.elapsedSec)} · 남은 타일 ${resultSnapshot.myRemaining}`
+                : `점수 ${score} · ${pairs}쌍 · ${formatSichuanTime(elapsedSec)} · 남은 타일 ${remaining}`}
             </p>
             {resultMeta && <p className="sichuan-result-meta">{resultMeta}</p>}
             {soloPb && mode === 'solo' && (
@@ -1665,12 +1892,18 @@ const SichuanGame: React.FC = () => {
                 최고 기록 {formatSichuanTime(soloPb.bestTimeSec)} · {soloPb.bestScore}점
               </p>
             )}
+            {mode !== 'solo' &&
+              resultSnapshot &&
+              renderRivalPanel(false, {
+                mode: resultSnapshot.mode,
+                players: resultSnapshot.players,
+              })}
+            {mode !== 'solo' && !resultSnapshot && room && renderRivalPanel()}
             {mode !== 'solo' && myRecord && myRecord.gamesPlayed > 0 && (
               <p className="sichuan-result-pb">
                 내 전적 {formatSichuanRecord(myRecord)} · 승률 {sichuanWinRate(myRecord)}%
               </p>
             )}
-            {mode !== 'solo' && room && renderRivalPanel()}
             <div className="sichuan-lobby-actions">
               {mode === 'solo' ? (
                 <button type="button" className="sichuan-primary sichuan-pressable" onClick={startSolo}>

@@ -20,7 +20,7 @@ import {
   type FlappyActiveSession,
 } from '../../utils/flappyBirdSessions';
 import {
-  sortPastChampions,
+  selectPastChampionsForDisplay,
   type GamePastChampion,
 } from '../../utils/gamePastChampions';
 import { getFlappyGrade } from '../../utils/flappyGrades';
@@ -379,7 +379,7 @@ const FlappyBirdGame: React.FC = () => {
   );
 
   const pastChampionsForTab = useMemo(
-    () => sortPastChampions(pastChampions, leaderboardTab),
+    () => selectPastChampionsForDisplay(pastChampions, leaderboardTab, 'flappyBird'),
     [pastChampions, leaderboardTab]
   );
 

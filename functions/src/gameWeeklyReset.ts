@@ -3,7 +3,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions';
 
 const KST = 'Asia/Seoul';
-const GAME_IDS = ['typingSpeed', 'reactionTime', 'rhythmBeat', 'flappyBird'] as const;
+const GAME_IDS = ['typingSpeed', 'reactionTime', 'rhythmBeat', 'flappyBird', 'nunSalMi'] as const;
 const PLATFORMS = ['pc', 'mobile'] as const;
 
 type GameId = (typeof GAME_IDS)[number];
@@ -126,6 +126,82 @@ const pickChampion = (gameId: GameId, docs: ScoreDoc[]): ScoreDoc | null => {
   return sorted[0] ?? null;
 };
 
+type PastChampionData = {
+  platform?: string;
+  weekKey?: string;
+  durationMs?: number;
+  cpm?: number;
+  accuracy?: number;
+};
+
+const isBetterPastData = (
+  gameId: GameId,
+  a: PastChampionData,
+  b: PastChampionData
+): boolean => {
+  const aDuration = Number(a.durationMs) || 0;
+  const bDuration = Number(b.durationMs) || 0;
+  if (gameId === 'typingSpeed') {
+    const aCpm = Number(a.cpm) || 0;
+    const bCpm = Number(b.cpm) || 0;
+    if (aCpm !== bCpm) return aCpm > bCpm;
+    return aDuration < bDuration;
+  }
+  if (gameId === 'rhythmBeat') {
+    const aAcc = Number(a.accuracy) || 0;
+    const bAcc = Number(b.accuracy) || 0;
+    if (aAcc !== bAcc) return aAcc > bAcc;
+    return aDuration < bDuration;
+  }
+  if (gameId === 'flappyBird') {
+    return aDuration > bDuration;
+  }
+  return aDuration < bDuration;
+};
+
+/** 플랫폼별 역대 최고 + 최근 1건만 남기고 나머지 pastChampions 삭제 */
+const prunePastChampions = async (gameId: GameId, platform: Platform) => {
+  const db = admin.firestore();
+  const snap = await db.collection(`games/${gameId}/pastChampions`).get();
+  const docs = snap.docs.filter((d) => d.data().platform === platform);
+  if (docs.length <= 2) return;
+
+  const latest = [...docs].sort((a, b) =>
+    String(b.data().weekKey || '').localeCompare(String(a.data().weekKey || ''))
+  )[0];
+
+  let best = docs[0];
+  for (const doc of docs) {
+    if (isBetterPastData(gameId, doc.data() as PastChampionData, best.data() as PastChampionData)) {
+      best = doc;
+    }
+  }
+
+  const keep = new Set([best.id, latest.id]);
+  const toDelete = docs.filter((d) => !keep.has(d.id));
+  if (toDelete.length === 0) return;
+
+  let batch = db.batch();
+  let ops = 0;
+  for (const doc of toDelete) {
+    batch.delete(doc.ref);
+    ops += 1;
+    if (ops >= 400) {
+      await batch.commit();
+      batch = db.batch();
+      ops = 0;
+    }
+  }
+  if (ops > 0) await batch.commit();
+
+  logger.info('과거최고기록 정리', {
+    gameId,
+    platform,
+    kept: [...keep],
+    deletedCount: toDelete.length,
+  });
+};
+
 const archiveAndResetGame = async (gameId: GameId, weekKey: string) => {
   const db = admin.firestore();
   const bestScoresRef = db.collection(`games/${gameId}/bestScores`);
@@ -181,6 +257,8 @@ const archiveAndResetGame = async (gameId: GameId, weekKey: string) => {
         nickname: data.nickname,
       });
     }
+
+    await prunePastChampions(gameId, platform);
   }
 
   await deleteCollectionInBatches(bestScoresRef);

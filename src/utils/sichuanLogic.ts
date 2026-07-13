@@ -79,8 +79,10 @@ const shuffleInPlace = <T>(arr: T[], rand: () => number): void => {
   }
 };
 
+const SICHUAN_FACE_BY_ID = new Map(SICHUAN_FACES.map((f) => [f.id, f]));
+
 export const getSichuanFace = (id: number): SichuanTileFace | undefined =>
-  SICHUAN_FACES.find((f) => f.id === id);
+  SICHUAN_FACE_BY_ID.get(id);
 
 /** combo 2 → +1, 3 → +2, 4+ → +3 */
 export const comboBonusForMatch = (combo: number): number =>
@@ -257,21 +259,29 @@ export const removeSichuanPair = (
   return next;
 };
 
-/** 현재 보드에서 가능한 매치 한 쌍 (힌트용) */
+/** 현재 보드에서 가능한 매치 한 쌍 (힌트용) — 같은 패끼리만 검사 */
 export const findSichuanHint = (
   board: SichuanBoard
 ): { a: SichuanPos; b: SichuanPos; path: SichuanMatchPath } | null => {
-  const cells: SichuanPos[] = [];
+  const byFace = new Map<number, SichuanPos[]>();
   for (let r = 0; r < board.length; r += 1) {
-    for (let c = 0; c < board[r].length; c += 1) {
-      if (board[r][c] > 0) cells.push({ r, c });
+    const row = board[r];
+    for (let c = 0; c < row.length; c += 1) {
+      const id = row[c];
+      if (id <= 0) continue;
+      const list = byFace.get(id);
+      if (list) list.push({ r, c });
+      else byFace.set(id, [{ r, c }]);
     }
   }
-  for (let i = 0; i < cells.length; i += 1) {
-    for (let j = i + 1; j < cells.length; j += 1) {
-      if (board[cells[i].r][cells[i].c] !== board[cells[j].r][cells[j].c]) continue;
-      const path = canConnectSichuan(board, cells[i], cells[j]);
-      if (path) return { a: cells[i], b: cells[j], path };
+
+  for (const cells of byFace.values()) {
+    if (cells.length < 2) continue;
+    for (let i = 0; i < cells.length; i += 1) {
+      for (let j = i + 1; j < cells.length; j += 1) {
+        const path = canConnectSichuan(board, cells[i], cells[j]);
+        if (path) return { a: cells[i], b: cells[j], path };
+      }
     }
   }
   return null;
@@ -293,21 +303,25 @@ export const reshuffleSichuanBoard = (board: SichuanBoard, seed: number): Sichua
       }
     }
   }
+  if (ids.length < 2) return cloneSichuanBoard(board);
+
+  const place = (sourceIds: number[]): SichuanBoard => {
+    const next = cloneSichuanBoard(board);
+    for (let i = 0; i < positions.length; i += 1) {
+      const pos = positions[i];
+      next[pos.r][pos.c] = sourceIds[i] ?? 0;
+    }
+    return next;
+  };
+
   shuffleInPlace(ids, rand);
-  const next = cloneSichuanBoard(board);
-  positions.forEach((pos, i) => {
-    next[pos.r][pos.c] = ids[i] ?? 0;
-  });
-  // 가능하면 매치가 생기도록 최대 8회 재시도
+  let candidate = place(ids);
+  // 가능하면 매치가 생기도록 최대 12회 재시도
   let tries = 0;
-  let candidate = next;
-  while (!hasAnySichuanMatch(candidate) && ids.length >= 2 && tries < 8) {
+  while (!hasAnySichuanMatch(candidate) && tries < 12) {
     tries += 1;
     shuffleInPlace(ids, rand);
-    candidate = cloneSichuanBoard(board);
-    positions.forEach((pos, i) => {
-      candidate[pos.r][pos.c] = ids[i] ?? 0;
-    });
+    candidate = place(ids);
   }
   return candidate;
 };

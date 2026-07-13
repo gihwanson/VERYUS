@@ -176,6 +176,10 @@
   background: linear-gradient(135deg, rgba(15, 118, 110, 0.45), rgba(185, 28, 28, 0.28));
 }
 
+.games-card-art--nun-sal-mi {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.35), rgba(59, 130, 246, 0.28));
+}
+
 .games-card-teaser {
   margin: 6px 0 0 !important;
   font-size: 12px !important;
@@ -1579,4 +1583,143 @@ body.flappy-touch-lock {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+}
+
+/* —— 눈썰미 —— */
+.nunsarmi-countdown {
+  text-align: center;
+  padding: 48px 0;
+}
+
+.nunsarmi-countdown-num {
+  display: block;
+  font-size: 72px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  animation: nunsarmi-pop 0.35s ease;
+}
+
+.nunsarmi-countdown p {
+  margin: 12px 0 0;
+  opacity: 0.8;
+}
+
+@keyframes nunsarmi-pop {
+  from {
+    transform: scale(0.7);
+    opacity: 0.4;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.nunsarmi-hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.nunsarmi-prompt {
+  flex: 1;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.nunsarmi-grid {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  max-width: 420px;
+  margin: 8px auto 0;
+  padding: 10px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.08);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.nunsarmi-grid--wrong {
+  animation: nunsarmi-shake 0.22s ease;
+  background: rgba(239, 68, 68, 0.18);
+}
+
+@keyframes nunsarmi-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+.nunsarmi-cell {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.55);
+  color: inherit;
+  font-size: clamp(14px, 4.2vw, 22px);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s ease, transform 0.08s ease;
+  padding: 0;
+  line-height: 1;
+  font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif;
+}
+
+.nunsarmi-cell:hover {
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.nunsarmi-cell:active {
+  transform: scale(0.94);
+}
+
+.nunsarmi-between {
+  text-align: center;
+  padding: 48px 12px;
+}
+
+.nunsarmi-between-title {
+  margin: 0;
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  animation: nunsarmi-pop 0.35s ease;
+}
+
+.nunsarmi-between p:last-child {
+  margin: 10px 0 0;
+  opacity: 0.75;
+}
+
+@media (max-width: 480px) {
+  .nunsarmi-grid {
+    gap: 3px;
+    padding: 6px;
+  }
+
+  .nunsarmi-cell {
+    border-radius: 6px;
+  }
+
+  .nunsarmi-prompt {
+    font-size: 16px;
+  }
 }

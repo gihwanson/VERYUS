@@ -18,6 +18,37 @@
   font-family: 'Gowun Dodum', 'Batang', Georgia, serif;
 }
 
+/* 플레이 중: 배경 애니메이션/블러를 줄여 입력 렉 완화 */
+.sichuan-page--play .sichuan-ambient__wash {
+  animation: none;
+}
+
+.sichuan-page--play .sichuan-ambient__glow {
+  filter: none;
+  opacity: 0.55;
+}
+
+.sichuan-page--play .sichuan-content {
+  animation: none;
+}
+
+.sichuan-page--play .sichuan-path-svg {
+  filter: none;
+}
+
+.sichuan-page--play .sichuan-tile__emoji {
+  filter: none;
+}
+
+.sichuan-page--play .sichuan-tile {
+  transition: none;
+}
+
+.sichuan-page--play .sichuan-board {
+  contain: layout style;
+  content-visibility: auto;
+}
+
 .sichuan-ambient {
   pointer-events: none;
   position: absolute;
@@ -1288,6 +1319,12 @@
 }
 
 .sichuan-tile--hint .sichuan-tile__face {
+  box-shadow:
+    inset 0 0 0 2px rgba(250, 204, 21, 0.9),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.sichuan-page:not(.sichuan-page--play) .sichuan-tile--hint .sichuan-tile__face {
   animation: sichuan-hint-pulse 1s ease infinite;
 }
 
@@ -1371,8 +1408,24 @@
   width: 100%;
 }
 
+.sichuan-result .sichuan-rivals--result {
+  margin-top: 4px;
+}
+
+.sichuan-result .sichuan-team-card ul {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  text-align: left;
+  font-size: 0.92rem;
+  opacity: 0.95;
+}
+
 .sichuan-result .sichuan-lobby-actions {
   justify-content: center;
+  margin-top: 6px;
 }
 
 @media (max-width: 640px) {

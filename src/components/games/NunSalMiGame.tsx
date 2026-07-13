@@ -4,10 +4,14 @@ import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { detectGamePlatform, type GamePlatform } from '../../utils/gamePlatform';
 import {
-  MAX_REACTION_MS,
-  saveReactionBestScore,
-  type ReactionBestScore,
-} from '../../utils/reactionTimeScores';
+  createNunSalMiSession,
+  SESSION_ROUNDS,
+  type NunSalMiRound,
+} from '../../utils/nunSalMiLogic';
+import {
+  saveNunSalMiBestScore,
+  type NunSalMiBestScore,
+} from '../../utils/nunSalMiScores';
 import {
   selectPastChampionsForDisplay,
   type GamePastChampion,
@@ -16,24 +20,17 @@ import GameConfetti from './GameConfetti';
 import GamePastChampions from './GamePastChampions';
 import GameSoundToggle from './GameSoundToggle';
 import {
+  playCountdownGo,
+  playCountdownTick,
   playGameComplete,
   playNewRecord,
   playReactionFalseStart,
-  playReactionGo,
   playReactionSuccess,
   unlockGameAudio,
 } from '../../utils/gameSounds';
-import { getReactionGrade } from '../../utils/reactionGrades';
 import { setLastPlayedGame } from '../../utils/lastPlayedGame';
 
-type GamePhase =
-  | 'idle'
-  | 'waiting'
-  | 'go'
-  | 'false_start'
-  | 'timeout'
-  | 'between'
-  | 'finished';
+type GamePhase = 'idle' | 'countdown' | 'playing' | 'between' | 'finished';
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'skipped' | 'error';
 
 interface LeaderboardEntry {
@@ -43,22 +40,25 @@ interface LeaderboardEntry {
   attemptCount: number;
 }
 
-const WAIT_MIN_MS = 1500;
-const WAIT_MAX_MS = 5000;
-const GO_TIMEOUT_MS = MAX_REACTION_MS;
-const SESSION_ROUNDS = 5;
-const BETWEEN_MS = 1400;
+const WRONG_PENALTY_MS = 500;
+const BETWEEN_MS = 900;
+const COUNTDOWN_FROM = 3;
 
-const calcAverage = (values: number[]): number =>
-  values.reduce((sum, value) => sum + value, 0) / values.length;
+/** 눈썰미 기록은 전부 초 단위로 통일 표시 */
+const formatMs = (ms: number): string => {
+  const sec = Math.max(0, ms) / 1000;
+  if (sec < 10) return `${sec.toFixed(2)}초`;
+  return `${sec.toFixed(1)}초`;
+};
 
-const formatReactionMs = (ms: number): string => `${Math.round(ms)}ms`;
-
-const randomWaitMs = (): number =>
-  WAIT_MIN_MS + Math.floor(Math.random() * (WAIT_MAX_MS - WAIT_MIN_MS + 1));
+const formatDeltaMs = (ms: number): string => {
+  const abs = Math.abs(ms);
+  if (abs < 1000) return `${Math.round(abs)}ms`;
+  return formatMs(abs);
+};
 
 const buildLeaderboard = (
-  scores: ReactionBestScore[],
+  scores: NunSalMiBestScore[],
   platform: GamePlatform
 ): LeaderboardEntry[] =>
   scores
@@ -71,13 +71,14 @@ const buildLeaderboard = (
       attemptCount: s.attemptCount,
     }));
 
-const ReactionTimeGame: React.FC = () => {
+const NunSalMiGame: React.FC = () => {
   const navigate = useNavigate();
-  const waitTimerRef = useRef<number | null>(null);
-  const goTimerRef = useRef<number | null>(null);
-  const goTimeRef = useRef<number | null>(null);
   const phaseRef = useRef<GamePhase>('idle');
-  const finishedRef = useRef(false);
+  const roundStartRef = useRef<number | null>(null);
+  const betweenTimerRef = useRef<number | null>(null);
+  const countdownTimerRef = useRef<number | null>(null);
+  const attemptResultsRef = useRef<number[]>([]);
+  const wrongFlashTimerRef = useRef<number | null>(null);
 
   const user = useMemo(() => {
     try {
@@ -91,17 +92,20 @@ const ReactionTimeGame: React.FC = () => {
   const [platform] = useState<GamePlatform>(detectGamePlatform);
   const [leaderboardTab, setLeaderboardTab] = useState<GamePlatform>(platform);
   const [phase, setPhase] = useState<GamePhase>('idle');
+  const [countdown, setCountdown] = useState(COUNTDOWN_FROM);
+  const [rounds, setRounds] = useState<NunSalMiRound[]>([]);
+  const [roundIndex, setRoundIndex] = useState(0);
+  const [attemptResults, setAttemptResults] = useState<number[]>([]);
+  const [lastAttemptMs, setLastAttemptMs] = useState<number | null>(null);
   const [finalResult, setFinalResult] = useState<number | null>(null);
-  const [bestScores, setBestScores] = useState<ReactionBestScore[]>([]);
+  const [wrongFlash, setWrongFlash] = useState(false);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const [bestScores, setBestScores] = useState<NunSalMiBestScore[]>([]);
   const [pastChampions, setPastChampions] = useState<GamePastChampion[]>([]);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveDetail, setSaveDetail] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [attemptResults, setAttemptResults] = useState<number[]>([]);
-  const [lastAttemptMs, setLastAttemptMs] = useState<number | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
-  const betweenTimerRef = useRef<number | null>(null);
-  const attemptResultsRef = useRef<number[]>([]);
 
   const setPhaseSafe = useCallback((next: GamePhase) => {
     phaseRef.current = next;
@@ -109,29 +113,33 @@ const ReactionTimeGame: React.FC = () => {
   }, []);
 
   const clearTimers = useCallback(() => {
-    if (waitTimerRef.current !== null) {
-      window.clearTimeout(waitTimerRef.current);
-      waitTimerRef.current = null;
+    if (betweenTimerRef.current !== null) {
+      window.clearTimeout(betweenTimerRef.current);
+      betweenTimerRef.current = null;
     }
-    if (goTimerRef.current !== null) {
-      window.clearTimeout(goTimerRef.current);
-      goTimerRef.current = null;
+    if (countdownTimerRef.current !== null) {
+      window.clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+    if (wrongFlashTimerRef.current !== null) {
+      window.clearTimeout(wrongFlashTimerRef.current);
+      wrongFlashTimerRef.current = null;
     }
   }, []);
 
   useEffect(() => {
-    setLastPlayedGame('reaction-time');
+    setLastPlayedGame('nun-sal-mi');
   }, []);
 
   useEffect(() => {
     const unsub = onSnapshot(
-      collection(db, 'games', 'reactionTime', 'bestScores'),
+      collection(db, 'games', 'nunSalMi', 'bestScores'),
       (snap) => {
         setLoadError(null);
         setBestScores(
           snap.docs.map((d) => ({
             id: d.id,
-            ...(d.data() as Omit<ReactionBestScore, 'id'>),
+            ...(d.data() as Omit<NunSalMiBestScore, 'id'>),
           }))
         );
       },
@@ -145,7 +153,7 @@ const ReactionTimeGame: React.FC = () => {
 
   useEffect(() => {
     const unsub = onSnapshot(
-      collection(db, 'games', 'reactionTime', 'pastChampions'),
+      collection(db, 'games', 'nunSalMi', 'pastChampions'),
       (snap) => {
         setPastChampions(
           snap.docs.map((d) => ({
@@ -164,14 +172,17 @@ const ReactionTimeGame: React.FC = () => {
   useEffect(
     () => () => {
       clearTimers();
-      if (betweenTimerRef.current !== null) window.clearTimeout(betweenTimerRef.current);
     },
     [clearTimers]
   );
 
   useEffect(() => {
-    if (phase !== 'go') return;
-    playReactionGo();
+    if (phase !== 'playing') return;
+    const tick = window.setInterval(() => {
+      if (roundStartRef.current == null) return;
+      setElapsedMs(Date.now() - roundStartRef.current);
+    }, 50);
+    return () => window.clearInterval(tick);
   }, [phase]);
 
   const leaderboard = useMemo(
@@ -180,7 +191,7 @@ const ReactionTimeGame: React.FC = () => {
   );
 
   const pastChampionsForTab = useMemo(
-    () => selectPastChampionsForDisplay(pastChampions, leaderboardTab, 'reactionTime'),
+    () => selectPastChampionsForDisplay(pastChampions, leaderboardTab, 'nunSalMi'),
     [pastChampions, leaderboardTab]
   );
 
@@ -203,10 +214,7 @@ const ReactionTimeGame: React.FC = () => {
     return me?.bestDurationMs ?? null;
   }, [leaderboard, user?.uid]);
 
-  const finishGrade = useMemo(
-    () => (finalResult !== null ? getReactionGrade(finalResult) : null),
-    [finalResult]
-  );
+  const currentRound = rounds[roundIndex] ?? null;
 
   const saveScore = useCallback(
     async (durationMs: number) => {
@@ -219,7 +227,7 @@ const ReactionTimeGame: React.FC = () => {
       setSaveStatus('saving');
       setSaveDetail(null);
       try {
-        const result = await saveReactionBestScore({
+        const result = await saveNunSalMiBestScore({
           uid: user.uid,
           nickname: user.nickname,
           durationMs,
@@ -235,7 +243,7 @@ const ReactionTimeGame: React.FC = () => {
         setSaveDetail(
           result.isNewBest
             ? `${platform === 'pc' ? 'PC' : '모바일'} 신기록! (${result.attemptCount}회째 도전)`
-            : `최고 기록 ${formatReactionMs(result.bestDurationMs)} 유지 (${result.attemptCount}회째 도전)`
+            : `최고 기록 ${formatMs(result.bestDurationMs)} 유지 (${result.attemptCount}회째 도전)`
         );
       } catch (e) {
         console.error('점수 저장 실패:', e);
@@ -250,36 +258,20 @@ const ReactionTimeGame: React.FC = () => {
     [platform, user]
   );
 
-  const beginWaiting = useCallback(() => {
-    clearTimers();
-    if (betweenTimerRef.current !== null) {
-      window.clearTimeout(betweenTimerRef.current);
-      betweenTimerRef.current = null;
-    }
-    finishedRef.current = false;
-    goTimeRef.current = null;
-    setPhaseSafe('waiting');
+  const beginRound = useCallback(
+    (index: number) => {
+      setRoundIndex(index);
+      setWrongFlash(false);
+      setElapsedMs(0);
+      roundStartRef.current = Date.now();
+      setPhaseSafe('playing');
+    },
+    [setPhaseSafe]
+  );
 
-    waitTimerRef.current = window.setTimeout(() => {
-      const now = Date.now();
-      goTimeRef.current = now;
-      setPhaseSafe('go');
-
-      goTimerRef.current = window.setTimeout(() => {
-        if (phaseRef.current !== 'go' || finishedRef.current) return;
-        finishedRef.current = true;
-        clearTimers();
-        setPhaseSafe('timeout');
-      }, GO_TIMEOUT_MS);
-    }, randomWaitMs());
-  }, [clearTimers, setPhaseSafe]);
-
-  const finishAttempt = useCallback(
+  const finishRound = useCallback(
     (durationMs: number) => {
-      if (finishedRef.current) return;
-      finishedRef.current = true;
-      clearTimers();
-      playReactionSuccess(durationMs);
+      playReactionSuccess(Math.min(durationMs, 800));
       setLastAttemptMs(durationMs);
 
       const nextTimes = [...attemptResultsRef.current, durationMs];
@@ -289,22 +281,24 @@ const ReactionTimeGame: React.FC = () => {
       if (nextTimes.length < SESSION_ROUNDS) {
         setPhaseSafe('between');
         betweenTimerRef.current = window.setTimeout(() => {
-          finishedRef.current = false;
-          beginWaiting();
+          beginRound(nextTimes.length);
         }, BETWEEN_MS);
       } else {
-        const average = Math.round(calcAverage(nextTimes));
-        setFinalResult(average);
+        const total = nextTimes.reduce((sum, ms) => sum + ms, 0);
+        setFinalResult(total);
         setPhaseSafe('finished');
         playGameComplete();
-        void saveScore(average);
+        void saveScore(total);
       }
     },
-    [beginWaiting, clearTimers, saveScore, setPhaseSafe]
+    [beginRound, saveScore, setPhaseSafe]
   );
 
-  const startGame = useCallback(() => {
+  const startCountdown = useCallback(() => {
+    clearTimers();
     unlockGameAudio();
+    const session = createNunSalMiSession();
+    setRounds(session);
     attemptResultsRef.current = [];
     setAttemptResults([]);
     setLastAttemptMs(null);
@@ -312,75 +306,53 @@ const ReactionTimeGame: React.FC = () => {
     setSaveStatus('idle');
     setSaveDetail(null);
     setShowConfetti(false);
-    beginWaiting();
-  }, [beginWaiting]);
+    setWrongFlash(false);
+    setRoundIndex(0);
+    setCountdown(COUNTDOWN_FROM);
+    setPhaseSafe('countdown');
+    playCountdownTick();
 
-  const handleReactionTap = useCallback(() => {
-    const current = phaseRef.current;
+    let remaining = COUNTDOWN_FROM;
+    countdownTimerRef.current = window.setInterval(() => {
+      remaining -= 1;
+      if (remaining > 0) {
+        setCountdown(remaining);
+        playCountdownTick();
+        return;
+      }
+      if (countdownTimerRef.current !== null) {
+        window.clearInterval(countdownTimerRef.current);
+        countdownTimerRef.current = null;
+      }
+      playCountdownGo();
+      beginRound(0);
+    }, 1000);
+  }, [beginRound, clearTimers, setPhaseSafe]);
 
-    if (current === 'idle' || current === 'between' || current === 'finished') return;
+  const handleCellClick = useCallback(
+    (index: number) => {
+      if (phaseRef.current !== 'playing' || !currentRound || roundStartRef.current == null) {
+        return;
+      }
 
-    if (current === 'waiting') {
-      clearTimers();
-      finishedRef.current = true;
+      if (index === currentRound.oddIndex) {
+        const durationMs = Date.now() - roundStartRef.current;
+        roundStartRef.current = null;
+        finishRound(durationMs);
+        return;
+      }
+
       playReactionFalseStart();
-      setPhaseSafe('false_start');
-      return;
-    }
-
-    if (current === 'go' && goTimeRef.current !== null && !finishedRef.current) {
-      const durationMs = Date.now() - goTimeRef.current;
-      finishAttempt(durationMs);
-    }
-  }, [clearTimers, finishAttempt, setPhaseSafe]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.code !== 'Space' && e.key !== ' ') return;
-      if (phaseRef.current !== 'waiting' && phaseRef.current !== 'go') return;
-      e.preventDefault();
-      handleReactionTap();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [handleReactionTap]);
-
-  const phaseMessage = useMemo(() => {
-    switch (phase) {
-      case 'idle':
-        return { title: '준비되셨나요?', hint: '시작 버튼을 누르면 테스트가 시작됩니다.' };
-      case 'waiting':
-        return {
-          title: '기다리세요...',
-          hint: `초록색이 될 때까지 누르지 마세요 · ${attemptResults.length + 1}/${SESSION_ROUNDS}회`,
-        };
-      case 'go':
-        return {
-          title: '지금!',
-          hint: `최대한 빠르게 탭하세요 · ${attemptResults.length + 1}/${SESSION_ROUNDS}회`,
-        };
-      case 'between':
-        return lastAttemptMs !== null
-          ? {
-              title: formatReactionMs(lastAttemptMs),
-              hint: `${attemptResults.length}/${SESSION_ROUNDS}회 완료 · 다음 시도 준비 중…`,
-            }
-          : { title: '다음 시도', hint: '' };
-      case 'false_start':
-        return { title: '너무 빨라요!', hint: '초록색이 되기 전에 눌렀습니다. 다시 도전해 보세요.' };
-      case 'timeout':
-        return { title: '시간 초과', hint: '반응이 너무 늦었습니다. 다시 도전해 보세요.' };
-      case 'finished':
-        return finalResult !== null
-          ? {
-              title: formatReactionMs(finalResult),
-              hint: '5회 평균',
-            }
-          : { title: '완료', hint: '' };
-      default:
-        return { title: '', hint: '' };
-    }
-  }, [attemptResults.length, finalResult, lastAttemptMs, phase]);
+      roundStartRef.current -= WRONG_PENALTY_MS;
+      setElapsedMs(Date.now() - roundStartRef.current);
+      setWrongFlash(true);
+      if (wrongFlashTimerRef.current !== null) {
+        window.clearTimeout(wrongFlashTimerRef.current);
+      }
+      wrongFlashTimerRef.current = window.setTimeout(() => setWrongFlash(false), 220);
+    },
+    [currentRound, finishRound]
+  );
 
   const saveStatusMessage = useMemo(() => {
     if (saveStatus === 'saving') return '저장 중...';
@@ -388,6 +360,15 @@ const ReactionTimeGame: React.FC = () => {
     if (saveStatus === 'skipped' || saveStatus === 'error') return saveDetail ?? '저장 실패';
     return '';
   }, [saveDetail, saveStatus]);
+
+  const abortToIdle = useCallback(() => {
+    clearTimers();
+    roundStartRef.current = null;
+    setPhaseSafe('idle');
+    setFinalResult(null);
+    setSaveStatus('idle');
+    setSaveDetail(null);
+  }, [clearTimers, setPhaseSafe]);
 
   return (
     <div className="games-page">
@@ -400,10 +381,10 @@ const ReactionTimeGame: React.FC = () => {
         </header>
 
         <h1 className="games-title" style={{ marginBottom: 8 }}>
-          반응속도 테스트
+          눈썰미
         </h1>
         <p className="games-subtitle" style={{ marginBottom: 20 }}>
-          5회 측정 후 평균이 순위에 반영됩니다. PC에서는 스페이스바도 사용할 수 있어요.
+          비슷한 글자 속에서 다른 하나를 찾아보세요. 5라운드 총 시간이 순위에 반영됩니다.
         </p>
 
         <div className="typing-game-panel">
@@ -418,130 +399,139 @@ const ReactionTimeGame: React.FC = () => {
           </div>
 
           {myBestMs != null && phase === 'idle' && (
-            <p className="typing-personal-best">내 최고 기록: {formatReactionMs(myBestMs)}</p>
+            <p className="typing-personal-best">내 최고 기록: {formatMs(myBestMs)}</p>
           )}
 
           {phase === 'idle' && (
             <div style={{ textAlign: 'center', padding: '24px 0' }}>
-              <p style={{ marginBottom: 20, opacity: 0.9 }}>
-                빨간 화면에서는 기다렸다가, 초록색이 되면 바로 탭하세요.
+              <p style={{ marginBottom: 12, opacity: 0.9, lineHeight: 1.6 }}>
+                예: 가 가 가 가 가 가 <strong>거</strong> 가 가 가
                 <br />
-                빨간색일 때 누르면 실패 처리됩니다.
+                수많은 같은 음절 중 다른 하나를 클릭하세요.
+                <br />
+                틀리면 +{WRONG_PENALTY_MS}ms 페널티가 붙습니다.
               </p>
-              <button type="button" className="typing-btn typing-btn-primary" onClick={startGame}>
+              <button type="button" className="typing-btn typing-btn-primary" onClick={startCountdown}>
                 시작하기
               </button>
             </div>
           )}
 
-          {phase !== 'idle' && (
+          {phase === 'countdown' && (
+            <div className="nunsarmi-countdown" aria-live="polite">
+              <span className="nunsarmi-countdown-num">{countdown}</span>
+              <p>곧 시작합니다</p>
+            </div>
+          )}
+
+          {(phase === 'playing' || phase === 'between') && currentRound && (
             <>
-              {attemptResults.length > 0 && phase !== 'finished' && (
+              <div className="nunsarmi-hud">
+                <span>
+                  {phase === 'between' ? attemptResults.length : roundIndex + 1}/{SESSION_ROUNDS}{' '}
+                  라운드
+                </span>
+                <span className="nunsarmi-prompt">{currentRound.prompt}</span>
+                <span>
+                  {phase === 'playing'
+                    ? formatMs(elapsedMs)
+                    : lastAttemptMs != null
+                      ? formatMs(lastAttemptMs)
+                      : '—'}
+                </span>
+              </div>
+
+              {attemptResults.length > 0 && (
                 <div className="reaction-session-strip" aria-label="이번 세션 기록">
                   {attemptResults.map((ms, i) => (
                     <span key={`${i}-${ms}`} className="reaction-session-pill">
-                      {i + 1}회 {formatReactionMs(ms)}
+                      {i + 1}R {formatMs(ms)}
                     </span>
                   ))}
                 </div>
               )}
 
-              <button
-                type="button"
-                className={`reaction-zone reaction-zone--${phase === 'between' ? 'finished' : phase}`}
-                onClick={handleReactionTap}
-                disabled={
-                  phase === 'finished' ||
-                  phase === 'false_start' ||
-                  phase === 'timeout' ||
-                  phase === 'between'
-                }
-                aria-label={phaseMessage.title}
-              >
-                <span
-                  className={`reaction-zone-title${phase === 'finished' || phase === 'between' ? ' reaction-zone-title--pop' : ''}`}
-                >
-                  {phaseMessage.title}
-                </span>
-                <span className="reaction-zone-hint">{phaseMessage.hint}</span>
-              </button>
-
-              {phase === 'finished' && finalResult !== null && (
+              {phase === 'between' ? (
+                <div className="nunsarmi-between">
+                  <p className="nunsarmi-between-title">{formatMs(lastAttemptMs ?? 0)}</p>
+                  <p>다음 라운드 준비 중…</p>
+                </div>
+              ) : (
                 <div
-                  className={`typing-result${saveStatus === 'error' || saveStatus === 'skipped' ? ' typing-result--error' : ''}`}
+                  className={`nunsarmi-grid${wrongFlash ? ' nunsarmi-grid--wrong' : ''}`}
+                  style={{ gridTemplateColumns: `repeat(${currentRound.cols}, minmax(0, 1fr))` }}
+                  role="grid"
+                  aria-label={currentRound.prompt}
                 >
-                  <h4>5회 측정 완료!</h4>
-                  {finishGrade && (
-                    <p className={`reaction-grade reaction-grade--${finishGrade.tone}`}>
-                      {finishGrade.emoji} {finishGrade.label}
-                    </p>
-                  )}
-                  <p>
-                    평균 {formatReactionMs(finalResult)}
-                    {saveStatusMessage ? ` (${saveStatusMessage})` : ''}
-                  </p>
-                  {myBestMs != null && (
-                    <p className="typing-result-compare">
-                      {finalResult < myBestMs
-                        ? `이전 최고 ${formatReactionMs(myBestMs)}보다 ${Math.round(myBestMs - finalResult)}ms 빨라요!`
-                        : finalResult === myBestMs
-                          ? '최고 기록과 동일합니다'
-                          : `최고 기록 ${formatReactionMs(myBestMs)} (차이 +${Math.round(finalResult - myBestMs)}ms)`}
-                    </p>
-                  )}
-                  {attemptResults.length > 0 && (
-                    <div className="reaction-session-strip reaction-session-strip--result">
-                      {attemptResults.map((ms, i) => (
-                        <span
-                          key={`done-${i}-${ms}`}
-                          className={`reaction-session-pill${ms === finalResult ? ' reaction-session-pill--best' : ''}`}
-                        >
-                          {i + 1}회 {formatReactionMs(ms)}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {saveStatus === 'saved' && myRank && leaderboardTab === platform && (
-                    <p style={{ margin: '8px 0 0', fontSize: 14 }}>
-                      현재 {platform === 'pc' ? 'PC' : '모바일'} 순위: <strong>{myRank}위</strong>
-                    </p>
-                  )}
-                  {(saveStatus === 'error' || saveStatus === 'skipped') && (
+                  {currentRound.cells.map((syllable, index) => (
                     <button
+                      key={`${roundIndex}-${index}`}
                       type="button"
-                      className="typing-btn typing-btn-secondary"
-                      style={{ marginTop: 12 }}
-                      onClick={() => void saveScore(finalResult)}
+                      className="nunsarmi-cell"
+                      onClick={() => handleCellClick(index)}
                     >
-                      다시 저장 시도
+                      {syllable}
                     </button>
-                  )}
+                  ))}
                 </div>
               )}
 
               <div className="typing-actions">
-                {(phase === 'finished' || phase === 'false_start' || phase === 'timeout') && (
-                  <button type="button" className="typing-btn typing-btn-primary" onClick={startGame}>
-                    {phase === 'finished' ? '새 5회 도전' : '다시 도전'}
-                  </button>
+                <button type="button" className="typing-btn typing-btn-secondary" onClick={abortToIdle}>
+                  포기
+                </button>
+              </div>
+            </>
+          )}
+
+          {phase === 'finished' && finalResult !== null && (
+            <>
+              <div
+                className={`typing-result${saveStatus === 'error' || saveStatus === 'skipped' ? ' typing-result--error' : ''}`}
+              >
+                <h4>5라운드 완료!</h4>
+                <p>
+                  총 {formatMs(finalResult)}
+                  {saveStatusMessage ? ` (${saveStatusMessage})` : ''}
+                </p>
+                {myBestMs != null && (
+                  <p className="typing-result-compare">
+                    {finalResult < myBestMs
+                      ? `이전 최고 ${formatMs(myBestMs)}보다 ${formatDeltaMs(myBestMs - finalResult)} 빨라요!`
+                      : finalResult === myBestMs
+                        ? '최고 기록과 동일합니다'
+                        : `최고 기록 ${formatMs(myBestMs)} (차이 +${formatDeltaMs(finalResult - myBestMs)})`}
+                  </p>
                 )}
-                {(phase === 'waiting' || phase === 'go') && (
+                {attemptResults.length > 0 && (
+                  <div className="reaction-session-strip reaction-session-strip--result">
+                    {attemptResults.map((ms, i) => (
+                      <span key={`done-${i}-${ms}`} className="reaction-session-pill">
+                        {i + 1}R {formatMs(ms)}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {saveStatus === 'saved' && myRank && leaderboardTab === platform && (
+                  <p style={{ margin: '8px 0 0', fontSize: 14 }}>
+                    현재 {platform === 'pc' ? 'PC' : '모바일'} 순위: <strong>{myRank}위</strong>
+                  </p>
+                )}
+                {(saveStatus === 'error' || saveStatus === 'skipped') && (
                   <button
                     type="button"
                     className="typing-btn typing-btn-secondary"
-                    onClick={() => {
-                      clearTimers();
-                      finishedRef.current = false;
-                      goTimeRef.current = null;
-                      setFinalResult(null);
-                      setSaveStatus('idle');
-                      setSaveDetail(null);
-                      setPhaseSafe('idle');
-                    }}
+                    style={{ marginTop: 12 }}
+                    onClick={() => void saveScore(finalResult)}
                   >
-                    포기
+                    다시 저장 시도
                   </button>
                 )}
+              </div>
+              <div className="typing-actions">
+                <button type="button" className="typing-btn typing-btn-primary" onClick={startCountdown}>
+                  새 5라운드 도전
+                </button>
               </div>
             </>
           )}
@@ -591,7 +581,7 @@ const ReactionTimeGame: React.FC = () => {
                       </div>
                     </div>
                     <span className="typing-rank-score">
-                      {formatReactionMs(myStickyRank.entry.bestDurationMs)}
+                      {formatMs(myStickyRank.entry.bestDurationMs)}
                     </span>
                   </li>
                 )}
@@ -608,13 +598,9 @@ const ReactionTimeGame: React.FC = () => {
                           {entry.nickname}
                           {isMe ? ' (나)' : ''}
                         </div>
-                        <div className="typing-rank-meta">
-                          {entry.attemptCount}회 도전
-                        </div>
+                        <div className="typing-rank-meta">{entry.attemptCount}회 도전</div>
                       </div>
-                      <span className="typing-rank-score">
-                        {formatReactionMs(entry.bestDurationMs)}
-                      </span>
+                      <span className="typing-rank-score">{formatMs(entry.bestDurationMs)}</span>
                     </li>
                   );
                 })}
@@ -626,7 +612,7 @@ const ReactionTimeGame: React.FC = () => {
             champions={pastChampionsForTab}
             userUid={user?.uid}
             platformLabel={leaderboardTab === 'pc' ? 'PC' : '모바일'}
-            formatScore={(champion) => formatReactionMs(champion.durationMs)}
+            formatScore={(champion) => formatMs(champion.durationMs)}
           />
         </section>
       </div>
@@ -634,4 +620,4 @@ const ReactionTimeGame: React.FC = () => {
   );
 };
 
-export default ReactionTimeGame;
+export default NunSalMiGame;

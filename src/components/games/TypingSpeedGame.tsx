@@ -14,7 +14,7 @@ import {
   type TypingBestScore,
 } from '../../utils/typingSpeedScores';
 import {
-  sortPastChampions,
+  selectPastChampionsForDisplay,
   type GamePastChampion,
 } from '../../utils/gamePastChampions';
 import GameConfetti from './GameConfetti';
@@ -156,7 +156,7 @@ const TypingSpeedGame: React.FC = () => {
   );
 
   const pastChampionsForTab = useMemo(
-    () => sortPastChampions(pastChampions, leaderboardTab),
+    () => selectPastChampionsForDisplay(pastChampions, leaderboardTab, 'typingSpeed'),
     [pastChampions, leaderboardTab]
   );
 

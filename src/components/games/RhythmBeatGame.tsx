@@ -10,7 +10,7 @@ import {
   type RhythmBeatBestScore,
 } from '../../utils/rhythmBeatScores';
 import {
-  sortPastChampions,
+  selectPastChampionsForDisplay,
   type GamePastChampion,
 } from '../../utils/gamePastChampions';
 import GameConfetti from './GameConfetti';
@@ -236,7 +236,7 @@ const RhythmBeatGame: React.FC = () => {
   );
 
   const pastChampionsForTab = useMemo(
-    () => sortPastChampions(pastChampions, leaderboardTab),
+    () => selectPastChampionsForDisplay(pastChampions, leaderboardTab, 'rhythmBeat'),
     [pastChampions, leaderboardTab]
   );
 

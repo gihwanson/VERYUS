@@ -176,6 +176,7 @@ const RhythmBeatGame = lazy(() => import('./components/games/RhythmBeatGame'));
 const FlappyBirdGame = lazy(() => import('./components/games/FlappyBirdGame'));
 const LockedPracticeRoomGame = lazy(() => import('./components/games/escape/LockedPracticeRoomGame'));
 const SichuanGame = lazy(() => import('./components/games/sichuan/SichuanGame'));
+const NunSalMiGame = lazy(() => import('./components/games/NunSalMiGame'));
 const Piano = lazy(() => import('./components/Piano'));
 const DrumKit = lazy(() => import('./components/DrumKit'));
 
@@ -1158,6 +1159,7 @@ function App() {
               <Route path="/games/flappy-bird" element={<ProtectedRoute><FlappyBirdGame /></ProtectedRoute>} />
               <Route path="/games/locked-practice-room" element={<ProtectedRoute><LockedPracticeRoomGame /></ProtectedRoute>} />
               <Route path="/games/sichuan" element={<ProtectedRoute><SichuanGame /></ProtectedRoute>} />
+              <Route path="/games/nun-sal-mi" element={<ProtectedRoute><NunSalMiGame /></ProtectedRoute>} />
 
               {/* 악기 — 피아노 · 드럼 */}
               <Route path="/instruments" element={<Navigate to="/instruments/piano" replace />} />

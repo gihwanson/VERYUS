@@ -151,6 +151,125 @@ export const findSichuanRoomByCode = async (code: string): Promise<SichuanRoom |
   return { id: snap.id, ...(snap.data() as Omit<SichuanRoom, 'id'>) };
 };
 
+const LOBBY_STALE_MS = 90_000; // 로비에서 90초 무응답이면 유령으로 간주
+
+const getUpdatedAtMs = (data: { updatedAtMs?: number }): number =>
+  Number(data.updatedAtMs) || 0;
+
+/** 방 + 참가자 문서 전부 삭제 (열린 방/잔여 방 강제 제거) */
+export const dissolveSichuanRoom = async (roomId: string): Promise<void> => {
+  const id = roomId.trim().toUpperCase();
+  if (!id) return;
+  const rRef = roomRef(id);
+  try {
+    const playersSnap = await getDocs(playersCol(id));
+    await Promise.all(playersSnap.docs.map((d) => deleteDoc(d.ref).catch(() => undefined)));
+  } catch {
+    /* ignore */
+  }
+  try {
+    await deleteDoc(rRef);
+  } catch {
+    /* ignore */
+  }
+};
+
+/** 로비 방의 실제 참가자 수와 playerCount/방장을 맞춤. 빈·유령 방은 삭제. */
+export const reconcileSichuanLobby = async (roomId: string): Promise<SichuanRoom | null> => {
+  const rRef = roomRef(roomId);
+  const roomSnap = await getDoc(rRef);
+  if (!roomSnap.exists()) return null;
+
+  const room = { id: roomSnap.id, ...(roomSnap.data() as Omit<SichuanRoom, 'id'>) };
+  if (room.status !== 'lobby') return room;
+
+  const playersSnap = await getDocs(playersCol(roomId));
+  const now = Date.now();
+
+  // 오래 갱신 없는 유령 참가자 제거
+  const staleDocs = playersSnap.docs.filter((d) => {
+    const ms = getUpdatedAtMs(d.data() as { updatedAtMs?: number });
+    return !ms || now - ms > LOBBY_STALE_MS;
+  });
+  if (staleDocs.length > 0) {
+    await Promise.all(staleDocs.map((d) => deleteDoc(d.ref).catch(() => undefined)));
+  }
+
+  const aliveSnap = staleDocs.length > 0 ? await getDocs(playersCol(roomId)) : playersSnap;
+  const actualCount = aliveSnap.size;
+
+  if (actualCount === 0) {
+    try {
+      if ((Number(room.playerCount) || 0) !== 0) {
+        await updateDoc(rRef, { playerCount: 0 });
+      }
+      await deleteDoc(rRef);
+    } catch {
+      try {
+        await dissolveSichuanRoom(roomId);
+      } catch {
+        /* ignore */
+      }
+    }
+    return null;
+  }
+
+  const hostStillHere = aliveSnap.docs.some((d) => d.id === room.hostUid);
+  const nextHost = hostStillHere ? room.hostUid : aliveSnap.docs[0].id;
+  const patch: Record<string, string | number> = {};
+  if ((Number(room.playerCount) || 0) !== actualCount) patch.playerCount = actualCount;
+  if (nextHost !== room.hostUid) patch.hostUid = nextHost;
+
+  if (Object.keys(patch).length > 0) {
+    try {
+      await updateDoc(rRef, patch);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return {
+    ...room,
+    playerCount: actualCount,
+    hostUid: nextHost,
+  };
+};
+
+/** 열린 방 목록의 유령/빈 로비를 정리 */
+export const pruneStaleSichuanLobbies = async (): Promise<void> => {
+  const snap = await getDocs(query(roomsCol(), where('status', '==', 'lobby')));
+  await Promise.all(snap.docs.map((d) => reconcileSichuanLobby(d.id)));
+};
+
+/** 끝난 방·비정상 playing 방도 정리 (열린 방 잔류/고아 문서 방지) */
+export const pruneClosedSichuanRooms = async (): Promise<void> => {
+  const [finishedSnap, playingSnap] = await Promise.all([
+    getDocs(query(roomsCol(), where('status', '==', 'finished'))),
+    getDocs(query(roomsCol(), where('status', '==', 'playing'))),
+  ]);
+
+  await Promise.all(
+    finishedSnap.docs.map((d) => dissolveSichuanRoom(d.id))
+  );
+
+  const now = Date.now();
+  await Promise.all(
+    playingSnap.docs.map(async (d) => {
+      const room = d.data() as SichuanRoom;
+      const started = Number(room.startedAtMs) || Number(room.createdAtMs) || 0;
+      // 30분 넘게 playing 이면 강제 해산
+      if (started && now - started > 30 * 60 * 1000) {
+        await dissolveSichuanRoom(d.id);
+        return;
+      }
+      const playersSnap = await getDocs(playersCol(d.id));
+      if (playersSnap.empty) {
+        await dissolveSichuanRoom(d.id);
+      }
+    })
+  );
+};
+
 export const joinSichuanRoom = async (params: {
   roomId: string;
   uid: string;
@@ -158,6 +277,10 @@ export const joinSichuanRoom = async (params: {
 }): Promise<SichuanRoom> => {
   const roomId = params.roomId.trim().toUpperCase();
   if (!roomId) throw new Error('방을 찾을 수 없습니다.');
+
+  // 입장 전 유령 인원/빈 방 정리
+  const reconciled = await reconcileSichuanLobby(roomId);
+  if (!reconciled) throw new Error('방이 닫혔습니다.');
 
   const joined = await runTransaction(db, async (tx) => {
     const rRef = roomRef(roomId);
@@ -189,75 +312,95 @@ export const joinSichuanRoom = async (params: {
 };
 
 export const leaveSichuanRoom = async (roomId: string, uid: string): Promise<void> => {
-  const rRef = roomRef(roomId);
-  const pRef = playerRef(roomId, uid);
+  const id = roomId.trim().toUpperCase();
+  const rRef = roomRef(id);
+  const pRef = playerRef(id, uid);
 
   let wasHost = false;
-  let dissolved = false;
+  let shouldDissolve = false;
+  let roomStatus: SichuanRoomStatus | null = null;
 
-  await runTransaction(db, async (tx) => {
-    const roomSnap = await tx.get(rRef);
-    const playerSnap = await tx.get(pRef);
-    if (playerSnap.exists()) tx.delete(pRef);
-    if (!roomSnap.exists()) return;
+  try {
+    await runTransaction(db, async (tx) => {
+      const roomSnap = await tx.get(rRef);
+      const playerSnap = await tx.get(pRef);
+      if (playerSnap.exists()) tx.delete(pRef);
+      if (!roomSnap.exists()) {
+        shouldDissolve = true;
+        return;
+      }
 
-    const room = roomSnap.data() as SichuanRoom;
-    wasHost = room.hostUid === uid;
-    const nextCount = Math.max(0, (Number(room.playerCount) || 1) - (playerSnap.exists() ? 1 : 0));
+      const room = roomSnap.data() as SichuanRoom;
+      roomStatus = room.status;
+      wasHost = room.hostUid === uid;
+      const nextCount = Math.max(
+        0,
+        (Number(room.playerCount) || 1) - (playerSnap.exists() ? 1 : 0)
+      );
 
-    // 로비에서 방장 이탈 또는 인원 0 → 방 해산 (열린 방에서 즉시 제거)
-    if (nextCount === 0 || (wasHost && room.status === 'lobby')) {
-      tx.delete(rRef);
-      dissolved = true;
-      return;
-    }
+      // 로비: 방장 이탈 또는 인원 0 → 즉시 해산
+      if (room.status === 'lobby' && (nextCount === 0 || wasHost)) {
+        tx.delete(rRef);
+        shouldDissolve = true;
+        return;
+      }
 
-    // 종료된 방에서도 마지막 인원이 아니면 카운트만 감소, 끝나면 아래에서 정리
-    if (room.status === 'finished' && nextCount <= 1) {
-      tx.delete(rRef);
-      dissolved = true;
-      return;
-    }
+      // 종료된 방 / 마지막 인원 → 해산
+      if (room.status === 'finished' || nextCount === 0) {
+        tx.delete(rRef);
+        shouldDissolve = true;
+        return;
+      }
 
-    tx.update(rRef, { playerCount: nextCount });
-  });
+      tx.update(rRef, { playerCount: nextCount });
+    });
+  } catch {
+    // 트랜잭션 실패해도 아래에서 강제 정리
+    shouldDissolve = true;
+  }
 
-  if (dissolved) return;
+  // 참가자 문서까지 포함해 잔여 정리
+  const playersSnap = await getDocs(playersCol(id)).catch(() => null);
+  const remaining = playersSnap?.docs.filter((d) => d.id !== uid) ?? [];
 
-  const roomSnap = await getDoc(rRef);
-  if (!roomSnap.exists()) return;
-
-  const room = roomSnap.data() as SichuanRoom;
-  const playersSnap = await getDocs(playersCol(roomId));
-
-  if (playersSnap.empty) {
-    try {
-      await deleteDoc(rRef);
-    } catch {
-      /* ignore */
-    }
+  if (
+    shouldDissolve ||
+    remaining.length === 0 ||
+    roomStatus === 'finished' ||
+    (roomStatus === 'lobby' && wasHost)
+  ) {
+    await dissolveSichuanRoom(id);
     return;
   }
 
-  // 게임 중/종료 후: 남은 인원이 없으면 제거
-  if (room.status === 'finished' || playersSnap.size === 0) {
-    try {
-      await deleteDoc(rRef);
-    } catch {
-      /* ignore */
-    }
+  const roomSnap = await getDoc(rRef).catch(() => null);
+  if (!roomSnap?.exists()) {
+    await dissolveSichuanRoom(id);
     return;
   }
 
   if (wasHost) {
-    const nextHost = playersSnap.docs.find((d) => d.id !== uid)?.id;
+    const nextHost = remaining[0]?.id;
     if (nextHost) {
       try {
         await updateDoc(rRef, { hostUid: nextHost });
       } catch {
         /* ignore */
       }
+    } else {
+      await dissolveSichuanRoom(id);
     }
+  }
+};
+
+export const touchSichuanLobbyPresence = async (
+  roomId: string,
+  uid: string
+): Promise<void> => {
+  try {
+    await updateDoc(playerRef(roomId, uid), { updatedAtMs: Date.now() });
+  } catch {
+    /* ignore */
   }
 };
 
@@ -326,26 +469,29 @@ export const updateSichuanProgress = async (params: {
   });
 };
 
-/** 종료 처리 후 방을 삭제해 열린 방 목록에 남지 않게 함 */
+/** 종료 처리 후 방을 삭제해 열린 방/잔여 방에 남지 않게 함 */
 export const finishSichuanRoom = async (params: {
   roomId: string;
   winnerTeam: 0 | 1 | null;
   winnerLabel: string;
 }): Promise<void> => {
   const rRef = roomRef(params.roomId);
-  await updateDoc(rRef, {
-    status: 'finished',
-    finishedAtMs: Date.now(),
-    winnerTeam: params.winnerTeam,
-    winnerLabel: params.winnerLabel.slice(0, 60),
-  });
-
-  // 스냅샷으로 finished 를 먼저 전달한 뒤 방 제거
-  globalThis.setTimeout(() => {
-    void deleteDoc(rRef).catch(() => {
-      /* ignore */
+  try {
+    await updateDoc(rRef, {
+      status: 'finished',
+      finishedAtMs: Date.now(),
+      winnerTeam: params.winnerTeam,
+      winnerLabel: params.winnerLabel.slice(0, 60),
     });
-  }, 1200);
+  } catch {
+    // 이미 지워졌거나 권한 문제여도 아래에서 강제 해산
+  }
+
+  // finished 스냅샷이 각 클라이언트에 도착할 시간을 짧게 준 뒤 완전 해산
+  await new Promise<void>((resolve) => {
+    globalThis.setTimeout(resolve, 400);
+  });
+  await dissolveSichuanRoom(params.roomId);
 };
 
 export const subscribeSichuanRoom = (

@@ -10,6 +10,7 @@ import {
 import { detectGamePlatform } from '../../utils/gamePlatform';
 import { getEscapeRoomBestScoreDocId } from '../../utils/escapeRoomScores';
 import { getFlappyBirdBestScoreDocId } from '../../utils/flappyBirdScores';
+import { getNunSalMiBestScoreDocId } from '../../utils/nunSalMiScores';
 import { getReactionBestScoreDocId } from '../../utils/reactionTimeScores';
 import { getTypingBestScoreDocId } from '../../utils/typingSpeedScores';
 import { getLastPlayedGame } from '../../utils/lastPlayedGame';
@@ -66,6 +67,14 @@ const GAME_ITEMS: GameItem[] = [
     available: true,
   },
   {
+    id: 'nun-sal-mi',
+    title: '눈썰미',
+    description: '비슷한 글자 속 다른 하나를 찾아 최단 시간에 도전하세요.',
+    emoji: '👀',
+    path: '/games/nun-sal-mi',
+    available: true,
+  },
+  {
     id: 'flappy-bird',
     title: '플래피 버드',
     description: '파이프를 피해 날아가며 최고 점수에 도전하세요.',
@@ -90,6 +99,7 @@ const GamesHub: React.FC = () => {
 
   const [myTypingCpm, setMyTypingCpm] = useState<number | null>(null);
   const [myReactionMs, setMyReactionMs] = useState<number | null>(null);
+  const [myNunSalMiMs, setMyNunSalMiMs] = useState<number | null>(null);
   const [myFlappyScore, setMyFlappyScore] = useState<number | null>(null);
   const [myEscapeScore, setMyEscapeScore] = useState<number | null>(null);
 
@@ -104,6 +114,7 @@ const GamesHub: React.FC = () => {
     if (!user?.uid) return;
     const typingId = getTypingBestScoreDocId(user.uid, platform);
     const reactionId = getReactionBestScoreDocId(user.uid, platform);
+    const nunSalMiId = getNunSalMiBestScoreDocId(user.uid, platform);
     const flappyId = getFlappyBirdBestScoreDocId(user.uid, platform);
     const escapeId = getEscapeRoomBestScoreDocId(user.uid, platform);
 
@@ -117,6 +128,12 @@ const GamesHub: React.FC = () => {
       doc(db, 'games', 'reactionTime', 'bestScores', reactionId),
       (snap) => {
         setMyReactionMs(snap.exists() ? Number(snap.data()?.durationMs) || null : null);
+      }
+    );
+    const unsubNunSalMi = onSnapshot(
+      doc(db, 'games', 'nunSalMi', 'bestScores', nunSalMiId),
+      (snap) => {
+        setMyNunSalMiMs(snap.exists() ? Number(snap.data()?.durationMs) || null : null);
       }
     );
     const unsubFlappy = onSnapshot(
@@ -139,6 +156,7 @@ const GamesHub: React.FC = () => {
     return () => {
       unsubTyping();
       unsubReaction();
+      unsubNunSalMi();
       unsubFlappy();
       unsubEscape();
     };
@@ -155,6 +173,9 @@ const GamesHub: React.FC = () => {
     }
     if (game.id === 'reaction-time' && myReactionMs) {
       return `내 최고 ${Math.round(myReactionMs)}ms`;
+    }
+    if (game.id === 'nun-sal-mi' && myNunSalMiMs) {
+      return `내 최고 ${Math.round(myNunSalMiMs)}ms`;
     }
     if (game.id === 'flappy-bird' && myFlappyScore != null) {
       return `내 최고 ${myFlappyScore}점`;

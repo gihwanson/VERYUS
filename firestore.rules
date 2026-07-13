@@ -481,6 +481,17 @@ service cloud.firestore {
               && request.resource.data.playerCount == resource.data.playerCount
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hostUid'])
             )
+            // 로비 인원/방장 보정 (유령 참가자·새로고침 잔여 문서 정리)
+            || (
+              resource.data.status == 'lobby'
+              && request.resource.data.status == 'lobby'
+              && request.resource.data.seed == resource.data.seed
+              && request.resource.data.playerCount is int
+              && request.resource.data.playerCount >= 0
+              && request.resource.data.playerCount <= resource.data.maxPlayers
+              && request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['playerCount', 'hostUid'])
+            )
             // 게임 시작 (방장, 정원 충족)
             || (
               resource.data.hostUid == request.auth.uid
@@ -512,6 +523,8 @@ service cloud.firestore {
           && (
             resource.data.hostUid == request.auth.uid
             || resource.data.playerCount <= 1
+            || resource.data.status == 'finished'
+            || resource.data.status == 'lobby'
           );
 
         match /players/{playerId} {
@@ -568,9 +581,16 @@ service cloud.firestore {
               || get(/databases/$(database)/documents/games/sichuan/rooms/$(roomId)).data.status == 'lobby'
             );
 
+          // 본인 또는 방장/로비·종료 정리 시 참가자 문서 삭제 허용 (유령 방 방지)
           allow delete: if signedIn()
             && gameId == 'sichuan'
-            && request.auth.uid == playerId;
+            && (
+              request.auth.uid == playerId
+              || get(/databases/$(database)/documents/games/sichuan/rooms/$(roomId)).data.hostUid
+                == request.auth.uid
+              || get(/databases/$(database)/documents/games/sichuan/rooms/$(roomId)).data.status
+                in ['lobby', 'finished']
+            );
         }
       }
 
@@ -586,6 +606,9 @@ service cloud.firestore {
             || (gameId == 'reactionTime'
               && request.resource.data.durationMs >= 100
               && request.resource.data.durationMs <= 15000)
+            || (gameId == 'nunSalMi'
+              && request.resource.data.durationMs >= 1500
+              && request.resource.data.durationMs <= 180000)
             || (gameId == 'rhythmBeat'
               && request.resource.data.durationMs >= 0
               && request.resource.data.durationMs <= 300
@@ -624,6 +647,9 @@ service cloud.firestore {
             || (gameId == 'reactionTime'
               && request.resource.data.durationMs >= 100
               && request.resource.data.durationMs <= 15000)
+            || (gameId == 'nunSalMi'
+              && request.resource.data.durationMs >= 1500
+              && request.resource.data.durationMs <= 180000)
             || (gameId == 'rhythmBeat'
               && request.resource.data.durationMs >= 0
               && request.resource.data.durationMs <= 300
