@@ -5,6 +5,10 @@ import { NOTIFICATION_TYPE_LABELS, NOTIFICATION_TYPE_COLORS, ADMIN_ACTION_LABELS
 import { formatDate, getGradeDisplay, calculateActivityDays, createRoleDisplay, createRoleIcon, getUserStatus, createStatusDisplay, getSuspensionTimeLeft, getActivityIcon, formatActivityTime, getActivityLevel, getLogActionIcon, formatLogTime, calculateStats, calculateActivityScore, calculateActivityStats, changeUserStatus, isUserSuspended, executeBulkAction, generateUserAnalytics, logAdminAction, fetchAdminLogs, calculateLogStats, getNotificationTypeIcon, getNotificationStatusDisplay, getDefaultTemplates, createNotificationTargets, fetchNotificationTemplates, toggleAllTargets } from './AdminUtils';
 import { Timestamp } from 'firebase/firestore';
 import GlobalLoadingScreen from './GlobalLoadingScreen';
+import {
+  formatMemberPassRate,
+  type MemberPassRateStats,
+} from '../utils/memberEvaluationPassRate';
 
 // 로딩 컴포넌트
 export const LoadingSpinner: React.FC = () => (
@@ -48,6 +52,7 @@ interface UserCardProps {
   editingUser?: AdminUser;
   onEditChange: (field: string, value: string | boolean) => void;
   existingLeaderUid?: string;
+  passRateStats?: MemberPassRateStats;
 }
 
 export const UserCard: React.FC<UserCardProps> = ({
@@ -62,7 +67,8 @@ export const UserCard: React.FC<UserCardProps> = ({
   onStatusChange,
   editingUser,
   onEditChange,
-  existingLeaderUid
+  existingLeaderUid,
+  passRateStats,
 }) => {
   const userStatus = getUserStatus(user);
   const suspensionTimeLeft = getSuspensionTimeLeft(user);
@@ -93,6 +99,13 @@ export const UserCard: React.FC<UserCardProps> = ({
                 정지: {suspensionTimeLeft}
               </span>
             )}
+          </div>
+          <div className="user-pass-rate" title={
+            !passRateStats || passRateStats.passRate == null
+              ? '평가·합격곡 이력이 없습니다'
+              : `평가 합격 ${passRateStats.evalPasses} · 평가 불합격 ${passRateStats.evalFails} · 관리자 등록 ${passRateStats.adminDirectPasses}`
+          }>
+            {formatMemberPassRate(passRateStats)}
           </div>
         </div>
       </div>

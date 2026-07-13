@@ -112,6 +112,11 @@ import { collectApprovedSongsForNickname } from '../utils/approvedSongMemberClea
 import { saveApprovedSongDeletionAudit } from '../utils/approvedSongDeletionAudit';
 import { markEmailRegistrationDeleted } from '../utils/emailRegistrationHistory';
 import AdminEmailHistoryPanel from './AdminEmailHistoryPanel';
+import {
+  fetchMemberPassRatesByNickname,
+  formatMemberPassRate,
+  type MemberPassRateStats,
+} from '../utils/memberEvaluationPassRate';
 
 const AdminPanel: React.FC = () => {
   const navigate = useNavigate();
@@ -120,6 +125,7 @@ const AdminPanel: React.FC = () => {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('users');
+  const [passRateByNickname, setPassRateByNickname] = useState<Map<string, MemberPassRateStats>>(new Map());
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -223,6 +229,15 @@ const AdminPanel: React.FC = () => {
     }
   }, []);
 
+  const fetchPassRates = useCallback(async () => {
+    try {
+      const rates = await fetchMemberPassRatesByNickname();
+      setPassRateByNickname(rates);
+    } catch (error) {
+      console.error('멤버 합격률 집계 실패:', error);
+    }
+  }, []);
+
   const filteredUsers = useMemo(() => {
     if (!users || users.length === 0) return [];
 
@@ -294,13 +309,14 @@ const AdminPanel: React.FC = () => {
           console.error('사용자 목록 가져오기 실패:', error);
           setLoading(false);
         });
+        void fetchPassRates();
       }
     );
     return () => {
       cancelled = true;
       unsub();
     };
-  }, [navigate, fetchUsers]);
+  }, [navigate, fetchUsers, fetchPassRates]);
 
   // 선택된 사용자 버스킹심사곡 업로드 횟수 및 제한 로드
   useEffect(() => {
@@ -1424,6 +1440,7 @@ const AdminPanel: React.FC = () => {
                     }
                   }}
                   existingLeaderUid={existingLeader?.uid}
+                  passRateStats={passRateByNickname.get(user.nickname?.trim() || '')}
                 />
               </div>
             ))}
@@ -2215,6 +2232,16 @@ const AdminPanel: React.FC = () => {
                     {selectedUserBuskingLoading
                       ? '조회 중...'
                       : `${selectedUserBuskingCount ?? 0} / ${selectedUser.evaluationBuskingWeeklyLimit ?? 2}`}
+                  </span>
+                </div>
+                <div className="detail-row">
+                  <strong>평가 합격률:</strong>
+                  <span>
+                    {(() => {
+                      const stats = passRateByNickname.get(selectedUser.nickname?.trim() || '');
+                      if (!stats || stats.passRate == null) return '이력 없음';
+                      return `${formatMemberPassRate(stats)} · 평가 합 ${stats.evalPasses}/불 ${stats.evalFails} · 관리자등록 ${stats.adminDirectPasses}`;
+                    })()}
                   </span>
                 </div>
                 <div className="detail-row detail-row--align-center">

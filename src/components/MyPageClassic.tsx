@@ -47,6 +47,11 @@ import { enablePushNotifications, removeAllPushTokens } from '../utils/pushNotif
 import { GRADE_NAMES, GRADE_ORDER, GRADE_SYSTEM } from './AdminTypes';
 import { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
 import { approvedSongCountsByNicknameFromDocs } from '../utils/approvedSongMilestone';
+import {
+  fetchMemberPassRateForNickname,
+  formatMemberPassRate,
+  type MemberPassRateStats,
+} from '../utils/memberEvaluationPassRate';
 
 interface User {
   uid: string;
@@ -280,6 +285,8 @@ const MyPageClassic: React.FC = () => {
   const [notificationUpdating, setNotificationUpdating] = useState(false);
   const [statsModal, setStatsModal] = useState<'posts' | 'comments' | 'likes' | null>(null);
   const [profileCommentsWithPosts, setProfileCommentsWithPosts] = useState<ProfileCommentEntry[]>([]);
+  const [myPassRateStats, setMyPassRateStats] = useState<MemberPassRateStats | null>(null);
+  const [myPassRateLoading, setMyPassRateLoading] = useState(false);
 
   // Initialize user data
   useEffect(() => {
@@ -882,6 +889,32 @@ const MyPageClassic: React.FC = () => {
     if (!nick || approvedSongLeaderboard.length === 0) return null;
     return approvedSongLeaderboard.find((r) => r.nickname.trim() === nick) ?? null;
   }, [user?.nickname, approvedSongLeaderboard]);
+
+  useEffect(() => {
+    if (!isOwner || !user?.nickname?.trim()) {
+      setMyPassRateStats(null);
+      setMyPassRateLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setMyPassRateLoading(true);
+    void fetchMemberPassRateForNickname(user.nickname)
+      .then((stats) => {
+        if (!cancelled) setMyPassRateStats(stats);
+      })
+      .catch((error) => {
+        console.error('본인 합격률 조회 실패:', error);
+        if (!cancelled) setMyPassRateStats(null);
+      })
+      .finally(() => {
+        if (!cancelled) setMyPassRateLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOwner, user?.nickname]);
 
   const guestbookThreadModel = useMemo(() => {
     const byId = new Map(guestMessages.map((m) => [m.id, m]));
@@ -1535,6 +1568,26 @@ const MyPageClassic: React.FC = () => {
           <div style={{ marginTop: 12, color: 'rgba(255, 255, 255, 0.9)', fontWeight: 600, fontSize: 15 }}>
             등급: {getGradeEmoji(user?.grade || GRADE_SYSTEM.CHERRY)} {getGradeName(user?.grade || GRADE_SYSTEM.CHERRY)}
           </div>
+          {isOwner && (
+            <div
+              style={{
+                marginTop: 8,
+                color: 'rgba(167, 243, 208, 0.98)',
+                fontWeight: 700,
+                fontSize: 14,
+                textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
+              }}
+              title={
+                myPassRateStats && myPassRateStats.passRate != null
+                  ? `평가 합격 ${myPassRateStats.evalPasses} · 평가 불합격 ${myPassRateStats.evalFails} · 관리자 등록 ${myPassRateStats.adminDirectPasses}`
+                  : undefined
+              }
+            >
+              {myPassRateLoading
+                ? '합격률 불러오는 중…'
+                : formatMemberPassRate(myPassRateStats ?? undefined)}
+            </div>
+          )}
           {user?.pendingGrade && user.pendingGrade !== user.grade && (
             <div
               style={{
@@ -1857,6 +1910,64 @@ const MyPageClassic: React.FC = () => {
                   )}
                 </div>
               </div>
+              {isOwner && (
+                <div
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    backdropFilter: 'blur(10px)',
+                    borderRadius: '16px',
+                    padding: '20px',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '14px',
+                  }}
+                >
+                  <Star size={22} color="rgba(255,255,255,0.9)" aria-hidden />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: '14px',
+                        fontWeight: 700,
+                        color: 'rgba(255, 255, 255, 0.95)',
+                        textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
+                        marginBottom: '8px',
+                      }}
+                    >
+                      내 평가 합격률
+                    </div>
+                    {myPassRateLoading ? (
+                      <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.75)' }}>불러오는 중…</div>
+                    ) : myPassRateStats && myPassRateStats.passRate != null ? (
+                      <>
+                        <div
+                          style={{
+                            fontSize: '16px',
+                            fontWeight: 800,
+                            color: 'white',
+                            textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
+                          }}
+                        >
+                          {Number.isInteger(myPassRateStats.passRate)
+                            ? `${myPassRateStats.passRate}%`
+                            : `${myPassRateStats.passRate.toFixed(1)}%`}
+                          <span style={{ fontSize: 13, fontWeight: 500, marginLeft: 6, opacity: 0.85 }}>
+                            ({myPassRateStats.passes}/{myPassRateStats.passes + myPassRateStats.fails})
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 12, marginTop: 4, color: 'rgba(255, 255, 255, 0.75)' }}>
+                          평가 합 {myPassRateStats.evalPasses} · 불 {myPassRateStats.evalFails}
+                          {myPassRateStats.adminDirectPasses > 0
+                            ? ` · 관리자등록 ${myPassRateStats.adminDirectPasses}`
+                            : ''}
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.75)' }}>합격률 없음</div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

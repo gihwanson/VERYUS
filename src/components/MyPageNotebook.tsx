@@ -48,6 +48,11 @@ import { enablePushNotifications, removeAllPushTokens } from '../utils/pushNotif
 import { GRADE_NAMES, GRADE_ORDER, GRADE_SYSTEM } from './AdminTypes';
 import { getGradeBadgeLabel, getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
 import { approvedSongCountsByNicknameFromDocs } from '../utils/approvedSongMilestone';
+import {
+  fetchMemberPassRateForNickname,
+  formatMemberPassRate,
+  type MemberPassRateStats,
+} from '../utils/memberEvaluationPassRate';
 
 interface User {
   uid: string;
@@ -281,6 +286,8 @@ const MyPageNotebook: React.FC = () => {
   const [notificationUpdating, setNotificationUpdating] = useState(false);
   const [statsModal, setStatsModal] = useState<'posts' | 'comments' | 'likes' | null>(null);
   const [profileCommentsWithPosts, setProfileCommentsWithPosts] = useState<ProfileCommentEntry[]>([]);
+  const [myPassRateStats, setMyPassRateStats] = useState<MemberPassRateStats | null>(null);
+  const [myPassRateLoading, setMyPassRateLoading] = useState(false);
 
   // Initialize user data
   useEffect(() => {
@@ -884,6 +891,32 @@ const MyPageNotebook: React.FC = () => {
     return approvedSongLeaderboard.find((r) => r.nickname.trim() === nick) ?? null;
   }, [user?.nickname, approvedSongLeaderboard]);
 
+  useEffect(() => {
+    if (!isOwner || !user?.nickname?.trim()) {
+      setMyPassRateStats(null);
+      setMyPassRateLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setMyPassRateLoading(true);
+    void fetchMemberPassRateForNickname(user.nickname)
+      .then((stats) => {
+        if (!cancelled) setMyPassRateStats(stats);
+      })
+      .catch((error) => {
+        console.error('본인 합격률 조회 실패:', error);
+        if (!cancelled) setMyPassRateStats(null);
+      })
+      .finally(() => {
+        if (!cancelled) setMyPassRateLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOwner, user?.nickname]);
+
   const guestbookThreadModel = useMemo(() => {
     const byId = new Map(guestMessages.map((m) => [m.id, m]));
     const roots: GuestbookMessage[] = [];
@@ -1287,6 +1320,20 @@ const MyPageNotebook: React.FC = () => {
           <div className="mypage-profile-grade">
             등급: <span className="author-grade-label">{getGradeBadgeLabel(user?.grade || GRADE_SYSTEM.CHERRY)}</span>
           </div>
+          {isOwner && (
+            <div
+              className="mypage-profile-pass-rate"
+              title={
+                myPassRateStats && myPassRateStats.passRate != null
+                  ? `평가 합격 ${myPassRateStats.evalPasses} · 평가 불합격 ${myPassRateStats.evalFails} · 관리자 등록 ${myPassRateStats.adminDirectPasses}`
+                  : undefined
+              }
+            >
+              {myPassRateLoading
+                ? '합격률 불러오는 중…'
+                : formatMemberPassRate(myPassRateStats ?? undefined)}
+            </div>
+          )}
           {user?.pendingGrade && user.pendingGrade !== user.grade && (
             <div className="mypage-profile-pending">
               승인 대기: {getGradeBadgeLabel(user.pendingGrade)} — 설정에서 요청한 등급입니다.
@@ -1427,6 +1474,36 @@ const MyPageNotebook: React.FC = () => {
                   )}
                 </div>
               </div>
+              {isOwner && (
+                <div className="mypage-stat-card mypage-stat-card--static">
+                  <Star size={22} className="mypage-stat-icon" aria-hidden />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="mypage-stat-section-title">내 평가 합격률</div>
+                    {myPassRateLoading ? (
+                      <div className="mypage-muted" style={{ fontSize: 13 }}>불러오는 중…</div>
+                    ) : myPassRateStats && myPassRateStats.passRate != null ? (
+                      <>
+                        <div className="mypage-stat-value" style={{ fontSize: 16 }}>
+                          {Number.isInteger(myPassRateStats.passRate)
+                            ? `${myPassRateStats.passRate}%`
+                            : `${myPassRateStats.passRate.toFixed(1)}%`}
+                          <span className="mypage-muted" style={{ fontSize: 13, fontWeight: 500, marginLeft: 6 }}>
+                            ({myPassRateStats.passes}/{myPassRateStats.passes + myPassRateStats.fails})
+                          </span>
+                        </div>
+                        <div className="mypage-muted" style={{ fontSize: 12, marginTop: 4 }}>
+                          평가 합 {myPassRateStats.evalPasses} · 불 {myPassRateStats.evalFails}
+                          {myPassRateStats.adminDirectPasses > 0
+                            ? ` · 관리자등록 ${myPassRateStats.adminDirectPasses}`
+                            : ''}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="mypage-muted" style={{ fontSize: 13 }}>합격률 없음</div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
