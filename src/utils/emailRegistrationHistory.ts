@@ -6,6 +6,7 @@ import {
   setDoc,
   updateDoc,
   serverTimestamp,
+  Timestamp,
   query,
   orderBy,
   limit,
@@ -55,7 +56,7 @@ export async function recordEmailRegistration(
   const normalized = normalizeEmail(email);
   const ref = doc(db, EMAIL_REGISTRATION_HISTORY_COLLECTION, emailToDocId(normalized));
   const snap = await getDoc(ref);
-  const now = serverTimestamp();
+  const now = Timestamp.now();
 
   const previousEntries = snap.exists()
     ? ((snap.data().entries || []) as EmailRegistrationEntry[])
@@ -77,13 +78,13 @@ export async function recordEmailRegistration(
   if (snap.exists()) {
     await updateDoc(ref, {
       entries: [...previousEntries, newEntry],
-      updatedAt: now,
+      updatedAt: serverTimestamp(),
     });
   } else {
     await setDoc(ref, {
       email: normalized,
       entries: [newEntry],
-      updatedAt: now,
+      updatedAt: serverTimestamp(),
     });
   }
 
@@ -103,6 +104,8 @@ export async function markEmailRegistrationDeleted(
 
   const ref = doc(db, EMAIL_REGISTRATION_HISTORY_COLLECTION, emailToDocId(normalized));
   const snap = await getDoc(ref);
+  const deletedAt = Timestamp.now();
+
   if (!snap.exists()) {
     await setDoc(ref, {
       email: normalized,
@@ -110,8 +113,8 @@ export async function markEmailRegistrationDeleted(
         {
           uid,
           nickname: '(기록 없음)',
-          registeredAt: serverTimestamp(),
-          deletedAt: serverTimestamp(),
+          registeredAt: deletedAt,
+          deletedAt,
           deletedBy,
           status: 'deleted',
         },
@@ -127,7 +130,7 @@ export async function markEmailRegistrationDeleted(
       return {
         ...entry,
         status: 'deleted' as const,
-        deletedAt: serverTimestamp(),
+        deletedAt,
         deletedBy,
       };
     }
