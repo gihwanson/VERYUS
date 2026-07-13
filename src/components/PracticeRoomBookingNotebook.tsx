@@ -105,7 +105,9 @@ const PracticeRoomBookingNotebook: React.FC = () => {
   const [dailyUsedHours, setDailyUsedHours] = useState(0);
   const [weeklyReservationCount, setWeeklyReservationCount] = useState(0);
   const [checkedInMembers, setCheckedInMembers] = useState<CheckIn[]>([]);
+  const [checkInHistory, setCheckInHistory] = useState<CheckIn[]>([]);
   const [myCheckIn, setMyCheckIn] = useState<CheckIn | null>(null);
+  const [showCheckInHistoryModal, setShowCheckInHistoryModal] = useState(false);
   const isUnlimitedUser = Boolean(
     currentUser?.nickname && SUPER_ADMIN_NICKNAMES.includes(currentUser.nickname)
   );
@@ -123,6 +125,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
   const MAX_DAILY_HOURS = 3; // 1인당 하루 최대 예약 시간
   const MAX_WEEKLY_RESERVATIONS = 1; // 1인당 주간 최대 예약 횟수
   const AUTO_CHECKOUT_MS = 4 * 60 * 60 * 1000; // 4시간 자동 퇴실
+  const CHECK_IN_HISTORY_PREVIEW_LIMIT = 5; // 인라인 미리보기 개수
 
   useEffect(() => {
     const userString = localStorage.getItem('veryus_user');
@@ -232,6 +235,25 @@ const PracticeRoomBookingNotebook: React.FC = () => {
       });
       
       setCheckedInMembers(checkedInOnly);
+
+      // 퇴실 완료 기록 (최신 퇴실순)
+      const historyOnly = allCheckIns.filter(c => c.status === 'checked_out');
+      historyOnly.sort((a, b) => {
+        const timeA =
+          a.checkOutTime?.toMillis?.() ||
+          a.checkOutTime?.seconds * 1000 ||
+          a.checkInTime?.toMillis?.() ||
+          a.checkInTime?.seconds * 1000 ||
+          0;
+        const timeB =
+          b.checkOutTime?.toMillis?.() ||
+          b.checkOutTime?.seconds * 1000 ||
+          b.checkInTime?.toMillis?.() ||
+          b.checkInTime?.seconds * 1000 ||
+          0;
+        return timeB - timeA;
+      });
+      setCheckInHistory(historyOnly);
       
       // 내 입실 상태 확인 (입실 중인 것만)
       const myCheckInData = checkedInOnly.find(c => c.userId === currentUser.uid);
@@ -1462,18 +1484,18 @@ const PracticeRoomBookingNotebook: React.FC = () => {
     }
   };
 
-  // 입실 시간 포맷팅
+  const toDateFromTimestamp = (time: any): Date | null => {
+    if (!time) return null;
+    if (time instanceof Timestamp) return time.toDate();
+    if (time?.toDate) return time.toDate();
+    const parsed = new Date(time);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+
+  // 입실 시간 포맷팅 (상대 시간)
   const formatCheckInTime = (checkInTime: any): string => {
-    if (!checkInTime) return '';
-    
-    let date: Date;
-    if (checkInTime instanceof Timestamp) {
-      date = checkInTime.toDate();
-    } else if (checkInTime.toDate) {
-      date = checkInTime.toDate();
-    } else {
-      date = new Date(checkInTime);
-    }
+    const date = toDateFromTimestamp(checkInTime);
+    if (!date) return '';
 
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
@@ -1493,6 +1515,35 @@ const PracticeRoomBookingNotebook: React.FC = () => {
       minute: '2-digit'
     });
   };
+
+  // 입실/퇴실 절대 시각
+  const formatAbsoluteDateTime = (time: any): string => {
+    const date = toDateFromTimestamp(time);
+    if (!date) return '-';
+    return date.toLocaleString('ko-KR', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const renderCheckInHistoryItem = (record: CheckIn) => (
+    <div key={record.id} className="check-in-history-item">
+      <div className="check-in-history-user">
+        <User size={14} />
+        <span className="check-in-history-name">{record.userNickname}</span>
+        {record.userId === currentUser?.uid && (
+          <span className="check-in-badge">나</span>
+        )}
+      </div>
+      <div className="check-in-history-times">
+        <span>입실 {formatAbsoluteDateTime(record.checkInTime)}</span>
+        <span className="check-in-history-sep">·</span>
+        <span>퇴실 {formatAbsoluteDateTime(record.checkOutTime)}</span>
+      </div>
+    </div>
+  );
 
   const weekDates = getWeekDates();
 
@@ -1611,7 +1662,8 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                   )}
                 </div>
                 <div className="check-in-time">
-                  {formatCheckInTime(checkIn.checkInTime)}
+                  입실 {formatAbsoluteDateTime(checkIn.checkInTime)}
+                  <span className="check-in-time-relative">({formatCheckInTime(checkIn.checkInTime)})</span>
                 </div>
                 {isAdmin && checkIn.userId !== currentUser?.uid && (
                   <button
@@ -1627,6 +1679,36 @@ const PracticeRoomBookingNotebook: React.FC = () => {
             ))}
           </div>
         )}
+
+        <div className="check-in-history">
+          <div className="check-in-history-header">
+            <div className="check-in-history-title">
+              <Clock size={16} />
+              <h3>입실·퇴실 기록</h3>
+              <span className="check-in-count">({checkInHistory.length}건)</span>
+            </div>
+            {checkInHistory.length > CHECK_IN_HISTORY_PREVIEW_LIMIT && (
+              <button
+                type="button"
+                className="check-in-history-more"
+                onClick={() => setShowCheckInHistoryModal(true)}
+              >
+                전체 보기
+              </button>
+            )}
+          </div>
+          {checkInHistory.length === 0 ? (
+            <div className="check-in-history-empty">
+              <p>아직 입실·퇴실 기록이 없습니다.</p>
+            </div>
+          ) : (
+            <div className="check-in-history-list">
+              {checkInHistory
+                .slice(0, CHECK_IN_HISTORY_PREVIEW_LIMIT)
+                .map((record) => renderCheckInHistoryItem(record))}
+            </div>
+          )}
+        </div>
       </section>
 
       <section className="booking-controls practice-notebook-section" aria-label="예약 일정">
@@ -2342,6 +2424,42 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                 >
                   {loading ? '처리 중...' : '차단하기'}
                 </button>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {showCheckInHistoryModal && typeof document !== 'undefined' && createPortal(
+        <div
+          className="modal-overlay practice-booking-modal-overlay"
+          onClick={() => setShowCheckInHistoryModal(false)}
+        >
+          <div
+            className="modal-content check-in-history-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h3>입실·퇴실 기록 ({checkInHistory.length}건)</h3>
+              <button
+                type="button"
+                className="close-button"
+                onClick={() => setShowCheckInHistoryModal(false)}
+                aria-label="닫기"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <div className="modal-body check-in-history-modal-body">
+              {checkInHistory.length === 0 ? (
+                <div className="check-in-history-empty">
+                  <p>아직 입실·퇴실 기록이 없습니다.</p>
+                </div>
+              ) : (
+                <div className="check-in-history-list check-in-history-list--modal">
+                  {checkInHistory.map((record) => renderCheckInHistoryItem(record))}
+                </div>
               )}
             </div>
           </div>
