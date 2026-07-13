@@ -430,6 +430,150 @@ service cloud.firestore {
           && resource.data.uid == request.auth.uid;
       }
 
+      /** 사천성: 1v1 / 2v2 룸 */
+      match /rooms/{roomId} {
+        allow read: if signedIn() && gameId == 'sichuan';
+
+        allow create: if signedIn()
+          && gameId == 'sichuan'
+          && request.resource.data.hostUid == request.auth.uid
+          && request.resource.data.code is string
+          && request.resource.data.code.size() == 6
+          && request.resource.data.mode in ['1v1', '2v2']
+          && request.resource.data.status == 'lobby'
+          && request.resource.data.maxPlayers in [2, 4]
+          && request.resource.data.playerCount == 0
+          && request.resource.data.seed == 0
+          && request.resource.data.winnerTeam == null
+          && request.resource.data.winnerLabel == null;
+
+        allow update: if signedIn()
+          && gameId == 'sichuan'
+          && request.resource.data.code == resource.data.code
+          && request.resource.data.mode == resource.data.mode
+          && request.resource.data.maxPlayers == resource.data.maxPlayers
+          && request.resource.data.createdAtMs == resource.data.createdAtMs
+          && (
+            // 입장: playerCount +1 (로비)
+            (
+              resource.data.status == 'lobby'
+              && request.resource.data.status == 'lobby'
+              && request.resource.data.hostUid == resource.data.hostUid
+              && request.resource.data.seed == resource.data.seed
+              && request.resource.data.playerCount == resource.data.playerCount + 1
+              && request.resource.data.playerCount <= resource.data.maxPlayers
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['playerCount'])
+            )
+            // 퇴장: playerCount -1
+            || (
+              request.resource.data.hostUid == resource.data.hostUid
+              && request.resource.data.seed == resource.data.seed
+              && request.resource.data.status == resource.data.status
+              && request.resource.data.playerCount == resource.data.playerCount - 1
+              && request.resource.data.playerCount >= 0
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['playerCount'])
+            )
+            // 방장 승계
+            || (
+              resource.data.hostUid == request.auth.uid
+              && request.resource.data.status == resource.data.status
+              && request.resource.data.seed == resource.data.seed
+              && request.resource.data.playerCount == resource.data.playerCount
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hostUid'])
+            )
+            // 게임 시작 (방장, 정원 충족)
+            || (
+              resource.data.hostUid == request.auth.uid
+              && resource.data.status == 'lobby'
+              && request.resource.data.status == 'playing'
+              && resource.data.playerCount == resource.data.maxPlayers
+              && request.resource.data.playerCount == resource.data.playerCount
+              && request.resource.data.hostUid == resource.data.hostUid
+              && request.resource.data.seed is number
+              && request.resource.data.seed > 0
+              && request.resource.data.winnerTeam == null
+              && request.resource.data.winnerLabel == null
+            )
+            // 종료 (방장, 시드 불변)
+            || (
+              resource.data.hostUid == request.auth.uid
+              && resource.data.status == 'playing'
+              && request.resource.data.status == 'finished'
+              && request.resource.data.seed == resource.data.seed
+              && request.resource.data.hostUid == resource.data.hostUid
+              && request.resource.data.playerCount == resource.data.playerCount
+              && request.resource.data.winnerLabel is string
+              && request.resource.data.winnerLabel.size() <= 60
+            )
+          );
+
+        allow delete: if signedIn()
+          && gameId == 'sichuan'
+          && (
+            resource.data.hostUid == request.auth.uid
+            || resource.data.playerCount <= 1
+          );
+
+        match /players/{playerId} {
+          allow read: if signedIn() && gameId == 'sichuan';
+
+          allow create: if signedIn()
+            && gameId == 'sichuan'
+            && request.auth.uid == playerId
+            && request.resource.data.uid == request.auth.uid
+            && request.resource.data.team in [0, 1]
+            && request.resource.data.score == 0
+            && request.resource.data.pairs == 0
+            && request.resource.data.remaining == 48
+            && request.resource.data.finished == false
+            && request.resource.data.ready == false
+            && request.resource.data.shuffleCount == 0
+            && request.resource.data.comboBonus == 0
+            && request.resource.data.nickname is string
+            && request.resource.data.nickname.size() > 0
+            && request.resource.data.nickname.size() <= 24
+            && get(/databases/$(database)/documents/games/sichuan/rooms/$(roomId)).data.status == 'lobby'
+            && get(/databases/$(database)/documents/games/sichuan/rooms/$(roomId)).data.playerCount
+              < get(/databases/$(database)/documents/games/sichuan/rooms/$(roomId)).data.maxPlayers;
+
+          allow update: if signedIn()
+            && gameId == 'sichuan'
+            && request.auth.uid == playerId
+            && request.resource.data.uid == resource.data.uid
+            && request.resource.data.team == resource.data.team
+            && request.resource.data.nickname == resource.data.nickname
+            && request.resource.data.pairs is number
+            && request.resource.data.pairs >= resource.data.pairs
+            && request.resource.data.pairs <= 24
+            && request.resource.data.remaining is number
+            && request.resource.data.remaining <= resource.data.remaining
+            && request.resource.data.remaining >= 0
+            && request.resource.data.remaining == 48 - request.resource.data.pairs * 2
+            && request.resource.data.get('comboBonus', 0) is number
+            && request.resource.data.get('comboBonus', 0) >= 0
+            && request.resource.data.get('comboBonus', 0) <= request.resource.data.pairs * 3
+            && request.resource.data.get('comboBonus', 0) >= resource.data.get('comboBonus', 0)
+            && request.resource.data.score is number
+            && request.resource.data.score == request.resource.data.pairs * 10
+              + (request.resource.data.remaining == 0 ? 100 : 0)
+              + request.resource.data.get('comboBonus', 0)
+            && request.resource.data.score <= 412
+            && request.resource.data.shuffleCount is number
+            && request.resource.data.shuffleCount >= resource.data.shuffleCount
+            && request.resource.data.shuffleCount <= 5
+            && request.resource.data.finished is bool
+            && (resource.data.finished == false || request.resource.data.finished == true)
+            && (
+              request.resource.data.ready == resource.data.ready
+              || get(/databases/$(database)/documents/games/sichuan/rooms/$(roomId)).data.status == 'lobby'
+            );
+
+          allow delete: if signedIn()
+            && gameId == 'sichuan'
+            && request.auth.uid == playerId;
+        }
+      }
+
       /** 사용자·플랫폼별 최고 기록 (uid_pc / uid_mobile) */
       match /bestScores/{scoreId} {
         allow read: if signedIn();
@@ -508,6 +652,67 @@ service cloud.firestore {
                 || (request.resource.data.lastRunReplay is list
                   && request.resource.data.lastRunReplay.size() <= 400)))
           );
+        allow delete: if false;
+      }
+
+      /** 사천성 멀티 승/패 전적 */
+      match /records/{recordId} {
+        allow read: if signedIn() && gameId == 'sichuan';
+
+        allow create: if signedIn()
+          && gameId == 'sichuan'
+          && request.auth.uid == recordId
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.nickname is string
+          && request.resource.data.nickname.size() > 0
+          && request.resource.data.nickname.size() <= 24
+          && request.resource.data.wins is number
+          && request.resource.data.wins >= 0
+          && request.resource.data.wins <= 1
+          && request.resource.data.losses is number
+          && request.resource.data.losses >= 0
+          && request.resource.data.losses <= 1
+          && request.resource.data.draws is number
+          && request.resource.data.draws >= 0
+          && request.resource.data.draws <= 1
+          && request.resource.data.gamesPlayed is number
+          && request.resource.data.gamesPlayed
+            == request.resource.data.wins + request.resource.data.losses + request.resource.data.draws
+          && request.resource.data.gamesPlayed == 1
+          && request.resource.data.updatedAtMs is number
+          && request.resource.data.lastMatchKey is string
+          && request.resource.data.lastMatchKey.size() > 0
+          && request.resource.data.lastMatchKey.size() <= 80;
+
+        allow update: if signedIn()
+          && gameId == 'sichuan'
+          && request.auth.uid == recordId
+          && resource.data.uid == request.auth.uid
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.nickname is string
+          && request.resource.data.nickname.size() > 0
+          && request.resource.data.nickname.size() <= 24
+          && request.resource.data.wins is number
+          && request.resource.data.losses is number
+          && request.resource.data.draws is number
+          && request.resource.data.gamesPlayed is number
+          && request.resource.data.wins >= resource.data.wins
+          && request.resource.data.losses >= resource.data.losses
+          && request.resource.data.draws >= resource.data.draws
+          && request.resource.data.wins <= resource.data.wins + 1
+          && request.resource.data.losses <= resource.data.losses + 1
+          && request.resource.data.draws <= resource.data.draws + 1
+          && (request.resource.data.wins + request.resource.data.losses + request.resource.data.draws)
+            == (resource.data.wins + resource.data.losses + resource.data.draws + 1)
+          && request.resource.data.gamesPlayed
+            == request.resource.data.wins + request.resource.data.losses + request.resource.data.draws
+          && request.resource.data.gamesPlayed == resource.data.gamesPlayed + 1
+          && request.resource.data.updatedAtMs is number
+          && request.resource.data.lastMatchKey is string
+          && request.resource.data.lastMatchKey.size() > 0
+          && request.resource.data.lastMatchKey.size() <= 80
+          && request.resource.data.lastMatchKey != resource.data.get('lastMatchKey', '');
+
         allow delete: if false;
       }
     }

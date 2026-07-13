@@ -1,0 +1,1534 @@
+@import url('https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Gowun+Dodum&display=swap');
+
+.sichuan-page {
+  --sc-ink: #1a2e28;
+  --sc-foam: #f3efe4;
+  --sc-jade: #0f6b5c;
+  --sc-jade-deep: #0a3d36;
+  --sc-gold: #c9a227;
+  --sc-wood: #5c4030;
+  --sc-felt: #145c4c;
+  position: relative;
+  isolation: isolate;
+  overflow-x: clip;
+  color: var(--sc-foam);
+  background:
+    radial-gradient(ellipse 90% 60% at 50% -10%, rgba(34, 120, 100, 0.45), transparent 55%),
+    linear-gradient(165deg, #0c1f1c 0%, #14352f 42%, #0d241f 100%) !important;
+  font-family: 'Gowun Dodum', 'Batang', Georgia, serif;
+}
+
+.sichuan-ambient {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.sichuan-ambient__wash {
+  position: absolute;
+  inset: -20%;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(201, 162, 39, 0.12), transparent 35%),
+    radial-gradient(circle at 80% 70%, rgba(20, 140, 120, 0.18), transparent 40%);
+  animation: sichuan-drift 18s ease-in-out infinite alternate;
+}
+
+.sichuan-ambient__lattice {
+  position: absolute;
+  inset: 0;
+  opacity: 0.14;
+  background-image:
+    linear-gradient(rgba(243, 239, 228, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(243, 239, 228, 0.07) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: radial-gradient(ellipse at center, #000 35%, transparent 78%);
+}
+
+.sichuan-ambient__glow {
+  position: absolute;
+  left: 50%;
+  top: 38%;
+  width: min(720px, 110vw);
+  height: min(420px, 70vw);
+  transform: translate(-50%, -50%);
+  background: radial-gradient(ellipse, rgba(20, 110, 95, 0.35), transparent 68%);
+  filter: blur(8px);
+}
+
+@keyframes sichuan-drift {
+  from {
+    transform: translate3d(-1%, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(1.5%, 1%, 0) scale(1.04);
+  }
+}
+
+.sichuan-content {
+  position: relative;
+  z-index: 2;
+  max-width: 920px;
+  animation: sichuan-enter 0.45s ease both;
+}
+
+.sichuan-menu {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  gap: 12px;
+}
+
+.sichuan-error {
+  position: relative;
+  z-index: 5;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(127, 29, 29, 0.92);
+  border: 1px solid rgba(252, 165, 165, 0.55);
+  color: #fff1f2;
+  font-size: 14px;
+  font-weight: 700;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+@keyframes sichuan-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.sichuan-header {
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.sichuan-page--play .sichuan-header {
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.sichuan-page--play .sichuan-kicker,
+.sichuan-page--play .sichuan-subtitle {
+  display: none;
+}
+
+.sichuan-page--play .sichuan-title {
+  font-size: clamp(20px, 4vw, 24px) !important;
+  letter-spacing: 0.06em;
+}
+
+.sichuan-header-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.sichuan-kicker {
+  margin: 0 0 2px;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(201, 162, 39, 0.9);
+}
+
+.sichuan-title {
+  font-family: 'Gowun Batang', 'Batang', Georgia, serif !important;
+  font-weight: 700;
+  font-size: clamp(28px, 5vw, 36px) !important;
+  letter-spacing: 0.08em;
+  color: var(--sc-foam) !important;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+}
+
+.sichuan-subtitle {
+  color: rgba(243, 239, 228, 0.72) !important;
+}
+
+.sichuan-header-tools {
+  display: flex;
+  align-items: center;
+  padding-top: 4px;
+}
+
+.sichuan-page .games-back-btn {
+  border: 1px solid rgba(243, 239, 228, 0.28);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+  color: var(--sc-foam);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+}
+
+.sichuan-pressable {
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    filter 0.12s ease,
+    background 0.15s ease;
+  transform: translateY(0);
+  will-change: transform;
+}
+
+.sichuan-pressable:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.sichuan-pressable:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 0 0 rgba(0, 0, 0, 0.2) !important;
+  filter: brightness(0.96);
+}
+
+.sichuan-hero-panel {
+  position: relative;
+  overflow: hidden;
+  padding: 22px 20px 20px;
+  border-radius: 18px;
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  background:
+    linear-gradient(135deg, rgba(20, 80, 70, 0.65), rgba(12, 40, 36, 0.85)),
+    radial-gradient(circle at top right, rgba(201, 162, 39, 0.2), transparent 50%);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+}
+
+.sichuan-hero-panel__marks {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 22px;
+  opacity: 0.9;
+}
+
+.sichuan-hero-panel h2 {
+  margin: 0;
+  font-family: 'Gowun Batang', Georgia, serif;
+  font-size: clamp(22px, 4vw, 28px);
+  letter-spacing: 0.04em;
+}
+
+.sichuan-hero-panel p {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: rgba(243, 239, 228, 0.78);
+  max-width: 36em;
+}
+
+.sichuan-menu-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  padding: 16px 16px 16px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(243, 239, 228, 0.16);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03));
+  color: inherit;
+  cursor: pointer;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.28);
+}
+
+.sichuan-menu-btn--solo {
+  border-color: rgba(45, 212, 191, 0.35);
+}
+
+.sichuan-menu-btn--duel {
+  border-color: rgba(251, 146, 60, 0.4);
+}
+
+.sichuan-menu-btn--team {
+  border-color: rgba(96, 165, 250, 0.4);
+}
+
+.sichuan-menu-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.sichuan-menu-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(160deg, rgba(201, 162, 39, 0.35), rgba(15, 107, 92, 0.5));
+  border: 1px solid rgba(243, 239, 228, 0.2);
+  flex-shrink: 0;
+}
+
+.sichuan-menu-icon__glyph {
+  font-family: 'Gowun Batang', Georgia, serif;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.sichuan-menu-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.sichuan-menu-copy strong {
+  display: block;
+  font-size: 17px;
+  letter-spacing: 0.02em;
+}
+
+.sichuan-menu-copy small {
+  display: block;
+  margin-top: 4px;
+  opacity: 0.72;
+  font-size: 13px;
+}
+
+.sichuan-menu-chevron {
+  opacity: 0.55;
+  font-size: 18px;
+}
+
+.sichuan-lobby-board {
+  margin-top: 4px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(243, 239, 228, 0.14);
+  background: rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(8px);
+  display: grid;
+  gap: 12px;
+}
+
+.sichuan-lobby-board__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sichuan-lobby-board__head h3 {
+  margin: 0;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  opacity: 0.9;
+}
+
+.sichuan-lobby-filters {
+  display: flex;
+  gap: 6px;
+}
+
+.sichuan-lobby-filters button {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(243, 239, 228, 0.18);
+  background: rgba(8, 24, 22, 0.45);
+  color: var(--sc-foam);
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.sichuan-lobby-filters button.is-active {
+  opacity: 1;
+  border-color: rgba(250, 204, 21, 0.45);
+  background: rgba(201, 162, 39, 0.22);
+  color: #fde68a;
+}
+
+.sichuan-lobby-empty {
+  margin: 0;
+  padding: 18px 8px;
+  text-align: center;
+  opacity: 0.7;
+  font-size: 13px;
+}
+
+.sichuan-open-rooms {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.sichuan-open-rooms li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(243, 239, 228, 0.12);
+  background: rgba(8, 24, 22, 0.4);
+}
+
+.sichuan-open-room__info {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.sichuan-open-room__info strong {
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sichuan-open-room__info span,
+.sichuan-open-room__meta {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.sichuan-open-room__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 1;
+}
+
+.sichuan-open-rooms button {
+  flex-shrink: 0;
+  padding: 10px 14px;
+}
+
+.sichuan-mode-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(250, 204, 21, 0.4);
+  background: rgba(201, 162, 39, 0.18);
+  color: #fde68a;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.sichuan-mode-chip--sm {
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+.sichuan-seat-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.sichuan-seat-dots i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(243, 239, 228, 0.45);
+  background: transparent;
+  display: block;
+}
+
+.sichuan-seat-dots i.is-filled {
+  background: #5eead4;
+  border-color: #5eead4;
+  box-shadow: 0 0 8px rgba(94, 234, 212, 0.45);
+}
+
+.sichuan-lobby-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(243, 239, 228, 0.12);
+}
+
+.sichuan-lobby-host {
+  flex: 1;
+  min-width: 0;
+  font-size: 18px;
+  color: #fde68a;
+  font-family: 'Gowun Batang', Georgia, serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sichuan-seats {
+  position: relative;
+  display: grid;
+  gap: 10px;
+}
+
+.sichuan-seats--duel {
+  grid-template-columns: 1fr 1fr;
+  align-items: stretch;
+  padding: 4px 0 8px;
+}
+
+.sichuan-seats--team {
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.sichuan-vs {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #0b1f1c;
+  background: linear-gradient(180deg, #fde68a, #c9a227);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.sichuan-team-col {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.sichuan-team-col--0 {
+  border-color: rgba(94, 234, 212, 0.28);
+}
+
+.sichuan-team-col--1 {
+  border-color: rgba(251, 113, 133, 0.28);
+}
+
+.sichuan-team-col__label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  opacity: 0.75;
+  text-align: center;
+}
+
+.sichuan-seat {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 18px 12px 14px;
+  border-radius: 18px;
+  text-align: center;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03));
+  border: 1px solid rgba(243, 239, 228, 0.14);
+  min-height: 148px;
+}
+
+.sichuan-seat.is-me {
+  border-color: rgba(94, 234, 212, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(94, 234, 212, 0.18);
+}
+
+.sichuan-seat.is-ready {
+  border-color: rgba(250, 204, 21, 0.4);
+}
+
+.sichuan-seat.is-empty {
+  border-style: dashed;
+  opacity: 0.72;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.sichuan-seat__avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  font-weight: 800;
+  color: #0b1f1c;
+  background: linear-gradient(160deg, #5eead4, #0f766e);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.25);
+}
+
+.sichuan-seat.is-empty .sichuan-seat__avatar {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(243, 239, 228, 0.55);
+  box-shadow: none;
+}
+
+.sichuan-seat strong {
+  font-size: 15px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sichuan-seat__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+  min-height: 18px;
+}
+
+.sichuan-seat__tags span {
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.sichuan-seat__ready {
+  margin: 0;
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  opacity: 0.55;
+}
+
+.sichuan-seat__ready.on {
+  color: #fde68a;
+  opacity: 1;
+}
+
+.sichuan-seat__record {
+  font-size: 11px;
+  opacity: 0.72;
+  font-variant-numeric: tabular-nums;
+}
+
+.sichuan-record-chip {
+  font-size: 11px;
+  opacity: 0.85;
+  color: #fde68a;
+}
+
+.sichuan-my-record {
+  font-size: 12px;
+  opacity: 0.8;
+  color: #fde68a;
+}
+
+.sichuan-rank-board {
+  margin-top: 4px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(243, 239, 228, 0.14);
+  background: rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(8px);
+  display: grid;
+  gap: 12px;
+}
+
+.sichuan-rank-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.sichuan-rank-list li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(8, 24, 22, 0.4);
+  border: 1px solid rgba(243, 239, 228, 0.1);
+}
+
+.sichuan-rank-list li.is-me {
+  border-color: rgba(94, 234, 212, 0.4);
+  background: rgba(15, 118, 110, 0.22);
+}
+
+.sichuan-rank-list__pos {
+  font-weight: 800;
+  color: #fde68a;
+  font-family: 'Gowun Batang', Georgia, serif;
+}
+
+.sichuan-rank-list__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.sichuan-rank-list__record {
+  font-size: 12px;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
+.sichuan-rank-list__rate {
+  font-size: 12px;
+  font-weight: 700;
+  color: #5eead4;
+  min-width: 2.5em;
+  text-align: right;
+}
+
+.sichuan-lobby-records {
+  display: grid;
+  gap: 6px;
+}
+
+.sichuan-lobby-records__item {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 13px;
+}
+
+.sichuan-lobby-records__item.is-me {
+  border-color: rgba(94, 234, 212, 0.35);
+}
+
+.sichuan-lobby-records__item strong {
+  color: #fde68a;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.sichuan-join button,
+.sichuan-lobby-actions button,
+.sichuan-play-actions button,
+.sichuan-code-box button,
+.sichuan-tip button {
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(243, 239, 228, 0.2);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05));
+  color: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  min-height: 44px;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.28);
+  font-family: inherit;
+}
+
+.sichuan-primary {
+  background: linear-gradient(180deg, #1aa38c, #0f6b5c) !important;
+  border-color: rgba(94, 234, 212, 0.45) !important;
+  color: #f0fffb !important;
+}
+
+.sichuan-ghost {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.sichuan-hint {
+  margin: 10px 0 0;
+  font-size: 13px;
+  opacity: 0.72;
+  line-height: 1.45;
+}
+
+.sichuan-grade-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px dashed rgba(243, 239, 228, 0.18);
+  font-size: 20px;
+  line-height: 1;
+  justify-content: center;
+}
+
+.sichuan-lobby {
+  display: grid;
+  gap: 16px;
+}
+
+.sichuan-lobby-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.sichuan-lobby-start {
+  width: 100%;
+  min-height: 52px !important;
+  font-size: 18px !important;
+  letter-spacing: 0.06em;
+}
+
+.sichuan-lobby-start--ready {
+  border-color: rgba(250, 204, 21, 0.5) !important;
+  color: #fde68a !important;
+  background: rgba(201, 162, 39, 0.22) !important;
+}
+
+.sichuan-lobby-wait {
+  margin: -2px 0 0;
+  text-align: center;
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.sichuan-lobby-actions__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.sichuan-lobby-actions .is-ready-btn {
+  border-color: rgba(250, 204, 21, 0.45) !important;
+  color: #fde68a !important;
+  background: rgba(201, 162, 39, 0.18) !important;
+}
+
+.sichuan-code-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(201, 162, 39, 0.18), rgba(0, 0, 0, 0.25));
+  border: 1px solid rgba(250, 204, 21, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.sichuan-code-box strong {
+  font-size: 28px;
+  letter-spacing: 0.18em;
+  color: #fde68a;
+  font-family: 'Gowun Batang', Georgia, serif;
+}
+
+.sichuan-lobby-meta {
+  margin: 0;
+  opacity: 0.8;
+}
+
+.sichuan-player-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.sichuan-player-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sichuan-player-meta {
+  opacity: 0.75;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.sichuan-play-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sichuan-play {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  overscroll-behavior: contain;
+}
+
+.sichuan-play.is-countdown .sichuan-table {
+  filter: brightness(0.72);
+  pointer-events: none;
+}
+
+.sichuan-countdown {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: rgba(4, 18, 16, 0.35);
+  border-radius: 18px;
+}
+
+.sichuan-countdown span {
+  display: grid;
+  place-items: center;
+  min-width: 140px;
+  min-height: 140px;
+  padding: 18px 28px;
+  border-radius: 50%;
+  font-size: clamp(42px, 12vw, 64px);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #fde68a;
+  font-family: 'Gowun Batang', Georgia, serif;
+  background: radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.16), rgba(8, 40, 34, 0.92));
+  border: 2px solid rgba(250, 204, 21, 0.45);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  animation: sichuan-countdown-pop 0.45s ease both;
+}
+
+@keyframes sichuan-countdown-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.sichuan-hud {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(243, 239, 228, 0.12);
+}
+
+.sichuan-hud > span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 0;
+}
+
+.sichuan-hud em {
+  font-style: normal;
+  font-size: 10px;
+  opacity: 0.65;
+  letter-spacing: 0.04em;
+}
+
+.sichuan-hud strong {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  font-family: 'Gowun Batang', Georgia, serif;
+  line-height: 1.1;
+}
+
+.sichuan-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sichuan-stats > div {
+  padding: 10px 8px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03));
+  border: 1px solid rgba(243, 239, 228, 0.12);
+  text-align: center;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.sichuan-stats span {
+  display: block;
+  font-size: 11px;
+  opacity: 0.7;
+  margin-bottom: 4px;
+  letter-spacing: 0.04em;
+}
+
+.sichuan-stats strong {
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  font-family: 'Gowun Batang', Georgia, serif;
+}
+
+.sichuan-combo-stat {
+  color: #fbbf24 !important;
+}
+
+.sichuan-rivals {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.sichuan-rivals--strip {
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.sichuan-rivals--strip > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(14, 116, 144, 0.22);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+}
+
+.sichuan-rivals--strip > div:last-child {
+  background: rgba(127, 29, 29, 0.28);
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
+.sichuan-rivals--strip > div.is-mine {
+  box-shadow: inset 0 0 0 1px rgba(253, 224, 71, 0.5);
+}
+
+.sichuan-rivals--strip span {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.sichuan-rivals--strip strong {
+  font-size: 16px;
+  font-family: 'Gowun Batang', Georgia, serif;
+}
+
+.sichuan-team-card {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(14, 116, 144, 0.22);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+}
+
+.sichuan-team-card--b {
+  background: rgba(127, 29, 29, 0.28);
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
+.sichuan-team-card.is-mine {
+  box-shadow: inset 0 0 0 1px rgba(253, 224, 71, 0.5);
+}
+
+.sichuan-team-card strong {
+  display: block;
+  font-size: 13px;
+}
+
+.sichuan-team-card > span {
+  display: block;
+  margin: 4px 0 6px;
+  font-size: 22px;
+  font-weight: 800;
+  font-family: 'Gowun Batang', Georgia, serif;
+}
+
+.sichuan-team-card ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
+  opacity: 0.85;
+  display: grid;
+  gap: 2px;
+}
+
+.sichuan-stuck-slot {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.sichuan-stuck-slot.is-on {
+  color: #fde68a;
+  background: rgba(202, 138, 4, 0.22);
+  border-color: rgba(250, 204, 21, 0.28);
+  border: 1px solid rgba(250, 204, 21, 0.28);
+}
+
+.sichuan-tip {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(14, 116, 144, 0.28);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.sichuan-tip--overlay {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 64px;
+  z-index: 8;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(8px);
+}
+
+.sichuan-tip p {
+  margin: 0;
+  flex: 1;
+}
+
+.sichuan-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sichuan-progress-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #0d9488, #c9a227);
+  transition: width 0.25s ease;
+  box-shadow: 0 0 12px rgba(201, 162, 39, 0.35);
+}
+
+/* ===== 게임 테이블 / 보드 ===== */
+.sichuan-table {
+  border-radius: 20px;
+  padding: 10px;
+  background:
+    linear-gradient(180deg, #6b4a34, #4a3224 40%, #3a271c);
+  box-shadow:
+    0 16px 36px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  contain: layout;
+}
+
+.sichuan-table__rail {
+  height: 8px;
+  margin: 0 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(201, 162, 39, 0.45), transparent);
+  opacity: 0.7;
+}
+
+.sichuan-table__rail--top {
+  margin-bottom: 8px;
+}
+
+.sichuan-table__rail--bottom {
+  margin-top: 8px;
+}
+
+.sichuan-table--miss .sichuan-board {
+  animation: sichuan-shake 0.28s ease;
+}
+
+.sichuan-board-wrap {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at center, rgba(255, 255, 255, 0.06), transparent 55%),
+    linear-gradient(180deg, #1a7a66, #0f5246 55%, #0c433a);
+  border: 2px solid rgba(12, 50, 44, 0.85);
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.28);
+}
+
+.sichuan-board {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+}
+
+.sichuan-path-svg {
+  position: absolute;
+  inset: 12px;
+  width: calc(100% - 24px);
+  height: calc(100% - 24px);
+  pointer-events: none;
+  z-index: 2;
+  overflow: visible;
+  filter: drop-shadow(0 0 3px rgba(250, 204, 21, 0.55));
+}
+
+.sichuan-float-slot {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  transform: translate(-50%, -50%);
+  z-index: 4;
+  pointer-events: none;
+  min-height: 1.5em;
+  display: grid;
+  place-items: center;
+}
+
+@keyframes sichuan-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-2px);
+  }
+  75% {
+    transform: translateX(2px);
+  }
+}
+
+/* ===== 마작 스타일 타일 ===== */
+.sichuan-tile {
+  --tile-hue: 150;
+  position: relative;
+  aspect-ratio: 1 / 1.18;
+  min-height: 0;
+  min-width: 0;
+  border: none;
+  border-radius: 8px;
+  padding: 0;
+  cursor: pointer;
+  background: transparent;
+  display: grid;
+  place-items: stretch;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  transform: none;
+  transition: filter 0.12s ease;
+}
+
+.sichuan-tile__edge {
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: hsl(var(--tile-hue) 42% 38%);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+}
+
+.sichuan-tile__face {
+  position: relative;
+  z-index: 1;
+  margin: 0 0 3px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  background:
+    linear-gradient(160deg, #fffdf8 0%, #f2ebe0 55%, #e5d9c8 100%);
+  border: 1px solid rgba(80, 60, 40, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.sichuan-tile__emoji {
+  font-size: clamp(16px, 4.4vw, 26px);
+  line-height: 1;
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.5));
+  pointer-events: none;
+}
+
+.sichuan-tile:not(:disabled):active .sichuan-tile__edge {
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+}
+
+.sichuan-tile:not(:disabled):active .sichuan-tile__face {
+  margin-bottom: 1px;
+  margin-top: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .sichuan-tile:not(:disabled):hover .sichuan-tile__face {
+    filter: brightness(1.04);
+  }
+}
+
+.sichuan-tile--empty {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.sichuan-tile--selected .sichuan-tile__face {
+  box-shadow:
+    inset 0 0 0 2px #c9a227,
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  filter: brightness(1.05);
+}
+
+.sichuan-tile--path .sichuan-tile__face {
+  box-shadow:
+    inset 0 0 0 2px #0f766e,
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.sichuan-tile--hint .sichuan-tile__face {
+  animation: sichuan-hint-pulse 1s ease infinite;
+}
+
+@keyframes sichuan-hint-pulse {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.12);
+  }
+}
+
+.sichuan-float-score {
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(12, 32, 28, 0.82);
+  border: 1px solid rgba(201, 162, 39, 0.45);
+  font-size: clamp(16px, 3.5vw, 22px);
+  font-weight: 800;
+  color: #fde68a;
+  white-space: nowrap;
+  animation: sichuan-float 0.75s ease forwards;
+  pointer-events: none;
+  font-family: 'Gowun Batang', Georgia, serif;
+}
+
+@keyframes sichuan-float {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.94);
+  }
+  18% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-14px) scale(1.04);
+  }
+}
+
+.sichuan-play-actions--sticky {
+  position: sticky;
+  bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  z-index: 5;
+  padding: 10px;
+  border-radius: 16px;
+  background: rgba(8, 28, 24, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(243, 239, 228, 0.14);
+  justify-content: center;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+.sichuan-result {
+  text-align: center;
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+  padding: 28px 18px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(243, 239, 228, 0.16);
+}
+
+.sichuan-result h2 {
+  margin: 0;
+  font-size: clamp(26px, 5vw, 34px);
+  font-family: 'Gowun Batang', Georgia, serif;
+  letter-spacing: 0.04em;
+}
+
+.sichuan-result > p {
+  margin: 0;
+  opacity: 0.85;
+}
+
+.sichuan-result .sichuan-rivals {
+  width: 100%;
+}
+
+.sichuan-result .sichuan-lobby-actions {
+  justify-content: center;
+}
+
+@media (max-width: 640px) {
+  .sichuan-rivals:not(.sichuan-rivals--strip) {
+    grid-template-columns: 1fr;
+  }
+
+  .sichuan-board {
+    gap: 4px;
+    padding: 8px;
+  }
+
+  .sichuan-path-svg {
+    inset: 8px;
+    width: calc(100% - 16px);
+    height: calc(100% - 16px);
+  }
+
+  .sichuan-tile {
+    border-radius: 7px;
+    min-height: 40px;
+  }
+
+  .sichuan-tile__emoji {
+    font-size: clamp(17px, 5.2vw, 24px);
+  }
+
+  .sichuan-hud strong {
+    font-size: 14px;
+  }
+
+  .sichuan-stats strong {
+    font-size: 16px;
+  }
+
+  .sichuan-code-box {
+    flex-wrap: wrap;
+  }
+
+  .sichuan-code-box strong {
+    font-size: 22px;
+  }
+
+  .sichuan-play-actions--sticky button {
+    flex: 1 1 auto;
+    min-width: 72px;
+    padding: 12px 10px;
+  }
+
+  .sichuan-table {
+    padding: 8px;
+    border-radius: 16px;
+  }
+}
+
+@media (min-width: 900px) {
+  .sichuan-table {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 14px;
+  }
+
+  .sichuan-board {
+    gap: 8px;
+    padding: 14px;
+  }
+
+  .sichuan-tile__emoji {
+    font-size: 28px;
+  }
+}
+
+.sichuan-hero-pb {
+  margin: 12px 0 0 !important;
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(201, 162, 39, 0.18);
+  border: 1px solid rgba(201, 162, 39, 0.4);
+  color: #fde68a !important;
+  font-size: 13px !important;
+  font-weight: 700;
+}
+
+.sichuan-finish-banner {
+  text-align: center;
+  padding: 12px 14px;
+  border-radius: 14px;
+  font-family: 'Gowun Batang', Georgia, serif;
+  font-size: clamp(20px, 4vw, 28px);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #fff7ed;
+  background: linear-gradient(135deg, rgba(201, 162, 39, 0.55), rgba(15, 107, 92, 0.65));
+  border: 1px solid rgba(253, 224, 71, 0.55);
+  animation: sichuan-banner-pop 0.45s ease both;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+}
+
+.sichuan-climax-note {
+  margin: 0;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fde68a;
+  letter-spacing: 0.04em;
+  animation: sichuan-hint-pulse 1.2s ease infinite;
+}
+
+.sichuan-result-meta {
+  margin: 0 !important;
+  color: #fde68a !important;
+  font-weight: 700 !important;
+  opacity: 1 !important;
+}
+
+.sichuan-result-pb {
+  margin: 0 !important;
+  opacity: 0.8 !important;
+  font-size: 14px !important;
+}
+
+.sichuan-table--climax .sichuan-board-wrap {
+  box-shadow:
+    inset 0 0 40px rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(253, 224, 71, 0.35),
+    0 0 28px rgba(201, 162, 39, 0.28);
+}
+
+.sichuan-table--climax .sichuan-table__rail {
+  opacity: 1;
+  background: linear-gradient(90deg, transparent, rgba(253, 224, 71, 0.75), transparent);
+}
+
+@keyframes sichuan-banner-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sichuan-ambient__wash,
+  .sichuan-content,
+  .sichuan-float-score,
+  .sichuan-tile--hint .sichuan-tile__face,
+  .sichuan-finish-banner,
+  .sichuan-climax-note {
+    animation: none !important;
+  }
+
+  .sichuan-pressable:active:not(:disabled) {
+    transform: none;
+  }
+}

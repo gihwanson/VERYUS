@@ -24,6 +24,17 @@ interface GameItem {
   available: boolean;
 }
 
+const VERSUS_GAME_ITEMS: GameItem[] = [
+  {
+    id: 'sichuan',
+    title: '사천성',
+    description: '솔로 · 1대1 · 2대2',
+    emoji: '🀄',
+    path: '/games/sichuan',
+    available: true,
+  },
+];
+
 const COOP_GAME_ITEMS: GameItem[] = [
   {
     id: 'locked-practice-room',
@@ -154,7 +165,7 @@ const GamesHub: React.FC = () => {
     return null;
   };
 
-  const renderCard = (game: GameItem, variant: 'solo' | 'coop') => {
+  const renderCard = (game: GameItem, variant: 'solo' | 'coop' | 'versus') => {
     const teaser = cardTeaser(game);
     return (
       <button
@@ -190,7 +201,7 @@ const GamesHub: React.FC = () => {
           <div>
             <h1 className="games-title">미니게임</h1>
             <p className="games-subtitle">
-              {user?.nickname ? `${user.nickname}님, ` : ''}개인전·협동전에 도전해 보세요.
+              {user?.nickname ? `${user.nickname}님, ` : ''}개인전·대전·협동전에 도전해 보세요.
             </p>
           </div>
         </header>
@@ -207,6 +218,16 @@ const GamesHub: React.FC = () => {
           </div>
           <div className="games-grid">
             {GAME_ITEMS.map((game) => renderCard(game, 'solo'))}
+          </div>
+        </section>
+
+        <section className="games-category">
+          <div className="games-category-head">
+            <h2 className="games-category-title">대전</h2>
+            <p className="games-category-subtitle">1대1·팀전으로 실시간 승부하는 미니게임</p>
+          </div>
+          <div className="games-grid">
+            {VERSUS_GAME_ITEMS.map((game) => renderCard(game, 'versus'))}
           </div>
         </section>
 

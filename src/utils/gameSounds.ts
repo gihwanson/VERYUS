@@ -138,3 +138,24 @@ export const playFlappyHit = () => {
   tone(120, 0.2, 'sawtooth', 0.07);
   gameVibrate([40, 30, 40]);
 };
+
+export const playSichuanSelect = () => {
+  tone(520, 0.05, 'triangle', 0.04);
+};
+
+export const playSichuanMatch = () => {
+  tone(660, 0.07, 'triangle', 0.06);
+  window.setTimeout(() => tone(880, 0.1, 'triangle', 0.06), 55);
+  gameVibrate(10);
+};
+
+export const playSichuanMiss = () => {
+  tone(180, 0.1, 'sawtooth', 0.045);
+  gameVibrate(8);
+};
+
+export const playSichuanShuffle = () => {
+  tone(392, 0.06, 'square', 0.04);
+  window.setTimeout(() => tone(494, 0.06, 'square', 0.04), 50);
+  window.setTimeout(() => tone(587, 0.08, 'square', 0.045), 100);
+};
