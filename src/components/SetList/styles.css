@@ -1650,15 +1650,16 @@
 
 .setlist-chat-delete-btn {
   flex-shrink: 0;
-  width: 24px;
-  height: 24px;
+  width: 36px;
+  height: 36px;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   background: rgba(220, 38, 38, 0.35);
   color: rgba(255, 255, 255, 0.9);
-  font-size: 11px;
+  font-size: 12px;
   cursor: pointer;
   opacity: 0.85;
+  touch-action: manipulation;
 }
 
 .setlist-chat-delete-btn:hover {
@@ -2161,6 +2162,16 @@
   background: linear-gradient(135deg, rgba(34, 197, 94, 0.55) 0%, rgba(22, 163, 74, 0.65) 100%);
   color: white;
   border: 1px solid rgba(134, 239, 172, 0.5);
+  min-width: 72px;
+  font-size: 14px;
+}
+
+.free-song-btn--confirm {
+  min-width: 96px;
+}
+
+.free-song-btn--secondary-danger {
+  opacity: 0.85;
 }
 
 .free-song-complete-label {
@@ -2261,13 +2272,15 @@
 }
 
 .free-song-btn {
-  padding: 8px 14px;
+  padding: 10px 14px;
   border-radius: 10px;
   border: none;
   font-weight: 600;
   font-size: 13px;
   cursor: pointer;
   transition: opacity 0.2s;
+  min-height: 44px;
+  touch-action: manipulation;
 }
 
 .free-song-btn:disabled {
@@ -2375,16 +2388,39 @@
 
 .free-song-row__actions {
   display: flex;
-  gap: 4px;
+  gap: 8px;
   flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.free-song-row__actions--stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 120px;
+}
+
+.free-song-row__actions--admin {
+  gap: 8px;
+}
+
+.free-song-row__manage,
+.free-song-row__primary-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
 }
 
 .free-song-btn--ghost {
   background: rgba(255, 255, 255, 0.12);
   color: white;
   border: 1px solid rgba(255, 255, 255, 0.25);
+  min-width: 44px;
   padding: 8px 10px;
-  min-width: 36px;
 }
 
 .free-song-admin-count {
@@ -2441,6 +2477,40 @@
 .free-song-submit-modal__list .free-song-row {
   background: rgba(255, 255, 255, 0.06);
   border-color: rgba(255, 255, 255, 0.1);
+}
+
+.free-song-submit-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 8px 8px;
+}
+
+.free-song-submit-confirm__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: white;
+  text-align: center;
+}
+
+.free-song-submit-confirm__hint {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.72);
+  text-align: center;
+  line-height: 1.45;
+}
+
+.free-song-submit-confirm__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: stretch;
+}
+
+.free-song-submit-confirm__actions .free-song-btn {
+  flex: 1;
+  min-height: 44px;
 }
 
 .free-song-stats-header {
@@ -2502,13 +2572,54 @@
   border: none;
   background: rgba(0, 0, 0, 0.2);
   color: white;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
+  min-width: 32px;
+  min-height: 32px;
+  border-radius: 999px;
   cursor: pointer;
   font-size: 14px;
   line-height: 1;
-  padding: 0;
+  padding: 0 8px;
+  touch-action: manipulation;
+}
+
+.busking-roster-chip__remove--confirm {
+  background: rgba(220, 38, 38, 0.55);
+  font-size: 12px;
+  font-weight: 700;
+  min-width: 44px;
+}
+
+.busking-roster-chip--confirm {
+  border-color: rgba(252, 165, 165, 0.7);
+  background: rgba(220, 38, 38, 0.22);
+}
+
+.busking-roster-chip__cancel {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 6px;
+  min-height: 32px;
+  cursor: pointer;
+}
+
+.free-song-stats-reset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.free-song-stats-reset__hint {
+  width: 100%;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.75);
+  text-align: right;
 }
 
 .busking-member-modal-backdrop {

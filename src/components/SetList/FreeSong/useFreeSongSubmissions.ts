@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   query,
   where,
@@ -28,10 +29,13 @@ import {
   countUserQuotaSubmissions,
   FREE_SONG_SUBMISSION_LIMIT,
 } from './freeSongSubmissionUtils';
-import { mutateSetlistFreeSong, removeSubmissionFromState } from './freeSongSetlistMutations';
+import {
+  mutateSetlistFreeSong,
+  readSetlistFreeSongState,
+  removeSubmissionFromState,
+} from './freeSongSetlistMutations';
 import {
   canManageBuskingSession,
-  type BuskingSessionUser,
 } from '../buskingSessionPermissions';
 
 function sortSubmissions(submissions: FreeSongSubmission[]): FreeSongSubmission[] {
@@ -175,8 +179,9 @@ export function useFreeSongSubmissions(
     .filter((item): item is { song: ApprovedSong; submission: FreeSongSubmission } => item != null);
   const availableSongs = eligibleApprovedSongs.filter((song) => !submittedSongIds.has(song.id));
 
-  const withLoading = useCallback(async <T,>(fn: () => Promise<T>): Promise<T | false> => {
-    if (!setlistId || loadingRef.current) return false;
+  const withLoading = useCallback(async <T,>(fn: () => Promise<T>): Promise<T | false | 'busy'> => {
+    if (!setlistId) return false;
+    if (loadingRef.current) return 'busy';
     loadingRef.current = true;
     setActionLoading(true);
     try {
@@ -185,6 +190,13 @@ export function useFreeSongSubmissions(
       loadingRef.current = false;
       setActionLoading(false);
     }
+  }, [setlistId]);
+
+  const readFreshSubmissions = useCallback(async (): Promise<FreeSongSubmission[]> => {
+    if (!setlistId) return [];
+    const snap = await getDoc(doc(db, 'setlists', setlistId));
+    if (!snap.exists()) return [];
+    return readSetlistFreeSongState(snap.data()).submissions;
   }, [setlistId]);
 
   const submitSong = useCallback(
@@ -213,7 +225,7 @@ export function useFreeSongSubmissions(
         createdAt: Timestamp.now(),
       };
 
-      return withLoading(async () => {
+      const result = await withLoading(async () => {
         try {
           const ok = await mutateSetlistFreeSong(setlistId, (state) => {
             const existing = findSubmissionBySongId(state.submissions, song.id);
@@ -234,49 +246,62 @@ export function useFreeSongSubmissions(
           });
 
           if (!ok) {
-            const freshExisting = findSubmissionBySongId(submissions, song.id);
+            const freshSubmissions = await readFreshSubmissions();
+            const freshExisting = findSubmissionBySongId(freshSubmissions, song.id);
             if (freshExisting) {
+              if (
+                freshExisting.submittedByUid === submittedByUid ||
+                normalizeBuskingNickname(freshExisting.submittedBy) === normalizedNickname
+              ) {
+                return true;
+              }
               if (isPartnerSubmitted(freshExisting, normalizedNickname)) {
                 alert('파트너가 이미 전송을 했습니다.');
               } else {
                 alert('이미 전송된 곡입니다.');
               }
-            } else {
-              const overQuotaMember = findMemberOverSubmissionQuota(
-                submissions,
-                song.members,
-                submittedByUid,
-                normalizedNickname
-              );
-              if (overQuotaMember) {
-                if (overQuotaMember === normalizedNickname) {
-                  alert(
-                    `최대 ${FREE_SONG_SUBMISSION_LIMIT}곡까지 전송할 수 있습니다. 본인 전송·파트너 전송 곡을 합쳐 집계됩니다.`
-                  );
-                } else {
-                  alert(
-                    `파트너 ${overQuotaMember}님은 이미 최대 ${FREE_SONG_SUBMISSION_LIMIT}곡 한도에 도달했습니다.`
-                  );
-                }
-              } else if (quotaSubmissionCount >= FREE_SONG_SUBMISSION_LIMIT) {
+              return false;
+            }
+
+            const overQuotaMember = findMemberOverSubmissionQuota(
+              freshSubmissions,
+              song.members,
+              submittedByUid,
+              normalizedNickname
+            );
+            if (overQuotaMember) {
+              if (overQuotaMember === normalizedNickname) {
                 alert(
                   `최대 ${FREE_SONG_SUBMISSION_LIMIT}곡까지 전송할 수 있습니다. 본인 전송·파트너 전송 곡을 합쳐 집계됩니다.`
                 );
               } else {
-                alert('전송에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+                alert(
+                  `파트너 ${overQuotaMember}님은 이미 최대 ${FREE_SONG_SUBMISSION_LIMIT}곡 한도에 도달했습니다.`
+                );
               }
+            } else {
+              alert('전송에 실패했습니다. 잠시 후 다시 시도해 주세요.');
             }
             return false;
           }
           return true;
         } catch (error) {
           console.error('자유곡 전송 실패:', error);
+          try {
+            const freshSubmissions = await readFreshSubmissions();
+            if (findSubmissionBySongId(freshSubmissions, song.id)) return true;
+          } catch (recheckError) {
+            console.error('자유곡 전송 재확인 실패:', recheckError);
+          }
           alert('전송에 실패했습니다. 잠시 후 다시 시도해 주세요.');
           return false;
         }
       });
+
+      if (result === 'busy') return false;
+      return result;
     },
-    [setlistId, activeSetList, normalizedNickname, userUid, participants, submissions, quotaSubmissionCount, withLoading]
+    [setlistId, activeSetList, normalizedNickname, participants, withLoading, readFreshSubmissions]
   );
 
   const cancelSubmission = useCallback(
@@ -298,21 +323,7 @@ export function useFreeSongSubmissions(
         return false;
       }
 
-      let confirmMessage: string;
-      if (options?.asManager && !isOwner) {
-        confirmMessage =
-          `${submission.submittedBy}님이 전송한 "${submission.title}"을(를) 취소하시겠습니까?\n` +
-          '취소 시 해당 멤버가 다시 곡을 전송할 수 있습니다.';
-      } else if (isPartnerCancel) {
-        confirmMessage =
-          `파트너 ${submission.submittedBy}님이 전송한 "${submission.title}"을(를) 취소하시겠습니까?`;
-      } else {
-        confirmMessage = `"${submission.title}" 전송을 취소하시겠습니까?`;
-      }
-
-      if (!confirm(confirmMessage)) return false;
-
-      return withLoading(async () => {
+      const result = await withLoading(async () => {
         try {
           const ok = await mutateSetlistFreeSong(setlistId, (state) => {
             if (!state.submissions.some((s) => s.id === submission.id)) return null;
@@ -333,6 +344,8 @@ export function useFreeSongSubmissions(
           return false;
         }
       });
+      if (result === 'busy') return false;
+      return result;
     },
     [setlistId, activeSetList, withLoading]
   );
@@ -345,16 +358,8 @@ export function useFreeSongSubmissions(
         return false;
       }
       const rejectedByName = normalizeBuskingNickname(rejectedBy) || '관리자';
-      if (
-        !confirm(
-          `${submission.submittedBy}님이 전송한 "${submission.title}"을(를) 거부하시겠습니까?\n` +
-            '거부된 곡은 전송 내역에 남고, 해당 멤버는 같은 곡을 다시 전송할 수 있습니다.'
-        )
-      ) {
-        return false;
-      }
 
-      return withLoading(async () => {
+      const result = await withLoading(async () => {
         try {
           const ok = await mutateSetlistFreeSong(setlistId, (state) => {
             const index = state.submissions.findIndex((s) => s.id === submission.id);
@@ -385,14 +390,16 @@ export function useFreeSongSubmissions(
           return false;
         }
       });
+      if (result === 'busy') return false;
+      return result;
     },
-    [setlistId, activeSetList, withLoading]
+    [setlistId, activeSetList, withLoading, userUid, normalizedNickname, userRole]
   );
 
   const dismissRejectedSubmission = useCallback(
     async (submissionId: string, actorUid: string) => {
       if (!setlistId || !activeSetList) return false;
-      return withLoading(async () => {
+      const result = await withLoading(async () => {
         try {
           const ok = await mutateSetlistFreeSong(setlistId, (state) => {
             const target = state.submissions.find((s) => s.id === submissionId);
@@ -414,6 +421,8 @@ export function useFreeSongSubmissions(
           return false;
         }
       });
+      if (result === 'busy') return false;
+      return result;
     },
     [setlistId, activeSetList, withLoading]
   );

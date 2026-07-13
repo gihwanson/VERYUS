@@ -1,7 +1,10 @@
 import {
   doc,
+  getDoc,
+  increment,
   runTransaction,
   serverTimestamp,
+  Timestamp,
   type Transaction,
 } from 'firebase/firestore';
 import { db } from '../../../firebase';
@@ -115,6 +118,69 @@ export function selfWithdrawFromState(
     ...removed,
     freeSongSelfWithdrawals: [...selfWithdrawals, notice],
   };
+}
+
+export type CompleteLineupItemResult = 'ok' | 'not_found' | 'already_completed';
+
+export async function completeFreeSongLineupItemWithStats(
+  setlistId: string,
+  submissionId: string,
+  completedBy: string
+): Promise<CompleteLineupItemResult> {
+  const setlistRef = doc(db, 'setlists', setlistId);
+  const statsRef = doc(db, 'buskingStats', 'freeSong');
+
+  try {
+    await runTransaction(db, async (transaction) => {
+      const setlistSnap = await transaction.get(setlistRef);
+      if (!setlistSnap.exists()) throw new Error('SETLIST_NOT_FOUND');
+
+      const state = readSetlistFreeSongState(setlistSnap.data());
+      const index = state.lineup.findIndex((i) => i.submissionId === submissionId);
+      if (index < 0) throw new Error('NOT_FOUND');
+      if (state.lineup[index].completedAt) throw new Error('ALREADY_COMPLETED');
+
+      const item = state.lineup[index];
+      const nextItems = [...state.lineup];
+      nextItems[index] = {
+        ...nextItems[index],
+        completedAt: Timestamp.now(),
+        completedBy,
+      };
+
+      transaction.update(setlistRef, {
+        freeSongLineup: nextItems,
+        freeSongSubmissions: state.submissions.filter((s) => s.id !== submissionId),
+        updatedAt: serverTimestamp(),
+      });
+
+      const statsPatch: Record<string, unknown> = { updatedAt: serverTimestamp() };
+      (item.members ?? []).forEach((member) => {
+        const nick = String(member).trim();
+        if (nick) statsPatch[`performers.${nick}`] = increment(1);
+      });
+      if (Object.keys(statsPatch).length > 1) {
+        transaction.set(statsRef, statsPatch, { merge: true });
+      }
+    });
+    return 'ok';
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'NOT_FOUND') return 'not_found';
+      if (error.message === 'ALREADY_COMPLETED') return 'already_completed';
+    }
+    throw error;
+  }
+}
+
+export async function isFreeSongLineupItemCompleted(
+  setlistId: string,
+  submissionId: string
+): Promise<boolean> {
+  const setlistSnap = await getDoc(doc(db, 'setlists', setlistId));
+  if (!setlistSnap.exists()) return false;
+  const state = readSetlistFreeSongState(setlistSnap.data());
+  return state.lineup.some((item) => item.submissionId === submissionId && !!item.completedAt);
 }
 
 export async function mutateSetlistFreeSong(

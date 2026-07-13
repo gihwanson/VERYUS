@@ -6,8 +6,9 @@ interface BuskingMemberPickerModalProps {
   open: boolean;
   initialSelected: string[];
   onClose: () => void;
-  onConfirm: (selected: string[]) => void;
+  onConfirm: (selected: string[]) => void | Promise<void>;
   title?: string;
+  saving?: boolean;
 }
 
 const BuskingMemberPickerModal: React.FC<BuskingMemberPickerModalProps> = ({
@@ -16,6 +17,7 @@ const BuskingMemberPickerModal: React.FC<BuskingMemberPickerModalProps> = ({
   onClose,
   onConfirm,
   title = '참가 멤버 선택',
+  saving = false,
 }) => {
   const { members, loading, error, reload } = useBuskingMemberList(open);
   const [search, setSearch] = useState('');
@@ -32,6 +34,7 @@ const BuskingMemberPickerModal: React.FC<BuskingMemberPickerModalProps> = ({
   const draftSet = useMemo(() => new Set(draft), [draft]);
 
   const toggle = (nickname: string) => {
+    if (saving) return;
     setDraft((prev) =>
       prev.includes(nickname) ? prev.filter((n) => n !== nickname) : [...prev, nickname]
     );
@@ -39,8 +42,13 @@ const BuskingMemberPickerModal: React.FC<BuskingMemberPickerModalProps> = ({
 
   if (!open) return null;
 
+  const handleClose = () => {
+    if (saving) return;
+    onClose();
+  };
+
   return (
-    <div className="busking-member-modal-backdrop" onClick={onClose} role="presentation">
+    <div className="busking-member-modal-backdrop" onClick={handleClose} role="presentation">
       <div
         className="busking-member-modal"
         onClick={(e) => e.stopPropagation()}
@@ -52,7 +60,13 @@ const BuskingMemberPickerModal: React.FC<BuskingMemberPickerModalProps> = ({
           <h3 id="busking-member-modal-title" className="busking-member-modal__title">
             {title}
           </h3>
-          <button type="button" className="busking-member-modal__close" onClick={onClose} aria-label="닫기">
+          <button
+            type="button"
+            className="busking-member-modal__close"
+            onClick={handleClose}
+            disabled={saving}
+            aria-label="닫기"
+          >
             <X size={20} />
           </button>
         </div>
@@ -65,7 +79,9 @@ const BuskingMemberPickerModal: React.FC<BuskingMemberPickerModalProps> = ({
             onChange={(e) => setSearch(e.target.value)}
             placeholder="닉네임 검색"
             className="busking-member-modal__search-input"
-            autoFocus
+            enterKeyHint="search"
+            autoComplete="off"
+            disabled={saving}
           />
         </div>
 
@@ -92,6 +108,7 @@ const BuskingMemberPickerModal: React.FC<BuskingMemberPickerModalProps> = ({
                       type="button"
                       className={`busking-member-modal__item${selected ? ' busking-member-modal__item--selected' : ''}`}
                       onClick={() => toggle(member.nickname)}
+                      disabled={saving}
                     >
                       <span className="busking-member-modal__item-name">{member.nickname}</span>
                       {meta && <span className="busking-member-modal__item-meta">{meta}</span>}
@@ -107,15 +124,21 @@ const BuskingMemberPickerModal: React.FC<BuskingMemberPickerModalProps> = ({
         <div className="busking-member-modal__footer">
           <span className="busking-member-modal__count">{draft.length}명 선택</span>
           <div className="busking-member-modal__actions">
-            <button type="button" className="free-song-btn free-song-btn--ghost" onClick={onClose}>
+            <button
+              type="button"
+              className="free-song-btn free-song-btn--ghost"
+              onClick={handleClose}
+              disabled={saving}
+            >
               취소
             </button>
             <button
               type="button"
               className="free-song-btn free-song-btn--submit"
-              onClick={() => onConfirm(draft.slice().sort((a, b) => a.localeCompare(b, 'ko')))}
+              disabled={saving}
+              onClick={() => void onConfirm(draft.slice().sort((a, b) => a.localeCompare(b, 'ko')))}
             >
-              확인
+              {saving ? '저장 중…' : '확인'}
             </button>
           </div>
         </div>

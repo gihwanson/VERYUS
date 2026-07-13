@@ -92,13 +92,7 @@ const BuskingSessionShell: React.FC<BuskingSessionShellProps> = ({
         bootstrapping={bootstrapping}
         error={bootstrapError}
         onConfirm={handleCreate}
-        onClose={
-          awaitingVenue && !canHost
-            ? undefined
-            : () => {
-                if (!awaitingVenue) setShowCreate(false);
-              }
-        }
+        onClose={awaitingVenue ? undefined : () => setShowCreate(false)}
       />
 
       {bootstrapping && canHost && !activeSetList && !awaitingVenue && !showCreate ? (

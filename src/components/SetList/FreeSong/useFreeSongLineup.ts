@@ -2,10 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   doc,
   deleteField,
-  increment,
   onSnapshot,
   serverTimestamp,
-  setDoc,
   Timestamp,
   updateDoc,
 } from 'firebase/firestore';
@@ -19,6 +17,8 @@ import type { FreeSongLineupItem, FreeSongPerformerStats } from './types';
 import { normalizeSubmissions } from './freeSongSubmissionUtils';
 import type { FreeSongSubmission } from './types';
 import {
+  completeFreeSongLineupItemWithStats,
+  isFreeSongLineupItemCompleted,
   mutateSetlistFreeSong,
   normalizeLineup,
   removeSubmissionFromState,
@@ -54,8 +54,9 @@ export function useFreeSongLineup(
     return false;
   }, [session, user]);
 
-  const withLoading = useCallback(async <T,>(fn: () => Promise<T>): Promise<T | false> => {
-    if (!setlistId || loadingRef.current) return false;
+  const withLoading = useCallback(async <T,>(fn: () => Promise<T>): Promise<T | false | 'busy'> => {
+    if (!setlistId) return false;
+    if (loadingRef.current) return 'busy';
     loadingRef.current = true;
     setActionLoading(true);
     try {
@@ -264,8 +265,7 @@ export function useFreeSongLineup(
       const item = items.find((i) => i.submissionId === submissionId);
       if (!item) return false;
       if (item.completedAt) {
-        alert('이미 완료 처리된 곡입니다.');
-        return false;
+        return true;
       }
 
       const canComplete =
@@ -277,46 +277,30 @@ export function useFreeSongLineup(
       }
 
       const result = await withLoading(async () => {
-        const setlistOk = await mutateSetlistFreeSong(setlistId, (state) => {
-          const index = state.lineup.findIndex((i) => i.submissionId === submissionId);
-          if (index < 0) return null;
-          if (state.lineup[index].completedAt) return null;
-
-          const nextItems = [...state.lineup];
-          nextItems[index] = {
-            ...nextItems[index],
-            completedAt: Timestamp.now(),
-            completedBy: _completedBy,
-          };
-          const nextSubmissions = state.submissions.filter((s) => s.id !== submissionId);
-
-          return {
-            freeSongLineup: nextItems,
-            freeSongSubmissions: nextSubmissions,
-          };
-        });
-
-        if (!setlistOk) return false;
-
-        try {
-          const globalPatch: Record<string, unknown> = { updatedAt: serverTimestamp() };
-          (item.members ?? []).forEach((member) => {
-            const nick = String(member).trim();
-            if (nick) globalPatch[`performers.${nick}`] = increment(1);
-          });
-          await setDoc(doc(db, 'buskingStats', 'freeSong'), globalPatch, { merge: true });
-        } catch (statsError) {
-          console.error('자유곡 누적 통계 반영 실패:', statsError);
-          alert('무대는 완료되었으나 누적 통계 반영에 실패했습니다. 관리자에게 알려주세요.');
-        }
-
-        return true;
+        return completeFreeSongLineupItemWithStats(setlistId, submissionId, _completedBy);
       });
 
-      if (result === false) {
-        alert('완료 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+      if (result === 'busy') {
+        return false;
       }
-      return result;
+
+      if (result === 'already_completed') {
+        return true;
+      }
+
+      if (result === 'ok') {
+        return true;
+      }
+
+      if (result === false) {
+        const actuallyCompleted = await isFreeSongLineupItemCompleted(setlistId, submissionId);
+        if (actuallyCompleted) return true;
+        alert('완료 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+        return false;
+      }
+
+      alert('완료 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+      return false;
     },
     [setlistId, withLoading, session, user]
   );
@@ -325,17 +309,6 @@ export function useFreeSongLineup(
     async (currentLineup: FreeSongLineupItem[] | undefined) => {
       if (!setlistId) return false;
       if (!requireSessionManager()) return false;
-      if (
-        !confirm(
-          '이번 세션 통계를 초기화할까요?\n\n' +
-            '· 완료된 곡 기록이 삭제됩니다\n' +
-            '· 이번 세션 통계가 0으로 돌아갑니다\n' +
-            '· 진행 대기 중인 곡은 유지됩니다\n' +
-            '· 전체 누적 통계는 변경되지 않습니다'
-        )
-      ) {
-        return false;
-      }
 
       return withLoading(async () => {
         const pendingOnly = normalizeLineup(currentLineup).filter((item) => !item.completedAt);

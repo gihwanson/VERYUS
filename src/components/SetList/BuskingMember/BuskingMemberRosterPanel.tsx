@@ -20,6 +20,7 @@ const BuskingMemberRosterPanel: React.FC<BuskingMemberRosterPanelProps> = ({
 }) => {
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [pendingRemove, setPendingRemove] = useState<string | null>(null);
 
   const participants =
     variant === 'freeSong'
@@ -52,10 +53,14 @@ const BuskingMemberRosterPanel: React.FC<BuskingMemberRosterPanelProps> = ({
   };
 
   const handleRemove = async (nickname: string) => {
-    if (!canManage) return;
-    if (!confirm(`${nickname}님을 참가 멤버에서 제거할까요?`)) return;
+    if (!canManage || saving) return;
+    if (pendingRemove !== nickname) {
+      setPendingRemove(nickname);
+      return;
+    }
     const next = participants.filter((p) => p !== nickname);
-    await saveParticipants(next);
+    const ok = await saveParticipants(next);
+    if (ok) setPendingRemove(null);
   };
 
   if (!activeSetList) {
@@ -87,7 +92,10 @@ const BuskingMemberRosterPanel: React.FC<BuskingMemberRosterPanelProps> = ({
             type="button"
             className="free-song-btn free-song-btn--submit busking-roster-add-btn"
             disabled={saving}
-            onClick={() => setModalOpen(true)}
+            onClick={() => {
+              setPendingRemove(null);
+              setModalOpen(true);
+            }}
           >
             + 멤버 선택
           </button>
@@ -104,22 +112,38 @@ const BuskingMemberRosterPanel: React.FC<BuskingMemberRosterPanelProps> = ({
           </p>
         ) : (
           <div className="busking-roster-chips">
-            {participants.map((nickname) => (
-              <span key={nickname} className="busking-roster-chip">
-                {nickname}
-                {canManage && (
-                  <button
-                    type="button"
-                    className="busking-roster-chip__remove"
-                    onClick={() => handleRemove(nickname)}
-                    disabled={saving}
-                    aria-label={`${nickname} 제거`}
-                  >
-                    ×
-                  </button>
-                )}
-              </span>
-            ))}
+            {participants.map((nickname) => {
+              const confirming = pendingRemove === nickname;
+              return (
+                <span
+                  key={nickname}
+                  className={`busking-roster-chip${confirming ? ' busking-roster-chip--confirm' : ''}`}
+                >
+                  {confirming ? `${nickname} 제거?` : nickname}
+                  {canManage && (
+                    <button
+                      type="button"
+                      className={`busking-roster-chip__remove${confirming ? ' busking-roster-chip__remove--confirm' : ''}`}
+                      onClick={() => void handleRemove(nickname)}
+                      disabled={saving}
+                      aria-label={confirming ? `${nickname} 제거 확인` : `${nickname} 제거`}
+                    >
+                      {confirming ? '확인' : '×'}
+                    </button>
+                  )}
+                  {confirming && (
+                    <button
+                      type="button"
+                      className="busking-roster-chip__cancel"
+                      onClick={() => setPendingRemove(null)}
+                      disabled={saving}
+                    >
+                      취소
+                    </button>
+                  )}
+                </span>
+              );
+            })}
           </div>
         )}
       </div>
@@ -127,7 +151,10 @@ const BuskingMemberRosterPanel: React.FC<BuskingMemberRosterPanelProps> = ({
       <BuskingMemberPickerModal
         open={modalOpen}
         initialSelected={participants}
-        onClose={() => setModalOpen(false)}
+        saving={saving}
+        onClose={() => {
+          if (!saving) setModalOpen(false);
+        }}
         onConfirm={handleConfirmModal}
         title={variant === 'freeSong' ? '자유곡 참가 멤버 선택' : '셋리스트 참가 멤버 선택'}
       />

@@ -23,7 +23,7 @@ interface FreeSongSubmitModalProps {
   actionLoading: boolean;
   canSubmitMore: boolean;
   onClose: () => void;
-  onSubmit: (song: ApprovedSong) => Promise<void>;
+  onSubmit: (song: ApprovedSong) => Promise<boolean>;
 }
 
 const FreeSongSubmitModal: React.FC<FreeSongSubmitModalProps> = ({
@@ -38,17 +38,39 @@ const FreeSongSubmitModal: React.FC<FreeSongSubmitModalProps> = ({
   onSubmit,
 }) => {
   const [search, setSearch] = useState('');
+  const [pendingSong, setPendingSong] = useState<ApprovedSong | null>(null);
 
   useEffect(() => {
-    if (open) setSearch('');
+    if (open) {
+      setSearch('');
+      setPendingSong(null);
+    }
   }, [open]);
 
   const filtered = useMemo(() => filterAvailableSongs(songs, search), [songs, search]);
 
   if (!open) return null;
 
+  const busy = actionLoading;
+  const handleBackdropClose = () => {
+    if (busy) return;
+    onClose();
+  };
+
+  const handleRequestSubmit = (song: ApprovedSong) => {
+    if (busy || !canSubmitMore) return;
+    setPendingSong(song);
+  };
+
+  const handleConfirmSubmit = async () => {
+    if (!pendingSong || busy) return;
+    const song = pendingSong;
+    const ok = await onSubmit(song);
+    if (ok) setPendingSong(null);
+  };
+
   return (
-    <div className="busking-member-modal-backdrop" onClick={onClose} role="presentation">
+    <div className="busking-member-modal-backdrop" onClick={handleBackdropClose} role="presentation">
       <div
         className="busking-member-modal free-song-submit-modal"
         onClick={(e) => e.stopPropagation()}
@@ -60,7 +82,13 @@ const FreeSongSubmitModal: React.FC<FreeSongSubmitModalProps> = ({
           <h3 id="free-song-submit-modal-title" className="busking-member-modal__title">
             합격곡 전송
           </h3>
-          <button type="button" className="busking-member-modal__close" onClick={onClose} aria-label="닫기">
+          <button
+            type="button"
+            className="busking-member-modal__close"
+            onClick={handleBackdropClose}
+            disabled={busy}
+            aria-label="닫기"
+          >
             <X size={20} />
           </button>
         </div>
@@ -73,12 +101,38 @@ const FreeSongSubmitModal: React.FC<FreeSongSubmitModalProps> = ({
             onChange={(e) => setSearch(e.target.value)}
             placeholder="곡 제목·멤버 검색"
             className="busking-member-modal__search-input"
-            autoFocus
+            enterKeyHint="search"
+            autoComplete="off"
+            disabled={busy || !!pendingSong}
           />
         </div>
 
         <div className="busking-member-modal__body free-song-submit-modal__body">
-          {filtered.length === 0 ? (
+          {pendingSong ? (
+            <div className="free-song-submit-confirm">
+              <p className="free-song-submit-confirm__title">이 곡을 전송할까요?</p>
+              <SongRow title={pendingSong.title} members={pendingSong.members} />
+              <p className="free-song-submit-confirm__hint">관리자 전송 목록에 바로 추가됩니다.</p>
+              <div className="free-song-submit-confirm__actions">
+                <button
+                  type="button"
+                  className="free-song-btn free-song-btn--ghost"
+                  disabled={busy}
+                  onClick={() => setPendingSong(null)}
+                >
+                  뒤로
+                </button>
+                <button
+                  type="button"
+                  className="free-song-btn free-song-btn--submit"
+                  disabled={busy}
+                  onClick={() => void handleConfirmSubmit()}
+                >
+                  {busy ? '전송 중…' : '전송하기'}
+                </button>
+              </div>
+            </div>
+          ) : filtered.length === 0 ? (
             <p className="busking-member-modal__status">
               {songs.length === 0 ? '전송 가능한 합격곡이 없습니다.' : '검색 결과가 없습니다.'}
             </p>
@@ -93,8 +147,8 @@ const FreeSongSubmitModal: React.FC<FreeSongSubmitModalProps> = ({
                     <button
                       type="button"
                       className="free-song-btn free-song-btn--submit"
-                      disabled={actionLoading || !canSubmitMore}
-                      onClick={() => void onSubmit(song)}
+                      disabled={busy || !canSubmitMore}
+                      onClick={() => handleRequestSubmit(song)}
                     >
                       전송
                     </button>
@@ -108,10 +162,15 @@ const FreeSongSubmitModal: React.FC<FreeSongSubmitModalProps> = ({
         <div className="busking-member-modal__footer">
           <span className="busking-member-modal__count">
             내 합격곡 {totalApprovedCount}곡 · {quotaSubmissionCount}/{submissionLimit}
-            {search.trim() ? ` · 검색 ${filtered.length}곡` : ''}
+            {search.trim() && !pendingSong ? ` · 검색 ${filtered.length}곡` : ''}
           </span>
           <div className="busking-member-modal__actions">
-            <button type="button" className="free-song-btn free-song-btn--ghost" onClick={onClose}>
+            <button
+              type="button"
+              className="free-song-btn free-song-btn--ghost"
+              disabled={busy}
+              onClick={handleBackdropClose}
+            >
               닫기
             </button>
           </div>

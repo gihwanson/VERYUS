@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { SetListData } from '../types';
 import { getFreeSongParticipants } from '../BuskingMember/buskingParticipantsUtils';
 import { useFreeSongLineup, useGlobalFreeSongStats } from './useFreeSongLineup';
@@ -27,6 +27,8 @@ const FreeSongStatsPanel: React.FC<FreeSongStatsPanelProps> = ({
     role: userRole,
   });
 
+  const [confirmReset, setConfirmReset] = useState(false);
+
   const completedStats = useMemo(
     () => computeStatsFromLineup(activeSetList?.freeSongLineup),
     [activeSetList?.freeSongLineup]
@@ -40,8 +42,16 @@ const FreeSongStatsPanel: React.FC<FreeSongStatsPanelProps> = ({
   const hasSessionStats = rosterSessionStats.some(([, count]) => count > 0);
 
   const handleResetSession = async () => {
+    if (!confirmReset) {
+      setConfirmReset(true);
+      return;
+    }
     const ok = await resetSessionStats(activeSetList?.freeSongLineup);
-    if (ok) alert('이번 세션 통계가 초기화되었습니다.');
+    if (ok === true) {
+      setConfirmReset(false);
+    } else if (ok !== 'busy') {
+      alert('세션 통계 초기화에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+    }
   };
 
   if (!activeSetList) {
@@ -72,14 +82,31 @@ const FreeSongStatsPanel: React.FC<FreeSongStatsPanelProps> = ({
         <div className="free-song-stats-header">
           <h3 className="free-song-section-title">이번 세션 · 참여 멤버</h3>
           {canManage && (
-            <button
-              type="button"
-              className="free-song-btn free-song-btn--reset"
-              disabled={actionLoading || !hasSessionStats}
-              onClick={handleResetSession}
-            >
-              세션 초기화
-            </button>
+            <div className="free-song-stats-reset">
+              {confirmReset && (
+                <p className="free-song-stats-reset__hint">
+                  완료 기록이 삭제되고 이번 세션 통계가 0이 됩니다. 누적 통계는 유지됩니다.
+                </p>
+              )}
+              <button
+                type="button"
+                className={`free-song-btn free-song-btn--reset${confirmReset ? ' free-song-btn--cancel' : ''}`}
+                disabled={actionLoading || !hasSessionStats}
+                onClick={() => void handleResetSession()}
+              >
+                {actionLoading ? '처리 중…' : confirmReset ? '초기화 확인' : '세션 초기화'}
+              </button>
+              {confirmReset && (
+                <button
+                  type="button"
+                  className="free-song-btn free-song-btn--ghost"
+                  disabled={actionLoading}
+                  onClick={() => setConfirmReset(false)}
+                >
+                  취소
+                </button>
+              )}
+            </div>
           )}
         </div>
         <p className="free-song-desc free-song-desc--admin">

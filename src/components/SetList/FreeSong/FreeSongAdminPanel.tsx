@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { SetListData } from '../types';
 import type { FreeSongSubmissionsState } from './useFreeSongSubmissions';
 import { useFreeSongLineup } from './useFreeSongLineup';
@@ -27,6 +27,7 @@ const FreeSongAdminPanel: React.FC<FreeSongAdminPanelProps> = ({
     { uid: userUid, nickname: userNickname, role: userRole }
   );
 
+  const [pendingRejectId, setPendingRejectId] = useState<string | null>(null);
   const actionLoading = submitActionLoading || lineupActionLoading;
   const lineup = normalizeLineup(activeSetList?.freeSongLineup);
   const lineupSubmissionIds = new Set(lineup.map((item) => item.submissionId));
@@ -52,10 +53,22 @@ const FreeSongAdminPanel: React.FC<FreeSongAdminPanelProps> = ({
   }, {});
 
   const handleAdd = async (submission: FreeSongSubmission) => {
-    await addToLineup(submission, lineup);
+    setPendingRejectId(null);
+    const ok = await addToLineup(submission, lineup);
+    if (ok === 'busy') return;
+    if (ok === false) {
+      // already-added alert is handled inside addToLineup for MUTATION_REJECTED;
+      // network failures stay silent only when already covered — show fallback if needed
+    }
   };
 
   const handleRejectSubmission = async (submission: FreeSongSubmission) => {
+    if (actionLoading) return;
+    if (pendingRejectId !== submission.id) {
+      setPendingRejectId(submission.id);
+      return;
+    }
+    setPendingRejectId(null);
     await rejectSubmission(submission, userNickname);
   };
 
@@ -86,35 +99,59 @@ const FreeSongAdminPanel: React.FC<FreeSongAdminPanelProps> = ({
               <div key={nickname} className="free-song-user-group">
                 <h4 className="free-song-user-name">{nickname}</h4>
                 <div className="free-song-list">
-                  {userSubs.map((sub) => (
-                    <SongRow
-                      key={sub.id}
-                      title={sub.title}
-                      members={sub.members}
-                      badge="전송됨"
-                      badgeVariant="submitted"
-                      action={
-                        <div className="free-song-row__actions">
-                          <button
-                            type="button"
-                            className="free-song-btn free-song-btn--submit"
-                            disabled={actionLoading}
-                            onClick={() => handleAdd(sub)}
-                          >
-                            선택
-                          </button>
-                          <button
-                            type="button"
-                            className="free-song-btn free-song-btn--cancel"
-                            disabled={actionLoading}
-                            onClick={() => handleRejectSubmission(sub)}
-                          >
-                            거부
-                          </button>
-                        </div>
-                      }
-                    />
-                  ))}
+                  {userSubs.map((sub) => {
+                    const confirmingReject = pendingRejectId === sub.id;
+                    return (
+                      <SongRow
+                        key={sub.id}
+                        title={sub.title}
+                        members={sub.members}
+                        badge="전송됨"
+                        badgeVariant="submitted"
+                        action={
+                          <div className="free-song-row__actions free-song-row__actions--admin">
+                            <button
+                              type="button"
+                              className="free-song-btn free-song-btn--submit"
+                              disabled={actionLoading}
+                              onClick={() => void handleAdd(sub)}
+                            >
+                              선택
+                            </button>
+                            {confirmingReject ? (
+                              <>
+                                <button
+                                  type="button"
+                                  className="free-song-btn free-song-btn--cancel"
+                                  disabled={actionLoading}
+                                  onClick={() => void handleRejectSubmission(sub)}
+                                >
+                                  거부 확인
+                                </button>
+                                <button
+                                  type="button"
+                                  className="free-song-btn free-song-btn--ghost"
+                                  disabled={actionLoading}
+                                  onClick={() => setPendingRejectId(null)}
+                                >
+                                  취소
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                type="button"
+                                className="free-song-btn free-song-btn--cancel free-song-btn--secondary-danger"
+                                disabled={actionLoading}
+                                onClick={() => void handleRejectSubmission(sub)}
+                              >
+                                거부
+                              </button>
+                            )}
+                          </div>
+                        }
+                      />
+                    );
+                  })}
                 </div>
               </div>
             ))

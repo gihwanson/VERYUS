@@ -637,12 +637,19 @@ const AdminPanel: React.FC = () => {
 
       await deleteDoc(doc(db, 'users', user.uid));
 
+      const postDeleteWarnings: string[] = [];
+
       if (user.email) {
-        await markEmailRegistrationDeleted(
-          user.email,
-          user.uid,
-          adminLogName(currentUser)
-        );
+        try {
+          await markEmailRegistrationDeleted(
+            user.email,
+            user.uid,
+            adminLogName(currentUser)
+          );
+        } catch (emailHistoryError) {
+          console.error('이메일 재가입 이력 갱신 실패:', emailHistoryError);
+          postDeleteWarnings.push('이메일 재가입 이력 갱신');
+        }
       }
 
       try {
@@ -653,22 +660,24 @@ const AdminPanel: React.FC = () => {
         await deleteUserAuth({ uid: user.uid });
       } catch (authDeleteError) {
         console.error('Firebase Auth 사용자 삭제 실패:', authDeleteError);
-        alert(
-          'Firestore 데이터는 삭제되었으나 로그인 계정(Firebase Auth) 삭제에 실패했습니다.\n' +
-          '동일 이메일로 재가입이 불가할 수 있습니다. Functions 배포 상태를 확인하거나 다시 시도해 주세요.'
-        );
+        postDeleteWarnings.push('로그인 계정(Firebase Auth) 삭제');
       }
 
       if (deletedApprovedSongs.length > 0) {
-        await saveApprovedSongDeletionAudit({
-          deletedMemberUid: user.uid,
-          deletedMemberNickname: user.nickname,
-          deletedByUid: currentUser.uid,
-          deletedByNickname: adminLogName(currentUser),
-          approvedSongs: deletedApprovedSongs,
-        });
+        try {
+          await saveApprovedSongDeletionAudit({
+            deletedMemberUid: user.uid,
+            deletedMemberNickname: user.nickname,
+            deletedByUid: currentUser.uid,
+            deletedByNickname: adminLogName(currentUser),
+            approvedSongs: deletedApprovedSongs,
+          });
+        } catch (auditError) {
+          console.error('합격곡 삭제 감사 로그 저장 실패:', auditError);
+          postDeleteWarnings.push('합격곡 삭제 감사 로그');
+        }
       }
-      
+
       // 로그 기록
       await logAdminAction(
         currentUser.uid,
@@ -684,7 +693,7 @@ const AdminPanel: React.FC = () => {
           approvedSongs: deletedApprovedSongs.length,
         }
       );
-      
+
       // 서버 동기화 전에 로컬 목록을 먼저 갱신해 삭제 결과를 즉시 반영한다.
       setUsers((prev) => prev.filter((u) => u.uid !== user.uid));
       setSelectedUserUids((prev) => prev.filter((uid) => uid !== user.uid));
@@ -693,12 +702,32 @@ const AdminPanel: React.FC = () => {
 
       // 백그라운드 재조회로 최종 상태를 동기화한다.
       void fetchUsers({ silent: true });
-      alert(
+
+      let successMessage =
         `사용자가 성공적으로 삭제되었습니다.\n\n` +
-        `게시물 ${deletedPosts.length}개 · 댓글 ${deletedComments.length}개 · 합격곡 ${deletedApprovedSongs.length}개`
-      );
+        `게시물 ${deletedPosts.length}개 · 댓글 ${deletedComments.length}개 · 합격곡 ${deletedApprovedSongs.length}개`;
+      if (postDeleteWarnings.length > 0) {
+        successMessage +=
+          `\n\n다음 후처리에 실패했지만 회원 데이터는 삭제되었습니다.\n` +
+          `· ${postDeleteWarnings.join('\n· ')}`;
+        if (postDeleteWarnings.includes('로그인 계정(Firebase Auth) 삭제')) {
+          successMessage +=
+            '\n동일 이메일로 재가입이 불가할 수 있습니다. Functions 배포 상태를 확인하거나 다시 시도해 주세요.';
+        }
+      }
+      alert(successMessage);
     } catch (error) {
       console.error('사용자 삭제 실패:', error);
+      const userSnap = await getDoc(doc(db, 'users', user.uid));
+      if (!userSnap.exists()) {
+        setUsers((prev) => prev.filter((u) => u.uid !== user.uid));
+        setSelectedUserUids((prev) => prev.filter((uid) => uid !== user.uid));
+        setSelectedUser((prev) => (prev?.uid === user.uid ? null : prev));
+        setVisibleUsersCount((prev) => Math.max(USERS_PAGE_SIZE, prev - 1));
+        void fetchUsers({ silent: true });
+        alert('사용자 데이터는 삭제되었습니다. 일부 후처리가 완료되지 않았을 수 있습니다.');
+        return;
+      }
       alert('사용자 삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.');
     } finally {
       setDeletingUserUid(null);

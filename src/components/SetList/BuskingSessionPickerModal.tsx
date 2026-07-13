@@ -84,22 +84,30 @@ export const BuskingSessionCreateModal: React.FC<BuskingSessionCreateModalProps>
   onClose,
 }) => {
   const [venue, setVenue] = useState('');
+  const [localError, setLocalError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (open) setVenue('');
+    if (open) {
+      setVenue('');
+      setLocalError(null);
+    }
   }, [open]);
 
   if (!open) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (bootstrapping) return;
     const trimmed = venue.trim();
     if (!trimmed) {
-      alert('현장명을 입력해 주세요.');
+      setLocalError('현장명을 입력해 주세요.');
       return;
     }
+    setLocalError(null);
     onConfirm(trimmed);
   };
+
+  const displayError = localError || error;
 
   return (
     <div className="busking-member-modal-backdrop" role="presentation">
@@ -115,7 +123,13 @@ export const BuskingSessionCreateModal: React.FC<BuskingSessionCreateModalProps>
             새 버스킹 열기
           </h3>
           {onClose && (
-            <button type="button" className="busking-member-modal__close" onClick={onClose} aria-label="닫기">
+            <button
+              type="button"
+              className="busking-member-modal__close"
+              onClick={onClose}
+              disabled={bootstrapping}
+              aria-label="닫기"
+            >
               <X size={20} />
             </button>
           )}
@@ -131,13 +145,17 @@ export const BuskingSessionCreateModal: React.FC<BuskingSessionCreateModalProps>
             id="busking-venue-input"
             type="text"
             value={venue}
-            onChange={(e) => setVenue(e.target.value)}
+            onChange={(e) => {
+              setVenue(e.target.value);
+              if (localError) setLocalError(null);
+            }}
             placeholder="예: 홍대 버스킹존, 강남역 11번 출구"
             className="busking-member-modal__search-input busking-session-create__input"
-            autoFocus
             maxLength={60}
+            autoComplete="off"
+            disabled={bootstrapping}
           />
-          {error && <p className="busking-session-create__error">{error}</p>}
+          {displayError && <p className="busking-session-create__error">{displayError}</p>}
           <div className="busking-member-modal__footer busking-session-create__footer">
             {onClose && (
               <button type="button" className="free-song-btn free-song-btn--ghost" onClick={onClose} disabled={bootstrapping}>
