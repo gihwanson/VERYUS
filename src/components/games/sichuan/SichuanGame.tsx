@@ -1137,7 +1137,7 @@ const SichuanGame: React.FC = () => {
         <div className="sichuan-ambient__lattice" />
         <div className="sichuan-ambient__glow" />
       </div>
-      {showConfetti && <GameConfetti />}
+      <GameConfetti show={showConfetti} />
       <div className="games-content sichuan-content">
         <header className="games-header sichuan-header">
           <button type="button" className="games-back-btn sichuan-pressable" onClick={requestLeave}>
