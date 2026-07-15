@@ -37,6 +37,7 @@ import {
 import {
   canManageBuskingSession,
 } from '../buskingSessionPermissions';
+import { ROLE_SYSTEM } from '../../AdminTypes';
 
 function sortSubmissions(submissions: FreeSongSubmission[]): FreeSongSubmission[] {
   return submissions.slice().sort((a, b) => {
@@ -59,12 +60,14 @@ function mapApprovedSongDoc(d: { id: string; data: () => Record<string, unknown>
   } as ApprovedSong;
 }
 
+function sortApprovedSongs(songs: ApprovedSong[]): ApprovedSong[] {
+  return songs.slice().sort((a, b) => (a.title || '').localeCompare(b.title || '', 'ko'));
+}
+
 function filterMyApprovedSongs(songs: ApprovedSong[], userNickname: string): ApprovedSong[] {
   const nick = normalizeBuskingNickname(userNickname);
   if (!nick) return [];
-  return songs
-    .filter((song) => isUserInApprovedSong(song, nick))
-    .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'ko'));
+  return sortApprovedSongs(songs.filter((song) => isUserInApprovedSong(song, nick)));
 }
 
 export function useFreeSongSubmissions(
@@ -81,6 +84,7 @@ export function useFreeSongSubmissions(
 
   const setlistId = activeSetList?.id;
   const normalizedNickname = normalizeBuskingNickname(userNickname);
+  const isLeader = userRole === ROLE_SYSTEM.LEADER;
   const participantsKey = JSON.stringify(getFreeSongParticipants(activeSetList));
 
   const submissions = useMemo(
@@ -109,19 +113,27 @@ export function useFreeSongSubmissions(
 
     const loadApprovedSongs = async () => {
       try {
-        const byQuerySnap = await getDocs(
-          query(collection(db, 'approvedSongs'), where('members', 'array-contains', normalizedNickname))
-        );
-        const byQuery = byQuerySnap.docs.map(mapApprovedSongDoc);
+        let songs: ApprovedSong[];
 
-        let songs = byQuery;
-        if (byQuery.length === 0) {
+        if (isLeader) {
           const allSnap = await getDocs(collection(db, 'approvedSongs'));
-          songs = allSnap.docs.map(mapApprovedSongDoc);
+          songs = sortApprovedSongs(allSnap.docs.map(mapApprovedSongDoc));
+        } else {
+          const byQuerySnap = await getDocs(
+            query(collection(db, 'approvedSongs'), where('members', 'array-contains', normalizedNickname))
+          );
+          const byQuery = byQuerySnap.docs.map(mapApprovedSongDoc);
+
+          let loaded = byQuery;
+          if (byQuery.length === 0) {
+            const allSnap = await getDocs(collection(db, 'approvedSongs'));
+            loaded = allSnap.docs.map(mapApprovedSongDoc);
+          }
+          songs = filterMyApprovedSongs(loaded, normalizedNickname);
         }
 
         if (!cancelled) {
-          setApprovedSongs(filterMyApprovedSongs(songs, normalizedNickname));
+          setApprovedSongs(songs);
         }
       } catch (error) {
         console.error('합격곡 로드 실패:', error);
@@ -135,7 +147,7 @@ export function useFreeSongSubmissions(
     return () => {
       cancelled = true;
     };
-  }, [normalizedNickname]);
+  }, [normalizedNickname, isLeader]);
 
   const participants = useMemo(
     () => getFreeSongParticipants(activeSetList),
@@ -147,6 +159,7 @@ export function useFreeSongSubmissions(
   );
 
   const isParticipant = isFreeSongParticipant(activeSetList, normalizedNickname);
+  const canAccessSubmit = isParticipant || isLeader;
   const activeSubmissions = submissions.filter((s) => !isRejectedSubmission(s));
   const submittedSongIds = new Set(activeSubmissions.map((s) => s.approvedSongId));
   const mySubmissions = activeSubmissions.filter(
@@ -162,7 +175,7 @@ export function useFreeSongSubmissions(
   );
   const mySubmissionCount = mySubmissions.length;
   const quotaSubmissionCount = countUserQuotaSubmissions(activeSubmissions, userUid, normalizedNickname);
-  const canSubmitMore = quotaSubmissionCount < FREE_SONG_SUBMISSION_LIMIT;
+  const canSubmitMore = isLeader || quotaSubmissionCount < FREE_SONG_SUBMISSION_LIMIT;
   const partnerSubmittedSongs = eligibleApprovedSongs
     .map((song) => {
       const submission = findSubmissionBySongId(activeSubmissions, song.id);
@@ -202,7 +215,7 @@ export function useFreeSongSubmissions(
   const submitSong = useCallback(
     async (song: ApprovedSong, submittedByUid: string) => {
       if (!setlistId || !activeSetList) return false;
-      if (!isFreeSongParticipant(activeSetList, normalizedNickname)) {
+      if (!isLeader && !isFreeSongParticipant(activeSetList, normalizedNickname)) {
         alert('버스킹 참가 멤버만 합격곡을 전송할 수 있습니다. 멤버 편성을 확인해 주세요.');
         return false;
       }
@@ -210,7 +223,7 @@ export function useFreeSongSubmissions(
         alert('합격곡 멤버 전원이 참가 멤버에 포함되어야 전송할 수 있습니다.');
         return false;
       }
-      if (!isUserInApprovedSong(song, normalizedNickname)) {
+      if (!isLeader && !isUserInApprovedSong(song, normalizedNickname)) {
         alert('본인이 멤버로 포함된 합격곡만 전송할 수 있습니다.');
         return false;
       }
@@ -223,6 +236,7 @@ export function useFreeSongSubmissions(
         submittedBy: normalizedNickname,
         submittedByUid,
         createdAt: Timestamp.now(),
+        ...(isLeader ? { quotaExempt: true } : {}),
       };
 
       const result = await withLoading(async () => {
@@ -232,6 +246,7 @@ export function useFreeSongSubmissions(
             if (existing) return null;
 
             if (
+              !isLeader &&
               findMemberOverSubmissionQuota(
                 state.submissions,
                 song.members,
@@ -263,25 +278,27 @@ export function useFreeSongSubmissions(
               return false;
             }
 
-            const overQuotaMember = findMemberOverSubmissionQuota(
-              freshSubmissions,
-              song.members,
-              submittedByUid,
-              normalizedNickname
-            );
-            if (overQuotaMember) {
-              if (overQuotaMember === normalizedNickname) {
-                alert(
-                  `최대 ${FREE_SONG_SUBMISSION_LIMIT}곡까지 전송할 수 있습니다. 본인 전송·파트너 전송 곡을 합쳐 집계됩니다.`
-                );
-              } else {
-                alert(
-                  `파트너 ${overQuotaMember}님은 이미 최대 ${FREE_SONG_SUBMISSION_LIMIT}곡 한도에 도달했습니다.`
-                );
+            if (!isLeader) {
+              const overQuotaMember = findMemberOverSubmissionQuota(
+                freshSubmissions,
+                song.members,
+                submittedByUid,
+                normalizedNickname
+              );
+              if (overQuotaMember) {
+                if (overQuotaMember === normalizedNickname) {
+                  alert(
+                    `최대 ${FREE_SONG_SUBMISSION_LIMIT}곡까지 전송할 수 있습니다. 본인 전송·파트너 전송 곡을 합쳐 집계됩니다.`
+                  );
+                } else {
+                  alert(
+                    `파트너 ${overQuotaMember}님은 이미 최대 ${FREE_SONG_SUBMISSION_LIMIT}곡 한도에 도달했습니다.`
+                  );
+                }
+                return false;
               }
-            } else {
-              alert('전송에 실패했습니다. 잠시 후 다시 시도해 주세요.');
             }
+            alert('전송에 실패했습니다. 잠시 후 다시 시도해 주세요.');
             return false;
           }
           return true;
@@ -301,7 +318,7 @@ export function useFreeSongSubmissions(
       if (result === 'busy') return false;
       return result;
     },
-    [setlistId, activeSetList, normalizedNickname, participants, withLoading, readFreshSubmissions]
+    [setlistId, activeSetList, normalizedNickname, participants, withLoading, readFreshSubmissions, isLeader]
   );
 
   const cancelSubmission = useCallback(
@@ -436,12 +453,14 @@ export function useFreeSongSubmissions(
     quotaSubmissionCount,
     submissionLimit: FREE_SONG_SUBMISSION_LIMIT,
     canSubmitMore,
+    isLeader,
     partnerSubmittedSongs,
     availableSongs,
     eligibleApprovedSongs,
     approvedSongs,
     lineupSubmissionIds,
     isParticipant,
+    canAccessSubmit,
     participants,
     loading,
     actionLoading,

@@ -92,15 +92,12 @@ const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
       return;
     }
     clearPending();
-    const ok = await completeLineupItem(
+    await completeLineupItem(
       submissionId,
       lineup,
       userNickname,
       activeSetList.freeSongSubmissions
     );
-    if (ok === false) {
-      // completeLineupItem already alerts on real failure
-    }
   };
 
   const handleAdminRemove = async (submissionId: string) => {

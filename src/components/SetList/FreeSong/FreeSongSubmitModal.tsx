@@ -20,6 +20,7 @@ interface FreeSongSubmitModalProps {
   totalApprovedCount: number;
   quotaSubmissionCount: number;
   submissionLimit: number;
+  unlimitedQuota?: boolean;
   actionLoading: boolean;
   canSubmitMore: boolean;
   onClose: () => void;
@@ -32,6 +33,7 @@ const FreeSongSubmitModal: React.FC<FreeSongSubmitModalProps> = ({
   totalApprovedCount,
   quotaSubmissionCount,
   submissionLimit,
+  unlimitedQuota = false,
   actionLoading,
   canSubmitMore,
   onClose,
@@ -161,7 +163,9 @@ const FreeSongSubmitModal: React.FC<FreeSongSubmitModalProps> = ({
 
         <div className="busking-member-modal__footer">
           <span className="busking-member-modal__count">
-            내 합격곡 {totalApprovedCount}곡 · {quotaSubmissionCount}/{submissionLimit}
+            {unlimitedQuota
+              ? `전송 가능 ${totalApprovedCount}곡 · 제한 없음`
+              : `내 합격곡 ${totalApprovedCount}곡 · ${quotaSubmissionCount}/${submissionLimit}`}
             {search.trim() && !pendingSong ? ` · 검색 ${filtered.length}곡` : ''}
           </span>
           <div className="busking-member-modal__actions">

@@ -4,7 +4,7 @@ import {
   isSetlistParticipant,
 } from './BuskingMember/buskingParticipantsUtils';
 import type { SetListData } from './types';
-import { formatSetListDateLabel, getSetListSessionDateISO } from './setListSessionDate';
+import { getSetListSessionDateISO } from './setListSessionDate';
 
 export type BuskingSessionStatus = 'live' | 'ended';
 
@@ -110,11 +110,10 @@ export function isParticipantInSession(list: SetListData, nickname: string): boo
 export function formatBuskingSessionLabel(list: SetListData): string {
   const venue = list.venueLabel?.trim();
   const host = list.hostNickname?.trim() || list.createdBy?.trim();
-  const dateLabel = formatSetListDateLabel(getSetListSessionDateISO(list));
-  if (venue && host) return `${dateLabel} · ${venue} (${host})`;
-  if (venue) return `${dateLabel} · ${venue}`;
-  if (host) return `${dateLabel} · ${host}`;
-  return list.name?.trim() || dateLabel;
+  if (venue && host) return `${venue} (${host})`;
+  if (venue) return venue;
+  if (host) return host;
+  return list.name?.trim() || '버스킹';
 }
 
 export function findHostLiveSession(
@@ -238,9 +237,8 @@ export function writeStoredBuskingSessionId(
   }
 }
 
-export function buildBuskingSessionName(sessionDate: string, venueLabel: string, hostNickname: string): string {
+export function buildBuskingSessionName(_sessionDate: string, venueLabel: string, hostNickname: string): string {
   const venue = venueLabel.trim();
-  const dateLabel = formatSetListDateLabel(sessionDate);
-  if (venue) return `${dateLabel} · ${venue}`;
-  return `${dateLabel} · ${hostNickname.trim() || '버스킹'}`;
+  if (venue) return venue;
+  return hostNickname.trim() || '버스킹';
 }

@@ -13,6 +13,8 @@ export interface FreeSongSubmission {
   status?: FreeSongSubmissionStatus;
   rejectedAt?: Timestamp;
   rejectedBy?: string;
+  /** 리더가 대신 전송한 곡 — 멤버 3곡 한도 집계에서 제외 */
+  quotaExempt?: boolean;
 }
 
 export type FreeSongLineupItemKind = 'approved' | 'request' | 'openMic' | 'other' | 'custom';

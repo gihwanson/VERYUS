@@ -272,7 +272,6 @@ export function useFreeSongLineup(
         canManageBuskingSession(session, user) ||
         (item.members ?? []).map((m) => String(m).trim()).includes(_completedBy.trim());
       if (!canComplete) {
-        alert('본인이 포함된 곡이거나 세션 관리 권한이 있어야 완료할 수 있습니다.');
         return false;
       }
 
@@ -284,22 +283,14 @@ export function useFreeSongLineup(
         return false;
       }
 
-      if (result === 'already_completed') {
-        return true;
-      }
-
-      if (result === 'ok') {
+      if (result === 'already_completed' || result === 'ok' || result === 'ok_stats_failed') {
         return true;
       }
 
       if (result === false) {
-        const actuallyCompleted = await isFreeSongLineupItemCompleted(setlistId, submissionId);
-        if (actuallyCompleted) return true;
-        alert('완료 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.');
-        return false;
+        return isFreeSongLineupItemCompleted(setlistId, submissionId);
       }
 
-      alert('완료 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.');
       return false;
     },
     [setlistId, withLoading, session, user]

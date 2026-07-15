@@ -71,6 +71,8 @@ export function canCompleteLineupItem(
 ): boolean {
   if (item.completedAt) return false;
   if (canManage) return true;
+  const nick = userNickname.trim();
+  if (!nick) return false;
   const members = (item.members ?? []).map((m) => String(m).trim());
-  return members.includes(userNickname);
+  return members.includes(nick);
 }

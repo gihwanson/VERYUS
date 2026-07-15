@@ -224,8 +224,8 @@ service cloud.firestore {
     match /buskingStats/{docId} {
       allow read: if signedIn();
       allow create: if signedIn();
-      allow update: if signedIn()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['performers', 'updatedAt']);
+      // 누적 공연 횟수 — 로그인 사용자면 갱신 허용 (완료 후 best-effort)
+      allow update: if signedIn();
       allow delete: if canManageSetList();
     }
 

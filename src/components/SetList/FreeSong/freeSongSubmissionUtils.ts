@@ -46,7 +46,7 @@ export function countOwnSubmissions(
   ).length;
 }
 
-/** 본인 전송 + 파트너가 대신 전송한 곡 수 (전송 한도 집계용) */
+/** 본인 전송 + 파트너가 대신 전송한 곡 수 (전송 한도 집계용). 리더 대리 전송(quotaExempt)은 제외 */
 export function countUserQuotaSubmissions(
   submissions: FreeSongSubmission[],
   userUid: string,
@@ -55,6 +55,7 @@ export function countUserQuotaSubmissions(
   const nick = normalizeBuskingNickname(userNickname);
   return submissions.filter((submission) => {
     if (isRejectedSubmission(submission)) return false;
+    if (submission.quotaExempt) return false;
     if (
       submission.submittedByUid === userUid ||
       (!submission.submittedByUid && normalizeBuskingNickname(submission.submittedBy) === nick)

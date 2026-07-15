@@ -4,6 +4,7 @@ import {
   increment,
   runTransaction,
   serverTimestamp,
+  setDoc,
   Timestamp,
   type Transaction,
 } from 'firebase/firestore';
@@ -11,6 +12,31 @@ import { db } from '../../../firebase';
 import type { FreeSongLineupItem, FreeSongSelfWithdrawalNotice } from './types';
 import type { FreeSongSubmission } from './types';
 import { normalizeSubmissions } from './freeSongSubmissionUtils';
+
+/** Firestore는 undefined 필드 쓰기를 거부하므로 저장 직전에 제거 */
+function stripUndefinedDeep<T>(value: T): T {
+  if (value === null || value === undefined) return value;
+  if (Array.isArray(value)) {
+    return value.map((item) => stripUndefinedDeep(item)) as T;
+  }
+  if (typeof value === 'object') {
+    const maybeTs = value as { toMillis?: unknown; seconds?: unknown; nanoseconds?: unknown };
+    if (typeof maybeTs.toMillis === 'function') return value;
+    if (typeof maybeTs.seconds === 'number' && typeof maybeTs.nanoseconds === 'number') return value;
+
+    const out: Record<string, unknown> = {};
+    Object.entries(value as Record<string, unknown>).forEach(([key, nested]) => {
+      if (nested !== undefined) out[key] = stripUndefinedDeep(nested);
+    });
+    return out as T;
+  }
+  return value;
+}
+
+/** dotted field path(`performers.${nick}`)에서 깨질 수 있는 문자 치환 */
+function sanitizePerformerStatsKey(nickname: string): string {
+  return nickname.trim().replace(/[./[\]#*$]/g, '_');
+}
 
 export function normalizeLineup(lineup: FreeSongLineupItem[] | undefined): FreeSongLineupItem[] {
   return (lineup ?? [])
@@ -120,15 +146,48 @@ export function selfWithdrawFromState(
   };
 }
 
-export type CompleteLineupItemResult = 'ok' | 'not_found' | 'already_completed';
+export type CompleteLineupItemResult =
+  | 'ok'
+  | 'ok_stats_failed'
+  | 'not_found'
+  | 'already_completed'
+  | 'permission_denied';
 
+async function incrementBuskingPerformerStats(members: string[]): Promise<void> {
+  const statsPatch: Record<string, unknown> = { updatedAt: serverTimestamp() };
+  const seen = new Set<string>();
+  members.forEach((member) => {
+    const nick = sanitizePerformerStatsKey(String(member));
+    if (!nick || seen.has(nick)) return;
+    seen.add(nick);
+    statsPatch[`performers.${nick}`] = increment(1);
+  });
+  if (Object.keys(statsPatch).length <= 1) return;
+  await setDoc(doc(db, 'buskingStats', 'freeSong'), statsPatch, { merge: true });
+}
+
+function isPermissionDeniedError(error: unknown): boolean {
+  return Boolean(
+    error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      String((error as { code: unknown }).code) === 'permission-denied'
+  );
+}
+
+/**
+ * 곡 완료는 setlists만 원자적으로 반영하고,
+ * 누적 통계(buskingStats)는 별도 best-effort로 반영한다.
+ * (통계 권한/필드 오류로 완료 자체가 롤백되지 않게 함)
+ */
 export async function completeFreeSongLineupItemWithStats(
   setlistId: string,
   submissionId: string,
   completedBy: string
 ): Promise<CompleteLineupItemResult> {
   const setlistRef = doc(db, 'setlists', setlistId);
-  const statsRef = doc(db, 'buskingStats', 'freeSong');
+  const completedByNick = String(completedBy ?? '').trim();
+  let completedMembers: string[] = [];
 
   try {
     await runTransaction(db, async (transaction) => {
@@ -141,35 +200,37 @@ export async function completeFreeSongLineupItemWithStats(
       if (state.lineup[index].completedAt) throw new Error('ALREADY_COMPLETED');
 
       const item = state.lineup[index];
+      completedMembers = item.members ?? [];
       const nextItems = [...state.lineup];
-      nextItems[index] = {
+      nextItems[index] = stripUndefinedDeep({
         ...nextItems[index],
         completedAt: Timestamp.now(),
-        completedBy,
-      };
+        completedBy: completedByNick || 'unknown',
+      });
 
       transaction.update(setlistRef, {
-        freeSongLineup: nextItems,
-        freeSongSubmissions: state.submissions.filter((s) => s.id !== submissionId),
+        freeSongLineup: stripUndefinedDeep(nextItems),
+        freeSongSubmissions: stripUndefinedDeep(
+          state.submissions.filter((s) => s.id !== submissionId)
+        ),
         updatedAt: serverTimestamp(),
       });
-
-      const statsPatch: Record<string, unknown> = { updatedAt: serverTimestamp() };
-      (item.members ?? []).forEach((member) => {
-        const nick = String(member).trim();
-        if (nick) statsPatch[`performers.${nick}`] = increment(1);
-      });
-      if (Object.keys(statsPatch).length > 1) {
-        transaction.set(statsRef, statsPatch, { merge: true });
-      }
     });
-    return 'ok';
   } catch (error) {
     if (error instanceof Error) {
       if (error.message === 'NOT_FOUND') return 'not_found';
       if (error.message === 'ALREADY_COMPLETED') return 'already_completed';
     }
+    if (isPermissionDeniedError(error)) return 'permission_denied';
     throw error;
+  }
+
+  try {
+    await incrementBuskingPerformerStats(completedMembers);
+    return 'ok';
+  } catch (statsError) {
+    console.error('자유곡 누적 통계 반영 실패:', statsError);
+    return 'ok_stats_failed';
   }
 }
 

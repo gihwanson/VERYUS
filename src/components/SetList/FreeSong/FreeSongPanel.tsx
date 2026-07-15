@@ -25,12 +25,13 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
     quotaSubmissionCount,
     submissionLimit,
     canSubmitMore,
+    isLeader,
     partnerSubmittedSongs,
     availableSongs,
     eligibleApprovedSongs,
     approvedSongs,
     lineupSubmissionIds,
-    isParticipant,
+    canAccessSubmit,
     participants,
     loading,
     actionLoading,
@@ -67,7 +68,7 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
     }
     const ok = await submitSong(song, userUid);
     if (ok) {
-      if (quotaSubmissionCount + 1 >= submissionLimit) {
+      if (!isLeader && quotaSubmissionCount + 1 >= submissionLimit) {
         setSubmitModalOpen(false);
       }
       return true;
@@ -102,7 +103,7 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
     );
   }
 
-  if (!isParticipant) {
+  if (!canAccessSubmit) {
     return (
       <div className="free-song-panel">
         <div className="setlist-manage-panel">
@@ -158,27 +159,38 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
     );
   };
 
+  const quotaExemptPartnerSongs = partnerSubmittedSongs.filter(({ submission }) => submission.quotaExempt);
+  const quotaCountingPartnerSongs = partnerSubmittedSongs.filter(({ submission }) => !submission.quotaExempt);
+
   return (
     <div className="free-song-panel">
       <div className="setlist-manage-panel">
         <div className="free-song-submit-header">
           <h2 className="setlist-manage-heading free-song-heading">곡 전송</h2>
-          <span className={`free-song-submission-quota${!canSubmitMore ? ' free-song-submission-quota--full' : ''}`}>
-            {quotaSubmissionCount}/{submissionLimit}
-          </span>
+          {isLeader ? (
+            <span className="free-song-submission-quota">제한 없음</span>
+          ) : (
+            <span className={`free-song-submission-quota${!canSubmitMore ? ' free-song-submission-quota--full' : ''}`}>
+              {quotaSubmissionCount}/{submissionLimit}
+            </span>
+          )}
         </div>
         <p className="setlist-manage-sub free-song-desc">
-          참가 멤버로 편성되어 합격곡을 전송할 수 있습니다. 최대 {submissionLimit}곡까지 전송 가능하며, 파트너가 전송한 곡도 한도에 포함됩니다.
+          {isLeader
+            ? '리더는 참가 멤버의 합격곡을 제한 없이 전송할 수 있습니다. 리더가 대신 전송한 곡은 해당 멤버의 3곡 한도에 포함되지 않습니다.'
+            : `참가 멤버로 편성되어 합격곡을 전송할 수 있습니다. 최대 ${submissionLimit}곡까지 전송 가능하며, 파트너가 전송한 곡도 한도에 포함됩니다.`}
         </p>
         <p className="free-song-desc" style={{ marginTop: 12, marginBottom: 12 }}>
-          내 합격곡 {approvedSongs.length}곡
+          {isLeader ? `전송 가능 합격곡 ${eligibleApprovedSongs.length}곡` : `내 합격곡 ${approvedSongs.length}곡`}
         </p>
         {availableSongs.length === 0 ? (
           <p className="free-song-empty-sub">
             {!canSubmitMore
               ? `전송 한도(${submissionLimit}곡)에 도달했습니다. 본인 전송·파트너 전송 곡을 합쳐 집계됩니다.`
               : approvedSongs.length === 0
-                ? '본인이 멤버로 등록된 합격곡이 없습니다.'
+                ? isLeader
+                  ? '참가 멤버의 합격곡이 없습니다.'
+                  : '본인이 멤버로 등록된 합격곡이 없습니다.'
                 : eligibleApprovedSongs.length === 0
                   ? '합격곡 멤버 전원이 참가 멤버에 포함된 곡만 전송할 수 있습니다.'
                   : mySubmissions.length > 0 || partnerSubmittedSongs.length > 0
@@ -209,7 +221,13 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
                 key={sub.id}
                 title={sub.title}
                 members={sub.members}
-                badge={lineupSubmissionIds.has(sub.id) ? '선정됨' : '전송됨'}
+                badge={
+                  lineupSubmissionIds.has(sub.id)
+                    ? '선정됨'
+                    : sub.quotaExempt
+                      ? '리더 전송'
+                      : '전송됨'
+                }
                 badgeVariant={lineupSubmissionIds.has(sub.id) ? 'selected' : 'submitted'}
                 action={renderCancelActions(sub)}
               />
@@ -239,14 +257,14 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
         </div>
       )}
 
-      {partnerSubmittedSongs.length > 0 && (
+      {quotaCountingPartnerSongs.length > 0 && (
         <div className="setlist-manage-panel">
-          <h3 className="free-song-section-title">파트너 전송 완료 ({partnerSubmittedSongs.length})</h3>
+          <h3 className="free-song-section-title">파트너 전송 완료 ({quotaCountingPartnerSongs.length})</h3>
           <p className="free-song-desc" style={{ marginBottom: 12 }}>
             파트너가 이미 전송한 합격곡은 중복 전송할 수 없으며, 전송 한도에도 포함됩니다.
           </p>
           <div className="free-song-list">
-            {partnerSubmittedSongs.map(({ song, submission }) => (
+            {quotaCountingPartnerSongs.map(({ song, submission }) => (
               <SongRow
                 key={song.id}
                 title={song.title}
@@ -261,12 +279,35 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
         </div>
       )}
 
+      {quotaExemptPartnerSongs.length > 0 && (
+        <div className="setlist-manage-panel">
+          <h3 className="free-song-section-title">리더 대리 전송 ({quotaExemptPartnerSongs.length})</h3>
+          <p className="free-song-desc" style={{ marginBottom: 12 }}>
+            리더가 대신 전송한 곡입니다. 중복 전송은 불가하지만, 내 3곡 한도에는 포함되지 않습니다.
+          </p>
+          <div className="free-song-list">
+            {quotaExemptPartnerSongs.map(({ song, submission }) => (
+              <SongRow
+                key={song.id}
+                title={song.title}
+                members={song.members}
+                submittedBy={submission.submittedBy}
+                badge="리더 전송"
+                badgeVariant="submitted"
+                action={renderCancelActions(submission, true)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       <FreeSongSubmitModal
         open={submitModalOpen}
         songs={availableSongs}
-        totalApprovedCount={approvedSongs.length}
+        totalApprovedCount={isLeader ? eligibleApprovedSongs.length : approvedSongs.length}
         quotaSubmissionCount={quotaSubmissionCount}
         submissionLimit={submissionLimit}
+        unlimitedQuota={isLeader}
         canSubmitMore={canSubmitMore}
         actionLoading={actionLoading}
         onClose={() => setSubmitModalOpen(false)}
