@@ -34,8 +34,10 @@ const EvaluationPostWrite: React.FC = () => {
 
   const categoryOptions = [
     { id: 'busking', name: '버스킹심사곡' },
+    { id: 'rejudge', name: '재심사' },
     { id: 'feedback', name: '피드백요청' }
   ];
+  const requiresMembers = category === 'busking' || category === 'rejudge';
 
   useEffect(() => {
     const userString = localStorage.getItem('veryus_user');
@@ -148,7 +150,7 @@ const EvaluationPostWrite: React.FC = () => {
       alert('제목을 입력해주세요.');
       return;
     }
-    if (category === 'busking' && (members.length === 0 || members.every(m => !m.trim()))) {
+    if (requiresMembers && (members.length === 0 || members.every(m => !m.trim()))) {
       alert('닉네임을 1명 이상 입력해주세요.');
       return;
     }
@@ -259,7 +261,7 @@ const EvaluationPostWrite: React.FC = () => {
         commentCount: 0,
         views: 0,
         likes: [],
-        members: category === 'busking' ? members.filter(m => m.trim()) : [],
+        members: requiresMembers ? members.filter(m => m.trim()) : [],
       });
       
       // 업로드 후 안내
@@ -287,6 +289,8 @@ const EvaluationPostWrite: React.FC = () => {
         });
         
         alert(`버스킹심사곡이 업로드되었습니다!\n\n이번 주 업로드: ${thisWeekPosts.length}/${effectiveLimit}곡`);
+      } else if (category === 'rejudge') {
+        alert('재심사 글이 업로드되었습니다!');
       } else {
         alert('피드백심사 글이 업로드되었습니다!');
       }
@@ -371,13 +375,15 @@ const EvaluationPostWrite: React.FC = () => {
             />
           </section>
 
-          {category === 'busking' && (
+          {requiresMembers && (
             <section className="eval-post-write__section" aria-labelledby="eval-members-label">
               <span id="eval-members-label" className="eval-post-write__section-label">
                 참여 멤버
               </span>
               <p className="eval-post-write__hint">
-                듀엣·합창은 <strong>모든 멤버 닉네임</strong>을 적어 주세요. 솔로는 <strong>본인 닉네임만</strong> 입력하면 됩니다.
+                {category === 'rejudge'
+                  ? '이미 합격된 곡의 듀엣·합창 멤버를 모두 적어 주세요. 솔로는 본인 닉네임만 입력하면 됩니다.'
+                  : <>듀엣·합창은 <strong>모든 멤버 닉네임</strong>을 적어 주세요. 솔로는 <strong>본인 닉네임만</strong> 입력하면 됩니다.</>}
               </p>
               {members.map((member, idx) => (
                 <div key={idx} className="eval-post-write__member-row">

@@ -89,7 +89,7 @@ export function useFreeSongSubmissions(
 
   const submissions = useMemo(
     () => sortSubmissions(normalizeSubmissions(activeSetList?.freeSongSubmissions)),
-    [activeSetList?.freeSongSubmissions]
+    [activeSetList]
   );
 
   const lineupSubmissionIds = useMemo(() => {
@@ -98,7 +98,7 @@ export function useFreeSongSubmissions(
       if (!item.completedAt) ids.add(item.submissionId);
     });
     return ids;
-  }, [activeSetList?.freeSongLineup]);
+  }, [activeSetList]);
 
   const loading = setlistLoading || approvedSongsLoading;
 

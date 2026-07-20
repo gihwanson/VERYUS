@@ -82,8 +82,8 @@ const getCreatedAtMs = (value: any): number => {
 
 const getEvaluationStatusBadgeClass = (post: Pick<EvaluationPost, 'category' | 'status'>): string => {
   if (post.category === 'feedback') return 'feedback';
-  if (post.status === '합격') return 'approved';
-  if (post.status === '불합격') return 'rejected';
+  if (post.status === '합격' || post.status === '유지') return 'approved';
+  if (post.status === '불합격' || post.status === '삭제') return 'rejected';
   return 'pending';
 };
 
@@ -94,6 +94,19 @@ const getEvaluationStatusLabel = (
   if (post.category === 'feedback') return '피드백';
   return post.status || fallback;
 };
+
+const getEvaluationCategoryLabel = (category: string): string => {
+  if (category === 'busking') return '버스킹심사곡';
+  if (category === 'rejudge') return '재심사';
+  if (category === 'feedback') return '피드백요청';
+  return '평가';
+};
+
+const isJudgedCompletedStatus = (status?: string): boolean =>
+  status === '합격' || status === '불합격' || status === '유지' || status === '삭제';
+
+const isJudgedCategory = (category: string): boolean =>
+  category === 'busking' || category === 'rejudge';
 
 const getEvaluationPostCardClass = (post: Pick<EvaluationPost, 'category' | 'status'>): string =>
   `post-card post-card--eval-${getEvaluationStatusBadgeClass(post)}`;
@@ -220,11 +233,11 @@ const EvaluationPostList: React.FC = () => {
 
       // 오래된순에서는 숨김/분리 없이 전체 글을 보여준다.
       const shouldIncludeAllForOldest = sortOrder === 'oldest';
-      // 합격/불합격 완료된 게시물은 별도 리스트로 보관(최신순 전용)
+      // 판정 완료된 게시물은 별도 리스트로 보관(최신순 전용)
       const completedHiddenCandidates = shouldIncludeAllForOldest
         ? []
         : rawPosts.filter(post =>
-            post.category === 'busking' && (post.status === '합격' || post.status === '불합격')
+            isJudgedCategory(post.category) && isJudgedCompletedStatus(post.status)
           );
 
       // 합격/불합격 완료된 게시물 및 댓글이 달린 피드백 요청 게시물 숨김 처리
@@ -252,9 +265,9 @@ const EvaluationPostList: React.FC = () => {
               return true;
             }
             
-            // 버스킹 심사곡 처리
-            // 합격/불합격 처리된 경우
-            if (post.status === '합격' || post.status === '불합격') {
+            // 버스킹 심사곡 / 재심사 처리
+            // 합격·불합격·유지·삭제 처리된 경우
+            if (isJudgedCompletedStatus(post.status)) {
               // 기존 데이터: statusUpdatedAt이 없으면 즉시 숨김
               if (!post.statusUpdatedAt) {
                 return false; // 기존 데이터는 즉시 숨김
@@ -386,9 +399,9 @@ const EvaluationPostList: React.FC = () => {
             return true;
           }
           
-          // 버스킹 심사곡 처리
-          // 합격/불합격 처리된 경우
-          if (post.status === '합격' || post.status === '불합격') {
+          // 버스킹 심사곡 / 재심사 처리
+          // 합격·불합격·유지·삭제 처리된 경우
+          if (isJudgedCompletedStatus(post.status)) {
             // 기존 데이터: statusUpdatedAt이 없으면 즉시 숨김
             if (!post.statusUpdatedAt) {
               return false; // 기존 데이터는 즉시 숨김
@@ -786,7 +799,7 @@ const EvaluationPostList: React.FC = () => {
             >
               <div className="post-category-title">
                 <span className="post-category category-badge">
-                  {post.category === 'busking' ? '버스킹심사곡' : post.category === 'feedback' ? '피드백요청' : '평가'}
+                  {getEvaluationCategoryLabel(post.category)}
                 </span>
                 <h2 className="post-title" style={{ fontSize: '1.3rem' }}>{post.title}</h2>
               </div>
@@ -850,7 +863,7 @@ const EvaluationPostList: React.FC = () => {
             >
               <div className="post-category-title">
                 <span className="post-category category-badge">
-                  {post.category === 'busking' ? '버스킹심사곡' : post.category === 'feedback' ? '피드백요청' : '평가'}
+                  {getEvaluationCategoryLabel(post.category)}
                 </span>
                 <h2 className="post-title" style={{ fontSize: '1.3rem' }}>{post.title}</h2>
               </div>

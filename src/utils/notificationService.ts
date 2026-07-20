@@ -8,6 +8,8 @@ export interface NotificationData {
     | 'like'
     | 'approval'
     | 'rejection'
+    | 'rejudge_keep'
+    | 'rejudge_remove'
     | 'guestbook'
     | 'guestbook_reply'
     | 'mention'
@@ -197,6 +199,8 @@ export class NotificationService {
       'like': '내 게시글을 좋아합니다.',
       'approval': '내 게시글이 합격되었습니다.',
       'rejection': '내 게시글이 불합격되었습니다.',
+      'rejudge_keep': '재심사에서 합격곡 유지로 판정되었습니다.',
+      'rejudge_remove': '재심사에서 합격곡 삭제로 판정되었습니다.',
       'guestbook': '방명록에 메시지를 남겼습니다.',
       'guestbook_reply': '방명록 글에 답글이 달렸습니다.',
       'mention': '게시글에서 나를 언급했습니다.',
@@ -447,6 +451,30 @@ export class NotificationService {
       postTitle,
       postType: postType as any,
       message: `"${postTitle}" 게시글이 불합격되었습니다.`
+    });
+  }
+
+  static async createRejudgeKeepNotification(toUid: string, postId: string, postTitle: string, postType: string = 'evaluation') {
+    return this.createNotification({
+      type: 'rejudge_keep',
+      toUid,
+      fromNickname: '시스템',
+      postId,
+      postTitle,
+      postType: postType as any,
+      message: `"${postTitle}" 재심사 결과 합격곡으로 유지되었습니다.`
+    });
+  }
+
+  static async createRejudgeRemoveNotification(toUid: string, postId: string, postTitle: string, postType: string = 'evaluation') {
+    return this.createNotification({
+      type: 'rejudge_remove',
+      toUid,
+      fromNickname: '시스템',
+      postId,
+      postTitle,
+      postType: postType as any,
+      message: `"${postTitle}" 재심사 결과 합격곡에서 삭제되었습니다.`
     });
   }
 

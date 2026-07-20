@@ -398,10 +398,24 @@ const EvaluationPostDetail: React.FC = () => {
                 해당 곡은 합격처리 되었습니다
               </div>
             )}
+            {post.status === '삭제' && (
+              <div style={{marginBottom: 12, color: '#F43F5E', fontWeight: 700, fontSize: '1.08rem', background:'#FFF1F2', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
+                재심사 결과 해당 곡은 삭제로 판정되었습니다
+              </div>
+            )}
+            {post.status === '유지' && (
+              <div style={{marginBottom: 12, color: 'var(--primary-color, #8b5a2b)', fontWeight: 700, fontSize: '1.08rem', background:'var(--paper-tag-bg, #f0e6d6)', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
+                재심사 결과 해당 곡은 유지로 판정되었습니다
+              </div>
+            )}
             {(!post.status || post.status === '대기') && (
               post.category === 'feedback' ? (
                 <div style={{marginBottom: 12, color: 'var(--primary-color, #8b5a2b)', fontWeight: 700, fontSize: '1.08rem', background:'var(--paper-tag-bg, #f0e6d6)', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
                   피드백을 남겨주세요!
+                </div>
+              ) : post.category === 'rejudge' ? (
+                <div style={{marginBottom: 12, color: '#888', fontWeight: 600, fontSize: '1.05rem', background:'#F3F4F6', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
+                  재심사 대기중 입니다
                 </div>
               ) : (
                 <div style={{marginBottom: 12, color: '#888', fontWeight: 600, fontSize: '1.05rem', background:'#F3F4F6', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
@@ -713,6 +727,152 @@ const EvaluationPostDetail: React.FC = () => {
                       }
                     }} style={{background: post.status === '합격' ? '#F43F5E' : '#3B82F6',color:'#fff',fontWeight:700,padding:'8px 22px',borderRadius:8,border:'none',fontSize:16,cursor:'pointer'}}>
                       {post.status === '합격' ? '불합격으로 전환' : '합격으로 전환'}
+                    </button>
+                  )}
+                </div>
+              )}
+              {/* 재심사 유지/삭제 판정 버튼 (합격곡 후처리 없음, 상태·알림만) */}
+              {isEvaluationJudge(user) && post.category === 'rejudge' && (
+                <div style={{margin:'18px 0 0 0', display:'flex', justifyContent:'center', gap:16}}>
+                  {(!post.status || post.status === '대기') ? (
+                    <>
+                      <button onClick={async()=>{
+                        if (!window.confirm('정말 유지 처리하시겠습니까?')) return;
+                        try {
+                          await updateDoc(doc(db, 'posts', post.id), {
+                            status: '유지',
+                            statusUpdatedAt: new Date()
+                          });
+                          setPost(p=>p ? { ...p, status: '유지' } : p);
+
+                          await NotificationService.createRejudgeKeepNotification(
+                            post.writerUid,
+                            post.id,
+                            post.title,
+                            'evaluation'
+                          );
+                          if (Array.isArray(post.members) && post.members.length > 0) {
+                            for (const memberNickname of post.members) {
+                              if (memberNickname && memberNickname.trim() && memberNickname !== post.writerNickname) {
+                                const memberUid = await findUidByNickname(memberNickname);
+                                if (memberUid) {
+                                  await NotificationService.createRejudgeKeepNotification(
+                                    memberUid,
+                                    post.id,
+                                    post.title,
+                                    'evaluation'
+                                  );
+                                }
+                              }
+                            }
+                          }
+                          alert('유지 처리가 완료되었습니다. 관련 멤버들에게 알림이 전송되었습니다.');
+                        } catch(e) {
+                          console.error('유지 처리 중 오류:', e);
+                          alert('유지 처리 중 오류가 발생했습니다.');
+                        }
+                      }} style={{background:'var(--primary-color, #8b5a2b)',color:'#fff',fontWeight:700,padding:'8px 22px',borderRadius:8,border:'none',fontSize:16,cursor:'pointer'}}>유지</button>
+
+                      <button onClick={async()=>{
+                        if (!window.confirm('정말 삭제 처리하시겠습니까?')) return;
+                        try {
+                          await updateDoc(doc(db, 'posts', post.id), {
+                            status: '삭제',
+                            statusUpdatedAt: new Date()
+                          });
+                          setPost(p=>p ? { ...p, status: '삭제' } : p);
+
+                          await NotificationService.createRejudgeRemoveNotification(
+                            post.writerUid,
+                            post.id,
+                            post.title,
+                            'evaluation'
+                          );
+                          if (Array.isArray(post.members) && post.members.length > 0) {
+                            for (const memberNickname of post.members) {
+                              if (memberNickname && memberNickname.trim() && memberNickname !== post.writerNickname) {
+                                const memberUid = await findUidByNickname(memberNickname);
+                                if (memberUid) {
+                                  await NotificationService.createRejudgeRemoveNotification(
+                                    memberUid,
+                                    post.id,
+                                    post.title,
+                                    'evaluation'
+                                  );
+                                }
+                              }
+                            }
+                          }
+                          alert('삭제 처리가 완료되었습니다. 관련 멤버들에게 알림이 전송되었습니다.');
+                        } catch(e) {
+                          console.error('삭제 처리 중 오류:', e);
+                          alert('삭제 처리 중 오류가 발생했습니다.');
+                        }
+                      }} style={{background:'#F43F5E',color:'#fff',fontWeight:700,padding:'8px 22px',borderRadius:8,border:'none',fontSize:16,cursor:'pointer'}}>삭제</button>
+                    </>
+                  ) : (
+                    <button onClick={async()=>{
+                      const nextStatus = post.status === '유지' ? '삭제' : '유지';
+                      if (!window.confirm(`정말 ${nextStatus}으로 전환하시겠습니까?`)) return;
+                      try {
+                        await updateDoc(doc(db, 'posts', post.id), {
+                          status: nextStatus,
+                          statusUpdatedAt: new Date()
+                        });
+                        setPost(p=>p ? { ...p, status: nextStatus } : p);
+
+                        if (nextStatus === '유지') {
+                          await NotificationService.createRejudgeKeepNotification(
+                            post.writerUid,
+                            post.id,
+                            post.title,
+                            'evaluation'
+                          );
+                          if (Array.isArray(post.members) && post.members.length > 0) {
+                            for (const memberNickname of post.members) {
+                              if (memberNickname && memberNickname.trim() && memberNickname !== post.writerNickname) {
+                                const memberUid = await findUidByNickname(memberNickname);
+                                if (memberUid) {
+                                  await NotificationService.createRejudgeKeepNotification(
+                                    memberUid,
+                                    post.id,
+                                    post.title,
+                                    'evaluation'
+                                  );
+                                }
+                              }
+                            }
+                          }
+                        } else {
+                          await NotificationService.createRejudgeRemoveNotification(
+                            post.writerUid,
+                            post.id,
+                            post.title,
+                            'evaluation'
+                          );
+                          if (Array.isArray(post.members) && post.members.length > 0) {
+                            for (const memberNickname of post.members) {
+                              if (memberNickname && memberNickname.trim() && memberNickname !== post.writerNickname) {
+                                const memberUid = await findUidByNickname(memberNickname);
+                                if (memberUid) {
+                                  await NotificationService.createRejudgeRemoveNotification(
+                                    memberUid,
+                                    post.id,
+                                    post.title,
+                                    'evaluation'
+                                  );
+                                }
+                              }
+                            }
+                          }
+                        }
+                        alert(`${nextStatus}으로 전환되었습니다. 관련 멤버들에게 알림이 전송되었습니다.`);
+                      } catch (e) {
+                        console.error('재심사 전환 중 오류:', e);
+                        alert('재심사 전환 중 오류가 발생했습니다.');
+                      }
+                    }} style={{background: post.status === '유지' ? '#F43F5E' : '#3B82F6',color:'#fff',fontWeight:700,padding:'8px 22px',borderRadius:8,border:'none',fontSize:16,cursor:'pointer'}}>
+                      {post.status === '유지' ? '삭제로 전환' : '유지로 전환'}
                     </button>
                   )}
                 </div>

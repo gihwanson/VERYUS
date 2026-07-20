@@ -13,6 +13,8 @@ interface Notification {
     | 'like'
     | 'approval'
     | 'rejection'
+    | 'rejudge_keep'
+    | 'rejudge_remove'
     | 'guestbook'
     | 'guestbook_reply'
     | 'mention'
@@ -122,7 +124,7 @@ const Notifications: React.FC = () => {
       case 'like':
         return notifications.filter(n => n.type === 'like');
       case 'system':
-        return notifications.filter(n => ['approval', 'rejection', 'grade_request_pending', 'grade_change_approved', 'grade_change_rejected', 'approved_song_milestone', 'email_re_registration', 'partnership', 'partnership_closed', 'partnership_confirmed', 'anonymous_chat_ban', 'anonymous_chat_kick', 'customer_center_inquiry', 'customer_center_reply'].includes(n.type));
+        return notifications.filter(n => ['approval', 'rejection', 'rejudge_keep', 'rejudge_remove', 'grade_request_pending', 'grade_change_approved', 'grade_change_rejected', 'approved_song_milestone', 'email_re_registration', 'partnership', 'partnership_closed', 'partnership_confirmed', 'anonymous_chat_ban', 'anonymous_chat_kick', 'customer_center_inquiry', 'customer_center_reply'].includes(n.type));
       default:
         return notifications;
     }
@@ -207,8 +209,10 @@ const Notifications: React.FC = () => {
     switch (type) {
       case 'reply': return 'notifications-icon-reply';
       case 'like': return 'notifications-icon-like';
-      case 'approval': return 'notifications-icon-approval';
-      case 'rejection': return 'notifications-icon-rejection';
+      case 'approval':
+      case 'rejudge_keep': return 'notifications-icon-approval';
+      case 'rejection':
+      case 'rejudge_remove': return 'notifications-icon-rejection';
       case 'guestbook': return 'notifications-icon-guestbook';
       case 'guestbook_reply': return 'notifications-icon-guestbook-reply';
       case 'mention': return 'notifications-icon-mention';
@@ -234,8 +238,10 @@ const Notifications: React.FC = () => {
       case 'comment': return <MessageCircle size={18} className={iconClass} />;
       case 'reply': return <MessageCircle size={18} className={iconClass} />;
       case 'like': return <Heart size={18} className={iconClass} />;
-      case 'approval': return <CheckCircle size={18} className={iconClass} />;
-      case 'rejection': return <XCircle size={18} className={iconClass} />;
+      case 'approval':
+      case 'rejudge_keep': return <CheckCircle size={18} className={iconClass} />;
+      case 'rejection':
+      case 'rejudge_remove': return <XCircle size={18} className={iconClass} />;
       case 'guestbook': return <Users size={18} className={iconClass} />;
       case 'guestbook_reply': return <MessageCircle size={18} className={iconClass} />;
       case 'mention': return <AtSign size={18} className={iconClass} />;

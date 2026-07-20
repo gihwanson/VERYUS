@@ -266,7 +266,7 @@ export async function mutateSetlistFreeSong(
       if (!patch) throw new Error('MUTATION_REJECTED');
 
       transaction.update(ref, {
-        ...patch,
+        ...stripUndefinedDeep(patch),
         updatedAt: serverTimestamp(),
       });
     });

@@ -1855,9 +1855,9 @@ const MyPageNotebook: React.FC = () => {
                         marginBottom: '8px',
                         fontWeight: 600,
                         color:
-                          post.status === '합격'
+                          post.status === '합격' || post.status === '유지'
                             ? '#86EFAC'
-                            : post.status === '불합격'
+                            : post.status === '불합격' || post.status === '삭제'
                               ? '#FCA5A5'
                               : 'rgba(255, 255, 255, 0.8)'
                       }}

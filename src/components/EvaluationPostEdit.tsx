@@ -79,7 +79,7 @@ const EvaluationPostEdit: React.FC = () => {
   const isWriter = !!(user && post && user.uid === post.writerUid);
   const isJudge = isEvaluationJudge(user);
   const isJudgeOnlyEdit = isJudge && !isWriter;
-  const isBusking = post?.category === 'busking';
+  const requiresMembers = post?.category === 'busking' || post?.category === 'rejudge';
 
   const handleSubmit = async () => {
     if (!user || !post) return;
@@ -87,7 +87,7 @@ const EvaluationPostEdit: React.FC = () => {
       alert('제목을 입력해주세요.');
       return;
     }
-    if (isBusking && members.every((m) => !m.trim())) {
+    if (requiresMembers && members.every((m) => !m.trim())) {
       alert('함께한 멤버를 최소 1명 이상 입력해주세요.');
       return;
     }
@@ -96,7 +96,7 @@ const EvaluationPostEdit: React.FC = () => {
       const updateData: { title: string; description?: string; members?: string[] } = {
         title: title.trim(),
       };
-      if (isBusking) {
+      if (requiresMembers) {
         updateData.members = members.map((m) => m.trim()).filter(Boolean);
       }
       if (isWriter) {
@@ -165,7 +165,7 @@ const EvaluationPostEdit: React.FC = () => {
           />
         </div>
 
-        {isBusking && (
+        {requiresMembers && (
           <section className="eval-post-write__section" aria-labelledby="eval-edit-members-label">
             <span id="eval-edit-members-label" className="eval-post-write__section-label">
               함께한 멤버
