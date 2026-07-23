@@ -1,0 +1,104 @@
+.mention-input-field {
+  width: 100%;
+}
+
+.mention-input-field__control {
+  width: 100%;
+}
+
+.mention-input-field .mentions__input {
+  color: var(--comment-input-color, #1F2937) !important;
+  -webkit-text-fill-color: var(--comment-input-color, #1F2937) !important;
+  caret-color: var(--comment-input-color, #1F2937) !important;
+}
+
+.mention-input-field .mentions__input::placeholder {
+  color: var(--comment-input-placeholder, #a89880) !important;
+  opacity: 1;
+}
+
+/* 하이라이터 본문 글자는 숨기고, 멘션 칩 배경만 표시 */
+.mention-input-field .mentions__highlighter {
+  color: transparent !important;
+}
+
+.mention-input-field .mentions__mention {
+  position: relative;
+  z-index: 0;
+  background: var(--comment-mention-bg, #f0e6d6) !important;
+  color: transparent !important;
+  font-weight: 700 !important;
+  border-radius: 6px !important;
+  box-shadow: inset 0 0 0 1px var(--comment-mention-border, #e8dcc8) !important;
+  padding: 0 !important;
+  border: none !important;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.mention-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  font-weight: 600;
+}
+
+.mention-suggestion.is-focused {
+  color: var(--comment-mention-text, #8b5a2b);
+}
+
+.mention-suggestion__at {
+  color: var(--comment-mention-text, #8b5a2b);
+  font-weight: 800;
+}
+
+.mention-suggestion__hint {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--comment-mention-text, #8b5a2b);
+  background: rgba(139, 90, 43, 0.12);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.mention-tagged-summary {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--comment-mention-bg, #f0e6d6);
+  border: 1px solid var(--comment-mention-border, #e8dcc8);
+}
+
+.mention-tagged-summary__label {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--comment-mention-text, #8b5a2b);
+  line-height: 24px;
+}
+
+.mention-tagged-summary__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mention-tagged-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--comment-mention-text, #8b5a2b);
+  background: #fff;
+  border: 1px solid var(--comment-mention-border, #e8dcc8);
+  border-radius: 999px;
+  padding: 3px 10px;
+  line-height: 1.3;
+}

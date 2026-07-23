@@ -609,7 +609,7 @@ const PartnerPostDetail: React.FC = () => {
           </div>
         </div>
       </article>
-      <CommentSection postId={post.id} user={user} post={{ id: post.id, title: post.title, writerUid: post.writerUid, writerNickname: post.writerNickname }} />
+      <CommentSection postId={post.id} user={user} post={{ id: post.id, title: post.title, writerUid: post.writerUid, writerNickname: post.writerNickname }} boardType="partner" />
       {/* 지원자 모달 */}
       {showApplicantsModal && (
         <div className="modal-overlay" style={{position:'fixed',top:0,left:0,width:'100vw',height:'100vh',background:'rgba(0,0,0,0.25)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center'}}>

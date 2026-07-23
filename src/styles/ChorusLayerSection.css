@@ -668,11 +668,20 @@
 .chorus-compose__row {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.4rem;
-  padding: 0.35rem 0.4rem 0.35rem 0.75rem;
-  border-radius: 999px;
-  border: 1px solid var(--paper-border, #e8dcc8);
-  background: #fff;
+  padding: 0.35rem 0.4rem;
+  margin-top: 0.45rem;
+}
+
+.chorus-compose__editor {
+  width: 100%;
+}
+
+.chorus-compose__mention .mentions__control,
+.chorus-compose__mention .mention-input-field__control {
+  border-radius: 14px !important;
+  min-height: 44px !important;
 }
 
 .chorus-compose__input {
@@ -1259,6 +1268,23 @@
   border-radius: 10px;
   background: rgba(0, 0, 0, 0.03);
   border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.chorus-reply-form--mention {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+}
+
+.chorus-reply-form__mention {
+  width: 100%;
+}
+
+.chorus-reply-form__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
 }
 
 .chorus-reply-form__input {

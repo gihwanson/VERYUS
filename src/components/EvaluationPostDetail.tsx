@@ -927,6 +927,7 @@ const EvaluationPostDetail: React.FC = () => {
             postId={post.id}
             user={user}
             post={post}
+            boardType="evaluation"
           />
         )}
 

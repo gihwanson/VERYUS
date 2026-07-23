@@ -45,6 +45,15 @@ import { ChorusAudioMixer } from '../utils/chorusAudioMixer';
 import { createChorusPlaybackAudio, playChorusAudio } from '../utils/chorusAudioPlayback';
 import { Mic, Square, Send, Trash2, Loader, Play, Pause, Layers, Heart, MessageCircle } from 'lucide-react';
 import ChorusAudioPlayer from './ChorusAudioPlayer';
+import MentionInputField from './MentionInputField';
+import TagParser from './TagParser';
+import { getUserMentions } from '../utils/getUserMentions';
+import type { UserMention } from '../utils/getUserMentions';
+import {
+  normalizeMentionMarkup,
+  mentionPreviewText,
+  notifyMentionedUsers,
+} from '../utils/mentionUtils';
 import { toast } from 'react-toastify';
 import '../styles/ChorusLayerSection.css';
 
@@ -201,6 +210,7 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
   const [mixingKey, setMixingKey] = useState<string | null>(null);
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [replyDraft, setReplyDraft] = useState('');
+  const [mentionUsers, setMentionUsers] = useState<UserMention[]>([]);
   const [harmonyPrepLeft, setHarmonyPrepLeft] = useState<number | null>(null);
   const [harmonyPreparing, setHarmonyPreparing] = useState(false);
   const [harmonyMixPlaying, setHarmonyMixPlaying] = useState(false);
@@ -218,6 +228,10 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
   useEffect(() => {
     onLayersChangeRef.current = onLayersChange;
   }, [onLayersChange]);
+
+  useEffect(() => {
+    getUserMentions().then(setMentionUsers).catch(() => setMentionUsers([]));
+  }, []);
 
   const chainItems: ChainItem[] = useMemo(() => {
     const base: ChainItem = {
@@ -588,7 +602,7 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
       return;
     }
 
-    const text = draft.trim();
+    const text = normalizeMentionMarkup(draft).trim();
     let blob = audioBlob;
     if (recording) {
       const recorded = await stopRecordingAndGetBlob();
@@ -704,6 +718,18 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
           );
         }
 
+        if (text) {
+          void notifyMentionedUsers({
+            content: text,
+            fromUid: user.uid,
+            fromNickname: user.nickname,
+            postId: post.id,
+            postTitle: post.title,
+            postType: 'chorus',
+            skipUids: post.writerUid !== user.uid ? [post.writerUid] : [],
+          });
+        }
+
         clearPreview();
         setDraft('');
         if (isHarmony) {
@@ -748,6 +774,7 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
           lastCommentAt: serverTimestamp(),
         });
 
+        const skipMentionUids: string[] = [];
         if (post.writerUid !== user.uid) {
           void NotificationService.createCommentNotification(
             post.writerUid,
@@ -756,9 +783,20 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
             post.id,
             post.title,
             'chorus',
-            { commentPreview: text }
+            { commentPreview: mentionPreviewText(text) }
           );
+          skipMentionUids.push(post.writerUid);
         }
+
+        void notifyMentionedUsers({
+          content: text,
+          fromUid: user.uid,
+          fromNickname: user.nickname,
+          postId: post.id,
+          postTitle: post.title,
+          postType: 'chorus',
+          skipUids: skipMentionUids,
+        });
 
         setDraft('');
         toast.success('댓글이 등록되었습니다');
@@ -845,7 +883,7 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
   };
 
   const handleSubmitReply = async (parentId: string) => {
-    const text = replyDraft.trim();
+    const text = normalizeMentionMarkup(replyDraft).trim();
     if (!text) {
       toast.warn('답글 내용을 입력해 주세요.');
       return;
@@ -894,18 +932,32 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
         lastCommentAt: serverTimestamp(),
       });
 
+      const skipMentionUids: string[] = [];
       const parent = findCommentById(parentId);
       if (parent && parent.writerUid !== user.uid) {
-        void NotificationService.createCommentNotification(
+        void NotificationService.createReplyNotification(
           parent.writerUid,
           user.uid,
           user.nickname,
           post.id,
           post.title,
+          parentId,
           'chorus',
-          { commentPreview: text }
+          { replyPreview: mentionPreviewText(text) }
         );
+        skipMentionUids.push(parent.writerUid);
       }
+
+      void notifyMentionedUsers({
+        content: text,
+        fromUid: user.uid,
+        fromNickname: user.nickname,
+        postId: post.id,
+        postTitle: post.title,
+        postType: 'chorus',
+        commentId: parentId,
+        skipUids: skipMentionUids,
+      });
 
       setReplyingToId(null);
       setReplyDraft('');
@@ -966,39 +1018,36 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
   const renderReplyForm = (parentId: string) => {
     if (replyingToId !== parentId || !user) return null;
     return (
-      <div className="chorus-reply-form">
-        <input
-          type="text"
-          className="chorus-reply-form__input"
+      <div className="chorus-reply-form chorus-reply-form--mention">
+        <MentionInputField
           value={replyDraft}
-          onChange={(e) => setReplyDraft(e.target.value)}
-          placeholder="답글을 입력하세요"
-          disabled={submitting}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              void handleSubmitReply(parentId);
-            }
-          }}
+          onChange={setReplyDraft}
+          mentionUsers={mentionUsers}
+          placeholder="답글을 입력하세요... (@로 사람 태그)"
+          minHeight={44}
+          maxHeight={120}
+          className="chorus-reply-form__mention"
         />
-        <button
-          type="button"
-          className="chorus-reply-form__send"
-          onClick={() => void handleSubmitReply(parentId)}
-          disabled={submitting || !replyDraft.trim()}
-        >
-          {submitting ? <Loader size={16} className="loading-spinner" /> : <Send size={16} />}
-        </button>
-        <button
-          type="button"
-          className="chorus-reply-form__cancel"
-          onClick={() => {
-            setReplyingToId(null);
-            setReplyDraft('');
-          }}
-        >
-          취소
-        </button>
+        <div className="chorus-reply-form__actions">
+          <button
+            type="button"
+            className="chorus-reply-form__send"
+            onClick={() => void handleSubmitReply(parentId)}
+            disabled={submitting || !replyDraft.trim()}
+          >
+            {submitting ? <Loader size={16} className="loading-spinner" /> : <Send size={16} />}
+          </button>
+          <button
+            type="button"
+            className="chorus-reply-form__cancel"
+            onClick={() => {
+              setReplyingToId(null);
+              setReplyDraft('');
+            }}
+          >
+            취소
+          </button>
+        </div>
       </div>
     );
   };
@@ -1025,7 +1074,9 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
                     label: reply.writerNickname,
                   })}
               </div>
-              <p className="chorus-reply-item__body">{reply.content}</p>
+              <p className="chorus-reply-item__body">
+                <TagParser content={reply.content} />
+              </p>
               {renderCommentActions(reply.id, reply.writerUid, () => handleDeleteTextComment(reply))}
               {renderReplyForm(reply.id)}
               {renderReplies(reply.id)}
@@ -1123,7 +1174,11 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
               화음 · <span {...getPostListGradeSpanProps(h.writerGrade)} />
               {h.writerNickname}
             </span>
-            {memo ? <p className="chorus-harmony-item__memo">{memo}</p> : null}
+            {memo ? (
+              <p className="chorus-harmony-item__memo">
+                <TagParser content={memo} />
+              </p>
+            ) : null}
           </div>
           {childHarmonyCount > 0 && (
             <button
@@ -1286,21 +1341,18 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
               ) : null}
             </div>
           )}
-          <div className="chorus-compose__row">
-            <input
-              type="text"
-              className="chorus-compose__input"
+          <div className="chorus-compose__editor">
+            <MentionInputField
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder={composePlaceholder}
-              disabled={submitting}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  void handleSubmit();
-                }
-              }}
+              onChange={setDraft}
+              mentionUsers={mentionUsers}
+              placeholder={`${composePlaceholder} (@로 사람 태그)`}
+              minHeight={44}
+              maxHeight={140}
+              className="chorus-compose__mention"
             />
+          </div>
+          <div className="chorus-compose__row">
             <button
               type="button"
               className={`chorus-compose__mic${recording ? ' chorus-compose__mic--active' : ''}${harmonyTarget ? ' chorus-compose__mic--harmony' : ''}`}
@@ -1388,7 +1440,11 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
                         <span {...getPostListGradeSpanProps(layer.writerGrade)} />
                         {layer.writerNickname}
                       </span>
-                      {memo ? <p className="chorus-audio-comment__memo">{memo}</p> : null}
+                      {memo ? (
+                        <p className="chorus-audio-comment__memo">
+                          <TagParser content={memo} />
+                        </p>
+                      ) : null}
                     </div>
                     {harmonyCount > 0 && (
                       <button
@@ -1424,7 +1480,9 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
                   <span {...getPostListGradeSpanProps(comment.writerGrade)} />
                   <strong>{comment.writerNickname}</strong>
                 </div>
-                <p className="chorus-text-comment__body">{comment.content}</p>
+                <p className="chorus-text-comment__body">
+                  <TagParser content={comment.content} />
+                </p>
                 {renderCommentActions(comment.id, comment.writerUid, () => handleDeleteTextComment(comment))}
               </div>
               {renderReplyForm(comment.id)}

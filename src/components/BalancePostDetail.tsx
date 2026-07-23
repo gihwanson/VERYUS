@@ -361,7 +361,7 @@ const BalancePostDetail: React.FC = () => {
       </article>
 
       <div className="comment-section-container">
-        <CommentSection postId={post.id} user={user} post={{ id: post.id, title: post.title, writerUid: post.writerUid, writerNickname: post.writerNickname }} />
+        <CommentSection postId={post.id} user={user} post={{ id: post.id, title: post.title, writerUid: post.writerUid, writerNickname: post.writerNickname }} boardType="balance" />
       </div>
     </div>
   );

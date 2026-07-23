@@ -7,6 +7,13 @@ import { ArrowLeft, Mic, X, FileAudio, Send } from 'lucide-react';
 import { startOfWeek, endOfWeek, format as formatDate } from 'date-fns';
 import '../styles/EvaluationPostWrite.css';
 import { rejectBoardAttachmentIfTooLarge } from '../utils/boardAttachmentLimits';
+import EvaluationWriteNoticeModal, { isEvalWriteNoticeHidden } from './EvaluationWriteNoticeModal';
+import NicknameSuggestInput, {
+  findInvalidMemberNicknames,
+  normalizeMemberNicknames,
+} from './NicknameSuggestInput';
+import { getUserMentions } from '../utils/getUserMentions';
+import type { UserMention } from '../utils/getUserMentions';
 
 interface User {
   uid: string;
@@ -31,6 +38,8 @@ const EvaluationPostWrite: React.FC = () => {
   const [fileName, setFileName] = useState<string | null>(null);
   const [category, setCategory] = useState('busking');
   const [members, setMembers] = useState<string[]>(['']);
+  const [showNoticeModal, setShowNoticeModal] = useState(false);
+  const [memberCandidates, setMemberCandidates] = useState<UserMention[]>([]);
 
   const categoryOptions = [
     { id: 'busking', name: '버스킹심사곡' },
@@ -48,6 +57,12 @@ const EvaluationPostWrite: React.FC = () => {
     }
     setUser(JSON.parse(userString));
   }, [navigate]);
+
+  useEffect(() => {
+    getUserMentions()
+      .then(setMemberCandidates)
+      .catch(() => setMemberCandidates([]));
+  }, []);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -141,8 +156,9 @@ const EvaluationPostWrite: React.FC = () => {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  const handleSubmit = async () => {
-    if (!user || !audioBlob) return;
+  /** 등록하기 클릭 → 기본 검증 후 안내 모달 */
+  const handleRegisterClick = async () => {
+    if (!user || !audioBlob || loading || uploading) return;
     const attachmentName = fileName || (audioBlob instanceof File ? audioBlob.name : 'audio.wav');
     if (rejectBoardAttachmentIfTooLarge(audioBlob, attachmentName)) return;
 
@@ -154,7 +170,27 @@ const EvaluationPostWrite: React.FC = () => {
       alert('닉네임을 1명 이상 입력해주세요.');
       return;
     }
-    
+
+    if (requiresMembers) {
+      if (memberCandidates.length === 0) {
+        alert('회원 목록을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.');
+        return;
+      }
+      const invalidNicknames = findInvalidMemberNicknames(members, memberCandidates);
+      if (invalidNicknames.length > 0) {
+        alert(
+          `앱에 없는 닉네임이 있습니다.\n드롭다운에서 정확한 회원 닉네임을 선택해 주세요.\n\n잘못된 닉네임: ${invalidNicknames.join(', ')}`
+        );
+        return;
+      }
+      const normalized = normalizeMemberNicknames(members, memberCandidates);
+      if (normalized.length === 0) {
+        alert('닉네임을 1명 이상 입력해주세요.');
+        return;
+      }
+      setMembers(normalized);
+    }
+
     // 버스킹심사곡만 주당 2곡 제한 체크
     if (category === 'busking') {
       try {
@@ -165,49 +201,88 @@ const EvaluationPostWrite: React.FC = () => {
         const userData = userDoc.exists() ? userDoc.data() : null;
         const limitOverride = userData?.evaluationBuskingWeeklyLimit;
         const effectiveLimit = Number.isInteger(limitOverride) ? limitOverride : 2;
-        
+
         console.log('');
         console.log('📊 ===== 버스킹심사곡 주간 제한 체크 =====');
         console.log('👤 사용자:', user.nickname, '(', user.uid, ')');
         console.log('📅 주 기간:', formatDate(weekStart, 'yyyy-MM-dd'), '~', formatDate(weekEnd, 'yyyy-MM-dd'));
-        
+
         // 이번 주에 작성한 버스킹심사곡 개수 확인 (삭제된 글은 제외됨)
         const q = query(
           collection(db, 'posts'),
           where('type', '==', 'evaluation'),
           where('writerUid', '==', user.uid)
         );
-        
+
         const snapshot = await getDocs(q);
-        
+
         const buskingCategoryValues = ['busking', '버스킹심사곡'];
         const thisWeekPosts = snapshot.docs.filter(doc => {
           const data = doc.data();
           if (!data.createdAt) return false;
           if (!buskingCategoryValues.includes(data.category)) return false;
-          
+
           // Firestore Timestamp를 Date로 변환
           const createdDate = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
-          
+
           return createdDate >= weekStart && createdDate <= weekEnd;
         });
-        
+
         console.log('📊 이번 주 작성한 버스킹심사곡:', thisWeekPosts.length, `/ ${effectiveLimit}곡`);
-        
+
         if (thisWeekPosts.length >= effectiveLimit) {
           console.log('🚫 주간 제한 초과!');
           console.log('');
           alert(`버스킹심사곡은 주당 최대 ${effectiveLimit}곡까지만 업로드 가능합니다.\n\n이번 주 업로드: ${thisWeekPosts.length}/${effectiveLimit}곡`);
           return;
         }
-        
+
         console.log('✅ 주간 제한 통과');
         console.log('');
       } catch (error) {
         console.error('❌ 주간 제한 체크 실패:', error);
       }
     }
-    
+
+    if (isEvalWriteNoticeHidden()) {
+      void handleSubmit();
+      return;
+    }
+
+    setShowNoticeModal(true);
+  };
+
+  /** 안내 확인 후 실제 등록 */
+  const handleSubmit = async () => {
+    if (!user || !audioBlob) return;
+    const attachmentName = fileName || (audioBlob instanceof File ? audioBlob.name : 'audio.wav');
+    if (rejectBoardAttachmentIfTooLarge(audioBlob, attachmentName)) return;
+
+    if (!title.trim()) {
+      alert('제목을 입력해주세요.');
+      return;
+    }
+
+    let membersToSave: string[] = [];
+    if (requiresMembers) {
+      if (members.length === 0 || members.every((m) => !m.trim())) {
+        alert('닉네임을 1명 이상 입력해주세요.');
+        return;
+      }
+      const invalidNicknames = findInvalidMemberNicknames(members, memberCandidates);
+      if (invalidNicknames.length > 0) {
+        alert(
+          `앱에 없는 닉네임이 있습니다.\n드롭다운에서 정확한 회원 닉네임을 선택해 주세요.\n\n잘못된 닉네임: ${invalidNicknames.join(', ')}`
+        );
+        return;
+      }
+      membersToSave = normalizeMemberNicknames(members, memberCandidates);
+      if (membersToSave.length === 0) {
+        alert('닉네임을 1명 이상 입력해주세요.');
+        return;
+      }
+    }
+
     try {
       setLoading(true);
       let audioDownloadUrl = '';
@@ -261,9 +336,11 @@ const EvaluationPostWrite: React.FC = () => {
         commentCount: 0,
         views: 0,
         likes: [],
-        members: requiresMembers ? members.filter(m => m.trim()) : [],
+        members: requiresMembers ? membersToSave : [],
       });
       
+      setShowNoticeModal(false);
+
       // 업로드 후 안내
       if (category === 'busking') {
         const now = new Date();
@@ -382,17 +459,20 @@ const EvaluationPostWrite: React.FC = () => {
               </span>
               <p className="eval-post-write__hint">
                 {category === 'rejudge'
-                  ? '이미 합격된 곡의 듀엣·합창 멤버를 모두 적어 주세요. 솔로는 본인 닉네임만 입력하면 됩니다.'
-                  : <>듀엣·합창은 <strong>모든 멤버 닉네임</strong>을 적어 주세요. 솔로는 <strong>본인 닉네임만</strong> 입력하면 됩니다.</>}
+                  ? '이미 합격된 곡의 듀엣·합창 멤버를 모두 적어 주세요. 솔로는 본인 닉네임만 입력하면 됩니다. 반드시 앱 회원 닉네임을 목록에서 선택해 주세요.'
+                  : <>듀엣·합창은 <strong>모든 멤버 닉네임</strong>을 적어 주세요. 솔로는 <strong>본인 닉네임만</strong> 입력하면 됩니다. <strong>앱에 등록된 닉네임만</strong> 선택할 수 있습니다.</>}
               </p>
               {members.map((member, idx) => (
                 <div key={idx} className="eval-post-write__member-row">
-                  <input
-                    className="eval-post-write__member-input"
+                  <NicknameSuggestInput
+                    className="eval-post-write__member-suggest"
                     value={member}
-                    onChange={(e) => setMembers((prev) => prev.map((m, i) => (i === idx ? e.target.value : m)))}
+                    onChange={(next) =>
+                      setMembers((prev) => prev.map((m, i) => (i === idx ? next : m)))
+                    }
                     placeholder={`멤버 닉네임 ${idx + 1}`}
-                    autoComplete="off"
+                    candidates={memberCandidates}
+                    excludeNicknames={members.filter((_, i) => i !== idx)}
                   />
                   {members.length > 1 && (
                     <button
@@ -458,8 +538,8 @@ const EvaluationPostWrite: React.FC = () => {
             <button
               type="button"
               className="submit-button eval-post-write__submit"
-              onClick={handleSubmit}
-              disabled={loading || !audioBlob}
+              onClick={handleRegisterClick}
+              disabled={loading || uploading || !audioBlob}
             >
               {loading ? (
                 '처리 중…'
@@ -482,6 +562,15 @@ const EvaluationPostWrite: React.FC = () => {
           </div>
         </main>
       </div>
+
+      <EvaluationWriteNoticeModal
+        open={showNoticeModal}
+        loading={loading}
+        onClose={() => {
+          if (!loading) setShowNoticeModal(false);
+        }}
+        onConfirm={handleSubmit}
+      />
     </div>
   );
 };

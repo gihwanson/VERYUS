@@ -177,6 +177,22 @@ export class NotificationService {
     return `[${board}]「${title}」의 댓글「${prev}」에 ${fromNickname}님이 좋아요를 눌렀습니다.`;
   }
 
+  /** @멘션 알림 본문 */
+  static buildMentionMessage(
+    fromNickname: string,
+    postTitle: string,
+    postType: string,
+    opts?: { commentPreview?: string }
+  ): string {
+    const board = this.boardLabel(postType);
+    const title = this.clampText(postTitle || '제목 없음', 36);
+    if (opts?.commentPreview) {
+      const prev = this.clampText(opts.commentPreview, 64);
+      return `[${board}]「${title}」— ${fromNickname}님이 회원님을 언급했습니다: ${prev}`;
+    }
+    return `[${board}]「${title}」에서 ${fromNickname}님이 회원님을 언급했습니다.`;
+  }
+
   // 게시판 타입별 라우팅
   static getRouteByPostType(postType: string, postId: string): string {
     const routes: Record<string, string> = {
@@ -203,7 +219,7 @@ export class NotificationService {
       'rejudge_remove': '재심사에서 합격곡 삭제로 판정되었습니다.',
       'guestbook': '방명록에 메시지를 남겼습니다.',
       'guestbook_reply': '방명록 글에 답글이 달렸습니다.',
-      'mention': '게시글에서 나를 언급했습니다.',
+      'mention': '댓글에서 나를 언급했습니다.',
       'new_post': '새 게시글이 작성되었습니다.',
       'partnership': '파트너 신청이 있습니다.',
       'partnership_closed': '지원한 파트너 모집이 완료되었습니다.',
@@ -357,6 +373,31 @@ export class NotificationService {
       postId,
       postTitle,
       commentId,
+      postType: postType as any,
+      message
+    });
+  }
+
+  static async createMentionNotification(
+    toUid: string,
+    fromUid: string,
+    fromNickname: string,
+    postId: string,
+    postTitle: string,
+    postType: string = 'free',
+    opts?: { commentId?: string; commentPreview?: string }
+  ) {
+    const message = this.buildMentionMessage(fromNickname, postTitle, postType, {
+      commentPreview: opts?.commentPreview
+    });
+    return this.createNotification({
+      type: 'mention',
+      toUid,
+      fromUid,
+      fromNickname,
+      postId,
+      postTitle,
+      commentId: opts?.commentId,
       postType: postType as any,
       message
     });

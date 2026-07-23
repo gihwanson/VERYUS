@@ -480,6 +480,7 @@ const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
                   postId={postId}
                   user={user}
                   post={post}
+                  boardType="home"
                   emptyCommentMessageVisibleToRoles={['일반', '리더', '부운영진', '운영진', '평가자', '']}
                 />
               ) : (

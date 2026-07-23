@@ -604,7 +604,7 @@ const FreePostDetail: React.FC = () => {
 
       {/* 댓글 영역 카드화 */}
       <div className="comment-section-container">
-        <CommentSection postId={post.id} user={user} post={{ id: post.id, title: post.title, writerUid: post.writerUid, writerNickname: post.writerNickname }} />
+        <CommentSection postId={post.id} user={user} post={{ id: post.id, title: post.title, writerUid: post.writerUid, writerNickname: post.writerNickname }} boardType="free" />
       </div>
     </div>
   );

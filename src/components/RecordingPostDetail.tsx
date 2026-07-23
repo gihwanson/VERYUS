@@ -497,7 +497,7 @@ const RecordingPostDetail: React.FC = () => {
         </div>
       </article>
       {/* 댓글 영역 */}
-      {post && <CommentSection postId={post.id} user={user} post={{ id: post.id, title: post.title, writerUid: post.writerUid, writerNickname: post.writerNickname }} />}
+      {post && <CommentSection postId={post.id} user={user} post={{ id: post.id, title: post.title, writerUid: post.writerUid, writerNickname: post.writerNickname }} boardType="recording" />}
       {/* 쪽지 모달 */}
       {showMessageModal && (
         <div className="modal-overlay" onClick={() => setShowMessageModal(false)}>

@@ -19,11 +19,10 @@ import type { DocumentData } from 'firebase/firestore';
 import { db } from '../firebase';
 import CommentItem from './CommentItem';
 import TagParser from './TagParser';
+import MentionInputField from './MentionInputField';
 import { MessageCircle, Send, Loader, User, Clock, Lock, Reply, MessageSquare, X } from 'lucide-react';
-import { MentionsInput, Mention } from 'react-mentions';
 import { getUserMentions } from '../utils/getUserMentions';
 import type { UserMention } from '../utils/getUserMentions';
-import mentionsStyle from '../styles/mentionsStyle';
 import { NotificationService } from '../utils/notificationService';
 import {
   type Comment,
@@ -44,6 +43,8 @@ interface CommentSectionProps {
   postId: string;
   user: CommentUser | null;
   post: Post;
+  /** 게시판 타입 (알림·멘션 라우팅). 없으면 URL로 추정 */
+  boardType?: string;
   noCommentAuthMessage?: string;
   emptyCommentMessageVisibleToRoles?: string[];
 }
@@ -56,7 +57,14 @@ interface UserData {
 
 const EVALUATOR_ALIAS = '평가자';
 
-const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noCommentAuthMessage, emptyCommentMessageVisibleToRoles }) => {
+const CommentSection: React.FC<CommentSectionProps> = ({
+  postId,
+  user,
+  post,
+  boardType,
+  noCommentAuthMessage,
+  emptyCommentMessageVisibleToRoles
+}) => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
@@ -75,7 +83,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
 
   // Memoized values
   const flatComments = useMemo(() => getFlatComments(comments), [comments]);
-  const postType = useMemo(() => getPostTypeFromPath(), []);
+  const postType = useMemo(() => boardType || getPostTypeFromPath(), [boardType]);
   const canUseEvaluatorAlias = useMemo(() => {
     if (!user) return false;
     if (postType !== 'evaluation') return false;
@@ -130,7 +138,8 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
         writerNickname,
         commentAsAnonymous,
         commentAsAnonymous ? realNickname : undefined,
-        canUseEvaluatorAlias && commentAsEvaluator && !commentAsAnonymous
+        canUseEvaluatorAlias && commentAsEvaluator && !commentAsAnonymous,
+        postType
       );
       setNewComment('');
       setCommentAsAnonymous(false);
@@ -140,7 +149,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
     } finally {
       setIsSubmitting(false);
     }
-  }, [user, newComment, postId, post, effectiveCommentNickname, commentAsAnonymous, canUseEvaluatorAlias, commentAsEvaluator]);
+  }, [user, newComment, postId, post, postType, effectiveCommentNickname, commentAsAnonymous, canUseEvaluatorAlias, commentAsEvaluator]);
 
   const handleSubmitReply = useCallback(async (parentId: string) => {
     if (!user || !replyContent.trim()) return;
@@ -159,7 +168,8 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
         writerNickname,
         commentAsAnonymous,
         commentAsAnonymous ? realNickname : undefined,
-        canUseEvaluatorAlias && commentAsEvaluator && !commentAsAnonymous
+        canUseEvaluatorAlias && commentAsEvaluator && !commentAsAnonymous,
+        postType
       );
       setReplyContent('');
       setReplyingTo(null);
@@ -170,7 +180,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
     } finally {
       setIsSubmitting(false);
     }
-  }, [user, replyContent, postId, post, effectiveCommentNickname, commentAsAnonymous, canUseEvaluatorAlias, commentAsEvaluator]);
+  }, [user, replyContent, postId, post, postType, effectiveCommentNickname, commentAsAnonymous, canUseEvaluatorAlias, commentAsEvaluator]);
 
   const handleSendMessage = useCallback(async () => {
     if (!user || !messageRecipient || !messageContent.trim()) return;
@@ -216,7 +226,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
     setReplyContent('');
   }, []);
 
-  const handleInputChange = useCallback((event: any, newValue: string) => {
+  const handleInputChange = useCallback((newValue: string) => {
     setNewComment(newValue);
     // 자동 높이 조절
     setTimeout(() => {
@@ -315,63 +325,17 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
                 <TagParser content={newComment} />
               </div>
             ) : (
-              <MentionsInput
-                ref={mentionsInputRef}
+              <MentionInputField
+                inputRef={mentionsInputRef}
                 value={newComment}
                 onChange={handleInputChange}
-                placeholder="댓글을 입력하세요...."
-                style={{
-                  ...mentionsStyle,
-                  control: {
-                    ...mentionsStyle.control,
-                    minHeight: '80px',
-                    maxHeight: '200px'
-                  },
-                  input: {
-                    ...mentionsStyle.input,
-                    minHeight: '80px',
-                    maxHeight: '200px',
-                    overflow: 'auto'
-                  }
-                }}
-                allowSuggestionsAboveCursor
-                singleLine={false}
-                onBlur={() => setTimeout(() => {}, 200)}
+                mentionUsers={mentionUsers}
+                placeholder="댓글을 입력하세요... (@로 사람 태그)"
+                minHeight={80}
+                maxHeight={200}
                 onCompositionStart={() => setIsComposing(true)}
                 onCompositionEnd={() => setIsComposing(false)}
-                onCompositionUpdate={() => setIsComposing(true)}
-              >
-                <Mention
-                  trigger="@"
-                  data={mentionUsers.map(u => ({ id: u.nickname, display: u.nickname }))}
-                  markup="@{{id}}"
-                  appendSpaceOnAdd
-                  style={{ backgroundColor: 'var(--comment-mention-bg, #f0e6d6)', color: 'var(--comment-mention-text, #8b5a2b)', fontWeight: 600, borderRadius: 4, padding: '2px 4px' }}
-                  renderSuggestion={(entry, search, highlightedDisplay, index, focused) => (
-                    <div
-                      onMouseDown={e => {
-                        e.preventDefault();
-                        setTimeout(() => {
-                          (e.target as HTMLElement).click();
-                        }, 0);
-                      }}
-                      onClick={() => {
-                        // react-mentions 내부적으로 하이라이트 처리됨
-                      }}
-                      style={{
-                        background: focused ? 'var(--paper-tag-bg, #f0e6d6)' : '#fff',
-                        color: focused ? 'var(--primary-color, #8b5a2b)' : '#1F2937',
-                        fontWeight: 600,
-                        borderRadius: 4,
-                        padding: '8px 16px',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {highlightedDisplay}
-                    </div>
-                  )}
-                />
-              </MentionsInput>
+              />
             )}
             
             <div className="comment-form-footer">
@@ -442,6 +406,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, user, post, noC
               postId={postId}
               postTitle={post.title}
               postType={postType}
+              mentionUsers={mentionUsers}
               onReply={setReplyingTo}
               replyingTo={replyingTo}
               replyContent={replyContent}

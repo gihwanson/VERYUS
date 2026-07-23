@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import ModalPortal from './ModalPortal';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   collection, 
@@ -2118,8 +2119,8 @@ const AdminPanel: React.FC = () => {
       )}
 
       {deleteConfirmUser && (
-        <div
-          className="modal-overlay"
+        <ModalPortal><div
+          className="modal-overlay admin-modal-overlay"
           onClick={() => {
             if (!deletingUserUid) setDeleteConfirmUser(null);
           }}
@@ -2163,12 +2164,12 @@ const AdminPanel: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div></ModalPortal>
       )}
 
       {/* 사용자 상세 모달 */}
       {selectedUser && (
-        <div className="modal-overlay" onClick={() => setSelectedUser(null)}>
+        <ModalPortal><div className="modal-overlay admin-modal-overlay" onClick={() => setSelectedUser(null)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>사용자 상세 정보</h2>
@@ -2273,12 +2274,12 @@ const AdminPanel: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div></ModalPortal>
       )}
 
       {/* 회원 추가 모달 */}
       {showAddUserModal && (
-        <div className="modal-overlay" onClick={() => {
+        <ModalPortal><div className="modal-overlay admin-modal-overlay" onClick={() => {
           setShowAddUserModal(false);
           setNewUser({ nickname: '', password: '', grade: GRADE_SYSTEM.CHERRY, role: ROLE_SYSTEM.MEMBER });
           setShowPassword(false);
@@ -2374,12 +2375,12 @@ const AdminPanel: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div></ModalPortal>
       )}
 
       {/* 벌크 등급 변경 모달 */}
       {showBulkGradeModal && (
-        <div className="modal-overlay" onClick={() => setShowBulkGradeModal(false)}>
+        <ModalPortal><div className="modal-overlay admin-modal-overlay" onClick={() => setShowBulkGradeModal(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>등급 일괄 변경</h2>
@@ -2421,12 +2422,12 @@ const AdminPanel: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div></ModalPortal>
       )}
 
       {/* 벌크 역할 변경 모달 */}
       {showBulkRoleModal && (
-        <div className="modal-overlay" onClick={() => setShowBulkRoleModal(false)}>
+        <ModalPortal><div className="modal-overlay admin-modal-overlay" onClick={() => setShowBulkRoleModal(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>역할 일괄 변경</h2>
@@ -2490,12 +2491,12 @@ const AdminPanel: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div></ModalPortal>
       )}
 
       {/* 상태 변경 모달 */}
       {showStatusModal && statusChangeUser && (
-        <div className="modal-overlay" onClick={() => setShowStatusModal(false)}>
+        <ModalPortal><div className="modal-overlay admin-modal-overlay" onClick={() => setShowStatusModal(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>사용자 상태 변경</h2>
@@ -2558,7 +2559,7 @@ const AdminPanel: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div></ModalPortal>
       )}
 
       {/* 로그 상세 모달 */}

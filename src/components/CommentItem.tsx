@@ -9,14 +9,16 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import TagParser from './TagParser';
+import MentionInputField from './MentionInputField';
 import { Heart, MessageCircle, Edit, Trash2, Send, Clock } from 'lucide-react';
 import { getPublicRoleBadge } from '../utils/publicRoleBadge';
 import { getPostListGradeSpanProps } from '../utils/gradeDisplay';
+import { normalizeMentionMarkup, toMentionInputValue } from '../utils/mentionUtils';
+import type { UserMention } from '../utils/getUserMentions';
 import './CommentItem.css';
 import { NotificationService } from '../utils/notificationService';
 import { checkAdminAccess, GRADE_SYSTEM } from './AdminTypes';
 
-// Types
 interface Comment {
   id: string;
   postId: string;
@@ -49,6 +51,7 @@ interface CommentItemProps {
   postId: string;
   postTitle?: string;
   postType?: string;
+  mentionUsers?: UserMention[];
   onReply: (commentId: string) => void;
   replyingTo: string | null;
   replyContent: string;
@@ -59,7 +62,6 @@ interface CommentItemProps {
   depth?: number;
 }
 
-// Utility functions
 const formatDate = (timestamp: any): string => {
   if (!timestamp) return '';
   
@@ -89,6 +91,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
   postId,
   postTitle,
   postType,
+  mentionUsers = [],
   onReply,
   replyingTo,
   replyContent,
@@ -98,7 +101,6 @@ const CommentItem: React.FC<CommentItemProps> = ({
   parentAuthor,
   depth = 0
 }) => {
-  // State
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(comment.content);
   const [isLiked, setIsLiked] = useState(false);
@@ -107,7 +109,6 @@ const CommentItem: React.FC<CommentItemProps> = ({
   const [showPreview, setShowPreview] = useState(false);
   const [isComposing, setIsComposing] = useState(false);
 
-  // Memoized values
   const isMobile = useMemo(() => 
     typeof window !== 'undefined' && window.innerWidth <= 640, 
     []
@@ -151,7 +152,11 @@ const CommentItem: React.FC<CommentItemProps> = ({
     return getPublicRoleBadge(comment.writerRole, comment.writerPosition);
   }, [comment.writerRole, comment.writerPosition]);
 
-  // Effects
+  const knownNicknames = useMemo(
+    () => mentionUsers.map((u) => u.nickname),
+    [mentionUsers]
+  );
+
   useEffect(() => {
     if (user) {
       setIsLiked(comment.likedBy?.includes(user.uid) || false);
@@ -159,14 +164,15 @@ const CommentItem: React.FC<CommentItemProps> = ({
   }, [comment.likedBy, user]);
 
   useEffect(() => {
-    setEditContent(comment.content);
-  }, [comment.content]);
+    if (!isEditing) {
+      setEditContent(comment.content);
+    }
+  }, [comment.content, isEditing]);
 
   useEffect(() => {
     setLikesCount(comment.likesCount || 0);
   }, [comment.likesCount]);
 
-  // Event handlers
   const handleLike = useCallback(async () => {
     if (!user) {
       alert('로그인이 필요합니다.');
@@ -180,17 +186,14 @@ const CommentItem: React.FC<CommentItemProps> = ({
       const commentRef = doc(db, 'comments', comment.id);
       const newIsLiked = !isLiked;
 
-      // 낙관적 업데이트
       setIsLiked(newIsLiked);
       setLikesCount(prev => prev + (newIsLiked ? 1 : -1));
 
-      // Firebase 업데이트
       await updateDoc(commentRef, {
         likedBy: newIsLiked ? arrayUnion(user.uid) : arrayRemove(user.uid),
         likesCount: increment(newIsLiked ? 1 : -1)
       });
 
-      // 좋아요 알림
       if (newIsLiked && user.uid !== comment.writerUid && postTitle && postType) {
         try {
           const fromNick = user.nickname || '익명';
@@ -217,7 +220,6 @@ const CommentItem: React.FC<CommentItemProps> = ({
       }
     } catch (error) {
       console.error('좋아요 처리 에러:', error);
-      // 상태 롤백
       setIsLiked(!isLiked);
       setLikesCount(prev => prev + (isLiked ? 1 : -1));
       alert('좋아요 처리 중 오류가 발생했습니다.');
@@ -227,14 +229,15 @@ const CommentItem: React.FC<CommentItemProps> = ({
   }, [user, comment.id, comment.writerUid, comment.content, isLiked, isLiking, postId, postTitle, postType]);
 
   const handleEdit = useCallback(async () => {
-    if (!editContent.trim()) {
+    const normalized = normalizeMentionMarkup(editContent).trim();
+    if (!normalized) {
       alert('댓글 내용을 입력해주세요.');
       return;
     }
 
     try {
       await updateDoc(doc(db, 'comments', comment.id), {
-        content: editContent.trim()
+        content: normalized
       });
       setIsEditing(false);
     } catch (error) {
@@ -257,31 +260,24 @@ const CommentItem: React.FC<CommentItemProps> = ({
     }
   }, [comment.id, postId]);
 
-  const handleTextareaResize = useCallback((e: React.FormEvent<HTMLTextAreaElement>) => {
-    const target = e.target as HTMLTextAreaElement;
-    target.style.height = 'auto';
-    const newHeight = Math.min(Math.max(target.scrollHeight, 80), 200);
-    target.style.height = newHeight + 'px';
-  }, []);
+  const startEditing = useCallback(() => {
+    setEditContent(toMentionInputValue(comment.content, knownNicknames));
+    setIsEditing(true);
+    setShowPreview(false);
+  }, [comment.content, knownNicknames]);
 
-  const handleReplyTextareaResize = useCallback((e: React.FormEvent<HTMLTextAreaElement>) => {
-    const target = e.target as HTMLTextAreaElement;
-    target.style.height = 'auto';
-    const newHeight = Math.min(Math.max(target.scrollHeight, 60), 120);
-    target.style.height = newHeight + 'px';
-  }, []);
-
-  // Render functions
   const renderEditForm = () => (
     <div className="comment-edit">
       <div className="edit-tabs">
         <button 
+          type="button"
           className={`tab-button ${!showPreview ? 'active' : ''}`}
           onClick={() => setShowPreview(false)}
         >
           작성
         </button>
         <button 
+          type="button"
           className={`tab-button ${showPreview ? 'active' : ''}`}
           onClick={() => setShowPreview(true)}
         >
@@ -293,29 +289,20 @@ const CommentItem: React.FC<CommentItemProps> = ({
           <TagParser content={editContent} />
         </div>
       ) : (
-        <textarea
+        <MentionInputField
           value={editContent}
-          onChange={(e) => setEditContent(e.target.value)}
-          className="comment-edit-input"
-          rows={3}
-          placeholder="댓글을 입력하세요... (Shift+Enter로 줄바꿈)"
+          onChange={setEditContent}
+          mentionUsers={mentionUsers}
+          placeholder="댓글을 입력하세요... (@로 사람 태그)"
+          minHeight={80}
+          maxHeight={200}
           onCompositionStart={() => setIsComposing(true)}
           onCompositionEnd={() => setIsComposing(false)}
-          onCompositionUpdate={() => setIsComposing(true)}
-          spellCheck={false}
-          autoComplete="off"
-          style={{
-            resize: 'none',
-            overflow: 'hidden',
-            minHeight: '80px',
-            maxHeight: '200px',
-            lineHeight: '1.4'
-          }}
-          onInput={handleTextareaResize}
         />
       )}
       <div className="comment-edit-buttons">
         <button 
+          type="button"
           onClick={handleEdit} 
           className="save-btn"
           disabled={!editContent.trim()}
@@ -323,7 +310,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
           <Send size={16} />
           저장
         </button>
-        <button onClick={() => setIsEditing(false)} className="cancel-btn">
+        <button type="button" onClick={() => setIsEditing(false)} className="cancel-btn">
           취소
         </button>
       </div>
@@ -332,28 +319,19 @@ const CommentItem: React.FC<CommentItemProps> = ({
 
   const renderReplyForm = () => (
     <div className="reply-form">
-      <textarea
+      <MentionInputField
         value={replyContent}
-        onChange={(e) => setReplyContent(e.target.value)}
-        placeholder="답글을 입력하세요... (Shift+Enter로 줄바꿈)"
-        className="reply-input"
+        onChange={setReplyContent}
+        mentionUsers={mentionUsers}
+        placeholder="답글을 입력하세요... (@로 사람 태그)"
+        minHeight={60}
+        maxHeight={120}
         onCompositionStart={() => setIsComposing(true)}
         onCompositionEnd={() => setIsComposing(false)}
-        onCompositionUpdate={() => setIsComposing(true)}
-        spellCheck={false}
-        autoComplete="off"
-        rows={2}
-        style={{
-          resize: 'none',
-          overflow: 'hidden',
-          minHeight: '60px',
-          maxHeight: '120px',
-          lineHeight: '1.4'
-        }}
-        onInput={handleReplyTextareaResize}
       />
       <div className="reply-buttons">
         <button 
+          type="button"
           onClick={() => onSubmitReply(comment.id)}
           className="submit-reply-btn"
           disabled={!replyContent.trim()}
@@ -362,6 +340,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
           답글 작성
         </button>
         <button 
+          type="button"
           onClick={onCancelReply}
           className="cancel-reply-btn"
         >
@@ -405,6 +384,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
 
       <div className="comment-actions">
         <button 
+          type="button"
           onClick={handleLike}
           className={`like-button ${isLiked ? 'liked' : ''}`}
           disabled={!user || isLiking}
@@ -418,30 +398,32 @@ const CommentItem: React.FC<CommentItemProps> = ({
         </button>
         {user && (
           <button 
+            type="button"
             onClick={() => onReply(comment.id)}
             className="reply-button"
-            title="답글 작성"
           >
             <MessageCircle size={16} />
-            답글
+            {!isMobile && '답글'}
           </button>
         )}
         {canEdit && (
           <button 
-            onClick={() => setIsEditing(true)}
+            type="button"
+            onClick={startEditing}
             className="edit-button"
-            title="댓글 수정"
           >
             <Edit size={16} />
+            {!isMobile && '수정'}
           </button>
         )}
         {canDelete && (
           <button 
+            type="button"
             onClick={handleDelete}
             className="delete-button"
-            title="댓글 삭제"
           >
             <Trash2 size={16} />
+            {!isMobile && '삭제'}
           </button>
         )}
       </div>
@@ -451,4 +433,4 @@ const CommentItem: React.FC<CommentItemProps> = ({
   );
 };
 
-export default CommentItem; 
+export default CommentItem;

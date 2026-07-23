@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ModalPortal from './ModalPortal';
 import { Crown, Shield, User, Users, Activity, X, Edit3, AlertCircle, MessageSquare, Heart, FileText, Clock, TrendingUp, History, Eye, Search, Filter, Award, Plus, Target, Mail, Send, Trash2 } from 'lucide-react';
 import type { AdminUser, UserActivity, ActivityStats, UserActivitySummary, AdminLog, AdminAction, LogStats, ExtendedUserStats, UserAnalytics, BulkAction, Notification, NotificationType, NotificationTemplate, NotificationStats, NotificationTarget } from './AdminTypes';
 import { NOTIFICATION_TYPE_LABELS, NOTIFICATION_TYPE_COLORS, ADMIN_ACTION_LABELS, ADMIN_ACTION_COLORS, ROLE_SYSTEM, ROLE_OPTIONS, GRADE_ORDER, GRADE_NAMES } from './AdminTypes';
@@ -489,7 +490,7 @@ export const LogDetailModal: React.FC<LogDetailModalProps> = ({ log, onClose }) 
   const actionColor = ADMIN_ACTION_COLORS[log.action];
   
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <ModalPortal><div className="modal-overlay admin-modal-overlay" onClick={onClose}>
       <div className="modal-content log-detail-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-title">
@@ -543,7 +544,7 @@ export const LogDetailModal: React.FC<LogDetailModalProps> = ({ log, onClose }) 
           </div>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 };
 
@@ -710,7 +711,7 @@ export const NotificationSendModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay">
+    <ModalPortal><div className="modal-overlay admin-modal-overlay">
       <div className="modal-content notification-send-modal">
         <div className="modal-header">
           <h3>공지/알림 발송</h3>
@@ -821,7 +822,7 @@ export const NotificationSendModal = ({
           </button>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 };
 
@@ -971,7 +972,7 @@ export const NotificationDetailModal = ({
   };
 
   return (
-    <div className="modal-overlay">
+    <ModalPortal><div className="modal-overlay admin-modal-overlay">
       <div className="modal-content notification-detail-modal">
         <div className="modal-header">
           <h3>알림 상세 정보</h3>
@@ -1037,7 +1038,7 @@ export const NotificationDetailModal = ({
           </button>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 };
 
@@ -1208,7 +1209,7 @@ export const NotificationTemplates = ({
       </div>
 
       {isCreating && (
-        <div className="modal-overlay">
+        <ModalPortal><div className="modal-overlay admin-modal-overlay">
           <div className="modal-content template-create-modal">
             <div className="modal-header">
               <h3>새 템플릿 만들기</h3>
@@ -1272,7 +1273,7 @@ export const NotificationTemplates = ({
               </button>
             </div>
           </div>
-        </div>
+        </div></ModalPortal>
       )}
     </div>
   );

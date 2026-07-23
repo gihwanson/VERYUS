@@ -15,6 +15,7 @@ import {
 import type { DocumentData } from 'firebase/firestore';
 import { db } from '../firebase';
 import { NotificationService } from '../utils/notificationService';
+import { normalizeMentionMarkup, mentionPreviewText, notifyMentionedUsers } from '../utils/mentionUtils';
 export { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
 
 export interface Comment {
@@ -170,12 +171,14 @@ export const submitComment = async (
   writerNicknameOverride?: string,
   isAnonymousWriter: boolean = false,
   realWriterNicknameOverride?: string,
-  isEvaluatorAliasComment: boolean = false
+  isEvaluatorAliasComment: boolean = false,
+  boardType?: string
 ): Promise<void> => {
   const writerNickname = writerNicknameOverride || user.nickname || '익명';
+  const normalizedContent = normalizeMentionMarkup(content).trim();
   await addDoc(collection(db, 'comments'), {
     postId,
-    content: content.trim(),
+    content: normalizedContent,
     writerNickname,
     realWriterNickname: realWriterNicknameOverride || null,
     isAnonymousWriter,
@@ -193,7 +196,8 @@ export const submitComment = async (
   });
   
   // 댓글 알림: 게시글 작성자에게(본인이면 생략). 메인 본문은 단일 작성자 없음.
-  const postType = getPostTypeFromPath();
+  const postType = boardType || getPostTypeFromPath();
+  const skipMentionUids: string[] = [];
   if (postType !== 'home' && post.writerUid && user.uid !== post.writerUid) {
     try {
       console.info('[comment] notify:attempt', {
@@ -209,16 +213,32 @@ export const submitComment = async (
         post.id,
         post.title,
         postType,
-        { commentPreview: content.trim(), isSecret }
+        { commentPreview: mentionPreviewText(normalizedContent), isSecret }
       );
       console.info('[comment] notify:result', {
         postId: post.id,
         toUid: post.writerUid,
         created
       });
+      if (created) skipMentionUids.push(post.writerUid);
     } catch (err) {
       console.error('알림 생성 실패:', err);
     }
+  }
+
+  try {
+    await notifyMentionedUsers({
+      content: normalizedContent,
+      fromUid: user.uid,
+      fromNickname: writerNickname,
+      postId: post.id,
+      postTitle: post.title,
+      postType,
+      isSecret,
+      skipUids: skipMentionUids
+    });
+  } catch (err) {
+    console.error('멘션 알림 생성 실패:', err);
   }
 };
 
@@ -233,12 +253,14 @@ export const submitReply = async (
   writerNicknameOverride?: string,
   isAnonymousWriter: boolean = false,
   realWriterNicknameOverride?: string,
-  isEvaluatorAliasComment: boolean = false
+  isEvaluatorAliasComment: boolean = false,
+  boardType?: string
 ): Promise<void> => {
   const writerNickname = writerNicknameOverride || user.nickname || '익명';
+  const normalizedContent = normalizeMentionMarkup(content).trim();
   await addDoc(collection(db, 'comments'), {
     postId,
-    content: content.trim(),
+    content: normalizedContent,
     writerNickname,
     realWriterNickname: realWriterNicknameOverride || null,
     isAnonymousWriter,
@@ -255,14 +277,16 @@ export const submitReply = async (
     lastCommentAt: new Date()
   });
   
+  const postType = boardType || getPostTypeFromPath();
+  const skipMentionUids: string[] = [];
+
   // 답글 알림: 부모 댓글 작성자에게(본인이면 생략)
   try {
     const parentCommentDoc = await getDoc(doc(db, 'comments', parentId));
     const parentComment = parentCommentDoc.data();
     if (parentComment && parentComment.writerUid && parentComment.writerUid !== user.uid) {
       try {
-        const postType = getPostTypeFromPath();
-        await NotificationService.createReplyNotification(
+        const created = await NotificationService.createReplyNotification(
           parentComment.writerUid,
           user.uid,
           writerNickname,
@@ -270,14 +294,31 @@ export const submitReply = async (
           post.title,
           parentId,
           postType,
-          { replyPreview: content.trim(), isSecret }
+          { replyPreview: mentionPreviewText(normalizedContent), isSecret }
         );
+        if (created) skipMentionUids.push(parentComment.writerUid);
       } catch (err) {
         console.error('답글 알림 생성 실패:', err);
       }
     }
   } catch (err) {
     console.error('부모 댓글 정보 조회 실패:', err);
+  }
+
+  try {
+    await notifyMentionedUsers({
+      content: normalizedContent,
+      fromUid: user.uid,
+      fromNickname: writerNickname,
+      postId: post.id,
+      postTitle: post.title,
+      postType,
+      commentId: parentId,
+      isSecret,
+      skipUids: skipMentionUids
+    });
+  } catch (err) {
+    console.error('멘션 알림 생성 실패:', err);
   }
 };
 
