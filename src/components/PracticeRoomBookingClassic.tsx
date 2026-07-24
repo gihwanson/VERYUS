@@ -11,6 +11,7 @@ import {
   ALWAYS_OPEN_NOTICE,
   type PracticeRoomAlwaysOpenSettings,
 } from '../utils/practiceRoomAlwaysOpen';
+import { getMaxHoursByParticipantCount } from '../utils/practiceRoomBookingRules';
 import { Calendar, Clock, User, X, ChevronLeft, ChevronRight, Info, RefreshCw, LogIn, LogOut, Users } from 'lucide-react';
 
 interface Reservation {
@@ -781,9 +782,10 @@ const PracticeRoomBookingClassic: React.FC = () => {
       return;
     }
 
+    // 멤버 미입력 상태(본인만)에서는 2~3명 규칙과 동일하게 최대 2시간
     const defaultDuration = isUnlimitedUser
       ? allowedDuration
-      : Math.min(3, allowedDuration);
+      : Math.min(getMaxHoursByParticipantCount(1), allowedDuration);
 
     setMaxAvailableDuration(allowedDuration);
     setDuration(defaultDuration);
@@ -884,6 +886,21 @@ const PracticeRoomBookingClassic: React.FC = () => {
 
   const getBookingParticipantCount = () => 1 + getTrimmedMembers().length;
 
+  const getEffectiveMaxDuration = (participantCount = getBookingParticipantCount()) => {
+    if (isUnlimitedUser) return maxAvailableDuration;
+    return Math.min(
+      maxAvailableDuration,
+      getMaxHoursByParticipantCount(participantCount)
+    );
+  };
+
+  const clampDurationToParticipantLimit = (nextMembers: string[]) => {
+    if (isUnlimitedUser) return;
+    const count = 1 + nextMembers.map((m) => m.trim()).filter(Boolean).length;
+    const effective = getEffectiveMaxDuration(count);
+    setDuration((prev) => Math.min(prev, effective));
+  };
+
   const isBookingFormValid = () => {
     if (isUnlimitedUser) return true;
     const trimmedPurpose = purpose.trim();
@@ -910,6 +927,16 @@ const PracticeRoomBookingClassic: React.FC = () => {
 
       if (trimmedMembers.length < 1) {
         alert('함께 사용할 멤버를 1명 이상 추가해주세요.\n(2인 이상부터 예약 가능합니다)');
+        return;
+      }
+
+      const participantCount = 1 + trimmedMembers.length;
+      const memberMaxHours = getMaxHoursByParticipantCount(participantCount);
+      if (duration > memberMaxHours) {
+        alert(
+          `예약 인원 ${participantCount}명(본인 포함)은 최대 ${memberMaxHours}시간까지 예약할 수 있습니다.\n\n` +
+            '2~3명: 최대 2시간\n4명 이상: 최대 3시간'
+        );
         return;
       }
     }
@@ -1349,13 +1376,17 @@ const PracticeRoomBookingClassic: React.FC = () => {
       return;
     }
     if (!members.includes(trimmedInput)) {
-      setMembers([...members, trimmedInput]);
+      const nextMembers = [...members, trimmedInput];
+      setMembers(nextMembers);
+      clampDurationToParticipantLimit(nextMembers);
       setMemberInput('');
     }
   };
 
   const handleRemoveMember = (memberToRemove: string) => {
-    setMembers(members.filter(m => m !== memberToRemove));
+    const nextMembers = members.filter(m => m !== memberToRemove);
+    setMembers(nextMembers);
+    clampDurationToParticipantLimit(nextMembers);
   };
 
   const handleMemberInputKeyPress = (e: React.KeyboardEvent) => {
@@ -2022,21 +2053,32 @@ const PracticeRoomBookingClassic: React.FC = () => {
                   {(isUnlimitedUser
                     ? Array.from({ length: maxAvailableDuration }, (_, i) => i + 1)
                     : [1, 2, 3]
-                  ).map((hours) => (
+                  ).map((hours) => {
+                    const effectiveMax = getEffectiveMaxDuration();
+                    return (
                     <button
                       key={hours}
                       type="button"
-                      className={`duration-button ${duration === hours ? 'active' : ''} ${hours > maxAvailableDuration ? 'disabled' : ''}`}
-                      onClick={() => hours <= maxAvailableDuration && setDuration(hours)}
-                      disabled={hours > maxAvailableDuration}
+                      className={`duration-button ${duration === hours ? 'active' : ''} ${hours > effectiveMax ? 'disabled' : ''}`}
+                      onClick={() => hours <= effectiveMax && setDuration(hours)}
+                      disabled={hours > effectiveMax}
                     >
                       {hours}시간
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
                 {!isUnlimitedUser && (
                   <p className="duration-hint daily-limit">
                     📊 오늘 예약 가능: {MAX_DAILY_HOURS - dailyUsedHours}시간 (사용: {dailyUsedHours}/{MAX_DAILY_HOURS}시간)
+                  </p>
+                )}
+                {!isUnlimitedUser && (
+                  <p className="duration-hint">
+                    👥 인원별 최대 시간: 2~3명 → 2시간 / 4명 이상 → 3시간
+                    {getBookingParticipantCount() >= 2 && (
+                      <> (현재 {getBookingParticipantCount()}명 → 최대 {getMaxHoursByParticipantCount(getBookingParticipantCount())}시간)</>
+                    )}
                   </p>
                 )}
                 {isUnlimitedUser && (
@@ -2044,7 +2086,8 @@ const PracticeRoomBookingClassic: React.FC = () => {
                     관리자 모드: 일일·주간 한도 없이 예약할 수 있습니다.
                   </p>
                 )}
-                {maxAvailableDuration < 3 && !isUnlimitedUser && (
+                {!isUnlimitedUser &&
+                  maxAvailableDuration < getMaxHoursByParticipantCount(getBookingParticipantCount()) && (
                   <p className="duration-hint">
                     ⚠️ 연속된 시간대가 비어있지 않아 최대 {maxAvailableDuration}시간까지만 예약 가능합니다.
                   </p>
@@ -2060,6 +2103,9 @@ const PracticeRoomBookingClassic: React.FC = () => {
                 </label>
                 <p className="duration-hint">
                   단독 사용은 불가합니다. 본인 포함 <strong>2인 이상</strong>일 때만 예약할 수 있습니다.
+                  {!isUnlimitedUser && (
+                    <> 3시간 예약은 본인 포함 <strong>4명 이상</strong>일 때 가능합니다.</>
+                  )}
                 </p>
                 <div className="member-input-container">
                   <input
