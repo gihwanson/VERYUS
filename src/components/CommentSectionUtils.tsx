@@ -16,6 +16,7 @@ import type { DocumentData } from 'firebase/firestore';
 import { db } from '../firebase';
 import { NotificationService } from '../utils/notificationService';
 import { normalizeMentionMarkup, mentionPreviewText, notifyMentionedUsers } from '../utils/mentionUtils';
+import { maybeUnlockPulseGlowByCommentCount } from '../utils/gradeFxCommentUnlock';
 export { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
 
 export interface Comment {
@@ -240,6 +241,15 @@ export const submitComment = async (
   } catch (err) {
     console.error('멘션 알림 생성 실패:', err);
   }
+
+  try {
+    await maybeUnlockPulseGlowByCommentCount({
+      uid: user.uid,
+      nickname: user.nickname,
+    });
+  } catch (err) {
+    console.error('등급 스킨 해금 체크 실패:', err);
+  }
 };
 
 // 답글 작성
@@ -319,6 +329,15 @@ export const submitReply = async (
     });
   } catch (err) {
     console.error('멘션 알림 생성 실패:', err);
+  }
+
+  try {
+    await maybeUnlockPulseGlowByCommentCount({
+      uid: user.uid,
+      nickname: user.nickname,
+    });
+  } catch (err) {
+    console.error('등급 스킨 해금 체크 실패:', err);
   }
 };
 

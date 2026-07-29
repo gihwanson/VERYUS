@@ -3,7 +3,12 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { collection, doc as firestoreDoc, getDoc, getDocs, limit, orderBy, query, where } from 'firebase/firestore';
 import { Loader, Plus, Scale } from 'lucide-react';
 import { db } from '../firebase';
-import { getPostListGradeSpanProps } from '../utils/gradeDisplay';
+import GradeFxEmoji from './GradeFxEmoji';
+import {
+  SkinnedNickname,
+  SkinnedPostCard,
+  SkinnedPostTitle,
+} from './SkinnedAuthor';
 
 interface Post {
   id: string;
@@ -190,8 +195,10 @@ const BalancePostList: React.FC = () => {
             const ratioA = totalVotes > 0 ? Math.round(((post.votesA || 0) / totalVotes) * 100) : 0;
             const ratioB = totalVotes > 0 ? 100 - ratioA : 0;
             return (
-              <article
+              <SkinnedPostCard
+                as="article"
                 key={post.id}
+                writerNickname={post.writerNickname} writerUid={post.writerUid}
                 className="post-item"
                 data-post-id={post.id}
                 onClick={() => handlePostClick(post.id)}
@@ -200,7 +207,11 @@ const BalancePostList: React.FC = () => {
                   <div className="post-main-info balance-post-main-info">
                     <div className="post-category-title">
                       <span className="post-category category-badge">밸런스</span>
-                      <h2 className="post-title" style={{ fontSize: '1.2rem' }}>{post.title}</h2>
+                      <SkinnedPostTitle
+                        title={post.title}
+                        writerNickname={post.writerNickname} writerUid={post.writerUid}
+                        style={{ fontSize: '1.2rem' }}
+                      />
                     </div>
                     {post.content && post.content.trim() && (
                       <div className="post-content-preview">{post.content}</div>
@@ -233,8 +244,16 @@ const BalancePostList: React.FC = () => {
                 </div>
                 <div className="post-footer balance-post-footer">
                   <span className="balance-post-author">
-                    <span {...getPostListGradeSpanProps(post.writerGrade, 'balance')} />
-                    <span className="balance-post-author-name">{post.writerNickname || '익명'}</span>
+                    <GradeFxEmoji
+                      grade={post.writerGrade}
+                      writerNickname={post.writerNickname} writerUid={post.writerUid}
+                      variant="balance"
+                    />
+                    <SkinnedNickname
+                      nickname={post.writerNickname || '익명'}
+                      writerNickname={post.writerNickname} writerUid={post.writerUid}
+                      className="balance-post-author-name"
+                    />
                   </span>
                   <span className="balance-meta-item">투표 {totalVotes}</span>
                   <span className="balance-meta-item">댓글 {post.commentCount || 0}</span>
@@ -244,7 +263,7 @@ const BalancePostList: React.FC = () => {
                     {formatDate(post.createdAt)}
                   </span>
                 </div>
-              </article>
+              </SkinnedPostCard>
             );
           })
         )}

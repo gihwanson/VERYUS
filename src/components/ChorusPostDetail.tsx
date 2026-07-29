@@ -13,7 +13,13 @@ import {
   onSnapshot,
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import { getPostListGradeSpanProps } from '../utils/gradeDisplay';
+import GradeFxEmoji from './GradeFxEmoji';
+import {
+  SkinnedNickname,
+  SkinnedPostTitle,
+  SkinnedRoleBadge,
+  usePostBodySkinClass,
+} from './SkinnedAuthor';
 import {
   ArrowLeft,
   Heart,
@@ -71,6 +77,7 @@ const ChorusPostDetail: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [messageContent, setMessageContent] = useState('');
+  const postBodySkinClass = usePostBodySkinClass({ writerUid: post?.writerUid, writerNickname: post?.writerNickname });
 
   useEffect(() => {
     const userString = localStorage.getItem('veryus_user');
@@ -223,22 +230,29 @@ const ChorusPostDetail: React.FC = () => {
         </button>
       </div>
 
-      <article className="post-detail">
+      <article className={`post-detail ${postBodySkinClass}`.trim()}>
         <div className="post-detail-header">
           <div className="title-section">
             <span className="category-tag">이어 부르기</span>
-            <h1 className="post-detail-title">{post.title}</h1>
+            <SkinnedPostTitle
+              title={post.title}
+              writerNickname={post.writerNickname} writerUid={post.writerUid}
+              className="post-detail-title"
+              as="h1"
+            />
           </div>
           <div className="post-detail-meta">
             <div className="post-detail-author">
               <div className="author-section">
                 <span className="author-info" onClick={() => navigate(`/mypage/${post.writerUid}`)}>
-                  <span {...getPostListGradeSpanProps(post.writerGrade)} />
-                  {post.writerNickname}
+                  <GradeFxEmoji grade={post.writerGrade} writerUid={post.writerUid} writerNickname={post.writerNickname} />
+                  <SkinnedNickname nickname={post.writerNickname} writerUid={post.writerUid} writerNickname={post.writerNickname} />
                 </span>
-                <span className={`role-badge ${getPublicRoleBadge(post.writerRole, post.writerPosition)}`}>
-                  {getPublicRoleBadge(post.writerRole, post.writerPosition)}
-                </span>
+                <SkinnedRoleBadge
+                  label={getPublicRoleBadge(post.writerRole, post.writerPosition)}
+                  roleClassName={getPublicRoleBadge(post.writerRole, post.writerPosition)}
+                  writerNickname={post.writerNickname} writerUid={post.writerUid}
+                />
               </div>
               <div className="post-detail-info">
                 <span className="post-detail-date">

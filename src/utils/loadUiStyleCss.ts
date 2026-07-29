@@ -6,9 +6,9 @@ import { getSavedAppUiStyle, type AppUiStyleId } from './appUiStyleStorage';
 let loadedStyle: AppUiStyleId | null = null;
 
 export async function loadUiStyleCss(style: AppUiStyleId = getSavedAppUiStyle()): Promise<void> {
-  if (loadedStyle === style) return;
-
-  await import('../styles/ui-style-warm-paper.css');
-
-  loadedStyle = style;
+  // warm-paper 번들(끝의 배지 스킨 오버라이드 포함)을 항상 최신으로 로드
+  if (loadedStyle !== style) {
+    await import('../styles/ui-style-warm-paper.css');
+    loadedStyle = style;
+  }
 }

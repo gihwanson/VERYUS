@@ -326,6 +326,15 @@
   transform: scale(1.05) rotate(5deg);
 }
 
+.logo-image--tap {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.logo-image--tap:active {
+  transform: scale(0.96);
+}
+
 .brand-text {
   text-align: center;
   opacity: 1 !important;

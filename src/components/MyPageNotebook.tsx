@@ -47,6 +47,7 @@ import { NotificationService } from '../utils/notificationService';
 import { enablePushNotifications, removeAllPushTokens } from '../utils/pushNotificationService';
 import { GRADE_NAMES, GRADE_ORDER, GRADE_SYSTEM } from './AdminTypes';
 import { getGradeBadgeLabel, getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
+import GradeFxEmoji from './GradeFxEmoji';
 import { approvedSongCountsByNicknameFromDocs } from '../utils/approvedSongMilestone';
 import {
   fetchMemberPassRateForNickname,
@@ -1318,7 +1319,14 @@ const MyPageNotebook: React.FC = () => {
           </div>
           <div className="mypage-profile-intro">{user?.intro || '등록된 소개가 없습니다.'}</div>
           <div className="mypage-profile-grade">
-            등급: <span className="author-grade-label">{getGradeBadgeLabel(user?.grade || GRADE_SYSTEM.CHERRY)}</span>
+            등급:{' '}
+            <GradeFxEmoji
+              grade={user?.grade || GRADE_SYSTEM.CHERRY}
+              writerUid={user?.uid}
+              writerNickname={user?.nickname}
+              applyEquippedFx={isOwner}
+            />{' '}
+            <span className="author-grade-label">{getGradeBadgeLabel(user?.grade || GRADE_SYSTEM.CHERRY)}</span>
           </div>
           {isOwner && (
             <div

@@ -19,10 +19,13 @@ import { mergeVeryusUserFromAuth, readVeryusUserFromStorage, writeVeryusUserToSt
 import { signOutDeletedAccount } from './utils/deletedAccountSession';
 import { subscribeAdminVerification } from './utils/adminSessionVerify';
 import { addLurkingScore } from './utils/simpleBoardNotification';
+import { CosmeticSkinsProvider } from './contexts/CosmeticSkinsContext';
 import { UserProfileProvider } from './contexts/UserProfileContext';
 import GlobalLoadingScreen from './components/GlobalLoadingScreen';
 import RouteLoadShell from './components/RouteLoadShell';
 import './App.css';
+import './styles/gradeFx.css';
+import './styles/cosmeticSkins.css';
 
 const APP_BUILD =
   typeof __APP_BUILD__ !== 'undefined' && __APP_BUILD__
@@ -953,6 +956,7 @@ function App() {
   return (
     <AppErrorBoundary>
       <UserProfileProvider authUser={user}>
+        <CosmeticSkinsProvider>
         <Router>
           <AudioPlayerProvider>
             <div className="App">
@@ -1219,6 +1223,7 @@ function App() {
           />
           </AudioPlayerProvider>
         </Router>
+        </CosmeticSkinsProvider>
       </UserProfileProvider>
     </AppErrorBoundary>
   );

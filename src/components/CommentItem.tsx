@@ -12,7 +12,8 @@ import TagParser from './TagParser';
 import MentionInputField from './MentionInputField';
 import { Heart, MessageCircle, Edit, Trash2, Send, Clock } from 'lucide-react';
 import { getPublicRoleBadge } from '../utils/publicRoleBadge';
-import { getPostListGradeSpanProps } from '../utils/gradeDisplay';
+import GradeFxEmoji from './GradeFxEmoji';
+import { SkinnedNickname, SkinnedRoleBadge } from './SkinnedAuthor';
 import { normalizeMentionMarkup, toMentionInputValue } from '../utils/mentionUtils';
 import type { UserMention } from '../utils/getUserMentions';
 import './CommentItem.css';
@@ -139,14 +140,6 @@ const CommentItem: React.FC<CommentItemProps> = ({
     if (!realNickname || realNickname === baseNickname) return baseNickname;
     return `${baseNickname} (${realNickname})`;
   }, [comment.writerNickname, comment.realWriterNickname, comment.isAnonymousWriter, user?.nickname]);
-
-  const displayGradeSpanProps = useMemo(
-    () =>
-      getPostListGradeSpanProps(
-        comment.isAnonymousWriter ? GRADE_SYSTEM.CHERRY : comment.writerGrade
-      ),
-    [comment.isAnonymousWriter, comment.writerGrade]
-  );
 
   const displayRoleBadge = useMemo(() => {
     return getPublicRoleBadge(comment.writerRole, comment.writerPosition);
@@ -355,12 +348,26 @@ const CommentItem: React.FC<CommentItemProps> = ({
       <div className="comment-header">
         <div className="comment-info">
           <div className="author-info">
-            <span {...displayGradeSpanProps} />
-            <span className="comment-author">{displayAuthorName}</span>
+            <GradeFxEmoji
+              grade={comment.isAnonymousWriter ? GRADE_SYSTEM.CHERRY : comment.writerGrade}
+              writerUid={comment.isAnonymousWriter ? undefined : comment.writerUid}
+              writerNickname={comment.isAnonymousWriter ? undefined : comment.writerNickname}
+              suppressFx={Boolean(comment.isAnonymousWriter)}
+            />
+            <SkinnedNickname
+              nickname={displayAuthorName}
+              writerUid={comment.isAnonymousWriter ? undefined : comment.writerUid}
+              writerNickname={comment.isAnonymousWriter ? undefined : comment.writerNickname}
+              className="comment-author"
+              suppress={Boolean(comment.isAnonymousWriter)}
+            />
             {!comment.isAnonymousWriter && (
-              <span className={`role-badge ${displayRoleBadge || 'general'}`}>
-                {displayRoleBadge}
-              </span>
+              <SkinnedRoleBadge
+                label={displayRoleBadge || 'general'}
+                roleClassName={displayRoleBadge || 'general'}
+                writerUid={comment.writerUid}
+                writerNickname={comment.writerNickname}
+              />
             )}
           </div>
           <span className="comment-date">

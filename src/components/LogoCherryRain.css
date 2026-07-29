@@ -1,0 +1,32 @@
+.logo-cherry-rain {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.logo-cherry-rain__item {
+  position: absolute;
+  top: -2.5rem;
+  line-height: 1;
+  user-select: none;
+  will-change: transform, opacity;
+  animation-name: logo-cherry-fall;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes logo-cherry-fall {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--cherry-drift), 110vh, 0) rotate(var(--cherry-spin));
+    opacity: 0.85;
+  }
+}

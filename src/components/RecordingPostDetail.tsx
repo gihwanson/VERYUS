@@ -17,7 +17,14 @@ import {
   deleteDoc
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import { getPostListGradeSpanProps } from '../utils/gradeDisplay';
+import GradeFxEmoji from './GradeFxEmoji';
+import {
+  SkinnedNickname,
+  SkinnedPostTitle,
+  SkinnedRoleBadge,
+  SkinnedPosition,
+  usePostBodySkinClass,
+} from './SkinnedAuthor';
 import { 
   ArrowLeft,
   Heart,
@@ -100,6 +107,7 @@ const RecordingPostDetail: React.FC = () => {
   const { isPlaying: isGlobalPlaying, pause: pauseGlobal, play: playGlobal, currentIdx: globalIdx } = useAudioPlayer();
   // 글로벌 플레이리스트 상태 기억용
   const globalStateRef = React.useRef<{idx: number, wasPlaying: boolean}>({idx: 0, wasPlaying: false});
+  const postBodySkinClass = usePostBodySkinClass({ writerUid: post?.writerUid, writerNickname: post?.writerNickname });
 
   useEffect(() => {
     const userString = localStorage.getItem('veryus_user');
@@ -376,28 +384,33 @@ const RecordingPostDetail: React.FC = () => {
           목록으로
         </button>
       </div>
-      <article className="post-detail">
+      <article className={`post-detail ${postBodySkinClass}`.trim()}>
         <div className="post-detail-header">
           <div className="title-container">
             <div className="title-section">
               <span className="category-tag">녹음</span>
-              <h1 className="post-detail-title">
-                {post.title}
-              </h1>
+              <SkinnedPostTitle
+                title={post.title}
+                writerNickname={post.writerNickname} writerUid={post.writerUid}
+                className="post-detail-title"
+                as="h1"
+              />
             </div>
           </div>
           <div className="post-detail-meta">
             <div className="post-detail-author">
               <div className="author-section">
                 <span className="author-info" onClick={() => navigate(`/mypage/${post.writerUid}`)}>
-                  <span {...getPostListGradeSpanProps(post.writerGrade)} />
-                  {post.writerNickname}
+                  <GradeFxEmoji grade={post.writerGrade} writerUid={post.writerUid} writerNickname={post.writerNickname} />
+                  <SkinnedNickname nickname={post.writerNickname} writerUid={post.writerUid} writerNickname={post.writerNickname} />
                 </span>
-                <span className={`role-badge ${getPublicRoleBadge(post.writerRole, post.writerPosition)}`}>
-                  {getPublicRoleBadge(post.writerRole, post.writerPosition)}
-                </span>
+                <SkinnedRoleBadge
+                  label={getPublicRoleBadge(post.writerRole, post.writerPosition)}
+                  roleClassName={getPublicRoleBadge(post.writerRole, post.writerPosition)}
+                  writerNickname={post.writerNickname} writerUid={post.writerUid}
+                />
                 {shouldShowPublicPosition(post.writerPosition) && (
-                  <span className="author-position">{post.writerPosition}</span>
+                  <SkinnedPosition position={post.writerPosition} writerUid={post.writerUid} writerNickname={post.writerNickname} />
                 )}
               </div>
               <div className="post-detail-info">

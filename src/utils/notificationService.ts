@@ -21,6 +21,7 @@ export interface NotificationData {
     | 'grade_change_approved'
     | 'grade_change_rejected'
     | 'approved_song_milestone'
+    | 'grade_fx_unlock'
     | 'customer_center_inquiry'
     | 'customer_center_reply'
     | 'email_registration'
@@ -80,6 +81,10 @@ export class NotificationService {
 
     if (type === 'approved_song_milestone') {
       return '/hall-of-fame';
+    }
+
+    if (type === 'grade_fx_unlock') {
+      return '/settings';
     }
 
     if (type === 'guestbook' || type === 'guestbook_reply') {
@@ -229,6 +234,7 @@ export class NotificationService {
       grade_change_approved: '등급 변경 요청이 승인되었습니다.',
       grade_change_rejected: '등급 변경 요청이 반려되었습니다.',
       approved_song_milestone: '회원이 합격곡 마일스톤을 달성했습니다.',
+      grade_fx_unlock: '등급 특수효과 스킨을 획득했습니다.',
       anonymous_chat_ban: '익명채팅방 퇴장 안내가 도착했습니다.',
       anonymous_chat_kick: '익명채팅방에서보내졌습니다.',
       customer_center_inquiry: '고객센터에 새 문의가 접수되었습니다.',

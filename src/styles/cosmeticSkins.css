@@ -1,0 +1,308 @@
+/* —— 코스메틱 스킨 피커 —— */
+.cosmetic-skin-picker__desc {
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+  color: var(--paper-muted, #8b7355);
+  line-height: 1.45;
+}
+
+.cosmetic-skin-picker__leader-note {
+  margin: 0 0 10px;
+  font-size: 0.8rem;
+  color: var(--paper-accent, #8b5a2b);
+  font-weight: 600;
+}
+
+.cosmetic-skin-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.cosmetic-skin-picker__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 10px 12px;
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-radius: 10px;
+  background: var(--paper-card, #fffdf8);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cosmetic-skin-picker__card:hover:not(:disabled) {
+  border-color: var(--paper-accent, #8b5a2b);
+}
+
+.cosmetic-skin-picker__card.is-selected {
+  border-color: var(--paper-accent, #8b5a2b);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--paper-accent, #8b5a2b) 28%, transparent);
+}
+
+.cosmetic-skin-picker__card.is-locked {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.cosmetic-skin-picker__preview {
+  position: relative;
+  min-height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--paper-ink, #2c2416);
+}
+
+.cosmetic-skin-picker__preview--badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--paper-tag-bg, #f0e6d6);
+  color: var(--paper-tag-text, #6b5344);
+}
+
+.cosmetic-skin-picker__preview--title {
+  font-size: 0.95rem;
+  max-width: 100%;
+}
+
+.cosmetic-skin-picker__preview--body {
+  font-size: 0.78rem;
+  font-weight: 500;
+  padding: 8px 10px;
+  border-radius: 8px;
+  max-width: 100%;
+}
+
+.cosmetic-skin-picker__name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--paper-ink, #2c2416);
+}
+
+.cosmetic-skin-picker__meta {
+  font-size: 0.72rem;
+  color: var(--paper-muted, #8b7355);
+}
+
+.cosmetic-skin-picker__condition {
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: var(--paper-muted, #8b7355);
+  word-break: keep-all;
+}
+
+/* —— 닉네임 스킨 —— */
+.nick-skin {
+  display: inline;
+  position: relative;
+}
+
+.nick-skin--brush {
+  font-family: var(--paper-serif, Georgia, 'Times New Roman', serif);
+  font-style: italic;
+  letter-spacing: 0.01em;
+}
+
+.nick-skin--neon {
+  text-shadow:
+    0 0 4px rgba(255, 180, 120, 0.85),
+    0 0 10px rgba(255, 140, 80, 0.45);
+}
+
+.nick-skin--note-underline::after {
+  content: '♪';
+  margin-left: 3px;
+  font-size: 0.75em;
+  opacity: 0.75;
+  animation: nick-note-twinkle 1.6s ease-in-out infinite;
+}
+
+@keyframes nick-note-twinkle {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
+.nick-skin--busking-tag {
+  border-bottom: 1.5px solid color-mix(in srgb, currentColor 45%, transparent);
+  padding-bottom: 1px;
+}
+
+.nick-skin--breath-fade {
+  animation: nick-breath-fade 2.4s ease-in-out infinite;
+}
+
+@keyframes nick-breath-fade {
+  0%, 100% { opacity: 0.72; }
+  50% { opacity: 1; }
+}
+
+/* —— 배지 스킨 (warm-paper .role-badge !important 덮어쓰기) —— */
+.badge-skin {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.role-badge.badge-skin--gold-frame,
+.author-position.badge-skin--gold-frame,
+html[data-ui-style="warm-paper"] .role-badge.badge-skin--gold-frame,
+html[data-ui-style="warm-paper"] .author-position.badge-skin--gold-frame {
+  border-color: #c9a227 !important;
+  color: #8a6d12 !important;
+  background: linear-gradient(180deg, rgba(255, 236, 170, 0.45), rgba(255, 214, 120, 0.2)) !important;
+  box-shadow:
+    0 0 0 1.5px #c9a227,
+    0 0 0 3px rgba(201, 162, 39, 0.28),
+    0 0 10px rgba(201, 162, 39, 0.35) !important;
+}
+
+.role-badge.badge-skin--ribbon-pin,
+.author-position.badge-skin--ribbon-pin,
+html[data-ui-style="warm-paper"] .role-badge.badge-skin--ribbon-pin,
+html[data-ui-style="warm-paper"] .author-position.badge-skin--ribbon-pin {
+  padding-right: 0.35rem !important;
+}
+
+.badge-skin--ribbon-pin::after {
+  content: '🎀';
+  margin-left: 4px;
+  font-size: 0.85em;
+  line-height: 1;
+}
+
+.role-badge.badge-skin--starlight,
+.author-position.badge-skin--starlight,
+html[data-ui-style="warm-paper"] .role-badge.badge-skin--starlight,
+html[data-ui-style="warm-paper"] .author-position.badge-skin--starlight {
+  border-color: rgba(140, 180, 255, 0.95) !important;
+  color: #4a6bb5 !important;
+  background: rgba(210, 225, 255, 0.35) !important;
+  box-shadow:
+    0 0 0 1.5px rgba(140, 180, 255, 0.9),
+    0 0 12px rgba(160, 200, 255, 0.75) !important;
+  animation: badge-starlight 2s ease-in-out infinite;
+}
+
+@keyframes badge-starlight {
+  0%, 100% { filter: brightness(1); box-shadow: 0 0 0 1.5px rgba(140, 180, 255, 0.9), 0 0 8px rgba(160, 200, 255, 0.55); }
+  50% { filter: brightness(1.15); box-shadow: 0 0 0 2px rgba(160, 200, 255, 1), 0 0 14px rgba(180, 210, 255, 0.9); }
+}
+
+.role-badge.badge-skin--season,
+.author-position.badge-skin--season,
+html[data-ui-style="warm-paper"] .role-badge.badge-skin--season,
+html[data-ui-style="warm-paper"] .author-position.badge-skin--season {
+  border-color: rgba(232, 120, 90, 0.55) !important;
+  color: #9a4a32 !important;
+  background: linear-gradient(135deg, rgba(255, 214, 160, 0.55), rgba(255, 160, 180, 0.4)) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 140, 100, 0.35), 0 1px 4px rgba(200, 100, 80, 0.18) !important;
+}
+
+/* 설정 미리보기용 (role-badge 없어도 보이도록) */
+.cosmetic-skin-picker__preview.badge-skin--gold-frame {
+  border: 1px solid #c9a227;
+  background: linear-gradient(180deg, rgba(255, 236, 170, 0.45), rgba(255, 214, 120, 0.2));
+  box-shadow: 0 0 0 2px rgba(201, 162, 39, 0.35);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.cosmetic-skin-picker__preview.badge-skin--starlight {
+  border: 1px solid rgba(140, 180, 255, 0.95);
+  background: rgba(210, 225, 255, 0.35);
+  box-shadow: 0 0 10px rgba(160, 200, 255, 0.75);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.cosmetic-skin-picker__preview.badge-skin--season {
+  border: 1px solid rgba(232, 120, 90, 0.55);
+  background: linear-gradient(135deg, rgba(255, 214, 160, 0.55), rgba(255, 160, 180, 0.4));
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.cosmetic-skin-picker__preview.badge-skin--ribbon-pin {
+  border-radius: 999px;
+  padding: 2px 8px;
+  border: 1px solid var(--paper-border, #e8dcc8);
+}
+
+/* —— 제목 스킨 —— */
+.post-title-skin--highlighter {
+  background-image: linear-gradient(
+    transparent 58%,
+    color-mix(in srgb, #ffe566 70%, transparent) 58% 92%,
+    transparent 92%
+  );
+  background-repeat: no-repeat;
+}
+
+.post-title-skin--ticket {
+  padding-left: 0.45em;
+  padding-right: 0.45em;
+  border-left: 2px dashed color-mix(in srgb, currentColor 35%, transparent);
+  border-right: 2px dashed color-mix(in srgb, currentColor 35%, transparent);
+}
+
+.post-title-skin--spotlight {
+  background-image: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, #fff3c4 55%, transparent),
+    transparent
+  );
+}
+
+.post-title-skin--handwriting {
+  font-family: var(--paper-serif, Georgia, 'Times New Roman', serif);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* —— 본문/카드 스킨 —— */
+.post-body-skin--notebook {
+  background-image: repeating-linear-gradient(
+    transparent,
+    transparent 21px,
+    color-mix(in srgb, var(--paper-border, #e8dcc8) 70%, transparent) 22px
+  );
+  background-attachment: local;
+}
+
+.post-body-skin--polaroid {
+  box-shadow:
+    0 0 0 6px #fffdf8,
+    0 0 0 7px color-mix(in srgb, var(--paper-border, #e8dcc8) 80%, transparent),
+    3px 5px 0 rgba(139, 115, 85, 0.08);
+  transform: rotate(-0.4deg);
+}
+
+.post-body-skin--stage {
+  position: relative;
+}
+
+.post-body-skin--stage::before {
+  content: '';
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 0;
+  height: 3px;
+  border-radius: 0 0 8px 8px;
+  background: linear-gradient(90deg, transparent, rgba(255, 220, 140, 0.85), transparent);
+  pointer-events: none;
+}
+
+.post-body-skin--postcard {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--paper-accent, #8b5a2b) 28%, transparent);
+  background-image:
+    radial-gradient(circle at 92% 12%, color-mix(in srgb, #c45c4a 22%, transparent) 0 10px, transparent 11px);
+}

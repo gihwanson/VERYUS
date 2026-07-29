@@ -46,6 +46,7 @@ import { NotificationService } from '../utils/notificationService';
 import { enablePushNotifications, removeAllPushTokens } from '../utils/pushNotificationService';
 import { GRADE_NAMES, GRADE_ORDER, GRADE_SYSTEM } from './AdminTypes';
 import { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
+import GradeFxEmoji from './GradeFxEmoji';
 import { approvedSongCountsByNicknameFromDocs } from '../utils/approvedSongMilestone';
 import {
   fetchMemberPassRateForNickname,
@@ -1566,7 +1567,14 @@ const MyPageClassic: React.FC = () => {
             textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
           }}>{user?.intro || '등록된 소개가 없습니다.'}</div>
           <div style={{ marginTop: 12, color: 'rgba(255, 255, 255, 0.9)', fontWeight: 600, fontSize: 15 }}>
-            등급: {getGradeEmoji(user?.grade || GRADE_SYSTEM.CHERRY)} {getGradeName(user?.grade || GRADE_SYSTEM.CHERRY)}
+            등급:{' '}
+            <GradeFxEmoji
+              grade={user?.grade || GRADE_SYSTEM.CHERRY}
+              writerUid={user?.uid}
+              writerNickname={user?.nickname}
+              applyEquippedFx={isOwner}
+            />{' '}
+            {getGradeName(user?.grade || GRADE_SYSTEM.CHERRY)}
           </div>
           {isOwner && (
             <div

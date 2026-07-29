@@ -31,6 +31,17 @@ import {
 import AppThemePicker from './AppThemePicker';
 import AppUiStylePicker from './AppUiStylePicker';
 import BottomNavThemePicker from './BottomNavThemePicker';
+import GradeFxSkinPicker from './GradeFxSkinPicker';
+import CosmeticSkinPicker from './CosmeticSkinPicker';
+import {
+  GRADE_FX_CHANGE_EVENT,
+  hasAnyGradeFxUnlock,
+} from '../utils/gradeFxSkins';
+import { maybeUnlockPulseGlowByCommentCount } from '../utils/gradeFxCommentUnlock';
+import {
+  COSMETIC_CHANGE_EVENT,
+  hasAnyCosmeticUnlock,
+} from '../utils/cosmeticSkins';
 
 interface User {
   uid: string;
@@ -61,6 +72,55 @@ const Settings: React.FC = () => {
   const [savingProfileMeta, setSavingProfileMeta] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [showGradeFxSkins, setShowGradeFxSkins] = useState(() =>
+    hasAnyGradeFxUnlock(profile?.nickname)
+  );
+  const nick = () => profile?.nickname ?? user?.nickname;
+  const [showNicknameSkins, setShowNicknameSkins] = useState(() =>
+    hasAnyCosmeticUnlock('nickname', profile?.nickname)
+  );
+  const [showBadgeSkins, setShowBadgeSkins] = useState(() =>
+    hasAnyCosmeticUnlock('badge', profile?.nickname)
+  );
+  const [showPostTitleSkins, setShowPostTitleSkins] = useState(() =>
+    hasAnyCosmeticUnlock('postTitle', profile?.nickname)
+  );
+  const [showPostBodySkins, setShowPostBodySkins] = useState(() =>
+    hasAnyCosmeticUnlock('postBody', profile?.nickname)
+  );
+
+  useEffect(() => {
+    const sync = () => setShowGradeFxSkins(hasAnyGradeFxUnlock(nick()));
+    sync();
+    window.addEventListener(GRADE_FX_CHANGE_EVENT, sync);
+    return () => window.removeEventListener(GRADE_FX_CHANGE_EVENT, sync);
+  }, [profile?.nickname, user?.nickname]);
+
+  useEffect(() => {
+    const sync = () => {
+      const n = nick();
+      setShowNicknameSkins(hasAnyCosmeticUnlock('nickname', n));
+      setShowBadgeSkins(hasAnyCosmeticUnlock('badge', n));
+      setShowPostTitleSkins(hasAnyCosmeticUnlock('postTitle', n));
+      setShowPostBodySkins(hasAnyCosmeticUnlock('postBody', n));
+    };
+    sync();
+    window.addEventListener(COSMETIC_CHANGE_EVENT, sync);
+    return () => window.removeEventListener(COSMETIC_CHANGE_EVENT, sync);
+  }, [profile?.nickname, user?.nickname]);
+
+  useEffect(() => {
+    const uid = profile?.uid || user?.uid;
+    if (!uid) return;
+    void maybeUnlockPulseGlowByCommentCount({
+      uid,
+      nickname: profile?.nickname ?? user?.nickname,
+    }).then((unlocked) => {
+      if (unlocked) {
+        setShowGradeFxSkins(hasAnyGradeFxUnlock(profile?.nickname ?? user?.nickname));
+      }
+    });
+  }, [profile?.uid, profile?.nickname, user?.uid, user?.nickname]);
 
   const toLocalDateInputValue = (date: Date) => {
     const y = date.getFullYear();
@@ -570,6 +630,82 @@ const Settings: React.FC = () => {
           <BottomNavThemePicker />
         </div>
       </div>
+
+      {/* 등급 특수효과 스킨 — 해금 1개 이상일 때만 */}
+      {showGradeFxSkins && (
+        <div className="settings-card">
+          <div className="card-header">
+            <Palette className="card-icon" />
+            <h3>등급 특수효과 스킨</h3>
+          </div>
+          <div className="setting-item">
+            <GradeFxSkinPicker />
+          </div>
+        </div>
+      )}
+
+      {showNicknameSkins && (
+        <div className="settings-card">
+          <div className="card-header">
+            <Palette className="card-icon" />
+            <h3>닉네임 스킨</h3>
+          </div>
+          <div className="setting-item">
+            <CosmeticSkinPicker
+              category="nickname"
+              description="게시글·댓글에 보이는 닉네임 스타일입니다. 해금한 스킨만 장착할 수 있어요."
+            />
+          </div>
+        </div>
+      )}
+
+      {showBadgeSkins && (
+        <div className="settings-card">
+          <div className="card-header">
+            <Palette className="card-icon" />
+            <h3>직책·역할 배지 스킨</h3>
+          </div>
+          <div className="setting-item">
+            <CosmeticSkinPicker
+              category="badge"
+              description="역할·직책 배지에 적용되는 프레임 스킨입니다. 해금한 스킨만 장착할 수 있어요."
+              previewLabel="역할"
+            />
+          </div>
+        </div>
+      )}
+
+      {showPostTitleSkins && (
+        <div className="settings-card">
+          <div className="card-header">
+            <Palette className="card-icon" />
+            <h3>글 제목 스킨</h3>
+          </div>
+          <div className="setting-item">
+            <CosmeticSkinPicker
+              category="postTitle"
+              description="내가 쓴 글의 제목 스타일입니다. 해금한 스킨만 장착할 수 있어요."
+              previewLabel="글 제목 미리보기"
+            />
+          </div>
+        </div>
+      )}
+
+      {showPostBodySkins && (
+        <div className="settings-card">
+          <div className="card-header">
+            <Palette className="card-icon" />
+            <h3>글 본문·카드 스킨</h3>
+          </div>
+          <div className="setting-item">
+            <CosmeticSkinPicker
+              category="postBody"
+              description="내가 쓴 글 카드·본문 프레임 스타일입니다. 해금한 스킨만 장착할 수 있어요."
+              previewLabel="본문 미리보기"
+            />
+          </div>
+        </div>
+      )}
 
       {/* 비밀번호 재설정 */}
       <div className="settings-card">

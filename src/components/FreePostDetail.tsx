@@ -14,7 +14,14 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import { getPostListGradeSpanProps } from '../utils/gradeDisplay';
+import GradeFxEmoji from './GradeFxEmoji';
+import {
+  SkinnedNickname,
+  SkinnedPostTitle,
+  SkinnedRoleBadge,
+  SkinnedPosition,
+  usePostBodySkinClass,
+} from './SkinnedAuthor';
 import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
 import CommentSection from './CommentSection';
 import { 
@@ -87,6 +94,7 @@ const FreePostDetail: React.FC = () => {
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [messageContent, setMessageContent] = useState('');
+  const postBodySkinClass = usePostBodySkinClass({ writerUid: post?.writerUid, writerNickname: post?.writerNickname });
 
   // 사용자 정보 로드
   useEffect(() => {
@@ -368,14 +376,16 @@ const FreePostDetail: React.FC = () => {
   const authorBlock = (
     <>
       <span className="author-info" onClick={() => navigate(`/mypage/${post.writerUid}`)}>
-        <span {...getPostListGradeSpanProps(post.writerGrade)} />
-        {post.writerNickname}
+        <GradeFxEmoji grade={post.writerGrade} writerUid={post.writerUid} writerNickname={post.writerNickname} />
+        <SkinnedNickname nickname={post.writerNickname} writerUid={post.writerUid} writerNickname={post.writerNickname} />
       </span>
-      <span className={`role-badge ${getPublicRoleBadge(post.writerRole, post.writerPosition)}`}>
-        {getPublicRoleBadge(post.writerRole, post.writerPosition)}
-      </span>
+      <SkinnedRoleBadge
+        label={getPublicRoleBadge(post.writerRole, post.writerPosition)}
+        roleClassName={getPublicRoleBadge(post.writerRole, post.writerPosition)}
+        writerNickname={post.writerNickname} writerUid={post.writerUid}
+      />
       {shouldShowPublicPosition(post.writerPosition) && (
-        <span className="author-position">{post.writerPosition}</span>
+        <SkinnedPosition position={post.writerPosition} writerUid={post.writerUid} writerNickname={post.writerNickname} />
       )}
     </>
   );
@@ -401,14 +411,17 @@ const FreePostDetail: React.FC = () => {
           목록으로
         </button>
       </div>
-      <article className="post-detail">
+      <article className={`post-detail ${postBodySkinClass}`.trim()}>
         <div className="post-detail-header">
           <div className="title-container">
             <div className="title-section">
               {post.category && <span className="category-tag">{categories.find(c => c.id === post.category)?.name || '일반'}</span>}
-              <h1 className="post-detail-title">
-                {post.title}
-              </h1>
+              <SkinnedPostTitle
+                title={post.title}
+                writerNickname={post.writerNickname} writerUid={post.writerUid}
+                className="post-detail-title"
+                as="h1"
+              />
             </div>
           </div>
           <div className="post-detail-meta">

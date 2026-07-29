@@ -17,7 +17,14 @@ import {
 } from 'firebase/firestore';
 import type { DocumentData } from 'firebase/firestore';
 import { db } from '../firebase';
-import { getPostListGradeSpanProps } from '../utils/gradeDisplay';
+import GradeFxEmoji from './GradeFxEmoji';
+import {
+  SkinnedNickname,
+  SkinnedPostCard,
+  SkinnedPostTitle,
+  SkinnedRoleBadge,
+  SkinnedPosition,
+} from './SkinnedAuthor';
 import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
 import { 
   Plus, 
@@ -506,8 +513,10 @@ const ChorusPostList: React.FC = () => {
           </div>
         ) : (
           posts.map((post, index) => (
-            <article 
+            <SkinnedPostCard
+              as="article"
               key={post.id}
+              writerNickname={post.writerNickname} writerUid={post.writerUid}
               className="post-item"
               data-post-id={post.id}
               onClick={() => handlePostClick(post.id)}
@@ -517,20 +526,28 @@ const ChorusPostList: React.FC = () => {
                 <div className="post-main-info">
                   <div className="post-category-title">
                     <span className="post-category category-badge">이어부르기</span>
-                    <h2 className="post-title" style={{ fontSize: '1.3rem' }}>{post.title}</h2>
+                    <SkinnedPostTitle
+                      title={post.title}
+                      writerNickname={post.writerNickname} writerUid={post.writerUid}
+                      style={{ fontSize: '1.3rem' }}
+                    />
                   </div>
                 </div>
                 <div className="post-meta">
                   <div className="post-author">
-                    <span {...getPostListGradeSpanProps(post.writerGrade)} />
-                    <span className="author-name post-author-name--list">
-                      {post.writerNickname}
-                    </span>
-                    <span className={`role-badge ${getPublicRoleBadge(post.writerRole, post.writerPosition)}`}>
-                      {getPublicRoleBadge(post.writerRole, post.writerPosition)}
-                    </span>
+                    <GradeFxEmoji grade={post.writerGrade} writerUid={post.writerUid} writerNickname={post.writerNickname} />
+                    <SkinnedNickname
+                      nickname={post.writerNickname}
+                      writerNickname={post.writerNickname} writerUid={post.writerUid}
+                      className="author-name post-author-name--list"
+                    />
+                    <SkinnedRoleBadge
+                      label={getPublicRoleBadge(post.writerRole, post.writerPosition)}
+                      roleClassName={getPublicRoleBadge(post.writerRole, post.writerPosition)}
+                      writerNickname={post.writerNickname} writerUid={post.writerUid}
+                    />
                     {shouldShowPublicPosition(post.writerPosition) && (
-                      <span className="author-position">{post.writerPosition}</span>
+                      <SkinnedPosition position={post.writerPosition} writerUid={post.writerUid} writerNickname={post.writerNickname} />
                     )}
                   </div>
                 </div>
@@ -562,7 +579,7 @@ const ChorusPostList: React.FC = () => {
                   조회 {post.views || 0}
                 </span>
               </div>
-            </article>
+            </SkinnedPostCard>
           ))
         )}
         {isLoadingMore && (

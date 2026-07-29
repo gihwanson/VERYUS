@@ -54,6 +54,10 @@ const getNotificationRoute = (data: FirebaseFirestore.DocumentData): string => {
     return '/hall-of-fame';
   }
 
+  if (notificationType === 'grade_fx_unlock') {
+    return '/settings';
+  }
+
   if (notificationType === 'guestbook' || notificationType === 'guestbook_reply') {
     const ownerUid = (data.guestbookOwnerUid as string | undefined) || '';
     return ownerUid ? `/mypage/${ownerUid}` : '/mypage';

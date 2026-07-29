@@ -26,6 +26,7 @@ interface Notification {
     | 'grade_change_approved'
     | 'grade_change_rejected'
     | 'approved_song_milestone'
+    | 'grade_fx_unlock'
     | 'anonymous_chat'
     | 'anonymous_chat_ban'
     | 'anonymous_chat_kick'
@@ -125,7 +126,7 @@ const Notifications: React.FC = () => {
       case 'like':
         return notifications.filter(n => n.type === 'like');
       case 'system':
-        return notifications.filter(n => ['approval', 'rejection', 'rejudge_keep', 'rejudge_remove', 'grade_request_pending', 'grade_change_approved', 'grade_change_rejected', 'approved_song_milestone', 'email_registration', 'email_re_registration', 'partnership', 'partnership_closed', 'partnership_confirmed', 'anonymous_chat_ban', 'anonymous_chat_kick', 'customer_center_inquiry', 'customer_center_reply'].includes(n.type));
+        return notifications.filter(n => ['approval', 'rejection', 'rejudge_keep', 'rejudge_remove', 'grade_request_pending', 'grade_change_approved', 'grade_change_rejected', 'approved_song_milestone', 'grade_fx_unlock', 'email_registration', 'email_re_registration', 'partnership', 'partnership_closed', 'partnership_confirmed', 'anonymous_chat_ban', 'anonymous_chat_kick', 'customer_center_inquiry', 'customer_center_reply'].includes(n.type));
       default:
         return notifications;
     }
@@ -229,6 +230,7 @@ const Notifications: React.FC = () => {
       case 'grade_change_approved': return 'notifications-icon-grade-change-approved';
       case 'grade_change_rejected': return 'notifications-icon-grade-change-rejected';
       case 'approved_song_milestone': return 'notifications-icon-grade-request-pending';
+      case 'grade_fx_unlock': return 'notifications-icon-grade-change-approved';
       case 'anonymous_chat_ban':
       case 'anonymous_chat_kick':
         return 'notifications-icon-rejection';
@@ -259,6 +261,7 @@ const Notifications: React.FC = () => {
       case 'grade_change_approved': return <CheckCircle size={18} className={iconClass} />;
       case 'grade_change_rejected': return <XCircle size={18} className={iconClass} />;
       case 'approved_song_milestone': return <Award size={18} className={iconClass} />;
+      case 'grade_fx_unlock': return <Award size={18} className={iconClass} />;
       case 'anonymous_chat_ban':
       case 'anonymous_chat_kick':
         return <XCircle size={18} className={iconClass} />;

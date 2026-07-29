@@ -1,0 +1,246 @@
+/* 등급 이모지 특수효과 스킨 */
+
+.grade-fx {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  isolation: isolate;
+  /* 오라/궤도가 잘리지 않도록 */
+  overflow: visible;
+  margin: 0 2px;
+  padding: 2px;
+}
+
+.grade-fx::before,
+.grade-fx::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* —— 반짝 가루 (위에서 떨어지는 가루) —— */
+.grade-fx--sparkle {
+  overflow: visible;
+}
+
+.grade-fx--sparkle::before,
+.grade-fx--sparkle::after {
+  content: none;
+}
+
+.grade-fx-sparkle-dust {
+  position: absolute;
+  inset: -14px -8px -4px;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.grade-fx-sparkle-dust__bit {
+  position: absolute;
+  top: -4px;
+  border-radius: 50%;
+  background: #ffe9a0;
+  box-shadow: 0 0 3px 1px rgba(255, 230, 150, 0.85);
+  animation-name: grade-fx-sparkle-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform, opacity;
+}
+
+.grade-fx-sparkle-dust__bit:nth-child(3n) {
+  background: #fff;
+  box-shadow: 0 0 3px 1px rgba(255, 255, 255, 0.9);
+}
+
+.grade-fx-sparkle-dust__bit:nth-child(3n + 1) {
+  background: #ffd56a;
+  box-shadow: 0 0 3px 1px rgba(255, 200, 100, 0.85);
+}
+
+.grade-fx-sparkle-dust__bit:nth-child(4n) {
+  background: #fff6d0;
+}
+
+@keyframes grade-fx-sparkle-fall {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate3d(var(--sparkle-drift, 0px), 28px, 0) scale(0.55);
+    opacity: 0;
+  }
+}
+
+/* —— 체리 오라 —— */
+.grade-fx--cherry-aura::before {
+  inset: -8px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 120, 150, 0.55) 0%,
+    rgba(255, 90, 130, 0.22) 45%,
+    transparent 70%
+  );
+  animation: grade-fx-cherry-aura 2.4s ease-in-out infinite;
+}
+
+@keyframes grade-fx-cherry-aura {
+  0%, 100% { opacity: 0.55; transform: scale(0.9); filter: blur(0.5px); }
+  50% { opacity: 1; transform: scale(1.15); filter: blur(1px); }
+}
+
+/* —— 숨결 링 —— */
+.grade-fx--breath::before {
+  inset: -7px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(139, 115, 85, 0.45);
+  box-shadow: 0 0 0 1px rgba(255, 253, 248, 0.35);
+  animation: grade-fx-breath 2.8s ease-in-out infinite;
+}
+
+@keyframes grade-fx-breath {
+  0%, 100% { opacity: 0.35; transform: scale(0.85); }
+  50% { opacity: 0.9; transform: scale(1.2); }
+}
+
+/* —— 별가루 궤도 —— */
+.grade-fx--orbit::before,
+.grade-fx--orbit::after {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  margin: -2px 0 0 -2px;
+  background: #f6e7a8;
+  box-shadow: 0 0 4px 1px rgba(255, 230, 150, 0.8);
+  z-index: 1;
+}
+
+.grade-fx--orbit::before {
+  animation: grade-fx-orbit 2.4s linear infinite;
+}
+
+.grade-fx--orbit::after {
+  background: #c8ddff;
+  box-shadow: 0 0 4px 1px rgba(180, 210, 255, 0.85);
+  animation: grade-fx-orbit 2.4s linear infinite reverse;
+  animation-delay: -1.2s;
+}
+
+@keyframes grade-fx-orbit {
+  from { transform: rotate(0deg) translateX(12px) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(12px) rotate(-360deg); }
+}
+
+/* —— 펄스 글로우 —— */
+.grade-fx--pulse {
+  animation: grade-fx-pulse 1.8s ease-in-out infinite;
+}
+
+.grade-fx--pulse::before {
+  inset: -5px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 220, 140, 0.45) 0%, transparent 70%);
+  animation: grade-fx-pulse-glow 1.8s ease-in-out infinite;
+}
+
+@keyframes grade-fx-pulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.35); }
+}
+
+@keyframes grade-fx-pulse-glow {
+  0%, 100% { opacity: 0.3; transform: scale(0.9); }
+  50% { opacity: 0.85; transform: scale(1.15); }
+}
+
+/* 설정 미리보기 카드 */
+.grade-fx-picker__desc {
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+  color: var(--paper-muted, #8b7355);
+  line-height: 1.45;
+}
+
+.grade-fx-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.grade-fx-picker__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 10px 12px;
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-radius: 10px;
+  background: var(--paper-card, #fffdf8);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.grade-fx-picker__card:hover:not(:disabled) {
+  border-color: var(--paper-accent, #8b5a2b);
+}
+
+.grade-fx-picker__card.is-selected {
+  border-color: var(--paper-accent, #8b5a2b);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--paper-accent, #8b5a2b) 28%, transparent);
+}
+
+.grade-fx-picker__card.is-locked {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.grade-fx-picker__preview {
+  position: relative;
+  font-size: 1.6rem;
+  line-height: 1;
+  min-height: 2rem;
+  min-width: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+
+.grade-fx-picker__name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--paper-ink, #2c2416);
+}
+
+.grade-fx-picker__meta {
+  font-size: 0.72rem;
+  color: var(--paper-muted, #8b7355);
+}
+
+.grade-fx-picker__condition {
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: var(--paper-muted, #8b7355);
+  word-break: keep-all;
+}
+
+.grade-fx-picker__leader-note {
+  margin: 0 0 10px;
+  font-size: 0.8rem;
+  color: var(--paper-accent, #8b5a2b);
+  font-weight: 600;
+}

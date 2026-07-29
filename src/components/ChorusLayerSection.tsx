@@ -24,7 +24,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { NotificationService } from '../utils/notificationService';
-import { getPostListGradeSpanProps } from '../utils/gradeDisplay';
+import GradeFxEmoji from './GradeFxEmoji';
+import { SkinnedNickname } from './SkinnedAuthor';
 import {
   startChorusRecording,
   startChorusHarmonyRecording,
@@ -1064,8 +1065,14 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
             <li key={reply.id} className="chorus-reply-item">
               <div className="chorus-reply-item__head">
                 <div className="chorus-reply-item__meta">
-                  <span {...getPostListGradeSpanProps(reply.writerGrade)} />
-                  <strong>{reply.writerNickname}</strong>
+                  <GradeFxEmoji grade={reply.writerGrade} writerUid={reply.writerUid} writerNickname={reply.writerNickname} />
+                  <strong>
+                    <SkinnedNickname
+                      nickname={reply.writerNickname}
+                      writerUid={reply.writerUid}
+                      writerNickname={reply.writerNickname}
+                    />
+                  </strong>
                 </div>
                 {replyAudioUrl &&
                   renderLayerButton({
@@ -1171,8 +1178,8 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
           <div className="chorus-harmony-item__body">
             <span className="chorus-harmony-item__label">
               <Layers size={12} aria-hidden />
-              화음 · <span {...getPostListGradeSpanProps(h.writerGrade)} />
-              {h.writerNickname}
+              화음 · <GradeFxEmoji grade={h.writerGrade} writerUid={h.writerUid} writerNickname={h.writerNickname} />
+              <SkinnedNickname nickname={h.writerNickname} writerUid={h.writerUid} writerNickname={h.writerNickname} />
             </span>
             {memo ? (
               <p className="chorus-harmony-item__memo">
@@ -1437,8 +1444,12 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
                     </button>
                     <div className="chorus-chain-item__body">
                       <span className="chorus-chain-item__author">
-                        <span {...getPostListGradeSpanProps(layer.writerGrade)} />
-                        {layer.writerNickname}
+                        <GradeFxEmoji grade={layer.writerGrade} writerUid={layer.writerUid} writerNickname={layer.writerNickname} />
+                        <SkinnedNickname
+                          nickname={layer.writerNickname}
+                          writerUid={layer.writerUid}
+                          writerNickname={layer.writerNickname}
+                        />
                       </span>
                       {memo ? (
                         <p className="chorus-audio-comment__memo">
@@ -1477,8 +1488,14 @@ const ChorusLayerSection = forwardRef<ChorusLayerSectionHandle, Props>(function 
             <div key={comment.id} className="chorus-feed-card">
               <div className="chorus-text-comment">
                 <div className="chorus-text-comment__meta">
-                  <span {...getPostListGradeSpanProps(comment.writerGrade)} />
-                  <strong>{comment.writerNickname}</strong>
+                  <GradeFxEmoji grade={comment.writerGrade} writerUid={comment.writerUid} writerNickname={comment.writerNickname} />
+                  <strong>
+                    <SkinnedNickname
+                      nickname={comment.writerNickname}
+                      writerUid={comment.writerUid}
+                      writerNickname={comment.writerNickname}
+                    />
+                  </strong>
                 </div>
                 <p className="chorus-text-comment__body">
                   <TagParser content={comment.content} />

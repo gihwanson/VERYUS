@@ -3,7 +3,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { arrayRemove, arrayUnion, deleteDoc, deleteField, doc, increment, onSnapshot, updateDoc } from 'firebase/firestore';
 import { AlertTriangle, ArrowLeft, Clock, Eye, Loader, Scale, Trash2 } from 'lucide-react';
 import { db } from '../firebase';
-import { getPostListGradeSpanProps } from '../utils/gradeDisplay';
+import GradeFxEmoji from './GradeFxEmoji';
+import {
+  SkinnedNickname,
+  SkinnedPostTitle,
+  SkinnedRoleBadge,
+  usePostBodySkinClass,
+} from './SkinnedAuthor';
 import { getPublicRoleBadge } from '../utils/publicRoleBadge';
 import CommentSection from './CommentSection';
 
@@ -38,6 +44,7 @@ const BalancePostDetail: React.FC = () => {
     const userStr = localStorage.getItem('veryus_user');
     return userStr ? JSON.parse(userStr) : null;
   }, []);
+  const postBodySkinClass = usePostBodySkinClass({ writerUid: post?.writerUid, writerNickname: post?.writerNickname });
 
   useEffect(() => {
     if (!id) {
@@ -222,19 +229,26 @@ const BalancePostDetail: React.FC = () => {
         </button>
       </div>
 
-      <article className="post-detail">
+      <article className={`post-detail ${postBodySkinClass}`.trim()}>
         <div className="post-detail-header">
-          <h1 className="post-detail-title">{post.title}</h1>
+          <SkinnedPostTitle
+            title={post.title}
+            writerNickname={post.writerNickname} writerUid={post.writerUid}
+            className="post-detail-title"
+            as="h1"
+          />
           <div className="post-detail-meta">
             <div className="post-detail-author balance-post-detail-author">
               <div className="author-section">
                 <span className="author-info balance-static-author">
-                  <span {...getPostListGradeSpanProps(post.writerGrade)} />
-                  {post.writerNickname}
+                  <GradeFxEmoji grade={post.writerGrade} writerUid={post.writerUid} writerNickname={post.writerNickname} />
+                  <SkinnedNickname nickname={post.writerNickname} writerUid={post.writerUid} writerNickname={post.writerNickname} />
                 </span>
-                <span className={`role-badge ${getPublicRoleBadge(post.writerRole)}`}>
-                  {getPublicRoleBadge(post.writerRole)}
-                </span>
+                <SkinnedRoleBadge
+                  label={getPublicRoleBadge(post.writerRole)}
+                  roleClassName={getPublicRoleBadge(post.writerRole)}
+                  writerNickname={post.writerNickname} writerUid={post.writerUid}
+                />
               </div>
               <div className="post-detail-info balance-post-detail-info">
                 <span className="post-detail-date">

@@ -5,8 +5,10 @@ import { toast } from 'react-toastify';
 import { User, LogOut } from 'lucide-react';
 import AnonymousNoteBubble from './AnonymousNoteBubble';
 import GlobalLoadingScreen from './GlobalLoadingScreen';
+import LogoCherryRain from './LogoCherryRain';
 import { auth } from '../firebase';
 import { useUserProfile } from '../contexts/UserProfileContext';
+import { useLogoEasterEgg } from '../hooks/useLogoEasterEgg';
 import {
   markBoardAsVisited,
   getAllBoardNotificationStatus,
@@ -51,6 +53,7 @@ const HomeNotebook: React.FC = () => {
   const [previewsLoading, setPreviewsLoading] = useState(true);
   const [visitRevision, setVisitRevision] = useState(0);
   const navigate = useNavigate();
+  const { isRaining, handleLogoTap, stopRain } = useLogoEasterEgg(profile?.nickname);
 
   const handleProfileClick = () => {
     navigate('/mypage');
@@ -187,7 +190,16 @@ const HomeNotebook: React.FC = () => {
             <img
               src="/veryus_logo.png"
               alt="VERYUS"
-              className="logo-image"
+              className="logo-image logo-image--tap"
+              role="button"
+              tabIndex={0}
+              onClick={handleLogoTap}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleLogoTap();
+                }
+              }}
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
                 target.src = '/veryus-logo.svg';
@@ -250,6 +262,7 @@ const HomeNotebook: React.FC = () => {
 
         <HomeNotebookBody user={user} />
       </main>
+      <LogoCherryRain active={isRaining} onDone={stopRain} />
     </div>
   );
 };

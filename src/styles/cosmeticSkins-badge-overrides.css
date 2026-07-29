@@ -1,0 +1,217 @@
+/**
+ * warm-paper가 동적 import로 나중에 로드되며
+ * .role-badge { box-shadow: none !important } /
+ * .post-detail-title { background: none !important } /
+ * .post-item { background/box-shadow !important } 를 덮어버리므로
+ * 이 파일은 ui-style-warm-paper.css / classic 맨 끝에서 import한다.
+ */
+
+/* ===== 배지 스킨 ===== */
+html[data-ui-style="warm-paper"] .role-badge.badge-skin.badge-skin--gold-frame,
+html[data-ui-style="warm-paper"] .author-position.badge-skin.badge-skin--gold-frame,
+html[data-ui-style="classic"] .role-badge.badge-skin.badge-skin--gold-frame,
+html[data-ui-style="classic"] .author-position.badge-skin.badge-skin--gold-frame,
+.role-badge.badge-skin.badge-skin--gold-frame,
+.author-position.badge-skin.badge-skin--gold-frame {
+  border: 1.5px solid #c9a227 !important;
+  border-color: #c9a227 !important;
+  color: #8a6d12 !important;
+  background: linear-gradient(180deg, #ffe9a8 0%, #f5d076 100%) !important;
+  box-shadow:
+    0 0 0 2px rgba(201, 162, 39, 0.45),
+    0 0 12px rgba(201, 162, 39, 0.55) !important;
+  text-shadow: none !important;
+}
+
+html[data-ui-style="warm-paper"] .role-badge.badge-skin.badge-skin--ribbon-pin,
+html[data-ui-style="warm-paper"] .author-position.badge-skin.badge-skin--ribbon-pin,
+.role-badge.badge-skin.badge-skin--ribbon-pin,
+.author-position.badge-skin.badge-skin--ribbon-pin {
+  padding-right: 0.4rem !important;
+}
+
+html[data-ui-style="warm-paper"] .badge-skin.badge-skin--ribbon-pin::after,
+.badge-skin.badge-skin--ribbon-pin::after {
+  content: '🎀' !important;
+  margin-left: 4px !important;
+  font-size: 0.9em !important;
+  line-height: 1 !important;
+}
+
+html[data-ui-style="warm-paper"] .role-badge.badge-skin.badge-skin--starlight,
+html[data-ui-style="warm-paper"] .author-position.badge-skin.badge-skin--starlight,
+.role-badge.badge-skin.badge-skin--starlight,
+.author-position.badge-skin.badge-skin--starlight {
+  border: 1.5px solid #7aa2ff !important;
+  border-color: #7aa2ff !important;
+  color: #3557a8 !important;
+  background: #d9e6ff !important;
+  box-shadow:
+    0 0 0 2px rgba(122, 162, 255, 0.5),
+    0 0 14px rgba(122, 162, 255, 0.75) !important;
+  text-shadow: none !important;
+  animation: badge-skin-starlight-pulse 1.8s ease-in-out infinite !important;
+}
+
+@keyframes badge-skin-starlight-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 2px rgba(122, 162, 255, 0.45),
+      0 0 8px rgba(122, 162, 255, 0.5);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px rgba(122, 162, 255, 0.85),
+      0 0 16px rgba(122, 162, 255, 0.95);
+  }
+}
+
+html[data-ui-style="warm-paper"] .role-badge.badge-skin.badge-skin--season,
+html[data-ui-style="warm-paper"] .author-position.badge-skin.badge-skin--season,
+.role-badge.badge-skin.badge-skin--season,
+.author-position.badge-skin.badge-skin--season {
+  border: 1.5px solid #e0785a !important;
+  border-color: #e0785a !important;
+  color: #9a3f28 !important;
+  background: linear-gradient(135deg, #ffd7a0 0%, #ffb0c0 100%) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
+    0 2px 6px rgba(200, 90, 70, 0.28) !important;
+  text-shadow: none !important;
+}
+
+/* ===== 글 제목 스킨 (warm-paper background:none !important 덮기) ===== */
+html[data-ui-style="warm-paper"] .post-title.post-title-skin--highlighter,
+html[data-ui-style="warm-paper"] .post-detail-title.post-title-skin--highlighter,
+html[data-ui-style="classic"] .post-title.post-title-skin--highlighter,
+html[data-ui-style="classic"] .post-detail-title.post-title-skin--highlighter,
+.post-title.post-title-skin--highlighter,
+.post-detail-title.post-title-skin--highlighter {
+  background-image: linear-gradient(
+    transparent 58%,
+    rgba(255, 229, 102, 0.72) 58% 92%,
+    transparent 92%
+  ) !important;
+  background-color: transparent !important;
+  background-repeat: no-repeat !important;
+  -webkit-text-fill-color: inherit !important;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+html[data-ui-style="warm-paper"] .post-title.post-title-skin--ticket,
+html[data-ui-style="warm-paper"] .post-detail-title.post-title-skin--ticket,
+.post-title.post-title-skin--ticket,
+.post-detail-title.post-title-skin--ticket {
+  padding-left: 0.45em !important;
+  padding-right: 0.45em !important;
+  border-left: 2px dashed rgba(44, 36, 22, 0.35) !important;
+  border-right: 2px dashed rgba(44, 36, 22, 0.35) !important;
+  background: transparent !important;
+  -webkit-text-fill-color: inherit !important;
+}
+
+html[data-ui-style="warm-paper"] .post-title.post-title-skin--spotlight,
+html[data-ui-style="warm-paper"] .post-detail-title.post-title-skin--spotlight,
+.post-title.post-title-skin--spotlight,
+.post-detail-title.post-title-skin--spotlight {
+  background-image: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 243, 196, 0.7),
+    transparent
+  ) !important;
+  background-color: transparent !important;
+  -webkit-text-fill-color: inherit !important;
+}
+
+html[data-ui-style="warm-paper"] .post-title.post-title-skin--handwriting,
+html[data-ui-style="warm-paper"] .post-detail-title.post-title-skin--handwriting,
+.post-title.post-title-skin--handwriting,
+.post-detail-title.post-title-skin--handwriting {
+  font-family: Georgia, 'Times New Roman', 'Noto Serif KR', serif !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+  background: transparent !important;
+  -webkit-text-fill-color: inherit !important;
+}
+
+/* ===== 본문/카드 스킨 (warm-paper .post-item background/box-shadow !important 덮기) ===== */
+html[data-ui-style="warm-paper"] .post-item.post-body-skin--notebook,
+html[data-ui-style="warm-paper"] .post-card.post-body-skin--notebook,
+html[data-ui-style="warm-paper"] .post-detail.post-body-skin--notebook,
+.post-item.post-body-skin--notebook,
+.post-card.post-body-skin--notebook,
+.post-detail.post-body-skin--notebook {
+  background-color: var(--paper-card, #fffdf8) !important;
+  background-image: repeating-linear-gradient(
+    transparent,
+    transparent 21px,
+    rgba(196, 180, 154, 0.55) 22px
+  ) !important;
+  background-attachment: local !important;
+}
+
+html[data-ui-style="warm-paper"] .post-item.post-body-skin--polaroid,
+html[data-ui-style="warm-paper"] .post-card.post-body-skin--polaroid,
+html[data-ui-style="warm-paper"] .post-detail.post-body-skin--polaroid,
+html[data-ui-style="warm-paper"] .post-item.post-body-skin--polaroid:hover,
+html[data-ui-style="warm-paper"] .post-card.post-body-skin--polaroid:hover,
+.post-item.post-body-skin--polaroid,
+.post-card.post-body-skin--polaroid,
+.post-detail.post-body-skin--polaroid {
+  background: #fffdf8 !important;
+  box-shadow:
+    0 0 0 6px #fffdf8,
+    0 0 0 7px rgba(196, 180, 154, 0.85),
+    3px 5px 0 rgba(139, 115, 85, 0.1) !important;
+  transform: rotate(-0.4deg) !important;
+}
+
+html[data-ui-style="warm-paper"] .post-item.post-body-skin--stage,
+html[data-ui-style="warm-paper"] .post-card.post-body-skin--stage,
+html[data-ui-style="warm-paper"] .post-detail.post-body-skin--stage,
+.post-item.post-body-skin--stage,
+.post-card.post-body-skin--stage,
+.post-detail.post-body-skin--stage {
+  position: relative !important;
+  overflow: visible !important;
+}
+
+html[data-ui-style="warm-paper"] .post-item.post-body-skin--stage::before,
+html[data-ui-style="warm-paper"] .post-card.post-body-skin--stage::before,
+html[data-ui-style="warm-paper"] .post-detail.post-body-skin--stage::before,
+.post-item.post-body-skin--stage::before,
+.post-card.post-body-skin--stage::before,
+.post-detail.post-body-skin--stage::before {
+  content: '' !important;
+  display: block !important;
+  position: absolute !important;
+  left: 8% !important;
+  right: 8% !important;
+  top: 0 !important;
+  height: 3px !important;
+  border-radius: 0 0 8px 8px !important;
+  background: linear-gradient(90deg, transparent, rgba(255, 220, 140, 0.95), transparent) !important;
+  pointer-events: none !important;
+  z-index: 2 !important;
+}
+
+html[data-ui-style="warm-paper"] .post-item.post-body-skin--postcard,
+html[data-ui-style="warm-paper"] .post-card.post-body-skin--postcard,
+html[data-ui-style="warm-paper"] .post-detail.post-body-skin--postcard,
+html[data-ui-style="warm-paper"] .post-item.post-body-skin--postcard:hover,
+html[data-ui-style="warm-paper"] .post-card.post-body-skin--postcard:hover,
+.post-item.post-body-skin--postcard,
+.post-card.post-body-skin--postcard,
+.post-detail.post-body-skin--postcard {
+  background-color: var(--paper-card, #fffdf8) !important;
+  background-image: radial-gradient(
+    circle at 92% 12%,
+    rgba(196, 92, 74, 0.28) 0 10px,
+    transparent 11px
+  ) !important;
+  box-shadow:
+    inset 0 0 0 1.5px rgba(139, 90, 43, 0.35),
+    2px 3px 0 rgba(139, 115, 85, 0.08) !important;
+}
