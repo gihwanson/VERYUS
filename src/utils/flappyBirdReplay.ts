@@ -8,6 +8,38 @@ export const MAX_REPLAY_DURATION_MS = 120_000;
 export const CANVAS_H_FOR_REPLAY = 520;
 export const GROUND_H_FOR_REPLAY = 48;
 
+/** 시작·끝을 유지한 채 균등 다운샘플 (앞부분 절단 금지 — 고스트 t=0 재생용) */
+export const downsampleReplayPoints = (
+  points: FlappyReplayPoint[],
+  maxPoints: number
+): FlappyReplayPoint[] => {
+  if (points.length <= maxPoints) return points;
+  if (maxPoints < 2) return points.slice(0, maxPoints);
+
+  const lastIndex = points.length - 1;
+  const result: FlappyReplayPoint[] = [];
+  let prevIndex = -1;
+
+  for (let i = 0; i < maxPoints; i++) {
+    const index = Math.round((i * lastIndex) / (maxPoints - 1));
+    if (index === prevIndex) continue;
+    result.push(points[index]);
+    prevIndex = index;
+  }
+
+  return result;
+};
+
+/** 재생이 게임 시작(t=0)과 맞도록 타임스탬프 정규화 */
+export const normalizeReplayTimestamps = (
+  points: FlappyReplayPoint[]
+): FlappyReplayPoint[] => {
+  if (points.length === 0) return points;
+  const offset = points[0].t;
+  if (offset === 0) return points;
+  return points.map((p) => ({ ...p, t: Math.max(0, p.t - offset) }));
+};
+
 export class FlappyReplayRecorder {
   private points: FlappyReplayPoint[] = [];
   private lastSampleAt = -Infinity;
@@ -35,12 +67,13 @@ export class FlappyReplayRecorder {
     this.lastScore = score;
 
     if (this.points.length > MAX_REPLAY_POINTS) {
-      this.points.shift();
+      // 앞을 잘라내면 first.t ≫ 0 이 되어 고스트가 초반에 정지함 → 전체 구간 다운샘플
+      this.points = downsampleReplayPoints(this.points, MAX_REPLAY_POINTS);
     }
   }
 
   getPoints(): FlappyReplayPoint[] {
-    return this.points;
+    return normalizeReplayTimestamps(this.points);
   }
 }
 
@@ -66,9 +99,12 @@ export const parseReplay = (raw: unknown): FlappyReplayPoint[] => {
       continue;
     }
     points.push({ t: Math.round(t), y: Math.round(y), s: Math.round(s) });
-    if (points.length >= MAX_REPLAY_POINTS) break;
   }
-  return points.sort((a, b) => a.t - b.t);
+
+  const sorted = points.sort((a, b) => a.t - b.t);
+  // 과거에 shift로 잘린 기록(first.t > 0)도 초반 정지 없이 재생
+  const normalized = normalizeReplayTimestamps(sorted);
+  return downsampleReplayPoints(normalized, MAX_REPLAY_POINTS);
 };
 
 export type ReplaySample = {
@@ -99,7 +135,11 @@ export const sampleReplay = (
     const b = points[i];
     if (b.t < elapsedMs) continue;
     const a = points[i - 1];
-    const ratio = (elapsedMs - a.t) / (b.t - a.t);
+    const dt = b.t - a.t;
+    if (dt <= 0) {
+      return { y: b.y, score: b.s, finished: false };
+    }
+    const ratio = (elapsedMs - a.t) / dt;
     return {
       y: a.y + (b.y - a.y) * ratio,
       score: a.s + (b.s - a.s) * ratio,

@@ -31,6 +31,7 @@ interface Notification {
     | 'anonymous_chat_kick'
     | 'customer_center_inquiry'
     | 'customer_center_reply'
+    | 'email_registration'
     | 'email_re_registration';
   postId?: string;
   postTitle?: string;
@@ -124,7 +125,7 @@ const Notifications: React.FC = () => {
       case 'like':
         return notifications.filter(n => n.type === 'like');
       case 'system':
-        return notifications.filter(n => ['approval', 'rejection', 'rejudge_keep', 'rejudge_remove', 'grade_request_pending', 'grade_change_approved', 'grade_change_rejected', 'approved_song_milestone', 'email_re_registration', 'partnership', 'partnership_closed', 'partnership_confirmed', 'anonymous_chat_ban', 'anonymous_chat_kick', 'customer_center_inquiry', 'customer_center_reply'].includes(n.type));
+        return notifications.filter(n => ['approval', 'rejection', 'rejudge_keep', 'rejudge_remove', 'grade_request_pending', 'grade_change_approved', 'grade_change_rejected', 'approved_song_milestone', 'email_registration', 'email_re_registration', 'partnership', 'partnership_closed', 'partnership_confirmed', 'anonymous_chat_ban', 'anonymous_chat_kick', 'customer_center_inquiry', 'customer_center_reply'].includes(n.type));
       default:
         return notifications;
     }
@@ -147,7 +148,10 @@ const Notifications: React.FC = () => {
       return;
     }
 
-    if (notification.type === 'email_re_registration') {
+    if (
+      notification.type === 'email_registration' ||
+      notification.type === 'email_re_registration'
+    ) {
       navigate('/admin?tab=emails');
       return;
     }
@@ -220,6 +224,7 @@ const Notifications: React.FC = () => {
       case 'partnership_closed': return 'notifications-icon-partnership-closed';
       case 'partnership_confirmed': return 'notifications-icon-partnership-confirmed';
       case 'grade_request_pending': return 'notifications-icon-grade-request-pending';
+      case 'email_registration':
       case 'email_re_registration': return 'notifications-icon-grade-request-pending';
       case 'grade_change_approved': return 'notifications-icon-grade-change-approved';
       case 'grade_change_rejected': return 'notifications-icon-grade-change-rejected';
@@ -249,6 +254,7 @@ const Notifications: React.FC = () => {
       case 'partnership_closed': return <CheckCircle size={18} className={iconClass} />;
       case 'partnership_confirmed': return <CheckCircle size={18} className={iconClass} />;
       case 'grade_request_pending': return <Shield size={18} className={iconClass} />;
+      case 'email_registration':
       case 'email_re_registration': return <Mail size={18} className={iconClass} />;
       case 'grade_change_approved': return <CheckCircle size={18} className={iconClass} />;
       case 'grade_change_rejected': return <XCircle size={18} className={iconClass} />;

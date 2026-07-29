@@ -252,14 +252,13 @@ const Signup: React.FC = () => {
       userDocCreated = true;
 
       const registrationMeta = await recordEmailRegistration(emailTrim, user.uid, nicknameTrim);
-      if (registrationMeta.isReRegistration) {
-        void NotificationService.notifyStaffOfEmailReRegistration({
-          email: emailTrim,
-          newNickname: nicknameTrim,
-          newUid: user.uid,
-          previousNicknames: registrationMeta.previousNicknames,
-        });
-      }
+      void NotificationService.notifyStaffOfEmailRegistration({
+        email: emailTrim,
+        newNickname: nicknameTrim,
+        newUid: user.uid,
+        isReRegistration: registrationMeta.isReRegistration,
+        previousNicknames: registrationMeta.previousNicknames,
+      });
 
       let profileImageUrl: string | null = null;
       if (profileImage) {

@@ -2,22 +2,39 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Mail, RefreshCw, Search, X } from 'lucide-react';
 import {
   fetchAllEmailRegistrationHistories,
+  fetchCurrentMemberEmails,
   formatEmailHistoryEntryTime,
+  syncCurrentMembersToEmailHistory,
+  type CurrentMemberEmailRow,
   type EmailRegistrationHistoryDoc,
 } from '../utils/emailRegistrationHistory';
 import { LoadingSpinner, EmptyState } from './AdminComponents';
 
+type EmailHistoryView = 'duplicate' | 'single' | 'current';
+
 const AdminEmailHistoryPanel: React.FC = () => {
   const [histories, setHistories] = useState<Array<EmailRegistrationHistoryDoc & { id: string }>>([]);
+  const [currentMembers, setCurrentMembers] = useState<CurrentMemberEmailRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [view, setView] = useState<EmailHistoryView>('duplicate');
   const [expandedEmails, setExpandedEmails] = useState<Set<string>>(new Set());
+  const [syncNote, setSyncNote] = useState<string | null>(null);
 
   const loadHistories = useCallback(async () => {
     setLoading(true);
+    setSyncNote(null);
     try {
+      const syncResult = await syncCurrentMembersToEmailHistory();
       const data = await fetchAllEmailRegistrationHistories();
+      const members = await fetchCurrentMemberEmails(data);
       setHistories(data);
+      setCurrentMembers(members);
+
+      const synced = syncResult.created + syncResult.linked;
+      if (synced > 0) {
+        setSyncNote(`현재 멤버 ${synced}명의 이메일을 이력에 저장했습니다.`);
+      }
     } catch (error) {
       console.error('이메일 이력 로딩 실패:', error);
       alert('이메일 이력을 불러오지 못했습니다.');
@@ -30,16 +47,37 @@ const AdminEmailHistoryPanel: React.FC = () => {
     void loadHistories();
   }, [loadHistories]);
 
-  const filtered = useMemo(() => {
+  const { duplicateHistories, singleHistories } = useMemo(() => {
+    const duplicate: typeof histories = [];
+    const single: typeof histories = [];
+    histories.forEach((item) => {
+      if ((item.entries || []).length >= 2) duplicate.push(item);
+      else single.push(item);
+    });
+    return { duplicateHistories: duplicate, singleHistories: single };
+  }, [histories]);
+
+  const filteredHistories = useMemo(() => {
+    const source = view === 'duplicate' ? duplicateHistories : singleHistories;
     const q = search.trim().toLowerCase();
-    if (!q) return histories;
-    return histories.filter((item) => {
+    if (!q) return source;
+    return source.filter((item) => {
       if (item.email.toLowerCase().includes(q)) return true;
       return (item.entries || []).some((entry) =>
         entry.nickname.toLowerCase().includes(q)
       );
     });
-  }, [histories, search]);
+  }, [view, duplicateHistories, singleHistories, search]);
+
+  const filteredCurrentMembers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return currentMembers;
+    return currentMembers.filter(
+      (member) =>
+        member.email.toLowerCase().includes(q) ||
+        member.nickname.toLowerCase().includes(q)
+    );
+  }, [currentMembers, search]);
 
   const toggleExpanded = (email: string) => {
     setExpandedEmails((prev) => {
@@ -64,13 +102,47 @@ const AdminEmailHistoryPanel: React.FC = () => {
         <div>
           <h2>이메일 가입 이력</h2>
           <p>
-            가입·삭제된 이메일과 닉네임 매칭 기록입니다. 같은 이메일로 재가입한 경우에도
-            이전 닉네임을 확인할 수 있습니다.
+            동일 이메일로 다시 가입한 계정을 가려내기 위한 기록입니다. 현재 멤버 이메일도
+            자동으로 저장되어 이후 재가입을 추적할 수 있습니다.
           </p>
+          {syncNote && <p className="email-history-sync-note">{syncNote}</p>}
         </div>
         <button type="button" className="email-history-refresh" onClick={loadHistories}>
           <RefreshCw size={16} />
           새로고침
+        </button>
+      </div>
+
+      <div className="email-history-view-tabs" role="tablist" aria-label="이메일 이력 구분">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'duplicate'}
+          className={`email-history-view-tab ${view === 'duplicate' ? 'active' : ''}`}
+          onClick={() => setView('duplicate')}
+        >
+          중복 가입
+          <span className="email-history-view-count">{duplicateHistories.length}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'single'}
+          className={`email-history-view-tab ${view === 'single' ? 'active' : ''}`}
+          onClick={() => setView('single')}
+        >
+          1회 가입
+          <span className="email-history-view-count">{singleHistories.length}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'current'}
+          className={`email-history-view-tab ${view === 'current' ? 'active' : ''}`}
+          onClick={() => setView('current')}
+        >
+          현재 멤버
+          <span className="email-history-view-count">{currentMembers.length}</span>
         </button>
       </div>
 
@@ -91,19 +163,63 @@ const AdminEmailHistoryPanel: React.FC = () => {
         </div>
       </div>
 
-      {filtered.length === 0 ? (
-        <EmptyState message="이메일 이력이 없습니다." />
+      {view === 'current' ? (
+        filteredCurrentMembers.length === 0 ? (
+          <EmptyState
+            message={search.trim() ? '검색 결과가 없습니다.' : '현재 가입 멤버가 없습니다.'}
+          />
+        ) : (
+          <div className="email-history-list">
+            {filteredCurrentMembers.map((member) => (
+              <article key={member.uid} className="email-history-card">
+                <div className="email-history-summary email-history-summary--static">
+                  <div className="email-history-summary-main">
+                    <div className="email-history-title">
+                      <Mail size={16} />
+                      <strong>{member.email}</strong>
+                      {member.historyEntryCount >= 2 && (
+                        <span className="email-history-badge">중복이력</span>
+                      )}
+                    </div>
+                    <div className="email-history-meta">
+                      <span>닉네임: {member.nickname}</span>
+                      <span>가입: {formatEmailHistoryEntryTime(member.createdAt)}</span>
+                      <span>이력 {member.historyEntryCount}건</span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )
+      ) : filteredHistories.length === 0 ? (
+        <EmptyState
+          message={
+            search.trim()
+              ? '검색 결과가 없습니다.'
+              : view === 'duplicate'
+                ? '중복 가입 이력이 없습니다.'
+                : '1회 가입 이력이 없습니다.'
+          }
+        />
       ) : (
         <div className="email-history-list">
-          {filtered.map((item) => {
+          {filteredHistories.map((item) => {
             const expanded = expandedEmails.has(item.email);
             const entries = item.entries || [];
             const activeEntry = entries.find((e) => e.status === 'active');
-            const previousNicknames = entries
-              .filter((e) => e.status === 'deleted')
-              .map((e) => e.nickname);
-            const hasReRegistration = entries.filter((e) => e.status === 'deleted').length > 0
-              && entries.filter((e) => e.status === 'active').length > 0;
+            const deletedEntries = entries.filter((e) => e.status === 'deleted');
+            const latestDeletedEntry = deletedEntries[deletedEntries.length - 1];
+            const currentLabel = activeEntry
+              ? activeEntry.nickname
+              : latestDeletedEntry?.nickname
+                ? `${latestDeletedEntry.nickname} (삭제됨)`
+                : '없음 (삭제됨)';
+            const previousNicknames = (
+              activeEntry ? deletedEntries : deletedEntries.slice(0, -1)
+            ).map((e) => e.nickname);
+            const isDuplicate = entries.length >= 2;
+            const hasReRegistration = deletedEntries.length > 0 && !!activeEntry;
 
             return (
               <article key={item.id} className="email-history-card">
@@ -116,14 +232,14 @@ const AdminEmailHistoryPanel: React.FC = () => {
                     <div className="email-history-title">
                       <Mail size={16} />
                       <strong>{item.email}</strong>
-                      {hasReRegistration && (
-                        <span className="email-history-badge">재가입</span>
+                      {isDuplicate && (
+                        <span className="email-history-badge">
+                          {hasReRegistration ? '재가입' : '중복'}
+                        </span>
                       )}
                     </div>
                     <div className="email-history-meta">
-                      <span>
-                        현재: {activeEntry ? activeEntry.nickname : '없음 (삭제됨)'}
-                      </span>
+                      <span>현재: {currentLabel}</span>
                       {previousNicknames.length > 0 && (
                         <span>이전 닉네임: {previousNicknames.join(', ')}</span>
                       )}

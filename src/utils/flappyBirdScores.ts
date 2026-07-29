@@ -3,6 +3,8 @@ import { db } from '../firebase';
 import type { GamePlatform } from './gamePlatform';
 import {
   MAX_REPLAY_POINTS,
+  downsampleReplayPoints,
+  normalizeReplayTimestamps,
   type FlappyReplayPoint,
   parseReplay,
 } from './flappyBirdReplay';
@@ -48,7 +50,7 @@ export type SaveFlappyBirdBestResult = {
 
 const normalizeReplay = (replay?: FlappyReplayPoint[]): FlappyReplayPoint[] | undefined => {
   if (!replay || replay.length < 2) return undefined;
-  return replay.slice(0, MAX_REPLAY_POINTS);
+  return downsampleReplayPoints(normalizeReplayTimestamps(replay), MAX_REPLAY_POINTS);
 };
 
 export const saveFlappyBirdBestScore = async (params: {

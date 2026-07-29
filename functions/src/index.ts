@@ -43,7 +43,10 @@ const getNotificationRoute = (data: FirebaseFirestore.DocumentData): string => {
     return '/admin?tab=approvals';
   }
 
-  if (notificationType === 'email_re_registration') {
+  if (
+    notificationType === 'email_registration' ||
+    notificationType === 'email_re_registration'
+  ) {
     return '/admin?tab=emails';
   }
 

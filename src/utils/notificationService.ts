@@ -23,6 +23,7 @@ export interface NotificationData {
     | 'approved_song_milestone'
     | 'customer_center_inquiry'
     | 'customer_center_reply'
+    | 'email_registration'
     | 'email_re_registration';
   toUid: string;
   /** 알림을 보낸 사람의 uid (있으면 자기 자신에게 보내기 방지에 사용) */
@@ -73,7 +74,7 @@ export class NotificationService {
       return '/admin?tab=approvals';
     }
 
-    if (type === 'email_re_registration') {
+    if (type === 'email_registration' || type === 'email_re_registration') {
       return '/admin?tab=emails';
     }
 
@@ -232,6 +233,7 @@ export class NotificationService {
       anonymous_chat_kick: '익명채팅방에서보내졌습니다.',
       customer_center_inquiry: '고객센터에 새 문의가 접수되었습니다.',
       customer_center_reply: '고객센터에서 답변이 도착했습니다.',
+      email_registration: '새 회원 가입 이력이 등록되었습니다.',
       email_re_registration: '이전에 사용된 이메일로 재가입이 감지되었습니다.'
     };
     return messages[type] || '새 알림이 있습니다.';
@@ -663,14 +665,21 @@ export class NotificationService {
     }
   }
 
-  /** 이전에 삭제된 이메일로 재가입 시 리더·운영진·너래에게 알림 */
-  static async notifyStaffOfEmailReRegistration(params: {
+  /** 이메일 가입 이력 등록 시 리더·운영진·너래에게 알림(푸시 트리거 포함) */
+  static async notifyStaffOfEmailRegistration(params: {
     email: string;
     newNickname: string;
     newUid: string;
-    previousNicknames: string[];
+    isReRegistration?: boolean;
+    previousNicknames?: string[];
   }): Promise<void> {
-    const { email, newNickname, newUid, previousNicknames } = params;
+    const {
+      email,
+      newNickname,
+      newUid,
+      isReRegistration = false,
+      previousNicknames = [],
+    } = params;
     try {
       const uidSet = new Set<string>();
 
@@ -684,18 +693,19 @@ export class NotificationService {
       staffSnap.docs.forEach((d) => uidSet.add(d.id));
       neraeSnap.docs.forEach((d) => uidSet.add(d.id));
 
-      const prevLabel =
-        previousNicknames.length > 0
-          ? previousNicknames.join(', ')
-          : '(기록 없음)';
-      const message = `${email} 이메일로 ${newNickname}님이 재가입했습니다. 이전 닉네임: ${prevLabel}`;
-      const postTitle = '관리자 패널 「이메일 이력」에서 확인하세요.';
+      const type = isReRegistration ? 'email_re_registration' : 'email_registration';
+      const postTitle = isReRegistration ? '이메일 재가입' : '신규 가입';
+      const message = isReRegistration
+        ? `${email} 이메일로 ${newNickname}님이 재가입했습니다. 이전 닉네임: ${
+            previousNicknames.length > 0 ? previousNicknames.join(', ') : '(기록 없음)'
+          }`
+        : `${newNickname}님이 가입했습니다. (${email})`;
 
       await Promise.all(
         [...uidSet].map(async (toUid) => {
           if (!toUid || toUid === newUid) return;
           await this.createNotification({
-            type: 'email_re_registration',
+            type,
             toUid,
             fromUid: newUid,
             fromNickname: newNickname,
@@ -706,8 +716,21 @@ export class NotificationService {
         })
       );
     } catch (error) {
-      console.error('이메일 재가입 알림(운영진) 전송 실패:', error);
+      console.error('이메일 가입 이력 알림(운영진) 전송 실패:', error);
     }
+  }
+
+  /** @deprecated notifyStaffOfEmailRegistration 사용 */
+  static async notifyStaffOfEmailReRegistration(params: {
+    email: string;
+    newNickname: string;
+    newUid: string;
+    previousNicknames: string[];
+  }): Promise<void> {
+    return this.notifyStaffOfEmailRegistration({
+      ...params,
+      isReRegistration: true,
+    });
   }
 
   /** 회원에게 등급 승인·반려 결과 알림 */

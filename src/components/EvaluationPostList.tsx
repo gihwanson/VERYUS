@@ -231,10 +231,11 @@ const EvaluationPostList: React.FC = () => {
         }));
       }
 
-      // 오래된순에서는 숨김/분리 없이 전체 글을 보여준다.
-      const shouldIncludeAllForOldest = sortOrder === 'oldest';
-      // 판정 완료된 게시물은 별도 리스트로 보관(최신순 전용)
-      const completedHiddenCandidates = shouldIncludeAllForOldest
+      // 오래된순·검색 중에는 숨김/분리 없이 전체 글을 대상으로 한다.
+      // (검색 시 과거 완료글도 메인 결과에 바로 보이도록)
+      const shouldIncludeAll = sortOrder === 'oldest' || Boolean(hasSearchTerm);
+      // 판정 완료된 게시물은 별도 리스트로 보관(최신순 + 검색어 없을 때만)
+      const completedHiddenCandidates = shouldIncludeAll
         ? []
         : rawPosts.filter(post =>
             isJudgedCategory(post.category) && isJudgedCompletedStatus(post.status)
@@ -244,7 +245,7 @@ const EvaluationPostList: React.FC = () => {
       const now = new Date().getTime();
       const twoDaysInMs = 2 * 24 * 60 * 60 * 1000; // 2일을 밀리초로 변환
       
-      let newPosts = shouldIncludeAllForOldest
+      let newPosts = shouldIncludeAll
         ? [...rawPosts]
         : rawPosts.filter(post => {
             // 피드백 요청 카테고리 처리
@@ -290,7 +291,7 @@ const EvaluationPostList: React.FC = () => {
             return !post.status || post.status === '대기';
           });
 
-      const completedHiddenPosts = shouldIncludeAllForOldest
+      const completedHiddenPosts = shouldIncludeAll
         ? []
         : completedHiddenCandidates.filter(post => {
             if (!post.statusUpdatedAt) return true;
@@ -328,13 +329,15 @@ const EvaluationPostList: React.FC = () => {
 
       if (newPosts.length === 0 && isInitial) {
         setPosts([]);
+        setHiddenCompletedPosts(shouldIncludeAll ? [] : sortByCreatedAt(completedHiddenPosts));
+        setHiddenCompletedVisibleCount(HIDDEN_COMPLETED_PER_PAGE);
         setHasMore(false);
         setLoading(false);
         setIsLoadingMore(false);
         return;
       }
 
-      // 검색어로 필터링 (클라이언트 사이드)
+      // 검색어로 필터링 (클라이언트 사이드) — 과거 완료글 포함 전체에서 매칭
       if (hasSearchTerm) {
         const searchLower = searchTerm.toLowerCase().trim();
         newPosts = newPosts.filter(post => {
@@ -375,55 +378,6 @@ const EvaluationPostList: React.FC = () => {
           
           return matchesTitleOrDescription || matchesWriter || matchesMembers;
         });
-        
-        // 최신순 검색에서만 합격/불합격 완료된 게시물 및 댓글이 달린 피드백 요청 게시물 숨김 처리
-        const searchNow = new Date().getTime();
-        const searchTwoDaysInMs = 2 * 24 * 60 * 60 * 1000; // 2일을 밀리초로 변환
-        if (!shouldIncludeAllForOldest) {
-          newPosts = newPosts.filter(post => {
-          // 피드백 요청 카테고리 처리
-          if (post.category === 'feedback') {
-            // 피드백 요청: 마지막 댓글 기준 2일 경과 시 숨김 (commentCount와 무관하게 lastCommentAt 우선)
-            if (post.lastCommentAt) {
-              const lastCommentTime = post.lastCommentAt?.toDate 
-                ? post.lastCommentAt.toDate().getTime() 
-                : (post.lastCommentAt instanceof Date 
-                  ? post.lastCommentAt.getTime() 
-                  : new Date(post.lastCommentAt).getTime());
-              const daysSinceLastComment = searchNow - lastCommentTime;
-              if (daysSinceLastComment >= searchTwoDaysInMs) {
-                return false; // 숨김 처리
-              }
-            }
-            // 댓글이 없거나 2일이 지나지 않았으면 표시
-            return true;
-          }
-          
-          // 버스킹 심사곡 / 재심사 처리
-          // 합격·불합격·유지·삭제 처리된 경우
-          if (isJudgedCompletedStatus(post.status)) {
-            // 기존 데이터: statusUpdatedAt이 없으면 즉시 숨김
-            if (!post.statusUpdatedAt) {
-              return false; // 기존 데이터는 즉시 숨김
-            }
-            // 새로 올라온 데이터: 평가 완료 후 2일 이상 지났으면 숨김
-            const statusUpdateTime = post.statusUpdatedAt?.toDate 
-              ? post.statusUpdatedAt.toDate().getTime() 
-              : (post.statusUpdatedAt instanceof Date 
-                ? post.statusUpdatedAt.getTime() 
-                : new Date(post.statusUpdatedAt).getTime());
-            const daysSinceStatusUpdate = searchNow - statusUpdateTime;
-            if (daysSinceStatusUpdate >= searchTwoDaysInMs) {
-              return false; // 숨김 처리
-            }
-            // 2일이 지나지 않았으면 표시
-            return true;
-          }
-          
-          // 대기 상태인 경우 표시
-          return !post.status || post.status === '대기';
-          });
-        }
       }
 
       // 작성자 등급/역할/포지션 최신화
@@ -778,7 +732,7 @@ const EvaluationPostList: React.FC = () => {
         ) : posts.length === 0 ? (
           <div className="empty-posts">
             <Star size={48} />
-            <p>게시글이 없습니다.</p>
+            <p>{searchTerm ? '검색 결과가 없습니다.' : '게시글이 없습니다.'}</p>
             {searchTerm && (
               <button onClick={() => {
                 setSearchTerm('');

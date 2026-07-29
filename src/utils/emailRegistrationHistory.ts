@@ -144,7 +144,7 @@ export async function markEmailRegistrationDeleted(
 }
 
 export async function fetchAllEmailRegistrationHistories(
-  maxDocs = 200
+  maxDocs = 1000
 ): Promise<Array<EmailRegistrationHistoryDoc & { id: string }>> {
   const snap = await getDocs(
     query(
@@ -158,6 +158,122 @@ export async function fetchAllEmailRegistrationHistories(
     id: docSnap.id,
     ...(docSnap.data() as EmailRegistrationHistoryDoc),
   }));
+}
+
+export interface CurrentMemberEmailRow {
+  uid: string;
+  email: string;
+  nickname: string;
+  createdAt: unknown;
+  historyEntryCount: number;
+}
+
+/** 현재 users에 있는 멤버를 이메일 이력에 반영(없는 경우만 추가) */
+export async function syncCurrentMembersToEmailHistory(): Promise<{
+  created: number;
+  linked: number;
+  skipped: number;
+}> {
+  const usersSnap = await getDocs(collection(db, 'users'));
+  let created = 0;
+  let linked = 0;
+  let skipped = 0;
+
+  for (const userDoc of usersSnap.docs) {
+    const data = userDoc.data();
+    const email = typeof data.email === 'string' ? normalizeEmail(data.email) : '';
+    if (!email) {
+      skipped += 1;
+      continue;
+    }
+
+    const uid = userDoc.id;
+    const nickname = String(data.nickname || '').trim() || '(닉네임 없음)';
+    const registeredAt =
+      data.createdAt instanceof Timestamp || data.createdAt instanceof Date
+        ? data.createdAt
+        : Timestamp.now();
+
+    const ref = doc(db, EMAIL_REGISTRATION_HISTORY_COLLECTION, emailToDocId(email));
+    const snap = await getDoc(ref);
+
+    if (!snap.exists()) {
+      await setDoc(ref, {
+        email,
+        entries: [
+          {
+            uid,
+            nickname,
+            registeredAt,
+            status: 'active' as const,
+          },
+        ],
+        updatedAt: serverTimestamp(),
+      });
+      created += 1;
+      continue;
+    }
+
+    const history = snap.data() as EmailRegistrationHistoryDoc;
+    const entries = history.entries || [];
+    const alreadyActiveForUid = entries.some(
+      (entry) => entry.uid === uid && entry.status === 'active'
+    );
+    if (alreadyActiveForUid) {
+      skipped += 1;
+      continue;
+    }
+
+    await updateDoc(ref, {
+      entries: [
+        ...entries,
+        {
+          uid,
+          nickname,
+          registeredAt,
+          status: 'active' as const,
+        },
+      ],
+      updatedAt: serverTimestamp(),
+    });
+    linked += 1;
+  }
+
+  return { created, linked, skipped };
+}
+
+/** 현재 가입 중인 멤버 이메일 목록(+이력 건수) */
+export async function fetchCurrentMemberEmails(
+  histories?: Array<EmailRegistrationHistoryDoc & { id: string }>
+): Promise<CurrentMemberEmailRow[]> {
+  const [usersSnap, historyRows] = await Promise.all([
+    getDocs(collection(db, 'users')),
+    histories
+      ? Promise.resolve(histories)
+      : fetchAllEmailRegistrationHistories(),
+  ]);
+
+  const historyCountByEmail = new Map<string, number>();
+  historyRows.forEach((item) => {
+    historyCountByEmail.set(normalizeEmail(item.email), (item.entries || []).length);
+  });
+
+  const rows: CurrentMemberEmailRow[] = [];
+  usersSnap.docs.forEach((userDoc) => {
+    const data = userDoc.data();
+    const email = typeof data.email === 'string' ? normalizeEmail(data.email) : '';
+    if (!email) return;
+    rows.push({
+      uid: userDoc.id,
+      email,
+      nickname: String(data.nickname || '').trim() || '(닉네임 없음)',
+      createdAt: data.createdAt ?? null,
+      historyEntryCount: historyCountByEmail.get(email) || 1,
+    });
+  });
+
+  rows.sort((a, b) => a.nickname.localeCompare(b.nickname, 'ko'));
+  return rows;
 }
 
 export function formatEmailHistoryEntryTime(value: unknown): string {
