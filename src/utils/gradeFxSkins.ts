@@ -37,7 +37,7 @@ export const GRADE_FX_SKINS: GradeFxSkin[] = [
     description: '부드러운 분홍 빛이 등급을 감쌉니다.',
     acquireLabel: '체리 오라 스킨',
     className: 'grade-fx grade-fx--cherry-aura',
-    unlockCondition: '홈 로고를 2초 안에 7번 탭',
+    unlockCondition: '???',
   },
   {
     id: 'breath',
