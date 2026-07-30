@@ -164,6 +164,9 @@ export async function ensureContestParticipant(
     uid: user.uid,
     joinedAt: new Date(),
   });
+  void import('./skinUnlockService').then(({ queueSkinUnlockSync }) => {
+    queueSkinUnlockSync({ uid: user.uid, nickname: user.nickname });
+  });
 }
 
 export function canAutoJoinBeforeStart(type: ContestType): boolean {

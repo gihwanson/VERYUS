@@ -217,6 +217,9 @@ const RecordingPostWrite: React.FC = () => {
         views: 0,
         likes: []
       });
+      void import('../utils/skinUnlockService').then(({ queueSkinUnlockSync }) => {
+        queueSkinUnlockSync({ uid: user.uid, nickname: user.nickname });
+      });
       alert('녹음이 성공적으로 업로드되었습니다.');
       navigate('/recording');
     } catch (error) {

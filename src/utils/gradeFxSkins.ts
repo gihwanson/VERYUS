@@ -109,6 +109,22 @@ export function isGradeFxUnlockedInStorage(skinId: GradeFxSkinId): boolean {
   return readJsonArray(GRADE_FX_UNLOCKS_KEY).includes(skinId);
 }
 
+/** 조건 미달 시 해금 회수 */
+export function lockGradeFxSkin(skinId: GradeFxSkinId): boolean {
+  const unlocked = readJsonArray(GRADE_FX_UNLOCKS_KEY);
+  if (!unlocked.includes(skinId)) return false;
+  localStorage.setItem(
+    GRADE_FX_UNLOCKS_KEY,
+    JSON.stringify(unlocked.filter((id) => id !== skinId))
+  );
+  if (getEquippedGradeFxId() === skinId) {
+    setEquippedGradeFxId(null);
+  } else {
+    emitGradeFxChange();
+  }
+  return true;
+}
+
 /** 설정 카테고리 노출 — 해금 스킨이 1개 이상일 때 (리더는 전체 해금으로 항상 true) */
 export function hasAnyGradeFxUnlock(nickname?: string | null): boolean {
   return getUnlockedGradeFxIds(nickname).length > 0;

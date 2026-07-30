@@ -132,6 +132,9 @@ const FreePostWrite: React.FC = () => {
           likes: []
         };
         const createdPostRef = await addDoc(postRef, newPost);
+        void import('../utils/skinUnlockService').then(({ queueSkinUnlockSync }) => {
+          queueSkinUnlockSync({ uid: user.uid, nickname: user.nickname });
+        });
 
         if (category === 'request' && requestTargets.some((target) => target.trim())) {
           try {

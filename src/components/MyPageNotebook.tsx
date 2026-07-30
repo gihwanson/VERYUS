@@ -737,6 +737,9 @@ const MyPageNotebook: React.FC = () => {
         payload.parentMessageId = guestReplyTarget.id;
       }
       await addDoc(collection(db, 'guestbook'), payload);
+      void import('../utils/skinUnlockService').then(({ queueSkinUnlockSync }) => {
+        queueSkinUnlockSync({ uid: currentUser.uid, nickname: currentUser.nickname });
+      });
 
       if (guestReplyTarget?.id) {
         const parentAuthorUid = await findUserUidByNickname(guestReplyTarget.fromNickname);

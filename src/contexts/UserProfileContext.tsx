@@ -41,11 +41,17 @@ export const UserProfileProvider: React.FC<UserProfileProviderProps> = ({ authUs
       const merged = mergeVeryusUserFromAuth(authUser, userData, previous);
       writeVeryusUserToStorage(merged);
       setProfile(merged);
+      void import('../utils/skinUnlockService').then(({ queueSkinUnlockSync }) => {
+        queueSkinUnlockSync({ uid: authUser.uid, nickname: merged.nickname });
+      });
     } catch (error) {
       console.error('UserProfileContext 사용자 정보 로드 실패:', error);
       const merged = mergeVeryusUserFromAuth(authUser, {}, readVeryusUserFromStorage());
       writeVeryusUserToStorage(merged);
       setProfile(merged);
+      void import('../utils/skinUnlockService').then(({ queueSkinUnlockSync }) => {
+        queueSkinUnlockSync({ uid: authUser.uid, nickname: merged.nickname });
+      });
     } finally {
       setLoading(false);
     }

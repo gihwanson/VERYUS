@@ -139,5 +139,10 @@ export const applySichuanMatchResult = async (params: {
     };
     tx.set(ref, next);
     return next;
+  }).then((next) => {
+    void import('./skinUnlockService').then(({ queueSkinUnlockSync }) => {
+      queueSkinUnlockSync({ uid: params.uid, nickname: params.nickname });
+    });
+    return next;
   });
 };

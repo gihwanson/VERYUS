@@ -338,6 +338,9 @@ const EvaluationPostWrite: React.FC = () => {
         likes: [],
         members: requiresMembers ? membersToSave : [],
       });
+      void import('../utils/skinUnlockService').then(({ queueSkinUnlockSync }) => {
+        queueSkinUnlockSync({ uid: user.uid, nickname: user.nickname });
+      });
       
       setShowNoticeModal(false);
 

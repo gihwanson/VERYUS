@@ -78,7 +78,7 @@ export const saveFlappyBirdBestScore = async (params: {
     getFlappyBirdBestScoreDocId(params.uid, params.platform)
   );
 
-  return runTransaction(db, async (transaction) => {
+  const result = await runTransaction(db, async (transaction) => {
     const snap = await transaction.get(ref);
 
     const runFields = {
@@ -147,4 +147,8 @@ export const saveFlappyBirdBestScore = async (params: {
       lastRunScore: params.score,
     };
   });
+  void import('./skinUnlockService').then(({ queueSkinUnlockSync }) => {
+    queueSkinUnlockSync({ uid: params.uid, nickname: params.nickname });
+  });
+  return result;
 };

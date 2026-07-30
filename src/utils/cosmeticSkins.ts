@@ -242,6 +242,26 @@ export function isCosmeticUnlocked(
   return getUnlockedCosmeticIds(category, nickname).includes(skinId);
 }
 
+/** localStorage 기준 해금 여부 (리더 전체 해금과 무관) */
+export function isCosmeticUnlockedInStorage(category: CosmeticCategory, skinId: string): boolean {
+  return readJsonArray(CATEGORY_KEYS[category].unlocks).includes(skinId);
+}
+
+/** 조건 미달 시 해금 회수 */
+export function lockCosmeticSkin(category: CosmeticCategory, skinId: string): boolean {
+  if (!getCosmeticSkin(category, skinId)) return false;
+  const key = CATEGORY_KEYS[category].unlocks;
+  const unlocked = readJsonArray(key);
+  if (!unlocked.includes(skinId)) return false;
+  localStorage.setItem(key, JSON.stringify(unlocked.filter((id) => id !== skinId)));
+  if (getEquippedCosmeticId(category) === skinId) {
+    setEquippedCosmeticId(category, null);
+  } else {
+    emitCosmeticChange();
+  }
+  return true;
+}
+
 export function hasAnyCosmeticUnlock(
   category: CosmeticCategory,
   nickname?: string | null

@@ -68,7 +68,7 @@ export const saveRhythmBeatBestScore = async (params: {
     getRhythmBeatBestScoreDocId(params.uid, params.platform)
   );
 
-  return runTransaction(db, async (transaction) => {
+  const result = await runTransaction(db, async (transaction) => {
     const snap = await transaction.get(ref);
 
     if (!snap.exists()) {
@@ -132,4 +132,8 @@ export const saveRhythmBeatBestScore = async (params: {
       bestAvgErrorMs: prevAvgErrorMs,
     };
   });
+  void import('./skinUnlockService').then(({ queueSkinUnlockSync }) => {
+    queueSkinUnlockSync({ uid: params.uid, nickname: params.nickname });
+  });
+  return result;
 };

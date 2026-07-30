@@ -37,7 +37,7 @@ import {
   GRADE_FX_CHANGE_EVENT,
   hasAnyGradeFxUnlock,
 } from '../utils/gradeFxSkins';
-import { maybeUnlockPulseGlowByCommentCount } from '../utils/gradeFxCommentUnlock';
+import { syncSkinUnlocksByMetrics } from '../utils/skinUnlockService';
 import {
   COSMETIC_CHANGE_EVENT,
   hasAnyCosmeticUnlock,
@@ -112,13 +112,16 @@ const Settings: React.FC = () => {
   useEffect(() => {
     const uid = profile?.uid || user?.uid;
     if (!uid) return;
-    void maybeUnlockPulseGlowByCommentCount({
+    void syncSkinUnlocksByMetrics({
       uid,
       nickname: profile?.nickname ?? user?.nickname,
-    }).then((unlocked) => {
-      if (unlocked) {
-        setShowGradeFxSkins(hasAnyGradeFxUnlock(profile?.nickname ?? user?.nickname));
-      }
+    }).then(() => {
+      const n = profile?.nickname ?? user?.nickname;
+      setShowGradeFxSkins(hasAnyGradeFxUnlock(n));
+      setShowNicknameSkins(hasAnyCosmeticUnlock('nickname', n));
+      setShowBadgeSkins(hasAnyCosmeticUnlock('badge', n));
+      setShowPostTitleSkins(hasAnyCosmeticUnlock('postTitle', n));
+      setShowPostBodySkins(hasAnyCosmeticUnlock('postBody', n));
     });
   }, [profile?.uid, profile?.nickname, user?.uid, user?.nickname]);
 

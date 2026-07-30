@@ -92,6 +92,9 @@ const PartnerPostWrite: React.FC = () => {
           likes: []
         };
         await addDoc(collection(db, 'posts'), newPost);
+        void import('../utils/skinUnlockService').then(({ queueSkinUnlockSync }) => {
+          queueSkinUnlockSync({ uid: user.uid, nickname: user.nickname });
+        });
         navigate('/boards/partner');
       }
     } catch (error) {

@@ -247,6 +247,9 @@ const ChorusPostWrite: React.FC = () => {
         views: 0,
         likes: [],
       });
+      void import('../utils/skinUnlockService').then(({ queueSkinUnlockSync }) => {
+        queueSkinUnlockSync({ uid, nickname: user.nickname });
+      });
       toast.success('1소절이 올라갔어요! 다음 사람이 이어서 불러 줄 거예요 🎤');
       navigate('/chorus');
     } catch (error) {
