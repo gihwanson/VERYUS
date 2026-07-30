@@ -2,7 +2,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
+import { computeMemberPassRatesFromDocs } from '../utils/memberEvaluationPassRate';
+import { readVeryusUserFromStorage } from '../utils/veryusUserStorage';
 import GlobalLoadingScreen from './GlobalLoadingScreen';
+import PullToRefresh from './PullToRefresh';
 import { approvedSongCountsByNicknameFromDocs } from '../utils/approvedSongMilestone';
 
 type RankEntry = {
@@ -11,6 +14,8 @@ type RankEntry = {
   grade?: string;
   role?: string;
   score: number;
+  /** 합격률 순위용 부가 설명 (합/불 건수) */
+  detail?: string;
 };
 
 type UserMap = Record<string, { nickname: string; grade?: string; role?: string }>;
@@ -37,7 +42,14 @@ const HALL_CACHE_KEY = 'veryus_hall_of_fame_cache_v1';
 const RANKING_INITIAL_VISIBLE = 30;
 const RANKING_LOAD_MORE_STEP = 30;
 
-type HallSectionKey = 'activity' | 'approvedSong' | 'comment' | 'post' | 'visit' | 'activePeriod';
+type HallSectionKey =
+  | 'activity'
+  | 'approvedSong'
+  | 'comment'
+  | 'post'
+  | 'visit'
+  | 'activePeriod'
+  | 'passRate';
 
 const initialVisibleCounts = (): Record<HallSectionKey, number> => ({
   activity: RANKING_INITIAL_VISIBLE,
@@ -45,7 +57,8 @@ const initialVisibleCounts = (): Record<HallSectionKey, number> => ({
   comment: RANKING_INITIAL_VISIBLE,
   post: RANKING_INITIAL_VISIBLE,
   visit: RANKING_INITIAL_VISIBLE,
-  activePeriod: RANKING_INITIAL_VISIBLE
+  activePeriod: RANKING_INITIAL_VISIBLE,
+  passRate: RANKING_INITIAL_VISIBLE,
 });
 const DEFAULT_SCORE_WEIGHTS: ScoreWeights = {
   post: 10,
@@ -53,8 +66,14 @@ const DEFAULT_SCORE_WEIGHTS: ScoreWeights = {
   lurking: 0.1
 };
 
+function isHallLeaderViewer(): boolean {
+  const user = readVeryusUserFromStorage();
+  return Boolean(user && (user.role === '리더' || user.nickname === '너래'));
+}
+
 const HallOfFame: React.FC = () => {
   const [loading, setLoading] = useState(true);
+  const [isLeaderViewer, setIsLeaderViewer] = useState(() => isHallLeaderViewer());
   const [updatedAt, setUpdatedAt] = useState<string>('');
   const [scoreWeights, setScoreWeights] = useState<ScoreWeights>(DEFAULT_SCORE_WEIGHTS);
   const [approvedSongRanking, setApprovedSongRanking] = useState<RankEntry[]>([]);
@@ -63,6 +82,7 @@ const HallOfFame: React.FC = () => {
   const [visitRanking, setVisitRanking] = useState<RankEntry[]>([]);
   const [activePeriodRanking, setActivePeriodRanking] = useState<RankEntry[]>([]);
   const [activityRanking, setActivityRanking] = useState<RankEntry[]>([]);
+  const [passRateRanking, setPassRateRanking] = useState<RankEntry[]>([]);
   const [visibleCountBySection, setVisibleCountBySection] = useState<Record<HallSectionKey, number>>(initialVisibleCounts);
 
   const toSortedEntries = (counter: Map<string, number>, userMap: UserMap, topLimit = 20): RankEntry[] => {
@@ -101,6 +121,7 @@ const HallOfFame: React.FC = () => {
       setVisitRanking(parsed.visitRanking || []);
       setActivePeriodRanking(parsed.activePeriodRanking || []);
       setActivityRanking(parsed.activityRanking || []);
+      setPassRateRanking([]);
       setVisibleCountBySection(initialVisibleCounts());
       return true;
     } catch (error) {
@@ -278,7 +299,6 @@ const HallOfFame: React.FC = () => {
         console.groupEnd();
       }
 
-      // 상위 20명 자르면 더보기(30명 초기) 의미 없음 → 전체 정렬 후 UI에서 페이징
       const nextPostRanking = toSortedEntries(filteredPostCounter, userMap, 0);
       const nextCommentRanking = toSortedEntries(filteredCommentCounter, userMap, 0);
       const nextVisitRanking = toSortedEntries(filteredVisitCounter, userMap, 0);
@@ -287,12 +307,57 @@ const HallOfFame: React.FC = () => {
       const nextActivityRanking = toSortedEntries(activityCounter, userMap, 0);
       const nextUpdatedAt = new Date().toLocaleString('ko-KR');
 
+      const leaderViewer = isHallLeaderViewer();
+      setIsLeaderViewer(leaderViewer);
+
+      let nextPassRateRanking: RankEntry[] = [];
+      if (leaderViewer) {
+        const evaluationPosts = postsSnap.docs.filter(
+          (d) => String(d.data()?.type || '').trim() === 'evaluation'
+        );
+        // 관리자 패널 기준 = 현재 users 컬렉션에 있는 닉네임만
+        const allowedNicknames = new Set(
+          Object.values(userMap)
+            .map((u) => String(u.nickname || '').trim())
+            .filter(Boolean)
+        );
+        const passRateByNick = computeMemberPassRatesFromDocs({
+          evaluationPosts,
+          approvedSongs: approvedSongsSnap.docs,
+          allowedNicknames,
+        });
+        nextPassRateRanking = Array.from(passRateByNick.entries())
+          .filter(([nickname, stats]) => stats.passRate != null && nicknameToUid.has(nickname))
+          .map(([nickname, stats]) => {
+            const uid = nicknameToUid.get(nickname)!;
+            const user = userMap[uid];
+            const sampleSize = stats.passes + stats.fails;
+            return {
+              uid,
+              nickname: user?.nickname || nickname,
+              grade: user?.grade,
+              role: user?.role,
+              score: stats.passRate as number,
+              detail: `합 ${stats.passes} · 불 ${stats.fails}`,
+              sampleSize,
+            };
+          })
+          .sort(
+            (a, b) =>
+              b.score - a.score ||
+              b.sampleSize - a.sampleSize ||
+              a.nickname.localeCompare(b.nickname, 'ko')
+          )
+          .map(({ sampleSize: _sampleSize, ...entry }) => entry);
+      }
+
       setPostRanking(nextPostRanking);
       setCommentRanking(nextCommentRanking);
       setVisitRanking(nextVisitRanking);
       setActivePeriodRanking(nextActivePeriodRanking);
       setApprovedSongRanking(nextApprovedSongRanking);
       setActivityRanking(nextActivityRanking);
+      setPassRateRanking(nextPassRateRanking);
       setUpdatedAt(nextUpdatedAt);
       setVisibleCountBySection(initialVisibleCounts());
 
@@ -315,6 +380,7 @@ const HallOfFame: React.FC = () => {
   };
 
   useEffect(() => {
+    setIsLeaderViewer(isHallLeaderViewer());
     const hasCache = hydrateFromHallCache();
     setLoading(!hasCache);
     void loadRanking(!hasCache);
@@ -322,66 +388,88 @@ const HallOfFame: React.FC = () => {
 
   const formatWeight = (value: number) => (Number.isInteger(value) ? `${value}` : value.toFixed(1));
 
-  const sections = useMemo(
-    () =>
-      [
-        {
-          key: 'activity' as const,
-          title: '종합 활동 순위',
-          subtitle: `게시글(${formatWeight(scoreWeights.post)}점) + 댓글(${formatWeight(scoreWeights.comment)}점) + 눈팅(${formatWeight(scoreWeights.lurking)}점/행동) 합산`,
-          ranking: activityRanking,
-          unit: '점'
-        },
-        {
-          key: 'approvedSong' as const,
-          title: '합격곡 순위',
-          subtitle: '합격곡 멤버로 등재된 횟수',
-          ranking: approvedSongRanking,
-          unit: '개 합격곡'
-        },
-        {
-          key: 'comment' as const,
-          title: '댓글 작성 순위',
-          subtitle: '작성한 댓글 누적 수',
-          ranking: commentRanking,
-          unit: '개'
-        },
-        {
-          key: 'post' as const,
-          title: '게시글 작성 순위',
-          subtitle: '작성한 게시글 누적 수',
-          ranking: postRanking,
-          unit: '개'
-        },
-        {
-          key: 'visit' as const,
-          title: '눈팅 순위',
-          subtitle: '게시판 진입/게시글 진입/녹음 재생 누적 점수',
-          ranking: visitRanking,
-          unit: '점'
-        },
-        {
-          key: 'activePeriod' as const,
-          title: '활동기간 순위',
-          subtitle: '가입일 기준 활동 경과 기간',
-          ranking: activePeriodRanking,
-          unit: '일'
-        }
-      ] satisfies Array<{
-        key: HallSectionKey;
-        title: string;
-        subtitle: string;
-        ranking: RankEntry[];
-        unit: string;
-      }>,
-    [activityRanking, approvedSongRanking, commentRanking, postRanking, visitRanking, activePeriodRanking, scoreWeights]
-  );
+  const sections = useMemo(() => {
+    const base = [
+      {
+        key: 'activity' as const,
+        title: '종합 활동 순위',
+        subtitle: `게시글(${formatWeight(scoreWeights.post)}점) + 댓글(${formatWeight(scoreWeights.comment)}점) + 눈팅(${formatWeight(scoreWeights.lurking)}점/행동) 합산`,
+        ranking: activityRanking,
+        unit: '점',
+        metricLabel: '활동량',
+      },
+      {
+        key: 'approvedSong' as const,
+        title: '합격곡 순위',
+        subtitle: '합격곡 멤버로 등재된 횟수',
+        ranking: approvedSongRanking,
+        unit: '개 합격곡',
+        metricLabel: '활동량',
+      },
+      {
+        key: 'comment' as const,
+        title: '댓글 작성 순위',
+        subtitle: '작성한 댓글 누적 수',
+        ranking: commentRanking,
+        unit: '개',
+        metricLabel: '활동량',
+      },
+      {
+        key: 'post' as const,
+        title: '게시글 작성 순위',
+        subtitle: '작성한 게시글 누적 수',
+        ranking: postRanking,
+        unit: '개',
+        metricLabel: '활동량',
+      },
+      {
+        key: 'visit' as const,
+        title: '눈팅 순위',
+        subtitle: '게시판 진입/게시글 진입/녹음 재생 누적 점수',
+        ranking: visitRanking,
+        unit: '점',
+        metricLabel: '활동량',
+      },
+      {
+        key: 'activePeriod' as const,
+        title: '활동기간 순위',
+        subtitle: '가입일 기준 활동 경과 기간',
+        ranking: activePeriodRanking,
+        unit: '일',
+        metricLabel: '활동량',
+      },
+    ];
+
+    if (isLeaderViewer) {
+      base.push({
+        key: 'passRate' as const,
+        title: '합격률 순위',
+        subtitle: '현재 회원 기준 · 평가 합/불 + 관리자 직접 등록 합격곡 (리더 전용)',
+        ranking: passRateRanking,
+        unit: '%',
+        metricLabel: '합격률',
+      });
+    }
+
+    return base;
+  }, [
+    activityRanking,
+    approvedSongRanking,
+    commentRanking,
+    postRanking,
+    visitRanking,
+    activePeriodRanking,
+    passRateRanking,
+    scoreWeights,
+    isLeaderViewer,
+  ]);
 
   if (loading) {
     return <GlobalLoadingScreen message="명예의전당을 불러오는 중..." />;
   }
 
   return (
+    <PullToRefresh onRefresh={async () => { await loadRanking(false); }}>
     <div className="hall-of-fame-page">
       <div className="hall-of-fame-content">
         <div className="hall-header">
@@ -418,7 +506,7 @@ const HallOfFame: React.FC = () => {
                       <tr>
                         <th>순위</th>
                         <th>닉네임</th>
-                        <th>활동량</th>
+                        <th>{section.metricLabel}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -441,7 +529,13 @@ const HallOfFame: React.FC = () => {
                                 <span className="hall-role">{entry.role}</span>
                               )}
                             </td>
-                            <td>{Number.isInteger(entry.score) ? entry.score : entry.score.toFixed(1)}{section.unit}</td>
+                            <td>
+                              {Number.isInteger(entry.score) ? entry.score : entry.score.toFixed(1)}
+                              {section.unit}
+                              {entry.detail ? (
+                                <span className="hall-score-detail"> ({entry.detail})</span>
+                              ) : null}
+                            </td>
                           </tr>
                         ))
                       )}
@@ -470,6 +564,7 @@ const HallOfFame: React.FC = () => {
         </div>
       </div>
     </div>
+    </PullToRefresh>
   );
 };
 

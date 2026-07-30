@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -31,8 +31,6 @@ const Login: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState(false);
-  const nicknameRef = useRef<HTMLInputElement>(null);
-  const passwordRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -47,21 +45,14 @@ const Login: React.FC = () => {
     }
   }, []);
 
-  // 입력값 변경 핸들러 - 커서 위치 보존으로 모바일 역순 입력 방지
+  // setSelectionRange 강제 복원 없음 — 한글 IME/드래그 후 커서가 맨 앞으로 가는 현상 방지
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, selectionStart } = e.target;
-    const cursorPos = selectionStart;
-    setFormData(prev => ({
+    const { name, value } = e.target;
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
     if (error) setError('');
-    requestAnimationFrame(() => {
-      const ref = name === 'password' ? passwordRef : nicknameRef;
-      if (ref.current && cursorPos !== null) {
-        ref.current.setSelectionRange(cursorPos, cursorPos);
-      }
-    });
   }, [error]);
 
   /** 로그인에 쓸 이메일: 닉네임이면 Firestore 조회, 이메일 형식이면 정규화(프로필 없어도 Auth 시도 가능) */
@@ -205,7 +196,6 @@ const Login: React.FC = () => {
         <form onSubmit={handleLogin} className="login-form">
           <div className="input-group">
             <input
-              ref={nicknameRef}
               type="text"
               name="nickname"
               dir="ltr"
@@ -222,7 +212,6 @@ const Login: React.FC = () => {
 
           <div className="input-group password-group">
             <input
-              ref={passwordRef}
               type={showPassword ? 'text' : 'password'}
               name="password"
               dir="ltr"

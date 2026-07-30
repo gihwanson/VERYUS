@@ -24,7 +24,7 @@ interface FreeSongSubmitModalProps {
   actionLoading: boolean;
   canSubmitMore: boolean;
   onClose: () => void;
-  onSubmit: (song: ApprovedSong) => Promise<boolean>;
+  onSubmit: (song: ApprovedSong, lyrics: string) => Promise<boolean>;
 }
 
 const FreeSongSubmitModal: React.FC<FreeSongSubmitModalProps> = ({
@@ -41,11 +41,13 @@ const FreeSongSubmitModal: React.FC<FreeSongSubmitModalProps> = ({
 }) => {
   const [search, setSearch] = useState('');
   const [pendingSong, setPendingSong] = useState<ApprovedSong | null>(null);
+  const [lyrics, setLyrics] = useState('');
 
   useEffect(() => {
     if (open) {
       setSearch('');
       setPendingSong(null);
+      setLyrics('');
     }
   }, [open]);
 
@@ -61,14 +63,18 @@ const FreeSongSubmitModal: React.FC<FreeSongSubmitModalProps> = ({
 
   const handleRequestSubmit = (song: ApprovedSong) => {
     if (busy || !canSubmitMore) return;
+    setLyrics('');
     setPendingSong(song);
   };
 
   const handleConfirmSubmit = async () => {
     if (!pendingSong || busy) return;
     const song = pendingSong;
-    const ok = await onSubmit(song);
-    if (ok) setPendingSong(null);
+    const ok = await onSubmit(song, lyrics);
+    if (ok) {
+      setPendingSong(null);
+      setLyrics('');
+    }
   };
 
   return (
@@ -114,7 +120,21 @@ const FreeSongSubmitModal: React.FC<FreeSongSubmitModalProps> = ({
             <div className="free-song-submit-confirm">
               <p className="free-song-submit-confirm__title">이 곡을 전송할까요?</p>
               <SongRow title={pendingSong.title} members={pendingSong.members} />
-              <p className="free-song-submit-confirm__hint">관리자 전송 목록에 바로 추가됩니다.</p>
+              <label className="free-song-submit-confirm__lyrics-label" htmlFor="free-song-submit-lyrics">
+                버스킹용 가사 (선택)
+              </label>
+              <textarea
+                id="free-song-submit-lyrics"
+                className="free-song-submit-confirm__lyrics"
+                value={lyrics}
+                onChange={(e) => setLyrics(e.target.value)}
+                placeholder="공연 중 볼 가사를 입력하세요. 나중에 수정할 수도 있습니다."
+                disabled={busy}
+                rows={8}
+              />
+              <p className="free-song-submit-confirm__hint">
+                연습장 가사와는 별도로, 이번 버스킹용으로만 저장됩니다.
+              </p>
               <div className="free-song-submit-confirm__actions">
                 <button
                   type="button"

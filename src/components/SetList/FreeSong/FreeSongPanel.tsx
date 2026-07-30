@@ -5,6 +5,8 @@ import type { FreeSongSubmission } from './types';
 import type { ApprovedSong } from '../../ApprovedSongsUtils';
 import { FreeSongEmptyState, SongRow } from './FreeSongShared';
 import FreeSongSubmitModal from './FreeSongSubmitModal';
+import FreeSongLyricsModal from './FreeSongLyricsModal';
+import { canEditBuskingLyrics, hasBuskingLyrics } from './freeSongLyricsUtils';
 
 interface FreeSongPanelProps {
   activeSetList: SetListData | null;
@@ -36,12 +38,14 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
     loading,
     actionLoading,
     submitSong,
+    updateSubmissionLyrics,
     cancelSubmission,
     dismissRejectedSubmission,
   } = submissionsState;
 
   const [submitModalOpen, setSubmitModalOpen] = useState(false);
   const [pendingCancelId, setPendingCancelId] = useState<string | null>(null);
+  const [lyricsTarget, setLyricsTarget] = useState<FreeSongSubmission | null>(null);
 
   if (!activeSetList) {
     return (
@@ -56,7 +60,7 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
     return <FreeSongEmptyState title="자유곡 목록 불러오는 중…" />;
   }
 
-  const handleSubmit = async (song: ApprovedSong): Promise<boolean> => {
+  const handleSubmit = async (song: ApprovedSong, lyrics: string): Promise<boolean> => {
     if (!canSubmitMore) {
       alert(`최대 ${submissionLimit}곡까지 전송할 수 있습니다. 본인 전송·파트너 전송 곡을 합쳐 집계됩니다.`);
       return false;
@@ -66,7 +70,7 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
       alert('파트너가 이미 전송을 했습니다.');
       return false;
     }
-    const ok = await submitSong(song, userUid);
+    const ok = await submitSong(song, userUid, { lyrics });
     if (ok) {
       if (!isLeader && quotaSubmissionCount + 1 >= submissionLimit) {
         setSubmitModalOpen(false);
@@ -88,6 +92,15 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
 
   const handleDismissRejected = async (submission: FreeSongSubmission) => {
     await dismissRejectedSubmission(submission.id, userUid);
+  };
+
+  const handleSaveLyrics = async (lyrics: string): Promise<boolean> => {
+    if (!lyricsTarget) return false;
+    const ok = await updateSubmissionLyrics(lyricsTarget.id, lyrics);
+    if (ok) {
+      setLyricsTarget((prev) => (prev ? { ...prev, lyrics } : null));
+    }
+    return !!ok;
   };
 
   if (participants.length === 0) {
@@ -122,40 +135,64 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
     );
   }
 
-  const renderCancelActions = (submission: FreeSongSubmission, asPartner = false) => {
-    if (lineupSubmissionIds.has(submission.id)) return undefined;
-    const confirming = pendingCancelId === submission.id;
-    if (confirming) {
+  const renderRowActions = (submission: FreeSongSubmission, asPartner = false) => {
+    const canEditLyrics = canEditBuskingLyrics(submission, userNickname);
+    const cancelAction = (() => {
+      if (lineupSubmissionIds.has(submission.id)) return null;
+      const confirming = pendingCancelId === submission.id;
+      if (confirming) {
+        return (
+          <>
+            <button
+              type="button"
+              className="free-song-btn free-song-btn--cancel"
+              disabled={actionLoading}
+              onClick={() => void handleCancel(submission, asPartner)}
+            >
+              취소 확인
+            </button>
+            <button
+              type="button"
+              className="free-song-btn free-song-btn--ghost"
+              disabled={actionLoading}
+              onClick={() => setPendingCancelId(null)}
+            >
+              닫기
+            </button>
+          </>
+        );
+      }
       return (
-        <div className="free-song-row__actions">
-          <button
-            type="button"
-            className="free-song-btn free-song-btn--cancel"
-            disabled={actionLoading}
-            onClick={() => void handleCancel(submission, asPartner)}
-          >
-            취소 확인
-          </button>
+        <button
+          type="button"
+          className="free-song-btn free-song-btn--cancel"
+          disabled={actionLoading}
+          onClick={() => void handleCancel(submission, asPartner)}
+        >
+          전송취소
+        </button>
+      );
+    })();
+
+    if (!canEditLyrics && !cancelAction) return undefined;
+
+    return (
+      <div className="free-song-row__actions free-song-row__actions--stacked">
+        {canEditLyrics && (
           <button
             type="button"
             className="free-song-btn free-song-btn--ghost"
             disabled={actionLoading}
-            onClick={() => setPendingCancelId(null)}
+            onClick={() => {
+              setPendingCancelId(null);
+              setLyricsTarget(submission);
+            }}
           >
-            닫기
+            {hasBuskingLyrics(submission.lyrics) ? '가사' : '가사 등록'}
           </button>
-        </div>
-      );
-    }
-    return (
-      <button
-        type="button"
-        className="free-song-btn free-song-btn--cancel"
-        disabled={actionLoading}
-        onClick={() => void handleCancel(submission, asPartner)}
-      >
-        전송취소
-      </button>
+        )}
+        {cancelAction}
+      </div>
     );
   };
 
@@ -179,6 +216,7 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
           {isLeader
             ? '리더는 참가 멤버의 합격곡을 제한 없이 전송할 수 있습니다. 리더가 대신 전송한 곡은 해당 멤버의 3곡 한도에 포함되지 않습니다.'
             : `참가 멤버로 편성되어 합격곡을 전송할 수 있습니다. 최대 ${submissionLimit}곡까지 전송 가능하며, 파트너가 전송한 곡도 한도에 포함됩니다.`}
+          {' '}전송 시 버스킹용 가사를 따로 올릴 수 있습니다.
         </p>
         <p className="free-song-desc" style={{ marginTop: 12, marginBottom: 12 }}>
           {isLeader ? `전송 가능 합격곡 ${eligibleApprovedSongs.length}곡` : `내 합격곡 ${approvedSongs.length}곡`}
@@ -226,10 +264,12 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
                     ? '선정됨'
                     : sub.quotaExempt
                       ? '리더 전송'
-                      : '전송됨'
+                      : hasBuskingLyrics(sub.lyrics)
+                        ? '가사있음'
+                        : '전송됨'
                 }
                 badgeVariant={lineupSubmissionIds.has(sub.id) ? 'selected' : 'submitted'}
-                action={renderCancelActions(sub)}
+                action={renderRowActions(sub)}
               />
             ))}
             {myRejectedSubmissions.map((sub) => (
@@ -270,9 +310,9 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
                 title={song.title}
                 members={song.members}
                 submittedBy={submission.submittedBy}
-                badge="파트너 전송됨"
+                badge={hasBuskingLyrics(submission.lyrics) ? '가사있음' : '파트너 전송됨'}
                 badgeVariant="submitted"
-                action={renderCancelActions(submission, true)}
+                action={renderRowActions(submission, true)}
               />
             ))}
           </div>
@@ -292,9 +332,9 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
                 title={song.title}
                 members={song.members}
                 submittedBy={submission.submittedBy}
-                badge="리더 전송"
+                badge={hasBuskingLyrics(submission.lyrics) ? '가사있음' : '리더 전송'}
                 badgeVariant="submitted"
-                action={renderCancelActions(submission, true)}
+                action={renderRowActions(submission, true)}
               />
             ))}
           </div>
@@ -312,6 +352,17 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
         actionLoading={actionLoading}
         onClose={() => setSubmitModalOpen(false)}
         onSubmit={handleSubmit}
+      />
+
+      <FreeSongLyricsModal
+        open={!!lyricsTarget}
+        title={lyricsTarget?.title || ''}
+        members={lyricsTarget?.members}
+        lyrics={lyricsTarget?.lyrics || ''}
+        canEdit={lyricsTarget ? canEditBuskingLyrics(lyricsTarget, userNickname) : false}
+        saving={actionLoading}
+        onClose={() => setLyricsTarget(null)}
+        onSave={handleSaveLyrics}
       />
     </div>
   );

@@ -2513,6 +2513,106 @@
   min-height: 44px;
 }
 
+.free-song-submit-confirm__lyrics-label {
+  display: block;
+  margin: 4px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.free-song-submit-confirm__lyrics {
+  width: 100%;
+  min-height: 140px;
+  box-sizing: border-box;
+  resize: vertical;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.22);
+  color: #fff;
+  padding: 12px;
+  font-size: 14px;
+  line-height: 1.55;
+  font-family: inherit;
+}
+
+.free-song-submit-confirm__lyrics:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.free-song-lyrics-modal {
+  max-width: min(640px, 96vw);
+  max-height: min(88vh, 900px);
+  display: flex;
+  flex-direction: column;
+}
+
+.free-song-lyrics-modal__members {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.free-song-lyrics-modal__body {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.free-song-lyrics-modal__label {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.free-song-lyrics-modal__textarea {
+  width: 100%;
+  min-height: 280px;
+  box-sizing: border-box;
+  resize: vertical;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.22);
+  color: #fff;
+  padding: 14px;
+  font-size: 16px;
+  line-height: 1.65;
+  font-family: inherit;
+}
+
+.free-song-lyrics-modal__view {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: clamp(18px, 4.6vw, 24px);
+  line-height: 1.7;
+  color: #fff;
+  padding: 8px 4px 20px;
+}
+
+.free-song-lyrics-modal__empty,
+.free-song-lyrics-modal__hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.free-song-lyrics-modal__footer {
+  flex-wrap: wrap;
+}
+
+.free-song-lyrics-modal__footer .busking-member-modal__actions {
+  width: 100%;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .free-song-stats-header {
   display: flex;
   align-items: center;

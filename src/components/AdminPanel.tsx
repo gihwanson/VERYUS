@@ -230,9 +230,13 @@ const AdminPanel: React.FC = () => {
     }
   }, []);
 
-  const fetchPassRates = useCallback(async () => {
+  const fetchPassRates = useCallback(async (memberNicknames?: string[]) => {
     try {
-      const rates = await fetchMemberPassRatesByNickname();
+      const allowed =
+        memberNicknames && memberNicknames.length > 0
+          ? new Set(memberNicknames.map((n) => n.trim()).filter(Boolean))
+          : null;
+      const rates = await fetchMemberPassRatesByNickname(allowed);
       setPassRateByNickname(rates);
     } catch (error) {
       console.error('멤버 합격률 집계 실패:', error);
@@ -310,14 +314,22 @@ const AdminPanel: React.FC = () => {
           console.error('사용자 목록 가져오기 실패:', error);
           setLoading(false);
         });
-        void fetchPassRates();
       }
     );
     return () => {
       cancelled = true;
       unsub();
     };
-  }, [navigate, fetchUsers, fetchPassRates]);
+  }, [navigate, fetchUsers]);
+
+  // 현재 회원 닉네임 기준으로 합격률 집계 (users 로드 후)
+  useEffect(() => {
+    if (users.length === 0) return;
+    const nicknames = users
+      .map((u) => String(u.nickname || '').trim())
+      .filter(Boolean);
+    void fetchPassRates(nicknames);
+  }, [users, fetchPassRates]);
 
   // 선택된 사용자 버스킹심사곡 업로드 횟수 및 제한 로드
   useEffect(() => {

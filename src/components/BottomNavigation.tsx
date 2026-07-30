@@ -1,7 +1,7 @@
 import React, { useState, useEffect, memo, useCallback, useRef } from 'react';
 import type { ReactElement } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, Bell, User, ChevronUp, Search, Grid3x3, ChevronDown, Menu, Settings, Calendar, Trophy, Music, Gamepad2, Piano, Mic } from 'lucide-react';
+import { Home, Bell, User, ChevronUp, Search, Grid3x3, ChevronDown, Menu, Settings, Calendar, Trophy, Music, Gamepad2, Piano, Mic, BookOpen } from 'lucide-react';
 import MemberNicknameSearch from './MemberNicknameSearch';
 import { checkAdminAccess } from './AdminTypes';
 import { lockPianoLandscape } from '../utils/pianoOrientation';
@@ -43,7 +43,8 @@ interface NavItem {
 const BOARD_ITEMS: BoardItem[] = [
   { name: '통합 검색', path: 'search', icon: Search, isSearch: true },
   { name: '연습실예약', path: '/practice-room-booking', icon: Calendar },
-  { name: '합격곡', path: '/approved-songs', icon: Trophy },
+  { name: '합격곡조회', path: '/approved-songs', icon: Trophy },
+  { name: '연습장', path: '/song-workspace', icon: BookOpen },
   { name: '버스킹', path: '/setlist', icon: Music },
   { name: '게임', path: '/games', icon: Gamepad2 },
   { name: '악기', path: '/instruments/piano', icon: Piano },
@@ -212,7 +213,8 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
       icon: Grid3x3,
       label: '기능',
       path: '/practice-room-booking',
-      isActive: location.pathname.includes('/approved-songs') || 
+      isActive: location.pathname.includes('/approved-songs') ||
+                location.pathname.includes('/song-workspace') ||
                 location.pathname.includes('/setlist') || 
                 location.pathname.includes('/contests') ||
                 location.pathname.includes('/practice-room-booking') ||

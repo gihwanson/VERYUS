@@ -15,6 +15,8 @@ export interface FreeSongSubmission {
   rejectedBy?: string;
   /** 리더가 대신 전송한 곡 — 멤버 3곡 한도 집계에서 제외 */
   quotaExempt?: boolean;
+  /** 버스킹용 가사 (연습장과 별도, 전송 시·이후 직접 입력) */
+  lyrics?: string;
 }
 
 export type FreeSongLineupItemKind = 'approved' | 'request' | 'openMic' | 'other' | 'custom';
@@ -31,6 +33,8 @@ export interface FreeSongLineupItem {
   kind?: FreeSongLineupItemKind;
   completedAt?: Timestamp;
   completedBy?: string;
+  /** 버스킹용 가사 (선정 시 submission에서 복사, 공연 중 조회) */
+  lyrics?: string;
 }
 
 /** 멤버가 진행 순서에서 스스로 제거한 기록 (관리자 알림용) */

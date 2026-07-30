@@ -38,9 +38,9 @@ const Signup: React.FC = () => {
   const confirmPasswordInputRef = useRef<HTMLInputElement>(null);
   const inviteCodeInputRef = useRef<HTMLInputElement>(null);
 
+  // setSelectionRange 강제 복원 없음 — 한글 IME 시 커서가 맨 앞으로 가는 현상 방지
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, selectionStart } = e.target;
-    const cursorPos = selectionStart;
+    const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     if (error) setError('');
     if (success) setSuccess('');
@@ -53,20 +53,6 @@ const Signup: React.FC = () => {
       setEmailChecked(false);
       setEmailAvailable(false);
     }
-
-    requestAnimationFrame(() => {
-      const refMap: Record<string, React.RefObject<HTMLInputElement | null>> = {
-        nickname: nicknameInputRef,
-        email: emailInputRef,
-        password: passwordInputRef,
-        confirmPassword: confirmPasswordInputRef,
-        inviteCode: inviteCodeInputRef,
-      };
-      const inputRef = refMap[name];
-      if (inputRef?.current && cursorPos !== null) {
-        inputRef.current.setSelectionRange(cursorPos, cursorPos);
-      }
-    });
   }, [error, success]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

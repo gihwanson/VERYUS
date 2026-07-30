@@ -1,0 +1,75 @@
+.pull-to-refresh {
+  position: relative;
+}
+
+.pull-to-refresh__indicator {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  overflow: hidden;
+  pointer-events: none;
+  padding-bottom: 6px;
+  box-sizing: border-box;
+  color: var(--paper-accent, #8b5a2b);
+}
+
+.pull-to-refresh__note-wrap {
+  display: inline-flex;
+  will-change: transform, opacity;
+}
+
+.pull-to-refresh__note {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  line-height: 1;
+  color: var(--paper-accent, #8b5a2b);
+  text-shadow: 0 1px 0 rgba(255, 253, 248, 0.8);
+  transition: color 0.15s ease;
+}
+
+.pull-to-refresh__indicator.is-ready .pull-to-refresh__note {
+  color: var(--paper-ink, #2c2416);
+}
+
+.pull-to-refresh__indicator.is-refreshing .pull-to-refresh__note {
+  animation: pull-note-bob 0.9s ease-in-out infinite;
+}
+
+.pull-to-refresh__hint {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--paper-muted, #8b7355);
+  opacity: 0.9;
+}
+
+.pull-to-refresh__content {
+  transition: transform 0.18s ease-out;
+  will-change: transform;
+}
+
+@keyframes pull-note-bob {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-5px) scale(1.08);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  /* 데스크톱에서는 터치 제스처가 거의 없어 힌트만 숨김 유지 */
+  .pull-to-refresh__indicator:not(.is-refreshing):not(.is-ready) .pull-to-refresh__hint {
+    opacity: 0.75;
+  }
+}

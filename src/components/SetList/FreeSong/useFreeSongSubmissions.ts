@@ -29,6 +29,7 @@ import {
   countUserQuotaSubmissions,
   FREE_SONG_SUBMISSION_LIMIT,
 } from './freeSongSubmissionUtils';
+import { normalizeBuskingLyrics } from './freeSongLyricsUtils';
 import {
   mutateSetlistFreeSong,
   readSetlistFreeSongState,
@@ -213,7 +214,7 @@ export function useFreeSongSubmissions(
   }, [setlistId]);
 
   const submitSong = useCallback(
-    async (song: ApprovedSong, submittedByUid: string) => {
+    async (song: ApprovedSong, submittedByUid: string, options?: { lyrics?: string }) => {
       if (!setlistId || !activeSetList) return false;
       if (!isLeader && !isFreeSongParticipant(activeSetList, normalizedNickname)) {
         alert('버스킹 참가 멤버만 합격곡을 전송할 수 있습니다. 멤버 편성을 확인해 주세요.');
@@ -228,6 +229,7 @@ export function useFreeSongSubmissions(
         return false;
       }
 
+      const lyrics = normalizeBuskingLyrics(options?.lyrics);
       const newSubmission: FreeSongSubmission = {
         id: doc(collection(db, 'setlists')).id,
         approvedSongId: song.id,
@@ -237,6 +239,7 @@ export function useFreeSongSubmissions(
         submittedByUid,
         createdAt: Timestamp.now(),
         ...(isLeader ? { quotaExempt: true } : {}),
+        ...(lyrics ? { lyrics } : {}),
       };
 
       const result = await withLoading(async () => {
@@ -319,6 +322,62 @@ export function useFreeSongSubmissions(
       return result;
     },
     [setlistId, activeSetList, normalizedNickname, participants, withLoading, readFreshSubmissions, isLeader]
+  );
+
+  const updateSubmissionLyrics = useCallback(
+    async (submissionId: string, lyricsInput: string) => {
+      if (!setlistId || !activeSetList) return false;
+      const lyrics = normalizeBuskingLyrics(lyricsInput);
+
+      const result = await withLoading(async () => {
+        try {
+          const ok = await mutateSetlistFreeSong(setlistId, (state) => {
+            const subIndex = state.submissions.findIndex((s) => s.id === submissionId);
+            const lineIndex = state.lineup.findIndex((row) => row.submissionId === submissionId);
+            if (subIndex < 0 && lineIndex < 0) return null;
+
+            const nextSubmissions = [...state.submissions];
+            if (subIndex >= 0) {
+              const current = nextSubmissions[subIndex];
+              nextSubmissions[subIndex] = lyrics
+                ? { ...current, lyrics }
+                : (() => {
+                    const { lyrics: _removed, ...rest } = current;
+                    return rest;
+                  })();
+            }
+
+            const nextLineup = [...state.lineup];
+            if (lineIndex >= 0) {
+              const current = nextLineup[lineIndex];
+              nextLineup[lineIndex] = lyrics
+                ? { ...current, lyrics }
+                : (() => {
+                    const { lyrics: _removed, ...rest } = current;
+                    return rest;
+                  })();
+            }
+
+            return {
+              freeSongSubmissions: nextSubmissions,
+              freeSongLineup: nextLineup,
+            };
+          });
+          if (!ok) {
+            alert('가사 저장에 실패했습니다. 이미 처리된 곡일 수 있습니다.');
+            return false;
+          }
+          return true;
+        } catch (error) {
+          console.error('버스킹 가사 저장 실패:', error);
+          alert('가사 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+          return false;
+        }
+      });
+      if (result === 'busy') return false;
+      return result;
+    },
+    [setlistId, activeSetList, withLoading]
   );
 
   const cancelSubmission = useCallback(
@@ -465,6 +524,7 @@ export function useFreeSongSubmissions(
     loading,
     actionLoading,
     submitSong,
+    updateSubmissionLyrics,
     cancelSubmission,
     rejectSubmission,
     dismissRejectedSubmission,

@@ -38,6 +38,7 @@ export interface ManualLineupInput {
   title: string;
   members?: string[];
   addedBy: string;
+  lyrics?: string;
 }
 
 export function useFreeSongLineup(
@@ -99,6 +100,7 @@ export function useFreeSongLineup(
         title: string;
         members: string[];
         submittedBy: string;
+        lyrics?: string;
       },
       _currentLineup: FreeSongLineupItem[]
     ) => {
@@ -107,6 +109,8 @@ export function useFreeSongLineup(
       return withLoading(async () => {
         const ok = await mutateSetlistFreeSong(setlistId, (state) => {
           if (state.lineup.some((item) => item.submissionId === submission.id)) return null;
+          const fresh = state.submissions.find((s) => s.id === submission.id);
+          const lyrics = (fresh?.lyrics ?? submission.lyrics ?? '').trim();
           const next = [
             ...state.lineup,
             {
@@ -116,6 +120,7 @@ export function useFreeSongLineup(
               members: submission.members,
               submittedBy: submission.submittedBy,
               order: state.lineup.length,
+              ...(lyrics ? { lyrics } : {}),
             },
           ];
           return { freeSongLineup: normalizeLineup(next) };
@@ -139,6 +144,7 @@ export function useFreeSongLineup(
 
       return withLoading(async () => {
         return mutateSetlistFreeSong(setlistId, (state) => {
+          const lyrics = (input.lyrics ?? '').trim();
           const next = [
             ...state.lineup,
             {
@@ -148,6 +154,7 @@ export function useFreeSongLineup(
               submittedBy: input.addedBy,
               kind: input.kind,
               order: state.lineup.length,
+              ...(lyrics ? { lyrics } : {}),
             },
           ];
           return { freeSongLineup: normalizeLineup(next) };
@@ -155,6 +162,53 @@ export function useFreeSongLineup(
       });
     },
     [setlistId, withLoading, requireSessionManager]
+  );
+
+  const updateLineupLyrics = useCallback(
+    async (submissionId: string, lyricsInput: string) => {
+      if (!setlistId) return false;
+      const lyrics = lyricsInput.replace(/\r\n/g, '\n').trimEnd();
+      return withLoading(async () => {
+        const ok = await mutateSetlistFreeSong(setlistId, (state) => {
+          const lineIndex = state.lineup.findIndex((row) => row.submissionId === submissionId);
+          const subIndex = state.submissions.findIndex((s) => s.id === submissionId);
+          if (lineIndex < 0 && subIndex < 0) return null;
+
+          const nextLineup = [...state.lineup];
+          if (lineIndex >= 0) {
+            const current = nextLineup[lineIndex];
+            nextLineup[lineIndex] = lyrics
+              ? { ...current, lyrics }
+              : (() => {
+                  const { lyrics: _removed, ...rest } = current;
+                  return rest;
+                })();
+          }
+
+          const nextSubmissions = [...state.submissions];
+          if (subIndex >= 0) {
+            const current = nextSubmissions[subIndex];
+            nextSubmissions[subIndex] = lyrics
+              ? { ...current, lyrics }
+              : (() => {
+                  const { lyrics: _removed, ...rest } = current;
+                  return rest;
+                })();
+          }
+
+          return {
+            freeSongLineup: nextLineup,
+            freeSongSubmissions: nextSubmissions,
+          };
+        });
+        if (!ok) {
+          alert('가사 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+          return false;
+        }
+        return true;
+      });
+    },
+    [setlistId, withLoading]
   );
 
   const removeFromLineup = useCallback(
@@ -328,6 +382,7 @@ export function useFreeSongLineup(
     actionLoading,
     addToLineup,
     addManualToLineup,
+    updateLineupLyrics,
     removeFromLineup,
     selfWithdrawFromLineup,
     dismissWithdrawalNotice,

@@ -4,6 +4,7 @@ import { collection, doc as firestoreDoc, getDoc, getDocs, limit, orderBy, query
 import { Loader, Plus, Scale } from 'lucide-react';
 import { db } from '../firebase';
 import GradeFxEmoji from './GradeFxEmoji';
+import PullToRefresh from './PullToRefresh';
 import {
   SkinnedNickname,
   SkinnedPostCard,
@@ -54,39 +55,42 @@ const BalancePostList: React.FC = () => {
     setUser(userString ? JSON.parse(userString) : null);
   }, []);
 
+  const fetchPosts = async () => {
+    setLoading(true);
+    try {
+      const q = query(
+        collection(db, 'posts'),
+        where('type', '==', 'balance'),
+        orderBy('createdAt', 'desc'),
+        limit(50)
+      );
+      const snapshot = await getDocs(q);
+      const items = snapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      })) as Post[];
+      const withGrades = await Promise.all(
+        items.map(async (post) => {
+          if (!post.writerUid) return { ...post, writerGrade: post.writerGrade || '🍒' };
+          try {
+            const userDoc = await getDoc(firestoreDoc(db, 'users', post.writerUid));
+            if (!userDoc.exists()) return { ...post, writerGrade: post.writerGrade || '🍒' };
+            return { ...post, writerGrade: userDoc.data().grade || post.writerGrade || '🍒' };
+          } catch {
+            return { ...post, writerGrade: post.writerGrade || '🍒' };
+          }
+        })
+      );
+      setPosts(withGrades);
+    } catch (error) {
+      console.error('밸런스 게시글 조회 실패:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    (async () => {
-      try {
-        const q = query(
-          collection(db, 'posts'),
-          where('type', '==', 'balance'),
-          orderBy('createdAt', 'desc'),
-          limit(50)
-        );
-        const snapshot = await getDocs(q);
-        const items = snapshot.docs.map((docSnap) => ({
-          id: docSnap.id,
-          ...docSnap.data()
-        })) as Post[];
-        const withGrades = await Promise.all(
-          items.map(async (post) => {
-            if (!post.writerUid) return { ...post, writerGrade: post.writerGrade || '🍒' };
-            try {
-              const userDoc = await getDoc(firestoreDoc(db, 'users', post.writerUid));
-              if (!userDoc.exists()) return { ...post, writerGrade: post.writerGrade || '🍒' };
-              return { ...post, writerGrade: userDoc.data().grade || post.writerGrade || '🍒' };
-            } catch {
-              return { ...post, writerGrade: post.writerGrade || '🍒' };
-            }
-          })
-        );
-        setPosts(withGrades);
-      } catch (error) {
-        console.error('밸런스 게시글 조회 실패:', error);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    void fetchPosts();
   }, []);
 
   useEffect(() => {
@@ -162,6 +166,7 @@ const BalancePostList: React.FC = () => {
   };
 
   return (
+    <PullToRefresh onRefresh={async () => { await fetchPosts(); }}>
     <div className="board-container">
       <div className="board-controls">
         <div className="search-container">
@@ -273,6 +278,7 @@ const BalancePostList: React.FC = () => {
         <Plus size={24} />
       </button>
     </div>
+    </PullToRefresh>
   );
 };
 

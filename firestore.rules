@@ -301,6 +301,11 @@ service cloud.firestore {
       allow read, write: if signedIn();
     }
 
+    /** 연습장 — 가사·화음·메모·파트색 공동 편집 (멤버 공유) */
+    match /songWorkspaces/{docId} {
+      allow read, write: if signedIn();
+    }
+
     match /customerInquiries/{inquiryId} {
       allow read, write: if signedIn();
       match /messages/{msgId} {

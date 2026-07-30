@@ -25,6 +25,7 @@ import {
   SkinnedRoleBadge,
   SkinnedPosition,
 } from './SkinnedAuthor';
+import PullToRefresh from './PullToRefresh';
 import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
 import { 
   ArrowLeft, 
@@ -447,6 +448,7 @@ const RecordingPostList: React.FC = () => {
   }
 
   return (
+    <PullToRefresh onRefresh={async () => { await fetchPosts(true); }}>
     <div className="board-container">
       <div className="board-header">
         {/* '메인으로' 버튼 완전히 삭제 */}
@@ -602,6 +604,7 @@ const RecordingPostList: React.FC = () => {
         <Plus size={24} />
       </button>
     </div>
+    </PullToRefresh>
   );
 };
 

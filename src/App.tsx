@@ -159,6 +159,7 @@ const ContestDetail = lazy(() => import('./components/ContestDetail'));
 const ContestParticipate = lazy(() => import('./components/ContestParticipate'));
 const ContestResults = lazy(() => import('./components/ContestResults'));
 const ApprovedSongs = lazy(() => import('./components/ApprovedSongs'));
+const SongWorkspaceManage = lazy(() => import('./components/SongWorkspaceManage'));
 const SetList = lazy(() => import('./components/SetList'));
 const AnonymousChatRoom = lazy(() => import('./components/AnonymousChatRoom'));
 const CustomerCenter = lazy(() => import('./components/CustomerCenter'));
@@ -1126,8 +1127,10 @@ function App() {
               <Route path="/contests/:id/participate" element={<ProtectedRoute><ContestParticipate /></ProtectedRoute>} />
               <Route path="/contests/:id/results" element={<ProtectedRoute><ContestResults /></ProtectedRoute>} />
               
-              {/* 합격곡 관리/조회 페이지 */}
+              {/* 합격곡 조회 페이지 */}
               <Route path="/approved-songs" element={<ProtectedRoute><ApprovedSongs /></ProtectedRoute>} />
+              {/* 연습장 (가사·화음·메모·파트색 공동 편집) */}
+              <Route path="/song-workspace" element={<ProtectedRoute><SongWorkspaceManage /></ProtectedRoute>} />
               
               {/* 셋리스트 관리 페이지 */}
               <Route path="/setlist" element={<ProtectedRoute><SetList /></ProtectedRoute>} />

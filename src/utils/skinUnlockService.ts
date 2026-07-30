@@ -20,6 +20,31 @@ import {
 } from './skinUnlockMetrics';
 
 const UNLOCK_GUIDE = '마이페이지 → 설정에서 스킨을 적용할 수 있어요.';
+/** 이미 알림을 보낸 스킨 postId — localStorage 초기화/해금 회수 후에도 재발송 방지 */
+const NOTIFIED_UNLOCKS_KEY = 'veryus_skin_unlock_notified';
+
+function readNotifiedUnlockIds(): string[] {
+  try {
+    const raw = localStorage.getItem(NOTIFIED_UNLOCKS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function wasUnlockNotified(postId: string): boolean {
+  return readNotifiedUnlockIds().includes(postId);
+}
+
+function markUnlockNotified(postId: string): void {
+  if (!postId || wasUnlockNotified(postId)) return;
+  const next = [...readNotifiedUnlockIds(), postId];
+  localStorage.setItem(NOTIFIED_UNLOCKS_KEY, JSON.stringify(next));
+}
+
+const notifyingPostIds = new Set<string>();
 
 type GradeFxRule = {
   kind: 'gradeFx';
@@ -169,23 +194,41 @@ async function notifyUnlock(params: {
   skinLabel: string;
   postId: string;
 }) {
-  const message = `✨ ${params.skinLabel}을 획득했어요! ${UNLOCK_GUIDE}`;
-  toast.success(message, {
-    autoClose: 5000,
-    hideProgressBar: true,
-  });
+  const { uid, skinLabel, postId } = params;
+  if (!uid || !postId) return;
+  // 이미 보낸 적 있으면 toast/푸시 모두 스킵
+  if (wasUnlockNotified(postId) || notifyingPostIds.has(postId)) return;
+  notifyingPostIds.add(postId);
   try {
-    await NotificationService.createNotification({
-      type: 'grade_fx_unlock',
-      toUid: params.uid,
-      fromNickname: 'VERYUS',
-      message,
-      route: '/settings',
-      postId: params.postId,
-      postTitle: params.skinLabel,
+    const exists = await NotificationService.hasSkinUnlockNotification(uid, postId);
+    if (exists) {
+      markUnlockNotified(postId);
+      return;
+    }
+
+    // 동시 sync / 재시도로 중복 생성되지 않도록 먼저 기록
+    markUnlockNotified(postId);
+
+    const message = `✨ ${skinLabel}을 획득했어요! ${UNLOCK_GUIDE}`;
+    toast.success(message, {
+      autoClose: 5000,
+      hideProgressBar: true,
     });
-  } catch (error) {
-    console.error('스킨 해금 알림 실패:', error);
+    try {
+      await NotificationService.createNotification({
+        type: 'grade_fx_unlock',
+        toUid: uid,
+        fromNickname: 'VERYUS',
+        message,
+        route: '/settings',
+        postId,
+        postTitle: skinLabel,
+      });
+    } catch (error) {
+      console.error('스킨 해금 알림 실패:', error);
+    }
+  } finally {
+    notifyingPostIds.delete(postId);
   }
 }
 

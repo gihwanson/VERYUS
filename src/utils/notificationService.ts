@@ -288,6 +288,23 @@ export class NotificationService {
     }
   }
 
+  /** 스킨 획득 알림 — 동일 postId면 시간 무관 영구 중복 */
+  static async hasSkinUnlockNotification(toUid: string, postId: string): Promise<boolean> {
+    if (!toUid || !postId) return false;
+    try {
+      const q = query(
+        collection(db, 'notifications'),
+        where('toUid', '==', toUid),
+        where('type', '==', 'grade_fx_unlock')
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.some((d) => d.data().postId === postId);
+    } catch (error) {
+      console.error('스킨 해금 알림 중복 체크 실패:', error);
+      return false;
+    }
+  }
+
   // 알림 생성
   static async createNotification(data: NotificationData): Promise<boolean> {
     try {
@@ -301,6 +318,18 @@ export class NotificationService {
       if (data.fromUid && data.toUid === data.fromUid) {
         console.info('[notify] skipped:self-notification', { toUid: data.toUid, fromUid: data.fromUid });
         return false;
+      }
+
+      // 스킨 획득: 같은 스킨(postId)은 한 번만
+      if (data.type === 'grade_fx_unlock' && data.postId) {
+        const already = await this.hasSkinUnlockNotification(data.toUid, data.postId);
+        if (already) {
+          console.info('[notify] skipped:skin-unlock-duplicate', {
+            toUid: data.toUid,
+            postId: data.postId
+          });
+          return false;
+        }
       }
 
       // 중복 알림 체크: 답글/좋아요만 (댓글은 같은 글에 여러 번 달 수 있어 매번 알림이 가야 함)

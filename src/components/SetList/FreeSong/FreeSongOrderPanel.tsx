@@ -14,6 +14,9 @@ import {
   type FreeSongManualLineupKind,
 } from './freeSongLineupUtils';
 import { FreeSongEmptyState, SongRow } from './FreeSongShared';
+import FreeSongLyricsModal from './FreeSongLyricsModal';
+import type { FreeSongLineupItem } from './types';
+import { canEditBuskingLyrics, hasBuskingLyrics } from './freeSongLyricsUtils';
 
 interface FreeSongOrderPanelProps {
   activeSetList: SetListData | null;
@@ -57,6 +60,7 @@ const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
     selfWithdrawFromLineup,
     dismissWithdrawalNotice,
     normalizeLineup,
+    updateLineupLyrics,
   } = useFreeSongLineup(activeSetList?.id, activeSetList, {
     uid: userUid,
     nickname: userNickname,
@@ -66,6 +70,7 @@ const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
   const [manualTitle, setManualTitle] = useState('');
   const [manualMembers, setManualMembers] = useState('');
   const [pending, setPending] = useState<PendingAction | null>(null);
+  const [lyricsTarget, setLyricsTarget] = useState<FreeSongLineupItem | null>(null);
   const lineup = normalizeLineup(activeSetList?.freeSongLineup);
   const pendingLineup = filterIncompleteLineup(lineup);
   const completedCount = lineup.length - pendingLineup.length;
@@ -162,6 +167,16 @@ const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
     await selfWithdrawFromLineup(submissionId, userNickname);
   };
 
+  const handleSaveLyrics = async (lyrics: string): Promise<boolean> => {
+    if (!lyricsTarget) return false;
+    const ok = await updateLineupLyrics(lyricsTarget.submissionId, lyrics);
+    if (ok === true) {
+      setLyricsTarget((prev) => (prev ? { ...prev, lyrics } : null));
+      return true;
+    }
+    return false;
+  };
+
   return (
     <div className="free-song-panel">
       <div className="setlist-manage-panel">
@@ -171,6 +186,7 @@ const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
           {canManage && pendingLineup.length > 1 && ' 순서는 ↑↓ 버튼으로 변경할 수 있습니다.'}
           {canManage && ' 신청곡·오픈마이크·합격곡 외 곡은 아래에서 직접 추가할 수 있습니다.'}
           {!canManage && ' 본인이 포함된 곡은 직접 제거할 수 있습니다.'}
+          {' '}곡의 <strong>가사</strong> 버튼으로 버스킹용 가사를 볼 수 있습니다.
           {completedCount > 0 && (
             <span className="free-song-admin-count"> · {completedCount}곡 완료</span>
           )}
@@ -224,6 +240,21 @@ const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
               const confirmingComplete = pending?.type === 'complete' && pending.id === item.submissionId;
               const confirmingRemove = pending?.type === 'remove' && pending.id === item.submissionId;
               const confirmingWithdraw = pending?.type === 'withdraw' && pending.id === item.submissionId;
+              const canEditLyrics = canEditBuskingLyrics(item, userNickname, { canManage });
+
+              const lyricsAction = (
+                <button
+                  type="button"
+                  className="free-song-btn free-song-btn--ghost"
+                  disabled={actionLoading}
+                  onClick={() => {
+                    clearPending();
+                    setLyricsTarget(item);
+                  }}
+                >
+                  {hasBuskingLyrics(item.lyrics) ? '가사 보기' : canEditLyrics ? '가사 등록' : '가사'}
+                </button>
+              );
 
               const manageActions = canManage ? (
                 <div className="free-song-row__manage">
@@ -347,14 +378,14 @@ const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
                 )
               ) : null;
 
-              const action =
-                manageActions || selfWithdrawAction || completeAction ? (
+              const action = (
                   <div className="free-song-row__actions free-song-row__actions--stacked">
+                    {lyricsAction}
                     {completeAction}
                     {manageActions}
                     {selfWithdrawAction}
                   </div>
-                ) : undefined;
+                );
 
               return (
                 <SongRow
@@ -362,6 +393,8 @@ const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
                   order={index + 1}
                   title={item.title}
                   members={item.members}
+                  badge={hasBuskingLyrics(item.lyrics) ? '가사' : undefined}
+                  badgeVariant="default"
                   action={action}
                 />
               );
@@ -448,6 +481,21 @@ const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
           </div>
         </div>
       )}
+
+      <FreeSongLyricsModal
+        open={!!lyricsTarget}
+        title={lyricsTarget?.title || ''}
+        members={lyricsTarget?.members}
+        lyrics={lyricsTarget?.lyrics || ''}
+        canEdit={
+          lyricsTarget
+            ? canEditBuskingLyrics(lyricsTarget, userNickname, { canManage })
+            : false
+        }
+        saving={actionLoading}
+        onClose={() => setLyricsTarget(null)}
+        onSave={handleSaveLyrics}
+      />
     </div>
   );
 };
