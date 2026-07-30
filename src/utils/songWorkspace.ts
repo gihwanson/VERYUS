@@ -287,19 +287,95 @@ export function addOrReplaceHighlight(
   ]);
 }
 
+/** prev → next 단일 연속 편집 구간 (공통 접두·접미 기준) */
+export function findLyricsEdit(
+  prev: string,
+  next: string
+): { start: number; oldEnd: number; newEnd: number } | null {
+  if (prev === next) return null;
+  let start = 0;
+  const prevLen = prev.length;
+  const nextLen = next.length;
+  const minLen = Math.min(prevLen, nextLen);
+  while (start < minLen && prev.charAt(start) === next.charAt(start)) {
+    start += 1;
+  }
+  let oldEnd = prevLen;
+  let newEnd = nextLen;
+  while (
+    oldEnd > start &&
+    newEnd > start &&
+    prev.charAt(oldEnd - 1) === next.charAt(newEnd - 1)
+  ) {
+    oldEnd -= 1;
+    newEnd -= 1;
+  }
+  return { start, oldEnd, newEnd };
+}
+
+/** 편집 구간을 지난 뒤 인덱스 매핑 (assoc: 시작=-1, 끝=+1) */
+function mapIndexThroughEdit(
+  index: number,
+  editStart: number,
+  oldEnd: number,
+  newEnd: number,
+  assoc: -1 | 1
+): number {
+  if (index < editStart) return index;
+  if (index > oldEnd) return index + (newEnd - oldEnd);
+  if (index === editStart) return editStart;
+  if (index === oldEnd) return newEnd;
+  // 삭제·교체된 구간 안
+  return assoc < 0 ? editStart : newEnd;
+}
+
+/**
+ * 가사 텍스트 변경에 맞춰 하이라이트/메모 오프셋 보정.
+ * prevLyrics를 넘기면 중간 삭제·삽입 시 뒤쪽 문단 색이 밀리거나 사라지지 않음.
+ */
 export function remapAnnotationsForLyricsChange<T extends { start: number; end: number }>(
   annotations: T[],
-  nextLyrics: string
+  nextLyrics: string,
+  prevLyrics?: string
 ): T[] {
   const len = nextLyrics.length;
   if (len === 0) return [];
+  if (!annotations.length) return annotations;
+
+  if (prevLyrics == null || prevLyrics === nextLyrics) {
+    return annotations
+      .map((item) => ({
+        ...item,
+        start: Math.max(0, Math.min(item.start, len)),
+        end: Math.max(0, Math.min(item.end, len)),
+      }))
+      .filter((item) => item.end > item.start);
+  }
+
+  const edit = findLyricsEdit(prevLyrics, nextLyrics);
+  if (!edit) {
+    return annotations
+      .map((item) => ({
+        ...item,
+        start: Math.max(0, Math.min(item.start, len)),
+        end: Math.max(0, Math.min(item.end, len)),
+      }))
+      .filter((item) => item.end > item.start);
+  }
+
+  const { start: editStart, oldEnd, newEnd } = edit;
   return annotations
-    .map((item) => ({
-      ...item,
-      start: Math.max(0, Math.min(item.start, len)),
-      end: Math.max(0, Math.min(item.end, len)),
-    }))
-    .filter((item) => item.end > item.start);
+    .map((item) => {
+      const nextStart = mapIndexThroughEdit(item.start, editStart, oldEnd, newEnd, -1);
+      const nextEnd = mapIndexThroughEdit(item.end, editStart, oldEnd, newEnd, 1);
+      if (nextEnd <= nextStart) return null;
+      return {
+        ...item,
+        start: Math.max(0, Math.min(nextStart, len)),
+        end: Math.max(0, Math.min(nextEnd, len)),
+      };
+    })
+    .filter((item): item is T => Boolean(item && item.end > item.start));
 }
 
 export type LyricRenderSegment = {

@@ -100,6 +100,12 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
   const composingRef = useRef(false);
+  /** 가사 onChange마다 동기 갱신 — setState 전에 prev로 하이라이트 오프셋 보정 */
+  const lyricsSyncRef = useRef(workspace.lyrics);
+  /** IME 조합 시작 시점 가사 — 조합 중엔 하이라이트 건드리지 않고 끝날 때 한 번에 보정 */
+  const compositionBaseRef = useRef(workspace.lyrics);
+  /** 하이라이트 리렌더 후 커서가 튀는 경우 복원 */
+  const pendingCaretRef = useRef<{ start: number; end: number } | null>(null);
   const noteComposerOpenRef = useRef(noteComposerOpen);
   const isEditingRef = useRef(isEditing);
   const persistInFlightRef = useRef(false);
@@ -132,6 +138,7 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
     setTitle(workspace.title);
     setMembers(workspace.members.length > 0 ? [...workspace.members] : ['']);
     setLyrics(workspace.lyrics);
+    lyricsSyncRef.current = workspace.lyrics;
     setHighlights(workspace.highlights ?? []);
     setNotes(workspace.notes ?? []);
     setPartAssignments(workspace.partAssignments ?? {});
@@ -321,6 +328,9 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
     if (!editor || !backdrop) return;
     backdrop.scrollTop = editor.scrollTop;
     backdrop.scrollLeft = editor.scrollLeft;
+    // textarea 스크롤바만큼 backdrop 오른쪽을 줄여 글·커서 가로 정렬
+    const bar = Math.max(0, editor.offsetWidth - editor.clientWidth);
+    backdrop.style.right = `${bar}px`;
     refreshNotePins();
   };
 
@@ -408,8 +418,27 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
   }, []);
 
   useLayoutEffect(() => {
-    refreshNotePins();
-  }, [notes, lyrics]);
+    syncScroll();
+  }, [notes, lyrics, highlights, isEditing]);
+
+  // 하이라이트 레이어 리렌더로 커서가 맨 앞 등으로 튀면 직전 위치로 복원 (IME 중에는 건드리지 않음)
+  useLayoutEffect(() => {
+    const pending = pendingCaretRef.current;
+    if (!pending) return;
+    pendingCaretRef.current = null;
+    if (composingRef.current) return;
+    const editor = editorRef.current;
+    if (!editor || document.activeElement !== editor) return;
+    const len = editor.value.length;
+    const start = Math.max(0, Math.min(pending.start, len));
+    const end = Math.max(0, Math.min(pending.end, len));
+    if (editor.selectionStart === start && editor.selectionEnd === end) return;
+    try {
+      editor.setSelectionRange(start, end);
+    } catch {
+      /* ignore */
+    }
+  }, [lyrics, highlights, notes]);
 
   const clearDragSelection = (collapseAt: number) => {
     setSelection(null);
@@ -425,28 +454,43 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
     }
   };
 
-  const commitLyricsChange = (value: string) => {
-    setLyrics(value);
-    // 가사 전체 삭제 시 색·메모 주석도 함께 제거
+  const applyAnnotationRemap = (value: string, prevLyrics: string) => {
     if (value.length === 0) {
       setHighlights([]);
       setNotes([]);
-    } else {
-      setHighlights((prev) => remapAnnotationsForLyricsChange(prev, value));
-      setNotes((prev) => remapAnnotationsForLyricsChange(prev, value));
+      return;
     }
-    // 타이핑 중에는 선택 툴바 숨김 (커서 강제 이동 금지)
+    setHighlights((prev) => remapAnnotationsForLyricsChange(prev, value, prevLyrics));
+    setNotes((prev) => remapAnnotationsForLyricsChange(prev, value, prevLyrics));
+  };
+
+  const commitLyricsChange = (
+    value: string,
+    options?: { prevLyrics?: string; caret?: { start: number; end: number } | null }
+  ) => {
+    const prevLyrics = options?.prevLyrics ?? lyricsSyncRef.current;
+    lyricsSyncRef.current = value;
+    if (options?.caret && !composingRef.current) {
+      pendingCaretRef.current = options.caret;
+    }
+    setLyrics(value);
+    applyAnnotationRemap(value, prevLyrics);
+    // 타이핑 중에는 선택 툴바 숨김
     setSelection(null);
     setNoteComposerOpen(false);
   };
 
-  const handleLyricsChange = (value: string) => {
+  const handleLyricsChange = (
+    value: string,
+    caret?: { start: number; end: number } | null
+  ) => {
     if (composingRef.current) {
-      // IME 조합 중에는 가사만 반영 — 하이라이트 remap/커서 조작으로 앞쪽 입력 방지
+      // IME 조합 중: 가사만 반영. 하이라이트 remap은 compositionEnd에서 한 번에
+      // (중간 remap + 리렌더가 커서를 앞으로 보내는 원인)
       setLyrics(value);
       return;
     }
-    commitLyricsChange(value);
+    commitLyricsChange(value, { caret: caret ?? null });
   };
 
   const applyColor = (partId: LyricPartId | null) => {
@@ -598,16 +642,31 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
               readOnly={!isEditing}
               onChange={(e) => {
                 if (!isEditing) return;
-                handleLyricsChange(e.target.value);
+                const el = e.target;
+                handleLyricsChange(el.value, {
+                  start: el.selectionStart ?? 0,
+                  end: el.selectionEnd ?? 0,
+                });
               }}
               onCompositionStart={() => {
                 if (!isEditing) return;
                 composingRef.current = true;
+                compositionBaseRef.current = lyricsSyncRef.current;
+                pendingCaretRef.current = null;
               }}
               onCompositionEnd={(e) => {
                 if (!isEditing) return;
                 composingRef.current = false;
-                commitLyricsChange(e.currentTarget.value);
+                const value = e.currentTarget.value;
+                const caret = {
+                  start: e.currentTarget.selectionStart ?? value.length,
+                  end: e.currentTarget.selectionEnd ?? value.length,
+                };
+                // 조합 시작 가사 → 확정 가사로 한 번에 오프셋 보정
+                commitLyricsChange(value, {
+                  prevLyrics: compositionBaseRef.current,
+                  caret,
+                });
               }}
               onScroll={syncScroll}
               onSelect={scheduleToolbarUpdate}

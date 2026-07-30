@@ -239,8 +239,8 @@
   font-style: normal;
   line-height: 1.45;
   white-space: pre-wrap;
-  word-break: break-word;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
   letter-spacing: normal;
   word-spacing: normal;
   text-transform: none;
@@ -251,8 +251,12 @@
 
 .sw-paper-backdrop {
   position: absolute;
-  inset: 0;
-  overflow: hidden; /* 스크롤은 textarea만 — 스크롤바 폭 차이로 커서 어긋남 방지 */
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0; /* syncScroll에서 스크롤바 폭만큼 줄여 커서 정렬 */
+  width: auto; /* width:100%면 right 보정이 무시됨 */
+  overflow: hidden;
   pointer-events: none;
   color: #1f1a14;
   z-index: 0;
