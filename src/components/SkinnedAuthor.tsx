@@ -82,7 +82,7 @@ export const SkinnedRoleBadge: React.FC<SkinnedRoleBadgeProps> = ({
 };
 
 interface SkinnedPositionProps {
-  position: string;
+  position?: string | null;
   writerUid?: string | null;
   writerNickname?: string | null;
   force?: boolean;
