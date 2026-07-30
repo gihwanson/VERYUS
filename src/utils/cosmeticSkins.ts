@@ -49,7 +49,7 @@ export const NICKNAME_SKINS: CosmeticSkin[] = [
     name: '음표 밑줄',
     description: '닉네임 아래 음표가 반짝입니다',
     acquireLabel: '음표 밑줄 닉네임 스킨',
-    unlockCondition: '녹음·이어부르기 글 10개 작성',
+    unlockCondition: '녹음·이어부르기 글 25개 작성',
     className: 'nick-skin nick-skin--note-underline',
   },
   {
@@ -57,7 +57,7 @@ export const NICKNAME_SKINS: CosmeticSkin[] = [
     name: '버스킹 명찰',
     description: '명찰처럼 밑줄과 점이 붙습니다',
     acquireLabel: '버스킹 명찰 닉네임 스킨',
-    unlockCondition: '셋리스트 참여 5회',
+    unlockCondition: '셋리스트 참여 15회',
     className: 'nick-skin nick-skin--busking-tag',
   },
   {
@@ -100,7 +100,7 @@ export const BADGE_SKINS: CosmeticSkin[] = [
     name: '시즌 배지',
     description: '시즌 한정 색감의 배지 프레임',
     acquireLabel: '시즌 배지 스킨',
-    unlockCondition: '콘테스트 참가 1회',
+    unlockCondition: '콘테스트 참가 5회',
     className: 'badge-skin badge-skin--season',
   },
 ];
@@ -119,7 +119,7 @@ export const POST_TITLE_SKINS: CosmeticSkin[] = [
     name: '티켓 제목',
     description: '좌우에 작은 천공 라인 포스터 느낌',
     acquireLabel: '티켓 제목 스킨',
-    unlockCondition: '콘테스트 참가 1회',
+    unlockCondition: '콘테스트 참가 3회',
     className: 'post-title-skin post-title-skin--ticket',
   },
   {
@@ -127,7 +127,7 @@ export const POST_TITLE_SKINS: CosmeticSkin[] = [
     name: '스포트라이트',
     description: '제목에 부드러운 강조 그라데이션',
     acquireLabel: '스포트라이트 제목 스킨',
-    unlockCondition: '평가 합격 1회',
+    unlockCondition: '평가 합격 5회',
     className: 'post-title-skin post-title-skin--spotlight',
   },
   {
@@ -135,7 +135,7 @@ export const POST_TITLE_SKINS: CosmeticSkin[] = [
     name: '손글씨 제목',
     description: '세리프 손글씨 느낌의 제목',
     acquireLabel: '손글씨 제목 스킨',
-    unlockCondition: '자유글 20개 작성',
+    unlockCondition: '자유글 40개 작성',
     className: 'post-title-skin post-title-skin--handwriting',
   },
 ];
@@ -146,7 +146,7 @@ export const POST_BODY_SKINS: CosmeticSkin[] = [
     name: '노트 원고지',
     description: '본문·카드에 줄 노트 배경',
     acquireLabel: '노트 원고지 글 스킨',
-    unlockCondition: '게시글 10개 작성',
+    unlockCondition: '게시글 30개 작성',
     className: 'post-body-skin post-body-skin--notebook',
   },
   {
@@ -154,7 +154,7 @@ export const POST_BODY_SKINS: CosmeticSkin[] = [
     name: '폴라로이드',
     description: '카드에 폴라로이드 테두리',
     acquireLabel: '폴라로이드 글 스킨',
-    unlockCondition: '녹음글 5개 작성',
+    unlockCondition: '녹음글 15개 작성',
     className: 'post-body-skin post-body-skin--polaroid',
   },
   {
@@ -162,7 +162,7 @@ export const POST_BODY_SKINS: CosmeticSkin[] = [
     name: '스테이지 프레임',
     description: '상단에 얇은 스테이지 조명 라인',
     acquireLabel: '스테이지 프레임 글 스킨',
-    unlockCondition: '이어부르기 글 5개 작성',
+    unlockCondition: '이어부르기 글 15개 작성',
     className: 'post-body-skin post-body-skin--stage',
   },
   {
@@ -170,7 +170,7 @@ export const POST_BODY_SKINS: CosmeticSkin[] = [
     name: '엽서',
     description: '가장자리에 엽서·스탬프 느낌',
     acquireLabel: '엽서 글 스킨',
-    unlockCondition: '파트너 모집글 3개 작성',
+    unlockCondition: '파트너 모집글 10개 작성',
     className: 'post-body-skin post-body-skin--postcard',
   },
 ];
