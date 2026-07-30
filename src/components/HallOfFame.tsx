@@ -389,9 +389,17 @@ const HallOfFame: React.FC = () => {
   const formatWeight = (value: number) => (Number.isInteger(value) ? `${value}` : value.toFixed(1));
 
   const sections = useMemo(() => {
-    const base = [
+    type HallSection = {
+      key: HallSectionKey;
+      title: string;
+      subtitle: string;
+      ranking: RankEntry[];
+      unit: string;
+      metricLabel: string;
+    };
+    const base: HallSection[] = [
       {
-        key: 'activity' as const,
+        key: 'activity',
         title: '종합 활동 순위',
         subtitle: `게시글(${formatWeight(scoreWeights.post)}점) + 댓글(${formatWeight(scoreWeights.comment)}점) + 눈팅(${formatWeight(scoreWeights.lurking)}점/행동) 합산`,
         ranking: activityRanking,
@@ -399,7 +407,7 @@ const HallOfFame: React.FC = () => {
         metricLabel: '활동량',
       },
       {
-        key: 'approvedSong' as const,
+        key: 'approvedSong',
         title: '합격곡 순위',
         subtitle: '합격곡 멤버로 등재된 횟수',
         ranking: approvedSongRanking,
@@ -407,7 +415,7 @@ const HallOfFame: React.FC = () => {
         metricLabel: '활동량',
       },
       {
-        key: 'comment' as const,
+        key: 'comment',
         title: '댓글 작성 순위',
         subtitle: '작성한 댓글 누적 수',
         ranking: commentRanking,
@@ -415,7 +423,7 @@ const HallOfFame: React.FC = () => {
         metricLabel: '활동량',
       },
       {
-        key: 'post' as const,
+        key: 'post',
         title: '게시글 작성 순위',
         subtitle: '작성한 게시글 누적 수',
         ranking: postRanking,
@@ -423,7 +431,7 @@ const HallOfFame: React.FC = () => {
         metricLabel: '활동량',
       },
       {
-        key: 'visit' as const,
+        key: 'visit',
         title: '눈팅 순위',
         subtitle: '게시판 진입/게시글 진입/녹음 재생 누적 점수',
         ranking: visitRanking,
@@ -431,7 +439,7 @@ const HallOfFame: React.FC = () => {
         metricLabel: '활동량',
       },
       {
-        key: 'activePeriod' as const,
+        key: 'activePeriod',
         title: '활동기간 순위',
         subtitle: '가입일 기준 활동 경과 기간',
         ranking: activePeriodRanking,
@@ -442,7 +450,7 @@ const HallOfFame: React.FC = () => {
 
     if (isLeaderViewer) {
       base.push({
-        key: 'passRate' as const,
+        key: 'passRate',
         title: '합격률 순위',
         subtitle: '현재 회원 기준 · 평가 합/불 + 관리자 직접 등록 합격곡 (리더 전용)',
         ranking: passRateRanking,
