@@ -22,9 +22,11 @@ import NicknameSuggestInput, {
   normalizeMemberNicknames,
 } from './NicknameSuggestInput';
 import SongWorkspacePaper from './SongWorkspacePaper';
+import type { SongWorkspacePaperPayload } from './SongWorkspacePaper';
 import { getUserMentions } from '../utils/getUserMentions';
 import type { UserMention } from '../utils/getUserMentions';
 import type { ApprovedSong } from './ApprovedSongsUtils';
+import { ROLE_SYSTEM } from './AdminTypes';
 import {
   SONG_WORKSPACE_COLLECTION,
   approvedWorkspaceDocId,
@@ -45,18 +47,33 @@ import './SongWorkspaceManage.css';
 
 type ViewMode = 'list' | 'create' | 'detail';
 
+function workspaceHasContent(
+  w: Pick<SongWorkspace, 'lyrics' | 'highlights' | 'notes' | 'memo' | 'partAssignments'>
+): boolean {
+  if (w.lyrics.trim()) return true;
+  if (w.highlights.length > 0) return true;
+  if (w.notes.length > 0) return true;
+  if (w.memo.trim()) return true;
+  return Object.keys(w.partAssignments).length > 0;
+}
+
 type LocalUser = {
   uid: string;
   nickname: string;
+  role: string;
 };
 
 function getLocalUser(): LocalUser | null {
   try {
     const raw = localStorage.getItem('veryus_user');
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as { uid?: string; nickname?: string };
+    const parsed = JSON.parse(raw) as { uid?: string; nickname?: string; role?: string };
     if (!parsed?.uid || !parsed?.nickname) return null;
-    return { uid: parsed.uid, nickname: parsed.nickname };
+    return {
+      uid: parsed.uid,
+      nickname: parsed.nickname,
+      role: typeof parsed.role === 'string' ? parsed.role : '',
+    };
   } catch {
     return null;
   }
@@ -85,6 +102,7 @@ function updatedStamp(value: SongWorkspace['updatedAt']): number {
 
 const SongWorkspaceManage: React.FC = () => {
   const user = useMemo(() => getLocalUser(), []);
+  const isLeader = user?.role === ROLE_SYSTEM.LEADER;
   const [category, setCategory] = useState<SongWorkspaceCategory>('practice');
   const [view, setView] = useState<ViewMode>('list');
   const [loading, setLoading] = useState(true);
@@ -105,9 +123,24 @@ const SongWorkspaceManage: React.FC = () => {
   const [remoteNewer, setRemoteNewer] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
 
+  /** 연습곡 → 합격곡 이동 모달 */
+  const [promoteOpen, setPromoteOpen] = useState(false);
+  const [promotePayload, setPromotePayload] = useState<SongWorkspacePaperPayload | null>(null);
+  const [promotePracticeId, setPromotePracticeId] = useState<string | null>(null);
+  const [promoteApprovedId, setPromoteApprovedId] = useState<string | null>(null);
+  const [promoteSearch, setPromoteSearch] = useState('');
+
+  /** 리더 전용: 다른 멤버 연습장 조회 (null이면 내 연습장) */
+  const [browseNickname, setBrowseNickname] = useState<string | null>(null);
+  const [browseInput, setBrowseInput] = useState('');
+
   const loadedStampRef = useRef(0);
   /** 본인 저장 직후 remoteNewer 오탐 방지 */
   const ignoreRemoteUntilRef = useRef(0);
+
+  const listOwnerNickname = browseNickname?.trim() || user?.nickname || '';
+  const isBrowsingOther =
+    Boolean(isLeader && browseNickname && browseNickname.trim() !== user?.nickname);
 
   useEffect(() => {
     getUserMentions()
@@ -116,14 +149,15 @@ const SongWorkspaceManage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!user?.nickname) {
+    if (!listOwnerNickname) {
       setLoading(false);
       return;
     }
 
+    setLoading(true);
     const q = query(
       collection(db, SONG_WORKSPACE_COLLECTION),
-      where('members', 'array-contains', user.nickname)
+      where('members', 'array-contains', listOwnerNickname)
     );
 
     const unsubscribe = onSnapshot(
@@ -133,11 +167,7 @@ const SongWorkspaceManage: React.FC = () => {
           parseSongWorkspaceDoc(d.id, d.data() as Record<string, unknown>)
         );
 
-        next.sort((a, b) => {
-          const aSec = updatedStamp(a.updatedAt) || updatedStamp(a.createdAt);
-          const bSec = updatedStamp(b.updatedAt) || updatedStamp(b.createdAt);
-          return bSec - aSec;
-        });
+        next.sort((a, b) => a.title.localeCompare(b.title, 'ko'));
 
         setItems(next);
         setLoading(false);
@@ -150,17 +180,54 @@ const SongWorkspaceManage: React.FC = () => {
     );
 
     return () => unsubscribe();
-  }, [user?.nickname]);
+  }, [listOwnerNickname]);
 
   const filteredItems = useMemo(
-    () => items.filter((item) => item.category === category),
+    () =>
+      items
+        .filter((item) => item.category === category)
+        .sort((a, b) => a.title.localeCompare(b.title, 'ko')),
     [items, category]
   );
 
-  const filteredApprovedSongs = useMemo(() => {
-    const q = approvedSearch.trim().toLowerCase().replace(/\s+/g, '');
-    if (!q) return myApprovedSongs;
-    return myApprovedSongs.filter((song) => {
+  const startLeaderBrowse = () => {
+    if (!isLeader || !user) return;
+    const nick = browseInput.trim();
+    if (!nick) {
+      toast.error('조회할 멤버 닉네임을 입력해주세요.');
+      return;
+    }
+    if (nick === user.nickname) {
+      clearLeaderBrowse();
+      toast.info('내 연습장으로 돌아왔습니다.');
+      return;
+    }
+    const exists = memberCandidates.some((c) => c.nickname === nick);
+    if (!exists) {
+      toast.error('존재하지 않는 닉네임입니다.');
+      return;
+    }
+    setBrowseNickname(nick);
+    setView('list');
+    setSelectedId(null);
+    setSelectedSeed(null);
+    setRemoteNewer(false);
+    toast.success(`${nick}님의 연습장을 조회합니다.`);
+  };
+
+  const clearLeaderBrowse = () => {
+    setBrowseNickname(null);
+    setBrowseInput('');
+    setView('list');
+    setSelectedId(null);
+    setSelectedSeed(null);
+    setRemoteNewer(false);
+  };
+
+  const filterApprovedSongList = (songs: ApprovedSong[], search: string) => {
+    const q = search.trim().toLowerCase().replace(/\s+/g, '');
+    if (!q) return songs;
+    return songs.filter((song) => {
       const title = String(song.title ?? '')
         .toLowerCase()
         .replace(/\s+/g, '');
@@ -168,7 +235,12 @@ const SongWorkspaceManage: React.FC = () => {
       const members = (song.members ?? []).join(' ').toLowerCase().replace(/\s+/g, '');
       return title.includes(q) || titleNoSpace.includes(q) || members.includes(q);
     });
-  }, [myApprovedSongs, approvedSearch]);
+  };
+
+  const filteredApprovedSongs = useMemo(
+    () => filterApprovedSongList(myApprovedSongs, approvedSearch),
+    [myApprovedSongs, approvedSearch]
+  );
 
   const selected = useMemo(() => {
     const fromList = items.find((item) => item.id === selectedId) ?? null;
@@ -176,6 +248,19 @@ const SongWorkspaceManage: React.FC = () => {
     if (selectedSeed && selectedSeed.id === selectedId) return selectedSeed;
     return null;
   }, [items, selectedId, selectedSeed]);
+
+  const promoteCandidates = useMemo(() => {
+    const titleKey = normalizeSongTitle(promotePayload?.title ?? '');
+    const filtered = filterApprovedSongList(myApprovedSongs, promoteSearch);
+    return [...filtered].sort((a, b) => {
+      const aKey = normalizeSongTitle(a.title) || String(a.titleNoSpace ?? '').toLowerCase();
+      const bKey = normalizeSongTitle(b.title) || String(b.titleNoSpace ?? '').toLowerCase();
+      const aMatch = titleKey && (aKey === titleKey || String(a.titleNoSpace ?? '').toLowerCase() === titleKey) ? 0 : 1;
+      const bMatch = titleKey && (bKey === titleKey || String(b.titleNoSpace ?? '').toLowerCase() === titleKey) ? 0 : 1;
+      if (aMatch !== bMatch) return aMatch - bMatch;
+      return a.title.localeCompare(b.title, 'ko');
+    });
+  }, [myApprovedSongs, promoteSearch, promotePayload?.title]);
 
   const upsertLocalItem = (workspace: SongWorkspace) => {
     setItems((prev) => {
@@ -208,9 +293,47 @@ const SongWorkspaceManage: React.FC = () => {
     selected?.title,
   ]);
 
+  const loadMyApprovedSongs = async () => {
+    if (!user) return;
+    setApprovedLoading(true);
+    try {
+      const q = query(
+        collection(db, 'approvedSongs'),
+        where('members', 'array-contains', user.nickname)
+      );
+      const snap = await getDocs(q);
+      const songs = snap.docs.map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          title: typeof data.title === 'string' ? data.title : '',
+          titleNoSpace: typeof data.titleNoSpace === 'string' ? data.titleNoSpace : '',
+          members: Array.isArray(data.members)
+            ? data.members.map((m: unknown) => String(m).trim()).filter(Boolean)
+            : [],
+          createdAt: data.createdAt,
+          createdBy: data.createdBy,
+          createdByRole: data.createdByRole,
+        } as ApprovedSong;
+      });
+      songs.sort((a, b) => a.title.localeCompare(b.title, 'ko'));
+      setMyApprovedSongs(songs);
+    } catch (error) {
+      console.error('내 합격곡 로드 실패:', error);
+      toast.error('합격곡 목록을 불러오지 못했습니다.');
+      setMyApprovedSongs([]);
+    } finally {
+      setApprovedLoading(false);
+    }
+  };
+
   const openCreate = async () => {
     if (!user) {
       toast.error('로그인이 필요합니다.');
+      return;
+    }
+    if (isBrowsingOther) {
+      toast.info('멤버 조회 중에는 추가할 수 없습니다. 내 연습장으로 돌아온 뒤 추가하세요.');
       return;
     }
     setCreateTitle('');
@@ -220,38 +343,49 @@ const SongWorkspaceManage: React.FC = () => {
     setView('create');
 
     if (category === 'approved') {
-      setApprovedLoading(true);
-      try {
-        const q = query(
-          collection(db, 'approvedSongs'),
-          where('members', 'array-contains', user.nickname)
-        );
-        const snap = await getDocs(q);
-        const songs = snap.docs.map((d) => {
-          const data = d.data();
-          return {
-            id: d.id,
-            title: typeof data.title === 'string' ? data.title : '',
-            titleNoSpace: typeof data.titleNoSpace === 'string' ? data.titleNoSpace : '',
-            members: Array.isArray(data.members)
-              ? data.members.map((m: unknown) => String(m).trim()).filter(Boolean)
-              : [],
-            createdAt: data.createdAt,
-            createdBy: data.createdBy,
-            createdByRole: data.createdByRole,
-          } as ApprovedSong;
-        });
-        songs.sort((a, b) => a.title.localeCompare(b.title, 'ko'));
-        setMyApprovedSongs(songs);
-      } catch (error) {
-        console.error('내 합격곡 로드 실패:', error);
-        toast.error('합격곡 목록을 불러오지 못했습니다.');
-        setMyApprovedSongs([]);
-      } finally {
-        setApprovedLoading(false);
-      }
+      await loadMyApprovedSongs();
     }
   };
+
+  const closePromoteModal = () => {
+    setPromoteOpen(false);
+    setPromotePayload(null);
+    setPromotePracticeId(null);
+    setPromoteApprovedId(null);
+    setPromoteSearch('');
+  };
+
+  const openPromoteModal = async (payload: SongWorkspacePaperPayload) => {
+    if (!user || !selected || selected.category !== 'practice') return;
+    setPromotePayload(payload);
+    setPromotePracticeId(selected.id);
+    setPromoteApprovedId(null);
+    setPromoteSearch('');
+    setPromoteOpen(true);
+    await loadMyApprovedSongs();
+  };
+
+  // 이동 모달: 제목이 같은 합격곡이 하나면 자동 선택
+  useEffect(() => {
+    if (!promoteOpen || !promotePayload || promoteApprovedId) return;
+    if (approvedLoading || promoteSearch.trim()) return;
+    const titleKey = normalizeSongTitle(promotePayload.title);
+    if (!titleKey) return;
+    const matches = myApprovedSongs.filter((song) => {
+      const key = normalizeSongTitle(song.title) || String(song.titleNoSpace ?? '').toLowerCase();
+      return key === titleKey || String(song.titleNoSpace ?? '').toLowerCase() === titleKey;
+    });
+    if (matches.length === 1) {
+      setPromoteApprovedId(matches[0].id);
+    }
+  }, [
+    promoteOpen,
+    promotePayload,
+    promoteApprovedId,
+    promoteSearch,
+    approvedLoading,
+    myApprovedSongs,
+  ]);
 
   const openDetail = (id: string, seed?: SongWorkspace) => {
     setSelectedId(id);
@@ -574,10 +708,6 @@ const SongWorkspaceManage: React.FC = () => {
       toast.error('함께하는 멤버만 삭제할 수 있습니다.');
       return;
     }
-    const ok = window.confirm(
-      `"${selected.title}" 연습장을 삭제할까요?\n함께하는 멤버 전원에게서 사라집니다.`
-    );
-    if (!ok) return;
 
     setSaving(true);
     try {
@@ -586,6 +716,185 @@ const SongWorkspaceManage: React.FC = () => {
       backToList();
     } catch (error) {
       console.error('삭제 실패:', error);
+      toast.error(formatFirestoreWriteError(error));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleConfirmPromote = async () => {
+    if (!user || !promotePayload || !promotePracticeId || !promoteApprovedId) {
+      toast.error('합격곡을 선택해주세요.');
+      return;
+    }
+
+    const practice =
+      items.find((item) => item.id === promotePracticeId) ??
+      (selected?.id === promotePracticeId ? selected : null);
+    if (!practice || practice.category !== 'practice') {
+      toast.error('연습곡을 찾을 수 없습니다.');
+      closePromoteModal();
+      return;
+    }
+    if (!canEditSongWorkspace(practice, user.nickname)) {
+      toast.error('함께하는 멤버만 이동할 수 있습니다.');
+      return;
+    }
+
+    const song = myApprovedSongs.find((s) => s.id === promoteApprovedId);
+    if (!song) {
+      toast.error('선택한 합격곡을 찾을 수 없습니다.');
+      return;
+    }
+
+    const title = (song.title || '').trim();
+    if (!title) {
+      toast.error('제목이 없는 합격곡입니다. 합격곡조회에서 제목을 확인해 주세요.');
+      return;
+    }
+
+    const songMembers = Array.isArray(song.members)
+      ? song.members.map((m) => String(m).trim()).filter(Boolean)
+      : [];
+    const members = mergeUniqueMembers(practice.members, promotePayload.members, songMembers, [
+      user.nickname,
+    ]);
+    const workspaceId = approvedWorkspaceDocId(song.id);
+    const workspaceRef = doc(db, SONG_WORKSPACE_COLLECTION, workspaceId);
+    const content = {
+      lyrics: promotePayload.lyrics,
+      highlights: promotePayload.highlights,
+      notes: promotePayload.notes,
+      partAssignments: promotePayload.partAssignments,
+      memo: promotePayload.memo,
+      linePartIds: [] as string[],
+      harmonyNote: '',
+    };
+
+    const confirmMove = window.confirm(
+      `"${practice.title}" 연습곡을 합격곡 "${title}" 연습장으로 옮길까요?\n가사·색칠·메모가 함께 이동하고, 연습곡 목록에서는 삭제됩니다.`
+    );
+    if (!confirmMove) return;
+
+    setSaving(true);
+    try {
+      // 예전(랜덤 ID) 합격 연습장이 있으면 그쪽에 내용 반영
+      const legacy = items.find(
+        (item) =>
+          item.category === 'approved' &&
+          item.approvedSongId === song.id &&
+          item.id !== practice.id
+      );
+
+      let targetId = workspaceId;
+      let nextMembers = members;
+
+      if (legacy) {
+        targetId = legacy.id;
+        nextMembers = mergeUniqueMembers(legacy.members, members);
+        if (workspaceHasContent(legacy)) {
+          const overwrite = window.confirm(
+            '이미 가져온 합격곡 연습장에 내용이 있습니다.\n연습곡 내용으로 덮어쓸까요?'
+          );
+          if (!overwrite) {
+            setSaving(false);
+            return;
+          }
+        }
+        await updateDoc(doc(db, SONG_WORKSPACE_COLLECTION, legacy.id), {
+          title,
+          titleNoSpace: song.titleNoSpace || normalizeSongTitle(title),
+          members: nextMembers,
+          approvedSongId: song.id,
+          category: 'approved',
+          ...content,
+          updatedAt: serverTimestamp(),
+          updatedByNickname: user.nickname,
+        });
+      } else {
+        const existingSnap = await getDoc(workspaceRef);
+        if (existingSnap.exists()) {
+          const parsed = parseSongWorkspaceDoc(
+            existingSnap.id,
+            existingSnap.data() as Record<string, unknown>
+          );
+          nextMembers = mergeUniqueMembers(parsed.members, members);
+          if (workspaceHasContent(parsed)) {
+            const overwrite = window.confirm(
+              '이미 가져온 합격곡 연습장에 내용이 있습니다.\n연습곡 내용으로 덮어쓸까요?'
+            );
+            if (!overwrite) {
+              setSaving(false);
+              return;
+            }
+          }
+          await updateDoc(workspaceRef, {
+            title,
+            titleNoSpace: song.titleNoSpace || normalizeSongTitle(title),
+            members: nextMembers,
+            approvedSongId: song.id,
+            category: 'approved',
+            ...content,
+            updatedAt: serverTimestamp(),
+            updatedByNickname: user.nickname,
+          });
+        } else {
+          await setDoc(workspaceRef, {
+            category: 'approved',
+            title,
+            titleNoSpace: song.titleNoSpace || normalizeSongTitle(title),
+            members: nextMembers,
+            approvedSongId: song.id,
+            ...content,
+            createdByUid: practice.createdByUid || user.uid,
+            createdByNickname: practice.createdByNickname || user.nickname,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            updatedByNickname: user.nickname,
+          });
+        }
+      }
+
+      // 연습곡 원본 삭제 (이동)
+      if (practice.id !== targetId) {
+        await deleteDoc(doc(db, SONG_WORKSPACE_COLLECTION, practice.id));
+      }
+
+      const opened: SongWorkspace = {
+        id: targetId,
+        category: 'approved',
+        title,
+        titleNoSpace: song.titleNoSpace || normalizeSongTitle(title),
+        members: nextMembers,
+        approvedSongId: song.id,
+        lyrics: content.lyrics,
+        highlights: content.highlights,
+        notes: content.notes,
+        partAssignments: content.partAssignments,
+        memo: content.memo,
+        linePartIds: [],
+        harmonyNote: '',
+        createdByUid: practice.createdByUid || user.uid,
+        createdByNickname: practice.createdByNickname || user.nickname,
+        createdAt: practice.createdAt,
+        updatedAt: null,
+        updatedByNickname: user.nickname,
+      };
+
+      closePromoteModal();
+      setCategory('approved');
+      setItems((prev) => {
+        const withoutPractice = prev.filter((item) => item.id !== practice.id);
+        const index = withoutPractice.findIndex((item) => item.id === targetId);
+        if (index < 0) return [opened, ...withoutPractice];
+        const next = [...withoutPractice];
+        next[index] = { ...next[index], ...opened };
+        return next;
+      });
+      toast.success('합격곡 연습장으로 옮겼습니다.');
+      openDetail(targetId, opened);
+    } catch (error) {
+      console.error('합격곡 이동 실패:', error);
       toast.error(formatFirestoreWriteError(error));
     } finally {
       setSaving(false);
@@ -621,6 +930,45 @@ const SongWorkspaceManage: React.FC = () => {
               </p>
             </header>
 
+            {isLeader && (
+              <section className="song-workspace__leader-browse" aria-label="멤버 연습장 조회">
+                <div className="song-workspace__leader-browse__head">
+                  <strong>멤버 연습장 조회</strong>
+                  <span className="song-workspace__badge">리더</span>
+                </div>
+                <p className="song-workspace__hint">
+                  다른 멤버의 연습곡·합격곡 카테고리를 조회할 수 있습니다. 공유 멤버가 아닌 곡은 읽기만
+                  가능합니다.
+                </p>
+                <div className="song-workspace__leader-browse__row">
+                  <NicknameSuggestInput
+                    value={browseInput}
+                    onChange={setBrowseInput}
+                    candidates={memberCandidates}
+                    excludeNicknames={user ? [user.nickname] : []}
+                    placeholder="닉네임 검색"
+                  />
+                  <button
+                    type="button"
+                    className="song-workspace__btn song-workspace__btn--primary"
+                    onClick={startLeaderBrowse}
+                  >
+                    조회
+                  </button>
+                  {isBrowsingOther && (
+                    <button type="button" className="song-workspace__btn" onClick={clearLeaderBrowse}>
+                      내 연습장
+                    </button>
+                  )}
+                </div>
+                {isBrowsingOther && (
+                  <p className="song-workspace__leader-browse__banner" role="status">
+                    <strong>{browseNickname}</strong>님의 연습장을 조회 중입니다.
+                  </p>
+                )}
+              </section>
+            )}
+
             <div className="song-workspace__tabs" role="tablist" aria-label="카테고리">
               <button
                 type="button"
@@ -644,17 +992,27 @@ const SongWorkspaceManage: React.FC = () => {
 
             <div className="song-workspace__toolbar">
               <span className="song-workspace__count">{filteredItems.length}곡</span>
-              <button type="button" className="song-workspace__btn song-workspace__btn--primary" onClick={openCreate}>
-                <Plus size={16} aria-hidden />
-                {category === 'practice' ? '연습곡 추가' : '합격곡 가져오기'}
-              </button>
+              {!isBrowsingOther && (
+                <button
+                  type="button"
+                  className="song-workspace__btn song-workspace__btn--primary"
+                  onClick={openCreate}
+                >
+                  <Plus size={16} aria-hidden />
+                  {category === 'practice' ? '연습곡 추가' : '합격곡 가져오기'}
+                </button>
+              )}
             </div>
 
             {filteredItems.length === 0 ? (
               <div className="song-workspace__empty">
-                {category === 'practice'
-                  ? '연습 중인 곡이 없습니다. 멤버를 넣고 추가하면 같은 연습장을 공유합니다.'
-                  : '관리 중인 합격곡이 없습니다. 가져오면 합격 멤버와 같은 화면을 공유합니다.'}
+                {isBrowsingOther
+                  ? category === 'practice'
+                    ? `${browseNickname}님이 멤버로 포함된 연습곡이 없습니다.`
+                    : `${browseNickname}님이 멤버로 포함된 합격곡 연습장이 없습니다.`
+                  : category === 'practice'
+                    ? '연습 중인 곡이 없습니다. 멤버를 넣고 추가하면 같은 연습장을 공유합니다.'
+                    : '관리 중인 합격곡이 없습니다. 가져오면 합격 멤버와 같은 화면을 공유합니다.'}
               </div>
             ) : (
               <div className="song-workspace__list">
@@ -831,13 +1189,21 @@ const SongWorkspaceManage: React.FC = () => {
                                 item.category === 'approved' && item.approvedSongId === song.id
                             );
                             return (
-                              <button
+                              <div
                                 key={song.id}
-                                type="button"
+                                role="option"
+                                tabIndex={0}
+                                aria-selected={selectedApprovedId === song.id}
                                 className={`song-workspace__approved-option${
                                   selectedApprovedId === song.id ? ' is-selected' : ''
                                 }`}
                                 onClick={() => setSelectedApprovedId(song.id)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    setSelectedApprovedId(song.id);
+                                  }
+                                }}
                               >
                                 <strong>
                                   {song.title}
@@ -845,11 +1211,14 @@ const SongWorkspaceManage: React.FC = () => {
                                     <span className="song-workspace__badge">등록됨</span>
                                   ) : null}
                                 </strong>
-                                <span className="song-workspace__card-meta">
-                                  {Array.isArray(song.members) ? song.members.join(', ') : ''}
+                                <span className="song-workspace__approved-option-meta">
+                                  멤버:{' '}
+                                  {Array.isArray(song.members) && song.members.length > 0
+                                    ? song.members.join(', ')
+                                    : '-'}
                                   {already ? ' · 가져오면 기존 연습장을 엽니다' : ''}
                                 </span>
-                              </button>
+                              </div>
                             );
                           })
                         )}
@@ -889,6 +1258,12 @@ const SongWorkspaceManage: React.FC = () => {
             saving={saving}
             remoteNewer={remoteNewer}
             reloadToken={reloadToken}
+            readOnly={!canEditSongWorkspace(selected, user?.nickname)}
+            browseLabel={
+              isBrowsingOther && !canEditSongWorkspace(selected, user?.nickname)
+                ? `${browseNickname}님 연습장 · 조회`
+                : undefined
+            }
             onBack={backToList}
             onReloadRemote={() => {
               loadedStampRef.current = updatedStamp(selected.updatedAt);
@@ -897,6 +1272,11 @@ const SongWorkspaceManage: React.FC = () => {
             }}
             onSave={handleSavePaper}
             onDelete={handleDelete}
+            onMoveToApproved={
+              selected.category === 'practice' && canEditSongWorkspace(selected, user?.nickname)
+                ? (payload) => void openPromoteModal(payload)
+                : undefined
+            }
           />
         )}
 
@@ -907,6 +1287,155 @@ const SongWorkspaceManage: React.FC = () => {
               <button type="button" className="song-workspace__btn" onClick={backToList}>
                 목록으로
               </button>
+            </div>
+          </div>
+        )}
+
+        {promoteOpen && (
+          <div
+            className="sw-settings-backdrop"
+            onClick={closePromoteModal}
+            role="presentation"
+          >
+            <div
+              className="sw-settings-modal"
+              onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="sw-promote-title"
+            >
+              <div className="sw-settings-modal__head">
+                <h2 id="sw-promote-title">합격곡으로 이동</h2>
+                <button
+                  type="button"
+                  className="sw-paper-icon-btn"
+                  aria-label="닫기"
+                  onClick={closePromoteModal}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <p className="song-workspace__hint">
+                이동할 합격곡을 선택하세요. 가사·색칠·메모가 그대로 옮겨지고 연습곡에서는 삭제됩니다.
+                {promotePayload?.title ? (
+                  <>
+                    <br />
+                    연습곡: <strong>{promotePayload.title}</strong>
+                  </>
+                ) : null}
+              </p>
+
+              <div className="song-workspace__field">
+                <label htmlFor="sw-promote-search">합격곡 검색</label>
+                <div className="song-workspace__search">
+                  <Search size={16} aria-hidden className="song-workspace__search-icon" />
+                  <input
+                    id="sw-promote-search"
+                    type="search"
+                    value={promoteSearch}
+                    onChange={(e) => {
+                      setPromoteSearch(e.target.value);
+                      setPromoteApprovedId(null);
+                    }}
+                    placeholder="제목·멤버 검색"
+                    autoComplete="off"
+                  />
+                  {promoteSearch.trim() ? (
+                    <button
+                      type="button"
+                      className="song-workspace__search-clear"
+                      aria-label="검색어 지우기"
+                      onClick={() => {
+                        setPromoteSearch('');
+                        setPromoteApprovedId(null);
+                      }}
+                    >
+                      <X size={14} />
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+
+              {approvedLoading ? (
+                <p className="song-workspace__status">합격곡을 불러오는 중…</p>
+              ) : promoteCandidates.length === 0 ? (
+                <div className="song-workspace__empty">
+                  선택할 합격곡이 없습니다. 합격곡조회에서 멤버로 등록된 곡이 있어야 합니다.
+                </div>
+              ) : (
+                <div className="song-workspace__approved-pick" role="listbox" aria-label="합격곡 목록">
+                  {promoteCandidates.map((song) => {
+                    const titleKey = normalizeSongTitle(promotePayload?.title ?? '');
+                    const songKey =
+                      normalizeSongTitle(song.title) ||
+                      String(song.titleNoSpace ?? '').toLowerCase();
+                    const titleMatch =
+                      !!titleKey &&
+                      (songKey === titleKey ||
+                        String(song.titleNoSpace ?? '').toLowerCase() === titleKey);
+                    const selectedPick = promoteApprovedId === song.id;
+                    const already = items.some(
+                      (item) =>
+                        item.category === 'approved' && item.approvedSongId === song.id
+                    );
+                    return (
+                      <div
+                        key={song.id}
+                        role="option"
+                        tabIndex={0}
+                        aria-selected={selectedPick}
+                        className={`song-workspace__approved-option${
+                          selectedPick ? ' is-selected' : ''
+                        }`}
+                        onClick={() => setPromoteApprovedId(song.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setPromoteApprovedId(song.id);
+                          }
+                        }}
+                      >
+                        <strong>
+                          {song.title || '(제목 없음)'}
+                          {titleMatch ? (
+                            <span className="song-workspace__badge">제목 일치</span>
+                          ) : null}
+                          {already ? (
+                            <span className="song-workspace__badge">등록됨</span>
+                          ) : null}
+                        </strong>
+                        <span className="song-workspace__approved-option-meta">
+                          멤버:{' '}
+                          {(song.members ?? []).length > 0
+                            ? (song.members ?? []).join(', ')
+                            : '-'}
+                          {already ? ' · 내용이 있으면 덮어쓰기 확인이 뜹니다' : ''}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="song-workspace__actions">
+                <button
+                  type="button"
+                  className="song-workspace__btn"
+                  onClick={closePromoteModal}
+                  disabled={saving}
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  className="song-workspace__btn song-workspace__btn--primary"
+                  disabled={saving || !promoteApprovedId || approvedLoading}
+                  onClick={() => void handleConfirmPromote()}
+                >
+                  {saving ? '이동 중…' : '이동하기'}
+                </button>
+              </div>
             </div>
           </div>
         )}

@@ -23,27 +23,35 @@ interface SelectionRange {
   left: number;
 }
 
+export type SongWorkspacePaperPayload = {
+  title: string;
+  members: string[];
+  lyrics: string;
+  highlights: LyricHighlight[];
+  notes: LyricNote[];
+  partAssignments: LyricPartAssignments;
+  memo: string;
+};
+
 interface SongWorkspacePaperProps {
   workspace: SongWorkspace;
   memberCandidates: UserMention[];
   saving: boolean;
   remoteNewer: boolean;
   reloadToken: number;
+  /** 공유 멤버가 아닐 때(리더 조회 등) 편집·삭제 잠금 */
+  readOnly?: boolean;
+  /** 상단 안내 배지 (예: 멤버 조회) */
+  browseLabel?: string;
   onBack: () => void;
   onReloadRemote: () => void;
   onSave: (
-    payload: {
-      title: string;
-      members: string[];
-      lyrics: string;
-      highlights: LyricHighlight[];
-      notes: LyricNote[];
-      partAssignments: LyricPartAssignments;
-      memo: string;
-    },
+    payload: SongWorkspacePaperPayload,
     options?: { silent?: boolean }
   ) => Promise<boolean> | boolean | Promise<void> | void;
   onDelete: () => void;
+  /** 연습곡 → 합격곡으로 이동 (가사·색·메모 유지) */
+  onMoveToApproved?: (payload: SongWorkspacePaperPayload) => void | Promise<void>;
 }
 
 type SaveSnapshot = {
@@ -72,10 +80,13 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
   saving,
   remoteNewer,
   reloadToken,
+  readOnly = false,
+  browseLabel,
   onBack,
   onReloadRemote,
   onSave,
   onDelete,
+  onMoveToApproved,
 }) => {
   const [title, setTitle] = useState(workspace.title);
   const [members, setMembers] = useState(
@@ -87,9 +98,10 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
   const [partAssignments, setPartAssignments] = useState<LyricPartAssignments>(
     workspace.partAssignments ?? {}
   );
-  // 가사 내용이 없으면(한 번도 저장·작성 안 한 곡) 편집 모드로 시작
-  const [isEditing, setIsEditing] = useState(() => !workspace.lyrics.trim());
+  // 가사 내용이 없으면(한 번도 저장·작성 안 한 곡) 편집 모드로 시작 — 조회 전용은 제외
+  const [isEditing, setIsEditing] = useState(() => !readOnly && !workspace.lyrics.trim());
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [selection, setSelection] = useState<SelectionRange | null>(null);
   const [noteDraft, setNoteDraft] = useState('');
   const [noteComposerOpen, setNoteComposerOpen] = useState(false);
@@ -99,6 +111,7 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
 
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
+  const floatRef = useRef<HTMLDivElement>(null);
   const composingRef = useRef(false);
   /** 가사 onChange마다 동기 갱신 — setState 전에 prev로 하이라이트 오프셋 보정 */
   const lyricsSyncRef = useRef(workspace.lyrics);
@@ -106,6 +119,10 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
   const compositionBaseRef = useRef(workspace.lyrics);
   /** 하이라이트 리렌더 후 커서가 튀는 경우 복원 */
   const pendingCaretRef = useRef<{ start: number; end: number } | null>(null);
+  /** 모바일에서 팔레트 탭 시 네이티브 선택이 붕괴돼도 색/메모 적용에 사용 */
+  const selectionRef = useRef<SelectionRange | null>(null);
+  /** 플로팅 팔레트 조작 중에는 selection state를 유지 */
+  const preserveSelectionRef = useRef(false);
   const noteComposerOpenRef = useRef(noteComposerOpen);
   const isEditingRef = useRef(isEditing);
   const persistInFlightRef = useRef(false);
@@ -125,6 +142,7 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
   });
   noteComposerOpenRef.current = noteComposerOpen;
   isEditingRef.current = isEditing;
+  selectionRef.current = selection;
   latestRef.current = {
     title,
     members,
@@ -142,7 +160,7 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
     setHighlights(workspace.highlights ?? []);
     setNotes(workspace.notes ?? []);
     setPartAssignments(workspace.partAssignments ?? {});
-    setIsEditing(!workspace.lyrics.trim());
+    setIsEditing(!readOnly && !workspace.lyrics.trim());
     setSelection(null);
     setNoteComposerOpen(false);
     setActiveNoteId(null);
@@ -156,7 +174,7 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
       notes: workspace.notes ?? [],
       partAssignments: workspace.partAssignments ?? {},
     });
-  }, [workspace.id, reloadToken]);
+  }, [workspace.id, reloadToken, readOnly]);
 
   const buildPayload = () => {
     const cleanedAssignments: LyricPartAssignments = {};
@@ -338,18 +356,34 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
     const editor = editorRef.current;
     if (!editor) return;
     if (!isEditingRef.current) {
+      selectionRef.current = null;
       setSelection(null);
       return;
     }
+
+    const active = document.activeElement;
+    const floatEl = floatRef.current;
+    const focusInFloat = !!(floatEl && active && floatEl.contains(active));
     // 드래그 직후 포커스가 아직 반영 전일 수 있어 activeElement 검사는 완화
-    if (document.activeElement !== editor && document.activeElement !== document.body) {
+    // 팔레트(메모 입력 등)에 포커스가 있어도 기존 선택은 유지
+    if (
+      active !== editor &&
+      active !== document.body &&
+      !focusInFloat &&
+      !preserveSelectionRef.current
+    ) {
       return;
     }
 
     const start = editor.selectionStart ?? 0;
     const end = editor.selectionEnd ?? 0;
     if (end <= start) {
-      if (!noteComposerOpenRef.current) setSelection(null);
+      // 모바일: 팔레트 탭 순간 네이티브 선택이 붕괴되어도 React 선택은 유지
+      if (preserveSelectionRef.current || noteComposerOpenRef.current || focusInFloat) {
+        return;
+      }
+      selectionRef.current = null;
+      setSelection(null);
       return;
     }
 
@@ -360,12 +394,14 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
     const lineIndex = textBefore.split('\n').length - 1;
     const top = paddingTop + (lineIndex + 1) * lineHeight - editor.scrollTop + 8;
 
-    setSelection({
+    const next: SelectionRange = {
       start,
       end,
       top: Math.max(8, Math.min(top, editor.clientHeight - 8)),
       left: 12,
-    });
+    };
+    selectionRef.current = next;
+    setSelection(next);
   };
 
   const offsetTopInEditor = (editor: HTMLTextAreaElement, offset: number) => {
@@ -410,12 +446,144 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
     const onSelectionChange = () => {
       const editor = editorRef.current;
       if (!editor) return;
-      if (document.activeElement !== editor) return;
+      const active = document.activeElement;
+      const floatEl = floatRef.current;
+      if (
+        active !== editor &&
+        !(floatEl && active && floatEl.contains(active)) &&
+        !preserveSelectionRef.current
+      ) {
+        return;
+      }
       scheduleToolbarUpdate();
     };
     document.addEventListener('selectionchange', onSelectionChange);
     return () => document.removeEventListener('selectionchange', onSelectionChange);
   }, []);
+
+  // 모바일: 가사 드래그(선택) 중 페이지·textarea 스크롤이 끼어들지 않도록 잠금
+  useEffect(() => {
+    if (!isEditing) return;
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    let fingerDown = false;
+    let blockScroll = false;
+    let longPressTimer: number | undefined;
+    let startX = 0;
+    let startY = 0;
+
+    const setSelectingClass = (on: boolean) => {
+      editor.classList.toggle('is-touch-selecting', on);
+      if (on) {
+        document.documentElement.classList.add('sw-lyric-selecting');
+      } else if (!selectionRef.current) {
+        // 팔레트가 떠 있으면 선택 effect가 잠금을 유지
+        document.documentElement.classList.remove('sw-lyric-selecting');
+      }
+    };
+
+    const clearLongPress = () => {
+      if (longPressTimer !== undefined) {
+        window.clearTimeout(longPressTimer);
+        longPressTimer = undefined;
+      }
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      fingerDown = true;
+      blockScroll = false;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      // 이미 선택 팔레트가 떠 있으면 색칠·선택 조정 우선
+      if (selectionRef.current) {
+        blockScroll = true;
+        setSelectingClass(true);
+      }
+      clearLongPress();
+      longPressTimer = window.setTimeout(() => {
+        if (!fingerDown) return;
+        blockScroll = true;
+        setSelectingClass(true);
+      }, 200);
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!fingerDown || e.touches.length !== 1) return;
+      const x = e.touches[0].clientX;
+      const y = e.touches[0].clientY;
+      const dx = Math.abs(x - startX);
+      const dy = Math.abs(y - startY);
+      const hasRange = (editor.selectionStart ?? 0) !== (editor.selectionEnd ?? 0);
+
+      if (!blockScroll && hasRange) {
+        blockScroll = true;
+        setSelectingClass(true);
+      }
+
+      if (!blockScroll && (dx > 10 || dy > 10)) {
+        clearLongPress();
+        // 가로 드래그는 선택 시도로 보고 스크롤 차단 (세로는 플리크 스크롤 허용)
+        if (dx >= dy) {
+          blockScroll = true;
+          setSelectingClass(true);
+        }
+      }
+
+      if (blockScroll) {
+        e.preventDefault();
+      }
+    };
+
+    const onTouchEnd = () => {
+      fingerDown = false;
+      blockScroll = false;
+      clearLongPress();
+      setSelectingClass(false);
+      scheduleToolbarUpdate();
+    };
+
+    editor.addEventListener('touchstart', onTouchStart, { passive: true });
+    editor.addEventListener('touchmove', onTouchMove, { passive: false });
+    editor.addEventListener('touchend', onTouchEnd, { passive: true });
+    editor.addEventListener('touchcancel', onTouchEnd, { passive: true });
+
+    return () => {
+      clearLongPress();
+      setSelectingClass(false);
+      editor.removeEventListener('touchstart', onTouchStart);
+      editor.removeEventListener('touchmove', onTouchMove);
+      editor.removeEventListener('touchend', onTouchEnd);
+      editor.removeEventListener('touchcancel', onTouchEnd);
+    };
+  }, [isEditing]);
+
+  // 선택 팔레트가 떠 있는 동안 배경 스크롤로 화면이 흔들리지 않게 함
+  useEffect(() => {
+    if (!selection) return;
+    const y = window.scrollY;
+    const { body } = document;
+    const prev = {
+      overflow: body.style.overflow,
+      position: body.style.position,
+      top: body.style.top,
+      width: body.style.width,
+    };
+    body.style.overflow = 'hidden';
+    body.style.position = 'fixed';
+    body.style.top = `-${y}px`;
+    body.style.width = '100%';
+    document.documentElement.classList.add('sw-lyric-selecting');
+    return () => {
+      document.documentElement.classList.remove('sw-lyric-selecting');
+      body.style.overflow = prev.overflow;
+      body.style.position = prev.position;
+      body.style.top = prev.top;
+      body.style.width = prev.width;
+      window.scrollTo(0, y);
+    };
+  }, [selection]);
 
   useLayoutEffect(() => {
     syncScroll();
@@ -441,6 +609,8 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
   }, [lyrics, highlights, notes]);
 
   const clearDragSelection = (collapseAt: number) => {
+    preserveSelectionRef.current = false;
+    selectionRef.current = null;
     setSelection(null);
     setNoteComposerOpen(false);
     setNoteDraft('');
@@ -494,17 +664,19 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
   };
 
   const applyColor = (partId: LyricPartId | null) => {
-    if (!selection) return;
-    const { start, end } = selection;
+    const sel = selectionRef.current ?? selection;
+    if (!sel || sel.end <= sel.start) return;
+    const { start, end } = sel;
     setHighlights((prev) => addOrReplaceHighlight(prev, start, end, partId));
     clearDragSelection(end);
   };
 
   const saveSelectionNote = () => {
-    if (!selection) return;
+    const sel = selectionRef.current ?? selection;
+    if (!sel || sel.end <= sel.start) return;
     const text = noteDraft.trim();
     if (!text) return;
-    const { start, end } = selection;
+    const { start, end } = sel;
     const id = createAnnotationId('note');
     setNotes((prev) => [
       ...prev,
@@ -517,6 +689,14 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
     ]);
     clearDragSelection(end);
     setActiveNoteId(id);
+  };
+
+  const preserveSelectionPointerDown = (e: React.PointerEvent) => {
+    // 메모 입력창은 포커스가 필요하므로 제외
+    const target = e.target as HTMLElement | null;
+    if (target?.closest?.('textarea')) return;
+    e.preventDefault();
+    preserveSelectionRef.current = true;
   };
 
   const handleSave = async () => {
@@ -532,11 +712,18 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
   };
 
   const startEditing = () => {
+    if (readOnly) return;
     setIsEditing(true);
     requestAnimationFrame(() => {
       editorRef.current?.focus();
     });
   };
+
+  useEffect(() => {
+    if (readOnly && isEditing) {
+      setIsEditing(false);
+    }
+  }, [readOnly, isEditing]);
 
   return (
     <div className="sw-paper-page">
@@ -550,6 +737,7 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
           <span className="song-workspace__badge">
             {workspace.category === 'practice' ? '연습곡' : '합격곡'}
           </span>
+          {browseLabel ? <span className="song-workspace__badge">{browseLabel}</span> : null}
         </div>
         <div className="sw-paper-topbar__actions">
           {autoSaveLabel && isEditing && (
@@ -557,38 +745,41 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
               {autoSaveLabel}
             </span>
           )}
-          {isEditing ? (
+          {!readOnly &&
+            (isEditing ? (
+              <button
+                type="button"
+                className="song-workspace__btn song-workspace__btn--primary"
+                disabled={saving}
+                onClick={() => void handleSave()}
+              >
+                <Save size={16} aria-hidden />
+                {saving ? '저장 중' : '저장'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="song-workspace__btn song-workspace__btn--primary"
+                onClick={startEditing}
+              >
+                <Pencil size={16} aria-hidden />
+                편집
+              </button>
+            ))}
+          {!readOnly && (
             <button
               type="button"
-              className="song-workspace__btn song-workspace__btn--primary"
-              disabled={saving}
-              onClick={() => void handleSave()}
+              className="sw-paper-icon-btn"
+              aria-label="설정"
+              onClick={() => setSettingsOpen(true)}
             >
-              <Save size={16} aria-hidden />
-              {saving ? '저장 중' : '저장'}
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="song-workspace__btn song-workspace__btn--primary"
-              onClick={startEditing}
-            >
-              <Pencil size={16} aria-hidden />
-              편집
+              <Settings size={18} />
             </button>
           )}
-          <button
-            type="button"
-            className="sw-paper-icon-btn"
-            aria-label="설정"
-            onClick={() => setSettingsOpen(true)}
-          >
-            <Settings size={18} />
-          </button>
         </div>
       </div>
 
-      {remoteNewer && (
+      {remoteNewer && !readOnly && (
         <div className="song-workspace__remote">
           <span>다른 멤버가 수정했습니다.</span>
           <button type="button" className="song-workspace__btn" onClick={onReloadRemote}>
@@ -598,9 +789,11 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
       )}
 
       <p className="sw-paper-toolbar__hint sw-paper-toolbar__hint--alone">
-        {isEditing
-          ? '편집 · 드래그로 색칠·메모. 잠시 멈추면 자동 저장됩니다.'
-          : '보기 · 편집을 누르면 가사·색·메모를 수정할 수 있습니다.'}
+        {readOnly
+          ? '조회 · 공유 멤버가 아니라 읽기만 가능합니다.'
+          : isEditing
+            ? '편집 · 드래그로 색칠·메모(모바일은 짧게 누른 뒤 드래그). 잠시 멈추면 자동 저장됩니다.'
+            : '보기 · 편집을 누르면 가사·색·메모를 수정할 수 있습니다.'}
       </p>
 
       <div className={`sw-paper-sheet${isEditing ? '' : ' is-view'}`}>
@@ -689,7 +882,7 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
                 className={`sw-paper-note-pin${activeNoteId === pin.id ? ' is-active' : ''}`}
                 style={{ top: pin.top, right: 8, left: 'auto' }}
                 title={pin.preview}
-                onMouseDown={(e) => e.preventDefault()}
+                onPointerDown={(e) => e.preventDefault()}
                 onClick={() => setActiveNoteId(pin.id)}
               >
                 메모 · {pin.preview}
@@ -698,8 +891,10 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
 
             {isEditing && selection && (
               <div
+                ref={floatRef}
                 className="sw-paper-float"
                 style={{ top: selection.top, left: Math.min(selection.left, 180) }}
+                onPointerDown={preserveSelectionPointerDown}
               >
                 <div className="sw-paper-float__colors">
                   {LYRIC_PART_OPTIONS.map((part) => {
@@ -716,8 +911,12 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
                             '--swatch-bg': part.bg,
                           } as React.CSSProperties
                         }
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => applyColor(part.id)}
+                        onPointerDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          preserveSelectionRef.current = true;
+                          applyColor(part.id);
+                        }}
                       >
                         <span className="song-workspace__swatch-label">{part.label}</span>
                         {assignee ? (
@@ -729,8 +928,12 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
                   <button
                     type="button"
                     className="song-workspace__swatch song-workspace__swatch--eraser"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => applyColor(null)}
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      preserveSelectionRef.current = true;
+                      applyColor(null);
+                    }}
                   >
                     지우기
                   </button>
@@ -739,18 +942,22 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
                   <button
                     type="button"
                     className="song-workspace__btn"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => setNoteComposerOpen(true)}
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      preserveSelectionRef.current = true;
+                      setNoteComposerOpen(true);
+                    }}
                   >
                     메모
                   </button>
                   <button
                     type="button"
                     className="song-workspace__btn song-workspace__btn--ghost"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      setSelection(null);
-                      setNoteComposerOpen(false);
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      clearDragSelection(selectionRef.current?.end ?? selection.end);
                     }}
                   >
                     닫기
@@ -767,8 +974,12 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
                     <button
                       type="button"
                       className="song-workspace__btn song-workspace__btn--primary"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={saveSelectionNote}
+                      onPointerDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        preserveSelectionRef.current = true;
+                        saveSelectionNote();
+                      }}
                     >
                       메모 저장
                     </button>
@@ -922,6 +1133,34 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
               </button>
             </div>
 
+            {workspace.category === 'practice' && onMoveToApproved && (
+              <div className="song-workspace__field">
+                <label>합격곡으로 이동</label>
+                <p className="song-workspace__hint">
+                  합격한 곡을 고르면 이 연습장의 가사·색칠·메모를 그대로 옮기고, 연습곡 목록에서는 제거됩니다.
+                </p>
+                <button
+                  type="button"
+                  className="song-workspace__btn song-workspace__btn--primary"
+                  disabled={saving}
+                  onClick={() => {
+                    void (async () => {
+                      if (isEditingRef.current && isDirty()) {
+                        const ok = await persist({ silent: true });
+                        if (!ok) {
+                          return;
+                        }
+                      }
+                      setSettingsOpen(false);
+                      await onMoveToApproved(buildPayload());
+                    })();
+                  }}
+                >
+                  합격곡 선택…
+                </button>
+              </div>
+            )}
+
             <div className="song-workspace__actions">
               <button
                 type="button"
@@ -934,10 +1173,79 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
                 type="button"
                 className="song-workspace__btn song-workspace__btn--danger"
                 disabled={saving}
-                onClick={onDelete}
+                onClick={() => setDeleteConfirmOpen(true)}
               >
                 <Trash2 size={16} aria-hidden />
                 삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteConfirmOpen && (
+        <div
+          className="sw-delete-confirm-backdrop"
+          role="presentation"
+          onClick={() => !saving && setDeleteConfirmOpen(false)}
+        >
+          <div
+            className="sw-delete-confirm"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="sw-delete-confirm-title"
+            aria-describedby="sw-delete-confirm-desc"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="sw-delete-confirm-title">연습장을 삭제할까요?</h3>
+            <div id="sw-delete-confirm-desc" className="sw-delete-confirm__body">
+              <p>
+                <strong>“{title.trim() || workspace.title || '제목 없음'}”</strong> 연습장을
+                삭제합니다.
+              </p>
+              {members.map((m) => m.trim()).filter(Boolean).length > 1 ? (
+                <>
+                  <p className="sw-delete-confirm__warn">
+                    이 가사진은 아래 멤버와 <strong>공유</strong> 중입니다.
+                    <br />
+                    삭제하면 <strong>함께하는 멤버 전원</strong>의 목록에서도 사라지고, 되돌릴 수
+                    없습니다.
+                  </p>
+                  <p className="sw-delete-confirm__members">
+                    공유 멤버:{' '}
+                    {members
+                      .map((m) => m.trim())
+                      .filter(Boolean)
+                      .join(', ')}
+                  </p>
+                </>
+              ) : (
+                <p className="sw-delete-confirm__warn">
+                  삭제하면 저장된 가사·색칠·메모가 모두 사라지며 되돌릴 수 없습니다.
+                </p>
+              )}
+              <p>정말 삭제하시겠습니까?</p>
+            </div>
+            <div className="sw-delete-confirm__actions">
+              <button
+                type="button"
+                className="song-workspace__btn"
+                disabled={saving}
+                onClick={() => setDeleteConfirmOpen(false)}
+              >
+                아니오
+              </button>
+              <button
+                type="button"
+                className="song-workspace__btn song-workspace__btn--danger"
+                disabled={saving}
+                onClick={() => {
+                  setDeleteConfirmOpen(false);
+                  setSettingsOpen(false);
+                  onDelete();
+                }}
+              >
+                {saving ? '삭제 중…' : '예, 삭제합니다'}
               </button>
             </div>
           </div>
