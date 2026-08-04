@@ -384,6 +384,10 @@
   box-sizing: border-box;
 }
 
+.admin-tab-panel--hidden {
+  display: none;
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -2755,6 +2759,24 @@
   color: #334155;
   font-weight: 600;
   cursor: pointer;
+}
+
+.email-history-refresh:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.email-history-refresh-spin {
+  animation: email-history-spin 0.8s linear infinite;
+}
+
+@keyframes email-history-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .email-history-view-tabs {

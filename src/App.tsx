@@ -171,6 +171,7 @@ const EvaluationPostWrite = lazy(() => import('./components/EvaluationPostWrite'
 const EvaluationPostDetail = lazy(() => import('./components/EvaluationPostDetail'));
 const EvaluationPostEdit = lazy(() => import('./components/EvaluationPostEdit'));
 const HallOfFame = lazy(() => import('./components/HallOfFame'));
+const MemberWorldCupPage = lazy(() => import('./components/MemberWorldCupPage'));
 const PracticeRoomBooking = lazy(() => import('./components/PracticeRoomBooking'));
 const PracticeRoomManagement = lazy(() => import('./components/PracticeRoomManagement'));
 const GamesHub = lazy(() => import('./components/games/GamesHub'));
@@ -1151,6 +1152,7 @@ function App() {
               
               {/* 명예의전당 라우트 */}
               <Route path="/hall-of-fame" element={<ProtectedRoute><HallOfFame /></ProtectedRoute>} />
+              <Route path="/member-world-cup" element={<ProtectedRoute><MemberWorldCupPage /></ProtectedRoute>} />
               {/* 밸런스게시판 제거: 기존 링크 호환을 위해 명예의전당으로 리다이렉트 */}
               <Route path="/balance/*" element={<Navigate to="/hall-of-fame" replace />} />
               

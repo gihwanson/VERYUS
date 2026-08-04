@@ -272,6 +272,25 @@ service cloud.firestore {
       allow read, write: if signedIn();
     }
 
+    /** 멤버 월드컵 — 집계는 전원 열람, 개별 투표는 본인·너래만 */
+    match /memberWorldCupQuestions/{questionId} {
+      allow read, create, update: if signedIn();
+      allow delete: if false;
+    }
+
+    match /memberWorldCupVotes/{voteId} {
+      allow read: if signedIn() && (
+        isNerae() ||
+        !exists(/databases/$(database)/documents/memberWorldCupVotes/$(voteId)) ||
+        resource.data.voterUid == request.auth.uid
+      );
+      allow create, update: if signedIn()
+        && request.resource.data.voterUid == request.auth.uid
+        && request.resource.data.questionId is string
+        && voteId == request.resource.data.questionId + '_' + request.auth.uid;
+      allow delete: if false;
+    }
+
     match /practiceRoomSettings/{docId} {
       allow read, write: if signedIn();
     }

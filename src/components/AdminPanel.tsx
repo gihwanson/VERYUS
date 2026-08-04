@@ -2119,7 +2119,12 @@ const AdminPanel: React.FC = () => {
       <main className="admin-main tab-content">
         {activeTab === 'users' && renderUsersPanel()}
         {activeTab === 'grades' && renderGradesPanel()}
-        {activeTab === 'emails' && <AdminEmailHistoryPanel />}
+        <div
+          className={activeTab === 'emails' ? undefined : 'admin-tab-panel--hidden'}
+          aria-hidden={activeTab !== 'emails'}
+        >
+          <AdminEmailHistoryPanel isActive={activeTab === 'emails'} />
+        </div>
         {activeTab === 'logs' && renderLogsPanel()}
         {activeTab === 'lab' && isSuperAdmin && <AdminDesignLab />}
       </main>

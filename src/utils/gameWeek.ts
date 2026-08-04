@@ -63,6 +63,15 @@ export const formatWeekKey = (mondayUtc: Date): string => {
   return `${y}-${m}-${d}`;
 };
 
+/** KST 기준 이번 주 월요일 키 (YYYY-MM-DD, 월~일 한 주) */
+export const getCurrentWeekMondayKey = (at = new Date()): string => {
+  const kst = getKstParts(at);
+  const daysFromMonday = (kst.dayOfWeek + 6) % 7;
+  const mondayDay = kst.day - daysFromMonday;
+  const currentWeekMonday = kstToUtcDate(kst.year, kst.month, mondayDay);
+  return formatWeekKey(currentWeekMonday);
+};
+
 /** 다음 월요일 00:00 (KST) */
 export const getNextMondayResetAtKst = (from = new Date()): Date => {
   const kst = getKstParts(from);

@@ -10,6 +10,8 @@ import {
   query,
   orderBy,
   limit,
+  type QuerySnapshot,
+  type DocumentData,
 } from 'firebase/firestore';
 import { db } from '../firebase';
 
@@ -169,17 +171,19 @@ export interface CurrentMemberEmailRow {
 }
 
 /** 현재 users에 있는 멤버를 이메일 이력에 반영(없는 경우만 추가) */
-export async function syncCurrentMembersToEmailHistory(): Promise<{
+export async function syncCurrentMembersToEmailHistory(
+  usersSnap?: QuerySnapshot<DocumentData>
+): Promise<{
   created: number;
   linked: number;
   skipped: number;
 }> {
-  const usersSnap = await getDocs(collection(db, 'users'));
+  const snap = usersSnap ?? (await getDocs(collection(db, 'users')));
   let created = 0;
   let linked = 0;
   let skipped = 0;
 
-  for (const userDoc of usersSnap.docs) {
+  for (const userDoc of snap.docs) {
     const data = userDoc.data();
     const email = typeof data.email === 'string' ? normalizeEmail(data.email) : '';
     if (!email) {
@@ -242,19 +246,12 @@ export async function syncCurrentMembersToEmailHistory(): Promise<{
   return { created, linked, skipped };
 }
 
-/** 현재 가입 중인 멤버 이메일 목록(+이력 건수) */
-export async function fetchCurrentMemberEmails(
-  histories?: Array<EmailRegistrationHistoryDoc & { id: string }>
-): Promise<CurrentMemberEmailRow[]> {
-  const [usersSnap, historyRows] = await Promise.all([
-    getDocs(collection(db, 'users')),
-    histories
-      ? Promise.resolve(histories)
-      : fetchAllEmailRegistrationHistories(),
-  ]);
-
+export function buildCurrentMemberEmailsFromUsersSnap(
+  usersSnap: QuerySnapshot<DocumentData>,
+  histories: Array<EmailRegistrationHistoryDoc & { id: string }>
+): CurrentMemberEmailRow[] {
   const historyCountByEmail = new Map<string, number>();
-  historyRows.forEach((item) => {
+  histories.forEach((item) => {
     historyCountByEmail.set(normalizeEmail(item.email), (item.entries || []).length);
   });
 
@@ -274,6 +271,34 @@ export async function fetchCurrentMemberEmails(
 
   rows.sort((a, b) => a.nickname.localeCompare(b.nickname, 'ko'));
   return rows;
+}
+
+/** 현재 가입 중인 멤버 이메일 목록(+이력 건수) */
+export async function fetchCurrentMemberEmails(
+  histories?: Array<EmailRegistrationHistoryDoc & { id: string }>
+): Promise<CurrentMemberEmailRow[]> {
+  const [usersSnap, historyRows] = await Promise.all([
+    getDocs(collection(db, 'users')),
+    histories ? Promise.resolve(histories) : fetchAllEmailRegistrationHistories(),
+  ]);
+
+  return buildCurrentMemberEmailsFromUsersSnap(usersSnap, historyRows);
+}
+
+/** 이메일 이력 탭용: 이력·멤버 목록을 users 1회 조회로 병렬 로드 */
+export async function fetchEmailHistoryPanelData(): Promise<{
+  histories: Array<EmailRegistrationHistoryDoc & { id: string }>;
+  currentMembers: CurrentMemberEmailRow[];
+}> {
+  const [histories, usersSnap] = await Promise.all([
+    fetchAllEmailRegistrationHistories(),
+    getDocs(collection(db, 'users')),
+  ]);
+
+  return {
+    histories,
+    currentMembers: buildCurrentMemberEmailsFromUsersSnap(usersSnap, histories),
+  };
 }
 
 export function formatEmailHistoryEntryTime(value: unknown): string {

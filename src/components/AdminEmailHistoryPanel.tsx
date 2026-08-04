@@ -1,40 +1,41 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Mail, RefreshCw, Search, X } from 'lucide-react';
 import {
+  buildCurrentMemberEmailsFromUsersSnap,
   fetchAllEmailRegistrationHistories,
-  fetchCurrentMemberEmails,
+  fetchEmailHistoryPanelData,
   formatEmailHistoryEntryTime,
   syncCurrentMembersToEmailHistory,
   type CurrentMemberEmailRow,
   type EmailRegistrationHistoryDoc,
 } from '../utils/emailRegistrationHistory';
+import { getDocs, collection } from 'firebase/firestore';
+import { db } from '../firebase';
 import { LoadingSpinner, EmptyState } from './AdminComponents';
 
 type EmailHistoryView = 'duplicate' | 'single' | 'current';
 
-const AdminEmailHistoryPanel: React.FC = () => {
+interface AdminEmailHistoryPanelProps {
+  isActive: boolean;
+}
+
+const AdminEmailHistoryPanel: React.FC<AdminEmailHistoryPanelProps> = ({ isActive }) => {
   const [histories, setHistories] = useState<Array<EmailRegistrationHistoryDoc & { id: string }>>([]);
   const [currentMembers, setCurrentMembers] = useState<CurrentMemberEmailRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [view, setView] = useState<EmailHistoryView>('duplicate');
   const [expandedEmails, setExpandedEmails] = useState<Set<string>>(new Set());
   const [syncNote, setSyncNote] = useState<string | null>(null);
+  const hasLoadedRef = useRef(false);
 
   const loadHistories = useCallback(async () => {
     setLoading(true);
-    setSyncNote(null);
     try {
-      const syncResult = await syncCurrentMembersToEmailHistory();
-      const data = await fetchAllEmailRegistrationHistories();
-      const members = await fetchCurrentMemberEmails(data);
+      const { histories: data, currentMembers: members } = await fetchEmailHistoryPanelData();
       setHistories(data);
       setCurrentMembers(members);
-
-      const synced = syncResult.created + syncResult.linked;
-      if (synced > 0) {
-        setSyncNote(`현재 멤버 ${synced}명의 이메일을 이력에 저장했습니다.`);
-      }
     } catch (error) {
       console.error('이메일 이력 로딩 실패:', error);
       alert('이메일 이력을 불러오지 못했습니다.');
@@ -43,9 +44,36 @@ const AdminEmailHistoryPanel: React.FC = () => {
     }
   }, []);
 
+  const refreshWithSync = useCallback(async () => {
+    setRefreshing(true);
+    setSyncNote(null);
+    try {
+      const usersSnap = await getDocs(collection(db, 'users'));
+      const syncResult = await syncCurrentMembersToEmailHistory(usersSnap);
+      const data = await fetchAllEmailRegistrationHistories();
+      const members = buildCurrentMemberEmailsFromUsersSnap(usersSnap, data);
+      setHistories(data);
+      setCurrentMembers(members);
+
+      const synced = syncResult.created + syncResult.linked;
+      if (synced > 0) {
+        setSyncNote(`현재 멤버 ${synced}명의 이메일을 이력에 저장했습니다.`);
+      } else {
+        setSyncNote('이력이 최신 상태입니다.');
+      }
+    } catch (error) {
+      console.error('이메일 이력 동기화 실패:', error);
+      alert('이메일 이력을 동기화하지 못했습니다.');
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
   useEffect(() => {
+    if (!isActive || hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
     void loadHistories();
-  }, [loadHistories]);
+  }, [isActive, loadHistories]);
 
   const { duplicateHistories, singleHistories } = useMemo(() => {
     const duplicate: typeof histories = [];
@@ -102,14 +130,19 @@ const AdminEmailHistoryPanel: React.FC = () => {
         <div>
           <h2>이메일 가입 이력</h2>
           <p>
-            동일 이메일로 다시 가입한 계정을 가려내기 위한 기록입니다. 현재 멤버 이메일도
-            자동으로 저장되어 이후 재가입을 추적할 수 있습니다.
+            동일 이메일로 다시 가입한 계정을 가려내기 위한 기록입니다. 새로고침 시 현재
+            멤버 이메일을 이력에 동기화합니다.
           </p>
           {syncNote && <p className="email-history-sync-note">{syncNote}</p>}
         </div>
-        <button type="button" className="email-history-refresh" onClick={loadHistories}>
-          <RefreshCw size={16} />
-          새로고침
+        <button
+          type="button"
+          className="email-history-refresh"
+          onClick={refreshWithSync}
+          disabled={refreshing}
+        >
+          <RefreshCw size={16} className={refreshing ? 'email-history-refresh-spin' : undefined} />
+          {refreshing ? '동기화 중…' : '새로고침'}
         </button>
       </div>
 
