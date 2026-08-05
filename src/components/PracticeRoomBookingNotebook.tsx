@@ -14,7 +14,7 @@ import {
 import {
   canBookDateUnderTicketing,
   getTicketingStatusMessage,
-  isTicketingPolicyActive,
+  isTargetDateUnderTicketing,
   isUnbookedSlotWalkInOpen,
   loadPracticeRoomTicketingSettings,
   TICKETING_WALKIN_NOTICE,
@@ -555,8 +555,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
       const dateStr = formatDate(dateToCheck);
       const useTicketingParticipation = shouldUseTicketingParticipationRules(
         dateStr,
-        ticketingSettings?.enabledFrom,
-        isTicketingPolicyActive(ticketingSettings)
+        ticketingSettings
       );
       const weekRange = getParticipationWeekRange(dateStr, useTicketingParticipation);
 
@@ -664,7 +663,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
     
     // 차단 규칙 체크
     const ruleCheck = isBlockedByRule(date);
-    const ticketingActive = isTicketingPolicyActive(ticketingSettings, now);
+    const targetUnderTicketing = isTargetDateUnderTicketing(dateStr, ticketingSettings);
     const ticketingBookCheck = canBookDateUnderTicketing(
       dateStr,
       ticketingSettings,
@@ -714,8 +713,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
         blockReason = '자유 이용';
         blockedBy = '티켓팅';
       } else if (
-        ticketingActive &&
-        dateStr >= (ticketingSettings?.enabledFrom ?? '') &&
+        targetUnderTicketing &&
         !reservation &&
         !ticketingBookCheck.allowed
       ) {
@@ -1080,8 +1078,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
       if (!isUnlimitedUser) {
         const useTicketingParticipation = shouldUseTicketingParticipationRules(
           dateStr,
-          ticketingSettings?.enabledFrom,
-          isTicketingPolicyActive(ticketingSettings)
+          ticketingSettings
         );
 
         if (useTicketingParticipation) {

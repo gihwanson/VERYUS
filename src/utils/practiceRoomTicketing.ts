@@ -57,6 +57,15 @@ export function isTicketingPolicyActive(
   return formatDateYmdKst(now) >= settings.enabledFrom;
 }
 
+/** 이용 대상 날짜가 티켓팅 구간에 포함되는지 (오늘 날짜와 무관) */
+export function isTargetDateUnderTicketing(
+  targetDateStr: string,
+  settings: PracticeRoomTicketingSettings | null | undefined
+): boolean {
+  if (!settings?.enabled) return false;
+  return targetDateStr >= settings.enabledFrom;
+}
+
 /** 대상 날짜가 속한 이용 주(월~일) */
 export function getBookableWeekRangeForDate(targetDateStr: string): { start: string; end: string } {
   const [year, month, day] = targetDateStr.split('-').map(Number);
@@ -110,8 +119,8 @@ export function canBookDateUnderTicketing(
   isPrivileged = false
 ): { allowed: boolean; reason?: string } {
   if (isPrivileged) return { allowed: true };
-  if (!isTicketingPolicyActive(settings, now)) return { allowed: true };
-  if (targetDateStr < (settings?.enabledFrom ?? '')) return { allowed: true };
+  if (!settings?.enabled) return { allowed: true };
+  if (!isTargetDateUnderTicketing(targetDateStr, settings)) return { allowed: true };
 
   if (isTicketingNonBookableWeekday(targetDateStr)) {
     return {
@@ -161,7 +170,12 @@ export function getTicketingStatusMessage(
   settings: PracticeRoomTicketingSettings | null | undefined,
   now = new Date()
 ): string | null {
-  if (!isTicketingPolicyActive(settings, now)) return null;
+  if (!settings?.enabled) return null;
+
+  const today = formatDateYmdKst(now);
+  if (today < settings.enabledFrom) {
+    return `🎫 ${settings.enabledFrom}부터 티켓팅 시작. ${TICKETING_BOOKING_NOTICE}`;
+  }
 
   if (isBookingWindowOpen(settings, now)) {
     const { start, end } = getBookableWeekRangeOnOpenSunday(now);

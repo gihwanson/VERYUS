@@ -1,6 +1,10 @@
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
-import { getBookableWeekRangeForDate } from './practiceRoomTicketing';
+import {
+  getBookableWeekRangeForDate,
+  isTargetDateUnderTicketing,
+  type PracticeRoomTicketingSettings,
+} from './practiceRoomTicketing';
 
 export const MAX_WEEKLY_PARTICIPATIONS = 1;
 
@@ -143,8 +147,7 @@ export function validateTicketingParticipationBooking(params: {
 
 export function shouldUseTicketingParticipationRules(
   targetDateStr: string,
-  enabledFrom: string | undefined,
-  ticketingActive: boolean
+  settings: PracticeRoomTicketingSettings | null | undefined
 ): boolean {
-  return ticketingActive && targetDateStr >= (enabledFrom ?? '');
+  return isTargetDateUnderTicketing(targetDateStr, settings);
 }
