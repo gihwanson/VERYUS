@@ -284,10 +284,18 @@ service cloud.firestore {
         !exists(/databases/$(database)/documents/memberWorldCupVotes/$(voteId)) ||
         resource.data.voterUid == request.auth.uid
       );
-      allow create, update: if signedIn()
+      allow create: if signedIn()
         && request.resource.data.voterUid == request.auth.uid
         && request.resource.data.questionId is string
-        && voteId == request.resource.data.questionId + '_' + request.auth.uid;
+        && voteId == request.resource.data.questionId + '_' + request.auth.uid
+        && !exists(/databases/$(database)/documents/memberWorldCupVotes/$(voteId));
+      allow update: if signedIn()
+        && request.resource.data.voterUid == request.auth.uid
+        && resource.data.voterUid == request.auth.uid
+        && request.resource.data.questionId is string
+        && voteId == request.resource.data.questionId + '_' + request.auth.uid
+        && resource.data.weekKey != request.resource.data.weekKey
+        && request.resource.data.weekKey > resource.data.weekKey;
       allow delete: if false;
     }
 

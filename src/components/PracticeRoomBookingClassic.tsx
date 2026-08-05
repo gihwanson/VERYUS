@@ -11,7 +11,23 @@ import {
   ALWAYS_OPEN_NOTICE,
   type PracticeRoomAlwaysOpenSettings,
 } from '../utils/practiceRoomAlwaysOpen';
+import {
+  canBookDateUnderTicketing,
+  getTicketingStatusMessage,
+  isTicketingPolicyActive,
+  isUnbookedSlotWalkInOpen,
+  loadPracticeRoomTicketingSettings,
+  TICKETING_WALKIN_NOTICE,
+  type PracticeRoomTicketingSettings,
+} from '../utils/practiceRoomTicketing';
 import { getMaxHoursByParticipantCount } from '../utils/practiceRoomBookingRules';
+import {
+  countWeeklyParticipationsByNickname,
+  fetchConfirmedReservationsInWeek,
+  getParticipationWeekRange,
+  shouldUseTicketingParticipationRules,
+  validateTicketingParticipationBooking,
+} from '../utils/practiceRoomWeeklyParticipation';
 import { Calendar, Clock, User, X, ChevronLeft, ChevronRight, Info, RefreshCw, LogIn, LogOut, Users } from 'lucide-react';
 
 interface Reservation {
@@ -38,6 +54,8 @@ interface TimeSlot {
   isPast: boolean;
   isBlocked: boolean;
   isException?: boolean; // 규칙 예외 허용
+  isWalkInOpen?: boolean;
+  isTicketingBlock?: boolean;
   blockReason?: string;
   blockedBy?: string;
   blockId?: string;
@@ -93,6 +111,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
   const [blockingRules, setBlockingRules] = useState<BlockingRule[]>([]);
   const [alwaysOpenSettings, setAlwaysOpenSettings] = useState<PracticeRoomAlwaysOpenSettings | null>(null);
+  const [ticketingSettings, setTicketingSettings] = useState<PracticeRoomTicketingSettings | null>(null);
   const [purpose, setPurpose] = useState('');
   const [duration, setDuration] = useState(1);
   const [maxAvailableDuration, setMaxAvailableDuration] = useState<number>(1);
@@ -165,6 +184,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
       loadBlockedSlots();
       loadBlockingRules();
       loadAlwaysOpenSettings();
+      loadTicketingSettings();
     }
   }, [selectedDate, currentUser]);
 
@@ -290,6 +310,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
         calculateWeeklyReservationCount();
         loadBlockedSlots();
         loadAlwaysOpenSettings();
+        loadTicketingSettings();
       } else {
         console.log('예약 처리 중이라 자동 새로고침 생략');
       }
@@ -397,6 +418,18 @@ const PracticeRoomBookingClassic: React.FC = () => {
       console.error('상시개방 설정 로딩 실패:', error);
     }
   };
+
+  const loadTicketingSettings = async () => {
+    try {
+      const settings = await loadPracticeRoomTicketingSettings();
+      setTicketingSettings(settings);
+    } catch (error) {
+      console.error('티켓팅 설정 로딩 실패:', error);
+    }
+  };
+
+  const isPrivilegedBookingUser = isUnlimitedUser || isAdmin;
+  const ticketingStatusMessage = getTicketingStatusMessage(ticketingSettings);
 
   const isAlwaysOpenDate = (date: Date) =>
     isDateInAlwaysOpenPeriod(date, alwaysOpenSettings);
@@ -520,8 +553,25 @@ const PracticeRoomBookingClassic: React.FC = () => {
 
     try {
       const dateToCheck = targetDate || selectedDate;
-      const weekStartStr = formatDate(getWeekStart(dateToCheck));
-      const weekEndStr = formatDate(getWeekEnd(dateToCheck));
+      const dateStr = formatDate(dateToCheck);
+      const useTicketingParticipation = shouldUseTicketingParticipationRules(
+        dateStr,
+        ticketingSettings?.enabledFrom,
+        isTicketingPolicyActive(ticketingSettings)
+      );
+      const weekRange = getParticipationWeekRange(dateStr, useTicketingParticipation);
+
+      if (useTicketingParticipation) {
+        const reservations = await fetchConfirmedReservationsInWeek(weekRange.start, weekRange.end);
+        const total = countWeeklyParticipationsByNickname(
+          reservations,
+          currentUser.nickname || '익명'
+        );
+        if (formatDate(dateToCheck) === formatDate(selectedDate)) {
+          setWeeklyReservationCount(total);
+        }
+        return total;
+      }
 
       const q = query(
         collection(db, 'practiceRoomReservations'),
@@ -532,8 +582,8 @@ const PracticeRoomBookingClassic: React.FC = () => {
       const weeklyReservations = snapshot.docs.filter((item) => {
         const data = item.data() as Record<string, any>;
         if (data.status !== 'confirmed') return false;
-        const dateStr = String(data.date || '');
-        return dateStr >= weekStartStr && dateStr <= weekEndStr;
+        const reservationDate = String(data.date || '');
+        return reservationDate >= weekRange.start && reservationDate <= weekRange.end;
       });
 
       // 1~3시간 연속 예약은 같은 reservationGroup으로 묶여 1회로 계산
@@ -615,6 +665,13 @@ const PracticeRoomBookingClassic: React.FC = () => {
     
     // 차단 규칙 체크
     const ruleCheck = isBlockedByRule(date);
+    const ticketingActive = isTicketingPolicyActive(ticketingSettings, now);
+    const ticketingBookCheck = canBookDateUnderTicketing(
+      dateStr,
+      ticketingSettings,
+      now,
+      isPrivilegedBookingUser
+    );
     
     for (let hour = OPEN_TIME; hour < CLOSE_TIME; hour++) {
       const timeStr = `${String(hour).padStart(2, '0')}:00`;
@@ -640,12 +697,33 @@ const PracticeRoomBookingClassic: React.FC = () => {
       let blockedBy = '';
       let blockId = undefined;
       let isException = false;
+      let isWalkInOpen = false;
+      let isTicketingBlock = false;
+
+      const slotWalkIn =
+        !alwaysOpen &&
+        isUnbookedSlotWalkInOpen(dateStr, Boolean(reservation), ticketingSettings, now);
       
       if (alwaysOpen) {
         isBlocked = true;
         blockReason = '상시개방';
         blockedBy = '상시개방 기간';
         isException = false;
+      } else if (slotWalkIn) {
+        isBlocked = true;
+        isWalkInOpen = true;
+        blockReason = '자유 이용';
+        blockedBy = '티켓팅';
+      } else if (
+        ticketingActive &&
+        dateStr >= (ticketingSettings?.enabledFrom ?? '') &&
+        !reservation &&
+        !ticketingBookCheck.allowed
+      ) {
+        isBlocked = true;
+        isTicketingBlock = true;
+        blockReason = ticketingBookCheck.reason || '예약 오픈 전';
+        blockedBy = '티켓팅';
       } else if (individualSlot) {
         // 개별 설정이 있는 경우
         if (individualSlot.isException) {
@@ -680,9 +758,17 @@ const PracticeRoomBookingClassic: React.FC = () => {
       slots.push({
         time: timeStr,
         endTime: endTimeStr,
-        isAvailable: !reservation && !isPast && !isBlocked && !alwaysOpen,
+        isAvailable:
+          !reservation &&
+          !isPast &&
+          !isBlocked &&
+          !alwaysOpen &&
+          !isWalkInOpen &&
+          ticketingBookCheck.allowed,
         isPast: isPast,
         isBlocked: isBlocked || alwaysOpen,
+        isWalkInOpen,
+        isTicketingBlock,
         isException: isException,
         blockReason: blockReason,
         blockedBy: blockedBy,
@@ -743,6 +829,17 @@ const PracticeRoomBookingClassic: React.FC = () => {
   ) => {
     if (isAlwaysOpenDate(date)) {
       alert(`🟢 ${ALWAYS_OPEN_NOTICE}`);
+      return;
+    }
+
+    const bookingCheck = canBookDateUnderTicketing(
+      formatDate(date),
+      ticketingSettings,
+      new Date(),
+      isPrivilegedBookingUser
+    );
+    if (!bookingCheck.allowed) {
+      alert(bookingCheck.reason || '현재 예약할 수 없습니다.');
       return;
     }
 
@@ -813,9 +910,18 @@ const PracticeRoomBookingClassic: React.FC = () => {
       alert(`🟢 ${ALWAYS_OPEN_NOTICE}`);
       return;
     }
+
+    if (slot.isWalkInOpen) {
+      alert(`🟢 ${TICKETING_WALKIN_NOTICE}`);
+      return;
+    }
     
     // 차단된 시간대 클릭
     if (slot.isBlocked) {
+      if (slot.isTicketingBlock && !isPrivilegedBookingUser) {
+        alert(`🎫 ${slot.blockReason || '현재 예약할 수 없습니다.'}`);
+        return;
+      }
       if (isUnlimitedUser) {
         await openBookingFlow(slot, date, { ignoreBlocks: true, ignoreReservations: true });
       } else if (isAdmin) {
@@ -911,6 +1017,17 @@ const PracticeRoomBookingClassic: React.FC = () => {
   const handleBooking = async () => {
     if (!selectedTimeSlot || !currentUser || !bookingDate) return;
 
+    const bookingCheck = canBookDateUnderTicketing(
+      formatDate(bookingDate),
+      ticketingSettings,
+      new Date(),
+      isPrivilegedBookingUser
+    );
+    if (!bookingCheck.allowed) {
+      alert(bookingCheck.reason || '현재 예약할 수 없습니다.');
+      return;
+    }
+
     if (!isUnlimitedUser && isCherryGradeUser()) {
       alert(CHERRY_GRADE_BOOKING_MESSAGE);
       return;
@@ -961,12 +1078,35 @@ const PracticeRoomBookingClassic: React.FC = () => {
       console.log('⏱️  예약 시간:', duration, '시간');
 
       const weeklyCount = await calculateWeeklyReservationCount(bookingDate);
-      if (!isUnlimitedUser && weeklyCount >= MAX_WEEKLY_RESERVATIONS) {
-        alert('주에 1회만 예약이 가능합니다.');
-        isBookingInProgress.current = false;
-        setLoading(false);
-        setShowBookingModal(false);
-        return;
+      if (!isUnlimitedUser) {
+        const useTicketingParticipation = shouldUseTicketingParticipationRules(
+          dateStr,
+          ticketingSettings?.enabledFrom,
+          isTicketingPolicyActive(ticketingSettings)
+        );
+
+        if (useTicketingParticipation) {
+          const weekRange = getParticipationWeekRange(dateStr, true);
+          const reservations = await fetchConfirmedReservationsInWeek(weekRange.start, weekRange.end);
+          const participationCheck = validateTicketingParticipationBooking({
+            bookerNickname: currentUser.nickname || '익명',
+            memberNicknames: trimmedMembers,
+            reservations,
+          });
+          if (!participationCheck.allowed) {
+            alert(participationCheck.reason || '이번 주 예약/참여 한도로 예약할 수 없습니다.');
+            isBookingInProgress.current = false;
+            setLoading(false);
+            setShowBookingModal(false);
+            return;
+          }
+        } else if (weeklyCount >= MAX_WEEKLY_RESERVATIONS) {
+          alert('주에 1회만 예약이 가능합니다.');
+          isBookingInProgress.current = false;
+          setLoading(false);
+          setShowBookingModal(false);
+          return;
+        }
       }
       
       // 예약 직전 일일·주간 한도 재확인 (너래 제외)
@@ -1630,6 +1770,12 @@ const PracticeRoomBookingClassic: React.FC = () => {
         </div>
       )}
 
+      {ticketingStatusMessage && (
+        <div className="ticketing-notice" role="status">
+          {ticketingStatusMessage}
+        </div>
+      )}
+
       {/* 현재 입실 현황 섹션 */}
       <div className="check-in-section">
         <div className="check-in-header">
@@ -1825,7 +1971,15 @@ const PracticeRoomBookingClassic: React.FC = () => {
                 <div
                   key={idx}
                   className={`mobile-time-slot ${
-                    slot.isPast ? 'past' : slot.isBlocked ? 'blocked' : slot.isAvailable ? 'available' : 'reserved'
+                    slot.isPast
+                      ? 'past'
+                      : slot.isWalkInOpen
+                        ? 'walk-in'
+                        : slot.isBlocked
+                          ? 'blocked'
+                          : slot.isAvailable
+                            ? 'available'
+                            : 'reserved'
                   } ${isMyReservation ? 'my-reservation' : ''} ${slot.isException ? 'exception' : ''}`}
                   onClick={(e) => handleSlotActivate(slot, selectedDate, e)}
                 >
@@ -1837,10 +1991,15 @@ const PracticeRoomBookingClassic: React.FC = () => {
                   <div className="mobile-slot-content">
                     {slot.isPast ? (
                       <span className="slot-status past-label">지난 시간</span>
+                    ) : slot.isWalkInOpen ? (
+                      <div className="walk-in-card">
+                        <div className="walk-in-header">🟢 자유 이용</div>
+                        <div className="walk-in-reason">예약 없음 · 누구나 이용</div>
+                      </div>
                     ) : slot.isBlocked ? (
                       <div className="blocked-card">
                         <div className="blocked-header">
-                          🚫 차단됨
+                          {slot.isTicketingBlock ? '🎫 예약 대기' : '🚫 차단됨'}
                         </div>
                         {slot.blockReason && (
                           <div className="blocked-reason">
@@ -1932,14 +2091,27 @@ const PracticeRoomBookingClassic: React.FC = () => {
                     <div
                       key={`${dayIdx}-${hourIdx}`}
                       className={`time-slot ${
-                        slot.isPast ? 'past' : slot.isBlocked ? 'blocked' : slot.isAvailable ? 'available' : 'reserved'
+                        slot.isPast
+                          ? 'past'
+                          : slot.isWalkInOpen
+                            ? 'walk-in'
+                            : slot.isBlocked
+                              ? 'blocked'
+                              : slot.isAvailable
+                                ? 'available'
+                                : 'reserved'
                       } ${isMyReservation ? 'my-reservation' : ''} ${slot.isException ? 'exception' : ''}`}
                       onClick={(e) => handleSlotActivate(slot, date, e)}
                       style={{ cursor: slot.isPast ? 'not-allowed' : 'pointer' }}
                     >
-                      {slot.isBlocked ? (
+                      {slot.isWalkInOpen ? (
+                        <div className="walk-in-info">
+                          <span className="walk-in-label">🟢</span>
+                          <span className="walk-in-reason-small">자유</span>
+                        </div>
+                      ) : slot.isBlocked ? (
                         <div className="blocked-info">
-                          <span className="blocked-label">🚫</span>
+                          <span className="blocked-label">{slot.isTicketingBlock ? '🎫' : '🚫'}</span>
                           {slot.blockReason && (
                             <span className="blocked-reason-small">{slot.blockReason}</span>
                           )}

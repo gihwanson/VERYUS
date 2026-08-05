@@ -8,6 +8,12 @@ import {
   savePracticeRoomAlwaysOpenSettings,
   type PracticeRoomAlwaysOpenSettings,
 } from '../utils/practiceRoomAlwaysOpen';
+import {
+  DEFAULT_TICKETING_SETTINGS,
+  loadPracticeRoomTicketingSettings,
+  savePracticeRoomTicketingSettings,
+  type PracticeRoomTicketingSettings,
+} from '../utils/practiceRoomTicketing';
 import './PracticeRoomManagement.css';
 
 interface BlockingRule {
@@ -42,6 +48,13 @@ const PracticeRoomManagement: React.FC = () => {
   const [alwaysOpenEndDate, setAlwaysOpenEndDate] = useState('');
   const [alwaysOpenSaving, setAlwaysOpenSaving] = useState(false);
 
+  const [ticketingEnabled, setTicketingEnabled] = useState(DEFAULT_TICKETING_SETTINGS.enabled);
+  const [ticketingEnabledFrom, setTicketingEnabledFrom] = useState(DEFAULT_TICKETING_SETTINGS.enabledFrom);
+  const [ticketingWalkInOpen, setTicketingWalkInOpen] = useState(
+    DEFAULT_TICKETING_SETTINGS.unbookedSlotsAlwaysOpen
+  );
+  const [ticketingSaving, setTicketingSaving] = useState(false);
+
   const weekdayNames = ['일', '월', '화', '수', '목', '금', '토'];
 
   useEffect(() => {
@@ -61,6 +74,7 @@ const PracticeRoomManagement: React.FC = () => {
     console.log('✅ 규칙 로딩 시작');
     loadRules();
     loadAlwaysOpenSettings();
+    loadTicketingSettings();
   }, []);
 
   const loadAlwaysOpenSettings = async () => {
@@ -73,6 +87,43 @@ const PracticeRoomManagement: React.FC = () => {
       }
     } catch (error) {
       console.error('상시개방 설정 로딩 실패:', error);
+    }
+  };
+
+  const loadTicketingSettings = async () => {
+    try {
+      const settings = await loadPracticeRoomTicketingSettings();
+      if (settings) {
+        setTicketingEnabled(settings.enabled);
+        setTicketingEnabledFrom(settings.enabledFrom);
+        setTicketingWalkInOpen(settings.unbookedSlotsAlwaysOpen);
+      }
+    } catch (error) {
+      console.error('티켓팅 설정 로딩 실패:', error);
+    }
+  };
+
+  const handleSaveTicketing = async () => {
+    if (ticketingEnabled && !ticketingEnabledFrom) {
+      alert('티켓팅 적용 시작 날짜를 선택해주세요.');
+      return;
+    }
+
+    setTicketingSaving(true);
+    try {
+      const payload: PracticeRoomTicketingSettings = {
+        enabled: ticketingEnabled,
+        enabledFrom: ticketingEnabledFrom || DEFAULT_TICKETING_SETTINGS.enabledFrom,
+        bookingDayOfWeek: 0,
+        unbookedSlotsAlwaysOpen: ticketingWalkInOpen,
+      };
+      await savePracticeRoomTicketingSettings(payload, currentUser?.nickname || '관리자');
+      alert('티켓팅 설정이 저장되었습니다.');
+    } catch (error) {
+      console.error('티켓팅 설정 저장 실패:', error);
+      alert('티켓팅 설정 저장에 실패했습니다.');
+    } finally {
+      setTicketingSaving(false);
     }
   };
 
@@ -284,6 +335,60 @@ const PracticeRoomManagement: React.FC = () => {
             disabled={alwaysOpenSaving}
           >
             {alwaysOpenSaving ? '저장 중...' : '상시개방 설정 저장'}
+          </button>
+        </section>
+
+        <section className="always-open-section ticketing-section">
+          <div className="section-header">
+            <h2>🎫 주간 티켓팅 설정</h2>
+          </div>
+          <p className="always-open-description">
+            활성화하면 <strong>이용할 주(월~일)의 바로 전날 일요일</strong> 하루만 예약할 수 있습니다.
+            <br />
+            <span className="form-hint">금요일·토요일은 티켓팅 기간에도 예약할 수 없습니다.</span>
+            <br />
+            예) 8/5(일) → 8/6(월)~8/12(일) 예약 · 미예약 시간은 해당 주 월요일 00시부터 자유 이용
+          </p>
+          <label className="always-open-toggle">
+            <input
+              type="checkbox"
+              checked={ticketingEnabled}
+              onChange={(e) => setTicketingEnabled(e.target.checked)}
+            />
+            <span>주간 티켓팅 활성화</span>
+          </label>
+          <div className={`always-open-dates ${ticketingEnabled ? '' : 'disabled'}`}>
+            <div className="form-group">
+              <label>적용 시작 날짜 <span className="required">*</span></label>
+              <input
+                type="date"
+                value={ticketingEnabledFrom}
+                onChange={(e) => setTicketingEnabledFrom(e.target.value)}
+                disabled={!ticketingEnabled}
+              />
+            </div>
+          </div>
+          <label className="always-open-toggle">
+            <input
+              type="checkbox"
+              checked={ticketingWalkInOpen}
+              onChange={(e) => setTicketingWalkInOpen(e.target.checked)}
+              disabled={!ticketingEnabled}
+            />
+            <span>미예약 시간대 자유 이용(상시개방) 표시</span>
+          </label>
+          <ul className="ticketing-policy-list">
+            <li>예약 오픈: 이용 주 월요일 <strong>바로 전날 일요일</strong> (KST, 하루)</li>
+            <li>예약 대상: 그 다음날 월요일 ~ 일요일 (7일)</li>
+            <li>미예약 슬롯: 해당 주 월요일 00시부터 자유 이용</li>
+          </ul>
+          <button
+            type="button"
+            className="save-always-open-btn ticketing-save-btn"
+            onClick={handleSaveTicketing}
+            disabled={ticketingSaving}
+          >
+            {ticketingSaving ? '저장 중...' : '티켓팅 설정 저장'}
           </button>
         </section>
 

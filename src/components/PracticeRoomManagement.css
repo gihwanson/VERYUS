@@ -128,6 +128,22 @@
   cursor: not-allowed;
 }
 
+.ticketing-section {
+  margin-top: 24px;
+}
+
+.ticketing-policy-list {
+  margin: 12px 0 16px;
+  padding-left: 20px;
+  color: #475569;
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.ticketing-save-btn {
+  background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%);
+}
+
 .add-rule-btn {
   display: flex;
   align-items: center;

@@ -297,6 +297,44 @@
   opacity: 0.9;
 }
 
+.ticketing-notice {
+  margin: 0 16px 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  color: #3730a3;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.time-slot.walk-in,
+.mobile-time-slot.walk-in {
+  background: rgba(16, 185, 129, 0.15) !important;
+  border-color: rgba(16, 185, 129, 0.45) !important;
+}
+
+.walk-in-card,
+.walk-in-info {
+  color: #047857;
+}
+
+.walk-in-header {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.walk-in-reason,
+.walk-in-reason-small {
+  font-size: 11px;
+  opacity: 0.9;
+}
+
+.walk-in-label {
+  font-size: 14px;
+}
+
 .duration-hint.daily-limit {
   background: #eff6ff;
   border-left: 3px solid #3b82f6;

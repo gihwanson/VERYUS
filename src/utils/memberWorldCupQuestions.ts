@@ -17,11 +17,3 @@ export const MEMBER_WORLD_CUP_VOTES_COLLECTION = 'memberWorldCupVotes';
 
 export const MEMBER_WORLD_CUP_WEEKLY_RESET_NOTICE =
   '투표·집계는 매주 월요일 00시(KST)에 초기화됩니다. (월~일 한 주)';
-
-/** 이 인원 이상 투표해야 일반 멤버에게 집계 결과 공개 */
-export const MEMBER_WORLD_CUP_MIN_VOTES_FOR_RESULTS = 5;
-
-export const MEMBER_WORLD_CUP_RESULTS_LOCKED_LINES = [
-  '일정인원 이상이 투표를하면 결과가 보여요!',
-  '얼른 다른 멤버에게 투표해달라고 해볼까요?',
-] as const;
