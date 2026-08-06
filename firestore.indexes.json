@@ -15,6 +15,22 @@
         { "fieldPath": "postId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "memberWorldCupVotes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "voterUid", "order": "ASCENDING" },
+        { "fieldPath": "weekKey", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "memberWorldCupVotes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "questionId", "order": "ASCENDING" },
+        { "fieldPath": "weekKey", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

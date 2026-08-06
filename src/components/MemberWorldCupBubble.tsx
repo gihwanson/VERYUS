@@ -31,7 +31,7 @@ import {
   type WorldCupMemberOption,
 } from '../utils/memberWorldCupService';
 import {
-  MEMBER_WORLD_CUP_QUESTIONS,
+  getActiveMemberWorldCupQuestions,
   MEMBER_WORLD_CUP_WEEKLY_RESET_NOTICE,
 } from '../utils/memberWorldCupQuestions';
 import {
@@ -126,8 +126,11 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
   const [showResultsPanel, setShowResultsPanel] = useState(false);
   const [selectedUids, setSelectedUids] = useState<string[]>([]);
 
-  const currentQuestion = MEMBER_WORLD_CUP_QUESTIONS[questionIndex];
-  const revealQuestion = MEMBER_WORLD_CUP_QUESTIONS[revealQuestionIndex];
+  const currentWeekKey = getCurrentWeekMondayKey();
+  const activeQuestions = getActiveMemberWorldCupQuestions();
+
+  const currentQuestion = activeQuestions[questionIndex];
+  const revealQuestion = activeQuestions[revealQuestionIndex];
   const revealVotesByPick = useMemo(() => groupVotesBySelectedMember(revealVotes), [revealVotes]);
   const myVote = currentQuestion ? myVotes[currentQuestion.id] : undefined;
   const hasVotedCurrent = Boolean(myVote);
@@ -142,8 +145,6 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
     () => members.map((member) => ({ uid: member.uid, nickname: member.nickname })),
     [members]
   );
-
-  const currentWeekKey = useMemo(() => getCurrentWeekMondayKey(), []);
   const weekRangeLabel = useMemo(() => formatWeekRangeLabel(currentWeekKey), [currentWeekKey]);
   const nextResetLabel = useMemo(
     () => formatNextResetLabel(getNextMondayResetAtKst()),
@@ -168,8 +169,8 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
   );
 
   const answeredCount = useMemo(
-    () => MEMBER_WORLD_CUP_QUESTIONS.filter((q) => myVotes[q.id]).length,
-    [myVotes]
+    () => activeQuestions.filter((q) => myVotes[q.id]).length,
+    [activeQuestions, myVotes]
   );
 
   const questionStats = useMemo(
@@ -221,12 +222,12 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
       }
 
       setMyVotes(myVoteMap);
-      const firstUnanswered = MEMBER_WORLD_CUP_QUESTIONS.findIndex((q) => !myVoteMap[q.id]);
+      const firstUnanswered = activeQuestions.findIndex((q) => !myVoteMap[q.id]);
       const firstIdx = firstUnanswered >= 0 ? firstUnanswered : 0;
       setQuestionIndex(firstIdx);
 
       const ensureUids =
-        myVoteMap[MEMBER_WORLD_CUP_QUESTIONS[firstIdx]?.id]?.selectedMembers.map((m) => m.uid) ??
+        myVoteMap[activeQuestions[firstIdx]?.id]?.selectedMembers.map((m) => m.uid) ??
         [];
       setRandomMembers(buildRandomMemberSet(memberOptions, [], ensureUids));
     } catch (error) {
@@ -234,7 +235,13 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
     } finally {
       setLoading(false);
     }
-  }, [user?.uid]);
+  }, [user?.uid, currentWeekKey]);
+
+  useEffect(() => {
+    setQuestionIndex(0);
+    setShowResultsPanel(false);
+    setRevealQuestionIndex(0);
+  }, [currentWeekKey]);
 
   useEffect(() => {
     void loadData();
@@ -413,16 +420,16 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
 
   const goPrev = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setQuestionIndex((idx) => (idx <= 0 ? MEMBER_WORLD_CUP_QUESTIONS.length - 1 : idx - 1));
+    setQuestionIndex((idx) => (idx <= 0 ? activeQuestions.length - 1 : idx - 1));
   };
 
   const goNext = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setQuestionIndex((idx) => (idx >= MEMBER_WORLD_CUP_QUESTIONS.length - 1 ? 0 : idx + 1));
+    setQuestionIndex((idx) => (idx >= activeQuestions.length - 1 ? 0 : idx + 1));
   };
 
   const handleGoNextQuestion = () => {
-    setQuestionIndex((idx) => (idx >= MEMBER_WORLD_CUP_QUESTIONS.length - 1 ? 0 : idx + 1));
+    setQuestionIndex((idx) => (idx >= activeQuestions.length - 1 ? 0 : idx + 1));
   };
 
   const maxResultCount = fullResults[0]?.count ?? 1;
@@ -442,13 +449,13 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
 
   const goRevealPrev = () => {
     setRevealQuestionIndex((idx) =>
-      idx <= 0 ? MEMBER_WORLD_CUP_QUESTIONS.length - 1 : idx - 1
+      idx <= 0 ? activeQuestions.length - 1 : idx - 1
     );
   };
 
   const goRevealNext = () => {
     setRevealQuestionIndex((idx) =>
-      idx >= MEMBER_WORLD_CUP_QUESTIONS.length - 1 ? 0 : idx + 1
+      idx >= activeQuestions.length - 1 ? 0 : idx + 1
     );
   };
 
@@ -506,7 +513,7 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
             </button>
           </div>
           <div className="mwc-modal__progress" aria-hidden>
-            {MEMBER_WORLD_CUP_QUESTIONS.map((question, idx) => (
+            {activeQuestions.map((question, idx) => (
               <span
                 key={question.id}
                 className={`mwc-modal__progress-dot${
@@ -523,7 +530,7 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
               <ChevronLeft size={18} />
             </button>
             <span className="mwc-modal__nav-label">
-              <span>{questionIndex + 1}</span> / {MEMBER_WORLD_CUP_QUESTIONS.length}
+              <span>{questionIndex + 1}</span> / {activeQuestions.length}
               {hasVotedCurrent && ' · 완료'}
             </span>
             <button type="button" className="mwc-modal__nav-btn" onClick={goNext} aria-label="다음 질문">
@@ -746,7 +753,7 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
 
         <div className="mwc-modal__foot">
           <span className="mwc-modal__foot-progress">
-            이번 주 진행 <strong>{answeredCount}</strong>/{MEMBER_WORLD_CUP_QUESTIONS.length}
+            이번 주 진행 <strong>{answeredCount}</strong>/{activeQuestions.length}
           </span>
           {canViewVoters && (
             <button type="button" className="mwc-modal__reveal" onClick={openRevealModal}>
@@ -787,7 +794,7 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
         </div>
 
         <div className="mwc-reveal-modal__tabs">
-          {MEMBER_WORLD_CUP_QUESTIONS.map((question, idx) => (
+          {activeQuestions.map((question, idx) => (
             <button
               key={question.id}
               type="button"
@@ -883,7 +890,7 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
             <>
               <span className="mwc-bubble__label mwc-bubble__label--anon">
                 🔒 100% 익명 투표
-                {answeredCount > 0 && ` · ${answeredCount}/${MEMBER_WORLD_CUP_QUESTIONS.length}`}
+                {answeredCount > 0 && ` · ${answeredCount}/${activeQuestions.length}`}
               </span>
               <span className="mwc-bubble__text">{bubblePreview}</span>
               <span className="mwc-bubble__hint">&lt;말풍선을 클릭하세요&gt;</span>
