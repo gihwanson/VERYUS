@@ -507,6 +507,7 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
               </span>
               <h3 id="mwc-modal-title">심심할 때 한 표</h3>
               <p className="mwc-modal__hero-sub">누가 누구를 골랐는지는 절대 공개되지 않아요</p>
+              <p className="mwc-modal__hero-note">매주 월요일마다 질문 5개씩 랜덤하게 생성됩니다</p>
             </div>
             <button type="button" className="mwc-modal__close" onClick={closeModal} aria-label="닫기">
               <X size={18} />
