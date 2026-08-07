@@ -1115,6 +1115,11 @@
   gap: 8px;
 }
 
+.member-input-container .practice-room-member-suggest {
+  flex: 1;
+  min-width: 0;
+}
+
 .member-input-container input {
   flex: 1;
   padding: 10px 12px;

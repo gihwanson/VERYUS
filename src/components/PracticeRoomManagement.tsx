@@ -347,7 +347,7 @@ const PracticeRoomManagement: React.FC = () => {
             <br />
             <span className="form-hint">금요일·토요일은 티켓팅 기간에도 예약할 수 없습니다.</span>
             <br />
-            예) 8/5(일) → 8/6(월)~8/12(일) 예약 · 미예약 시간은 해당 주 월요일 00시부터 자유 이용
+            예) 8/30(일) → 8/31(월)~9/6(일) 중 <strong>월~목·일</strong> 예약 (금·토 제외) · 미예약 시간은 해당 주 월요일 00시부터 자유 이용
           </p>
           <label className="always-open-toggle">
             <input
@@ -379,8 +379,8 @@ const PracticeRoomManagement: React.FC = () => {
           </label>
           <ul className="ticketing-policy-list">
             <li>예약 오픈: 이용 주 월요일 <strong>바로 전날 일요일</strong> (KST, 하루)</li>
-            <li>예약 대상: 그 다음날 월요일 ~ 일요일 (7일)</li>
-            <li>미예약 슬롯: 해당 주 월요일 00시부터 자유 이용</li>
+            <li>예약 대상: 그 다음날 월요일 ~ 일요일 (7일, <strong>금·토 제외</strong>)</li>
+            <li>미예약 슬롯: 해당 주 월요일 00시부터 자유 이용 (금·토 제외)</li>
           </ul>
           <button
             type="button"

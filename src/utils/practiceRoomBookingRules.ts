@@ -4,3 +4,6 @@ export function getMaxHoursByParticipantCount(participantCount: number): number 
   if (participantCount >= 4) return 3;
   return 2;
 }
+
+/** 연습실 화면에서 입실 현황·입퇴실 기록 UI 표시 여부 */
+export const SHOW_PRACTICE_ROOM_CHECK_IN_UI = false;

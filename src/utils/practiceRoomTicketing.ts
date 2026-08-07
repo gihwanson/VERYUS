@@ -186,9 +186,16 @@ export function getTicketingStatusMessage(
   return `🎫 ${TICKETING_BOOKING_NOTICE}`;
 }
 
+export function parseYmdToLocalDate(ymd: string): Date {
+  const [year, month, day] = ymd.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
 export async function loadPracticeRoomTicketingSettings(): Promise<PracticeRoomTicketingSettings | null> {
   const snap = await getDoc(doc(db, ALWAYS_OPEN_COLLECTION, TICKETING_DOC_ID));
-  if (!snap.exists()) return null;
+  if (!snap.exists()) {
+    return { ...DEFAULT_TICKETING_SETTINGS };
+  }
   const data = snap.data() as PracticeRoomTicketingSettings;
   return {
     enabled: Boolean(data.enabled),

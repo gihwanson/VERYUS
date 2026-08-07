@@ -13,14 +13,17 @@ import {
 } from '../utils/practiceRoomAlwaysOpen';
 import {
   canBookDateUnderTicketing,
+  formatDateYmdKst,
+  getBookableWeekRangeForDate,
   getTicketingStatusMessage,
   isTargetDateUnderTicketing,
   isUnbookedSlotWalkInOpen,
   loadPracticeRoomTicketingSettings,
+  parseYmdToLocalDate,
   TICKETING_WALKIN_NOTICE,
   type PracticeRoomTicketingSettings,
 } from '../utils/practiceRoomTicketing';
-import { getMaxHoursByParticipantCount } from '../utils/practiceRoomBookingRules';
+import { getMaxHoursByParticipantCount, SHOW_PRACTICE_ROOM_CHECK_IN_UI } from '../utils/practiceRoomBookingRules';
 import {
   countWeeklyParticipationsByNickname,
   fetchConfirmedReservationsInWeek,
@@ -28,6 +31,11 @@ import {
   shouldUseTicketingParticipationRules,
   validateTicketingParticipationBooking,
 } from '../utils/practiceRoomWeeklyParticipation';
+import NicknameSuggestInput, {
+  findInvalidMemberNicknames,
+  normalizeMemberNicknames,
+} from './NicknameSuggestInput';
+import { getUserMentions, type UserMention } from '../utils/getUserMentions';
 import { Calendar, Clock, User, X, ChevronLeft, ChevronRight, Info, RefreshCw, LogIn, LogOut, Users } from 'lucide-react';
 
 interface Reservation {
@@ -112,6 +120,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
   const [blockingRules, setBlockingRules] = useState<BlockingRule[]>([]);
   const [alwaysOpenSettings, setAlwaysOpenSettings] = useState<PracticeRoomAlwaysOpenSettings | null>(null);
   const [ticketingSettings, setTicketingSettings] = useState<PracticeRoomTicketingSettings | null>(null);
+  const [memberCandidates, setMemberCandidates] = useState<UserMention[]>([]);
   const [purpose, setPurpose] = useState('');
   const [duration, setDuration] = useState(1);
   const [maxAvailableDuration, setMaxAvailableDuration] = useState<number>(1);
@@ -175,6 +184,12 @@ const PracticeRoomBookingClassic: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    getUserMentions()
+      .then(setMemberCandidates)
+      .catch(() => setMemberCandidates([]));
+  }, []);
+
+  useEffect(() => {
     if (currentUser) {
       console.log('날짜 변경됨, 예약 데이터 로딩:', formatDate(selectedDate));
       loadReservations();
@@ -190,7 +205,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
 
   // 실시간 입실 현황 로드
   useEffect(() => {
-    if (!currentUser) return;
+    if (!SHOW_PRACTICE_ROOM_CHECK_IN_UI || !currentUser) return;
 
     console.log('입실 현황 실시간 구독 시작');
     
@@ -430,6 +445,15 @@ const PracticeRoomBookingClassic: React.FC = () => {
 
   const isPrivilegedBookingUser = isUnlimitedUser || isAdmin;
   const ticketingStatusMessage = getTicketingStatusMessage(ticketingSettings);
+  const usesTicketingWeekNavForDate = (date: Date) =>
+    shouldUseTicketingParticipationRules(formatDateYmdKst(date), ticketingSettings);
+  const usesTicketingParticipationForSelectedDate = usesTicketingWeekNavForDate(selectedDate);
+  const weeklyLimitLabel = usesTicketingParticipationForSelectedDate
+    ? '이번 주 예약/참여'
+    : '이번 주 예약';
+  const weeklyLimitExceededMessage = usesTicketingParticipationForSelectedDate
+    ? '이번 주 이미 예약하거나 참여한 기록이 있어 예약할 수 없습니다.'
+    : '주에 1회만 예약이 가능합니다.';
 
   const isAlwaysOpenDate = (date: Date) =>
     isDateInAlwaysOpenPeriod(date, alwaysOpenSettings);
@@ -607,14 +631,13 @@ const PracticeRoomBookingClassic: React.FC = () => {
     }
   };
 
-  const formatDate = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
+  const formatDate = (date: Date): string => formatDateYmdKst(date);
 
   const getWeekStart = (date: Date): Date => {
+    if (usesTicketingWeekNavForDate(date)) {
+      const { start } = getBookableWeekRangeForDate(formatDate(date));
+      return parseYmdToLocalDate(start);
+    }
     const d = new Date(date);
     const day = d.getDay();
     const diff = d.getDate() - day;
@@ -622,6 +645,10 @@ const PracticeRoomBookingClassic: React.FC = () => {
   };
 
   const getWeekEnd = (date: Date): Date => {
+    if (usesTicketingWeekNavForDate(date)) {
+      const { end } = getBookableWeekRangeForDate(formatDate(date));
+      return parseYmdToLocalDate(end);
+    }
     const start = getWeekStart(date);
     return new Date(start.getTime() + 6 * 24 * 60 * 60 * 1000);
   };
@@ -848,12 +875,12 @@ const PracticeRoomBookingClassic: React.FC = () => {
 
     if (!isUnlimitedUser) {
       if (weeklyReservationCount >= MAX_WEEKLY_RESERVATIONS) {
-        alert('주에 1회만 예약이 가능합니다.');
+        alert(weeklyLimitExceededMessage);
         return;
       }
       const weeklyCount = await calculateWeeklyReservationCount(date);
       if (weeklyCount >= MAX_WEEKLY_RESERVATIONS) {
-        alert('주에 1회만 예약이 가능합니다.');
+        alert(weeklyLimitExceededMessage);
         return;
       }
 
@@ -973,7 +1000,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
 
     if (slot.isPast) return;
     if (!isUnlimitedUser && slot.isAvailable && weeklyReservationCount >= MAX_WEEKLY_RESERVATIONS) {
-      window.alert('주에 1회만 예약이 가능합니다.');
+      window.alert(weeklyLimitExceededMessage);
       return;
     }
     void handleTimeSlotClick(slot, date);
@@ -1032,7 +1059,18 @@ const PracticeRoomBookingClassic: React.FC = () => {
     }
 
     const trimmedPurpose = purpose.trim();
-    const trimmedMembers = getTrimmedMembers();
+    const rawMembers = getTrimmedMembers();
+    const trimmedMembers = isUnlimitedUser
+      ? rawMembers
+      : normalizeMemberNicknames(rawMembers, memberCandidates);
+
+    if (!isUnlimitedUser) {
+      const invalidMembers = findInvalidMemberNicknames(rawMembers, memberCandidates);
+      if (invalidMembers.length > 0) {
+        alert(`등록되지 않은 멤버 닉네임입니다: ${invalidMembers.join(', ')}`);
+        return;
+      }
+    }
 
     if (!isUnlimitedUser) {
       if (!trimmedPurpose) {
@@ -1098,7 +1136,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
             return;
           }
         } else if (weeklyCount >= MAX_WEEKLY_RESERVATIONS) {
-          alert('주에 1회만 예약이 가능합니다.');
+          alert(weeklyLimitExceededMessage);
           isBookingInProgress.current = false;
           setLoading(false);
           setShowBookingModal(false);
@@ -1512,8 +1550,16 @@ const PracticeRoomBookingClassic: React.FC = () => {
       alert('본인은 이미 예약자로 포함됩니다. 다른 멤버를 추가해주세요.');
       return;
     }
-    if (!members.includes(trimmedInput)) {
-      const nextMembers = [...members, trimmedInput];
+    const invalidMembers = findInvalidMemberNicknames([trimmedInput], memberCandidates);
+    if (invalidMembers.length > 0) {
+      alert(`등록되지 않은 멤버 닉네임입니다: ${invalidMembers.join(', ')}`);
+      return;
+    }
+    const normalized = normalizeMemberNicknames([trimmedInput], memberCandidates);
+    const nickname = normalized[0];
+    if (!nickname) return;
+    if (!members.includes(nickname)) {
+      const nextMembers = [...members, nickname];
       setMembers(nextMembers);
       clampDurationToParticipantLimit(nextMembers);
       setMemberInput('');
@@ -1773,7 +1819,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
         </div>
       )}
 
-      {/* 현재 입실 현황 섹션 */}
+      {SHOW_PRACTICE_ROOM_CHECK_IN_UI && (
       <div className="check-in-section">
         <div className="check-in-header">
           <div className="check-in-title">
@@ -1873,6 +1919,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
           )}
         </div>
       </div>
+      )}
 
       <div className="booking-controls">
         <div className="week-navigation">
@@ -1950,7 +1997,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
               오늘 사용: <strong>{dailyUsedHours}</strong> / {MAX_DAILY_HOURS}시간
             </span>
             <span className="limit-text">
-              이번 주 예약: <strong>{weeklyReservationCount}</strong> / {MAX_WEEKLY_RESERVATIONS}회
+              {weeklyLimitLabel}: <strong>{weeklyReservationCount}</strong> / {MAX_WEEKLY_RESERVATIONS}회
             </span>
           </div>
         )}
@@ -2277,14 +2324,13 @@ const PracticeRoomBookingClassic: React.FC = () => {
                   )}
                 </p>
                 <div className="member-input-container">
-                  <input
-                    type="text"
-                    placeholder="멤버 닉네임 입력 후 추가 버튼 클릭"
+                  <NicknameSuggestInput
                     value={memberInput}
-                    onChange={(e) => setMemberInput(e.target.value)}
-                    onKeyPress={handleMemberInputKeyPress}
-                    maxLength={20}
-                    required
+                    onChange={setMemberInput}
+                    placeholder="멤버 닉네임 검색 후 추가"
+                    candidates={memberCandidates}
+                    excludeNicknames={[currentUser?.nickname, ...members]}
+                    className="practice-room-member-suggest"
                   />
                   <button 
                     type="button"
@@ -2631,7 +2677,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
         document.body
       )}
 
-      {showCheckInHistoryModal && typeof document !== 'undefined' && createPortal(
+      {SHOW_PRACTICE_ROOM_CHECK_IN_UI && showCheckInHistoryModal && typeof document !== 'undefined' && createPortal(
         <div
           className="modal-overlay practice-booking-modal-overlay"
           onClick={() => setShowCheckInHistoryModal(false)}
