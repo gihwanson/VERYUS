@@ -294,6 +294,19 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    /** 심심할 때 한 표 — 리더/너래가 지정한 주간 질문 5개 */
+    match /memberWorldCupWeeklyConfig/{weekKey} {
+      allow read: if signedIn();
+      allow create, update: if isNeraeOrLeader()
+        && request.resource.data.weekKey == weekKey
+        && request.resource.data.source == 'leader'
+        && request.resource.data.questionIds is list
+        && request.resource.data.questionIds.size() == 5
+        && request.resource.data.selectedBy == request.auth.uid
+        && request.resource.data.selectedByNickname is string;
+      allow delete: if isNeraeOrLeader();
+    }
+
     match /practiceRoomSettings/{docId} {
       allow read, write: if signedIn();
     }

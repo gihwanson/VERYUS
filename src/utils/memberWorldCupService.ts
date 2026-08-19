@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -14,9 +15,14 @@ import { db } from '../firebase';
 import { auth } from '../firebase';
 import { getCurrentWeekMondayKey } from './gameWeek';
 import {
-  getActiveMemberWorldCupQuestions,
   MEMBER_WORLD_CUP_COLLECTION,
+  MEMBER_WORLD_CUP_QUESTIONS_PER_WEEK,
+  MEMBER_WORLD_CUP_SELECTABLE_QUESTION_POOL,
   MEMBER_WORLD_CUP_VOTES_COLLECTION,
+  MEMBER_WORLD_CUP_WEEKLY_CONFIG_COLLECTION,
+  resolveActiveMemberWorldCupQuestions,
+  type MemberWorldCupQuestion,
+  type MemberWorldCupWeeklyConfig,
 } from './memberWorldCupQuestions';
 
 export const MAX_WORLD_CUP_SELECTIONS = 3;
@@ -64,6 +70,122 @@ export interface SubmitMemberWorldCupVoteInput {
   voterNickname: string;
   selectedMembers: MemberWorldCupSelection[];
   customText: string;
+}
+
+export interface SaveMemberWorldCupWeeklyQuestionsInput {
+  weekKey: string;
+  questionIds: string[];
+  selectedBy: string;
+  selectedByNickname: string;
+}
+
+function parseWeeklyConfigDoc(
+  weekKey: string,
+  data: DocumentData
+): MemberWorldCupWeeklyConfig {
+  const questionIds = Array.isArray(data.questionIds)
+    ? data.questionIds.filter((id): id is string => typeof id === 'string')
+    : [];
+
+  return {
+    weekKey: String(data.weekKey || weekKey),
+    questionIds,
+    source: data.source === 'leader' ? 'leader' : 'random',
+    selectedBy: typeof data.selectedBy === 'string' ? data.selectedBy : undefined,
+    selectedByNickname:
+      typeof data.selectedByNickname === 'string' ? data.selectedByNickname : undefined,
+    selectedAt: data.selectedAt,
+  };
+}
+
+export async function fetchMemberWorldCupWeeklyConfig(
+  weekKey: string
+): Promise<MemberWorldCupWeeklyConfig | null> {
+  const snap = await getDoc(
+    doc(db, MEMBER_WORLD_CUP_WEEKLY_CONFIG_COLLECTION, weekKey)
+  );
+  if (!snap.exists()) return null;
+  return parseWeeklyConfigDoc(weekKey, snap.data());
+}
+
+function getFirestoreErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    if (error.message.includes('permission-denied') || error.message.includes('Missing or insufficient permissions')) {
+      return '저장 권한이 없습니다. 리더 계정인지 확인하고, Firestore 규칙 배포가 필요할 수 있어요.';
+    }
+    return error.message;
+  }
+  if (error && typeof error === 'object' && 'code' in error) {
+    const code = String((error as { code: string }).code);
+    if (code === 'permission-denied') {
+      return '저장 권한이 없습니다. 리더 계정인지 확인하고, Firestore 규칙 배포가 필요할 수 있어요.';
+    }
+  }
+  return '저장에 실패했습니다.';
+}
+
+export async function saveMemberWorldCupWeeklyQuestionSelection(
+  input: SaveMemberWorldCupWeeklyQuestionsInput
+): Promise<void> {
+  if (!auth.currentUser?.uid) {
+    await auth.authStateReady();
+  }
+  const authUid = auth.currentUser?.uid;
+  if (!authUid) {
+    throw new Error('로그인 세션이 만료되었습니다. 다시 로그인해 주세요.');
+  }
+  if (input.selectedBy !== authUid) {
+    throw new Error('계정 정보가 일치하지 않습니다. 다시 로그인해 주세요.');
+  }
+
+  const uniqueIds = new Set(input.questionIds);
+  if (uniqueIds.size !== MEMBER_WORLD_CUP_QUESTIONS_PER_WEEK) {
+    throw new Error(`질문 ${MEMBER_WORLD_CUP_QUESTIONS_PER_WEEK}개를 선택해 주세요.`);
+  }
+  if (input.questionIds.length !== MEMBER_WORLD_CUP_QUESTIONS_PER_WEEK) {
+    throw new Error(`질문 ${MEMBER_WORLD_CUP_QUESTIONS_PER_WEEK}개를 선택해 주세요.`);
+  }
+
+  const selectableIds = new Set(MEMBER_WORLD_CUP_SELECTABLE_QUESTION_POOL.map((item) => item.id));
+  if (!input.questionIds.every((id) => selectableIds.has(id))) {
+    throw new Error('선택할 수 없는 질문이 포함되어 있습니다.');
+  }
+
+  try {
+    await setDoc(doc(db, MEMBER_WORLD_CUP_WEEKLY_CONFIG_COLLECTION, input.weekKey), {
+    weekKey: input.weekKey,
+    questionIds: input.questionIds,
+    source: 'leader',
+    selectedBy: input.selectedBy,
+    selectedByNickname: input.selectedByNickname,
+      updatedAt: serverTimestamp(),
+      selectedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    throw new Error(getFirestoreErrorMessage(error));
+  }
+}
+
+export async function clearMemberWorldCupWeeklyQuestionSelection(
+  weekKey: string
+): Promise<void> {
+  const ref = doc(db, MEMBER_WORLD_CUP_WEEKLY_CONFIG_COLLECTION, weekKey);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+
+  try {
+    await deleteDoc(ref);
+  } catch (error) {
+    throw new Error(getFirestoreErrorMessage(error));
+  }
+}
+
+async function getResolvedActiveMemberWorldCupQuestions(
+  at = new Date()
+): Promise<MemberWorldCupQuestion[]> {
+  const weekKey = getCurrentWeekMondayKey(at);
+  const config = await fetchMemberWorldCupWeeklyConfig(weekKey);
+  return resolveActiveMemberWorldCupQuestions(config, at);
 }
 
 function voteDocId(weekKey: string, questionId: string, voterUid: string): string {
@@ -238,7 +360,7 @@ export async function fetchWorldCupMemberOptions(): Promise<WorldCupMemberOption
 
 export async function fetchMemberWorldCupQuestionStats(): Promise<MemberWorldCupQuestionStats[]> {
   const currentWeekKey = getCurrentWeekMondayKey();
-  const activeQuestions = getActiveMemberWorldCupQuestions();
+  const activeQuestions = await getResolvedActiveMemberWorldCupQuestions();
 
   const statsList = await Promise.all(
     activeQuestions.map(async (question) => {
@@ -280,7 +402,8 @@ export async function syncMemberWorldCupQuestionStatsFromVotes(
   questionId: string
 ): Promise<MemberWorldCupQuestionStats> {
   const currentWeekKey = getCurrentWeekMondayKey();
-  const activeQuestion = getActiveMemberWorldCupQuestions().find(
+  const activeQuestions = await getResolvedActiveMemberWorldCupQuestions();
+  const activeQuestion = activeQuestions.find(
     (item) => item.id === questionId
   );
   if (!activeQuestion) {
@@ -312,7 +435,8 @@ export async function fetchMyMemberWorldCupVotes(
   voterUid: string
 ): Promise<Record<string, MemberWorldCupVote>> {
   const currentWeekKey = getCurrentWeekMondayKey();
-  const activeQuestionIds = new Set(getActiveMemberWorldCupQuestions().map((q) => q.id));
+  const activeQuestions = await getResolvedActiveMemberWorldCupQuestions();
+  const activeQuestionIds = new Set(activeQuestions.map((q) => q.id));
   const snap = await getDocs(
     query(
       collection(db, MEMBER_WORLD_CUP_VOTES_COLLECTION),
@@ -366,7 +490,8 @@ export async function submitMemberWorldCupVote(
     throw new Error('계정 정보가 일치하지 않습니다. 다시 로그인해 주세요.');
   }
 
-  const activeQuestion = getActiveMemberWorldCupQuestions().find(
+  const activeQuestions = await getResolvedActiveMemberWorldCupQuestions();
+  const activeQuestion = activeQuestions.find(
     (item) => item.id === input.questionId
   );
   if (!activeQuestion) {

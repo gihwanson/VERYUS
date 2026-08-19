@@ -72,6 +72,14 @@ export const getCurrentWeekMondayKey = (at = new Date()): string => {
   return formatWeekKey(currentWeekMonday);
 };
 
+/** KST 기준 다음 주 월요일 키 (YYYY-MM-DD) */
+export const getNextWeekMondayKey = (at = new Date()): string => {
+  const [y, m, d] = getCurrentWeekMondayKey(at).split('-').map(Number);
+  const nextMonday = kstToUtcDate(y, m, d);
+  nextMonday.setUTCDate(nextMonday.getUTCDate() + 7);
+  return formatWeekKey(nextMonday);
+};
+
 /** 다음 월요일 00:00 (KST) */
 export const getNextMondayResetAtKst = (from = new Date()): Date => {
   const kst = getKstParts(from);
