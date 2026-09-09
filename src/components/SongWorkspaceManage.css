@@ -105,7 +105,7 @@
 .sw-paper-sheet__inner {
   width: min(100%, 794px);
   margin: 0 auto;
-  min-height: 110vh;
+  min-height: 0;
   background: #fffef9;
   border: 1px solid #d7cbb8;
   box-shadow:
@@ -184,7 +184,7 @@
     display: flex;
     flex-direction: column;
     padding: 16px 16px 32px;
-    min-height: 100vh;
+    min-height: 0;
   }
 
   .sw-paper-edge-legend {
@@ -209,31 +209,41 @@
 
   .sw-paper-editor {
     order: 1;
-    min-height: 85vh;
+    min-height: 50vh;
   }
 
   .sw-paper-backdrop,
-  .sw-paper-textarea {
-    min-height: 85vh;
+  .sw-paper-textarea,
+  .sw-paper-lyrics-mirror,
+  .sw-paper-lyrics-input {
+    min-height: 50vh;
   }
 }
 
 .sw-paper-editor {
   position: relative;
-  min-height: 92vh;
+  min-height: 55vh;
   z-index: 1;
+  overflow: visible;
+}
+
+.sw-paper-editor.is-editing {
+  display: grid;
+  grid-template-areas: 'stack';
 }
 
 .sw-paper-backdrop,
-.sw-paper-textarea {
+.sw-paper-textarea,
+.sw-paper-lyrics-mirror,
+.sw-paper-lyrics-input {
   width: 100%;
-  min-height: 92vh;
+  min-height: 55vh;
   margin: 0;
   padding: 0;
   border: none;
   outline: none;
   box-sizing: border-box;
-  font-family: 'Batang', 'Noto Serif KR', Georgia, serif;
+  font-family: 'Noto Serif KR', 'Batang', Georgia, serif;
   font-size: 0.92rem;
   font-weight: 400;
   font-style: normal;
@@ -249,14 +259,20 @@
   -moz-tab-size: 4;
 }
 
+.sw-paper-editor.is-editing .sw-paper-lyrics-mirror,
+.sw-paper-editor.is-editing .sw-paper-lyrics-input,
+.sw-paper-editor.is-editing .sw-paper-highlight-layer {
+  grid-area: stack;
+}
+
 .sw-paper-backdrop {
   position: absolute;
   top: 0;
   left: 0;
   bottom: 0;
-  right: 0; /* syncScroll에서 스크롤바 폭만큼 줄여 커서 정렬 */
-  width: auto; /* width:100%면 right 보정이 무시됨 */
-  overflow: hidden;
+  right: 0;
+  width: auto;
+  overflow: visible;
   pointer-events: none;
   color: #1f1a14;
   z-index: 0;
@@ -266,16 +282,54 @@
   visibility: hidden;
 }
 
+.sw-paper-lyrics-mirror {
+  color: #1f1a14;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+  resize: none;
+  background: transparent;
+  scrollbar-width: none;
+}
+
+.sw-paper-lyrics-mirror::-webkit-scrollbar {
+  display: none;
+}
+
+.sw-paper-highlight-layer {
+  position: relative;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  min-height: inherit;
+}
+
+.sw-paper-highlight-rect {
+  position: absolute;
+  border-radius: 2px;
+  pointer-events: none;
+}
+
 .sw-paper-textarea {
   position: relative;
   z-index: 1;
   display: block;
   resize: none;
   background: transparent;
+  scrollbar-width: none;
+}
+
+.sw-paper-textarea::-webkit-scrollbar {
+  display: none;
+}
+
+.sw-paper-lyrics-input {
   color: transparent;
+  -webkit-text-fill-color: transparent;
   caret-color: #8b5a2b;
-  overflow: auto;
-  overscroll-behavior: contain;
+  z-index: 2;
+  /* fitEditorHeight로 전체 높이 확장 — hidden/auto는 드래그 선택 끝이 잘림 */
+  overflow: visible;
   -webkit-user-select: text;
   user-select: text;
 }
@@ -283,7 +337,7 @@
 /* 모바일 가사 선택 중: textarea·페이지 스크롤 잠금 */
 .sw-paper-textarea.is-touch-selecting {
   touch-action: none;
-  overflow: hidden;
+  overflow: visible;
   overscroll-behavior: none;
 }
 
@@ -293,9 +347,12 @@ html.sw-lyric-selecting body {
 }
 
 .sw-paper-textarea.is-readonly {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
   caret-color: transparent;
   cursor: default;
   user-select: text;
+  overflow: visible;
 }
 
 .sw-paper-edge-legend__name {
@@ -627,7 +684,7 @@ html.sw-lyric-selecting body {
 
   .sw-paper-sheet__inner {
     padding: 14px 12px 28px;
-    min-height: 100vh;
+    min-height: 0;
   }
 
   .sw-paper-topbar__actions .song-workspace__btn--primary {

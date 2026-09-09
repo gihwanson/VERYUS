@@ -12,6 +12,7 @@ import {
 } from './SkinnedAuthor';
 import { getPublicRoleBadge } from '../utils/publicRoleBadge';
 import CommentSection from './CommentSection';
+import { isTestNickname, TEST_NICKNAME_VOTE_BLOCKED_MESSAGE } from '../utils/testNickname';
 
 interface Post {
   id: string;
@@ -148,6 +149,10 @@ const BalancePostDetail: React.FC = () => {
   const handleVote = async (choice: 'A' | 'B') => {
     if (!user || !post) {
       alert('로그인이 필요합니다.');
+      return;
+    }
+    if (isAnonymousVote && isTestNickname(user.nickname)) {
+      alert(TEST_NICKNAME_VOTE_BLOCKED_MESSAGE);
       return;
     }
     try {

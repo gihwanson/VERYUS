@@ -6,7 +6,7 @@ import { db, storage } from '../firebase';
 import { ArrowLeft, Mic, X, FileAudio, Send } from 'lucide-react';
 import { startOfWeek, endOfWeek, format as formatDate } from 'date-fns';
 import '../styles/EvaluationPostWrite.css';
-import { rejectBoardAttachmentIfTooLarge } from '../utils/boardAttachmentLimits';
+import { formatAttachmentSize, rejectBoardAttachmentIfTooLarge } from '../utils/boardAttachmentLimits';
 import EvaluationWriteNoticeModal, { isEvalWriteNoticeHidden } from './EvaluationWriteNoticeModal';
 import NicknameSuggestInput, {
   findInvalidMemberNicknames,
@@ -332,6 +332,7 @@ const EvaluationPostWrite: React.FC = () => {
         audioUrl: audioDownloadUrl,
         duration,
         fileName: fileName || '',
+        fileSizeBytes: audioBlob.size,
         likesCount: 0,
         commentCount: 0,
         views: 0,
@@ -523,6 +524,9 @@ const EvaluationPostWrite: React.FC = () => {
               <div className="eval-post-write__file-status">
                 {displayFileName && (
                   <div className="eval-post-write__file-name">{displayFileName}</div>
+                )}
+                {displayFileName && audioBlob && !uploading && (
+                  <div className="eval-post-write__file-meta">용량 {formatAttachmentSize(audioBlob.size)}</div>
                 )}
                 {duration > 0 && displayFileName && !uploading && (
                   <div className="eval-post-write__file-meta">재생 길이 약 {formatDurationLabel(duration)}</div>

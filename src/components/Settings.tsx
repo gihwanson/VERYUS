@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { signOut, deleteUser as firebaseDeleteUser, sendPasswordResetEmail } from 'firebase/auth';
+import {
+  signOut,
+  deleteUser as firebaseDeleteUser,
+  sendPasswordResetEmail,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  updatePassword,
+} from 'firebase/auth';
 import { 
   doc,
   getDoc,
@@ -26,7 +33,10 @@ import {
   User, 
   Save,
   ArrowLeft,
-  Palette
+  Palette,
+  Eye,
+  EyeOff,
+  Lock,
 } from 'lucide-react';
 import AppThemePicker from './AppThemePicker';
 import AppUiStylePicker from './AppUiStylePicker';
@@ -72,6 +82,13 @@ const Settings: React.FC = () => {
   const [savingProfileMeta, setSavingProfileMeta] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
   const [showGradeFxSkins, setShowGradeFxSkins] = useState(() =>
     hasAnyGradeFxUnlock(profile?.nickname)
   );
@@ -435,6 +452,70 @@ const Settings: React.FC = () => {
     }
   };
 
+  const getPasswordChangeErrorMessage = (error: unknown): string => {
+    const code = (error as { code?: string })?.code;
+    switch (code) {
+      case 'auth/wrong-password':
+      case 'auth/invalid-credential':
+        return '현재 비밀번호가 올바르지 않습니다.';
+      case 'auth/weak-password':
+        return '비밀번호는 6자 이상이어야 합니다.';
+      case 'auth/requires-recent-login':
+        return '보안을 위해 다시 로그인한 뒤 비밀번호를 변경해 주세요.';
+      case 'auth/too-many-requests':
+        return '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.';
+      default:
+        return '비밀번호 변경에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    if (!user?.email) {
+      toast.warning('이메일 정보가 없습니다.');
+      return;
+    }
+    if (!currentPassword.trim()) {
+      toast.warning('현재 비밀번호를 입력해 주세요.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.warning('새 비밀번호는 6자 이상이어야 합니다.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.warning('새 비밀번호가 일치하지 않습니다.');
+      return;
+    }
+    if (currentPassword === newPassword) {
+      toast.warning('새 비밀번호는 현재 비밀번호와 달라야 합니다.');
+      return;
+    }
+
+    const firebaseUser = auth.currentUser;
+    if (!firebaseUser) {
+      toast.error('로그인이 필요합니다.');
+      navigate('/login');
+      return;
+    }
+
+    try {
+      setChangingPassword(true);
+      const credential = EmailAuthProvider.credential(user.email, currentPassword);
+      await reauthenticateWithCredential(firebaseUser, credential);
+      await updatePassword(firebaseUser, newPassword);
+
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      toast.success('비밀번호가 변경되었습니다.');
+    } catch (error) {
+      console.error('비밀번호 변경 에러:', error);
+      toast.error(getPasswordChangeErrorMessage(error));
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   const handlePasswordReset = async () => {
     if (!user?.email) {
       toast.warning('이메일 정보가 없습니다. 가입 시 사용한 이메일이 프로필에 없을 수 있습니다.');
@@ -710,15 +791,111 @@ const Settings: React.FC = () => {
         </div>
       )}
 
-      {/* 비밀번호 재설정 */}
+      {/* 비밀번호 변경 */}
       <div className="settings-card">
         <div className="card-header">
-          <Edit className="card-icon" />
-          <h3>비밀번호 재설정</h3>
+          <Lock className="card-icon" />
+          <h3>비밀번호 변경</h3>
         </div>
-        <div className="setting-item">
-          <span>비밀번호를 잊으셨나요?</span>
-          <button onClick={handlePasswordReset} className="save-btn">비밀번호 재설정 메일 발송</button>
+        <div className="setting-item settings-form-grid">
+          <label className="settings-field-label" htmlFor="current-password">현재 비밀번호</label>
+          <div className="input-group password-group">
+            <input
+              id="current-password"
+              type={showCurrentPassword ? 'text' : 'password'}
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className="nickname-input"
+              placeholder="현재 비밀번호"
+              autoComplete="current-password"
+              maxLength={30}
+              disabled={changingPassword}
+            />
+            <button
+              type="button"
+              className="password-toggle-btn"
+              onClick={() => setShowCurrentPassword((prev) => !prev)}
+              tabIndex={-1}
+              aria-label={showCurrentPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
+            >
+              {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+
+          <label className="settings-field-label" htmlFor="new-password">새 비밀번호</label>
+          <div className="input-group password-group">
+            <input
+              id="new-password"
+              type={showNewPassword ? 'text' : 'password'}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="nickname-input"
+              placeholder="새 비밀번호 (6자 이상)"
+              autoComplete="new-password"
+              maxLength={30}
+              disabled={changingPassword}
+            />
+            <button
+              type="button"
+              className="password-toggle-btn"
+              onClick={() => setShowNewPassword((prev) => !prev)}
+              tabIndex={-1}
+              aria-label={showNewPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
+            >
+              {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+
+          <label className="settings-field-label" htmlFor="confirm-password">새 비밀번호 확인</label>
+          <div className="input-group password-group">
+            <input
+              id="confirm-password"
+              type={showConfirmPassword ? 'text' : 'password'}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="nickname-input"
+              placeholder="새 비밀번호 다시 입력"
+              autoComplete="new-password"
+              maxLength={30}
+              disabled={changingPassword}
+            />
+            <button
+              type="button"
+              className="password-toggle-btn"
+              onClick={() => setShowConfirmPassword((prev) => !prev)}
+              tabIndex={-1}
+              aria-label={showConfirmPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
+            >
+              {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+
+          {confirmPassword && newPassword !== confirmPassword && (
+            <p className="settings-field-hint settings-field-hint--small" style={{ color: '#c0392b' }}>
+              새 비밀번호가 일치하지 않습니다.
+            </p>
+          )}
+
+          <button
+            onClick={handlePasswordChange}
+            className="save-btn"
+            disabled={changingPassword}
+          >
+            <Save size={16} />
+            {changingPassword ? '변경 중...' : '비밀번호 변경'}
+          </button>
+
+          <p className="settings-field-hint">
+            비밀번호를 잊으셨나요?{' '}
+            <button
+              type="button"
+              onClick={handlePasswordReset}
+              className="edit-btn"
+              style={{ display: 'inline', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+            >
+              재설정 메일 발송
+            </button>
+          </p>
         </div>
       </div>
 

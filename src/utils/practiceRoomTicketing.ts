@@ -116,9 +116,10 @@ export function canBookDateUnderTicketing(
   targetDateStr: string,
   settings: PracticeRoomTicketingSettings | null | undefined,
   now = new Date(),
-  isPrivileged = false
+  /** 너래: 티켓팅 기간·금·토·일요일 외에도 예약 가능 */
+  bypassForSuperAdmin = false
 ): { allowed: boolean; reason?: string } {
-  if (isPrivileged) return { allowed: true };
+  if (bypassForSuperAdmin) return { allowed: true };
   if (!settings?.enabled) return { allowed: true };
   if (!isTargetDateUnderTicketing(targetDateStr, settings)) return { allowed: true };
 
@@ -154,8 +155,11 @@ export function isUnbookedSlotWalkInOpen(
   targetDateStr: string,
   hasReservation: boolean,
   settings: PracticeRoomTicketingSettings | null | undefined,
-  now = new Date()
+  now = new Date(),
+  /** 너래 등: 티켓팅 기간에도 언제든 예약 가능 */
+  bypassWalkInForSuperAdmin = false
 ): boolean {
+  if (bypassWalkInForSuperAdmin) return false;
   if (!settings?.unbookedSlotsAlwaysOpen) return false;
   if (!isTicketingPolicyActive(settings, now)) return false;
   if (targetDateStr < settings.enabledFrom) return false;

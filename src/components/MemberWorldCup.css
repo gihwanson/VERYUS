@@ -589,6 +589,19 @@
   font-weight: 600;
 }
 
+.mwc-modal__test-blocked {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.45;
+}
+
 /* ── 결과 ── */
 .mwc-modal__results-panel {
   animation: mwc-results-in 0.35s ease;
@@ -960,6 +973,97 @@
   font-size: 0.9rem;
 }
 
+.mwc-picker__compose {
+  margin-bottom: 14px;
+  padding: 14px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #faf5ff 0%, #f8fafc 100%);
+  border: 1px solid #ddd6fe;
+}
+
+.mwc-picker__compose-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  color: #5b21b6;
+  font-size: 0.88rem;
+}
+
+.mwc-picker__compose-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #c4b5fd;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  resize: vertical;
+  min-height: 72px;
+  background: #fff;
+  color: #0f172a;
+}
+
+.mwc-picker__compose-input:focus {
+  outline: none;
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+}
+
+.mwc-picker__compose-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.mwc-picker__compose-count {
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
+.mwc-picker__compose-submit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: #7c3aed;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mwc-picker__compose-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.mwc-picker__item.is-custom {
+  border-color: #ddd6fe;
+}
+
+.mwc-picker__item-text {
+  display: inline;
+  line-height: 1.45;
+}
+
+.mwc-picker__custom-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #ede9fe;
+  color: #6d28d9;
+  font-size: 0.68rem;
+  font-weight: 800;
+  vertical-align: middle;
+}
+
 .mwc-picker__list {
   max-height: min(52vh, 420px);
   overflow-y: auto;
@@ -1074,6 +1178,123 @@
 .mwc-picker__feedback.is-error {
   background: #fef2f2;
   color: #b91c1c;
+}
+
+.mwc-modal__hero-note--daily {
+  margin-top: 6px;
+  color: #6366f1;
+  font-weight: 600;
+}
+
+.mwc-modal__nav-label--daily {
+  width: 100%;
+  text-align: center;
+  justify-content: center;
+}
+
+.mwc-modal__empty-day {
+  padding: 28px 16px;
+  text-align: center;
+}
+
+.mwc-modal__empty-day-title {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.mwc-modal__empty-day-text {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: #64748b;
+}
+
+.mwc-picker__queue-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 16px 0 10px;
+  font-size: 0.88rem;
+  color: #475569;
+}
+
+.mwc-picker__list--queue {
+  max-height: 320px;
+}
+
+.mwc-picker__queue-empty {
+  margin: 0;
+  padding: 20px 12px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.88rem;
+}
+
+.mwc-picker__queue-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  margin-bottom: 8px;
+}
+
+.mwc-picker__queue-item.is-today {
+  border-color: #818cf8;
+  background: #eef2ff;
+}
+
+.mwc-picker__queue-item.is-past {
+  opacity: 0.55;
+}
+
+.mwc-picker__queue-order {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: #e0e7ff;
+  color: #4338ca;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mwc-picker__queue-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.mwc-picker__queue-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #6366f1;
+  margin-bottom: 4px;
+}
+
+.mwc-picker__queue-text {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: #334155;
+}
+
+.mwc-picker__queue-badge {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #4338ca;
+  background: #fff;
+  border: 1px solid #c7d2fe;
+  border-radius: 999px;
+  padding: 4px 8px;
 }
 
 .mwc-picker__confirm p {

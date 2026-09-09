@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, Pencil, Plus, Save, Settings, Trash2, X } from 'lucide-react';
 import NicknameSuggestInput from './NicknameSuggestInput';
 import type { UserMention } from '../utils/getUserMentions';
@@ -15,6 +15,7 @@ import {
   type LyricPartId,
   type SongWorkspace,
 } from '../utils/songWorkspace';
+import { getTextareaRangeRects } from '../utils/textareaRangeRects';
 
 interface SelectionRange {
   start: number;
@@ -108,8 +109,12 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   const [notePins, setNotePins] = useState<Array<{ id: string; top: number; left: number; preview: string }>>([]);
   const [autoSaveLabel, setAutoSaveLabel] = useState('');
+  const [highlightRects, setHighlightRects] = useState<
+    Array<{ key: string; top: number; left: number; width: number; height: number; background: string }>
+  >([]);
 
   const editorRef = useRef<HTMLTextAreaElement>(null);
+  const mirrorRef = useRef<HTMLTextAreaElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
   const floatRef = useRef<HTMLDivElement>(null);
   const composingRef = useRef(false);
@@ -340,17 +345,68 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
     });
   };
 
+  const refreshHighlightRects = useCallback(() => {
+    const editor = editorRef.current;
+    if (!editor || !isEditingRef.current) {
+      setHighlightRects([]);
+      return;
+    }
+    const next: Array<{
+      key: string;
+      top: number;
+      left: number;
+      width: number;
+      height: number;
+      background: string;
+    }> = [];
+    for (let index = 0; index < segments.length; index++) {
+      const seg = segments[index];
+      const part = getLyricPartOption(seg.partId);
+      const hasNote = seg.noteIds.length > 0;
+      const background = part?.bg ?? (hasNote ? 'rgba(196, 146, 60, 0.18)' : null);
+      if (!background) continue;
+      const rects = getTextareaRangeRects(editor, seg.start, seg.end);
+      for (let rectIndex = 0; rectIndex < rects.length; rectIndex++) {
+        next.push({
+          key: `${seg.start}-${seg.end}-${index}-${rectIndex}`,
+          ...rects[rectIndex],
+          background,
+        });
+      }
+    }
+    setHighlightRects(next);
+  }, [segments]);
+
   const syncScroll = () => {
     const editor = editorRef.current;
+    if (!editor) return;
+    const mirror = mirrorRef.current;
     const backdrop = backdropRef.current;
-    if (!editor || !backdrop) return;
-    backdrop.scrollTop = editor.scrollTop;
-    backdrop.scrollLeft = editor.scrollLeft;
-    // textarea 스크롤바만큼 backdrop 오른쪽을 줄여 글·커서 가로 정렬
-    const bar = Math.max(0, editor.offsetWidth - editor.clientWidth);
-    backdrop.style.right = `${bar}px`;
+    if (mirror) {
+      mirror.scrollTop = editor.scrollTop;
+      mirror.scrollLeft = editor.scrollLeft;
+    }
+    if (backdrop) {
+      backdrop.scrollTop = editor.scrollTop;
+      backdrop.scrollLeft = editor.scrollLeft;
+    }
     refreshNotePins();
+    refreshHighlightRects();
   };
+
+  /** 가사 길이에 맞춰 textarea·용지 높이를 늘려 페이지 스크롤로 전체 내용을 볼 수 있게 함 */
+  const fitEditorHeight = useCallback(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    editor.style.height = '0px';
+    const minHeight = Number.parseFloat(window.getComputedStyle(editor).minHeight) || 0;
+    // 선택 핸들·마지막 줄 여유 (overflow visible과 함께 끝 글자 잘림 방지)
+    const next = Math.max(editor.scrollHeight, minHeight) + 8;
+    editor.style.height = `${next}px`;
+    const mirror = mirrorRef.current;
+    if (mirror) mirror.style.height = `${next}px`;
+    syncScroll();
+  }, [refreshHighlightRects]);
 
   const updateToolbarFromTextarea = () => {
     const editor = editorRef.current;
@@ -438,6 +494,7 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
     requestAnimationFrame(() => {
       updateToolbarFromTextarea();
       requestAnimationFrame(updateToolbarFromTextarea);
+      fitEditorHeight();
     });
   };
 
@@ -522,10 +579,10 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
         setSelectingClass(true);
       }
 
-      if (!blockScroll && (dx > 10 || dy > 10)) {
+      if (!blockScroll && (dx > 6 || dy > 6)) {
         clearLongPress();
-        // 가로 드래그는 선택 시도로 보고 스크롤 차단 (세로는 플리크 스크롤 허용)
-        if (dx >= dy) {
+        // 가로 드래그(한 줄 선택)는 빨리 스크롤 차단 — 문장 끝까지 선택되도록
+        if (dx >= dy || hasRange) {
           blockScroll = true;
           setSelectingClass(true);
         }
@@ -542,6 +599,7 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
       clearLongPress();
       setSelectingClass(false);
       scheduleToolbarUpdate();
+      fitEditorHeight();
     };
 
     editor.addEventListener('touchstart', onTouchStart, { passive: true });
@@ -557,7 +615,7 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
       editor.removeEventListener('touchend', onTouchEnd);
       editor.removeEventListener('touchcancel', onTouchEnd);
     };
-  }, [isEditing]);
+  }, [isEditing, fitEditorHeight]);
 
   // 선택 팔레트가 떠 있는 동안 배경 스크롤로 화면이 흔들리지 않게 함
   useEffect(() => {
@@ -586,8 +644,15 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
   }, [selection]);
 
   useLayoutEffect(() => {
+    fitEditorHeight();
     syncScroll();
-  }, [notes, lyrics, highlights, isEditing]);
+  }, [notes, lyrics, highlights, isEditing, fitEditorHeight, segments]);
+
+  useEffect(() => {
+    const onResize = () => fitEditorHeight();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [fitEditorHeight]);
 
   // 하이라이트 레이어 리렌더로 커서가 맨 앞 등으로 튀면 직전 위치로 복원 (IME 중에는 건드리지 않음)
   useLayoutEffect(() => {
@@ -798,39 +863,70 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
 
       <div className={`sw-paper-sheet${isEditing ? '' : ' is-view'}`}>
         <div className="sw-paper-sheet__inner">
-          <div className="sw-paper-editor">
-            <div ref={backdropRef} className="sw-paper-backdrop" aria-hidden>
-              {segments.length === 0 ? (
-                <span className="sw-paper-backdrop__spacer">{'\u00a0'}</span>
-              ) : (
-                segments.map((seg, index) => {
-                  const part = getLyricPartOption(seg.partId);
-                  const hasNote = seg.noteIds.length > 0;
-                  return (
-                    <span
-                      key={`${seg.start}-${seg.end}-${index}-${seg.partId || 'x'}`}
-                      className={`sw-paper-seg${hasNote ? ' has-note' : ''}`}
-                      style={
-                        part
-                          ? {
-                              background: part.bg,
-                            }
-                          : hasNote
+          <div className={`sw-paper-editor${isEditing ? ' is-editing' : ''}`}>
+            {isEditing ? (
+              <>
+                <textarea
+                  ref={mirrorRef}
+                  className="sw-paper-lyrics-mirror"
+                  value={lyrics}
+                  readOnly
+                  tabIndex={-1}
+                  aria-hidden
+                  spellCheck={false}
+                />
+                {highlightRects.length > 0 && (
+                  <div className="sw-paper-highlight-layer" aria-hidden>
+                    {highlightRects.map((rect) => (
+                      <span
+                        key={rect.key}
+                        className="sw-paper-highlight-rect"
+                        style={{
+                          top: rect.top,
+                          left: rect.left,
+                          width: rect.width,
+                          height: rect.height,
+                          background: rect.background,
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div ref={backdropRef} className="sw-paper-backdrop" aria-hidden>
+                {segments.length === 0 ? (
+                  <span className="sw-paper-backdrop__spacer">{'\u00a0'}</span>
+                ) : (
+                  segments.map((seg, index) => {
+                    const part = getLyricPartOption(seg.partId);
+                    const hasNote = seg.noteIds.length > 0;
+                    return (
+                      <span
+                        key={`${seg.start}-${seg.end}-${index}-${seg.partId || 'x'}`}
+                        className={`sw-paper-seg${hasNote ? ' has-note' : ''}`}
+                        style={
+                          part
                             ? {
-                                background: 'rgba(196, 146, 60, 0.18)',
+                                background: part.bg,
                               }
-                            : undefined
-                      }
-                    >
-                      {seg.text}
-                    </span>
-                  );
-                })
-              )}
-            </div>
+                            : hasNote
+                              ? {
+                                  background: 'rgba(196, 146, 60, 0.18)',
+                                }
+                              : undefined
+                        }
+                      >
+                        {seg.text}
+                      </span>
+                    );
+                  })
+                )}
+              </div>
+            )}
             <textarea
               ref={editorRef}
-              className={`sw-paper-textarea${isEditing ? '' : ' is-readonly'}`}
+              className={`sw-paper-textarea${isEditing ? ' sw-paper-lyrics-input' : ' is-readonly'}`}
               value={lyrics}
               readOnly={!isEditing}
               onChange={(e) => {

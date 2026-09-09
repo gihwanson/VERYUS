@@ -272,9 +272,44 @@ service cloud.firestore {
       allow read, write: if signedIn();
     }
 
+    function isTestNickname(nickname) {
+      return nickname is string && (
+        nickname == '평가자' ||
+        nickname.matches('테스트.*') ||
+        nickname.lower().matches('test.*')
+      );
+    }
+
+    function canVoteMemberWorldCup() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && !isTestNickname(userDoc().nickname);
+    }
+
     /** 멤버 월드컵 — 집계는 전원 열람, 개별 투표는 본인·너래만 */
     match /memberWorldCupQuestions/{questionId} {
       allow read, create, update: if signedIn();
+      allow delete: if false;
+    }
+
+    /** 멤버 월드컵 — 너래가 작성하는 커스텀 질문 풀 */
+    match /memberWorldCupCustomQuestions/{questionId} {
+      allow read: if signedIn();
+      allow create: if isNerae()
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 200
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdByNickname is string
+        && request.resource.data.createdByNickname.size() > 0
+        && request.resource.data.isActive == true
+        && request.resource.data.scheduleOrder is int
+        && request.resource.data.scheduleOrder > 0;
+      allow update: if isNerae()
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 200
+        && request.resource.data.isActive == true;
       allow delete: if false;
     }
 
@@ -284,11 +319,11 @@ service cloud.firestore {
         !exists(/databases/$(database)/documents/memberWorldCupVotes/$(voteId)) ||
         resource.data.voterUid == request.auth.uid
       );
-      allow create: if signedIn()
+      allow create: if canVoteMemberWorldCup()
         && request.resource.data.voterUid == request.auth.uid
-        && request.resource.data.weekKey is string
+        && request.resource.data.dayKey is string
         && request.resource.data.questionId is string
-        && voteId == request.resource.data.weekKey + '_' + request.resource.data.questionId + '_' + request.auth.uid
+        && voteId == request.resource.data.dayKey + '_' + request.resource.data.questionId + '_' + request.auth.uid
         && !exists(/databases/$(database)/documents/memberWorldCupVotes/$(voteId));
       allow update: if false;
       allow delete: if false;

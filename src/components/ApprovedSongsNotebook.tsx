@@ -407,6 +407,13 @@ const ApprovedSongsNotebook: React.FC = () => {
 
   const feeExemptMembersText = useMemo(() => feeExemptMembers.join('\n'), [feeExemptMembers]);
 
+  const allMembersSorted = useMemo(() => {
+    if (manageTab !== 'manage') return [];
+    return [...allNicknames].sort((a, b) => a.localeCompare(b, 'ko'));
+  }, [allNicknames, manageTab]);
+
+  const allMembersSortedText = useMemo(() => allMembersSorted.join('\n'), [allMembersSorted]);
+
   if (loading) {
     return <GlobalLoadingScreen message="합격곡을 불러오는 중..." />;
   }
@@ -672,6 +679,31 @@ const ApprovedSongsNotebook: React.FC = () => {
                     readOnly
                     value={feeExemptMembersText}
                     placeholder="초승달 등급 멤버가 없습니다."
+                  />
+                </div>
+                <div className="approved-songs-copy-box">
+                  <div className="approved-songs-copy-header">
+                    <span>전체인원 ({allMembersSorted.length}명)</span>
+                    <button
+                      className="approved-songs-copy-button"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(allMembersSortedText);
+                          alert('닉네임 목록이 복사되었습니다.');
+                        } catch (error) {
+                          console.error('복사 실패:', error);
+                          alert('복사에 실패했습니다. 직접 선택해서 복사해주세요.');
+                        }
+                      }}
+                    >
+                      복사
+                    </button>
+                  </div>
+                  <textarea
+                    className="approved-songs-copy-textarea"
+                    readOnly
+                    value={allMembersSortedText}
+                    placeholder="등록된 멤버가 없습니다."
                   />
                 </div>
               </div>

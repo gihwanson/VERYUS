@@ -18,6 +18,8 @@ import {
   getDocs
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { formatAttachmentSize } from '../utils/boardAttachmentLimits';
+import { resolveBoardAttachmentSizeBytes } from '../utils/resolveBoardAttachmentSize';
 import { 
   ArrowLeft,
   Heart,
@@ -82,6 +84,7 @@ interface EvaluationPost {
   category?: string;
   audioUrl?: string;
   fileName?: string;
+  fileSizeBytes?: number;
   duration?: number;
   members?: string[];
 }
@@ -104,6 +107,8 @@ const EvaluationPostDetail: React.FC = () => {
   const optionsRef = useRef<HTMLDivElement>(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [messageContent, setMessageContent] = useState('');
+  const [resolvedFileSizeBytes, setResolvedFileSizeBytes] = useState<number | null>(null);
+  const [fileSizeLoading, setFileSizeLoading] = useState(false);
   const { isPlaying: isGlobalPlaying, pause: pauseGlobal, play: playGlobal, currentIdx: globalIdx } = useAudioPlayer();
   const location = useLocation();
   // 글로벌 플레이리스트 상태 기억용
@@ -227,6 +232,27 @@ const EvaluationPostDetail: React.FC = () => {
     });
     return () => unsubscribe();
   }, [post?.writerUid]);
+
+  // 예전 글(fileSizeBytes 미저장)은 Firebase Storage 메타데이터로 용량 조회
+  useEffect(() => {
+    setResolvedFileSizeBytes(null);
+    if (!post?.audioUrl || post.fileSizeBytes) {
+      setFileSizeLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setFileSizeLoading(true);
+    void resolveBoardAttachmentSizeBytes(post.audioUrl)
+      .then((bytes) => {
+        if (!cancelled && bytes != null) setResolvedFileSizeBytes(bytes);
+      })
+      .finally(() => {
+        if (!cancelled) setFileSizeLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [post?.audioUrl, post?.fileSizeBytes]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -452,11 +478,20 @@ const EvaluationPostDetail: React.FC = () => {
           {/* 오디오 플레이어 (녹음게시판과 동일) */}
           {post.audioUrl && (
             <div style={{marginBottom:18}}>
-              {post.fileName && (
+              {(post.fileName || post.fileSizeBytes != null || resolvedFileSizeBytes != null || fileSizeLoading) && (
                 <div style={{
-                  background: 'var(--paper-tag-bg, #f0e6d6)', color: 'var(--primary-color, #8b5a2b)', borderRadius: '12px', padding: '8px 20px', margin: '0 auto 18px auto', maxWidth: 340, minWidth: 180, textAlign: 'center', fontWeight: 600, fontSize: '1rem'
+                  background: 'var(--paper-tag-bg, #f0e6d6)', color: 'var(--primary-color, #8b5a2b)', borderRadius: '12px', padding: '10px 20px', margin: '0 auto 18px auto', maxWidth: 340, minWidth: 180, textAlign: 'center', fontWeight: 600, fontSize: '1rem', lineHeight: 1.5
                 }}>
-                  파일명: {post.fileName}
+                  {post.fileName && <div>파일명: {post.fileName}</div>}
+                  {(post.fileSizeBytes ?? resolvedFileSizeBytes) != null ? (
+                    <div style={{ fontSize: '0.92rem', marginTop: post.fileName ? 4 : 0 }}>
+                      용량: {formatAttachmentSize(post.fileSizeBytes ?? resolvedFileSizeBytes!)}
+                    </div>
+                  ) : fileSizeLoading ? (
+                    <div style={{ fontSize: '0.88rem', fontWeight: 500, opacity: 0.75, marginTop: post.fileName ? 4 : 0 }}>
+                      용량 확인 중…
+                    </div>
+                  ) : null}
                 </div>
               )}
               <AudioPlayer audioUrl={post.audioUrl} duration={post.duration} />

@@ -313,6 +313,15 @@ select.nickname-input option {
   background: var(--paper-card, #fffdf8);
 }
 
+.settings-form-grid .password-group {
+  position: relative;
+  width: 100%;
+}
+
+.settings-form-grid .password-group .nickname-input {
+  padding-right: 48px;
+}
+
 .edit-buttons {
   display: flex;
   gap: 8px;

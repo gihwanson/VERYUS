@@ -299,6 +299,15 @@
   background: rgba(255, 255, 255, 0.2);
 }
 
+.settings-form-grid .password-group {
+  position: relative;
+  width: 100%;
+}
+
+.settings-form-grid .password-group .nickname-input {
+  padding-right: 48px;
+}
+
 .edit-buttons {
   display: flex;
   gap: 8px;

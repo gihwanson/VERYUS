@@ -2,12 +2,12 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from 'react-toastify';
 import {
-  ChevronLeft,
-  ChevronRight,
   Check,
   Eye,
   ListChecks,
   Lock,
+  Pencil,
+  Plus,
   RefreshCw,
   Shuffle,
   Users,
@@ -21,13 +21,12 @@ import NicknameSuggestInput, {
 import {
   fetchAllMemberWorldCupVotesForQuestion,
   fetchMemberWorldCupQuestionStats,
-  fetchMemberWorldCupWeeklyConfig,
   fetchMyMemberWorldCupVotes,
   fetchWorldCupMemberOptions,
-  clearMemberWorldCupWeeklyQuestionSelection,
+  createCustomMemberWorldCupQuestion,
+  fetchCustomMemberWorldCupQuestions,
   groupVotesBySelectedMember,
   MAX_WORLD_CUP_SELECTIONS,
-  saveMemberWorldCupWeeklyQuestionSelection,
   submitMemberWorldCupVote,
   syncMemberWorldCupQuestionStatsFromVotes,
   type MemberWorldCupQuestionStats,
@@ -35,20 +34,22 @@ import {
   type WorldCupMemberOption,
 } from '../utils/memberWorldCupService';
 import {
-  MEMBER_WORLD_CUP_QUESTIONS_PER_WEEK,
-  MEMBER_WORLD_CUP_SELECTABLE_QUESTION_POOL,
-  MEMBER_WORLD_CUP_WEEKLY_RESET_NOTICE,
+  MEMBER_WORLD_CUP_DAILY_MEMBER_NOTICE,
+  MEMBER_WORLD_CUP_DAILY_RESET_NOTICE,
+  formatQuestionScheduleLabel,
+  getUpcomingScheduledQuestions,
   resolveActiveMemberWorldCupQuestions,
-  type MemberWorldCupWeeklyConfig,
+  sortScheduledQuestions,
+  type MemberWorldCupQuestionDefinition,
 } from '../utils/memberWorldCupQuestions';
 import {
-  formatNextResetLabel,
-  formatWeekRangeLabel,
-  getCurrentWeekMondayKey,
-  getNextMondayResetAtKst,
-  getNextWeekMondayKey,
+  formatDayKeyLabel,
+  getCurrentDayKey,
+  getNextDayResetAtKst,
+  formatNextDayResetLabel,
 } from '../utils/gameWeek';
 import { auth } from '../firebase';
+import { isTestNickname, TEST_NICKNAME_VOTE_BLOCKED_MESSAGE } from '../utils/testNickname';
 import './MemberWorldCup.css';
 
 const MWC_TOAST_STYLE = { zIndex: 10002 };
@@ -130,64 +131,49 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
   const canManageQuestions =
     user?.role === ROLE_SYSTEM.LEADER ||
     Boolean(user?.nickname && SUPER_ADMIN_NICKNAMES.includes(user.nickname));
+  const canWriteCustomQuestions = Boolean(
+    user?.nickname && SUPER_ADMIN_NICKNAMES.includes(user.nickname)
+  );
+  const isTestVoter = Boolean(user?.nickname && isTestNickname(user.nickname));
 
   const [loading, setLoading] = useState(true);
   const [members, setMembers] = useState<WorldCupMemberOption[]>([]);
   const [stats, setStats] = useState<MemberWorldCupQuestionStats[]>([]);
   const [myVotes, setMyVotes] = useState<Record<string, MemberWorldCupVote>>({});
-  const [weeklyConfig, setWeeklyConfig] = useState<MemberWorldCupWeeklyConfig | null>(null);
-  const [questionIndex, setQuestionIndex] = useState(0);
   const [customNicknames, setCustomNicknames] = useState<string[]>(['']);
   const [submitting, setSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showRevealModal, setShowRevealModal] = useState(false);
-  const [revealQuestionIndex, setRevealQuestionIndex] = useState(0);
   const [revealVotes, setRevealVotes] = useState<MemberWorldCupVote[]>([]);
   const [revealLoading, setRevealLoading] = useState(false);
   const [randomMembers, setRandomMembers] = useState<WorldCupMemberOption[]>([]);
   const [showResultsPanel, setShowResultsPanel] = useState(false);
   const [selectedUids, setSelectedUids] = useState<string[]>([]);
   const [showQuestionPicker, setShowQuestionPicker] = useState(false);
-  const [showApplyConfirm, setShowApplyConfirm] = useState(false);
-  const [pickerSelectedIds, setPickerSelectedIds] = useState<string[]>([]);
-  const [pickerSaving, setPickerSaving] = useState(false);
-  const [pickerUseRandom, setPickerUseRandom] = useState(false);
-  const [pickerFilter, setPickerFilter] = useState('');
-  const [pickerFeedback, setPickerFeedback] = useState<string | null>(null);
+  const [customQuestions, setCustomQuestions] = useState<MemberWorldCupQuestionDefinition[]>([]);
+  const [newQuestionText, setNewQuestionText] = useState('');
+  const [creatingQuestion, setCreatingQuestion] = useState(false);
 
-  const currentWeekKey = getCurrentWeekMondayKey();
-  const nextWeekKey = useMemo(() => getNextWeekMondayKey(), []);
+  const currentDayKey = getCurrentDayKey();
   const activeQuestions = useMemo(
-    () => resolveActiveMemberWorldCupQuestions(weeklyConfig),
-    [weeklyConfig, currentWeekKey]
+    () => resolveActiveMemberWorldCupQuestions(customQuestions),
+    [customQuestions, currentDayKey]
   );
-  const questionSourceLabel = useMemo(() => {
-    if (weeklyConfig?.source === 'leader' && weeklyConfig.questionIds.length === 5) {
-      return '리더 지정';
-    }
-    return '랜덤';
-  }, [weeklyConfig]);
-  const filteredPickerQuestions = useMemo(() => {
-    const query = pickerFilter.trim().toLowerCase();
-    if (!query) return MEMBER_WORLD_CUP_SELECTABLE_QUESTION_POOL;
-    return MEMBER_WORLD_CUP_SELECTABLE_QUESTION_POOL.filter((question) =>
-      question.text.toLowerCase().includes(query)
-    );
-  }, [pickerFilter]);
-  const pickerSelectedQuestions = useMemo(
+  const scheduledQueue = useMemo(
     () =>
-      pickerSelectedIds
-        .map((id) => MEMBER_WORLD_CUP_SELECTABLE_QUESTION_POOL.find((question) => question.id === id))
-        .filter((question): question is (typeof MEMBER_WORLD_CUP_SELECTABLE_QUESTION_POOL)[number] =>
-          Boolean(question)
-        ),
-    [pickerSelectedIds]
+      sortScheduledQuestions(customQuestions).map((question, index) => ({
+        ...question,
+        scheduleLabel: formatQuestionScheduleLabel(index + 1),
+        scheduleOrder: question.scheduleOrder ?? index + 1,
+      })),
+    [customQuestions]
   );
-  const pickerSelectionComplete =
-    pickerSelectedIds.length === MEMBER_WORLD_CUP_QUESTIONS_PER_WEEK;
-
-  const currentQuestion = activeQuestions[questionIndex];
-  const revealQuestion = activeQuestions[revealQuestionIndex];
+  const upcomingQuestions = useMemo(
+    () => getUpcomingScheduledQuestions(customQuestions),
+    [customQuestions, currentDayKey]
+  );
+  const currentQuestion = activeQuestions[0];
+  const revealQuestion = currentQuestion;
   const revealVotesByPick = useMemo(() => groupVotesBySelectedMember(revealVotes), [revealVotes]);
   const myVote = currentQuestion ? myVotes[currentQuestion.id] : undefined;
   const hasVotedCurrent = Boolean(myVote);
@@ -198,13 +184,17 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
     return map;
   }, [members]);
 
-  const memberCandidates = useMemo(
-    () => members.map((member) => ({ uid: member.uid, nickname: member.nickname })),
-    [members]
+  const votableMembers = useMemo(
+    () => (user?.uid ? members.filter((member) => member.uid !== user.uid) : members),
+    [members, user?.uid]
   );
-  const weekRangeLabel = useMemo(() => formatWeekRangeLabel(currentWeekKey), [currentWeekKey]);
+  const memberCandidates = useMemo(
+    () => votableMembers.map((member) => ({ uid: member.uid, nickname: member.nickname })),
+    [votableMembers]
+  );
+  const dayLabel = useMemo(() => formatDayKeyLabel(currentDayKey), [currentDayKey]);
   const nextResetLabel = useMemo(
-    () => formatNextResetLabel(getNextMondayResetAtKst()),
+    () => formatNextDayResetLabel(getNextDayResetAtKst()),
     []
   );
 
@@ -249,7 +239,7 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
   const totalPicksDisplay = questionStats?.totalPicks ?? 0;
 
   const bubblePreview = useMemo(() => {
-    if (!currentQuestion) return '한 표 던져줘 🎯';
+    if (!currentQuestion) return '오늘 질문 준비 중…';
     const text = currentQuestion.text.replace(/^베리어스 내\s?/, '');
     return text.length > 28 ? `${text.slice(0, 28)}…` : text;
   }, [currentQuestion]);
@@ -258,14 +248,14 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
     if (!user?.uid) return;
     setLoading(true);
     try {
-      const [memberOptions, weeklyConfigResult] = await Promise.all([
+      const [memberOptions, customQuestionResult] = await Promise.all([
         fetchWorldCupMemberOptions(),
-        fetchMemberWorldCupWeeklyConfig(currentWeekKey),
+        fetchCustomMemberWorldCupQuestions(),
       ]);
       setMembers(memberOptions);
-      setWeeklyConfig(weeklyConfigResult);
+      setCustomQuestions(customQuestionResult);
 
-      const questions = resolveActiveMemberWorldCupQuestions(weeklyConfigResult);
+      const questions = resolveActiveMemberWorldCupQuestions(customQuestionResult);
       const [statsResult, votesResult] = await Promise.allSettled([
         fetchMemberWorldCupQuestionStats(),
         fetchMyMemberWorldCupVotes(user.uid),
@@ -284,25 +274,24 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
       }
 
       setMyVotes(myVoteMap);
-      const firstUnanswered = questions.findIndex((q) => !myVoteMap[q.id]);
-      const firstIdx = firstUnanswered >= 0 ? firstUnanswered : 0;
-      setQuestionIndex(firstIdx);
+      setShowResultsPanel(Boolean(questions[0] && myVoteMap[questions[0].id]));
 
       const ensureUids =
-        myVoteMap[questions[firstIdx]?.id]?.selectedMembers.map((m) => m.uid) ?? [];
-      setRandomMembers(buildRandomMemberSet(memberOptions, [], ensureUids));
+        myVoteMap[questions[0]?.id]?.selectedMembers.map((m) => m.uid) ?? [];
+      const votable = user.uid
+        ? memberOptions.filter((member) => member.uid !== user.uid)
+        : memberOptions;
+      setRandomMembers(buildRandomMemberSet(votable, [], ensureUids));
     } catch (error) {
       console.error('멤버 월드컵 로딩 실패:', error);
     } finally {
       setLoading(false);
     }
-  }, [user?.uid, currentWeekKey]);
+  }, [user?.uid, currentDayKey]);
 
   useEffect(() => {
-    setQuestionIndex(0);
     setShowResultsPanel(false);
-    setRevealQuestionIndex(0);
-  }, [currentWeekKey]);
+  }, [currentDayKey]);
 
   useEffect(() => {
     void loadData();
@@ -336,13 +325,13 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
   useEffect(() => {
     if (!showRevealModal || !canViewVoters || !revealQuestion) return;
     void loadRevealVotes(revealQuestion.id);
-  }, [showRevealModal, revealQuestionIndex, revealQuestion?.id, canViewVoters, loadRevealVotes]);
+  }, [showRevealModal, revealQuestion?.id, canViewVoters, loadRevealVotes]);
 
   useEffect(() => {
-    if (members.length === 0) return;
+    if (votableMembers.length === 0) return;
     const ensureUids = myVote?.selectedMembers.map((member) => member.uid) ?? [];
-    setRandomMembers(buildRandomMemberSet(members, [], ensureUids));
-  }, [currentQuestion?.id, members, myVote?.selectedMembers]);
+    setRandomMembers(buildRandomMemberSet(votableMembers, [], ensureUids));
+  }, [currentQuestion?.id, votableMembers, myVote?.selectedMembers]);
 
   useEffect(() => {
     if (maxCustomFields <= 0) return;
@@ -356,11 +345,15 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
   const handleShuffleMembers = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     const previousUids = randomMembers.map((member) => member.uid);
-    setRandomMembers(buildRandomMemberSet(members, previousUids, selectedUids));
+    setRandomMembers(buildRandomMemberSet(votableMembers, previousUids, selectedUids));
   };
 
   const toggleMemberSelection = (memberUid: string) => {
     if (submitting) return;
+    if (user?.uid && memberUid === user.uid) {
+      toast.info('본인에게는 투표할 수 없어요.');
+      return;
+    }
     setSelectedUids((prev) => {
       if (prev.includes(memberUid)) {
         return prev.filter((uid) => uid !== memberUid);
@@ -391,6 +384,11 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
 
   const handleSubmitVote = async () => {
     if (!user?.uid || !user?.nickname || !currentQuestion || submitting) return;
+
+    if (isTestVoter) {
+      toast.error(TEST_NICKNAME_VOTE_BLOCKED_MESSAGE);
+      return;
+    }
 
     if (hasVotedCurrent) {
       toast.info('이미 투표한 질문은 수정할 수 없습니다.');
@@ -436,6 +434,10 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
       toast.info('멤버를 1명 이상 선택하거나 등록된 닉네임을 입력해 주세요.');
       return;
     }
+    if (user.uid && selectedMembers.some((member) => member.uid === user.uid)) {
+      toast.error('본인에게는 투표할 수 없습니다.');
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -479,45 +481,18 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
     return myVoteMap;
   };
 
-  const goPrev = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    setQuestionIndex((idx) => (idx <= 0 ? activeQuestions.length - 1 : idx - 1));
-  };
-
-  const goNext = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    setQuestionIndex((idx) => (idx >= activeQuestions.length - 1 ? 0 : idx + 1));
-  };
-
-  const handleGoNextQuestion = () => {
-    setQuestionIndex((idx) => (idx >= activeQuestions.length - 1 ? 0 : idx + 1));
+  const openRevealModal = () => {
+    if (!canViewVoters || !currentQuestion) return;
+    setShowRevealModal(true);
   };
 
   const maxResultCount = fullResults[0]?.count ?? 1;
   const totalVotesDisplay = questionStats?.totalVotes ?? 0;
   const resultsPickDenominator = totalPicksDisplay > 0 ? totalPicksDisplay : 1;
 
-  const openRevealModal = () => {
-    if (!canViewVoters) return;
-    setRevealQuestionIndex(questionIndex);
-    setShowRevealModal(true);
-  };
-
   const closeRevealModal = () => {
     setShowRevealModal(false);
     setRevealVotes([]);
-  };
-
-  const goRevealPrev = () => {
-    setRevealQuestionIndex((idx) =>
-      idx <= 0 ? activeQuestions.length - 1 : idx - 1
-    );
-  };
-
-  const goRevealNext = () => {
-    setRevealQuestionIndex((idx) =>
-      idx >= activeQuestions.length - 1 ? 0 : idx + 1
-    );
   };
 
   const openModal = async () => {
@@ -535,8 +510,11 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
       }
     }
 
+    const votable = user.uid
+      ? memberList.filter((member) => member.uid !== user.uid)
+      : memberList;
     const ensureUids = myVote?.selectedMembers.map((member) => member.uid) ?? [];
-    setRandomMembers(buildRandomMemberSet(memberList, [], ensureUids));
+    setRandomMembers(buildRandomMemberSet(votable, [], ensureUids));
     setShowResultsPanel(Boolean(myVote));
     setShowModal(true);
   };
@@ -549,122 +527,60 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
   };
 
   const openQuestionPicker = () => {
-    const selectableIds = new Set(MEMBER_WORLD_CUP_SELECTABLE_QUESTION_POOL.map((item) => item.id));
-    setPickerSelectedIds(
-      activeQuestions.map((question) => question.id).filter((id) => selectableIds.has(id))
-    );
-    setPickerUseRandom(false);
-    setPickerFilter('');
-    setPickerFeedback(null);
-    setShowApplyConfirm(false);
+    setNewQuestionText('');
     setShowQuestionPicker(true);
   };
 
   const closeQuestionPicker = () => {
-    if (pickerSaving) return;
+    if (creatingQuestion) return;
     setShowQuestionPicker(false);
-    setShowApplyConfirm(false);
   };
 
-  const togglePickerQuestion = (questionId: string) => {
-    setPickerSelectedIds((prev) => {
-      if (prev.includes(questionId)) {
-        return prev.filter((id) => id !== questionId);
-      }
-      if (prev.length >= MEMBER_WORLD_CUP_QUESTIONS_PER_WEEK) {
-        toast.info(`질문은 ${MEMBER_WORLD_CUP_QUESTIONS_PER_WEEK}개까지 선택할 수 있어요.`);
-        return prev;
-      }
-      return [...prev, questionId];
-    });
-  };
-
-  const requestSaveQuestions = () => {
-    if (pickerSelectedIds.length !== MEMBER_WORLD_CUP_QUESTIONS_PER_WEEK) {
-      toast.error(`질문 ${MEMBER_WORLD_CUP_QUESTIONS_PER_WEEK}개를 선택해 주세요.`);
-      return;
-    }
-    setPickerUseRandom(false);
-    setShowApplyConfirm(true);
-  };
-
-  const requestRandomQuestions = () => {
-    setPickerUseRandom(true);
-    setShowApplyConfirm(true);
-  };
-
-  const applyQuestionSelection = async (targetWeekKey: string) => {
-    if (!auth.currentUser?.uid) {
-      await auth.authStateReady();
-    }
+  const handleCreateCustomQuestion = async () => {
     const authUid = auth.currentUser?.uid;
     const nickname = user?.nickname?.trim();
+    const trimmed = newQuestionText.trim();
 
     if (!authUid || !nickname) {
-      const message = '로그인 정보를 확인할 수 없습니다. 다시 로그인해 주세요.';
-      setPickerFeedback(message);
-      showMwcToast('error', message);
+      showMwcToast('error', '로그인 정보를 확인할 수 없습니다.');
+      return;
+    }
+    if (!trimmed) {
+      showMwcToast('error', '질문 내용을 입력해 주세요.');
+      return;
+    }
+    if (trimmed.length > 200) {
+      showMwcToast('error', '질문은 200자 이내로 입력해 주세요.');
       return;
     }
 
-    if (!pickerUseRandom && pickerSelectedIds.length !== MEMBER_WORLD_CUP_QUESTIONS_PER_WEEK) {
-      const message = `질문 ${MEMBER_WORLD_CUP_QUESTIONS_PER_WEEK}개를 선택해 주세요.`;
-      setPickerFeedback(message);
-      showMwcToast('error', message);
-      return;
-    }
-
-    setPickerSaving(true);
-    setPickerFeedback('저장 중…');
+    setCreatingQuestion(true);
     try {
-      if (pickerUseRandom) {
-        await clearMemberWorldCupWeeklyQuestionSelection(targetWeekKey);
-      } else {
-        await saveMemberWorldCupWeeklyQuestionSelection({
-          weekKey: targetWeekKey,
-          questionIds: pickerSelectedIds,
-          selectedBy: authUid,
-          selectedByNickname: nickname,
-        });
-      }
-
-      if (targetWeekKey === currentWeekKey) {
-        const nextConfig = pickerUseRandom
-          ? null
-          : await fetchMemberWorldCupWeeklyConfig(currentWeekKey);
-        setWeeklyConfig(nextConfig);
-        setQuestionIndex(0);
-        setShowResultsPanel(false);
-        await loadData();
-      }
-
-      const weekLabel = formatWeekRangeLabel(targetWeekKey);
-      const successMessage =
-        targetWeekKey === currentWeekKey
-          ? pickerUseRandom
-            ? '이번 주 질문을 랜덤으로 적용했습니다.'
-            : '이번 주 질문을 적용했습니다.'
-          : pickerUseRandom
-            ? `${weekLabel} 주부터 랜덤 질문이 적용됩니다.`
-            : `${weekLabel} 주부터 선택한 질문이 적용됩니다.`;
-
-      showMwcToast('success', successMessage);
-      setShowApplyConfirm(false);
-      setShowQuestionPicker(false);
-      setPickerFeedback(null);
+      const created = await createCustomMemberWorldCupQuestion({
+        text: trimmed,
+        createdBy: authUid,
+        createdByNickname: nickname,
+      });
+      const refreshed = await fetchCustomMemberWorldCupQuestions();
+      setCustomQuestions(refreshed.length > 0 ? refreshed : [created]);
+      setNewQuestionText('');
+      const scheduleLabel = formatQuestionScheduleLabel(created.scheduleOrder ?? refreshed.length);
+      showMwcToast(
+        'success',
+        `질문을 등록했습니다. ${scheduleLabel}에 멤버들에게 공개됩니다.`
+      );
+      await loadData();
     } catch (error) {
-      console.error('주간 질문 저장 실패:', error);
-      const message = error instanceof Error ? error.message : '저장에 실패했습니다.';
-      setPickerFeedback(message);
+      const message = error instanceof Error ? error.message : '질문 등록에 실패했습니다.';
       showMwcToast('error', message);
     } finally {
-      setPickerSaving(false);
+      setCreatingQuestion(false);
     }
   };
 
   if (!user?.uid) return null;
 
-  const modalContent = showModal && currentQuestion && (
+  const modalContent = showModal && (
     <div className="mwc-modal-overlay" onClick={closeModal} role="presentation">
       <div
         className="mwc-modal"
@@ -682,43 +598,38 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
               </span>
               <h3 id="mwc-modal-title">심심할 때 한 표</h3>
               <p className="mwc-modal__hero-sub">누가 누구를 골랐는지는 절대 공개되지 않아요</p>
-              <p className="mwc-modal__hero-note">
-                매주 월요일 질문 5개 · 이번 주 {questionSourceLabel}
-                {canManageQuestions && ' · 리더는 질문을 직접 고를 수 있어요'}
+              <p className="mwc-modal__hero-note">{MEMBER_WORLD_CUP_DAILY_MEMBER_NOTICE}</p>
+              <p className="mwc-modal__hero-note mwc-modal__hero-note--daily">
+                {MEMBER_WORLD_CUP_DAILY_RESET_NOTICE}
               </p>
             </div>
             <button type="button" className="mwc-modal__close" onClick={closeModal} aria-label="닫기">
               <X size={18} />
             </button>
           </div>
-          <div className="mwc-modal__progress" aria-hidden>
-            {activeQuestions.map((question, idx) => (
-              <span
-                key={question.id}
-                className={`mwc-modal__progress-dot${
-                  idx === questionIndex ? ' is-active' : myVotes[question.id] ? ' is-done' : ''
-                }`}
-              />
-            ))}
-          </div>
         </div>
 
         <div className="mwc-modal__body">
+          {!currentQuestion ? (
+            <div className="mwc-modal__empty-day">
+              <p className="mwc-modal__empty-day-title">오늘 질문 준비 중</p>
+              <p className="mwc-modal__empty-day-text">
+                매일 하나씩 새 질문이 공개됩니다.
+                <br />
+                다음 질문은 {nextResetLabel}에 올라와요.
+              </p>
+            </div>
+          ) : (
+            <>
           <div className="mwc-modal__nav">
-            <button type="button" className="mwc-modal__nav-btn" onClick={goPrev} aria-label="이전 질문">
-              <ChevronLeft size={18} />
-            </button>
-            <span className="mwc-modal__nav-label">
-              <span>{questionIndex + 1}</span> / {activeQuestions.length}
+            <span className="mwc-modal__nav-label mwc-modal__nav-label--daily">
+              오늘의 질문 · {dayLabel}
               {hasVotedCurrent && ' · 완료'}
             </span>
-            <button type="button" className="mwc-modal__nav-btn" onClick={goNext} aria-label="다음 질문">
-              <ChevronRight size={18} />
-            </button>
           </div>
 
           <div className="mwc-modal__question-card">
-            <span className="mwc-modal__question-num">Q{questionIndex + 1}</span>
+            <span className="mwc-modal__question-num">오늘</span>
             <p className="mwc-modal__question">{currentQuestion.text}</p>
             {hasVotedCurrent && showResultsPanel && (
               <span className="mwc-modal__status-pill">
@@ -786,19 +697,10 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
               )}
 
               <p className="mwc-modal__week-notice">
-                {MEMBER_WORLD_CUP_WEEKLY_RESET_NOTICE}
+                {MEMBER_WORLD_CUP_DAILY_RESET_NOTICE}
                 <br />
-                이번 주 {weekRangeLabel} · 다음 초기화 {nextResetLabel}
-                <br />
-                한 번 투표하면 이번 주에는 수정할 수 없어요
+                오늘 {dayLabel} · 다음 질문 {nextResetLabel}
               </p>
-
-              <div className="mwc-modal__results-actions">
-                <button type="button" className="mwc-modal__next-btn" onClick={handleGoNextQuestion}>
-                  다음 질문으로
-                  <ChevronRight size={16} />
-                </button>
-              </div>
             </div>
           ) : (
             <>
@@ -844,7 +746,7 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
                 <button
                   type="button"
                   className="mwc-modal__shuffle"
-                  disabled={submitting || members.length <= RANDOM_PICK_COUNT}
+                  disabled={submitting || votableMembers.length <= RANDOM_PICK_COUNT}
                   onClick={handleShuffleMembers}
                   title="다른 멤버 4명 보기"
                 >
@@ -868,6 +770,7 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
                           }
                           candidates={memberCandidates}
                           excludeNicknames={[
+                            ...(user?.nickname ? [user.nickname] : []),
                             ...selectedUids
                               .map((uid) => memberByUid.get(uid)?.nickname)
                               .filter((name): name is string => Boolean(name)),
@@ -910,6 +813,12 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
               )}
 
               <div className="mwc-modal__submit-bar">
+                {isTestVoter ? (
+                  <p className="mwc-modal__test-blocked" role="status">
+                    {TEST_NICKNAME_VOTE_BLOCKED_MESSAGE}
+                  </p>
+                ) : (
+                  <>
                 <button
                   type="button"
                   className="mwc-modal__submit-vote"
@@ -923,16 +832,20 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
                   {submitting ? '제출 중…' : '🔒 익명 제출하기'}
                 </button>
                 <span className="mwc-modal__result-hint">
-                  1~{MAX_WORLD_CUP_SELECTIONS}명 선택 · 제출 후 이번 주 수정 불가
+                  1~{MAX_WORLD_CUP_SELECTIONS}명 선택 · 제출 후 오늘은 수정 불가
                 </span>
+                  </>
+                )}
               </div>
+            </>
+          )}
             </>
           )}
         </div>
 
         <div className="mwc-modal__foot">
           <span className="mwc-modal__foot-progress">
-            이번 주 진행 <strong>{answeredCount}</strong>/{activeQuestions.length}
+            오늘 {hasVotedCurrent ? '투표 완료' : '투표 전'}
           </span>
           <div className="mwc-modal__foot-actions">
             {canManageQuestions && (
@@ -941,7 +854,7 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
                 질문 설정
               </button>
             )}
-            {canViewVoters && (
+            {canViewVoters && currentQuestion && (
               <button type="button" className="mwc-modal__reveal" onClick={openRevealModal}>
                 <Eye size={14} />
                 너래 보기
@@ -980,32 +893,11 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
           </button>
         </div>
 
-        <div className="mwc-reveal-modal__tabs">
-          {activeQuestions.map((question, idx) => (
-            <button
-              key={question.id}
-              type="button"
-              className={`mwc-reveal-modal__tab${
-                idx === revealQuestionIndex ? ' is-active' : ''
-              }`}
-              onClick={() => setRevealQuestionIndex(idx)}
-            >
-              Q{idx + 1}
-            </button>
-          ))}
-        </div>
-
         <div className="mwc-reveal-modal__question-bar">
-          <button type="button" className="mwc-modal__nav-btn" onClick={goRevealPrev} aria-label="이전 질문">
-            <ChevronLeft size={18} />
-          </button>
           <div className="mwc-reveal-modal__question-text">
-            <span className="mwc-modal__question-num">Q{revealQuestionIndex + 1}</span>
+            <span className="mwc-modal__question-num">오늘 · {dayLabel}</span>
             <p>{revealQuestion.text}</p>
           </div>
-          <button type="button" className="mwc-modal__nav-btn" onClick={goRevealNext} aria-label="다음 질문">
-            <ChevronRight size={18} />
-          </button>
         </div>
 
         <div className="mwc-reveal-modal__toolbar">
@@ -1027,7 +919,7 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
           {revealLoading ? (
             <p className="mwc-modal__reveal-empty">불러오는 중…</p>
           ) : revealVotes.length === 0 ? (
-            <p className="mwc-modal__reveal-empty">이번 주 아직 투표가 없어요</p>
+            <p className="mwc-modal__reveal-empty">오늘 아직 투표가 없어요</p>
           ) : revealVotesByPick.length === 0 ? (
             <p className="mwc-modal__reveal-empty">멤버 선택 없이 제출된 투표만 있어요</p>
           ) : (
@@ -1068,19 +960,14 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
           <div className="mwc-modal__hero-top">
             <div className="mwc-modal__hero-text">
               <div className="mwc-picker__title-row">
-                <h3 id="mwc-picker-title">이번 주 질문 설정</h3>
-                <span
-                  className={`mwc-picker__count-badge${
-                    pickerSelectionComplete ? ' is-complete' : ''
-                  }`}
-                  aria-live="polite"
-                >
-                  {pickerSelectedIds.length}/{MEMBER_WORLD_CUP_QUESTIONS_PER_WEEK} 선택
+                <h3 id="mwc-picker-title">질문 설정 · 매일 1개씩</h3>
+                <span className="mwc-picker__count-badge" aria-live="polite">
+                  예약 {scheduledQueue.length}개
                 </span>
               </div>
               <p className="mwc-modal__hero-sub">
-                질문 {MEMBER_WORLD_CUP_QUESTIONS_PER_WEEK}개를 고르거나, 선택하지 않으면 랜덤으로
-                진행됩니다.
+                입력한 순서대로 매일 00시(KST)에 질문 1개가 멤버들에게 공개됩니다.
+                {canWriteCustomQuestions && ' 아래에서 질문을 추가해 주세요.'}
               </p>
             </div>
             <button
@@ -1095,123 +982,68 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
         </div>
 
         <div className="mwc-modal__body">
-          <div className="mwc-picker__search-row">
-            <input
-              type="search"
-              className="mwc-picker__search"
-              value={pickerFilter}
-              onChange={(e) => setPickerFilter(e.target.value)}
-              placeholder="질문 검색"
-            />
-            <span
-              className={`mwc-picker__search-count${
-                pickerSelectionComplete ? ' is-complete' : ''
-              }`}
-            >
-              {pickerSelectedIds.length}개 선택됨
-            </span>
-          </div>
-
-          {pickerSelectedQuestions.length > 0 && (
-            <div className="mwc-picker__selected-bar" aria-label="선택한 질문">
-              {pickerSelectedQuestions.map((question, index) => (
-                <button
-                  key={question.id}
-                  type="button"
-                  className="mwc-picker__selected-chip"
-                  onClick={() => togglePickerQuestion(question.id)}
-                  title="클릭하면 선택 해제"
-                >
-                  <span className="mwc-picker__selected-chip-num">{index + 1}</span>
-                  <span className="mwc-picker__selected-chip-text">{question.text}</span>
-                  <X size={12} aria-hidden />
-                </button>
-              ))}
-            </div>
-          )}
-
-          <div className="mwc-picker__list">
-            {filteredPickerQuestions.map((question) => {
-              const selectedIndex = pickerSelectedIds.indexOf(question.id);
-              const selected = selectedIndex >= 0;
-              return (
-                <button
-                  key={question.id}
-                  type="button"
-                  className={`mwc-picker__item${selected ? ' is-selected' : ''}`}
-                  onClick={() => togglePickerQuestion(question.id)}
-                >
-                  <span className="mwc-picker__check" aria-hidden>
-                    {selected ? (
-                      <span className="mwc-picker__order">{selectedIndex + 1}</span>
-                    ) : null}
-                  </span>
-                  <span>{question.text}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {showApplyConfirm ? (
-            <div className="mwc-picker__confirm">
-              <strong>언제 적용할까요?</strong>
-              <p>
-                {pickerUseRandom
-                  ? '랜덤 질문으로 설정합니다.'
-                  : '선택한 질문 5개를 적용합니다.'}
-                {pickerUseRandom ? '' : ' 지금 적용하면 이번 주 질문이 바뀝니다.'}
-              </p>
-              {pickerFeedback && (
-                <p className={`mwc-picker__feedback${pickerSaving ? ' is-loading' : ' is-error'}`}>
-                  {pickerFeedback}
-                </p>
-              )}
-              <div className="mwc-picker__confirm-actions">
+          {canWriteCustomQuestions && (
+            <div className="mwc-picker__compose">
+              <div className="mwc-picker__compose-head">
+                <Pencil size={15} aria-hidden />
+                <strong>질문 작성</strong>
+              </div>
+              <textarea
+                className="mwc-picker__compose-input"
+                value={newQuestionText}
+                onChange={(e) => setNewQuestionText(e.target.value)}
+                placeholder="예: 버스킹에서 제일 눈에 띄는 사람은?"
+                maxLength={200}
+                rows={3}
+                disabled={creatingQuestion}
+              />
+              <div className="mwc-picker__compose-actions">
+                <span className="mwc-picker__compose-count">{newQuestionText.trim().length}/200</span>
                 <button
                   type="button"
-                  className="mwc-picker__confirm-btn mwc-picker__confirm-btn--primary"
-                  disabled={pickerSaving}
-                  onClick={() => void applyQuestionSelection(currentWeekKey)}
+                  className="mwc-picker__compose-submit"
+                  disabled={creatingQuestion || !newQuestionText.trim()}
+                  onClick={() => void handleCreateCustomQuestion()}
                 >
-                  {pickerSaving ? '적용 중…' : '지금 바로 적용'}
-                </button>
-                <button
-                  type="button"
-                  className="mwc-picker__confirm-btn"
-                  disabled={pickerSaving}
-                  onClick={() => void applyQuestionSelection(nextWeekKey)}
-                >
-                  다음 주({formatWeekRangeLabel(nextWeekKey)})부터
-                </button>
-                <button
-                  type="button"
-                  className="mwc-picker__confirm-btn mwc-picker__confirm-btn--ghost"
-                  disabled={pickerSaving}
-                  onClick={() => setShowApplyConfirm(false)}
-                >
-                  취소
+                  <Plus size={14} aria-hidden />
+                  {creatingQuestion ? '등록 중…' : '질문 올리기'}
                 </button>
               </div>
             </div>
-          ) : (
-            <div className="mwc-picker__actions">
-              <button
-                type="button"
-                className="mwc-picker__action mwc-picker__action--primary"
-                disabled={!pickerSelectionComplete}
-                onClick={requestSaveQuestions}
-              >
-                선택한 질문 적용 ({pickerSelectedIds.length}/{MEMBER_WORLD_CUP_QUESTIONS_PER_WEEK})
-              </button>
-              <button
-                type="button"
-                className="mwc-picker__action"
-                onClick={requestRandomQuestions}
-              >
-                랜덤으로 사용
-              </button>
-            </div>
           )}
+
+          <div className="mwc-picker__queue-head">
+            <strong>예약 큐</strong>
+            <span>{upcomingQuestions.length}개 남음</span>
+          </div>
+
+          <div className="mwc-picker__list mwc-picker__list--queue">
+            {scheduledQueue.length === 0 ? (
+              <p className="mwc-picker__queue-empty">아직 등록된 질문이 없습니다. 질문을 작성해 주세요.</p>
+            ) : (
+              scheduledQueue.map((question) => {
+                const isToday = currentQuestion?.id === question.id;
+                const isPast =
+                  !isToday &&
+                  upcomingQuestions.every((upcoming) => upcoming.id !== question.id);
+                return (
+                  <div
+                    key={question.id}
+                    className={`mwc-picker__queue-item${isToday ? ' is-today' : ''}${
+                      isPast ? ' is-past' : ''
+                    }`}
+                  >
+                    <span className="mwc-picker__queue-order">{question.scheduleOrder}</span>
+                    <div className="mwc-picker__queue-body">
+                      <span className="mwc-picker__queue-label">{question.scheduleLabel}</span>
+                      <p className="mwc-picker__queue-text">{question.text}</p>
+                    </div>
+                    {isToday && <span className="mwc-picker__queue-badge">오늘 노출</span>}
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -1238,11 +1070,11 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
           ) : (
             <>
               <span className="mwc-bubble__label mwc-bubble__label--anon">
-                🔒 100% 익명 투표
-                {answeredCount > 0 && ` · ${answeredCount}/${activeQuestions.length}`}
+                🔒 100% 익명 · 매일 1문항
+                {answeredCount > 0 && ' · 완료'}
               </span>
               <span className="mwc-bubble__text">{bubblePreview}</span>
-              <span className="mwc-bubble__hint">&lt;말풍선을 클릭하세요&gt;</span>
+              <span className="mwc-bubble__hint">매일 질문 1개 · 클릭!</span>
             </>
           )}
         </div>

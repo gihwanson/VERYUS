@@ -1,6 +1,5 @@
 import {
   collection,
-  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -9,21 +8,23 @@ import {
   serverTimestamp,
   setDoc,
   where,
+  addDoc,
   type DocumentData,
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { auth } from '../firebase';
-import { getCurrentWeekMondayKey } from './gameWeek';
+import { getCurrentDayKey } from './gameWeek';
+import { isTestNickname, TEST_NICKNAME_VOTE_BLOCKED_MESSAGE } from './testNickname';
 import {
   MEMBER_WORLD_CUP_COLLECTION,
-  MEMBER_WORLD_CUP_QUESTIONS_PER_WEEK,
-  MEMBER_WORLD_CUP_SELECTABLE_QUESTION_POOL,
   MEMBER_WORLD_CUP_VOTES_COLLECTION,
-  MEMBER_WORLD_CUP_WEEKLY_CONFIG_COLLECTION,
   resolveActiveMemberWorldCupQuestions,
+  sortScheduledQuestions,
   type MemberWorldCupQuestion,
-  type MemberWorldCupWeeklyConfig,
+  type MemberWorldCupQuestionDefinition,
 } from './memberWorldCupQuestions';
+
+export const MEMBER_WORLD_CUP_CUSTOM_QUESTIONS_COLLECTION = 'memberWorldCupCustomQuestions';
 
 export const MAX_WORLD_CUP_SELECTIONS = 3;
 
@@ -46,7 +47,9 @@ export interface MemberWorldCupVote {
   selectedMembers: MemberWorldCupSelection[];
   customText: string | null;
   submittedAt: unknown;
-  weekKey: string | null;
+  dayKey: string | null;
+  /** @deprecated 일일 전환 이전 문서 호환 */
+  weekKey?: string | null;
   /** @deprecated 단일 선택 구버전 호환 */
   selectedMemberUid?: string | null;
   selectedMemberNickname?: string | null;
@@ -57,11 +60,11 @@ export interface MemberWorldCupQuestionStats {
   text: string;
   order: number;
   counts: Record<string, number>;
-  /** 이번 주 참여자 수 (1인 1표) */
+  /** 오늘 참여자 수 (1인 1표) */
   totalVotes: number;
-  /** 이번 주 선택 합계 (복수 선택 포함) */
+  /** 오늘 선택 합계 (복수 선택 포함) */
   totalPicks: number;
-  weekKey: string | null;
+  dayKey: string | null;
 }
 
 export interface SubmitMemberWorldCupVoteInput {
@@ -70,42 +73,6 @@ export interface SubmitMemberWorldCupVoteInput {
   voterNickname: string;
   selectedMembers: MemberWorldCupSelection[];
   customText: string;
-}
-
-export interface SaveMemberWorldCupWeeklyQuestionsInput {
-  weekKey: string;
-  questionIds: string[];
-  selectedBy: string;
-  selectedByNickname: string;
-}
-
-function parseWeeklyConfigDoc(
-  weekKey: string,
-  data: DocumentData
-): MemberWorldCupWeeklyConfig {
-  const questionIds = Array.isArray(data.questionIds)
-    ? data.questionIds.filter((id): id is string => typeof id === 'string')
-    : [];
-
-  return {
-    weekKey: String(data.weekKey || weekKey),
-    questionIds,
-    source: data.source === 'leader' ? 'leader' : 'random',
-    selectedBy: typeof data.selectedBy === 'string' ? data.selectedBy : undefined,
-    selectedByNickname:
-      typeof data.selectedByNickname === 'string' ? data.selectedByNickname : undefined,
-    selectedAt: data.selectedAt,
-  };
-}
-
-export async function fetchMemberWorldCupWeeklyConfig(
-  weekKey: string
-): Promise<MemberWorldCupWeeklyConfig | null> {
-  const snap = await getDoc(
-    doc(db, MEMBER_WORLD_CUP_WEEKLY_CONFIG_COLLECTION, weekKey)
-  );
-  if (!snap.exists()) return null;
-  return parseWeeklyConfigDoc(weekKey, snap.data());
 }
 
 function getFirestoreErrorMessage(error: unknown): string {
@@ -124,9 +91,73 @@ function getFirestoreErrorMessage(error: unknown): string {
   return '저장에 실패했습니다.';
 }
 
-export async function saveMemberWorldCupWeeklyQuestionSelection(
-  input: SaveMemberWorldCupWeeklyQuestionsInput
-): Promise<void> {
+function parseScheduleOrder(data: DocumentData, fallback: number): number {
+  const raw = data.scheduleOrder;
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) {
+    return Math.floor(raw);
+  }
+  return fallback;
+}
+
+export async function fetchCustomMemberWorldCupQuestions(): Promise<MemberWorldCupQuestionDefinition[]> {
+  try {
+    const snap = await getDocs(
+      query(
+        collection(db, MEMBER_WORLD_CUP_CUSTOM_QUESTIONS_COLLECTION),
+        where('isActive', '==', true)
+      )
+    );
+
+    type RawCustomQuestion = MemberWorldCupQuestionDefinition & { createdAtMs: number };
+
+    const items: RawCustomQuestion[] = [];
+    snap.docs.forEach((docSnap, index) => {
+      const data = docSnap.data();
+      const text = String(data.text || '').trim();
+      if (!text) return;
+
+      const createdAtMs =
+        data.createdAt && typeof (data.createdAt as { toMillis?: () => number }).toMillis === 'function'
+          ? (data.createdAt as { toMillis: () => number }).toMillis()
+          : index;
+
+      items.push({
+        id: docSnap.id,
+        text,
+        scheduleOrder: parseScheduleOrder(data, 0) || undefined,
+        createdAtMs,
+      });
+    });
+
+    const withoutOrder = items.filter((item) => !item.scheduleOrder);
+    const withOrder = items.filter((item) => item.scheduleOrder && item.scheduleOrder > 0);
+
+    withoutOrder.sort((a, b) => a.createdAtMs - b.createdAtMs);
+    withOrder.sort((a, b) => (a.scheduleOrder ?? 0) - (b.scheduleOrder ?? 0));
+
+    let nextOrder =
+      withOrder.reduce((max, item) => Math.max(max, item.scheduleOrder ?? 0), 0) + 1;
+    const normalizedWithoutOrder = withoutOrder.map((item) => ({
+      id: item.id,
+      text: item.text,
+      scheduleOrder: nextOrder++,
+    }));
+
+    return sortScheduledQuestions([
+      ...withOrder.map(({ id, text, scheduleOrder }) => ({ id, text, scheduleOrder })),
+      ...normalizedWithoutOrder,
+    ]);
+  } catch (error) {
+    console.error('커스텀 질문 로드 실패:', error);
+    return [];
+  }
+}
+
+export async function createCustomMemberWorldCupQuestion(input: {
+  text: string;
+  createdBy: string;
+  createdByNickname: string;
+}): Promise<MemberWorldCupQuestionDefinition> {
   if (!auth.currentUser?.uid) {
     await auth.authStateReady();
   }
@@ -134,47 +165,32 @@ export async function saveMemberWorldCupWeeklyQuestionSelection(
   if (!authUid) {
     throw new Error('로그인 세션이 만료되었습니다. 다시 로그인해 주세요.');
   }
-  if (input.selectedBy !== authUid) {
+  if (input.createdBy !== authUid) {
     throw new Error('계정 정보가 일치하지 않습니다. 다시 로그인해 주세요.');
   }
 
-  const uniqueIds = new Set(input.questionIds);
-  if (uniqueIds.size !== MEMBER_WORLD_CUP_QUESTIONS_PER_WEEK) {
-    throw new Error(`질문 ${MEMBER_WORLD_CUP_QUESTIONS_PER_WEEK}개를 선택해 주세요.`);
+  const trimmed = input.text.trim();
+  if (!trimmed) {
+    throw new Error('질문 내용을 입력해 주세요.');
   }
-  if (input.questionIds.length !== MEMBER_WORLD_CUP_QUESTIONS_PER_WEEK) {
-    throw new Error(`질문 ${MEMBER_WORLD_CUP_QUESTIONS_PER_WEEK}개를 선택해 주세요.`);
+  if (trimmed.length > 200) {
+    throw new Error('질문은 200자 이내로 입력해 주세요.');
   }
 
-  const selectableIds = new Set(MEMBER_WORLD_CUP_SELECTABLE_QUESTION_POOL.map((item) => item.id));
-  if (!input.questionIds.every((id) => selectableIds.has(id))) {
-    throw new Error('선택할 수 없는 질문이 포함되어 있습니다.');
-  }
+  const existing = await fetchCustomMemberWorldCupQuestions();
+  const nextScheduleOrder =
+    existing.reduce((max, item) => Math.max(max, item.scheduleOrder ?? 0), 0) + 1;
 
   try {
-    await setDoc(doc(db, MEMBER_WORLD_CUP_WEEKLY_CONFIG_COLLECTION, input.weekKey), {
-    weekKey: input.weekKey,
-    questionIds: input.questionIds,
-    source: 'leader',
-    selectedBy: input.selectedBy,
-    selectedByNickname: input.selectedByNickname,
-      updatedAt: serverTimestamp(),
-      selectedAt: serverTimestamp(),
+    const ref = await addDoc(collection(db, MEMBER_WORLD_CUP_CUSTOM_QUESTIONS_COLLECTION), {
+      text: trimmed,
+      createdBy: input.createdBy,
+      createdByNickname: input.createdByNickname.trim(),
+      scheduleOrder: nextScheduleOrder,
+      isActive: true,
+      createdAt: serverTimestamp(),
     });
-  } catch (error) {
-    throw new Error(getFirestoreErrorMessage(error));
-  }
-}
-
-export async function clearMemberWorldCupWeeklyQuestionSelection(
-  weekKey: string
-): Promise<void> {
-  const ref = doc(db, MEMBER_WORLD_CUP_WEEKLY_CONFIG_COLLECTION, weekKey);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return;
-
-  try {
-    await deleteDoc(ref);
+    return { id: ref.id, text: trimmed, scheduleOrder: nextScheduleOrder };
   } catch (error) {
     throw new Error(getFirestoreErrorMessage(error));
   }
@@ -183,17 +199,26 @@ export async function clearMemberWorldCupWeeklyQuestionSelection(
 async function getResolvedActiveMemberWorldCupQuestions(
   at = new Date()
 ): Promise<MemberWorldCupQuestion[]> {
-  const weekKey = getCurrentWeekMondayKey(at);
-  const config = await fetchMemberWorldCupWeeklyConfig(weekKey);
-  return resolveActiveMemberWorldCupQuestions(config, at);
+  const customQuestions = await fetchCustomMemberWorldCupQuestions();
+  return resolveActiveMemberWorldCupQuestions(customQuestions, at);
 }
 
-function voteDocId(weekKey: string, questionId: string, voterUid: string): string {
-  return `${weekKey}_${questionId}_${voterUid}`;
+function voteDocId(dayKey: string, questionId: string, voterUid: string): string {
+  return `${dayKey}_${questionId}_${voterUid}`;
 }
 
-function questionStatsDocId(weekKey: string, questionId: string): string {
-  return `${weekKey}_${questionId}`;
+function questionStatsDocId(dayKey: string, questionId: string): string {
+  return `${dayKey}_${questionId}`;
+}
+
+function resolveVoteDayKey(data: DocumentData): string | null {
+  if (typeof data.dayKey === 'string' && data.dayKey) {
+    return data.dayKey;
+  }
+  if (typeof data.weekKey === 'string' && data.weekKey) {
+    return data.weekKey;
+  }
+  return null;
 }
 
 function sumPickCounts(counts: Record<string, number>): number {
@@ -218,7 +243,7 @@ export function extractPicksFromVote(vote: MemberWorldCupVote): MemberWorldCupSe
 export function buildQuestionStatsFromVotes(
   question: { id: string; text: string; order: number },
   votes: MemberWorldCupVote[],
-  weekKey: string
+  dayKey: string
 ): MemberWorldCupQuestionStats {
   const counts: Record<string, number> = {};
   let totalPicks = 0;
@@ -237,7 +262,7 @@ export function buildQuestionStatsFromVotes(
     counts,
     totalVotes: votes.length,
     totalPicks,
-    weekKey,
+    dayKey,
   };
 }
 
@@ -325,6 +350,7 @@ export function parseSelectedMembersFromVoteData(
 function parseVoteDoc(docSnap: { id: string; data: () => DocumentData }): MemberWorldCupVote {
   const data = docSnap.data();
   const selectedMembers = parseSelectedMembersFromVoteData(data);
+  const dayKey = resolveVoteDayKey(data);
   return {
     id: docSnap.id,
     questionId: String(data.questionId || ''),
@@ -333,6 +359,7 @@ function parseVoteDoc(docSnap: { id: string; data: () => DocumentData }): Member
     selectedMembers,
     customText: data.customText ? String(data.customText) : null,
     submittedAt: data.submittedAt,
+    dayKey,
     weekKey: data.weekKey ? String(data.weekKey) : null,
     selectedMemberUid: selectedMembers[0]?.uid ?? null,
     selectedMemberNickname: selectedMembers[0]?.nickname ?? null,
@@ -346,7 +373,7 @@ export async function fetchWorldCupMemberOptions(): Promise<WorldCupMemberOption
   snap.docs.forEach((userDoc) => {
     const data = userDoc.data();
     const nickname = String(data.nickname || '').trim();
-    if (!nickname || nickname === '평가자') return;
+    if (!nickname || isTestNickname(nickname)) return;
     members.push({
       uid: userDoc.id,
       nickname,
@@ -359,13 +386,13 @@ export async function fetchWorldCupMemberOptions(): Promise<WorldCupMemberOption
 }
 
 export async function fetchMemberWorldCupQuestionStats(): Promise<MemberWorldCupQuestionStats[]> {
-  const currentWeekKey = getCurrentWeekMondayKey();
+  const currentDayKey = getCurrentDayKey();
   const activeQuestions = await getResolvedActiveMemberWorldCupQuestions();
 
   const statsList = await Promise.all(
     activeQuestions.map(async (question) => {
       const snap = await getDoc(
-        doc(db, MEMBER_WORLD_CUP_COLLECTION, questionStatsDocId(currentWeekKey, question.id))
+        doc(db, MEMBER_WORLD_CUP_COLLECTION, questionStatsDocId(currentDayKey, question.id))
       );
 
       if (!snap.exists()) {
@@ -376,7 +403,7 @@ export async function fetchMemberWorldCupQuestionStats(): Promise<MemberWorldCup
           counts: {},
           totalVotes: 0,
           totalPicks: 0,
-          weekKey: currentWeekKey,
+          dayKey: currentDayKey,
         };
       }
 
@@ -389,7 +416,7 @@ export async function fetchMemberWorldCupQuestionStats(): Promise<MemberWorldCup
         counts,
         totalVotes: Number(data.totalVotes) || 0,
         totalPicks: Number(data.totalPicks) || sumPickCounts(counts),
-        weekKey: currentWeekKey,
+        dayKey: currentDayKey,
       };
     })
   );
@@ -401,20 +428,18 @@ export async function fetchMemberWorldCupQuestionStats(): Promise<MemberWorldCup
 export async function syncMemberWorldCupQuestionStatsFromVotes(
   questionId: string
 ): Promise<MemberWorldCupQuestionStats> {
-  const currentWeekKey = getCurrentWeekMondayKey();
+  const currentDayKey = getCurrentDayKey();
   const activeQuestions = await getResolvedActiveMemberWorldCupQuestions();
-  const activeQuestion = activeQuestions.find(
-    (item) => item.id === questionId
-  );
+  const activeQuestion = activeQuestions.find((item) => item.id === questionId);
   if (!activeQuestion) {
-    throw new Error('이번 주 질문이 아닙니다.');
+    throw new Error('오늘의 질문이 아닙니다.');
   }
 
   const votes = await fetchAllMemberWorldCupVotesForQuestion(questionId);
-  const stats = buildQuestionStatsFromVotes(activeQuestion, votes, currentWeekKey);
+  const stats = buildQuestionStatsFromVotes(activeQuestion, votes, currentDayKey);
 
   await setDoc(
-    doc(db, MEMBER_WORLD_CUP_COLLECTION, questionStatsDocId(currentWeekKey, questionId)),
+    doc(db, MEMBER_WORLD_CUP_COLLECTION, questionStatsDocId(currentDayKey, questionId)),
     {
       questionId,
       text: stats.text,
@@ -422,7 +447,7 @@ export async function syncMemberWorldCupQuestionStatsFromVotes(
       counts: stats.counts,
       totalVotes: stats.totalVotes,
       totalPicks: stats.totalPicks,
-      weekKey: currentWeekKey,
+      dayKey: currentDayKey,
       updatedAt: serverTimestamp(),
     },
     { merge: true }
@@ -434,14 +459,14 @@ export async function syncMemberWorldCupQuestionStatsFromVotes(
 export async function fetchMyMemberWorldCupVotes(
   voterUid: string
 ): Promise<Record<string, MemberWorldCupVote>> {
-  const currentWeekKey = getCurrentWeekMondayKey();
+  const currentDayKey = getCurrentDayKey();
   const activeQuestions = await getResolvedActiveMemberWorldCupQuestions();
   const activeQuestionIds = new Set(activeQuestions.map((q) => q.id));
   const snap = await getDocs(
     query(
       collection(db, MEMBER_WORLD_CUP_VOTES_COLLECTION),
       where('voterUid', '==', voterUid),
-      where('weekKey', '==', currentWeekKey)
+      where('dayKey', '==', currentDayKey)
     )
   );
 
@@ -458,12 +483,12 @@ export async function fetchMyMemberWorldCupVotes(
 export async function fetchAllMemberWorldCupVotesForQuestion(
   questionId: string
 ): Promise<MemberWorldCupVote[]> {
-  const currentWeekKey = getCurrentWeekMondayKey();
+  const currentDayKey = getCurrentDayKey();
   const snap = await getDocs(
     query(
       collection(db, MEMBER_WORLD_CUP_VOTES_COLLECTION),
       where('questionId', '==', questionId),
-      where('weekKey', '==', currentWeekKey)
+      where('dayKey', '==', currentDayKey)
     )
   );
 
@@ -489,16 +514,17 @@ export async function submitMemberWorldCupVote(
   if (input.voterUid !== resolvedUid) {
     throw new Error('계정 정보가 일치하지 않습니다. 다시 로그인해 주세요.');
   }
-
-  const activeQuestions = await getResolvedActiveMemberWorldCupQuestions();
-  const activeQuestion = activeQuestions.find(
-    (item) => item.id === input.questionId
-  );
-  if (!activeQuestion) {
-    throw new Error('이번 주 질문이 아닙니다.');
+  if (isTestNickname(input.voterNickname)) {
+    throw new Error(TEST_NICKNAME_VOTE_BLOCKED_MESSAGE);
   }
 
-  const currentWeekKey = getCurrentWeekMondayKey();
+  const activeQuestions = await getResolvedActiveMemberWorldCupQuestions();
+  const activeQuestion = activeQuestions.find((item) => item.id === input.questionId);
+  if (!activeQuestion) {
+    throw new Error('오늘의 질문이 아닙니다.');
+  }
+
+  const currentDayKey = getCurrentDayKey();
   const trimmedCustom = input.customText.trim();
   const selectedMembers = input.selectedMembers.slice(0, MAX_WORLD_CUP_SELECTIONS);
 
@@ -513,11 +539,17 @@ export async function submitMemberWorldCupVote(
   if (uniqueUids.size !== selectedMembers.length) {
     throw new Error('같은 멤버는 중복 선택할 수 없습니다.');
   }
+  if (selectedMembers.some((member) => isTestNickname(member.nickname))) {
+    throw new Error('테스트 닉네임 멤버에는 투표할 수 없습니다.');
+  }
+  if (selectedMembers.some((member) => member.uid === resolvedUid)) {
+    throw new Error('본인에게는 투표할 수 없습니다.');
+  }
 
   const voteRef = doc(
     db,
     MEMBER_WORLD_CUP_VOTES_COLLECTION,
-    voteDocId(currentWeekKey, input.questionId, resolvedUid)
+    voteDocId(currentDayKey, input.questionId, resolvedUid)
   );
 
   const existingVoteSnap = await getDoc(voteRef);
@@ -528,7 +560,7 @@ export async function submitMemberWorldCupVote(
   const questionRef = doc(
     db,
     MEMBER_WORLD_CUP_COLLECTION,
-    questionStatsDocId(currentWeekKey, input.questionId)
+    questionStatsDocId(currentDayKey, input.questionId)
   );
 
   await runTransaction(db, async (transaction) => {
@@ -564,7 +596,7 @@ export async function submitMemberWorldCupVote(
       selectedMemberUid: selectedMembers[0]?.uid ?? null,
       selectedMemberNickname: selectedMembers[0]?.nickname ?? null,
       customText: trimmedCustom || null,
-      weekKey: currentWeekKey,
+      dayKey: currentDayKey,
       submittedAt: serverTimestamp(),
     });
 
@@ -575,7 +607,7 @@ export async function submitMemberWorldCupVote(
       counts,
       totalVotes,
       totalPicks,
-      weekKey: currentWeekKey,
+      dayKey: currentDayKey,
       updatedAt: serverTimestamp(),
     });
   });
@@ -585,12 +617,12 @@ export async function hasMemberWorldCupVote(
   questionId: string,
   voterUid: string
 ): Promise<boolean> {
-  const currentWeekKey = getCurrentWeekMondayKey();
+  const currentDayKey = getCurrentDayKey();
   const snap = await getDoc(
     doc(
       db,
       MEMBER_WORLD_CUP_VOTES_COLLECTION,
-      voteDocId(currentWeekKey, questionId, voterUid)
+      voteDocId(currentDayKey, questionId, voterUid)
     )
   );
   return snap.exists();

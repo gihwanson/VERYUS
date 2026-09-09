@@ -442,7 +442,6 @@ const PracticeRoomBookingNotebook: React.FC = () => {
     }
   };
 
-  const isPrivilegedBookingUser = isUnlimitedUser || isAdmin;
   const ticketingStatusMessage = getTicketingStatusMessage(ticketingSettings);
   const usesTicketingWeekNavForDate = (date: Date) =>
     shouldUseTicketingParticipationRules(formatDateYmdKst(date), ticketingSettings);
@@ -695,7 +694,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
       dateStr,
       ticketingSettings,
       now,
-      isPrivilegedBookingUser
+      isUnlimitedUser
     );
     
     for (let hour = OPEN_TIME; hour < CLOSE_TIME; hour++) {
@@ -727,7 +726,13 @@ const PracticeRoomBookingNotebook: React.FC = () => {
 
       const slotWalkIn =
         !alwaysOpen &&
-        isUnbookedSlotWalkInOpen(dateStr, Boolean(reservation), ticketingSettings, now);
+        isUnbookedSlotWalkInOpen(
+          dateStr,
+          Boolean(reservation),
+          ticketingSettings,
+          now,
+          isUnlimitedUser
+        );
       
       if (alwaysOpen) {
         isBlocked = true;
@@ -860,7 +865,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
       formatDate(date),
       ticketingSettings,
       new Date(),
-      isPrivilegedBookingUser
+      isUnlimitedUser
     );
     if (!bookingCheck.allowed) {
       alert(bookingCheck.reason || '현재 예약할 수 없습니다.');
@@ -935,14 +940,14 @@ const PracticeRoomBookingNotebook: React.FC = () => {
       return;
     }
 
-    if (slot.isWalkInOpen) {
+    if (slot.isWalkInOpen && !isUnlimitedUser) {
       alert(`🟢 ${TICKETING_WALKIN_NOTICE}`);
       return;
     }
     
     // 차단된 시간대 클릭
     if (slot.isBlocked) {
-      if (slot.isTicketingBlock && !isPrivilegedBookingUser) {
+      if (slot.isTicketingBlock && !isUnlimitedUser) {
         alert(`🎫 ${slot.blockReason || '현재 예약할 수 없습니다.'}`);
         return;
       }
@@ -1045,7 +1050,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
       formatDate(bookingDate),
       ticketingSettings,
       new Date(),
-      isPrivilegedBookingUser
+      isUnlimitedUser
     );
     if (!bookingCheck.allowed) {
       alert(bookingCheck.reason || '현재 예약할 수 없습니다.');

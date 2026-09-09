@@ -108,3 +108,64 @@ export const formatNextResetLabel = (nextReset: Date): string => {
   const kst = getKstParts(nextReset);
   return `${kst.month}월 ${kst.day}일(월) 00:00`;
 };
+
+/** KST 기준 오늘 날짜 키 (YYYY-MM-DD) */
+export const getCurrentDayKey = (at = new Date()): string => {
+  const kst = getKstParts(at);
+  const y = kst.year;
+  const m = String(kst.month).padStart(2, '0');
+  const d = String(kst.day).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+function parseDayKeyToUtc(dayKey: string): Date {
+  const [y, m, d] = dayKey.split('-').map(Number);
+  return kstToUtcDate(y, m, d);
+}
+
+/** 두 dayKey 사이 일수 (end - start, 0 = 같은 날) */
+export const getDaysBetweenDayKeys = (startDayKey: string, endDayKey: string): number => {
+  const startMs = parseDayKeyToUtc(startDayKey).getTime();
+  const endMs = parseDayKeyToUtc(endDayKey).getTime();
+  return Math.round((endMs - startMs) / (24 * 60 * 60 * 1000));
+};
+
+/** dayKey + offset일 → dayKey */
+export const addDaysToDayKey = (dayKey: string, offsetDays: number): string => {
+  const date = parseDayKeyToUtc(dayKey);
+  date.setUTCDate(date.getUTCDate() + offsetDays);
+  return formatWeekKey(date);
+};
+
+/** 다음 날 00:00 (KST) */
+export const getNextDayResetAtKst = (from = new Date()): Date => {
+  const kst = getKstParts(from);
+  const tomorrowMs = kstToUtcDate(kst.year, kst.month, kst.day + 1, 0, 0).getTime();
+  return new Date(tomorrowMs);
+};
+
+export const formatDayKeyLabel = (dayKey: string): string => {
+  const [y, m, d] = dayKey.split('-').map(Number);
+  if (!y || !m || !d) return dayKey;
+  return `${m}/${d}`;
+};
+
+export const formatNextDayResetLabel = (nextReset: Date): string => {
+  const kst = getKstParts(nextReset);
+  return `${kst.month}월 ${kst.day}일 00:00`;
+};
+
+/** 앵커 dayKey 기준 N일째 노출일 라벨 (0=오늘, 1=내일, …) */
+export const formatScheduledDayLabel = (
+  anchorDayKey: string,
+  dayOffset: number,
+  at = new Date()
+): string => {
+  const targetDayKey = addDaysToDayKey(anchorDayKey, dayOffset);
+  const todayKey = getCurrentDayKey(at);
+  const diff = getDaysBetweenDayKeys(todayKey, targetDayKey);
+  if (diff === 0) return '오늘';
+  if (diff === 1) return '내일';
+  if (diff === -1) return '어제';
+  return formatDayKeyLabel(targetDayKey);
+};
