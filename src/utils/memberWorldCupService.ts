@@ -480,15 +480,15 @@ export async function fetchMyMemberWorldCupVotes(
   return result;
 }
 
-export async function fetchAllMemberWorldCupVotesForQuestion(
-  questionId: string
+export async function fetchMemberWorldCupVotesForQuestionDay(
+  questionId: string,
+  dayKey: string
 ): Promise<MemberWorldCupVote[]> {
-  const currentDayKey = getCurrentDayKey();
   const snap = await getDocs(
     query(
       collection(db, MEMBER_WORLD_CUP_VOTES_COLLECTION),
       where('questionId', '==', questionId),
-      where('dayKey', '==', currentDayKey)
+      where('dayKey', '==', dayKey)
     )
   );
 
@@ -499,6 +499,50 @@ export async function fetchAllMemberWorldCupVotesForQuestion(
       const bNick = b.voterNickname || '';
       return aNick.localeCompare(bNick, 'ko');
     });
+}
+
+export async function fetchAllMemberWorldCupVotesForQuestion(
+  questionId: string
+): Promise<MemberWorldCupVote[]> {
+  return fetchMemberWorldCupVotesForQuestionDay(questionId, getCurrentDayKey());
+}
+
+/** 너래 전용 — 특정 날짜 질문의 집계·투표 문서 */
+export async function fetchPastMemberWorldCupQuestionResults(
+  questionId: string,
+  dayKey: string,
+  questionText: string
+): Promise<{ stats: MemberWorldCupQuestionStats; votes: MemberWorldCupVote[] }> {
+  const [votes, statsSnap] = await Promise.all([
+    fetchMemberWorldCupVotesForQuestionDay(questionId, dayKey),
+    getDoc(doc(db, MEMBER_WORLD_CUP_COLLECTION, questionStatsDocId(dayKey, questionId))),
+  ]);
+
+  if (statsSnap.exists()) {
+    const data = statsSnap.data();
+    const counts = (data.counts as Record<string, number>) || {};
+    return {
+      stats: {
+        id: questionId,
+        text: String(data.text || questionText),
+        order: Number(data.order) || 1,
+        counts,
+        totalVotes: Number(data.totalVotes) || votes.length,
+        totalPicks: Number(data.totalPicks) || sumPickCounts(counts),
+        dayKey,
+      },
+      votes,
+    };
+  }
+
+  return {
+    stats: buildQuestionStatsFromVotes(
+      { id: questionId, text: questionText, order: 1 },
+      votes,
+      dayKey
+    ),
+    votes,
+  };
 }
 
 export async function submitMemberWorldCupVote(

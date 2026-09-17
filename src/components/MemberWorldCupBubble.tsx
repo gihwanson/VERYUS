@@ -22,6 +22,7 @@ import {
   fetchAllMemberWorldCupVotesForQuestion,
   fetchMemberWorldCupQuestionStats,
   fetchMyMemberWorldCupVotes,
+  fetchPastMemberWorldCupQuestionResults,
   fetchWorldCupMemberOptions,
   createCustomMemberWorldCupQuestion,
   fetchCustomMemberWorldCupQuestions,
@@ -36,14 +37,15 @@ import {
 import {
   MEMBER_WORLD_CUP_DAILY_MEMBER_NOTICE,
   MEMBER_WORLD_CUP_DAILY_RESET_NOTICE,
+  formatDayKeyLabel,
   formatQuestionScheduleLabel,
+  getScheduledDayKeyForOrder,
   getUpcomingScheduledQuestions,
   resolveActiveMemberWorldCupQuestions,
   sortScheduledQuestions,
   type MemberWorldCupQuestionDefinition,
 } from '../utils/memberWorldCupQuestions';
 import {
-  formatDayKeyLabel,
   getCurrentDayKey,
   getNextDayResetAtKst,
   formatNextDayResetLabel,
@@ -153,6 +155,17 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
   const [customQuestions, setCustomQuestions] = useState<MemberWorldCupQuestionDefinition[]>([]);
   const [newQuestionText, setNewQuestionText] = useState('');
   const [creatingQuestion, setCreatingQuestion] = useState(false);
+  const [showPastResultModal, setShowPastResultModal] = useState(false);
+  const [pastResultLoading, setPastResultLoading] = useState(false);
+  const [pastResultQuestion, setPastResultQuestion] = useState<{
+    id: string;
+    text: string;
+    scheduleLabel: string;
+    scheduleDayKey: string;
+  } | null>(null);
+  const [pastResultStats, setPastResultStats] = useState<MemberWorldCupQuestionStats | null>(null);
+  const [pastResultVotes, setPastResultVotes] = useState<MemberWorldCupVote[]>([]);
+  const [queueTab, setQueueTab] = useState<'today' | 'upcoming' | 'past'>('today');
 
   const currentDayKey = getCurrentDayKey();
   const activeQuestions = useMemo(
@@ -161,11 +174,15 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
   );
   const scheduledQueue = useMemo(
     () =>
-      sortScheduledQuestions(customQuestions).map((question, index) => ({
-        ...question,
-        scheduleLabel: formatQuestionScheduleLabel(index + 1),
-        scheduleOrder: question.scheduleOrder ?? index + 1,
-      })),
+      sortScheduledQuestions(customQuestions).map((question, index) => {
+        const scheduleOrder = question.scheduleOrder ?? index + 1;
+        return {
+          ...question,
+          scheduleOrder,
+          scheduleLabel: formatQuestionScheduleLabel(scheduleOrder),
+          scheduleDayKey: getScheduledDayKeyForOrder(scheduleOrder),
+        };
+      }),
     [customQuestions]
   );
   const upcomingQuestions = useMemo(
@@ -173,8 +190,28 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
     [customQuestions, currentDayKey]
   );
   const currentQuestion = activeQuestions[0];
+  const queueGroups = useMemo(() => {
+    const todayItem = currentQuestion
+      ? scheduledQueue.find((question) => question.id === currentQuestion.id)
+      : undefined;
+    const upcomingItems = scheduledQueue.filter(
+      (question) =>
+        question.id !== todayItem?.id &&
+        upcomingQuestions.some((upcoming) => upcoming.id === question.id)
+    );
+    const pastItems = scheduledQueue.filter(
+      (question) =>
+        question.id !== todayItem?.id &&
+        !upcomingQuestions.some((upcoming) => upcoming.id === question.id)
+    );
+    return { todayItem, upcomingItems, pastItems };
+  }, [scheduledQueue, currentQuestion, upcomingQuestions]);
   const revealQuestion = currentQuestion;
   const revealVotesByPick = useMemo(() => groupVotesBySelectedMember(revealVotes), [revealVotes]);
+  const pastResultVotesByPick = useMemo(
+    () => groupVotesBySelectedMember(pastResultVotes),
+    [pastResultVotes]
+  );
   const myVote = currentQuestion ? myVotes[currentQuestion.id] : undefined;
   const hasVotedCurrent = Boolean(myVote);
 
@@ -183,6 +220,20 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
     members.forEach((member) => map.set(member.uid, member));
     return map;
   }, [members]);
+
+  const pastFullResults = useMemo(() => {
+    if (!pastResultStats) return [];
+    return Object.entries(pastResultStats.counts)
+      .map(([uid, count]) => ({
+        uid,
+        nickname: memberNicknameFromUid(uid, memberByUid),
+        count,
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [pastResultStats, memberByUid]);
+  const pastMaxResultCount = pastFullResults[0]?.count ?? 1;
+  const pastResultsPickDenominator =
+    (pastResultStats?.totalPicks ?? 0) > 0 ? pastResultStats!.totalPicks : 1;
 
   const votableMembers = useMemo(
     () => (user?.uid ? members.filter((member) => member.uid !== user.uid) : members),
@@ -528,12 +579,55 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
 
   const openQuestionPicker = () => {
     setNewQuestionText('');
+    if (queueGroups.todayItem) {
+      setQueueTab('today');
+    } else if (queueGroups.upcomingItems.length > 0) {
+      setQueueTab('upcoming');
+    } else {
+      setQueueTab('past');
+    }
     setShowQuestionPicker(true);
   };
 
   const closeQuestionPicker = () => {
     if (creatingQuestion) return;
     setShowQuestionPicker(false);
+  };
+
+  const closePastResultModal = () => {
+    setShowPastResultModal(false);
+    setPastResultQuestion(null);
+    setPastResultStats(null);
+    setPastResultVotes([]);
+  };
+
+  const openPastQuestionResults = async (question: {
+    id: string;
+    text: string;
+    scheduleLabel: string;
+    scheduleDayKey: string;
+  }) => {
+    if (!canViewVoters) return;
+    setPastResultQuestion(question);
+    setShowPastResultModal(true);
+    setPastResultLoading(true);
+    setPastResultStats(null);
+    setPastResultVotes([]);
+    try {
+      const { stats, votes } = await fetchPastMemberWorldCupQuestionResults(
+        question.id,
+        question.scheduleDayKey,
+        question.text
+      );
+      setPastResultStats(stats);
+      setPastResultVotes(votes);
+    } catch (error) {
+      console.error('종료 질문 결과 로딩 실패:', error);
+      toast.error('투표 결과를 불러오지 못했습니다.');
+      closePastResultModal();
+    } finally {
+      setPastResultLoading(false);
+    }
   };
 
   const handleCreateCustomQuestion = async () => {
@@ -1014,36 +1108,265 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
 
           <div className="mwc-picker__queue-head">
             <strong>예약 큐</strong>
-            <span>{upcomingQuestions.length}개 남음</span>
+            <span>총 {scheduledQueue.length}개</span>
           </div>
 
-          <div className="mwc-picker__list mwc-picker__list--queue">
-            {scheduledQueue.length === 0 ? (
-              <p className="mwc-picker__queue-empty">아직 등록된 질문이 없습니다. 질문을 작성해 주세요.</p>
-            ) : (
-              scheduledQueue.map((question) => {
-                const isToday = currentQuestion?.id === question.id;
-                const isPast =
-                  !isToday &&
-                  upcomingQuestions.every((upcoming) => upcoming.id !== question.id);
-                return (
-                  <div
-                    key={question.id}
-                    className={`mwc-picker__queue-item${isToday ? ' is-today' : ''}${
-                      isPast ? ' is-past' : ''
-                    }`}
+          {scheduledQueue.length === 0 ? (
+            <p className="mwc-picker__queue-empty">아직 등록된 질문이 없습니다. 질문을 작성해 주세요.</p>
+          ) : (
+            <>
+              <div className="mwc-picker__queue-tabs" role="tablist" aria-label="예약 큐 구분">
+                {queueGroups.todayItem && (
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={queueTab === 'today'}
+                    className={`mwc-picker__queue-tab${queueTab === 'today' ? ' is-active' : ''}`}
+                    onClick={() => setQueueTab('today')}
                   >
-                    <span className="mwc-picker__queue-order">{question.scheduleOrder}</span>
+                    오늘
+                  </button>
+                )}
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={queueTab === 'upcoming'}
+                  className={`mwc-picker__queue-tab${queueTab === 'upcoming' ? ' is-active' : ''}`}
+                  onClick={() => setQueueTab('upcoming')}
+                >
+                  예정 {queueGroups.upcomingItems.length}
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={queueTab === 'past'}
+                  className={`mwc-picker__queue-tab${queueTab === 'past' ? ' is-active' : ''}`}
+                  onClick={() => setQueueTab('past')}
+                >
+                  종료 {queueGroups.pastItems.length}
+                </button>
+              </div>
+
+              {queueTab === 'past' && canViewVoters && (
+                <p className="mwc-picker__queue-hint">종료 질문을 클릭하면 투표 결과를 볼 수 있어요.</p>
+              )}
+
+              <div className="mwc-picker__list mwc-picker__list--queue">
+                {queueTab === 'today' && queueGroups.todayItem && (
+                  <div className="mwc-picker__queue-item is-today">
+                    <span className="mwc-picker__queue-order">{queueGroups.todayItem.scheduleOrder}</span>
                     <div className="mwc-picker__queue-body">
-                      <span className="mwc-picker__queue-label">{question.scheduleLabel}</span>
-                      <p className="mwc-picker__queue-text">{question.text}</p>
+                      <span className="mwc-picker__queue-label">
+                        {queueGroups.todayItem.scheduleLabel} ·{' '}
+                        {formatDayKeyLabel(queueGroups.todayItem.scheduleDayKey)}
+                      </span>
+                      <p className="mwc-picker__queue-text">{queueGroups.todayItem.text}</p>
                     </div>
-                    {isToday && <span className="mwc-picker__queue-badge">오늘 노출</span>}
+                    <span className="mwc-picker__queue-badge">오늘 노출</span>
                   </div>
-                );
-              })
-            )}
+                )}
+
+                {queueTab === 'today' && !queueGroups.todayItem && (
+                  <p className="mwc-picker__queue-empty">오늘 노출할 질문이 없습니다.</p>
+                )}
+
+                {queueTab === 'upcoming' &&
+                  (queueGroups.upcomingItems.length === 0 ? (
+                    <p className="mwc-picker__queue-empty">예정된 질문이 없습니다.</p>
+                  ) : (
+                    queueGroups.upcomingItems.map((question) => (
+                      <div key={question.id} className="mwc-picker__queue-item is-upcoming">
+                        <span className="mwc-picker__queue-order">{question.scheduleOrder}</span>
+                        <div className="mwc-picker__queue-body">
+                          <span className="mwc-picker__queue-label">
+                            {question.scheduleLabel} · {formatDayKeyLabel(question.scheduleDayKey)}
+                          </span>
+                          <p className="mwc-picker__queue-text" title={question.text}>
+                            {question.text}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  ))}
+
+                {queueTab === 'past' &&
+                  (queueGroups.pastItems.length === 0 ? (
+                    <p className="mwc-picker__queue-empty">종료된 질문이 없습니다.</p>
+                  ) : (
+                    queueGroups.pastItems.map((question) => {
+                      const canOpenPastResult = canViewVoters;
+                      const queueItemClassName = `mwc-picker__queue-item is-past is-compact${
+                        canOpenPastResult ? ' is-clickable' : ''
+                      }`;
+                      const queueContent = (
+                        <>
+                          <div className="mwc-picker__queue-meta">
+                            <span className="mwc-picker__queue-order">{question.scheduleOrder}</span>
+                            <span className="mwc-picker__queue-date">
+                              {formatDayKeyLabel(question.scheduleDayKey)}
+                            </span>
+                          </div>
+                          <p className="mwc-picker__queue-text mwc-picker__queue-text--compact" title={question.text}>
+                            {question.text}
+                          </p>
+                          {canOpenPastResult && (
+                            <span className="mwc-picker__queue-badge mwc-picker__queue-badge--past">
+                              <Eye size={11} aria-hidden />
+                              결과
+                            </span>
+                          )}
+                        </>
+                      );
+
+                      if (canOpenPastResult) {
+                        return (
+                          <button
+                            key={question.id}
+                            type="button"
+                            className={queueItemClassName}
+                            onClick={() => void openPastQuestionResults(question)}
+                          >
+                            {queueContent}
+                          </button>
+                        );
+                      }
+
+                      return (
+                        <div key={question.id} className={queueItemClassName}>
+                          {queueContent}
+                        </div>
+                      );
+                    })
+                  ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  const pastResultModalContent = showPastResultModal && pastResultQuestion && (
+    <div className="mwc-reveal-overlay" onClick={closePastResultModal} role="presentation">
+      <div
+        className="mwc-reveal-modal mwc-reveal-modal--past"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mwc-past-result-title"
+      >
+        <div className="mwc-reveal-modal__head">
+          <div className="mwc-reveal-modal__head-text">
+            <span className="mwc-modal__reveal-label">너래 전용</span>
+            <h3 id="mwc-past-result-title" className="mwc-reveal-modal__title">
+              종료 질문 결과
+            </h3>
+            <p className="mwc-reveal-modal__sub">
+              {pastResultQuestion.scheduleLabel} ·{' '}
+              {formatDayKeyLabel(pastResultQuestion.scheduleDayKey)}
+            </p>
           </div>
+          <button
+            type="button"
+            className="mwc-reveal-modal__close"
+            onClick={closePastResultModal}
+            aria-label="닫기"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="mwc-reveal-modal__question-bar">
+          <div className="mwc-reveal-modal__question-text">
+            <p>{pastResultQuestion.text}</p>
+          </div>
+        </div>
+
+        <div className="mwc-reveal-modal__toolbar">
+          <span className="mwc-modal__reveal-count">
+            {pastResultLoading
+              ? '불러오는 중…'
+              : `${pastResultStats?.totalVotes ?? 0}명 참여 · ${pastResultStats?.totalPicks ?? 0}표`}
+          </span>
+        </div>
+
+        <div className="mwc-reveal-modal__body mwc-reveal-modal__body--past">
+          {pastResultLoading ? (
+            <p className="mwc-modal__reveal-empty">불러오는 중…</p>
+          ) : !pastResultStats || pastResultStats.totalVotes === 0 ? (
+            <p className="mwc-modal__reveal-empty">이 날 투표가 없었어요</p>
+          ) : (
+            <>
+              <div className="mwc-past-result__section">
+                <strong className="mwc-past-result__section-title">집계 결과</strong>
+                {pastFullResults.length > 0 ? (
+                  <ol className="mwc-modal__results-list">
+                    {pastFullResults.map((item, index) => {
+                      const voteRatio = Math.round((item.count / pastResultsPickDenominator) * 100);
+                      const barWidth = Math.round((item.count / pastMaxResultCount) * 100);
+                      return (
+                        <li
+                          key={item.uid}
+                          className={`mwc-modal__result-row${index < 3 ? ' is-top' : ''}`}
+                        >
+                          <div className="mwc-modal__result-row-head">
+                            <span
+                              className={`mwc-modal__results-rank${
+                                index >= 3 ? ' is-num' : ''
+                              }`}
+                            >
+                              {resultRankLabel(index)}
+                            </span>
+                            <span className="mwc-modal__results-name">{item.nickname}</span>
+                            <span className="mwc-modal__results-count">
+                              {item.count}표 · {voteRatio}%
+                            </span>
+                          </div>
+                          <div className="mwc-modal__result-bar-wrap">
+                            <div
+                              className="mwc-modal__result-bar"
+                              style={{ width: `${barWidth}%` }}
+                            />
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                ) : (
+                  <p className="mwc-modal__results-note">멤버 선택 없이 제출된 응답만 있어요</p>
+                )}
+              </div>
+
+              <div className="mwc-past-result__section">
+                <strong className="mwc-past-result__section-title">멤버별 투표자</strong>
+                {pastResultVotesByPick.length === 0 ? (
+                  <p className="mwc-modal__reveal-empty">멤버 선택 없이 제출된 투표만 있어요</p>
+                ) : (
+                  <ul className="mwc-reveal-groups">
+                    {pastResultVotesByPick.map((group, index) => (
+                      <li key={group.key} className="mwc-reveal-group">
+                        <div className="mwc-reveal-group__head">
+                          <span className="mwc-reveal-group__rank">{index + 1}</span>
+                          <strong className="mwc-reveal-group__name">{group.nickname}</strong>
+                          <span className="mwc-reveal-group__count">{group.pickCount}표</span>
+                        </div>
+                        <div className="mwc-reveal-group__voters">
+                          {group.voters.map((voter) => (
+                            <span
+                              key={`${group.key}-${voter}`}
+                              className="mwc-modal__reveal-chip mwc-modal__reveal-chip--voter"
+                            >
+                              {voter}
+                            </span>
+                          ))}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -1088,6 +1411,9 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
       {typeof document !== 'undefined' &&
         showRevealModal &&
         createPortal(revealModalContent, document.body)}
+      {typeof document !== 'undefined' &&
+        showPastResultModal &&
+        createPortal(pastResultModalContent, document.body)}
     </>
   );
 };

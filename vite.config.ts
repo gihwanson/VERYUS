@@ -58,7 +58,8 @@ export default defineConfig({
   },
   server: {
     host: true, // 모든 네트워크 인터페이스에서 접근 허용
-    port: 5173,
+    // 5173은 다른 Vite 프로젝트(shared-diary 등)와 충돌하기 쉬워 VERYUS 전용 포트 사용
+    port: 5180,
     strictPort: true, // 포트가 사용 중일 경우 실패
     hmr: {
       timeout: 5000 // WebSocket 연결 타임아웃 증가
