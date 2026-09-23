@@ -1,6 +1,6 @@
 import type { AdminUser, ExtendedUserStats, UserActivity, UserAnalytics, BulkAction } from './AdminTypes';
 import { GRADE_ORDER, GRADE_NAMES, GRADE_REQUIREMENTS, ROLE_OPTIONS, GRADE_SYSTEM, ROLE_SYSTEM, USER_STATUS, USER_STATUS_LABELS, USER_STATUS_COLORS, ACTIVITY_SCORES, ACTIVITY_LABELS, ADMIN_ACTION_LABELS, ADMIN_ACTION_COLORS, NOTIFICATION_TYPE_LABELS, NOTIFICATION_TYPE_COLORS, type UserStatus, type ActivityStats, type UserActivitySummary, type AdminLog, type AdminAction, type LogFilter, type LogStats, type Notification, type NotificationType, type NotificationStatus, type NotificationTemplate, type NotificationStats, type NotificationTarget } from './AdminTypes';
-import { Crown, Shield, User, TrendingUp, Activity, Users, Clock, Award, MessageSquare, Heart, FileText, History, Search, Filter, Edit3, Trash2, AlertCircle, Settings, Download, LogIn, Bell, Send, Save, Plus, CheckCircle, X } from 'lucide-react';
+import { Crown, Shield, User, Star, TrendingUp, Activity, Users, Clock, Award, MessageSquare, Heart, FileText, History, Search, Filter, Edit3, Trash2, AlertCircle, Settings, Download, LogIn, Bell, Send, Save, Plus, CheckCircle, X } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import { collection, doc, getDocs, updateDoc, addDoc, serverTimestamp, query, where, orderBy, limit as firestoreLimit } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -67,10 +67,11 @@ export const createRoleDisplay = (role: string) => {
     [ROLE_SYSTEM.SQUAD_LEADER]: { icon: Users, className: 'squad-leader', label: '조장' },
     [ROLE_SYSTEM.ADMIN]: { icon: Shield, className: 'admin', label: '운영진' },
     [ROLE_SYSTEM.SUB_ADMIN]: { icon: Shield, className: 'sub-admin', label: '부운영진' },
+    [ROLE_SYSTEM.EVALUATOR]: { icon: Star, className: 'evaluator', label: '평가자' },
     [ROLE_SYSTEM.MEMBER]: { icon: User, className: 'member', label: '일반' }
   };
 
-  const config = roleConfig[role] || roleConfig[ROLE_SYSTEM.MEMBER];
+  const config = roleConfig[role] || { icon: User, className: 'member', label: role || '일반' };
   const IconComponent = config.icon;
 
   return (
@@ -88,6 +89,7 @@ export const createRoleIcon = (role: string) => {
     [ROLE_SYSTEM.SQUAD_LEADER]: { icon: Users, className: 'squad-leader' },
     [ROLE_SYSTEM.ADMIN]: { icon: Shield, className: 'admin' },
     [ROLE_SYSTEM.SUB_ADMIN]: { icon: Shield, className: 'sub-admin' },
+    [ROLE_SYSTEM.EVALUATOR]: { icon: Star, className: 'evaluator' },
     [ROLE_SYSTEM.MEMBER]: { icon: User, className: 'member' }
   };
 

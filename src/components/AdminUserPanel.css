@@ -955,6 +955,11 @@
   background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%);
   color: #fff;
 }
+.role-badge.평가자,
+.role-badge.evaluator {
+  background: linear-gradient(90deg, #38bdf8 0%, #6366f1 100%);
+  color: #fff;
+}
 .role-badge.일반 {
   background: #f3f4f8;
   color: #7f5fff;

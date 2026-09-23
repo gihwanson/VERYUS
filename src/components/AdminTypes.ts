@@ -168,6 +168,7 @@ export const GRADE_REQUIREMENTS: Record<string, number> = {
 // 역할 시스템 정의
 export const ROLE_SYSTEM = {
   MEMBER: '일반',
+  EVALUATOR: '평가자',
   SUB_ADMIN: '부운영진',
   ADMIN: '운영진',
   SQUAD_LEADER: '조장',
@@ -176,6 +177,7 @@ export const ROLE_SYSTEM = {
 
 export const ROLE_OPTIONS = [
   ROLE_SYSTEM.MEMBER,
+  ROLE_SYSTEM.EVALUATOR,
   ROLE_SYSTEM.SUB_ADMIN,
   ROLE_SYSTEM.ADMIN,
   ROLE_SYSTEM.SQUAD_LEADER,

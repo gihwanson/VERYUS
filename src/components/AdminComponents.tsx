@@ -164,6 +164,9 @@ export const UserCard: React.FC<UserCardProps> = ({
               value={editingUser.role}
               onChange={(e) => onEditChange('role', e.target.value)}
             >
+              {!ROLE_OPTIONS.includes(editingUser.role as (typeof ROLE_OPTIONS)[number]) && editingUser.role && (
+                <option value={editingUser.role}>{editingUser.role} (기존)</option>
+              )}
               {ROLE_OPTIONS.map((role) => {
                 const leaderTaken = Boolean(
                   role === ROLE_SYSTEM.LEADER &&
