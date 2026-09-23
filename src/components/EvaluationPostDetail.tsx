@@ -263,6 +263,10 @@ const EvaluationPostDetail: React.FC = () => {
       alert('로그인이 필요합니다.');
       return;
     }
+    if (user.uid === post.writerUid) {
+      alert('본인이 올린 심사곡은 합/불 평가할 수 없습니다.');
+      return;
+    }
     if (!isBuskingMemberRoundOpen(post)) {
       alert('멤버 1차 심사 기간이 아닙니다.');
       return;
@@ -658,7 +662,15 @@ const EvaluationPostDetail: React.FC = () => {
                           </div>
                         )}
                         {isBuskingMemberRoundOpen(post) ? (
-                          user ? (
+                          !user ? (
+                            <div style={{ textAlign: 'center', color: '#94A3B8', fontSize: '0.9rem' }}>
+                              로그인 후 평가할 수 있습니다
+                            </div>
+                          ) : user.uid === post.writerUid ? (
+                            <div style={{ textAlign: 'center', color: '#94A3B8', fontSize: '0.9rem' }}>
+                              본인이 올린 심사곡은 합/불 평가할 수 없습니다
+                            </div>
+                          ) : (
                             <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
                               <button
                                 type="button"
@@ -696,10 +708,6 @@ const EvaluationPostDetail: React.FC = () => {
                               >
                                 {myVote === 'fail' ? '불합격 ✓' : '불합격'}
                               </button>
-                            </div>
-                          ) : (
-                            <div style={{ textAlign: 'center', color: '#94A3B8', fontSize: '0.9rem' }}>
-                              로그인 후 평가할 수 있습니다
                             </div>
                           )
                         ) : (
