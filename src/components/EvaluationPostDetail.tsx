@@ -722,7 +722,7 @@ const EvaluationPostDetail: React.FC = () => {
                           </div>
                         )}
                         <div style={{ marginTop: 8, textAlign: 'center', fontSize: '0.78rem', color: '#94A3B8' }}>
-                          1차 심사는 3일간 진행됩니다. 마감 시 합격이 더 많으면 1차 합격, 불합격이 더 많으면 불합격 처리됩니다.
+                          1차 심사는 3일간 진행됩니다. 마감 시 합격이 더 많으면 1차 합격, 불합격이 더 많거나 동률이면 불합격 처리됩니다.
                         </div>
                       </>
                     );

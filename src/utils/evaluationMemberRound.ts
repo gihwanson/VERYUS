@@ -138,14 +138,14 @@ export function listMemberVotes(votes?: MemberVotesMap | null): Array<{
     .sort((a, b) => (b.votedAt || 0) - (a.votedAt || 0));
 }
 
-export type MemberRoundOutcome = 'pass' | 'fail' | 'tie' | 'empty';
+export type MemberRoundOutcome = 'pass' | 'fail' | 'empty';
 
 export function getMemberRoundOutcome(votes?: MemberVotesMap | null): MemberRoundOutcome {
   const { pass, fail, total } = countMemberVotes(votes);
   if (total === 0) return 'empty';
   if (pass > fail) return 'pass';
-  if (fail > pass) return 'fail';
-  return 'tie';
+  // 불합격이 더 많거나 동률이면 불합격
+  return 'fail';
 }
 
 export function buildMemberRoundResolution(
@@ -165,6 +165,7 @@ export function buildMemberRoundResolution(
   if (outcome === 'fail') {
     return { shouldResolve: true, nextStatus: '불합격' };
   }
+  // 투표 없음 → 대기 유지(너래 판정)
   return { shouldResolve: false };
 }
 
