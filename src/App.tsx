@@ -166,6 +166,9 @@ const CustomerCenter = lazy(() => import('./components/CustomerCenter'));
 const PartnerPostList = lazy(() => import('./components/PartnerPostList'));
 const PartnerPostWrite = lazy(() => import('./components/PartnerPostWrite'));
 const PartnerPostDetail = lazy(() => import('./components/PartnerPostDetail'));
+const NewcomerPostList = lazy(() => import('./components/NewcomerPostList'));
+const NewcomerPostWrite = lazy(() => import('./components/NewcomerPostWrite'));
+const NewcomerPostDetail = lazy(() => import('./components/NewcomerPostDetail'));
 const EvaluationPostList = lazy(() => import('./components/EvaluationPostList'));
 const EvaluationPostWrite = lazy(() => import('./components/EvaluationPostWrite'));
 const EvaluationPostDetail = lazy(() => import('./components/EvaluationPostDetail'));
@@ -1143,6 +1146,26 @@ function App() {
               <Route path="/boards/partner/write" element={<PartnerPostWrite />} />
               <Route path="/boards/partner/:id" element={<PartnerPostDetail />} />
               <Route path="/boards/partner/edit/:id" element={<PartnerPostWrite />} />
+
+              {/* 신입게시판 */}
+              <Route path="/newcomer" element={<NewcomerPostList />} />
+              <Route
+                path="/newcomer/write"
+                element={
+                  <ProtectedRoute>
+                    <NewcomerPostWrite />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/newcomer/:id" element={<NewcomerPostDetail />} />
+              <Route
+                path="/newcomer/edit/:id"
+                element={
+                  <ProtectedRoute>
+                    <NewcomerPostWrite />
+                  </ProtectedRoute>
+                }
+              />
               
               {/* 평가게시판 라우트들 */}
               <Route path="/evaluation" element={<EvaluationPostList />} />

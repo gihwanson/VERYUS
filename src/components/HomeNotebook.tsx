@@ -30,7 +30,7 @@ interface User {
 interface BoardItem {
   name: string;
   path: string;
-  boardType: 'free' | 'recording' | 'evaluation' | 'hallOfFame' | 'partner' | 'chorus';
+  boardType: 'free' | 'recording' | 'evaluation' | 'hallOfFame' | 'partner' | 'chorus' | 'newcomer';
   slug: string;
   showLatestPreview?: boolean;
 }
@@ -42,6 +42,7 @@ const BOARDS: BoardItem[] = [
   { name: '평가게시판', path: '/evaluation', boardType: 'evaluation', slug: 'evaluation', showLatestPreview: true },
   { name: '이어 부르기', path: '/chorus', boardType: 'chorus', slug: 'chorus', showLatestPreview: true },
   { name: '파트너모집', path: '/boards/partner', boardType: 'partner', slug: 'partner', showLatestPreview: true },
+  { name: '신입게시판', path: '/newcomer', boardType: 'newcomer', slug: 'newcomer', showLatestPreview: true },
 ];
 
 const HomeNotebook: React.FC = () => {

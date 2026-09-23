@@ -951,6 +951,8 @@ const MyPageNotebook: React.FC = () => {
     if (type === 'recording') return '녹음게시판';
     if (type === 'evaluation') return '평가게시판';
     if (type === 'partner') return '파트너모집';
+    if (type === 'chorus') return '이어 부르기';
+    if (type === 'newcomer') return '신입게시판';
     if (type === 'balance') return '밸런스';
     return type || '게시판';
   };
@@ -1538,16 +1540,7 @@ const MyPageNotebook: React.FC = () => {
                     transition: 'all 0.3s ease',
                     cursor: 'pointer'
                   }}
-                  onClick={() => {
-                    const typeRouteMap: Record<string, string> = {
-                      '자유': '/free',
-                      '녹음': '/recording',
-                      '평가': '/evaluation',
-                      '파트너': '/boards/partner',
-                    };
-                    const base = typeRouteMap[post.type] || '/free';
-                    navigate(`${base}/${post.id}`);
-                  }}
+                  onClick={() => navigateToPost(post)}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
                     e.currentTarget.style.transform = 'translateY(-2px)';

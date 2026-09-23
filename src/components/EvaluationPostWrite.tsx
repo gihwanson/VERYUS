@@ -7,6 +7,7 @@ import { ArrowLeft, Mic, X, FileAudio, Send } from 'lucide-react';
 import { startOfWeek, endOfWeek, format as formatDate } from 'date-fns';
 import '../styles/EvaluationPostWrite.css';
 import { formatAttachmentSize, rejectBoardAttachmentIfTooLarge } from '../utils/boardAttachmentLimits';
+import { computeMemberRoundEndsAt } from '../utils/evaluationMemberRound';
 import EvaluationWriteNoticeModal, { isEvalWriteNoticeHidden } from './EvaluationWriteNoticeModal';
 import NicknameSuggestInput, {
   findInvalidMemberNicknames,
@@ -329,6 +330,7 @@ const EvaluationPostWrite: React.FC = () => {
         writerRole: writerRole || '일반',
         writerPosition: writerPosition || '',
         createdAt: serverTimestamp(),
+        ...(category === 'busking' ? { memberRoundEndsAt: computeMemberRoundEndsAt() } : {}),
         audioUrl: audioDownloadUrl,
         duration,
         fileName: fileName || '',

@@ -55,6 +55,17 @@ import {
   usePostBodySkinClass,
 } from './SkinnedAuthor';
 import { isEvaluationJudge } from '../utils/evaluationJudge';
+import {
+  MEMBER_FIRST_PASS_STATUS,
+  countMemberVotes,
+  ensureMemberRoundEndsAt,
+  formatMemberRoundDday,
+  isBuskingMemberRoundOpen,
+  listMemberVotes,
+  tryResolveExpiredMemberRound,
+  type MemberVoteChoice,
+  type MemberVotesMap,
+} from '../utils/evaluationMemberRound';
 
 interface User {
   uid: string;
@@ -87,6 +98,8 @@ interface EvaluationPost {
   fileSizeBytes?: number;
   duration?: number;
   members?: string[];
+  memberVotes?: MemberVotesMap;
+  memberRoundEndsAt?: any;
 }
 
 // 타입 선언 추가
@@ -109,6 +122,8 @@ const EvaluationPostDetail: React.FC = () => {
   const [messageContent, setMessageContent] = useState('');
   const [resolvedFileSizeBytes, setResolvedFileSizeBytes] = useState<number | null>(null);
   const [fileSizeLoading, setFileSizeLoading] = useState(false);
+  const [voting, setVoting] = useState(false);
+  const memberRoundResolvingRef = useRef(false);
   const { isPlaying: isGlobalPlaying, pause: pauseGlobal, play: playGlobal, currentIdx: globalIdx } = useAudioPlayer();
   const location = useLocation();
   // 글로벌 플레이리스트 상태 기억용
@@ -212,6 +227,62 @@ const EvaluationPostDetail: React.FC = () => {
     });
     return () => unsubscribe();
   }, [id]);
+
+  // 기존 대기곡: 1차 마감이 없으면 지금부터 3일(D-3) 부여 → 이후 만료 시 과반수 확정
+  useEffect(() => {
+    if (!post?.id || post.category !== 'busking') return;
+    if (post.status && post.status !== '대기') return;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        if (!post.memberRoundEndsAt) {
+          const endsAt = await ensureMemberRoundEndsAt(post);
+          if (cancelled || !endsAt) return;
+          setPost((p) => (p ? { ...p, memberRoundEndsAt: endsAt } : p));
+          return;
+        }
+        if (memberRoundResolvingRef.current) return;
+        if (isBuskingMemberRoundOpen(post)) return;
+        memberRoundResolvingRef.current = true;
+        await tryResolveExpiredMemberRound(post);
+      } catch (err) {
+        console.error('1차 심사 처리 실패:', err);
+      } finally {
+        memberRoundResolvingRef.current = false;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [post?.id, post?.status, post?.category, post?.memberRoundEndsAt, post?.memberVotes]);
+
+  const handleMemberVote = async (choice: MemberVoteChoice) => {
+    if (!user || !post) {
+      alert('로그인이 필요합니다.');
+      return;
+    }
+    if (!isBuskingMemberRoundOpen(post)) {
+      alert('멤버 1차 심사 기간이 아닙니다.');
+      return;
+    }
+    try {
+      setVoting(true);
+      await updateDoc(doc(db, 'posts', post.id), {
+        [`memberVotes.${user.uid}`]: {
+          choice,
+          nickname: user.nickname || '익명',
+          votedAt: Date.now(),
+        },
+      });
+    } catch (error) {
+      console.error('멤버 평가 저장 실패:', error);
+      alert('평가 저장 중 오류가 발생했습니다.');
+    } finally {
+      setVoting(false);
+    }
+  };
 
   // 작성자 프로필(등급) — 댓글과 동일하게 users 문서를 기준으로 표시
   useEffect(() => {
@@ -447,6 +518,11 @@ const EvaluationPostDetail: React.FC = () => {
                 재심사 결과 해당 곡은 유지로 판정되었습니다
               </div>
             )}
+            {post.status === MEMBER_FIRST_PASS_STATUS && (
+              <div style={{marginBottom: 12, color: '#1D4ED8', fontWeight: 700, fontSize: '1.08rem', background:'#EFF6FF', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
+                1차 합격 / 너래 평가대기
+              </div>
+            )}
             {(!post.status || post.status === '대기') && (
               post.category === 'feedback' ? (
                 <div style={{marginBottom: 12, color: 'var(--primary-color, #8b5a2b)', fontWeight: 700, fontSize: '1.08rem', background:'var(--paper-tag-bg, #f0e6d6)', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
@@ -458,7 +534,9 @@ const EvaluationPostDetail: React.FC = () => {
                 </div>
               ) : (
                 <div style={{marginBottom: 12, color: '#888', fontWeight: 600, fontSize: '1.05rem', background:'#F3F4F6', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
-                  아직 대기중 입니다
+                  {isBuskingMemberRoundOpen(post)
+                    ? `멤버 1차 심사 중${formatMemberRoundDday(post) ? ` · ${formatMemberRoundDday(post)}` : ''}`
+                    : '1차 심사 종료 · 너래 평가대기'}
                 </div>
               )
             )}
@@ -505,10 +583,162 @@ const EvaluationPostDetail: React.FC = () => {
                 <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 <span style={{ fontSize: 15 }}>다운로드</span>
               </a>
-              {/* 합불 판정 버튼 (오디오 밑, 가운데 정렬) */}
-              {isEvaluationJudge(user) && post.category === 'busking' && (
-                <div style={{margin:'18px 0 0 0', display:'flex', justifyContent:'center', gap:16}}>
-                  {(!post.status || post.status === '대기') ? (
+
+              {/* 멤버 1차 합/불 평가 (버스킹심사곡) */}
+              {post.category === 'busking' && (
+                <div
+                  style={{
+                    margin: '18px 0 0 0',
+                    padding: '14px 16px',
+                    borderRadius: 14,
+                    background: '#F8FAFC',
+                    border: '1px solid #E2E8F0',
+                  }}
+                >
+                  <div style={{ fontWeight: 700, fontSize: '1rem', color: '#334155', textAlign: 'center', marginBottom: 8 }}>
+                    멤버 합/불 평가
+                    {formatMemberRoundDday(post) && (
+                      <span style={{ marginLeft: 8, color: '#D97706', fontSize: '0.92rem' }}>
+                        {formatMemberRoundDday(post)}
+                      </span>
+                    )}
+                  </div>
+                  {(() => {
+                    const isJudge = isEvaluationJudge(user);
+                    const { pass, fail, total } = countMemberVotes(post.memberVotes);
+                    const voters = listMemberVotes(post.memberVotes);
+                    const myVote = user ? post.memberVotes?.[user.uid]?.choice : undefined;
+                    return (
+                      <>
+                        {isJudge ? (
+                          <div style={{ marginBottom: 12 }}>
+                            <div style={{ textAlign: 'center', fontSize: '0.92rem', color: '#64748B', marginBottom: 8 }}>
+                              합 {pass} · 불 {fail}
+                              {total > 0 ? ` (총 ${total}표)` : ' (아직 평가 없음)'}
+                            </div>
+                            {voters.length > 0 && (
+                              <div
+                                style={{
+                                  maxHeight: 160,
+                                  overflowY: 'auto',
+                                  background: '#fff',
+                                  borderRadius: 10,
+                                  border: '1px solid #E2E8F0',
+                                  padding: '8px 10px',
+                                  fontSize: '0.84rem',
+                                }}
+                              >
+                                <div style={{ fontWeight: 700, color: '#475569', marginBottom: 6, textAlign: 'center' }}>
+                                  투표 내역 (너래·평가자 전용)
+                                </div>
+                                {voters.map((v) => (
+                                  <div
+                                    key={v.uid}
+                                    style={{
+                                      display: 'flex',
+                                      justifyContent: 'space-between',
+                                      gap: 8,
+                                      padding: '4px 2px',
+                                      borderBottom: '1px solid #F1F5F9',
+                                    }}
+                                  >
+                                    <span style={{ color: '#334155', fontWeight: 600 }}>{v.nickname}</span>
+                                    <span style={{ color: v.choice === 'pass' ? '#059669' : '#E11D48', fontWeight: 700 }}>
+                                      {v.choice === 'pass' ? '합격' : '불합격'}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div style={{ textAlign: 'center', fontSize: '0.88rem', color: '#94A3B8', marginBottom: 10 }}>
+                            합/불 집계는 비공개입니다
+                            {myVote ? ` · 내 평가: ${myVote === 'pass' ? '합격' : '불합격'}` : ''}
+                          </div>
+                        )}
+                        {isBuskingMemberRoundOpen(post) ? (
+                          user ? (
+                            <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
+                              <button
+                                type="button"
+                                disabled={voting}
+                                onClick={() => void handleMemberVote('pass')}
+                                style={{
+                                  background: myVote === 'pass' ? '#059669' : '#10B981',
+                                  color: '#fff',
+                                  fontWeight: 700,
+                                  padding: '8px 20px',
+                                  borderRadius: 8,
+                                  border: myVote === 'pass' ? '2px solid #064E3B' : 'none',
+                                  fontSize: 15,
+                                  cursor: voting ? 'wait' : 'pointer',
+                                  opacity: voting ? 0.7 : 1,
+                                }}
+                              >
+                                {myVote === 'pass' ? '합격 ✓' : '합격'}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={voting}
+                                onClick={() => void handleMemberVote('fail')}
+                                style={{
+                                  background: myVote === 'fail' ? '#E11D48' : '#F43F5E',
+                                  color: '#fff',
+                                  fontWeight: 700,
+                                  padding: '8px 20px',
+                                  borderRadius: 8,
+                                  border: myVote === 'fail' ? '2px solid #881337' : 'none',
+                                  fontSize: 15,
+                                  cursor: voting ? 'wait' : 'pointer',
+                                  opacity: voting ? 0.7 : 1,
+                                }}
+                              >
+                                {myVote === 'fail' ? '불합격 ✓' : '불합격'}
+                              </button>
+                            </div>
+                          ) : (
+                            <div style={{ textAlign: 'center', color: '#94A3B8', fontSize: '0.9rem' }}>
+                              로그인 후 평가할 수 있습니다
+                            </div>
+                          )
+                        ) : (
+                          <div style={{ textAlign: 'center', color: '#94A3B8', fontSize: '0.88rem' }}>
+                            {post.status === MEMBER_FIRST_PASS_STATUS
+                              ? '1차 심사 종료 · 합격 과반 → 너래 평가대기'
+                              : post.status === '불합격'
+                                ? '1차 심사 결과 불합격이 반영되었습니다'
+                                : post.status === '합격'
+                                  ? '최종 합격 처리된 곡입니다'
+                                  : '멤버 1차 심사가 종료되었습니다'}
+                          </div>
+                        )}
+                        <div style={{ marginTop: 8, textAlign: 'center', fontSize: '0.78rem', color: '#94A3B8' }}>
+                          1차 심사는 3일간 진행됩니다. 마감 시 합격이 더 많으면 1차 합격, 불합격이 더 많으면 불합격 처리됩니다.
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {/* 합불 판정 버튼 — 멤버 1차 종료 후(1차합격·대기 마감) 또는 최종 합불 전환 */}
+              {isEvaluationJudge(user) &&
+                post.category === 'busking' &&
+                (post.status === '합격' ||
+                  post.status === '불합격' ||
+                  post.status === MEMBER_FIRST_PASS_STATUS ||
+                  (((!post.status || post.status === '대기') && !isBuskingMemberRoundOpen(post)))) && (
+                <div style={{margin:'18px 0 0 0', display:'flex', justifyContent:'center', gap:16, flexDirection:'column', alignItems:'center'}}>
+                  {(post.status === MEMBER_FIRST_PASS_STATUS || !post.status || post.status === '대기') && (
+                    <div style={{ fontSize: '0.85rem', color: '#64748B', marginBottom: 4 }}>
+                      {post.status === MEMBER_FIRST_PASS_STATUS
+                        ? '멤버 1차 합격 · 최종 합/불을 판정해 주세요'
+                        : '1차 심사 마감 · 최종 합/불을 판정해 주세요'}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: 16 }}>
+                  {(post.status === MEMBER_FIRST_PASS_STATUS || !post.status || post.status === '대기') ? (
                     <>
                       <button onClick={async()=>{
                         if (!window.confirm('정말 합격 처리하시겠습니까?')) return;
@@ -777,6 +1007,7 @@ const EvaluationPostDetail: React.FC = () => {
                       {post.status === '합격' ? '불합격으로 전환' : '합격으로 전환'}
                     </button>
                   )}
+                  </div>
                 </div>
               )}
               {/* 재심사 유지/삭제 판정 버튼 (합격곡 후처리 없음, 상태·알림만) */}

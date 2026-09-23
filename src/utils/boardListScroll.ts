@@ -3,7 +3,8 @@ export const BOARD_LIST_SCROLL_KEYS: Record<string, string> = {
   '/free': 'veryus_free_list_state_v1',
   '/recording': 'veryus_recording_list_state_v1',
   '/evaluation': 'veryus_evaluation_list_state_v1',
-  '/boards/partner': 'veryus_partner_list_state_v1'
+  '/boards/partner': 'veryus_partner_list_state_v1',
+  '/newcomer': 'veryus_newcomer_list_state_v1'
 };
 
 export function isBoardListPath(pathname: string): boolean {
@@ -11,7 +12,8 @@ export function isBoardListPath(pathname: string): boolean {
     pathname === '/free' ||
     pathname === '/recording' ||
     pathname === '/evaluation' ||
-    pathname === '/boards/partner'
+    pathname === '/boards/partner' ||
+    pathname === '/newcomer'
   );
 }
 
@@ -20,6 +22,7 @@ export function getBoardListScrollKey(pathname: string): string | null {
   if (pathname === '/recording') return BOARD_LIST_SCROLL_KEYS['/recording'];
   if (pathname === '/evaluation') return BOARD_LIST_SCROLL_KEYS['/evaluation'];
   if (pathname === '/boards/partner') return BOARD_LIST_SCROLL_KEYS['/boards/partner'];
+  if (pathname === '/newcomer') return BOARD_LIST_SCROLL_KEYS['/newcomer'];
   return null;
 }
 

@@ -491,12 +491,15 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
 
   const scheduleToolbarUpdate = () => {
     // 브라우저가 selection을 반영한 뒤 툴바 표시 (드래그만으로 바로 뜸)
+    // fitEditorHeight는 호출하지 않음 — selectionchange가 색 적용 직후
+    // stale segments로 highlightRects를 덮어 편집 중 색이 안 보이는 원인.
     requestAnimationFrame(() => {
       updateToolbarFromTextarea();
       requestAnimationFrame(updateToolbarFromTextarea);
-      fitEditorHeight();
     });
   };
+  const scheduleToolbarUpdateRef = useRef(scheduleToolbarUpdate);
+  scheduleToolbarUpdateRef.current = scheduleToolbarUpdate;
 
   // selectionchange로 드래그 중·직후 툴바 즉시 갱신
   useEffect(() => {
@@ -512,7 +515,7 @@ const SongWorkspacePaper: React.FC<SongWorkspacePaperProps> = ({
       ) {
         return;
       }
-      scheduleToolbarUpdate();
+      scheduleToolbarUpdateRef.current();
     };
     document.addEventListener('selectionchange', onSelectionChange);
     return () => document.removeEventListener('selectionchange', onSelectionChange);

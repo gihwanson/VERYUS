@@ -283,6 +283,8 @@ const Notifications: React.FC = () => {
       'evaluation': { label: '평가' },
       'balance': { label: '밸런스' },
       'partner': { label: '파트너' },
+      'chorus': { label: '이어부르기' },
+      'newcomer': { label: '신입' },
       'notice': { label: '공지' },
       'anonymous_chat': { label: '익명채팅' }
     };

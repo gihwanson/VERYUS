@@ -96,7 +96,7 @@ export const hasNewPosts = (userId: string, boardType: string): boolean => {
 
 // 모든 게시판 알림 상태 가져오기
 export const getAllBoardNotificationStatus = (userId: string) => {
-  const boardTypes = ['free', 'recording', 'evaluation', 'hallOfFame', 'partner', 'chorus'];
+  const boardTypes = ['free', 'recording', 'evaluation', 'hallOfFame', 'partner', 'chorus', 'newcomer'];
   
   return boardTypes.map(boardType => ({
     boardType,

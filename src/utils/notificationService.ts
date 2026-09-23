@@ -32,7 +32,7 @@ export interface NotificationData {
   fromNickname: string;
   postId?: string;
   postTitle?: string;
-  postType?: 'free' | 'recording' | 'evaluation' | 'balance' | 'partner' | 'chorus';
+  postType?: 'free' | 'recording' | 'evaluation' | 'balance' | 'partner' | 'chorus' | 'newcomer';
   commentId?: string;
   message?: string;
   route?: string;
@@ -120,6 +120,7 @@ export class NotificationService {
       balance: '밸런스',
       partner: '파트너',
       chorus: '이어부르기',
+      newcomer: '신입',
       home: '메인'
     };
     return labels[postType || ''] || '게시판';
@@ -208,6 +209,7 @@ export class NotificationService {
       'balance': `/balance/${postId}`,
       'partner': `/boards/partner/${postId}`,
       'chorus': `/chorus/${postId}`,
+      'newcomer': `/newcomer/${postId}`,
       'home': '/'
     };
     return routes[postType] || `/free/${postId}`;

@@ -1,0 +1,732 @@
+﻿import React, { useEffect, useState, useRef } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { 
+  doc, 
+  getDoc, 
+  updateDoc, 
+  deleteDoc, 
+  increment, 
+  arrayUnion, 
+  arrayRemove,
+  onSnapshot,
+  addDoc,
+  collection,
+  serverTimestamp
+} from 'firebase/firestore';
+import { db } from '../firebase';
+import GradeFxEmoji from './GradeFxEmoji';
+import {
+  SkinnedNickname,
+  SkinnedPostTitle,
+  SkinnedRoleBadge,
+  SkinnedPosition,
+  usePostBodySkinClass,
+} from './SkinnedAuthor';
+import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
+import CommentSection from './CommentSection';
+import { 
+  ArrowLeft, 
+  Heart, 
+  Edit, 
+  Trash2, 
+  Share2, 
+  Bookmark,
+  Flag,
+  Loader,
+  AlertTriangle,
+  User,
+  Clock,
+  Eye,
+  X,
+  MessageSquare,
+  Play,
+  Pause
+} from 'lucide-react';
+import { useAudioPlayer } from '../App';
+import { stopBoardAudio } from '../utils/boardAudioPlayer';
+
+interface Category {
+  id: string;
+  name: string;
+}
+
+interface Post {
+  id: string;
+  title: string;
+  content: string;
+  writerNickname: string;
+  writerUid: string;
+  writerGrade?: string;
+  writerRole?: string;
+  writerPosition?: string;
+  createdAt: any;
+  likes: string[];
+  likesCount: number;
+  commentCount: number;
+  bookmarks?: string[];
+  reports?: string[];
+  reportCount?: number;
+  views: number;
+  category?: string;
+  audioUrl?: string;
+  duration?: number;
+  fileName?: string;
+}
+
+interface User {
+  uid: string;
+  email: string;
+  nickname?: string;
+  role?: string;
+  isLoggedIn: boolean;
+}
+
+const categories: Category[] = [
+  { id: 'intro', name: '자기소개' },
+];
+
+const NewcomerPostDetail: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [post, setPost] = useState<Post | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [messageContent, setMessageContent] = useState('');
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const { isPlaying: isGlobalPlaying, pause: pauseGlobal, play: playGlobal, currentIdx: globalIdx } = useAudioPlayer();
+  const globalStateRef = useRef<{ idx: number; wasPlaying: boolean }>({ idx: 0, wasPlaying: false });
+  const postBodySkinClass = usePostBodySkinClass({ writerUid: post?.writerUid, writerNickname: post?.writerNickname });
+
+  // 사용자 정보 로드
+  useEffect(() => {
+    const userString = localStorage.getItem('veryus_user');
+    if (userString) {
+      const userData = JSON.parse(userString);
+      setUser(userData);
+    }
+  }, []);
+
+  // 작성자 정보 실시간 업데이트
+  useEffect(() => {
+    if (!post?.writerUid) return;
+
+    const userRef = doc(db, 'users', post.writerUid);
+    const unsubscribe = onSnapshot(userRef, (userDoc) => {
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        setPost(prevPost => {
+          if (!prevPost) return null;
+          // 기존 데이터를 보존하면서 작성자 정보만 업데이트
+          return {
+            ...prevPost,
+            writerGrade: userData.grade || prevPost.writerGrade || '🍒',
+            writerRole: userData.role || prevPost.writerRole || '일반',
+            writerPosition: userData.position || prevPost.writerPosition || ''
+          };
+        });
+      }
+    }, (error) => {
+      console.error('작성자 정보 구독 에러:', error);
+    });
+
+    return () => unsubscribe();
+  }, [post?.writerUid]);
+
+  // 게시글 데이터 로드 및 구독
+  useEffect(() => {
+    if (!id) {
+      navigate('/newcomer', { state: { preserveScroll: true } });
+      return;
+    }
+
+    // 조회수 증가 - 항상 1씩 증가
+    const incrementViews = async () => {
+      try {
+        await updateDoc(doc(db, 'posts', id), {
+          views: increment(1)
+        });
+      } catch (error) {
+        console.error('조회수 업데이트 에러:', error);
+      }
+    };
+    incrementViews();
+
+    // 실시간 게시글 데이터 구독
+    const unsubscribe = onSnapshot(
+      doc(db, 'posts', id),
+      (docSnapshot) => {
+        if (!docSnapshot.exists()) {
+          setPost(null);
+          setLoading(false);
+          return;
+        }
+        const data = docSnapshot.data();
+        const { writerGrade, writerRole, writerPosition, ...rest } = data;
+        setPost(prev => {
+          const p = (prev || {}) as Post;
+          return {
+            ...p,
+            ...rest,
+            id: docSnapshot.id,
+            likes: Array.isArray(data.likes) ? data.likes : [],
+            // users 구독에서 갱신한 값이 posts 문서(비정규화)보다 우선 — 조회수 등 갱신 시 등급이 되돌아가지 않게 함
+            writerGrade: p.writerGrade ?? writerGrade,
+            writerRole: p.writerRole ?? writerRole,
+            writerPosition: p.writerPosition ?? writerPosition,
+          } as Post;
+        });
+        setLoading(false);
+      },
+      (error) => {
+        setLoading(false);
+        setPost(null);
+      }
+    );
+    return () => unsubscribe();
+  }, [id, navigate]);
+
+  // 북마크 상태 관리
+  useEffect(() => {
+    if (user && post) {
+      setIsBookmarked(post.bookmarks?.includes(user.uid) || false);
+    }
+  }, [user, post]);
+
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return '';
+    
+    const date = timestamp.seconds ? new Date(timestamp.seconds * 1000) : new Date(timestamp);
+    const now = new Date();
+    const diffTime = now.getTime() - date.getTime();
+    const diffMinutes = Math.floor(diffTime / (1000 * 60));
+    const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    const diffMonths = Math.floor(diffDays / 30);
+    const diffYears = Math.floor(diffDays / 365);
+
+    if (diffMinutes < 60) {
+      return `${diffMinutes}분 전`;
+    } else if (diffHours < 24) {
+      return `${diffHours}시간 전`;
+    } else if (diffDays < 30) {
+      return `${diffDays}일 전`;
+    } else if (diffMonths < 12) {
+      return `${diffMonths}달 전`;
+    } else {
+      return `${diffYears}년 전`;
+    }
+  };
+
+  const handleLike = async () => {
+    if (!user || !post) {
+      alert('로그인이 필요합니다.');
+      return;
+    }
+
+    try {
+      const isLiked = post.likes.includes(user.uid);
+      const postRef = doc(db, 'posts', post.id);
+
+      await updateDoc(postRef, {
+        likes: isLiked ? arrayRemove(user.uid) : arrayUnion(user.uid),
+        likesCount: increment(isLiked ? -1 : 1)
+      });
+    } catch (error) {
+      console.error('좋아요 처리 에러:', error);
+      alert('좋아요 처리 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleBookmark = async () => {
+    if (!user || !post) {
+      alert('로그인이 필요합니다.');
+      return;
+    }
+
+    try {
+      const postRef = doc(db, 'posts', post.id);
+      
+      if (isBookmarked) {
+        await updateDoc(postRef, {
+          bookmarks: arrayRemove(user.uid)
+        });
+      } else {
+        await updateDoc(postRef, {
+          bookmarks: arrayUnion(user.uid)
+        });
+      }
+      setIsBookmarked(!isBookmarked);
+    } catch (error) {
+      console.error('북마크 처리 에러:', error);
+      alert('북마크 처리 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      alert('게시글 링크가 복사되었습니다.');
+    } catch (error) {
+      console.error('공유 링크 복사 에러:', error);
+      alert('링크 복사 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleReport = async () => {
+    if (!user || !post) {
+      alert('로그인이 필요합니다.');
+      return;
+    }
+
+    if (!reportReason.trim()) {
+      alert('신고 사유를 입력해주세요.');
+      return;
+    }
+
+    try {
+      setIsSubmittingReport(true);
+      const postRef = doc(db, 'posts', post.id);
+      
+      if (post.reports?.includes(user.uid)) {
+        alert('이미 신고한 게시글입니다.');
+        setIsSubmittingReport(false);
+        return;
+      }
+
+      await updateDoc(postRef, {
+        reports: arrayUnion(user.uid),
+        reportCount: increment(1)
+      });
+
+      // 신고 내역 저장
+      await addDoc(collection(db, 'reports'), {
+        postId: post.id,
+        reporterUid: user.uid,
+        reporterNickname: user.nickname,
+        reason: reportReason,
+        createdAt: serverTimestamp()
+      });
+
+      setShowReportModal(false);
+      setReportReason('');
+      alert('신고가 접수되었습니다.');
+    } catch (error) {
+      console.error('게시글 신고 에러:', error);
+      alert('신고 처리 중 오류가 발생했습니다.');
+    } finally {
+      setIsSubmittingReport(false);
+    }
+  };
+
+  const handleEdit = () => {
+    navigate(`/newcomer/edit/${post?.id}`);
+  };
+
+  const handlePlayPause = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+      stopBoardAudio();
+      setIsPlaying(false);
+      if (globalStateRef.current.wasPlaying) playGlobal(globalStateRef.current.idx);
+    } else {
+      stopBoardAudio();
+      globalStateRef.current = { idx: globalIdx, wasPlaying: isGlobalPlaying };
+      void audioRef.current.play();
+      setIsPlaying(true);
+      if (isGlobalPlaying) pauseGlobal();
+    }
+  };
+
+  const formatTime = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const handleProgressBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const bar = e.currentTarget;
+    const rect = bar.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const percent = x / rect.width;
+    if (audioRef.current && audioDuration) {
+      audioRef.current.currentTime = percent * audioDuration;
+      setCurrentTime(percent * audioDuration);
+    }
+  };
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const onEnded = () => setIsPlaying(false);
+    audio.addEventListener('ended', onEnded);
+    return () => audio.removeEventListener('ended', onEnded);
+  }, [post?.audioUrl]);
+
+  useEffect(() => {
+    return () => {
+      stopBoardAudio();
+      audioRef.current?.pause();
+      setIsPlaying(false);
+    };
+  }, []);
+
+  useEffect(() => {
+    stopBoardAudio();
+    audioRef.current?.pause();
+    setIsPlaying(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const handleLoadedMetadata = () => setAudioDuration(audio.duration);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    return () => {
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+    };
+  }, [post?.audioUrl]);
+
+  const handleDelete = async () => {
+    if (!post || !user) return;
+
+    if (user.uid !== post.writerUid && user.nickname !== '너래' && user.role !== '리더') {
+      alert('삭제 권한이 없습니다.');
+      return;
+    }
+
+    if (window.confirm('정말로 이 게시글을 삭제하시겠습니까?')) {
+      try {
+        await deleteDoc(doc(db, 'posts', post.id));
+        alert('게시글이 삭제되었습니다.');
+        navigate('/newcomer', { state: { preserveScroll: true } });
+      } catch (error) {
+        console.error('게시글 삭제 에러:', error);
+        alert('게시글 삭제 중 오류가 발생했습니다.');
+      }
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="board-container">
+        <div className="loading-container">
+          <Loader className="loading-spinner" />
+          게시글을 불러오는 중...
+        </div>
+      </div>
+    );
+  }
+
+  if (!post) {
+    return (
+      <div className="board-container">
+        <div className="error-container">
+          <AlertTriangle size={48} />
+          <h3>게시글을 찾을 수 없습니다.</h3>
+          <button 
+            className="back-button"
+            onClick={() => navigate('/newcomer', { state: { preserveScroll: true } })}
+          >
+            목록으로 돌아가기
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const isLiked = user ? post.likes.includes(user.uid) : false;
+  const canEdit = user && user.uid === post.writerUid;
+  const canDelete = user && (user.uid === post.writerUid || user.nickname === '너래' || user.role === '리더');
+
+  const authorBlock = (
+    <>
+      <span className="author-info" onClick={() => navigate(`/mypage/${post.writerUid}`)}>
+        <GradeFxEmoji grade={post.writerGrade} writerUid={post.writerUid} writerNickname={post.writerNickname} />
+        <SkinnedNickname nickname={post.writerNickname} writerUid={post.writerUid} writerNickname={post.writerNickname} />
+      </span>
+      <SkinnedRoleBadge
+        label={getPublicRoleBadge(post.writerRole, post.writerPosition)}
+        roleClassName={getPublicRoleBadge(post.writerRole, post.writerPosition)}
+        writerNickname={post.writerNickname} writerUid={post.writerUid}
+      />
+      {shouldShowPublicPosition(post.writerPosition) && (
+        <SkinnedPosition position={post.writerPosition} writerUid={post.writerUid} writerNickname={post.writerNickname} />
+      )}
+    </>
+  );
+
+  const infoBlock = (
+    <>
+      <span className="post-detail-date">
+        <Clock size={16} />
+        {formatDate(post.createdAt)}
+      </span>
+      <span className="post-detail-views">
+        <Eye size={16} />
+        조회 {post.views || 0}
+      </span>
+    </>
+  );
+
+  return (
+    <div className="post-detail-container">
+      <div className="post-navigation glassmorphism">
+        <button className="back-button glassmorphism" onClick={() => navigate('/newcomer', { state: { preserveScroll: true } })}>
+          <ArrowLeft size={20} />
+          목록으로
+        </button>
+      </div>
+      <article className={`post-detail ${postBodySkinClass}`.trim()}>
+        <div className="post-detail-header">
+          <div className="title-container">
+            <div className="title-section">
+              {post.category && <span className="category-tag">{categories.find(c => c.id === post.category)?.name || '일반'}</span>}
+              <SkinnedPostTitle
+                title={post.title}
+                writerNickname={post.writerNickname} writerUid={post.writerUid}
+                className="post-detail-title"
+                as="h1"
+              />
+            </div>
+          </div>
+          <div className="post-detail-meta">
+            <div className="post-detail-author">
+              <div className="author-section">
+                {authorBlock}
+              </div>
+              <div className="post-detail-info">
+                {infoBlock}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="post-detail-content">
+          <div>
+            {(post.content || '').split('\n').map((line, index) => <p key={index}>{line}</p>)}
+          </div>
+          {post.audioUrl && (
+            <div style={{ marginTop: '1.5rem' }}>
+              {post.fileName && (
+                <div style={{
+                  background: 'var(--paper-tag-bg, #f0e6d6)', color: 'var(--primary-color, #8b5a2b)', borderRadius: '12px', padding: '8px 20px', margin: '0 auto 18px auto', maxWidth: 340, minWidth: 180, textAlign: 'center', fontWeight: 600, fontSize: '1rem'
+                }}>
+                  파일명: {post.fileName}
+                </div>
+              )}
+              <div className="audio-player">
+                <button type="button" onClick={handlePlayPause} className="audio-play-btn">
+                  {isPlaying ? <Pause size={32} /> : <Play size={32} />}
+                </button>
+                <div style={{ flex: 1, margin: '0 16px', display: 'flex', alignItems: 'center' }}>
+                  <span style={{ fontSize: 13, color: 'var(--primary-color, #8b5a2b)', minWidth: 38 }}>{formatTime(currentTime)}</span>
+                  <div
+                    className="audio-progress-bar"
+                    style={{ flex: 1, height: 8, background: '#E5DAF5', borderRadius: 4, margin: '0 8px', cursor: 'pointer', position: 'relative' }}
+                    onClick={handleProgressBarClick}
+                  >
+                    <div
+                      style={{
+                        width: `${audioDuration ? (currentTime / audioDuration) * 100 : 0}%`,
+                        height: '100%',
+                        background: 'var(--primary-color, #8b5a2b)',
+                        borderRadius: 4,
+                        transition: 'width 0.1s linear'
+                      }}
+                    />
+                  </div>
+                  <span style={{ fontSize: 13, color: 'var(--primary-color, #8b5a2b)', minWidth: 38 }}>
+                    {formatTime(audioDuration || post.duration || 0)}
+                  </span>
+                </div>
+                <audio ref={audioRef} src={post.audioUrl} preload="metadata" />
+              </div>
+            </div>
+          )}
+        </div>
+        
+        <div className="post-detail-footer">
+          <div className="post-stats">
+            <button 
+              onClick={handleLike}
+              className={`stat-button ${isLiked ? 'liked' : ''}`}
+              disabled={!user}
+              title={user ? '좋아요' : '로그인이 필요합니다'}
+            >
+              <Heart 
+                size={20} 
+                fill={isLiked ? 'currentColor' : 'none'} 
+              />
+              <span>{post.likesCount || 0}</span>
+            </button>
+            
+            <button className="message-btn" onClick={() => setShowMessageModal(true)}>
+              <MessageSquare size={18} /> 쪽지
+            </button>
+            
+            {canDelete && (
+              <button 
+                onClick={handleDelete} 
+                className="action-button"
+              >
+                <Trash2 size={20} />
+                삭제
+              </button>
+            )}
+          </div>
+          
+          <div className="post-actions">
+            {canEdit && (
+              <button 
+                onClick={handleEdit} 
+                className="action-button"
+              >
+                <Edit size={20} />
+                수정
+              </button>
+            )}
+          </div>
+        </div>
+      </article>
+
+      {/* 신고 모달 */}
+      {showReportModal && (
+        <div className="modal-overlay">
+          <div className="report-modal">
+            <div className="modal-header">
+              <h3>게시글 신고</h3>
+              <button 
+                className="close-button"
+                onClick={() => {
+                  setShowReportModal(false);
+                  setReportReason('');
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="modal-content">
+              <textarea
+                value={reportReason}
+                onChange={(e) => setReportReason(e.target.value)}
+                placeholder="신고 사유를 자세히 입력해주세요... (Shift+Enter로 줄바꿈)"
+                className="report-textarea"
+                rows={4}
+                style={{
+                  resize: 'none',
+                  overflow: 'hidden',
+                  minHeight: '120px',
+                  maxHeight: '250px',
+                  lineHeight: '1.4'
+                }}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  target.style.height = Math.min(Math.max(target.scrollHeight, 120), 250) + 'px';
+                }}
+              />
+            </div>
+            
+            <div className="modal-footer">
+              <button 
+                className="cancel-button"
+                onClick={() => {
+                  setShowReportModal(false);
+                  setReportReason('');
+                }}
+                disabled={isSubmittingReport}
+              >
+                취소
+              </button>
+              <button 
+                className="submit-button"
+                onClick={handleReport}
+                disabled={isSubmittingReport || !reportReason.trim()}
+              >
+                {isSubmittingReport ? (
+                  <>
+                    <Loader className="spinner" size={16} />
+                    처리 중...
+                  </>
+                ) : (
+                  '신고하기'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 쪽지 모달 */}
+      {showMessageModal && (
+        <div className="modal-overlay" onClick={() => setShowMessageModal(false)}>
+          <div className="message-modal" onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, padding: 32, maxWidth: 360, margin: '120px auto', boxShadow: '0 8px 32px #E5DAF5' }}>
+            <h3 className="message-modal-title" style={{ fontWeight: 700, marginBottom: 16 }}>{post.writerNickname}님에게 쪽지 보내기</h3>
+            <textarea
+              value={messageContent}
+              onChange={e => setMessageContent(e.target.value)}
+              placeholder="쪽지 내용을 입력하세요... (Shift+Enter로 줄바꿈)"
+              style={{ 
+                width: '100%', 
+                minHeight: 80, 
+                maxHeight: 200,
+                borderRadius: 8, 
+                border: '1px solid #E5DAF5', 
+                padding: 12, 
+                marginBottom: 16,
+                resize: 'none',
+                overflow: 'hidden',
+                lineHeight: '1.4',
+                fontFamily: 'inherit'
+              }}
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement;
+                target.style.height = 'auto';
+                target.style.height = Math.min(Math.max(target.scrollHeight, 80), 200) + 'px';
+              }}
+            />
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <button type="button" onClick={() => setShowMessageModal(false)} className="post-body-outline-btn" style={{ borderRadius: 8, padding: '8px 18px', fontWeight: 600, cursor: 'pointer' }}>취소</button>
+              <button onClick={async () => {
+                if (!messageContent.trim()) return alert('쪽지 내용을 입력하세요.');
+                await addDoc(collection(db, 'messages'), {
+                  fromUid: user?.uid,
+                  fromNickname: user?.nickname,
+                  toUid: post.writerUid,
+                  toNickname: post.writerNickname,
+                  content: messageContent.trim(),
+                  createdAt: serverTimestamp(),
+                  isRead: false
+                });
+                setShowMessageModal(false);
+                setMessageContent('');
+                alert('쪽지를 보냈습니다.');
+              }} className="post-body-primary-btn send-message-btn" style={{ borderRadius: 8, padding: '8px 18px', fontWeight: 600, cursor: 'pointer' }}>보내기</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 댓글 영역 카드화 */}
+      <div className="comment-section-container">
+        <CommentSection postId={post.id} user={user} post={{ id: post.id, title: post.title, writerUid: post.writerUid, writerNickname: post.writerNickname }} boardType="newcomer" />
+      </div>
+    </div>
+  );
+};
+
+export default NewcomerPostDetail; 

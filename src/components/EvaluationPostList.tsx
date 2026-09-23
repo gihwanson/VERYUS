@@ -25,6 +25,13 @@ import {
 } from './SkinnedAuthor';
 import PullToRefresh from './PullToRefresh';
 import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
+import {
+  MEMBER_FIRST_PASS_STATUS,
+  formatMemberRoundDday,
+  ensureMemberRoundEndsAt,
+  tryResolveExpiredMemberRound,
+  type MemberVotesMap,
+} from '../utils/evaluationMemberRound';
 import { 
   Plus, 
   Heart, 
@@ -57,6 +64,8 @@ interface EvaluationPost {
   members?: string[];
   statusUpdatedAt?: any;
   lastCommentAt?: any;
+  memberVotes?: MemberVotesMap;
+  memberRoundEndsAt?: any;
 }
 
 interface User {
@@ -90,6 +99,7 @@ const getCreatedAtMs = (value: any): number => {
 
 const getEvaluationStatusBadgeClass = (post: Pick<EvaluationPost, 'category' | 'status'>): string => {
   if (post.category === 'feedback') return 'feedback';
+  if (post.status === MEMBER_FIRST_PASS_STATUS) return 'first-pass';
   if (post.status === '합격' || post.status === '유지') return 'approved';
   if (post.status === '불합격' || post.status === '삭제') return 'rejected';
   return 'pending';
@@ -100,6 +110,7 @@ const getEvaluationStatusLabel = (
   fallback = '대기'
 ): string => {
   if (post.category === 'feedback') return '피드백';
+  if (post.status === MEMBER_FIRST_PASS_STATUS) return '1차합격 / 너래평가대기';
   return post.status || fallback;
 };
 
@@ -203,6 +214,30 @@ const EvaluationPostList: React.FC = () => {
         ...doc.data(),
         createdAt: getCreatedAtMs(doc.data().createdAt)
       })) as EvaluationPost[];
+
+      // 기존 대기 버스킹: 마감 없으면 지금부터 D-3 부여, 만료된 글은 과반수 확정
+      await Promise.all(
+        rawPosts.map(async (post) => {
+          if (post.category !== 'busking' || (post.status && post.status !== '대기')) return;
+          try {
+            if (!post.memberRoundEndsAt) {
+              const endsAt = await ensureMemberRoundEndsAt(post);
+              if (endsAt) post.memberRoundEndsAt = endsAt;
+              return;
+            }
+            const nextStatus = await tryResolveExpiredMemberRound({
+              ...post,
+              createdAt: post.createdAt,
+            });
+            if (nextStatus) {
+              post.status = nextStatus;
+              post.statusUpdatedAt = new Date();
+            }
+          } catch (err) {
+            console.warn('1차 심사 처리 실패:', post.id, err);
+          }
+        })
+      );
 
       // lastCommentAt 누락된 피드백 게시글은 최신 댓글 기준으로 보정
       const needsLastCommentAt = rawPosts.filter(
@@ -766,6 +801,11 @@ const EvaluationPostList: React.FC = () => {
                 <span className="post-category category-badge">
                   {getEvaluationCategoryLabel(post.category)}
                 </span>
+                {formatMemberRoundDday(post) && (
+                  <span className="post-status-badge member-round-dday" style={{ marginLeft: 6 }}>
+                    {formatMemberRoundDday(post)}
+                  </span>
+                )}
                 <SkinnedPostTitle
                   title={post.title}
                   writerNickname={post.writerNickname} writerUid={post.writerUid}

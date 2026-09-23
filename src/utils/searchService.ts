@@ -15,7 +15,7 @@ export interface SearchResult {
   title: string;
   content: string;
   author: string;
-  boardType: 'free' | 'recording' | 'evaluation' | 'partner' | 'chorus';
+  boardType: 'free' | 'recording' | 'evaluation' | 'partner' | 'chorus' | 'newcomer';
   createdAt: any;
   tags?: string[];
   score?: number;
@@ -33,12 +33,13 @@ export interface SearchFilters {
 
 // 게시판 타입 매핑
 const BOARD_TYPE_MAPPING: Record<string, string[]> = {
-  'all': ['free', 'recording', 'evaluation', 'partner', 'chorus'],
+  'all': ['free', 'recording', 'evaluation', 'partner', 'chorus', 'newcomer'],
   'free': ['free'],
   'recording': ['recording'],
   'evaluation': ['evaluation'],
   'partner': ['partner'],
-  'chorus': ['chorus']
+  'chorus': ['chorus'],
+  'newcomer': ['newcomer']
 };
 
 // 날짜 범위 계산

@@ -52,7 +52,8 @@ const BOARD_TYPES = [
   { value: 'recording', label: '녹음게시판', color: '#F59E0B' },
   { value: 'evaluation', label: '평가게시판', color: '#EF4444' },
   { value: 'partner', label: '파트너모집', color: '#8B5CF6' },
-  { value: 'chorus', label: '이어 부르기', color: '#F43F5E' }
+  { value: 'chorus', label: '이어 부르기', color: '#F43F5E' },
+  { value: 'newcomer', label: '신입게시판', color: '#0EA5E9' }
 ];
 
 const DATE_RANGES = [
@@ -222,6 +223,7 @@ const SearchSystem: React.FC<SearchSystemProps> = memo(({
       evaluation: '/evaluation',
       partner: '/boards/partner',
       chorus: '/chorus',
+      newcomer: '/newcomer',
     };
     
     navigate(`${boardPaths[result.boardType]}/${result.id}`);
