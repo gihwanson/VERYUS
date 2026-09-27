@@ -11,6 +11,7 @@ export {
 } from './anonymousChatCleanup';
 export { deleteUserAuthAccount, reclaimEmailForSignup } from './adminUserManagement';
 export { scheduledGameWeeklyReset } from './gameWeeklyReset';
+export { scheduledPracticeRoomPendingConfirm } from './practiceRoomPendingConfirm';
 const WEB_APP_ORIGIN = 'https://veryusduet.web.app';
 
 const getRouteByPostType = (postType: string, postId: string): string => {

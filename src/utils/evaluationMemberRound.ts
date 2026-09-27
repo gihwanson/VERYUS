@@ -84,6 +84,68 @@ export function isBuskingMemberRoundOpen(post: MemberRoundPostLike, now = Date.n
   return daysLeft !== null && daysLeft > 0;
 }
 
+/** 함께한 멤버 목록(닉네임)에 포함되는지 */
+export function isListedTogetherMember(
+  members: unknown,
+  nickname?: string | null
+): boolean {
+  if (!nickname?.trim() || !Array.isArray(members)) return false;
+  const target = nickname.trim();
+  return members.some((m) => typeof m === 'string' && m.trim() === target);
+}
+
+/**
+ * 1차 멤버투표 불가: 글 작성자 본인 또는 함께한 멤버.
+ * (members는 닉네임 배열로 저장됨)
+ */
+export function isBlockedFromMemberVote(
+  post: { writerUid?: string; members?: unknown },
+  user: { uid?: string; nickname?: string } | null | undefined
+): 'author' | 'member' | null {
+  if (!user?.uid) return null;
+  if (user.uid === post.writerUid) return 'author';
+  if (isListedTogetherMember(post.members, user.nickname)) return 'member';
+  return null;
+}
+
+/** uid별 1차 멤버 합/불 투표 참여 곡 수 */
+export function tallyMemberVotesCastByUid(
+  posts: Array<{ data: () => Record<string, unknown> } | { memberVotes?: unknown; type?: unknown; category?: unknown }>,
+  options?: { evaluationOnly?: boolean; buskingOnly?: boolean }
+): Map<string, number> {
+  const evaluationOnly = options?.evaluationOnly !== false;
+  const buskingOnly = options?.buskingOnly !== false;
+  const counter = new Map<string, number>();
+
+  for (const post of posts) {
+    const data = typeof (post as { data?: () => Record<string, unknown> }).data === 'function'
+      ? (post as { data: () => Record<string, unknown> }).data()
+      : (post as Record<string, unknown>);
+    if (!data || typeof data !== 'object') continue;
+    if (evaluationOnly && String(data.type || '').trim() !== 'evaluation') continue;
+    if (buskingOnly && String(data.category || '').trim() !== 'busking') continue;
+    const votes = data.memberVotes;
+    if (!votes || typeof votes !== 'object') continue;
+
+    for (const [uid, entry] of Object.entries(votes as Record<string, { choice?: string } | null | undefined>)) {
+      if (!uid || !entry || (entry.choice !== 'pass' && entry.choice !== 'fail')) continue;
+      counter.set(uid, (counter.get(uid) || 0) + 1);
+    }
+  }
+
+  return counter;
+}
+
+/** 해당 uid가 1차 멤버 합/불 투표에 참여한 게시글 수 */
+export function countMemberVotesCastByUid(
+  posts: Array<{ data: () => Record<string, unknown> } | { memberVotes?: unknown; type?: unknown; category?: unknown }>,
+  uid: string | null | undefined,
+  options?: { evaluationOnly?: boolean; buskingOnly?: boolean }
+): number {
+  if (!uid) return 0;
+  return tallyMemberVotesCastByUid(posts, options).get(uid) || 0;
+}
+
 /**
  * 기존 대기 버스킹곡에 memberRoundEndsAt이 없으면 지금부터 3일로 부여.
  * (이미 올라온 곡들을 D-3부터 시작시키기 위함)

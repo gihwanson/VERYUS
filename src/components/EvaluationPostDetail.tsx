@@ -60,6 +60,7 @@ import {
   countMemberVotes,
   ensureMemberRoundEndsAt,
   formatMemberRoundDday,
+  isBlockedFromMemberVote,
   isBuskingMemberRoundOpen,
   listMemberVotes,
   tryResolveExpiredMemberRound,
@@ -123,6 +124,7 @@ const EvaluationPostDetail: React.FC = () => {
   const [resolvedFileSizeBytes, setResolvedFileSizeBytes] = useState<number | null>(null);
   const [fileSizeLoading, setFileSizeLoading] = useState(false);
   const [voting, setVoting] = useState(false);
+  const [hasFullyListened, setHasFullyListened] = useState(false);
   const memberRoundResolvingRef = useRef(false);
   const { isPlaying: isGlobalPlaying, pause: pauseGlobal, play: playGlobal, currentIdx: globalIdx } = useAudioPlayer();
   const location = useLocation();
@@ -228,6 +230,29 @@ const EvaluationPostDetail: React.FC = () => {
     return () => unsubscribe();
   }, [id]);
 
+  // 같은 세션에서 이미 절반 이상 들은 녹음은 재청취 없이 투표 가능
+  useEffect(() => {
+    if (!post?.id) {
+      setHasFullyListened(false);
+      return;
+    }
+    try {
+      setHasFullyListened(sessionStorage.getItem(`veryus_eval_listened_${post.id}`) === '1');
+    } catch {
+      setHasFullyListened(false);
+    }
+  }, [post?.id]);
+
+  const markFullyListened = useCallback(() => {
+    if (!post?.id) return;
+    try {
+      sessionStorage.setItem(`veryus_eval_listened_${post.id}`, '1');
+    } catch {
+      // ignore storage errors
+    }
+    setHasFullyListened(true);
+  }, [post?.id]);
+
   // 기존 대기곡: 1차 마감이 없으면 지금부터 3일(D-3) 부여 → 이후 만료 시 과반수 확정
   useEffect(() => {
     if (!post?.id || post.category !== 'busking') return;
@@ -263,8 +288,17 @@ const EvaluationPostDetail: React.FC = () => {
       alert('로그인이 필요합니다.');
       return;
     }
-    if (user.uid === post.writerUid) {
-      alert('본인이 올린 심사곡은 합/불 평가할 수 없습니다.');
+    const voteBlock = isBlockedFromMemberVote(post, user);
+    if (voteBlock === 'author') {
+      alert('본인이 올린 심사곡은 좋아요/아쉬워요 평가를 할 수 없습니다.');
+      return;
+    }
+    if (voteBlock === 'member') {
+      alert('함께한 멤버는 좋아요/아쉬워요 평가를 할 수 없습니다.');
+      return;
+    }
+    if (!hasFullyListened) {
+      alert('녹음 파일을 절반 이상 들은 뒤에 좋아요/아쉬워요 평가를 할 수 있습니다.');
       return;
     }
     if (!isBuskingMemberRoundOpen(post)) {
@@ -576,7 +610,12 @@ const EvaluationPostDetail: React.FC = () => {
                   ) : null}
                 </div>
               )}
-              <AudioPlayer audioUrl={post.audioUrl} duration={post.duration} />
+              <AudioPlayer
+                audioUrl={post.audioUrl}
+                duration={post.duration}
+                requireFullListen={post.category === 'busking' && !hasFullyListened}
+                onFullyListened={markFullyListened}
+              />
               <a
                 href={post.audioUrl}
                 download={post.fileName || 'evaluation.mp3'}
@@ -588,7 +627,7 @@ const EvaluationPostDetail: React.FC = () => {
                 <span style={{ fontSize: 15 }}>다운로드</span>
               </a>
 
-              {/* 멤버 1차 합/불 평가 (버스킹심사곡) */}
+              {/* 멤버 1차 좋아요/아쉬워요 평가 (버스킹심사곡) */}
               {post.category === 'busking' && (
                 <div
                   style={{
@@ -600,7 +639,7 @@ const EvaluationPostDetail: React.FC = () => {
                   }}
                 >
                   <div style={{ fontWeight: 700, fontSize: '1rem', color: '#334155', textAlign: 'center', marginBottom: 8 }}>
-                    멤버 합/불 평가
+                    멤버 좋아요/아쉬워요 평가
                     {formatMemberRoundDday(post) && (
                       <span style={{ marginLeft: 8, color: '#D97706', fontSize: '0.92rem' }}>
                         {formatMemberRoundDday(post)}
@@ -612,12 +651,13 @@ const EvaluationPostDetail: React.FC = () => {
                     const { pass, fail, total } = countMemberVotes(post.memberVotes);
                     const voters = listMemberVotes(post.memberVotes);
                     const myVote = user ? post.memberVotes?.[user.uid]?.choice : undefined;
+                    const voteBlock = user ? isBlockedFromMemberVote(post, user) : null;
                     return (
                       <>
                         {isJudge ? (
                           <div style={{ marginBottom: 12 }}>
                             <div style={{ textAlign: 'center', fontSize: '0.92rem', color: '#64748B', marginBottom: 8 }}>
-                              합 {pass} · 불 {fail}
+                              좋아요 {pass} · 아쉬워요 {fail}
                               {total > 0 ? ` (총 ${total}표)` : ' (아직 평가 없음)'}
                             </div>
                             {voters.length > 0 && (
@@ -648,7 +688,7 @@ const EvaluationPostDetail: React.FC = () => {
                                   >
                                     <span style={{ color: '#334155', fontWeight: 600 }}>{v.nickname}</span>
                                     <span style={{ color: v.choice === 'pass' ? '#059669' : '#E11D48', fontWeight: 700 }}>
-                                      {v.choice === 'pass' ? '합격' : '불합격'}
+                                      {v.choice === 'pass' ? '좋아요' : '아쉬워요'}
                                     </span>
                                   </div>
                                 ))}
@@ -657,8 +697,8 @@ const EvaluationPostDetail: React.FC = () => {
                           </div>
                         ) : (
                           <div style={{ textAlign: 'center', fontSize: '0.88rem', color: '#94A3B8', marginBottom: 10 }}>
-                            합/불 집계는 비공개입니다
-                            {myVote ? ` · 내 평가: ${myVote === 'pass' ? '합격' : '불합격'}` : ''}
+                            좋아요/아쉬워요 집계는 비공개입니다
+                            {myVote ? ` · 내 평가: ${myVote === 'pass' ? '좋아요' : '아쉬워요'}` : ''}
                           </div>
                         )}
                         {isBuskingMemberRoundOpen(post) ? (
@@ -666,63 +706,86 @@ const EvaluationPostDetail: React.FC = () => {
                             <div style={{ textAlign: 'center', color: '#94A3B8', fontSize: '0.9rem' }}>
                               로그인 후 평가할 수 있습니다
                             </div>
-                          ) : user.uid === post.writerUid ? (
+                          ) : voteBlock === 'author' ? (
                             <div style={{ textAlign: 'center', color: '#94A3B8', fontSize: '0.9rem' }}>
-                              본인이 올린 심사곡은 합/불 평가할 수 없습니다
+                              본인이 올린 심사곡은 좋아요/아쉬워요 평가를 할 수 없습니다
+                            </div>
+                          ) : voteBlock === 'member' ? (
+                            <div style={{ textAlign: 'center', color: '#94A3B8', fontSize: '0.9rem' }}>
+                              함께한 멤버는 좋아요/아쉬워요 평가를 할 수 없습니다
                             </div>
                           ) : (
-                            <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
-                              <button
-                                type="button"
-                                disabled={voting}
-                                onClick={() => void handleMemberVote('pass')}
+                            <>
+                              <div
                                 style={{
-                                  background: myVote === 'pass' ? '#059669' : '#10B981',
-                                  color: '#fff',
-                                  fontWeight: 700,
-                                  padding: '8px 20px',
-                                  borderRadius: 8,
-                                  border: myVote === 'pass' ? '2px solid #064E3B' : 'none',
-                                  fontSize: 15,
-                                  cursor: voting ? 'wait' : 'pointer',
-                                  opacity: voting ? 0.7 : 1,
+                                  textAlign: 'center',
+                                  fontSize: '0.84rem',
+                                  color: hasFullyListened ? '#059669' : '#B45309',
+                                  background: hasFullyListened ? '#ECFDF5' : '#FFFBEB',
+                                  border: `1px solid ${hasFullyListened ? '#A7F3D0' : '#FDE68A'}`,
+                                  borderRadius: 10,
+                                  padding: '8px 12px',
+                                  marginBottom: 12,
+                                  lineHeight: 1.45,
                                 }}
                               >
-                                {myVote === 'pass' ? '합격 ✓' : '합격'}
-                              </button>
-                              <button
-                                type="button"
-                                disabled={voting}
-                                onClick={() => void handleMemberVote('fail')}
-                                style={{
-                                  background: myVote === 'fail' ? '#E11D48' : '#F43F5E',
-                                  color: '#fff',
-                                  fontWeight: 700,
-                                  padding: '8px 20px',
-                                  borderRadius: 8,
-                                  border: myVote === 'fail' ? '2px solid #881337' : 'none',
-                                  fontSize: 15,
-                                  cursor: voting ? 'wait' : 'pointer',
-                                  opacity: voting ? 0.7 : 1,
-                                }}
-                              >
-                                {myVote === 'fail' ? '불합격 ✓' : '불합격'}
-                              </button>
-                            </div>
+                                {hasFullyListened
+                                  ? '녹음을 절반 이상 들으셨습니다. 좋아요/아쉬워요 평가를 진행해 주세요.'
+                                  : '녹음 파일을 절반 이상(실제 재생 시간 기준) 들어야 좋아요/아쉬워요 평가를 할 수 있습니다. 원하는 구간으로 이동해 들을 수 있습니다.'}
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
+                                <button
+                                  type="button"
+                                  disabled={voting || !hasFullyListened}
+                                  onClick={() => void handleMemberVote('pass')}
+                                  style={{
+                                    background: myVote === 'pass' ? '#059669' : '#10B981',
+                                    color: '#fff',
+                                    fontWeight: 700,
+                                    padding: '8px 20px',
+                                    borderRadius: 8,
+                                    border: myVote === 'pass' ? '2px solid #064E3B' : 'none',
+                                    fontSize: 15,
+                                    cursor: voting || !hasFullyListened ? 'not-allowed' : 'pointer',
+                                    opacity: voting || !hasFullyListened ? 0.45 : 1,
+                                  }}
+                                >
+                                  {myVote === 'pass' ? '좋아요 ✓' : '좋아요'}
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={voting || !hasFullyListened}
+                                  onClick={() => void handleMemberVote('fail')}
+                                  style={{
+                                    background: myVote === 'fail' ? '#E11D48' : '#F43F5E',
+                                    color: '#fff',
+                                    fontWeight: 700,
+                                    padding: '8px 20px',
+                                    borderRadius: 8,
+                                    border: myVote === 'fail' ? '2px solid #881337' : 'none',
+                                    fontSize: 15,
+                                    cursor: voting || !hasFullyListened ? 'not-allowed' : 'pointer',
+                                    opacity: voting || !hasFullyListened ? 0.45 : 1,
+                                  }}
+                                >
+                                  {myVote === 'fail' ? '아쉬워요 ✓' : '아쉬워요'}
+                                </button>
+                              </div>
+                            </>
                           )
                         ) : (
                           <div style={{ textAlign: 'center', color: '#94A3B8', fontSize: '0.88rem' }}>
                             {post.status === MEMBER_FIRST_PASS_STATUS
-                              ? '1차 심사 종료 · 합격 과반 → 너래 평가대기'
+                              ? '1차 심사 종료 · 좋아요 과반 → 너래 평가대기'
                               : post.status === '불합격'
-                                ? '1차 심사 결과 불합격이 반영되었습니다'
+                                ? '1차 심사 결과 아쉬워요 과다로 불합격이 반영되었습니다'
                                 : post.status === '합격'
                                   ? '최종 합격 처리된 곡입니다'
                                   : '멤버 1차 심사가 종료되었습니다'}
                           </div>
                         )}
                         <div style={{ marginTop: 8, textAlign: 'center', fontSize: '0.78rem', color: '#94A3B8' }}>
-                          1차 심사는 3일간 진행됩니다. 마감 시 합격이 더 많으면 1차 합격, 불합격이 더 많거나 동률이면 불합격 처리됩니다.
+                          1차 심사는 3일간 진행됩니다. 마감 시 좋아요가 더 많으면 1차 합격, 아쉬워요가 더 많거나 동률이면 불합격 처리됩니다.
                         </div>
                       </>
                     );
@@ -1244,12 +1307,45 @@ const EvaluationPostDetail: React.FC = () => {
 };
 
 // 오디오 플레이어 컴포넌트
-function AudioPlayer({ audioUrl, duration }: { audioUrl: string, duration?: number }) {
+function AudioPlayer({
+  audioUrl,
+  duration,
+  requireFullListen = false,
+  onFullyListened,
+}: {
+  audioUrl: string;
+  duration?: number;
+  requireFullListen?: boolean;
+  onFullyListened?: () => void;
+}) {
   const [isPlaying, setIsPlaying] = React.useState(false);
   const [currentTime, setCurrentTime] = React.useState(0);
   const [audioDuration, setAudioDuration] = React.useState(duration || 0);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
+  const listenedSecRef = React.useRef(0);
+  const lastWallRef = React.useRef<number | null>(null);
+  const completedRef = React.useRef(false);
+  const onFullyListenedRef = React.useRef(onFullyListened);
   const location = useLocation();
+
+  useEffect(() => {
+    onFullyListenedRef.current = onFullyListened;
+  }, [onFullyListened]);
+
+  useEffect(() => {
+    listenedSecRef.current = 0;
+    lastWallRef.current = null;
+    completedRef.current = false;
+    setCurrentTime(0);
+    setIsPlaying(false);
+    setAudioDuration(duration || 0);
+  }, [audioUrl, duration]);
+
+  const markComplete = React.useCallback(() => {
+    if (completedRef.current) return;
+    completedRef.current = true;
+    onFullyListenedRef.current?.();
+  }, []);
 
   // window에 audioPlayerRef 등록
   useEffect(() => {
@@ -1275,13 +1371,45 @@ function AudioPlayer({ audioUrl, duration }: { audioUrl: string, duration?: numb
     if (!audio) return;
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
     const handleLoadedMetadata = () => setAudioDuration(audio.duration);
+    const handleEnded = () => setIsPlaying(false);
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('ended', handleEnded);
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('ended', handleEnded);
     };
   }, [audioUrl]);
+
+  // 실제 재생된 시간(벽시계)을 누적 — 구간 이동해도 들은 시간만 인정
+  useEffect(() => {
+    if (!requireFullListen || !isPlaying) {
+      lastWallRef.current = null;
+      return;
+    }
+
+    lastWallRef.current = Date.now();
+    const tick = () => {
+      const now = Date.now();
+      if (lastWallRef.current != null) {
+        listenedSecRef.current += (now - lastWallRef.current) / 1000;
+      }
+      lastWallRef.current = now;
+
+      const dur = audioRef.current?.duration || audioDuration || duration || 0;
+      if (dur > 0 && listenedSecRef.current >= dur * 0.5) {
+        markComplete();
+      }
+    };
+
+    const intervalId = window.setInterval(tick, 250);
+    return () => {
+      tick();
+      window.clearInterval(intervalId);
+      lastWallRef.current = null;
+    };
+  }, [isPlaying, requireFullListen, audioDuration, duration, markComplete]);
 
   const handlePlayPause = () => {
     if (!audioRef.current) return;
@@ -1294,6 +1422,17 @@ function AudioPlayer({ audioUrl, duration }: { audioUrl: string, duration?: numb
       void audioRef.current.play();
       setIsPlaying(true);
     }
+  };
+
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    const bar = e.currentTarget;
+    const rect = bar.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const percent = Math.min(1, Math.max(0, x / rect.width));
+    if (!audioRef.current || !audioDuration) return;
+    const target = percent * audioDuration;
+    audioRef.current.currentTime = target;
+    setCurrentTime(target);
   };
 
   const formatTime = (sec: number) => {
@@ -1312,16 +1451,7 @@ function AudioPlayer({ audioUrl, duration }: { audioUrl: string, duration?: numb
         <div
           className="audio-progress-bar"
           style={{ flex: 1, height: 8, background: '#E5DAF5', borderRadius: 4, margin: '0 8px', cursor: 'pointer', position: 'relative' }}
-          onClick={e => {
-            const bar = e.currentTarget;
-            const rect = bar.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const percent = x / rect.width;
-            if (audioRef.current && audioDuration) {
-              audioRef.current.currentTime = percent * audioDuration;
-              setCurrentTime(percent * audioDuration);
-            }
-          }}
+          onClick={handleSeek}
         >
           <div
             style={{

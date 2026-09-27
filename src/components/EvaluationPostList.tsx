@@ -330,8 +330,12 @@ const EvaluationPostList: React.FC = () => {
               return true;
             }
             
-            // 대기 상태인 경우 표시
-            return !post.status || post.status === '대기';
+            // 대기·1차합격(너래 2차 평가 대기)은 메인 목록에 표시
+            return (
+              !post.status ||
+              post.status === '대기' ||
+              post.status === MEMBER_FIRST_PASS_STATUS
+            );
           });
 
       const completedHiddenPosts = shouldIncludeAll

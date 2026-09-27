@@ -17,9 +17,11 @@ import {
   getBookableWeekRangeForDate,
   getTicketingStatusMessage,
   isTargetDateUnderTicketing,
+  isTicketingNonBookableWeekday,
   isUnbookedSlotWalkInOpen,
   loadPracticeRoomTicketingSettings,
   parseYmdToLocalDate,
+  TICKETING_NON_BOOKABLE_NOTICE,
   TICKETING_WALKIN_NOTICE,
   type PracticeRoomTicketingSettings,
 } from '../utils/practiceRoomTicketing';
@@ -31,6 +33,24 @@ import {
   shouldUseTicketingParticipationRules,
   validateTicketingParticipationBooking,
 } from '../utils/practiceRoomWeeklyParticipation';
+import {
+  canStealPendingReservation,
+  confirmDuePendingReservations,
+  formatSlotReservationSummary,
+  getActivePriorityWindow,
+  getPriorityRankNumber,
+  getReservationPhaseLabel,
+  getSundayPendingBannerText,
+  isPracticeRoomAdminPriorityUser,
+  isSundayPendingBookingWindow,
+  loadPriorityRankingForWindow,
+  pickLeadingReservation,
+  reservationHasAdminPriority,
+  sortReservationsForDisplay,
+  type PriorityRankEntry,
+  type VoteTallyWindow,
+} from '../utils/practiceRoomVotePriority';
+import { NotificationService } from '../utils/notificationService';
 import NicknameSuggestInput, {
   findInvalidMemberNicknames,
   normalizeMemberNicknames,
@@ -49,10 +69,14 @@ interface Reservation {
   duration: number;
   totalDuration?: number;
   purpose?: string;
-  status: 'confirmed' | 'cancelled';
+  status: 'confirmed' | 'pending' | 'outbid' | 'cancelled';
   reservationGroup?: string;
   isFirstSlot?: boolean;
   createdAt: any;
+  priorityVoteCount?: number;
+  priorityRank?: number;
+  /** 관리자 예약 — 무조건 1순위 */
+  adminPriority?: boolean;
 }
 
 interface TimeSlot {
@@ -64,10 +88,15 @@ interface TimeSlot {
   isException?: boolean; // 규칙 예외 허용
   isWalkInOpen?: boolean;
   isTicketingBlock?: boolean;
+  /** 일요일 대기 예약을 우선권으로 뺏을 수 있는지 */
+  canSteal?: boolean;
   blockReason?: string;
   blockedBy?: string;
   blockId?: string;
+  /** 현재 선두 예약 */
   reservation?: Reservation;
+  /** 이 시간대에 예약한 모든 멤버 (선두 + 밀린 사람 포함) */
+  reservations?: Reservation[];
 }
 
 interface BlockedSlot {
@@ -134,6 +163,8 @@ const PracticeRoomBookingClassic: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [dailyUsedHours, setDailyUsedHours] = useState(0);
   const [weeklyReservationCount, setWeeklyReservationCount] = useState(0);
+  const [priorityRanking, setPriorityRanking] = useState<PriorityRankEntry[]>([]);
+  const [priorityWindow, setPriorityWindow] = useState<VoteTallyWindow | null>(null);
   const [checkedInMembers, setCheckedInMembers] = useState<CheckIn[]>([]);
   const [checkInHistory, setCheckInHistory] = useState<CheckIn[]>([]);
   const [myCheckIn, setMyCheckIn] = useState<CheckIn | null>(null);
@@ -141,6 +172,16 @@ const PracticeRoomBookingClassic: React.FC = () => {
   const isUnlimitedUser = Boolean(
     currentUser?.nickname && SUPER_ADMIN_NICKNAMES.includes(currentUser.nickname)
   );
+  const isAdminPriorityUser = isPracticeRoomAdminPriorityUser(currentUser) || isUnlimitedUser;
+
+  const hasFirstRoundVoteForBooking = (): boolean => {
+    if (!currentUser) return false;
+    if (isAdminPriorityUser) return true;
+    return priorityRanking.some((entry) => entry.uid === currentUser.uid);
+  };
+
+  const NO_FIRST_VOTE_BOOKING_MESSAGE =
+    '평가게시판 1차 투표가 없어 예약이 불가합니다.';
 
   const isCherryGradeUser = () =>
     Boolean(currentUser && getGradeEmoji(currentUser.grade) === GRADE_SYSTEM.CHERRY);
@@ -192,16 +233,36 @@ const PracticeRoomBookingClassic: React.FC = () => {
   useEffect(() => {
     if (currentUser) {
       console.log('날짜 변경됨, 예약 데이터 로딩:', formatDate(selectedDate));
-      loadReservations();
-      loadMyReservations();
-      calculateDailyUsedHours();
-      calculateWeeklyReservationCount();
-      loadBlockedSlots();
-      loadBlockingRules();
-      loadAlwaysOpenSettings();
-      loadTicketingSettings();
+      void (async () => {
+        try {
+          await confirmDuePendingReservations();
+        } catch (err) {
+          console.warn('pending 예약 확정 처리 실패:', err);
+        }
+        await loadReservations();
+        await loadMyReservations();
+        await calculateDailyUsedHours();
+        await calculateWeeklyReservationCount();
+        await loadBlockedSlots();
+        await loadBlockingRules();
+        await loadAlwaysOpenSettings();
+        await loadTicketingSettings();
+        await loadPriorityRanking();
+      })();
     }
   }, [selectedDate, currentUser]);
+
+  const loadPriorityRanking = async () => {
+    try {
+      const window = getActivePriorityWindow();
+      setPriorityWindow(window);
+      const ranking = await loadPriorityRankingForWindow(window);
+      setPriorityRanking(ranking);
+    } catch (error) {
+      console.error('1차 투표 우선권 순위 로딩 실패:', error);
+      setPriorityRanking([]);
+    }
+  };
 
   // 실시간 입실 현황 로드
   useEffect(() => {
@@ -341,28 +402,22 @@ const PracticeRoomBookingClassic: React.FC = () => {
       
       console.log('예약 로딩 시작:', formatDate(startDate), '~', formatDate(endDate));
       
-      // 단순화된 쿼리 (인덱스 불필요)
       const q = query(
         collection(db, 'practiceRoomReservations'),
-        where('status', '==', 'confirmed')
+        where('status', 'in', ['confirmed', 'pending', 'outbid'])
       );
       
       const snapshot = await getDocs(q);
-      const allData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
+      const allData = snapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data()
       })) as Reservation[];
       
-      // 클라이언트 사이드에서 날짜 필터링
       const data = allData.filter(r => {
         return r.date >= formatDate(startDate) && r.date <= formatDate(endDate);
       });
       
       console.log('예약 데이터 로딩됨:', data.length, '건');
-      data.forEach(r => {
-        console.log(`- ${r.date} ${r.startTime} (${r.userDisplayName})`);
-      });
-      
       setReservations(data);
     } catch (error) {
       console.error('예약 정보 로딩 실패:', error);
@@ -483,8 +538,8 @@ const PracticeRoomBookingClassic: React.FC = () => {
       // 클라이언트 사이드에서 필터링 및 정렬
       const data = allData
         .filter(r => {
-          // 취소된 예약 제외
-          if (r.status !== 'confirmed') return false;
+          // 확정·대기 예약만 (취소 제외)
+          if (r.status !== 'confirmed' && r.status !== 'pending') return false;
           
           // 예약 날짜가 오늘보다 이전이면 제외
           if (r.date < todayStr) return false;
@@ -539,13 +594,13 @@ const PracticeRoomBookingClassic: React.FC = () => {
       const todayReservations = snapshot.docs.filter(doc => {
         const data = doc.data();
         const isToday = data.date === dateStr;
-        const isConfirmed = data.status === 'confirmed';
+        const isActive = data.status === 'confirmed' || data.status === 'pending';
         
         if (isToday) {
-          console.log(`  [${isConfirmed ? '✅' : '❌'}] ${data.startTime} (status: ${data.status})`);
+          console.log(`  [${isActive ? '✅' : '❌'}] ${data.startTime} (status: ${data.status})`);
         }
         
-        return isToday && isConfirmed;
+        return isToday && isActive;
       });
       
       const totalHours = todayReservations.length;
@@ -603,7 +658,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
       const snapshot = await getDocs(q);
       const weeklyReservations = snapshot.docs.filter((item) => {
         const data = item.data() as Record<string, any>;
-        if (data.status !== 'confirmed') return false;
+        if (data.status !== 'confirmed' && data.status !== 'pending') return false;
         const reservationDate = String(data.date || '');
         return reservationDate >= weekRange.start && reservationDate <= weekRange.end;
       });
@@ -706,10 +761,27 @@ const PracticeRoomBookingClassic: React.FC = () => {
       const slotDateTime = new Date(`${dateStr}T${timeStr}`);
       const isPast = slotDateTime < now;
       
-      // 해당 날짜와 시간의 예약 찾기
-      const reservation = reservations.find(
-        r => r.date === dateStr && r.startTime === timeStr
+      // 해당 날짜와 시간의 예약들 (선두 + 밀린 예약 포함)
+      const slotReservations = sortReservationsForDisplay(
+        reservations.filter((r) => r.date === dateStr && r.startTime === timeStr),
+        priorityRanking
       );
+      const reservation = pickLeadingReservation(slotReservations, priorityRanking) || undefined;
+
+      const canSteal =
+        Boolean(
+          reservation &&
+            reservation.status === 'pending' &&
+            currentUser?.uid &&
+            reservation.userId !== currentUser.uid &&
+            canStealPendingReservation({
+              attackerUid: currentUser.uid,
+              defenderUid: reservation.userId,
+              ranking: priorityRanking,
+              attackerIsAdminPriority: isAdminPriorityUser,
+              defenderIsAdminPriority: reservationHasAdminPriority(reservation),
+            })
+        );
       
       // 개별 설정 찾기 (차단 또는 예외 허용)
       const individualSlot = blockedSlots.find(
@@ -725,11 +797,12 @@ const PracticeRoomBookingClassic: React.FC = () => {
       let isWalkInOpen = false;
       let isTicketingBlock = false;
 
+      // walk-in: 활성(선두) 예약이 없을 때만
       const slotWalkIn =
         !alwaysOpen &&
         isUnbookedSlotWalkInOpen(
           dateStr,
-          Boolean(reservation),
+          Boolean(reservation && reservation.status !== 'outbid'),
           ticketingSettings,
           now,
           isUnlimitedUser
@@ -752,7 +825,9 @@ const PracticeRoomBookingClassic: React.FC = () => {
       ) {
         isBlocked = true;
         isTicketingBlock = true;
-        blockReason = ticketingBookCheck.reason || '예약 오픈 전';
+        blockReason = isTicketingNonBookableWeekday(dateStr)
+          ? '주말 예약 차단'
+          : ticketingBookCheck.reason || '예약 오픈 전';
         blockedBy = '티켓팅';
       } else if (individualSlot) {
         // 개별 설정이 있는 경우
@@ -789,7 +864,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
         time: timeStr,
         endTime: endTimeStr,
         isAvailable:
-          !reservation &&
+          (!reservation || canSteal) &&
           !isPast &&
           !isBlocked &&
           !alwaysOpen &&
@@ -799,11 +874,13 @@ const PracticeRoomBookingClassic: React.FC = () => {
         isBlocked: isBlocked || alwaysOpen,
         isWalkInOpen,
         isTicketingBlock,
+        canSteal,
         isException: isException,
         blockReason: blockReason,
         blockedBy: blockedBy,
         blockId: blockId,
-        reservation: reservation
+        reservation: reservation,
+        reservations: slotReservations,
       });
     }
     
@@ -859,6 +936,11 @@ const PracticeRoomBookingClassic: React.FC = () => {
   ) => {
     if (isAlwaysOpenDate(date)) {
       alert(`🟢 ${ALWAYS_OPEN_NOTICE}`);
+      return;
+    }
+
+    if (!hasFirstRoundVoteForBooking()) {
+      alert(NO_FIRST_VOTE_BOOKING_MESSAGE);
       return;
     }
 
@@ -972,15 +1054,26 @@ const PracticeRoomBookingClassic: React.FC = () => {
       console.log('📅 클릭한 날짜:', formatDate(date));
       console.log('🕐 선택한 시간:', slot.time);
 
-      // 관리자(너래 제외)는 예약/차단 선택 모달
-      if (isAdmin && !isUnlimitedUser && !slot.isException) {
+      if (
+        slot.canSteal &&
+        slot.reservation &&
+        !window.confirm(
+          `${slot.reservation.userDisplayName}님의 대기 예약을 우선권으로 가져가시겠습니까?\n` +
+            `(${formatDate(date)} ${slot.time})\n상대에게 알림이 전송됩니다.`
+        )
+      ) {
+        return;
+      }
+
+      // 관리자(너래 제외)는 예약/차단 선택 모달 — 뺏기는 바로 예약 플로우
+      if (isAdmin && !isUnlimitedUser && !slot.isException && !slot.canSteal) {
         setSelectedTimeSlot({ ...slot });
         setBookingDate(date);
         setShowAdminActionModal(true);
         return;
       }
 
-      await openBookingFlow(slot, date);
+      await openBookingFlow(slot, date, slot.canSteal ? { ignoreReservations: true } : undefined);
       console.log('🖱️ ========================================');
       console.log('');
     } else if (slot.reservation) {
@@ -1046,6 +1139,11 @@ const PracticeRoomBookingClassic: React.FC = () => {
 
   const handleBooking = async () => {
     if (!selectedTimeSlot || !currentUser || !bookingDate) return;
+
+    if (!hasFirstRoundVoteForBooking()) {
+      alert(NO_FIRST_VOTE_BOOKING_MESSAGE);
+      return;
+    }
 
     const bookingCheck = canBookDateUnderTicketing(
       formatDate(bookingDate),
@@ -1200,8 +1298,18 @@ const PracticeRoomBookingClassic: React.FC = () => {
         console.log('');
       }
       
-      // 선택한 시간만큼 모든 슬롯이 비어있는지 체크
+      // 선택한 시간만큼 슬롯 충돌/우선권 검사
       const slotsToBook: string[] = [];
+      const stolenOwners = new Map<string, { uid: string; nickname: string; group?: string; endTime?: string }>();
+      const usePendingStatus =
+        !isUnlimitedUser &&
+        isSundayPendingBookingWindow() &&
+        isTargetDateUnderTicketing(dateStr, ticketingSettings);
+      const myRank = getPriorityRankNumber(priorityRanking, currentUser.uid, {
+        isAdminPriority: isAdminPriorityUser,
+      });
+      const myVoteCount = priorityRanking.find((r) => r.uid === currentUser.uid)?.voteCount || 0;
+
       for (let i = 0; i < duration; i++) {
         const checkTime = `${String(startHour + i).padStart(2, '0')}:00`;
         slotsToBook.push(checkTime);
@@ -1210,17 +1318,116 @@ const PracticeRoomBookingClassic: React.FC = () => {
           collection(db, 'practiceRoomReservations'),
           where('date', '==', dateStr),
           where('startTime', '==', checkTime),
-          where('status', '==', 'confirmed')
+          where('status', 'in', ['confirmed', 'pending'])
         );
         
         const existingSnapshot = await getDocs(existingQ);
-        if (!isUnlimitedUser && !existingSnapshot.empty) {
-          alert(`${checkTime} 시간대가 이미 예약되어 있습니다.`);
-          isBookingInProgress.current = false;
-          setLoading(false);
-          setShowBookingModal(false);
-          return;
+        if (isUnlimitedUser || isAdminPriorityUser) {
+          // 관리자는 기존 pending을 모두 밀림 처리
+          for (const existingDoc of existingSnapshot.docs) {
+            const existing = existingDoc.data() as Reservation;
+            if (existing.userId === currentUser.uid) continue;
+            if (existing.status === 'pending') {
+              stolenOwners.set(existing.userId, {
+                uid: existing.userId,
+                nickname: existing.userDisplayName || '멤버',
+                group: existing.reservationGroup,
+                endTime: existing.endTime,
+              });
+            }
+          }
+          continue;
         }
+        if (existingSnapshot.empty) continue;
+
+        for (const existingDoc of existingSnapshot.docs) {
+          const existing = existingDoc.data() as Reservation;
+          if (existing.userId === currentUser.uid) {
+            alert(`${checkTime} 시간대에 이미 본인 예약이 있습니다.`);
+            isBookingInProgress.current = false;
+            setLoading(false);
+            setShowBookingModal(false);
+            return;
+          }
+
+          if (existing.status === 'confirmed') {
+            alert(`${checkTime} 시간대가 이미 확정 예약되어 있습니다.`);
+            isBookingInProgress.current = false;
+            setLoading(false);
+            setShowBookingModal(false);
+            return;
+          }
+
+          // pending: 우선권이 더 높을 때만 뺏기 가능
+          const canSteal = canStealPendingReservation({
+            attackerUid: currentUser.uid,
+            defenderUid: existing.userId,
+            ranking: priorityRanking,
+            attackerIsAdminPriority: isAdminPriorityUser,
+            defenderIsAdminPriority: reservationHasAdminPriority(existing),
+          });
+          if (!canSteal) {
+            const theirRank = getPriorityRankNumber(priorityRanking, existing.userId, {
+              isAdminPriority: reservationHasAdminPriority(existing),
+            });
+            alert(
+              `${checkTime} 시간대는 이미 ${existing.userDisplayName || '다른 멤버'}님의 대기 예약입니다.\n` +
+                `(상대 우선순위: ${reservationHasAdminPriority(existing) ? '관리자(1순위)' : Number.isFinite(theirRank) ? `${theirRank}위` : '순위 밖'} · ` +
+                `내 우선순위: ${isAdminPriorityUser ? '관리자(1순위)' : Number.isFinite(myRank) ? `${myRank}위` : '순위 밖'})\n` +
+                `동순위이거나 우선순위가 낮으면 뺏을 수 없습니다.`
+            );
+            isBookingInProgress.current = false;
+            setLoading(false);
+            setShowBookingModal(false);
+            return;
+          }
+
+          stolenOwners.set(existing.userId, {
+            uid: existing.userId,
+            nickname: existing.userDisplayName || '멤버',
+            group: existing.reservationGroup,
+            endTime: existing.endTime,
+          });
+        }
+      }
+
+      // 뺏기: 상대 pending → outbid 로 변경(화면에는 계속 표시) + 알림
+      if (stolenOwners.size > 0) {
+        const allActiveQ = query(
+          collection(db, 'practiceRoomReservations'),
+          where('date', '==', dateStr),
+          where('status', '==', 'pending')
+        );
+        const allPendingSnap = await getDocs(allActiveQ);
+        for (const pendingDoc of allPendingSnap.docs) {
+          const data = pendingDoc.data() as Reservation;
+          const owner = stolenOwners.get(data.userId);
+          if (!owner) continue;
+          const sameGroup =
+            owner.group && data.reservationGroup
+              ? owner.group === data.reservationGroup
+              : slotsToBook.includes(data.startTime);
+          if (!sameGroup && !slotsToBook.includes(data.startTime)) continue;
+          await updateDoc(doc(db, 'practiceRoomReservations', pendingDoc.id), {
+            status: 'outbid',
+            outbidAt: Timestamp.now(),
+            outbidByUid: currentUser.uid,
+            outbidByNickname: currentUser.nickname || '익명',
+          });
+        }
+
+        await Promise.all(
+          Array.from(stolenOwners.values()).map((owner) =>
+            NotificationService.notifyPracticeRoomReservationStolen({
+              toUid: owner.uid,
+              fromUid: currentUser.uid,
+              fromNickname: currentUser.nickname || '익명',
+              date: dateStr,
+              startTime: selectedTimeSlot.time,
+              endTime: calculateEndTime(selectedTimeSlot.time, duration),
+            }).catch((err) => console.error('예약 뺏김 알림 실패:', err))
+          )
+        );
       }
       
       // 모든 시간대 예약 생성
@@ -1242,10 +1449,13 @@ const PracticeRoomBookingClassic: React.FC = () => {
           endTime: slotEndTime,
           duration: SLOT_DURATION,
           totalDuration: duration * SLOT_DURATION,
-          purpose: trimmedPurpose || (isUnlimitedUser ? '관리자 예약' : ''),
-          status: 'confirmed',
+          purpose: trimmedPurpose || (isAdminPriorityUser ? '관리자 예약' : ''),
+          status: usePendingStatus ? 'pending' : 'confirmed',
           reservationGroup: reservationGroup,
           isFirstSlot: i === 0,
+          priorityRank: isAdminPriorityUser ? 1 : Number.isFinite(myRank) ? myRank : null,
+          priorityVoteCount: myVoteCount,
+          adminPriority: isAdminPriorityUser,
           createdAt: Timestamp.now()
         };
         
@@ -1286,10 +1496,13 @@ const PracticeRoomBookingClassic: React.FC = () => {
       console.log('✅ ================================');
       console.log('');
       
+      const pendingNote = usePendingStatus
+        ? '\n\n※ 일요일 대기 예약입니다. 월요일 00시에 확정됩니다.\n우선순위가 더 높은 멤버가 이 시간대를 가져갈 수 있습니다.'
+        : '';
       alert(
         isUnlimitedUser
           ? `${reservedDuration}시간 예약 완료!\n\n${dateStr}`
-          : `${reservedDuration}시간 예약 완료!\n\n${dateStr}\n일일 사용: ${newUsedHours}/${MAX_DAILY_HOURS}시간\n주간 예약: ${newWeeklyCount}/${MAX_WEEKLY_RESERVATIONS}회`
+          : `${reservedDuration}시간 ${usePendingStatus ? '대기 ' : ''}예약 완료!\n\n${dateStr}\n일일 사용: ${newUsedHours}/${MAX_DAILY_HOURS}시간\n주간 예약: ${newWeeklyCount}/${MAX_WEEKLY_RESERVATIONS}회${pendingNote}`
       );
       console.log('🔓 잠금 해제');
     } catch (error) {
@@ -1329,7 +1542,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
         .map(doc => ({ id: doc.id, ...doc.data() }))
         .filter((r: any) => {
           // status 확인
-          if (r.status !== 'confirmed') return false;
+          if (r.status !== 'confirmed' && r.status !== 'pending') return false;
           // 날짜 확인
           if (r.date !== reservation.date) return false;
           
@@ -1593,11 +1806,17 @@ const PracticeRoomBookingClassic: React.FC = () => {
     setLoading(true);
     try {
       console.log('수동 새로고침 시작...');
+      try {
+        await confirmDuePendingReservations();
+      } catch (err) {
+        console.warn('pending 예약 확정 처리 실패:', err);
+      }
       await loadReservations();
       await loadMyReservations();
       await calculateDailyUsedHours();
       await calculateWeeklyReservationCount();
       await loadBlockedSlots();
+      await loadPriorityRanking();
       console.log('수동 새로고침 완료');
     } finally {
       setLoading(false);
@@ -1824,6 +2043,60 @@ const PracticeRoomBookingClassic: React.FC = () => {
         </div>
       )}
 
+      {isSundayPendingBookingWindow() && priorityWindow && (
+        <div className="ticketing-notice" role="status" style={{ background: 'rgba(217, 119, 6, 0.15)' }}>
+          ⏳ {getSundayPendingBannerText(priorityWindow)}
+        </div>
+      )}
+
+      {priorityRanking.length > 0 && (
+        <div
+          className="priority-ranking-panel"
+          style={{
+            margin: '0 0 12px',
+            padding: '12px 14px',
+            borderRadius: 12,
+            background: 'rgba(255,255,255,0.9)',
+            border: '1px solid rgba(0,0,0,0.08)',
+          }}
+        >
+          <div style={{ fontWeight: 700, marginBottom: 6, color: '#334155' }}>
+            이번 주 1차 투표 우선권 순위
+            {priorityWindow ? (
+              <span style={{ fontWeight: 500, fontSize: 12, color: '#64748B', marginLeft: 8 }}>
+                집계 {priorityWindow.startYmd} ~ {priorityWindow.endYmd}
+              </span>
+            ) : null}
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {priorityRanking.slice(0, 20).map((entry) => (
+              <span
+                key={entry.uid}
+                style={{
+                  fontSize: 13,
+                  padding: '4px 8px',
+                  borderRadius: 8,
+                  background:
+                    entry.uid === currentUser?.uid ? 'rgba(16,185,129,0.15)' : 'rgba(148,163,184,0.15)',
+                  color: '#334155',
+                  fontWeight: entry.uid === currentUser?.uid ? 700 : 500,
+                }}
+              >
+                {entry.rank}위 {entry.nickname} ({entry.voteCount}표)
+              </span>
+            ))}
+          </div>
+          {currentUser?.uid && (
+            <div style={{ marginTop: 8, fontSize: 12, color: '#64748B' }}>
+              내 우선순위:{' '}
+              {Number.isFinite(getPriorityRankNumber(priorityRanking, currentUser.uid))
+                ? `${getPriorityRankNumber(priorityRanking, currentUser.uid)}위`
+                : '순위 밖 (투표 미참여) — 대기 예약은 가능하지만 뺏길 수 있습니다'}
+            </div>
+          )}
+        </div>
+      )}
+
       {SHOW_PRACTICE_ROOM_CHECK_IN_UI && (
       <div className="check-in-section">
         <div className="check-in-header">
@@ -2012,6 +2285,17 @@ const PracticeRoomBookingClassic: React.FC = () => {
       {isMobile ? (
         /* 모바일 일간 뷰 */
         <div className="day-view-mobile">
+          {isTargetDateUnderTicketing(formatDate(selectedDate), ticketingSettings) &&
+          isTicketingNonBookableWeekday(formatDate(selectedDate)) &&
+          !isUnlimitedUser ? (
+            <div
+              className="weekend-blocked-mobile"
+              onClick={() => alert(TICKETING_NON_BOOKABLE_NOTICE)}
+            >
+              주말 예약 차단
+              <span>금요일·토요일은 예약할 수 없습니다</span>
+            </div>
+          ) : (
           <div className="day-slots">
             {generateTimeSlots(selectedDate).map((slot, idx) => {
               const isMyReservation = slot.reservation?.userId === currentUser?.uid;
@@ -2058,30 +2342,45 @@ const PracticeRoomBookingClassic: React.FC = () => {
                       </div>
                     ) : slot.isAvailable ? (
                       <div className="available-status">
-                        <span className="slot-status available-label">예약 가능</span>
+                        {slot.canSteal && slot.reservation ? (
+                          <>
+                            <span className="slot-status available-label">우선권으로 가져가기</span>
+                            <div className="reservation-user" style={{ fontSize: 12, marginTop: 4 }}>
+                              {formatSlotReservationSummary(
+                                slot.reservations || [slot.reservation],
+                                priorityRanking
+                              )}
+                            </div>
+                          </>
+                        ) : (
+                          <span className="slot-status available-label">예약 가능</span>
+                        )}
                         {slot.isException && isAdmin && (
                           <span className="exception-badge">✅ 예외 허용</span>
                         )}
                       </div>
-                    ) : slot.reservation ? (
+                    ) : slot.reservation || (slot.reservations && slot.reservations.length > 0) ? (
                       <div className="reservation-card">
                         <div className="reservation-header">
                           <User size={14} />
                           <span className="reservation-user">
-                            {isMyReservation ? '내 예약' : slot.reservation.userDisplayName}
+                            {formatSlotReservationSummary(
+                              slot.reservations || (slot.reservation ? [slot.reservation] : []),
+                              priorityRanking
+                            )}
                           </span>
                         </div>
-                        {slot.reservation.members && slot.reservation.members.length > 0 && (
+                        {slot.reservation?.members && slot.reservation.members.length > 0 && (
                           <div className="reservation-members-mobile">
                             👥 {slot.reservation.members.join(', ')}
                           </div>
                         )}
-                        {slot.reservation.purpose && (
+                        {slot.reservation?.purpose && (
                           <div className="reservation-purpose-mobile">
                             💡 {slot.reservation.purpose}
                           </div>
                         )}
-                        {(isMyReservation || isAdmin) && (
+                        {(isMyReservation || isAdmin) && slot.reservation && slot.reservation.status !== 'outbid' && (
                           <button
                             className="mobile-cancel-btn"
                             onClick={(e) => {
@@ -2099,6 +2398,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
               );
             })}
           </div>
+          )}
         </div>
       ) : (
         /* 데스크톱 주간 뷰 */
@@ -2132,6 +2432,27 @@ const PracticeRoomBookingClassic: React.FC = () => {
                 </div>
                 
                 {weekDates.map((date, dayIdx) => {
+                  const dateStr = formatDate(date);
+                  const weekendBlocked =
+                    isTargetDateUnderTicketing(dateStr, ticketingSettings) &&
+                    isTicketingNonBookableWeekday(dateStr) &&
+                    !isUnlimitedUser;
+
+                  if (weekendBlocked) {
+                    if (hourIdx !== 0) return null;
+                    return (
+                      <div
+                        key={`${dayIdx}-weekend`}
+                        className="time-slot weekend-blocked"
+                        style={{ gridRow: `span ${CLOSE_TIME - OPEN_TIME}` }}
+                        onClick={() => alert(TICKETING_NON_BOOKABLE_NOTICE)}
+                        title={TICKETING_NON_BOOKABLE_NOTICE}
+                      >
+                        <span className="weekend-blocked-label">주말 예약 차단</span>
+                      </div>
+                    );
+                  }
+
                   const slots = generateTimeSlots(date);
                   const slot = slots[hourIdx];
                   const isMyReservation = slot.reservation?.userId === currentUser?.uid;
@@ -2165,20 +2486,28 @@ const PracticeRoomBookingClassic: React.FC = () => {
                             <span className="blocked-reason-small">{slot.blockReason}</span>
                           )}
                         </div>
+                      ) : slot.isAvailable && slot.canSteal && slot.reservation ? (
+                        <div className="reservation-info">
+                          <span className="user-name">뺏기 가능</span>
+                          <span className="member-names">
+                            {formatSlotReservationSummary(
+                              slot.reservations || [slot.reservation],
+                              priorityRanking
+                            )}
+                          </span>
+                        </div>
                       ) : slot.isAvailable && slot.isException && isAdmin ? (
                         <div className="exception-info">
                           <span className="exception-icon">✅</span>
                         </div>
-                      ) : slot.reservation && (
+                      ) : (slot.reservation || (slot.reservations && slot.reservations.length > 0)) && (
                         <div className="reservation-info">
                           <span className="user-name">
-                            {isMyReservation ? '내 예약' : slot.reservation.userDisplayName}
+                            {formatSlotReservationSummary(
+                              slot.reservations || (slot.reservation ? [slot.reservation] : []),
+                              priorityRanking
+                            )}
                           </span>
-                          {slot.reservation.members && slot.reservation.members.length > 0 && (
-                            <span className="member-names">
-                              👥 {slot.reservation.members.join(', ')}
-                            </span>
-                          )}
                         </div>
                       )}
                     </div>
@@ -2201,7 +2530,15 @@ const PracticeRoomBookingClassic: React.FC = () => {
               <div key={reservation.id} className="my-reservation-item">
                 <div className="reservation-date">
                   <Calendar size={16} />
-                  <span>{reservation.date}</span>
+                  <span>
+                    {reservation.date}
+                    {(() => {
+                      const phase = getReservationPhaseLabel(reservation);
+                      if (phase === '대기') return ' · 대기(월 00시 확정)';
+                      if (phase === '확정') return ' · 확정';
+                      return '';
+                    })()}
+                  </span>
                 </div>
                 <div className="reservation-time">
                   <Clock size={16} />
@@ -2400,7 +2737,23 @@ const PracticeRoomBookingClassic: React.FC = () => {
                   ❌ 예외 취소 (다시 차단)
                 </button>
               )}
-              <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
+              <div style={{ display: 'flex', gap: '12px', width: '100%', flexDirection: 'column' }}>
+                {!hasFirstRoundVoteForBooking() && (
+                  <div
+                    style={{
+                      fontSize: 13,
+                      color: '#B45309',
+                      background: '#FFFBEB',
+                      border: '1px solid #FDE68A',
+                      borderRadius: 8,
+                      padding: '8px 10px',
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    평가게시판 1차 투표가 없어 예약이 불가합니다.
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
                 <button 
                   className="cancel-btn" 
                   onClick={() => setShowBookingModal(false)}
@@ -2411,12 +2764,19 @@ const PracticeRoomBookingClassic: React.FC = () => {
                 </button>
                 <button 
                   className="confirm-btn" 
-                  onClick={handleBooking}
-                  disabled={loading || !isBookingFormValid()}
+                  onClick={() => {
+                    if (!hasFirstRoundVoteForBooking()) {
+                      alert(NO_FIRST_VOTE_BOOKING_MESSAGE);
+                      return;
+                    }
+                    void handleBooking();
+                  }}
+                  disabled={loading || (!isUnlimitedUser && !isBookingFormValid())}
                   style={{ flex: 1 }}
                 >
                   {loading ? '예약 중...' : '예약하기'}
                 </button>
+                </div>
               </div>
             </div>
           </div>
@@ -2437,10 +2797,6 @@ const PracticeRoomBookingClassic: React.FC = () => {
             <div className="modal-body">
               <div className="booking-info">
                 <div className="info-row">
-                  <User size={18} />
-                  <span>{selectedTimeSlot.reservation.userDisplayName}</span>
-                </div>
-                <div className="info-row">
                   <Calendar size={18} />
                   <span>{selectedTimeSlot.reservation.date}</span>
                 </div>
@@ -2450,22 +2806,49 @@ const PracticeRoomBookingClassic: React.FC = () => {
                     {selectedTimeSlot.reservation.startTime} - {selectedTimeSlot.reservation.endTime}
                   </span>
                 </div>
-                {selectedTimeSlot.reservation.members && selectedTimeSlot.reservation.members.length > 0 && (
-                  <div className="members-display">
-                    <strong>👥 함께 사용하는 멤버:</strong>
-                    <div className="members-tags">
-                      {selectedTimeSlot.reservation.members.map((member, idx) => (
-                        <span key={idx} className="member-tag-display">{member}</span>
-                      ))}
-                    </div>
+                <div style={{ marginTop: 12 }}>
+                  <strong>이 시간대 예약자</strong>
+                  <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {sortReservationsForDisplay(
+                      selectedTimeSlot.reservations || [selectedTimeSlot.reservation],
+                      priorityRanking
+                    ).map((r, i, arr) => (
+                      <div
+                        key={r.id}
+                        style={{
+                          padding: '8px 10px',
+                          borderRadius: 8,
+                          background: r.status === 'outbid' ? '#F1F5F9' : '#ECFDF5',
+                          border: '1px solid #E2E8F0',
+                          fontSize: 14,
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, color: '#334155' }}>
+                          {arr.length === 1
+                            ? `${r.userDisplayName}(${getReservationPhaseLabel(r) || '예약'})`
+                            : `${r.userDisplayName}(${i + 1}순위·${getReservationPhaseLabel(r) || '예약'})`}
+                          {r.userId === currentUser?.uid ? ' (나)' : ''}
+                          {reservationHasAdminPriority(r) ? ' · 관리자' : ''}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#64748B', marginTop: 2 }}>
+                          {getReservationPhaseLabel(r) === '대기'
+                            ? '티켓팅 대기 — 월요일 00시에 확정'
+                            : getReservationPhaseLabel(r) === '밀림'
+                              ? '밀림(다른 시간 재예약 가능)'
+                              : getReservationPhaseLabel(r) === '확정'
+                                ? '확정'
+                                : r.status}
+                        </div>
+                        {r.members && r.members.length > 0 && (
+                          <div style={{ fontSize: 12, marginTop: 4 }}>👥 {r.members.join(', ')}</div>
+                        )}
+                        {r.purpose && (
+                          <div style={{ fontSize: 12, marginTop: 2 }}>💡 {r.purpose}</div>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                )}
-                {selectedTimeSlot.reservation.purpose && (
-                  <div className="purpose-display">
-                    <strong>💡 사용 목적:</strong>
-                    <p>{selectedTimeSlot.reservation.purpose}</p>
-                  </div>
-                )}
+                </div>
               </div>
             </div>
             <div className="modal-footer">

@@ -3,6 +3,11 @@ import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
 import { computeMemberPassRatesFromDocs } from '../utils/memberEvaluationPassRate';
+import {
+  buildPriorityRanking,
+  getActivePriorityWindow,
+  tallyMemberVotesInWindow,
+} from '../utils/practiceRoomVotePriority';
 import { readVeryusUserFromStorage } from '../utils/veryusUserStorage';
 import GlobalLoadingScreen from './GlobalLoadingScreen';
 import PullToRefresh from './PullToRefresh';
@@ -34,6 +39,7 @@ type HallCachePayload = {
   visitRanking: RankEntry[];
   activePeriodRanking: RankEntry[];
   activityRanking: RankEntry[];
+  memberVoteRanking?: RankEntry[];
 };
 
 const MEDALS = ['1', '2', '3'];
@@ -49,6 +55,7 @@ type HallSectionKey =
   | 'post'
   | 'visit'
   | 'activePeriod'
+  | 'memberVote'
   | 'passRate';
 
 const initialVisibleCounts = (): Record<HallSectionKey, number> => ({
@@ -58,6 +65,7 @@ const initialVisibleCounts = (): Record<HallSectionKey, number> => ({
   post: RANKING_INITIAL_VISIBLE,
   visit: RANKING_INITIAL_VISIBLE,
   activePeriod: RANKING_INITIAL_VISIBLE,
+  memberVote: RANKING_INITIAL_VISIBLE,
   passRate: RANKING_INITIAL_VISIBLE,
 });
 const DEFAULT_SCORE_WEIGHTS: ScoreWeights = {
@@ -83,6 +91,7 @@ const HallOfFame: React.FC = () => {
   const [activePeriodRanking, setActivePeriodRanking] = useState<RankEntry[]>([]);
   const [activityRanking, setActivityRanking] = useState<RankEntry[]>([]);
   const [passRateRanking, setPassRateRanking] = useState<RankEntry[]>([]);
+  const [memberVoteRanking, setMemberVoteRanking] = useState<RankEntry[]>([]);
   const [visibleCountBySection, setVisibleCountBySection] = useState<Record<HallSectionKey, number>>(initialVisibleCounts);
 
   const toSortedEntries = (counter: Map<string, number>, userMap: UserMap, topLimit = 20): RankEntry[] => {
@@ -121,6 +130,7 @@ const HallOfFame: React.FC = () => {
       setVisitRanking(parsed.visitRanking || []);
       setActivePeriodRanking(parsed.activePeriodRanking || []);
       setActivityRanking(parsed.activityRanking || []);
+      setMemberVoteRanking(parsed.memberVoteRanking || []);
       setPassRateRanking([]);
       setVisibleCountBySection(initialVisibleCounts());
       return true;
@@ -305,6 +315,18 @@ const HallOfFame: React.FC = () => {
       const nextActivePeriodRanking = toSortedEntries(activePeriodCounter, userMap, 0);
       const nextApprovedSongRanking = toSortedEntries(filteredApprovedSongCounter, userMap, 0);
       const nextActivityRanking = toSortedEntries(activityCounter, userMap, 0);
+      const priorityWindow = getActivePriorityWindow();
+      const weeklyTallies = tallyMemberVotesInWindow(postsSnap.docs, priorityWindow);
+      const nextMemberVoteRanking = buildPriorityRanking(weeklyTallies)
+        .filter((entry) => Boolean(userMap[entry.uid]))
+        .map((entry) => ({
+          uid: entry.uid,
+          nickname: userMap[entry.uid]?.nickname || entry.nickname,
+          grade: userMap[entry.uid]?.grade,
+          role: userMap[entry.uid]?.role,
+          score: entry.voteCount,
+          detail: `${entry.rank}위 · 우선권`,
+        }));
       const nextUpdatedAt = new Date().toLocaleString('ko-KR');
 
       const leaderViewer = isHallLeaderViewer();
@@ -357,6 +379,7 @@ const HallOfFame: React.FC = () => {
       setActivePeriodRanking(nextActivePeriodRanking);
       setApprovedSongRanking(nextApprovedSongRanking);
       setActivityRanking(nextActivityRanking);
+      setMemberVoteRanking(nextMemberVoteRanking);
       setPassRateRanking(nextPassRateRanking);
       setUpdatedAt(nextUpdatedAt);
       setVisibleCountBySection(initialVisibleCounts());
@@ -369,7 +392,8 @@ const HallOfFame: React.FC = () => {
         postRanking: nextPostRanking,
         visitRanking: nextVisitRanking,
         activePeriodRanking: nextActivePeriodRanking,
-        activityRanking: nextActivityRanking
+        activityRanking: nextActivityRanking,
+        memberVoteRanking: nextMemberVoteRanking,
       });
     } catch (error) {
       console.error('명예의전당 로딩 실패:', error);
@@ -446,6 +470,14 @@ const HallOfFame: React.FC = () => {
         unit: '일',
         metricLabel: '활동량',
       },
+      {
+        key: 'memberVote',
+        title: '1차 투표 우선권 순위',
+        subtitle: '토요까지 집계된 좋아요/아쉬워요 참여 수 · 일요일 연습실 티켓팅 우선권',
+        ranking: memberVoteRanking,
+        unit: '표',
+        metricLabel: '투표 수',
+      },
     ];
 
     if (isLeaderViewer) {
@@ -467,6 +499,7 @@ const HallOfFame: React.FC = () => {
     postRanking,
     visitRanking,
     activePeriodRanking,
+    memberVoteRanking,
     passRateRanking,
     scoreWeights,
     isLeaderViewer,

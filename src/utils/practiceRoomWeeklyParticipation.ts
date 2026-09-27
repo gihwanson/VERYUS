@@ -71,12 +71,45 @@ export async function fetchConfirmedReservationsInWeek(
   weekStartStr: string,
   weekEndStr: string
 ): Promise<Array<{ id: string; data: WeeklyParticipationReservation }>> {
-  const snapshot = await getDocs(
-    query(collection(db, 'practiceRoomReservations'), where('status', '==', 'confirmed'))
-  );
+  return fetchActiveReservationsInWeek(weekStartStr, weekEndStr);
+}
 
-  return snapshot.docs
+/** confirmed + pending (일요일 대기 예약 포함) — 주간 한도용 */
+export async function fetchActiveReservationsInWeek(
+  weekStartStr: string,
+  weekEndStr: string
+): Promise<Array<{ id: string; data: WeeklyParticipationReservation }>> {
+  const [confirmedSnap, pendingSnap] = await Promise.all([
+    getDocs(query(collection(db, 'practiceRoomReservations'), where('status', '==', 'confirmed'))),
+    getDocs(query(collection(db, 'practiceRoomReservations'), where('status', '==', 'pending'))),
+  ]);
+
+  const merge = [...confirmedSnap.docs, ...pendingSnap.docs];
+  return merge
     .map((item) => ({ id: item.id, data: item.data() as WeeklyParticipationReservation }))
+    .filter(({ data }) => {
+      const dateStr = String(data.date || '');
+      return dateStr >= weekStartStr && dateStr <= weekEndStr;
+    });
+}
+
+/** 슬롯 표시용: confirmed + pending + outbid */
+export async function fetchVisibleReservationsInWeek(
+  weekStartStr: string,
+  weekEndStr: string
+): Promise<Array<{ id: string; data: WeeklyParticipationReservation & { status?: string } }>> {
+  const [confirmedSnap, pendingSnap, outbidSnap] = await Promise.all([
+    getDocs(query(collection(db, 'practiceRoomReservations'), where('status', '==', 'confirmed'))),
+    getDocs(query(collection(db, 'practiceRoomReservations'), where('status', '==', 'pending'))),
+    getDocs(query(collection(db, 'practiceRoomReservations'), where('status', '==', 'outbid'))),
+  ]);
+
+  const merge = [...confirmedSnap.docs, ...pendingSnap.docs, ...outbidSnap.docs];
+  return merge
+    .map((item) => ({
+      id: item.id,
+      data: item.data() as WeeklyParticipationReservation & { status?: string },
+    }))
     .filter(({ data }) => {
       const dateStr = String(data.date || '');
       return dateStr >= weekStartStr && dateStr <= weekEndStr;

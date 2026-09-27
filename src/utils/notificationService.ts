@@ -25,7 +25,8 @@ export interface NotificationData {
     | 'customer_center_inquiry'
     | 'customer_center_reply'
     | 'email_registration'
-    | 'email_re_registration';
+    | 'email_re_registration'
+    | 'practice_room_stolen';
   toUid: string;
   /** 알림을 보낸 사람의 uid (있으면 자기 자신에게 보내기 방지에 사용) */
   fromUid?: string;
@@ -81,6 +82,10 @@ export class NotificationService {
 
     if (type === 'approved_song_milestone') {
       return '/hall-of-fame';
+    }
+
+    if (type === 'practice_room_stolen') {
+      return '/practice-room-booking';
     }
 
     if (type === 'grade_fx_unlock') {
@@ -242,7 +247,8 @@ export class NotificationService {
       customer_center_inquiry: '고객센터에 새 문의가 접수되었습니다.',
       customer_center_reply: '고객센터에서 답변이 도착했습니다.',
       email_registration: '새 회원 가입 이력이 등록되었습니다.',
-      email_re_registration: '이전에 사용된 이메일로 재가입이 감지되었습니다.'
+      email_re_registration: '이전에 사용된 이메일로 재가입이 감지되었습니다.',
+      practice_room_stolen: '연습실 대기 예약이 우선권에 의해 변경되었습니다.'
     };
     return messages[type] || '새 알림이 있습니다.';
   }
@@ -771,29 +777,23 @@ export class NotificationService {
   }
 
   /** 회원에게 등급 승인·반려 결과 알림 */
-  static async notifyUserGradeRequestResolved(params: {
+  static async notifyPracticeRoomReservationStolen(params: {
     toUid: string;
-    approved: boolean;
-    gradeEmoji?: string;
-    gradeName?: string;
-  }): Promise<void> {
-    const { toUid, approved, gradeEmoji, gradeName } = params;
-    const label =
-      gradeEmoji && gradeName ? `${gradeEmoji} ${gradeName}` : gradeEmoji || gradeName || '';
-    const message = approved
-      ? label
-        ? `요청하신 등급으로 변경되었습니다. (${label})`
-        : '요청하신 등급으로 변경되었습니다.'
-      : '등급 변경 요청이 반려되었습니다. 프로필에 반영된 등급이 유지됩니다.';
-    try {
-      await this.createNotification({
-        type: approved ? 'grade_change_approved' : 'grade_change_rejected',
-        toUid,
-        fromNickname: 'VERYUS 운영',
-        message
-      });
-    } catch (e) {
-      console.error('등급 승인 결과 알림 실패:', e);
-    }
+    fromUid: string;
+    fromNickname: string;
+    date: string;
+    startTime: string;
+    endTime?: string;
+  }): Promise<boolean> {
+    const { toUid, fromUid, fromNickname, date, startTime, endTime } = params;
+    const timeLabel = endTime ? `${startTime}~${endTime}` : startTime;
+    return this.createNotification({
+      type: 'practice_room_stolen',
+      toUid,
+      fromUid,
+      fromNickname,
+      message: `${fromNickname}님이 우선권으로 ${date} ${timeLabel} 대기 예약을 가져갔습니다. 다른 시간대로 다시 예약해 주세요.`,
+      route: '/practice-room-booking',
+    });
   }
 } 
