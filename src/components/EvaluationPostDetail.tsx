@@ -43,6 +43,7 @@ import { stopBoardAudio } from '../utils/boardAudioPlayer';
 import { NotificationService } from '../utils/notificationService';
 import {
   approvedSongCountsByNicknameFromDocs,
+  findApprovedSongDocIdsMatchingTitleMembers,
   notifyStaffOnApprovedSongCountMilestones
 } from '../utils/approvedSongMilestone';
 import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
@@ -150,6 +151,67 @@ const EvaluationPostDetail: React.FC = () => {
       console.error('닉네임으로 UID 찾기 에러:', error);
       return null;
     }
+  };
+
+  const collectPostMemberNicknames = (target: EvaluationPost): string[] => {
+    const members = Array.isArray(target.members) ? target.members.filter(Boolean) : [];
+    return [...members, target.writerNickname].filter(
+      (v, i, arr) => !!v && arr.indexOf(v) === i
+    );
+  };
+
+  /** 재심사 삭제: 제목+멤버가 같은 합격곡 문서 제거 (명예의전당 집계와 동기화) */
+  const removeApprovedSongsForRejudgePost = async (target: EvaluationPost): Promise<number> => {
+    const allMembers = collectPostMemberNicknames(target);
+    const beforeSnap = await getDocs(collection(db, 'approvedSongs'));
+    const countsBefore = approvedSongCountsByNicknameFromDocs(beforeSnap.docs);
+    const ids = findApprovedSongDocIdsMatchingTitleMembers(beforeSnap.docs, target.title, allMembers);
+    for (const id of ids) {
+      await deleteDoc(doc(db, 'approvedSongs', id));
+    }
+    if (ids.length > 0) {
+      const afterSnap = await getDocs(collection(db, 'approvedSongs'));
+      const countsAfter = approvedSongCountsByNicknameFromDocs(afterSnap.docs);
+      void notifyStaffOnApprovedSongCountMilestones({
+        countsByNicknameBefore: countsBefore,
+        countsByNicknameAfter: countsAfter,
+        affectedNicknames: allMembers,
+      }).catch((err) => console.error('합격곡 마일스톤 알림 실패:', err));
+    }
+    return ids.length;
+  };
+
+  /** 재심사 유지 복구: 동일 제목+멤버 합격곡이 없으면 다시 등록 */
+  const restoreApprovedSongsForRejudgePost = async (target: EvaluationPost): Promise<void> => {
+    const allMembers = collectPostMemberNicknames(target);
+    const beforeSnap = await getDocs(collection(db, 'approvedSongs'));
+    const existing = findApprovedSongDocIdsMatchingTitleMembers(
+      beforeSnap.docs,
+      target.title,
+      allMembers
+    );
+    if (existing.length > 0) return;
+
+    const countsBefore = approvedSongCountsByNicknameFromDocs(beforeSnap.docs);
+    await addDoc(collection(db, 'approvedSongs'), {
+      title: target.title,
+      titleNoSpace: String(target.title || '').replace(/\s/g, ''),
+      members: allMembers,
+      createdAt: new Date(),
+      createdBy: user?.nickname || '알 수 없음',
+      createdByRole: user?.role || '',
+      approvedPostId: target.id,
+      audioUrl: target.audioUrl || '',
+      duration: target.duration || 0,
+      fileName: target.fileName || '',
+    });
+    const afterSnap = await getDocs(collection(db, 'approvedSongs'));
+    const countsAfter = approvedSongCountsByNicknameFromDocs(afterSnap.docs);
+    void notifyStaffOnApprovedSongCountMilestones({
+      countsByNicknameBefore: countsBefore,
+      countsByNicknameAfter: countsAfter,
+      affectedNicknames: allMembers,
+    }).catch((err) => console.error('합격곡 마일스톤 알림 실패:', err));
   };
 
   useEffect(() => {
@@ -1081,7 +1143,7 @@ const EvaluationPostDetail: React.FC = () => {
                   </div>
                 </div>
               )}
-              {/* 재심사 유지/삭제 판정 버튼 (합격곡 후처리 없음, 상태·알림만) */}
+              {/* 재심사 유지/삭제 판정 — 합격곡(approvedSongs)도 함께 동기화 */}
               {isEvaluationJudge(user) && post.category === 'rejudge' && (
                 <div style={{margin:'18px 0 0 0', display:'flex', justifyContent:'center', gap:16}}>
                   {(!post.status || post.status === '대기') ? (
@@ -1094,6 +1156,7 @@ const EvaluationPostDetail: React.FC = () => {
                             statusUpdatedAt: new Date()
                           });
                           setPost(p=>p ? { ...p, status: '유지' } : p);
+                          await restoreApprovedSongsForRejudgePost(post);
 
                           await NotificationService.createRejudgeKeepNotification(
                             post.writerUid,
@@ -1124,13 +1187,14 @@ const EvaluationPostDetail: React.FC = () => {
                       }} style={{background:'var(--primary-color, #8b5a2b)',color:'#fff',fontWeight:700,padding:'8px 22px',borderRadius:8,border:'none',fontSize:16,cursor:'pointer'}}>유지</button>
 
                       <button onClick={async()=>{
-                        if (!window.confirm('정말 삭제 처리하시겠습니까?')) return;
+                        if (!window.confirm('정말 삭제 처리하시겠습니까?\n연결된 합격곡 등록도 함께 제거됩니다.')) return;
                         try {
                           await updateDoc(doc(db, 'posts', post.id), {
                             status: '삭제',
                             statusUpdatedAt: new Date()
                           });
                           setPost(p=>p ? { ...p, status: '삭제' } : p);
+                          await removeApprovedSongsForRejudgePost(post);
 
                           await NotificationService.createRejudgeRemoveNotification(
                             post.writerUid,
@@ -1163,7 +1227,11 @@ const EvaluationPostDetail: React.FC = () => {
                   ) : (
                     <button onClick={async()=>{
                       const nextStatus = post.status === '유지' ? '삭제' : '유지';
-                      if (!window.confirm(`정말 ${nextStatus}으로 전환하시겠습니까?`)) return;
+                      if (!window.confirm(
+                        nextStatus === '삭제'
+                          ? '정말 삭제로 전환하시겠습니까?\n연결된 합격곡 등록도 함께 제거됩니다.'
+                          : `정말 ${nextStatus}으로 전환하시겠습니까?`
+                      )) return;
                       try {
                         await updateDoc(doc(db, 'posts', post.id), {
                           status: nextStatus,
@@ -1172,6 +1240,7 @@ const EvaluationPostDetail: React.FC = () => {
                         setPost(p=>p ? { ...p, status: nextStatus } : p);
 
                         if (nextStatus === '유지') {
+                          await restoreApprovedSongsForRejudgePost(post);
                           await NotificationService.createRejudgeKeepNotification(
                             post.writerUid,
                             post.id,
@@ -1194,6 +1263,7 @@ const EvaluationPostDetail: React.FC = () => {
                             }
                           }
                         } else {
+                          await removeApprovedSongsForRejudgePost(post);
                           await NotificationService.createRejudgeRemoveNotification(
                             post.writerUid,
                             post.id,

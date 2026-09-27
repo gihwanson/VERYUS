@@ -10,7 +10,19 @@ export function normalizeApprovedSongTitleKey(data: Record<string, unknown>): st
   return title.replace(/\s/g, '').toLowerCase();
 }
 
-/** 명예의 전당 합격곡 순위: 같은 곡 제목+멤버 조합은 문서가 여러 개여도 1곡으로만 집계 */
+function getCreatedAtMs(value: unknown): number {
+  if (!value) return 0;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === 'object' && value !== null) {
+    const maybe = value as { toMillis?: () => number; seconds?: number };
+    if (typeof maybe.toMillis === 'function') return maybe.toMillis();
+    if (typeof maybe.seconds === 'number') return maybe.seconds * 1000;
+  }
+  return 0;
+}
+
+/** 명예의 전당·마이페이지 공통: 같은 곡 제목+멤버 조합은 문서가 여러 개여도 1곡으로만 집계 */
 export function approvedSongCountsByNicknameFromDocs(
   docs: Array<QueryDocumentSnapshot<DocumentData> | { data: () => DocumentData }>
 ): Map<string, number> {
@@ -38,6 +50,74 @@ export function approvedSongCountsByNicknameFromDocs(
     }
   }
   return counts;
+}
+
+/**
+ * 특정 닉네임의 합격곡 목록을 명예의전당과 같은 기준으로 정리.
+ * 같은 제목은 1곡만 남기고, 더 최근(createdAt) 문서를 우선한다.
+ */
+export function dedupeApprovedSongsForNickname<
+  T extends {
+    title?: string;
+    titleNoSpace?: string;
+    members?: unknown;
+    createdAt?: unknown;
+    updatedAt?: unknown;
+  }
+>(songs: T[], nickname: string): T[] {
+  const nick = String(nickname || '').trim();
+  if (!nick) return [];
+
+  const sorted = [...songs].sort((a, b) => {
+    const aMs = Math.max(getCreatedAtMs(a.updatedAt), getCreatedAtMs(a.createdAt));
+    const bMs = Math.max(getCreatedAtMs(b.updatedAt), getCreatedAtMs(b.createdAt));
+    return bMs - aMs;
+  });
+
+  const seenTitles = new Set<string>();
+  const result: T[] = [];
+  for (const song of sorted) {
+    const members = Array.isArray(song.members)
+      ? song.members.map((m) => String(m || '').trim()).filter(Boolean)
+      : [];
+    if (!members.includes(nick)) continue;
+
+    const titleKey = normalizeApprovedSongTitleKey(song as Record<string, unknown>);
+    if (!titleKey || seenTitles.has(titleKey)) continue;
+    seenTitles.add(titleKey);
+    result.push(song);
+  }
+  return result;
+}
+
+/** 재심사 등: 제목+멤버 조합이 같은 approvedSongs 문서 id 목록 */
+export function findApprovedSongDocIdsMatchingTitleMembers(
+  docs: Array<QueryDocumentSnapshot<DocumentData> | { id: string; data: () => DocumentData }>,
+  title: string,
+  members: string[]
+): string[] {
+  const titleKey = normalizeApprovedSongTitleKey({ title, titleNoSpace: title.replace(/\s/g, '') });
+  if (!titleKey) return [];
+
+  const normalizedMembers = [...new Set(members.map((m) => String(m || '').trim()).filter(Boolean))]
+    .map((m) => m.toLowerCase())
+    .sort();
+  if (normalizedMembers.length === 0) return [];
+
+  const ids: string[] = [];
+  for (const d of docs) {
+    const data = d.data() as Record<string, unknown>;
+    if (normalizeApprovedSongTitleKey(data) !== titleKey) continue;
+    const songMembers = (Array.isArray(data.members) ? data.members : [])
+      .map((m) => String(m || '').trim().toLowerCase())
+      .filter(Boolean)
+      .sort();
+    if (songMembers.length !== normalizedMembers.length) continue;
+    if (songMembers.every((m, i) => m === normalizedMembers[i])) {
+      ids.push(d.id);
+    }
+  }
+  return ids;
 }
 
 const MILESTONES = [20, 50, 100] as const;

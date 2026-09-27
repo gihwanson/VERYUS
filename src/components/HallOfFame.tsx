@@ -433,7 +433,7 @@ const HallOfFame: React.FC = () => {
       {
         key: 'approvedSong',
         title: '합격곡 순위',
-        subtitle: '합격곡 멤버로 등재된 횟수',
+        subtitle: '같은 곡 제목은 1곡으로 집계 (멤버 등재 기준)',
         ranking: approvedSongRanking,
         unit: '개 합격곡',
         metricLabel: '활동량',

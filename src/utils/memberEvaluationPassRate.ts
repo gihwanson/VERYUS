@@ -1,6 +1,7 @@
 import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
+import { normalizeApprovedSongTitleKey } from './approvedSongMilestone';
 
 export interface MemberPassRateStats {
   passes: number;
@@ -148,6 +149,7 @@ function finalizePassRates(map: Map<string, MemberPassRateStats>): Map<string, M
 /**
  * 평가게시판(버스킹심사) 합/불 + 관리자 직접 등록 합격곡을 합쳐
  * 닉네임별 합격률을 계산합니다. 듀엣·합창 멤버도 각각 1회로 집계합니다.
+ * 합격(곡) 수는 명예의전당과 같이 제목+멤버 중복을 1곡으로 봅니다.
  *
  * @param allowedNicknames 지정 시 해당 닉네임(현재 회원)만 집계하고,
  *   members의 붙은 문자열도 회원 닉네임으로 분리합니다.
@@ -160,6 +162,7 @@ export function computeMemberPassRatesFromDocs(params: {
   const allowed = toAllowedSet(params.allowedNicknames);
   const map = new Map<string, MemberPassRateStats>();
   const countedEvalKeys = new Set<string>();
+  const countedEvalPassTitles = new Set<string>();
 
   for (const postDoc of params.evaluationPosts) {
     const data = postDoc.data() as Record<string, unknown>;
@@ -169,14 +172,25 @@ export function computeMemberPassRatesFromDocs(params: {
     if (status !== '합격' && status !== '불합격') continue;
 
     const postId = 'id' in postDoc ? String(postDoc.id) : '';
+    const titleKey = normalizeApprovedSongTitleKey({
+      title: data.title,
+      titleNoSpace: data.titleNoSpace,
+    });
+
     for (const nick of collectEvaluationMemberNicks(data, allowed)) {
+      if (status === '합격') {
+        // 명예의전당과 동일: 같은 제목+멤버는 1곡
+        const passKey = titleKey ? `${titleKey}\0${nick}` : `${postId}\0${nick}\0합격`;
+        if (countedEvalPassTitles.has(passKey)) continue;
+        countedEvalPassTitles.add(passKey);
+        ensureStats(map, nick).evalPasses += 1;
+        continue;
+      }
+
       const key = `${postId}\0${nick}\0${status}`;
       if (countedEvalKeys.has(key)) continue;
       countedEvalKeys.add(key);
-
-      const stats = ensureStats(map, nick);
-      if (status === '합격') stats.evalPasses += 1;
-      else stats.evalFails += 1;
+      ensureStats(map, nick).evalFails += 1;
     }
   }
 
@@ -187,7 +201,9 @@ export function computeMemberPassRatesFromDocs(params: {
     // 평가 합격으로 생성된 곡은 평가 집계에 이미 포함되므로 제외
     if (approvedPostId) continue;
 
-    const songId = 'id' in songDoc ? String(songDoc.id) : '';
+    const titleKey = normalizeApprovedSongTitleKey(data);
+    if (!titleKey) continue;
+
     const members = data.members;
     const rawMembers: unknown[] = Array.isArray(members)
       ? members
@@ -200,8 +216,9 @@ export function computeMemberPassRatesFromDocs(params: {
         if (seenInDoc.has(nick)) continue;
         seenInDoc.add(nick);
 
-        const key = `${songId}\0${nick}`;
-        if (countedAdminKeys.has(key)) continue;
+        // 명예의전당과 동일: 제목+멤버 중복은 1곡 (평가 합격과 중복 시 제외)
+        const key = `${titleKey}\0${nick}`;
+        if (countedEvalPassTitles.has(key) || countedAdminKeys.has(key)) continue;
         countedAdminKeys.add(key);
 
         ensureStats(map, nick).adminDirectPasses += 1;

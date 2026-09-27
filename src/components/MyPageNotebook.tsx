@@ -48,7 +48,10 @@ import { enablePushNotifications, removeAllPushTokens } from '../utils/pushNotif
 import { GRADE_NAMES, GRADE_ORDER, GRADE_SYSTEM } from './AdminTypes';
 import { getGradeBadgeLabel, getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
 import GradeFxEmoji from './GradeFxEmoji';
-import { approvedSongCountsByNicknameFromDocs } from '../utils/approvedSongMilestone';
+import {
+  approvedSongCountsByNicknameFromDocs,
+  dedupeApprovedSongsForNickname,
+} from '../utils/approvedSongMilestone';
 import {
   fetchMemberPassRateForNickname,
   formatMemberPassRate,
@@ -1140,9 +1143,10 @@ const MyPageNotebook: React.FC = () => {
         }
       }));
       
-      // 최신순 정렬(합격일 createdAt 기준)
-      songsWithAudio.sort((a, b) => ((b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
-      setApprovedSongs(songsWithAudio);
+      // 명예의전당과 동일: 같은 제목은 1곡만 (최근 문서 우선)
+      const deduped = dedupeApprovedSongsForNickname(songsWithAudio, nickname);
+      deduped.sort((a, b) => ((b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
+      setApprovedSongs(deduped);
     } catch (error) {
       console.error('합격곡 불러오기 오류:', error);
       setApprovedSongs([]);

@@ -36,10 +36,13 @@ import {
 import {
   canStealPendingReservation,
   confirmDuePendingReservations,
-  formatSlotReservationSummary,
+  describeRelativeBookingPriority,
+  formatSlotReservationLabel,
   getActivePriorityWindow,
   getPriorityRankNumber,
   getReservationPhaseLabel,
+  getReservationBlockHours,
+  getSlotMergeInfo,
   getSundayPendingBannerText,
   isPracticeRoomAdminPriorityUser,
   isSundayPendingBookingWindow,
@@ -173,6 +176,39 @@ const PracticeRoomBookingClassic: React.FC = () => {
     currentUser?.nickname && SUPER_ADMIN_NICKNAMES.includes(currentUser.nickname)
   );
   const isAdminPriorityUser = isPracticeRoomAdminPriorityUser(currentUser) || isUnlimitedUser;
+  /** 일요일 티켓팅: 너래만 예약자 닉네임/상세 공개, 나머지는 팀 수만 */
+  const hideTicketingReservationIdentities =
+    isSundayPendingBookingWindow() && !isUnlimitedUser;
+
+  const formatSlotOccupancyLabel = (
+    reservations: Reservation[] | undefined,
+    fallback?: Reservation
+  ) =>
+    formatSlotReservationLabel(
+      reservations || (fallback ? [fallback] : []),
+      priorityRanking,
+      { hideIdentities: hideTicketingReservationIdentities }
+    );
+
+  const getLeadingPriorityHint = (
+    reservations: Reservation[] | undefined,
+    fallback?: Reservation
+  ): string => {
+    if (!currentUser?.uid) return '';
+    const leading =
+      pickLeadingReservation(
+        reservations || (fallback ? [fallback] : []),
+        priorityRanking
+      ) || fallback;
+    if (!leading) return '';
+    return describeRelativeBookingPriority({
+      myUid: currentUser.uid,
+      defenderUid: leading.userId,
+      ranking: priorityRanking,
+      myIsAdminPriority: isAdminPriorityUser,
+      defenderIsAdminPriority: reservationHasAdminPriority(leading),
+    });
+  };
 
   const hasFirstRoundVoteForBooking = (): boolean => {
     if (!currentUser) return false;
@@ -1058,8 +1094,24 @@ const PracticeRoomBookingClassic: React.FC = () => {
         slot.canSteal &&
         slot.reservation &&
         !window.confirm(
-          `${slot.reservation.userDisplayName}님의 대기 예약을 우선권으로 가져가시겠습니까?\n` +
-            `(${formatDate(date)} ${slot.time})\n상대에게 알림이 전송됩니다.`
+          (() => {
+            const occupancy = formatSlotOccupancyLabel(slot.reservations, slot.reservation);
+            const priorityHint = getLeadingPriorityHint(slot.reservations, slot.reservation);
+            if (hideTicketingReservationIdentities) {
+              return (
+                `이 시간대의 대기 예약을 우선권으로 가져가시겠습니까?\n` +
+                `(${formatDate(date)} ${slot.time} · ${occupancy})\n` +
+                (priorityHint ? `${priorityHint}\n` : '') +
+                `상대에게 알림이 전송됩니다.`
+              );
+            }
+            return (
+              `${slot.reservation.userDisplayName}님의 대기 예약을 우선권으로 가져가시겠습니까?\n` +
+              `(${formatDate(date)} ${slot.time})\n` +
+              (priorityHint ? `${priorityHint}\n` : '') +
+              `상대에게 알림이 전송됩니다.`
+            );
+          })()
         )
       ) {
         return;
@@ -1371,10 +1423,15 @@ const PracticeRoomBookingClassic: React.FC = () => {
               isAdminPriority: reservationHasAdminPriority(existing),
             });
             alert(
-              `${checkTime} 시간대는 이미 ${existing.userDisplayName || '다른 멤버'}님의 대기 예약입니다.\n` +
-                `(상대 우선순위: ${reservationHasAdminPriority(existing) ? '관리자(1순위)' : Number.isFinite(theirRank) ? `${theirRank}위` : '순위 밖'} · ` +
-                `내 우선순위: ${isAdminPriorityUser ? '관리자(1순위)' : Number.isFinite(myRank) ? `${myRank}위` : '순위 밖'})\n` +
-                `동순위이거나 우선순위가 낮으면 뺏을 수 없습니다.`
+              hideTicketingReservationIdentities
+                ? `${checkTime} 시간대는 이미 다른 팀의 대기 예약입니다.\n` +
+                    `(상대 우선순위: ${reservationHasAdminPriority(existing) ? '관리자(1순위)' : Number.isFinite(theirRank) ? `${theirRank}위` : '순위 밖'} · ` +
+                    `내 우선순위: ${isAdminPriorityUser ? '관리자(1순위)' : Number.isFinite(myRank) ? `${myRank}위` : '순위 밖'})\n` +
+                    `동순위이거나 우선순위가 낮으면 뺏을 수 없습니다.`
+                : `${checkTime} 시간대는 이미 ${existing.userDisplayName || '다른 멤버'}님의 대기 예약입니다.\n` +
+                    `(상대 우선순위: ${reservationHasAdminPriority(existing) ? '관리자(1순위)' : Number.isFinite(theirRank) ? `${theirRank}위` : '순위 밖'} · ` +
+                    `내 우선순위: ${isAdminPriorityUser ? '관리자(1순위)' : Number.isFinite(myRank) ? `${myRank}위` : '순위 밖'})\n` +
+                    `동순위이거나 우선순위가 낮으면 뺏을 수 없습니다.`
             );
             isBookingInProgress.current = false;
             setLoading(false);
@@ -2297,8 +2354,17 @@ const PracticeRoomBookingClassic: React.FC = () => {
             </div>
           ) : (
           <div className="day-slots">
-            {generateTimeSlots(selectedDate).map((slot, idx) => {
+            {(() => {
+              const daySlots = generateTimeSlots(selectedDate);
+              return daySlots.map((slot, idx) => {
+              const merge = getSlotMergeInfo(daySlots, idx);
+              if (merge.isContinuation) return null;
+
               const isMyReservation = slot.reservation?.userId === currentUser?.uid;
+              const blockEndTime =
+                merge.span > 1
+                  ? daySlots[idx + merge.span - 1]?.endTime || slot.endTime
+                  : slot.endTime;
               
               return (
                 <div
@@ -2313,13 +2379,19 @@ const PracticeRoomBookingClassic: React.FC = () => {
                           : slot.isAvailable
                             ? 'available'
                             : 'reserved'
-                  } ${isMyReservation ? 'my-reservation' : ''} ${slot.isException ? 'exception' : ''}`}
+                  } ${isMyReservation ? 'my-reservation' : ''} ${slot.isException ? 'exception' : ''} ${
+                    merge.span > 1 ? 'merged-block' : ''
+                  }`}
                   onClick={(e) => handleSlotActivate(slot, selectedDate, e)}
+                  style={merge.span > 1 ? { minHeight: `${Math.max(72, merge.span * 64)}px` } : undefined}
                 >
                   <div className="mobile-slot-time">
                     <span className="time-label-large">{slot.time}</span>
                     <span className="time-separator">-</span>
-                    <span className="time-label-small">{slot.endTime}</span>
+                    <span className="time-label-small">{blockEndTime}</span>
+                    {merge.span > 1 && (
+                      <span className="merged-hours-badge">{merge.span}시간</span>
+                    )}
                   </div>
                   <div className="mobile-slot-content">
                     {slot.isPast ? (
@@ -2346,10 +2418,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
                           <>
                             <span className="slot-status available-label">우선권으로 가져가기</span>
                             <div className="reservation-user" style={{ fontSize: 12, marginTop: 4 }}>
-                              {formatSlotReservationSummary(
-                                slot.reservations || [slot.reservation],
-                                priorityRanking
-                              )}
+                              {formatSlotOccupancyLabel(slot.reservations, slot.reservation)}
                             </div>
                           </>
                         ) : (
@@ -2364,18 +2433,23 @@ const PracticeRoomBookingClassic: React.FC = () => {
                         <div className="reservation-header">
                           <User size={14} />
                           <span className="reservation-user">
-                            {formatSlotReservationSummary(
-                              slot.reservations || (slot.reservation ? [slot.reservation] : []),
-                              priorityRanking
+                            {formatSlotOccupancyLabel(
+                              slot.reservations,
+                              slot.reservation
                             )}
                           </span>
                         </div>
-                        {slot.reservation?.members && slot.reservation.members.length > 0 && (
+                        {(!hideTicketingReservationIdentities ||
+                          reservationHasAdminPriority(slot.reservation || {})) &&
+                          slot.reservation?.members &&
+                          slot.reservation.members.length > 0 && (
                           <div className="reservation-members-mobile">
                             👥 {slot.reservation.members.join(', ')}
                           </div>
                         )}
-                        {slot.reservation?.purpose && (
+                        {(!hideTicketingReservationIdentities ||
+                          reservationHasAdminPriority(slot.reservation || {})) &&
+                          slot.reservation?.purpose && (
                           <div className="reservation-purpose-mobile">
                             💡 {slot.reservation.purpose}
                           </div>
@@ -2396,7 +2470,8 @@ const PracticeRoomBookingClassic: React.FC = () => {
                   </div>
                 </div>
               );
-            })}
+              });
+            })()}
           </div>
           )}
         </div>
@@ -2455,6 +2530,9 @@ const PracticeRoomBookingClassic: React.FC = () => {
 
                   const slots = generateTimeSlots(date);
                   const slot = slots[hourIdx];
+                  const merge = getSlotMergeInfo(slots, hourIdx);
+                  if (merge.isContinuation) return null;
+
                   const isMyReservation = slot.reservation?.userId === currentUser?.uid;
                   
                   return (
@@ -2470,9 +2548,14 @@ const PracticeRoomBookingClassic: React.FC = () => {
                               : slot.isAvailable
                                 ? 'available'
                                 : 'reserved'
-                      } ${isMyReservation ? 'my-reservation' : ''} ${slot.isException ? 'exception' : ''}`}
+                      } ${isMyReservation ? 'my-reservation' : ''} ${slot.isException ? 'exception' : ''} ${
+                        merge.span > 1 ? 'merged-block' : ''
+                      }`}
                       onClick={(e) => handleSlotActivate(slot, date, e)}
-                      style={{ cursor: slot.isPast ? 'not-allowed' : 'pointer' }}
+                      style={{
+                        cursor: slot.isPast ? 'not-allowed' : 'pointer',
+                        ...(merge.span > 1 ? { gridRow: `span ${merge.span}` } : {}),
+                      }}
                     >
                       {slot.isWalkInOpen ? (
                         <div className="walk-in-info">
@@ -2490,10 +2573,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
                         <div className="reservation-info">
                           <span className="user-name">뺏기 가능</span>
                           <span className="member-names">
-                            {formatSlotReservationSummary(
-                              slot.reservations || [slot.reservation],
-                              priorityRanking
-                            )}
+                            {formatSlotOccupancyLabel(slot.reservations, slot.reservation)}
                           </span>
                         </div>
                       ) : slot.isAvailable && slot.isException && isAdmin ? (
@@ -2503,10 +2583,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
                       ) : (slot.reservation || (slot.reservations && slot.reservations.length > 0)) && (
                         <div className="reservation-info">
                           <span className="user-name">
-                            {formatSlotReservationSummary(
-                              slot.reservations || (slot.reservation ? [slot.reservation] : []),
-                              priorityRanking
-                            )}
+                            {formatSlotOccupancyLabel(slot.reservations, slot.reservation)}
                           </span>
                         </div>
                       )}
@@ -2803,11 +2880,82 @@ const PracticeRoomBookingClassic: React.FC = () => {
                 <div className="info-row">
                   <Clock size={18} />
                   <span>
-                    {selectedTimeSlot.reservation.startTime} - {selectedTimeSlot.reservation.endTime}
+                    {selectedTimeSlot.reservation.startTime} -{' '}
+                    {calculateEndTime(
+                      selectedTimeSlot.reservation.startTime,
+                      getReservationBlockHours(selectedTimeSlot.reservation)
+                    )}
                   </span>
                 </div>
                 <div style={{ marginTop: 12 }}>
                   <strong>이 시간대 예약자</strong>
+                  {hideTicketingReservationIdentities ? (
+                    <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div
+                        style={{
+                          padding: '8px 10px',
+                          borderRadius: 8,
+                          background: '#ECFDF5',
+                          border: '1px solid #E2E8F0',
+                          fontSize: 14,
+                          fontWeight: 700,
+                          color: '#334155',
+                        }}
+                      >
+                        {formatSlotOccupancyLabel(
+                          selectedTimeSlot.reservations,
+                          selectedTimeSlot.reservation
+                        )}
+                        <div style={{ fontSize: 12, color: '#64748B', marginTop: 4, fontWeight: 500 }}>
+                          일반 예약자 닉네임은 티켓팅 중 비공개입니다. 관리자 예약은 표시됩니다.
+                        </div>
+                      </div>
+                      {sortReservationsForDisplay(
+                        selectedTimeSlot.reservations || [selectedTimeSlot.reservation],
+                        priorityRanking
+                      )
+                        .filter((r) => reservationHasAdminPriority(r))
+                        .map((r) => (
+                          <div
+                            key={r.id}
+                            style={{
+                              padding: '8px 10px',
+                              borderRadius: 8,
+                              background: '#FEF3C7',
+                              border: '1px solid #F59E0B',
+                              fontSize: 13,
+                            }}
+                          >
+                            <div style={{ fontWeight: 700 }}>{r.userDisplayName} · 관리자</div>
+                            {r.members && r.members.length > 0 && (
+                              <div style={{ marginTop: 4 }}>👥 {r.members.join(', ')}</div>
+                            )}
+                            {r.purpose && <div style={{ marginTop: 2 }}>💡 {r.purpose}</div>}
+                          </div>
+                        ))}
+                      {(() => {
+                        const hint = getLeadingPriorityHint(
+                          selectedTimeSlot.reservations,
+                          selectedTimeSlot.reservation
+                        );
+                        return hint ? (
+                          <div
+                            style={{
+                              padding: '8px 10px',
+                              borderRadius: 8,
+                              background: '#EFF6FF',
+                              border: '1px solid #BFDBFE',
+                              fontSize: 13,
+                              color: '#1E3A8A',
+                              lineHeight: 1.45,
+                            }}
+                          >
+                            {hint}
+                          </div>
+                        ) : null;
+                      })()}
+                    </div>
+                  ) : (
                   <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {sortReservationsForDisplay(
                       selectedTimeSlot.reservations || [selectedTimeSlot.reservation],
@@ -2847,7 +2995,29 @@ const PracticeRoomBookingClassic: React.FC = () => {
                         )}
                       </div>
                     ))}
+                    {(() => {
+                      const hint = getLeadingPriorityHint(
+                        selectedTimeSlot.reservations,
+                        selectedTimeSlot.reservation
+                      );
+                      return hint ? (
+                        <div
+                          style={{
+                            padding: '8px 10px',
+                            borderRadius: 8,
+                            background: '#EFF6FF',
+                            border: '1px solid #BFDBFE',
+                            fontSize: 13,
+                            color: '#1E3A8A',
+                            lineHeight: 1.45,
+                          }}
+                        >
+                          {hint}
+                        </div>
+                      ) : null;
+                    })()}
                   </div>
+                  )}
                 </div>
               </div>
             </div>

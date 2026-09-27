@@ -301,6 +301,8 @@ export function formatSlotReservationSummary<T extends {
   adminPriority?: boolean;
   purpose?: string;
   createdAt?: unknown;
+  totalDuration?: number;
+  duration?: number;
 }>(
   candidates: T[],
   ranking: PriorityRankEntry[],
@@ -319,6 +321,156 @@ export function formatSlotReservationSummary<T extends {
       return status ? `${name}(${index + 1}순위·${status})` : `${name}(${index + 1}순위)`;
     })
     .join(', ');
+}
+
+/** 연속 예약 블록 시간(시간 단위) */
+export function getReservationBlockHours(r: {
+  totalDuration?: number;
+  duration?: number;
+}): number {
+  const total = Number(r.totalDuration);
+  if (Number.isFinite(total) && total > 0) {
+    return Math.max(1, Math.round(total / 60));
+  }
+  const dur = Number(r.duration);
+  if (Number.isFinite(dur) && dur > 0) {
+    // duration이 분(60) 또는 시간(1~3)으로 올 수 있음
+    return dur >= 10 ? Math.max(1, Math.round(dur / 60)) : Math.max(1, Math.round(dur));
+  }
+  return 1;
+}
+
+/** 일요일 티켓팅용: 일반 멤버는 팀 수(+연속), 관리자예약은 닉네임 공개 */
+export function formatSlotReservationLabel<T extends {
+  userId: string;
+  userDisplayName?: string;
+  date?: string;
+  status?: string;
+  adminPriority?: boolean;
+  purpose?: string;
+  createdAt?: unknown;
+  totalDuration?: number;
+  duration?: number;
+}>(
+  candidates: T[],
+  ranking: PriorityRankEntry[],
+  options?: { hideIdentities?: boolean; now?: Date }
+): string {
+  const sorted = sortReservationsForDisplay(candidates, ranking);
+  if (sorted.length === 0) return '';
+
+  if (!options?.hideIdentities) {
+    return formatSlotReservationSummary(candidates, ranking, options?.now);
+  }
+
+  const admins = sorted.filter((r) => reservationHasAdminPriority(r));
+  const others = sorted.filter((r) => !reservationHasAdminPriority(r));
+  const parts: string[] = [];
+
+  for (const admin of admins) {
+    const name = String(admin.userDisplayName || '관리자').trim() || '관리자';
+    const hours = getReservationBlockHours(admin);
+    const status = getReservationPhaseLabel(admin, options?.now);
+    const hourTag = hours > 1 ? `·연속${hours}시간` : '';
+    const statusTag = status ? `·${status}` : '';
+    parts.push(`${name}(관리자${hourTag}${statusTag})`);
+  }
+
+  if (others.length === 1) {
+    const hours = getReservationBlockHours(others[0]);
+    parts.push(hours > 1 ? `1팀 · 연속 ${hours}시간` : '1팀 예약');
+  } else if (others.length > 1) {
+    const hasLongBlock = others.some((r) => getReservationBlockHours(r) > 1);
+    parts.push(hasLongBlock ? `${others.length}팀 예약 (연속 포함)` : `${others.length}팀 예약`);
+  }
+
+  return parts.join(', ') || '예약됨';
+}
+
+/** 선두 예약 대비 내 우선순위 안내 (구체 순위 숫자는 노출하지 않음) */
+export function describeRelativeBookingPriority(params: {
+  myUid?: string | null;
+  defenderUid?: string | null;
+  ranking: PriorityRankEntry[];
+  myIsAdminPriority?: boolean;
+  defenderIsAdminPriority?: boolean;
+}): string {
+  const myUid = String(params.myUid || '').trim();
+  const theirUid = String(params.defenderUid || '').trim();
+  if (!myUid || !theirUid) return '';
+  if (myUid === theirUid) return '이 시간대 선두는 내 예약입니다.';
+
+  const myAdmin = Boolean(params.myIsAdminPriority);
+  const theirAdmin = Boolean(params.defenderIsAdminPriority);
+  const myRank = getPriorityRankNumber(params.ranking, myUid, { isAdminPriority: myAdmin });
+  const theirRank = getPriorityRankNumber(params.ranking, theirUid, {
+    isAdminPriority: theirAdmin,
+  });
+
+  if (theirAdmin && !myAdmin) {
+    return '상대(관리자 예약)의 우선순위가 더 높아 이 시간대를 가져갈 수 없습니다.';
+  }
+  if (myAdmin && !theirAdmin) {
+    return '내 우선순위가 더 높아 이 시간대를 가져갈 수 있습니다.';
+  }
+  if (myRank < theirRank) {
+    return '내 우선순위가 더 높아 이 시간대를 가져갈 수 있습니다.';
+  }
+  if (myRank > theirRank) {
+    return '상대의 우선순위가 더 높아 이 시간대를 가져갈 수 없습니다.';
+  }
+  return '동순위입니다. 먼저 예약한 쪽이 유지되어 가져갈 수 없습니다.';
+}
+
+function isSameReservationBlock(
+  a?: { userId?: string; reservationGroup?: string; status?: string } | null,
+  b?: { userId?: string; reservationGroup?: string; status?: string } | null
+): boolean {
+  if (!a || !b) return false;
+  if (a.status === 'outbid' || b.status === 'outbid') return false;
+  const groupA = String(a.reservationGroup || '').trim();
+  const groupB = String(b.reservationGroup || '').trim();
+  if (groupA && groupB) return groupA === groupB;
+  return Boolean(a.userId && b.userId && a.userId === b.userId);
+}
+
+/**
+ * 주간/일간 그리드에서 연속 예약을 한 칸으로 묶기 위한 span.
+ * isContinuation이면 해당 칸은 렌더하지 않음.
+ */
+export function getSlotMergeInfo<T extends {
+  reservation?: {
+    userId?: string;
+    reservationGroup?: string;
+    status?: string;
+    totalDuration?: number;
+    duration?: number;
+  } | null;
+}>(
+  slots: T[],
+  hourIdx: number
+): { span: number; isContinuation: boolean } {
+  const slot = slots[hourIdx];
+  const lead = slot?.reservation;
+  if (!lead || lead.status === 'outbid') {
+    return { span: 1, isContinuation: false };
+  }
+
+  if (hourIdx > 0) {
+    const prevLead = slots[hourIdx - 1]?.reservation;
+    if (isSameReservationBlock(prevLead, lead)) {
+      return { span: 1, isContinuation: true };
+    }
+  }
+
+  let span = 1;
+  const maxSpan = getReservationBlockHours(lead);
+  while (hourIdx + span < slots.length && span < maxSpan) {
+    const nextLead = slots[hourIdx + span]?.reservation;
+    if (!isSameReservationBlock(lead, nextLead)) break;
+    span += 1;
+  }
+  return { span, isContinuation: false };
 }
 
 export async function loadPriorityRankingForWindow(
