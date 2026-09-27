@@ -777,6 +777,33 @@ export class NotificationService {
   }
 
   /** 회원에게 등급 승인·반려 결과 알림 */
+  static async notifyUserGradeRequestResolved(params: {
+    toUid: string;
+    approved: boolean;
+    gradeEmoji?: string;
+    gradeName?: string;
+  }): Promise<void> {
+    const { toUid, approved, gradeEmoji, gradeName } = params;
+    const label =
+      gradeEmoji && gradeName ? `${gradeEmoji} ${gradeName}` : gradeEmoji || gradeName || '';
+    const message = approved
+      ? label
+        ? `요청하신 등급으로 변경되었습니다. (${label})`
+        : '요청하신 등급으로 변경되었습니다.'
+      : '등급 변경 요청이 반려되었습니다. 프로필에 반영된 등급이 유지됩니다.';
+    try {
+      await this.createNotification({
+        type: approved ? 'grade_change_approved' : 'grade_change_rejected',
+        toUid,
+        fromNickname: 'VERYUS 운영',
+        message
+      });
+    } catch (e) {
+      console.error('등급 승인 결과 알림 실패:', e);
+    }
+  }
+
+  /** 연습실 대기 예약을 우선권으로 빼앗겼을 때 알림 */
   static async notifyPracticeRoomReservationStolen(params: {
     toUid: string;
     fromUid: string;
