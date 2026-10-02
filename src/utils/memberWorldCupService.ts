@@ -480,6 +480,37 @@ export async function fetchMyMemberWorldCupVotes(
   return result;
 }
 
+/** 본인이 투표한 과거 질문 키 (`dayKey_questionId`) 집합 */
+export function pastQuestionParticipationKey(dayKey: string, questionId: string): string {
+  return `${dayKey}_${questionId}`;
+}
+
+export async function fetchMyMemberWorldCupVotedQuestionKeys(
+  voterUid: string
+): Promise<Set<string>> {
+  const snap = await getDocs(
+    query(collection(db, MEMBER_WORLD_CUP_VOTES_COLLECTION), where('voterUid', '==', voterUid))
+  );
+  const keys = new Set<string>();
+  snap.docs.forEach((docSnap) => {
+    const vote = parseVoteDoc(docSnap);
+    if (!vote.questionId || !vote.dayKey) return;
+    keys.add(pastQuestionParticipationKey(vote.dayKey, vote.questionId));
+  });
+  return keys;
+}
+
+export async function hasMyMemberWorldCupVoteForDay(
+  voterUid: string,
+  questionId: string,
+  dayKey: string
+): Promise<boolean> {
+  const snap = await getDoc(
+    doc(db, MEMBER_WORLD_CUP_VOTES_COLLECTION, voteDocId(dayKey, questionId, voterUid))
+  );
+  return snap.exists();
+}
+
 export async function fetchMemberWorldCupVotesForQuestionDay(
   questionId: string,
   dayKey: string
@@ -507,29 +538,57 @@ export async function fetchAllMemberWorldCupVotesForQuestion(
   return fetchMemberWorldCupVotesForQuestionDay(questionId, getCurrentDayKey());
 }
 
+/** 멤버·너래 공통 — 특정 날짜 질문의 집계만 (개별 투표자 정보 없음) */
+export async function fetchPastMemberWorldCupQuestionStats(
+  questionId: string,
+  dayKey: string,
+  questionText: string
+): Promise<MemberWorldCupQuestionStats> {
+  const statsSnap = await getDoc(
+    doc(db, MEMBER_WORLD_CUP_COLLECTION, questionStatsDocId(dayKey, questionId))
+  );
+
+  if (!statsSnap.exists()) {
+    return {
+      id: questionId,
+      text: questionText,
+      order: 1,
+      counts: {},
+      totalVotes: 0,
+      totalPicks: 0,
+      dayKey,
+    };
+  }
+
+  const data = statsSnap.data();
+  const counts = (data.counts as Record<string, number>) || {};
+  return {
+    id: questionId,
+    text: String(data.text || questionText),
+    order: Number(data.order) || 1,
+    counts,
+    totalVotes: Number(data.totalVotes) || 0,
+    totalPicks: Number(data.totalPicks) || sumPickCounts(counts),
+    dayKey,
+  };
+}
+
 /** 너래 전용 — 특정 날짜 질문의 집계·투표 문서 */
 export async function fetchPastMemberWorldCupQuestionResults(
   questionId: string,
   dayKey: string,
   questionText: string
 ): Promise<{ stats: MemberWorldCupQuestionStats; votes: MemberWorldCupVote[] }> {
-  const [votes, statsSnap] = await Promise.all([
+  const [votes, stats] = await Promise.all([
     fetchMemberWorldCupVotesForQuestionDay(questionId, dayKey),
-    getDoc(doc(db, MEMBER_WORLD_CUP_COLLECTION, questionStatsDocId(dayKey, questionId))),
+    fetchPastMemberWorldCupQuestionStats(questionId, dayKey, questionText),
   ]);
 
-  if (statsSnap.exists()) {
-    const data = statsSnap.data();
-    const counts = (data.counts as Record<string, number>) || {};
+  if (stats.totalVotes > 0 || Object.keys(stats.counts).length > 0) {
     return {
       stats: {
-        id: questionId,
-        text: String(data.text || questionText),
-        order: Number(data.order) || 1,
-        counts,
-        totalVotes: Number(data.totalVotes) || votes.length,
-        totalPicks: Number(data.totalPicks) || sumPickCounts(counts),
-        dayKey,
+        ...stats,
+        totalVotes: stats.totalVotes || votes.length,
       },
       votes,
     };

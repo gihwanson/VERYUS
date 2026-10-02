@@ -1,10 +1,9 @@
 import React, { useState, useEffect, memo, useCallback, useRef } from 'react';
 import type { ReactElement } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, Bell, User, ChevronUp, Search, Grid3x3, ChevronDown, Menu, Settings, Calendar, Trophy, Music, Gamepad2, Piano, Mic, BookOpen } from 'lucide-react';
+import { Home, Bell, User, ChevronUp, Search, Grid3x3, ChevronDown, Menu, Settings, Calendar, Trophy, Music, Mic, BookOpen } from 'lucide-react';
 import MemberNicknameSearch from './MemberNicknameSearch';
 import { checkAdminAccess } from './AdminTypes';
-import { lockPianoLandscape } from '../utils/pianoOrientation';
 
 // Types
 interface User {
@@ -46,8 +45,6 @@ const BOARD_ITEMS: BoardItem[] = [
   { name: '합격곡조회', path: '/approved-songs', icon: Trophy },
   { name: '연습장', path: '/song-workspace', icon: BookOpen },
   { name: '버스킹', path: '/setlist', icon: Music },
-  { name: '게임', path: '/games', icon: Gamepad2 },
-  { name: '악기', path: '/instruments/piano', icon: Piano },
   { name: '콘테스트', path: '/contests', icon: Mic },
 ];
 
@@ -217,9 +214,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
                 location.pathname.includes('/song-workspace') ||
                 location.pathname.includes('/setlist') || 
                 location.pathname.includes('/contests') ||
-                location.pathname.includes('/practice-room-booking') ||
-                location.pathname.includes('/games') ||
-                location.pathname.includes('/instruments/piano'),
+                location.pathname.includes('/practice-room-booking'),
       hasSubmenu: true,
       hasDot: false
     },
@@ -259,9 +254,6 @@ const BottomNavigation: React.FC<BottomNavigationProps> = memo(({
     } else if (isComingSoon) {
       alert('해당 메뉴는 아직 준비중입니다.');
     } else {
-      if (path === '/instruments/piano') {
-        void lockPianoLandscape();
-      }
       navigate(path);
     }
     setShowBoardsMenu(false);

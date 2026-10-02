@@ -835,6 +835,8 @@
 .mwc-modal__foot-actions {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
 }
 
@@ -1315,6 +1317,21 @@
   background: #f8faff;
 }
 
+.mwc-picker__queue-item.is-locked {
+  opacity: 0.72;
+}
+
+.mwc-picker__queue-item.is-locked:hover {
+  border-color: #e2e8f0;
+  background: #fff;
+}
+
+.mwc-picker__queue-badge--past.is-locked {
+  background: #f1f5f9;
+  color: #64748b;
+  border-color: #cbd5e1;
+}
+
 .mwc-picker__queue-hint {
   margin: 0 0 10px;
   font-size: 0.78rem;
@@ -1678,6 +1695,10 @@
   font-size: 0.65rem;
   font-weight: 800;
   letter-spacing: 0.02em;
+}
+
+.mwc-modal__reveal-label--public {
+  background: #0f766e;
 }
 
 .mwc-modal__reveal-title {

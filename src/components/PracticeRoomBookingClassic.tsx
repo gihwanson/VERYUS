@@ -44,6 +44,8 @@ import {
   getReservationBlockHours,
   getSlotMergeInfo,
   getSundayPendingBannerText,
+  isEffectivelyConfirmedReservation,
+  isEffectivelyPendingReservation,
   isPracticeRoomAdminPriorityUser,
   isSundayPendingBookingWindow,
   loadPriorityRankingForWindow,
@@ -187,17 +189,6 @@ const PracticeRoomBookingClassic: React.FC = () => {
       reservations || (fallback ? [fallback] : []),
       priorityRanking,
       { hideIdentities: hideTicketingReservationIdentities }
-    );
-
-  /** 닉네임 없이 팀 수만 (우선 예약 가능 칸 등) */
-  const formatAnonymousSlotOccupancyLabel = (
-    reservations: Reservation[] | undefined,
-    fallback?: Reservation
-  ) =>
-    formatSlotReservationLabel(
-      reservations || (fallback ? [fallback] : []),
-      priorityRanking,
-      { hideIdentities: true }
     );
 
   const getLeadingPriorityHint = (
@@ -815,7 +806,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
       const reservation = pickLeadingReservation(slotReservations, priorityRanking) || undefined;
 
       // 관리자(너래·리더·운영진)는 타인 비관리자 예약을 가져갈 수 있음(pending/confirmed).
-      // 일반 멤버는 pending만 우선권으로 뺏기 가능.
+      // 일반 멤버는 일요일 확정대기(pending)만 우선권으로 뺏기 가능 — 월 00시 이후(확정)는 불가.
       const canSteal =
         Boolean(
           reservation &&
@@ -824,7 +815,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
             !reservationHasAdminPriority(reservation) &&
             (isAdminPriorityUser
               ? reservation.status === 'pending' || reservation.status === 'confirmed'
-              : reservation.status === 'pending' &&
+              : isEffectivelyPendingReservation(reservation, now) &&
                 canStealPendingReservation({
                   attackerUid: currentUser.uid,
                   defenderUid: reservation.userId,
@@ -1421,7 +1412,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
             return;
           }
 
-          if (existing.status === 'confirmed') {
+          if (isEffectivelyConfirmedReservation(existing)) {
             alert(`${checkTime} 시간대가 이미 확정 예약되어 있습니다.`);
             isBookingInProgress.current = false;
             setLoading(false);
@@ -1429,7 +1420,14 @@ const PracticeRoomBookingClassic: React.FC = () => {
             return;
           }
 
-          // pending: 우선권이 더 높을 때만 뺏기 가능
+          // 확정대기(pending, 월 00시 전): 우선권이 더 높을 때만 뺏기 가능
+          if (!isEffectivelyPendingReservation(existing)) {
+            alert(`${checkTime} 시간대가 이미 예약되어 있습니다.`);
+            isBookingInProgress.current = false;
+            setLoading(false);
+            setShowBookingModal(false);
+            return;
+          }
           const canSteal = canStealPendingReservation({
             attackerUid: currentUser.uid,
             defenderUid: existing.userId,
@@ -2115,54 +2113,6 @@ const PracticeRoomBookingClassic: React.FC = () => {
         </div>
       )}
 
-      {priorityRanking.length > 0 && (
-        <div
-          className="priority-ranking-panel"
-          style={{
-            margin: '0 0 12px',
-            padding: '12px 14px',
-            borderRadius: 12,
-            background: 'rgba(255,255,255,0.9)',
-            border: '1px solid rgba(0,0,0,0.08)',
-          }}
-        >
-          <div style={{ fontWeight: 700, marginBottom: 6, color: '#334155' }}>
-            이번 주 1차 투표 우선권 순위
-            {priorityWindow ? (
-              <span style={{ fontWeight: 500, fontSize: 12, color: '#64748B', marginLeft: 8 }}>
-                집계 {priorityWindow.startYmd} ~ {priorityWindow.endYmd}
-              </span>
-            ) : null}
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {priorityRanking.slice(0, 20).map((entry) => (
-              <span
-                key={entry.uid}
-                style={{
-                  fontSize: 13,
-                  padding: '4px 8px',
-                  borderRadius: 8,
-                  background:
-                    entry.uid === currentUser?.uid ? 'rgba(16,185,129,0.15)' : 'rgba(148,163,184,0.15)',
-                  color: '#334155',
-                  fontWeight: entry.uid === currentUser?.uid ? 700 : 500,
-                }}
-              >
-                {entry.rank}위 {entry.nickname} ({entry.voteCount}표)
-              </span>
-            ))}
-          </div>
-          {currentUser?.uid && (
-            <div style={{ marginTop: 8, fontSize: 12, color: '#64748B' }}>
-              내 우선순위:{' '}
-              {Number.isFinite(getPriorityRankNumber(priorityRanking, currentUser.uid))
-                ? `${getPriorityRankNumber(priorityRanking, currentUser.uid)}위`
-                : '순위 밖 (투표 미참여) — 대기 예약은 가능하지만 뺏길 수 있습니다'}
-            </div>
-          )}
-        </div>
-      )}
-
       {SHOW_PRACTICE_ROOM_CHECK_IN_UI && (
       <div className="check-in-section">
         <div className="check-in-header">
@@ -2427,7 +2377,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
                           <>
                             <span className="slot-status available-label">우선 예약 가능</span>
                             <div className="reservation-user" style={{ fontSize: 12, marginTop: 4 }}>
-                              {formatAnonymousSlotOccupancyLabel(slot.reservations, slot.reservation)}
+                              {formatSlotOccupancyLabel(slot.reservations, slot.reservation)}
                             </div>
                           </>
                         ) : (
@@ -2582,7 +2532,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
                         <div className="reservation-info">
                           <span className="user-name">우선 예약 가능</span>
                           <span className="member-names">
-                            {formatAnonymousSlotOccupancyLabel(slot.reservations, slot.reservation)}
+                            {formatSlotOccupancyLabel(slot.reservations, slot.reservation)}
                           </span>
                         </div>
                       ) : slot.isAvailable && slot.isException && isAdmin ? (
@@ -3047,7 +2997,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
                       `이 시간대를 우선 예약하시겠습니까?\n` +
                         `(${targetReservation.date} ${selectedTimeSlot.time})\n` +
                         (priorityHint ? `${priorityHint}\n` : '') +
-                        (targetReservation.status === 'pending'
+                        (isEffectivelyPendingReservation(targetReservation)
                           ? '기존 대기 예약은 밀림 처리되고 알림이 전송됩니다.'
                           : '기존 예약을 밀림 처리합니다.')
                     );

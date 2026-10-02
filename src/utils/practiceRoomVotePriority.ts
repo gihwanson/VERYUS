@@ -91,6 +91,32 @@ export function shouldConfirmPendingForDate(dateYmd: string, now = new Date()): 
   return now.getTime() >= mondayMs;
 }
 
+/**
+ * 우선예약(뺏기) 가능 여부용: DB가 pending이어도 이용주 월 00시 이후면 확정으로 취급.
+ * (스케줄/클라이언트 확정 전환이 늦어도 UI·검증이 일치하도록)
+ */
+export function isEffectivelyPendingReservation(
+  r: { date?: string; status?: string },
+  now = new Date()
+): boolean {
+  if (r.status !== 'pending') return false;
+  const dateYmd = String(r.date || '').trim();
+  if (!dateYmd) return true;
+  return !shouldConfirmPendingForDate(dateYmd, now);
+}
+
+/** DB confirmed이거나, pending이지만 이용주 월 00시가 지난 경우 */
+export function isEffectivelyConfirmedReservation(
+  r: { date?: string; status?: string },
+  now = new Date()
+): boolean {
+  if (r.status === 'confirmed') return true;
+  if (r.status !== 'pending') return false;
+  const dateYmd = String(r.date || '').trim();
+  if (!dateYmd) return false;
+  return shouldConfirmPendingForDate(dateYmd, now);
+}
+
 export function tallyMemberVotesInWindow(
   posts: Array<{ data: () => Record<string, unknown> }>,
   window: VoteTallyWindow
