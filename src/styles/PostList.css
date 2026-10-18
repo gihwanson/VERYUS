@@ -69,6 +69,23 @@
   margin-bottom: 0.5rem;
 }
 
+.eval-song-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  gap: 0.15rem;
+  flex: 1;
+}
+
+.eval-song-artist {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.35;
+  font-weight: 600;
+  color: #6b5344;
+}
+
 .post-category, .category-badge {
   display: inline-block;
   min-width: 50px;

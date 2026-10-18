@@ -29,6 +29,7 @@ const EvaluationPostWrite: React.FC = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [title, setTitle] = useState('');
+  const [artist, setArtist] = useState('');
   const [description, setDescription] = useState('');
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [duration, setDuration] = useState(0);
@@ -167,6 +168,10 @@ const EvaluationPostWrite: React.FC = () => {
       alert('제목을 입력해주세요.');
       return;
     }
+    if (!artist.trim()) {
+      alert('가수를 입력해주세요.');
+      return;
+    }
     if (requiresMembers && (members.length === 0 || members.every(m => !m.trim()))) {
       alert('닉네임을 1명 이상 입력해주세요.');
       return;
@@ -263,6 +268,10 @@ const EvaluationPostWrite: React.FC = () => {
       alert('제목을 입력해주세요.');
       return;
     }
+    if (!artist.trim()) {
+      alert('가수를 입력해주세요.');
+      return;
+    }
 
     let membersToSave: string[] = [];
     if (requiresMembers) {
@@ -322,7 +331,8 @@ const EvaluationPostWrite: React.FC = () => {
         type: 'evaluation',
         category,
         status: '대기',
-        title,
+        title: title.trim(),
+        artist: artist.trim(),
         description,
         writerUid: user.uid,
         writerNickname: user.nickname,
@@ -436,6 +446,22 @@ const EvaluationPostWrite: React.FC = () => {
               placeholder="곡 제목만 입력해 주세요"
               className="title-input eval-post-write__title-input"
               autoComplete="off"
+            />
+          </section>
+
+          <section className="eval-post-write__section">
+            <label htmlFor="eval-post-artist" className="eval-post-write__section-label">
+              가수
+            </label>
+            <input
+              id="eval-post-artist"
+              type="text"
+              value={artist}
+              onChange={(e) => setArtist(e.target.value)}
+              placeholder="가수 이름을 입력해 주세요"
+              className="title-input eval-post-write__title-input"
+              autoComplete="off"
+              maxLength={60}
             />
           </section>
 

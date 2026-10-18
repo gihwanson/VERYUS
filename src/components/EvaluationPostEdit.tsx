@@ -16,6 +16,7 @@ interface User {
 interface EvaluationPost {
   id: string;
   title: string;
+  artist?: string;
   description: string;
   writerUid: string;
   writerNickname: string;
@@ -30,6 +31,7 @@ const EvaluationPostEdit: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [post, setPost] = useState<EvaluationPost | null>(null);
   const [title, setTitle] = useState('');
+  const [artist, setArtist] = useState('');
   const [description, setDescription] = useState('');
   const [members, setMembers] = useState<string[]>(['']);
   const [loading, setLoading] = useState(true);
@@ -61,6 +63,7 @@ const EvaluationPostEdit: React.FC = () => {
         } as EvaluationPost;
         setPost(postData);
         setTitle(postData.title);
+        setArtist(String(postData.artist || ''));
         setDescription(postData.description || '');
         const initialMembers = Array.isArray(postData.members) && postData.members.length > 0
           ? postData.members
@@ -87,14 +90,19 @@ const EvaluationPostEdit: React.FC = () => {
       alert('제목을 입력해주세요.');
       return;
     }
+    if (!artist.trim()) {
+      alert('가수를 입력해주세요.');
+      return;
+    }
     if (requiresMembers && members.every((m) => !m.trim())) {
       alert('함께한 멤버를 최소 1명 이상 입력해주세요.');
       return;
     }
     try {
       setLoading(true);
-      const updateData: { title: string; description?: string; members?: string[] } = {
+      const updateData: { title: string; artist: string; description?: string; members?: string[] } = {
         title: title.trim(),
+        artist: artist.trim(),
       };
       if (requiresMembers) {
         updateData.members = members.map((m) => m.trim()).filter(Boolean);
@@ -162,6 +170,20 @@ const EvaluationPostEdit: React.FC = () => {
             onChange={(e) => setTitle(e.target.value)}
             placeholder="곡 제목을 입력하세요"
             className="title-input"
+          />
+        </div>
+        <div className="form-group">
+          <label className="eval-post-write__section-label" htmlFor="eval-edit-artist">
+            가수
+          </label>
+          <input
+            id="eval-edit-artist"
+            type="text"
+            value={artist}
+            onChange={(e) => setArtist(e.target.value)}
+            placeholder="가수 이름을 입력하세요"
+            className="title-input"
+            maxLength={60}
           />
         </div>
 

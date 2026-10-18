@@ -48,6 +48,7 @@ import {
 interface EvaluationPost {
   id: string;
   title: string;
+  artist?: string;
   description: string;
   writerNickname: string;
   writerUid: string;
@@ -391,6 +392,7 @@ const EvaluationPostList: React.FC = () => {
           // 제목과 설명 검색
           const matchesTitleOrDescription = 
             (post.title && typeof post.title === 'string' && post.title.toLowerCase().includes(searchLower)) ||
+            (post.artist && typeof post.artist === 'string' && post.artist.toLowerCase().includes(searchLower)) ||
             (post.description && typeof post.description === 'string' && post.description.toLowerCase().includes(searchLower));
           
           // 작성자 닉네임 검색
@@ -810,11 +812,16 @@ const EvaluationPostList: React.FC = () => {
                     {formatMemberRoundDday(post)}
                   </span>
                 )}
-                <SkinnedPostTitle
-                  title={post.title}
-                  writerNickname={post.writerNickname} writerUid={post.writerUid}
-                  style={{ fontSize: '1.3rem' }}
-                />
+                <div className="eval-song-heading">
+                  <SkinnedPostTitle
+                    title={post.title}
+                    writerNickname={post.writerNickname} writerUid={post.writerUid}
+                    style={{ fontSize: '1.3rem' }}
+                  />
+                  {post.artist?.trim() ? (
+                    <p className="eval-song-artist">가수 {post.artist.trim()}</p>
+                  ) : null}
+                </div>
               </div>
               <div className="post-meta">
                 <div className="post-author">
@@ -884,11 +891,16 @@ const EvaluationPostList: React.FC = () => {
                 <span className="post-category category-badge">
                   {getEvaluationCategoryLabel(post.category)}
                 </span>
-                <SkinnedPostTitle
-                  title={post.title}
-                  writerNickname={post.writerNickname} writerUid={post.writerUid}
-                  style={{ fontSize: '1.3rem' }}
-                />
+                <div className="eval-song-heading">
+                  <SkinnedPostTitle
+                    title={post.title}
+                    writerNickname={post.writerNickname} writerUid={post.writerUid}
+                    style={{ fontSize: '1.3rem' }}
+                  />
+                  {post.artist?.trim() ? (
+                    <p className="eval-song-artist">가수 {post.artist.trim()}</p>
+                  ) : null}
+                </div>
               </div>
               <div className="post-meta">
                 <div className="post-author">

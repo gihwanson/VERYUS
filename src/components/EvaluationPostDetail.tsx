@@ -82,6 +82,7 @@ interface User {
 interface EvaluationPost {
   id: string;
   title: string;
+  artist?: string;
   description: string;
   writerUid: string;
   writerNickname: string;
@@ -530,6 +531,9 @@ const EvaluationPostDetail: React.FC = () => {
                   className="post-detail-title"
                   as="h1"
                 />
+                {post.artist?.trim() ? (
+                  <p className="eval-song-artist">가수 {post.artist.trim()}</p>
+                ) : null}
               </div>
             </div>
             <div className="post-detail-meta">

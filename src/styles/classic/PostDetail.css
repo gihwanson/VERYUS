@@ -121,6 +121,14 @@
   width: 100%;
 }
 
+.post-detail .eval-song-artist {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.4;
+  font-weight: 600;
+  color: #5b4a3a;
+}
+
 .post-detail-title {
   font-size: 2.2rem;
   font-weight: 800;
