@@ -161,20 +161,6 @@ export function validateTicketingParticipationBooking(params: {
     };
   }
 
-  // 이미 이번 주 1회를 사용한 멤버는 최소 인원(2명)에 포함되지 않음
-  const freshParticipantCount = participants.filter(
-    (participant) => getCount(participant) < MAX_WEEKLY_PARTICIPATIONS
-  ).length;
-
-  if (freshParticipantCount < 2) {
-    return {
-      allowed: false,
-      reason:
-        '이번 주 아직 예약/참여하지 않은 멤버가 2명 이상 필요합니다.\n' +
-        '(이미 이번 주 사용한 멤버는 함께하는 멤버로 추가할 수 있으나, 최소 인원에는 포함되지 않습니다)',
-    };
-  }
-
   return { allowed: true };
 }
 

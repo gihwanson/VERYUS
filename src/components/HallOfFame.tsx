@@ -316,7 +316,9 @@ const HallOfFame: React.FC = () => {
       const nextApprovedSongRanking = toSortedEntries(filteredApprovedSongCounter, userMap, 0);
       const nextActivityRanking = toSortedEntries(activityCounter, userMap, 0);
       const priorityWindow = getActivePriorityWindow();
-      const weeklyTallies = tallyMemberVotesInWindow(postsSnap.docs, priorityWindow);
+      const weeklyTallies = tallyMemberVotesInWindow(postsSnap.docs, priorityWindow, {
+        nicknameToUid,
+      });
       const nextMemberVoteRanking = buildPriorityRanking(weeklyTallies)
         .filter((entry) => Boolean(userMap[entry.uid]))
         .map((entry) => ({
@@ -325,7 +327,7 @@ const HallOfFame: React.FC = () => {
           grade: userMap[entry.uid]?.grade,
           role: userMap[entry.uid]?.role,
           score: entry.voteCount,
-          detail: `${entry.rank}위 · 우선권`,
+          detail: `${entry.rank}위 · 투표 ${entry.castVoteCount} · 업로드 ${entry.uploadCount}`,
         }));
       const nextUpdatedAt = new Date().toLocaleString('ko-KR');
 
@@ -473,10 +475,10 @@ const HallOfFame: React.FC = () => {
       {
         key: 'memberVote',
         title: '1차 투표 우선권 순위',
-        subtitle: '토요까지 집계된 좋아요/아쉬워요 참여 수 · 일요일 연습실 티켓팅 우선권',
+        subtitle: '토요까지 집계된 좋아요/아쉬워요와 평가곡 업로드(작성자·함께한 멤버) · 일요일 연습실 티켓팅 우선권',
         ranking: memberVoteRanking,
         unit: '표',
-        metricLabel: '투표 수',
+        metricLabel: '참여 수',
       },
     ];
 

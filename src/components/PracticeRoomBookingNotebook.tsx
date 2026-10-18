@@ -210,15 +210,6 @@ const PracticeRoomBookingNotebook: React.FC = () => {
     });
   };
 
-  const hasFirstRoundVoteForBooking = (): boolean => {
-    if (!currentUser) return false;
-    if (isAdminPriorityUser) return true;
-    return priorityRanking.some((entry) => entry.uid === currentUser.uid);
-  };
-
-  const NO_FIRST_VOTE_BOOKING_MESSAGE =
-    '평가게시판 1차 투표가 없어 예약이 불가합니다.';
-
   const isCherryGradeUser = () =>
     Boolean(currentUser && getGradeEmoji(currentUser.grade) === GRADE_SYSTEM.CHERRY);
 
@@ -980,11 +971,6 @@ const PracticeRoomBookingNotebook: React.FC = () => {
       return;
     }
 
-    if (!hasFirstRoundVoteForBooking()) {
-      alert(NO_FIRST_VOTE_BOOKING_MESSAGE);
-      return;
-    }
-
     const bookingCheck = canBookDateUnderTicketing(
       formatDate(date),
       ticketingSettings,
@@ -1192,11 +1178,6 @@ const PracticeRoomBookingNotebook: React.FC = () => {
 
   const handleBooking = async () => {
     if (!selectedTimeSlot || !currentUser || !bookingDate) return;
-
-    if (!hasFirstRoundVoteForBooking()) {
-      alert(NO_FIRST_VOTE_BOOKING_MESSAGE);
-      return;
-    }
 
     const bookingCheck = canBookDateUnderTicketing(
       formatDate(bookingDate),
@@ -2787,23 +2768,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                   ❌ 예외 취소 (다시 차단)
                 </button>
               )}
-              <div style={{ display: 'flex', gap: '12px', width: '100%', flexDirection: 'column' }}>
-                {!hasFirstRoundVoteForBooking() && (
-                  <div
-                    style={{
-                      fontSize: 13,
-                      color: '#B45309',
-                      background: '#FFFBEB',
-                      border: '1px solid #FDE68A',
-                      borderRadius: 8,
-                      padding: '8px 10px',
-                      lineHeight: 1.4,
-                    }}
-                  >
-                    평가게시판 1차 투표가 없어 예약이 불가합니다.
-                  </div>
-                )}
-                <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
+              <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
                 <button 
                   className="cancel-btn" 
                   onClick={() => setShowBookingModal(false)}
@@ -2815,10 +2780,6 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                 <button 
                   className="confirm-btn" 
                   onClick={() => {
-                    if (!hasFirstRoundVoteForBooking()) {
-                      alert(NO_FIRST_VOTE_BOOKING_MESSAGE);
-                      return;
-                    }
                     void handleBooking();
                   }}
                   disabled={loading || (!isUnlimitedUser && !isBookingFormValid())}
@@ -2826,7 +2787,6 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                 >
                   {loading ? '예약 중...' : '예약하기'}
                 </button>
-                </div>
               </div>
             </div>
           </div>

@@ -1,8 +1,15 @@
 import { collection, getDocs, query, where, writeBatch, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { SUPER_ADMIN_NICKNAMES } from '../components/AdminTypes';
+import { getEvaluationCreatedAtMs } from './evaluationMemberRound';
 import { getKstParts, kstToUtcDate } from './gameWeek';
 import { formatDateYmdKst, getBookableWeekRangeOnOpenSunday } from './practiceRoomTicketing';
+
+/**
+ * 이 시각 이후에 작성된 평가곡만 업로드 표로 집계한다.
+ * 2026-10-18 22:45 KST. 그 전에 올린 곡은 우선권에 넣지 않는다.
+ */
+export const EVALUATION_UPLOAD_PRIORITY_START_MS = Date.parse('2026-10-18T22:45:00+09:00');
 
 /** 연습실 티켓팅에서 무조건 1순위(관리자) */
 export function isPracticeRoomAdminPriorityUser(
@@ -14,10 +21,22 @@ export function isPracticeRoomAdminPriorityUser(
   return role === '리더' || role === '운영진';
 }
 
+export type PriorityTally = {
+  /** 좋아요/아쉬워요 + 평가곡 업로드 합산. 순위는 이 값으로 매긴다 */
+  voteCount: number;
+  nickname: string;
+  /** 해당 구간 좋아요/아쉬워요 투표 수 */
+  castVoteCount: number;
+  /** 해당 구간 평가곡 업로드 수 */
+  uploadCount: number;
+};
+
 export type PriorityRankEntry = {
   uid: string;
   nickname: string;
   voteCount: number;
+  castVoteCount: number;
+  uploadCount: number;
   /** 1부터 시작. 동점이면 같은 순위 */
   rank: number;
 };
@@ -117,32 +136,99 @@ export function isEffectivelyConfirmedReservation(
   return shouldConfirmPendingForDate(dateYmd, now);
 }
 
+function isVoteInsideWindow(atMs: number, window: VoteTallyWindow): boolean {
+  return Number.isFinite(atMs) && atMs >= window.startMs && atMs < window.endMs;
+}
+
+function bumpPriorityTally(
+  counter: Map<string, PriorityTally>,
+  uid: string,
+  nickname: string,
+  kind: 'cast' | 'upload'
+) {
+  const name = String(nickname || '').trim() || '익명';
+  const prev = counter.get(uid);
+  if (prev) {
+    prev.voteCount += 1;
+    if (kind === 'cast') prev.castVoteCount += 1;
+    else prev.uploadCount += 1;
+    if (name !== '익명') prev.nickname = name;
+    return;
+  }
+  counter.set(uid, {
+    voteCount: 1,
+    nickname: name,
+    castVoteCount: kind === 'cast' ? 1 : 0,
+    uploadCount: kind === 'upload' ? 1 : 0,
+  });
+}
+
+function resolveUidByNickname(
+  nicknameToUid: Map<string, string> | undefined,
+  nickname: string
+): string {
+  if (!nicknameToUid || !nickname) return '';
+  const exact = nicknameToUid.get(nickname);
+  if (exact) return exact;
+  const lower = nickname.toLowerCase();
+  for (const [name, uid] of nicknameToUid) {
+    if (name.toLowerCase() === lower) return uid;
+  }
+  return '';
+}
+
+/**
+ * 월~토 구간 우선권 집계.
+ * - 버스킹 심사곡 좋아요/아쉬워요 1표
+ * - 기준 시각 이후 평가곡(버스킹·재심사·피드백) 업로드 1표.
+ *   작성자와 함께 등재된 멤버 각 1표. 같은 사람은 한 글에서 한 번만.
+ */
 export function tallyMemberVotesInWindow(
   posts: Array<{ data: () => Record<string, unknown> }>,
-  window: VoteTallyWindow
-): Map<string, { voteCount: number; nickname: string }> {
-  const counter = new Map<string, { voteCount: number; nickname: string }>();
+  window: VoteTallyWindow,
+  options?: { nicknameToUid?: Map<string, string> }
+): Map<string, PriorityTally> {
+  const counter = new Map<string, PriorityTally>();
+  const nicknameToUid = options?.nicknameToUid;
 
   for (const post of posts) {
     const data = post.data();
     if (String(data.type || '').trim() !== 'evaluation') continue;
-    if (String(data.category || '').trim() !== 'busking') continue;
-    const votes = data.memberVotes;
-    if (!votes || typeof votes !== 'object') continue;
 
-    for (const [uid, entry] of Object.entries(votes as Record<string, any>)) {
-      if (!uid || !entry || (entry.choice !== 'pass' && entry.choice !== 'fail')) continue;
-      const votedAt = Number(entry.votedAt);
-      if (!Number.isFinite(votedAt)) continue;
-      if (votedAt < window.startMs || votedAt >= window.endMs) continue;
-      const nickname = String(entry.nickname || '').trim() || '익명';
-      const prev = counter.get(uid);
-      if (prev) {
-        prev.voteCount += 1;
-        if (nickname !== '익명') prev.nickname = nickname;
-      } else {
-        counter.set(uid, { voteCount: 1, nickname });
+    const category = String(data.category || '').trim();
+    const isBusking = category === 'busking' || category === '버스킹심사곡';
+    if (isBusking) {
+      const votes = data.memberVotes;
+      if (votes && typeof votes === 'object') {
+        for (const [uid, entry] of Object.entries(votes as Record<string, any>)) {
+          if (!uid || !entry || (entry.choice !== 'pass' && entry.choice !== 'fail')) continue;
+          const votedAt = Number(entry.votedAt);
+          if (!isVoteInsideWindow(votedAt, window)) continue;
+          bumpPriorityTally(counter, uid, String(entry.nickname || ''), 'cast');
+        }
       }
+    }
+
+    if (String(data.status || '').trim() === '삭제') continue;
+    const createdAt = getEvaluationCreatedAtMs(data.createdAt);
+    if (createdAt < EVALUATION_UPLOAD_PRIORITY_START_MS) continue;
+    if (!isVoteInsideWindow(createdAt, window)) continue;
+
+    const credited = new Set<string>();
+    const writerUid = String(data.writerUid || '').trim();
+    if (writerUid) {
+      credited.add(writerUid);
+      bumpPriorityTally(counter, writerUid, String(data.writerNickname || ''), 'upload');
+    }
+
+    const members = Array.isArray(data.members) ? data.members : [];
+    for (const raw of members) {
+      const nickname = String(raw || '').trim();
+      if (!nickname) continue;
+      const memberUid = resolveUidByNickname(nicknameToUid, nickname);
+      if (!memberUid || credited.has(memberUid)) continue;
+      credited.add(memberUid);
+      bumpPriorityTally(counter, memberUid, nickname, 'upload');
     }
   }
 
@@ -151,10 +237,16 @@ export function tallyMemberVotesInWindow(
 
 /** 투표 수 내림차순, 동점 동일 순위(competition rank) */
 export function buildPriorityRanking(
-  tallies: Map<string, { voteCount: number; nickname: string }>
+  tallies: Map<string, PriorityTally>
 ): PriorityRankEntry[] {
   const sorted = Array.from(tallies.entries())
-    .map(([uid, v]) => ({ uid, nickname: v.nickname, voteCount: v.voteCount }))
+    .map(([uid, v]) => ({
+      uid,
+      nickname: v.nickname,
+      voteCount: v.voteCount,
+      castVoteCount: v.castVoteCount,
+      uploadCount: v.uploadCount,
+    }))
     .sort(
       (a, b) =>
         b.voteCount - a.voteCount || a.nickname.localeCompare(b.nickname, 'ko')
@@ -502,8 +594,16 @@ export function getSlotMergeInfo<T extends {
 export async function loadPriorityRankingForWindow(
   window: VoteTallyWindow
 ): Promise<PriorityRankEntry[]> {
-  const postsSnap = await getDocs(collection(db, 'posts'));
-  const tallies = tallyMemberVotesInWindow(postsSnap.docs, window);
+  const [postsSnap, usersSnap] = await Promise.all([
+    getDocs(collection(db, 'posts')),
+    getDocs(collection(db, 'users')),
+  ]);
+  const nicknameToUid = new Map<string, string>();
+  usersSnap.forEach((userDoc) => {
+    const nickname = String(userDoc.data()?.nickname || '').trim();
+    if (nickname) nicknameToUid.set(nickname, userDoc.id);
+  });
+  const tallies = tallyMemberVotesInWindow(postsSnap.docs, window, { nicknameToUid });
   return buildPriorityRanking(tallies);
 }
 
@@ -541,7 +641,7 @@ export async function confirmDuePendingReservations(now = new Date()): Promise<n
 export function getSundayPendingBannerText(window: VoteTallyWindow): string {
   return (
     `일요일 예약은 확정 대기가며, 월요일 00시에 확정됩니다. ` +
-    `1차 투표(좋아요/아쉬워요) 참여 순위가 높을수록 같은 시간대를 우선 확보할 수 있습니다. ` +
+    `1차 투표(좋아요/아쉬워요)와 평가곡 업로드가 많을수록 같은 시간대를 우선 확보할 수 있습니다. ` +
     `(집계: ${window.startYmd}~${window.endYmd} · 이용주: ${window.bookableWeekStart}~${window.bookableWeekEnd})`
   );
 }
