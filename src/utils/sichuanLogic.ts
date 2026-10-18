@@ -29,11 +29,11 @@ export interface SichuanTileFace {
 
 /**
  * 관리자 패널 등급 이모지:
- * 블루베리 ~ 태양 + 초승달
+ * 체리 ~ 태양 + 초승달
  */
 const GRADE_TILE_SPECS: { emoji: string; hue: number }[] = [
-  { emoji: GRADE_SYSTEM.BLUEBERRY, hue: 250 },
-  { emoji: GRADE_SYSTEM.KIWI, hue: 110 },
+  { emoji: GRADE_SYSTEM.CHERRY, hue: 355 },
+  { emoji: GRADE_SYSTEM.STRAWBERRY, hue: 340 },
   { emoji: GRADE_SYSTEM.APPLE, hue: 0 },
   { emoji: GRADE_SYSTEM.MELON, hue: 95 },
   { emoji: GRADE_SYSTEM.WATERMELON, hue: 350 },

@@ -9,6 +9,7 @@ import {
   isRegisteredParticipant,
   registerOnParticipateClick,
 } from '../utils/contestParticipant';
+import { getContestGradeFromScore } from '../utils/contestGrade';
 import ContestAccessBlock from './ContestAccessBlock';
 import RoundMatchVoteView from './roundMatch/RoundMatchVoteView';
 import '../styles/contest-ui-refresh.css';
@@ -182,18 +183,7 @@ const ContestParticipate: React.FC = () => {
     return () => unsub();
   }, [id, user, editingSubmittedTargets]);
 
-  // 점수에 따른 등급 계산 함수
-  const getGradeFromScore = (score: number) => {
-    if (score >= 1 && score <= 30) return '🫐 블루베리';
-    else if (score <= 40) return '🥝 키위';
-    else if (score <= 50) return '🍎 사과';
-    else if (score <= 60) return '🍈 멜론';
-    else if (score <= 70) return '🍉 수박';
-    else if (score <= 80) return '🌍 지구';
-    else if (score <= 90) return '🪐 토성';
-    else if (score <= 100) return '☀️ 태양';
-    else return '';
-  };
+  const getGradeFromScore = getContestGradeFromScore;
 
   const handleScoreChange = (val: string) => {
     const num = Number(val);

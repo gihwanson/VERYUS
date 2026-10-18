@@ -872,7 +872,7 @@
   margin-left: -6px;
 }
 
-/* 등급 이모지 — 앱 등급 유니코드(🍒🫐🥝…) 그대로 표시 */
+/* 등급 이모지 — 앱 등급 유니코드 그대로 표시 */
 .setlist-parade-emoji-piece {
   display: block;
   line-height: 1;

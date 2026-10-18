@@ -25,7 +25,7 @@ import {
 import { auth, db } from '../firebase';
 import { NotificationService } from '../utils/notificationService';
 import { useUserProfile } from '../contexts/UserProfileContext';
-import { GRADE_NAMES, GRADE_SYSTEM } from './AdminTypes';
+import { GRADE_NAMES, GRADE_ORDER, GRADE_SYSTEM } from './AdminTypes';
 import { 
   Edit, 
   Trash2, 
@@ -642,7 +642,11 @@ const Settings: React.FC = () => {
               onChange={(e) => setNewGrade(e.target.value)}
               className="nickname-input"
             >
-              {Object.values(GRADE_SYSTEM).map((grade) => (
+              {(
+                (GRADE_ORDER as readonly string[]).includes(newGrade)
+                  ? GRADE_ORDER
+                  : [newGrade, ...GRADE_ORDER]
+              ).map((grade) => (
                 <option key={grade} value={grade}>
                   {grade} {GRADE_NAMES[grade] || grade}
                 </option>

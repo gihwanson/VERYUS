@@ -186,7 +186,11 @@ export const UserCard: React.FC<UserCardProps> = ({
               value={editingUser.grade}
               onChange={(e) => onEditChange('grade', e.target.value)}
             >
-              {GRADE_ORDER.map((grade) => (
+              {(
+                (GRADE_ORDER as readonly string[]).includes(editingUser.grade)
+                  ? GRADE_ORDER
+                  : [editingUser.grade, ...GRADE_ORDER]
+              ).map((grade) => (
                 <option key={grade} value={grade}>
                   {grade} {GRADE_NAMES[grade] || grade}
                 </option>

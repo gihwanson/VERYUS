@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { doc, getDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
 import type { RoundDoc, RoundVote } from '../types/contest';
+import { getContestGradeFromScore } from '../utils/contestGrade';
 import { parseRoundVoteFromDoc } from '../utils/contestParticipant';
 import { db } from '../firebase';
 import '../styles/contest-ui-refresh.css';
@@ -185,17 +186,7 @@ const ContestResults: React.FC = () => {
   });
 
   // 등급 계산 함수
-  const getGrade = (avg: number) => {
-    if (avg >= 1 && avg <= 30) return '🫐 블루베리';
-    if (avg <= 40) return '🥝 키위';
-    if (avg <= 50) return '🍎 사과';
-    if (avg <= 60) return '🍈 멜론';
-    if (avg <= 70) return '🍉 수박';
-    if (avg <= 80) return '🌍 지구';
-    if (avg <= 90) return '🪐 토성';
-    if (avg <= 100) return '☀️ 태양';
-    return '';
-  };
+  const getGrade = getContestGradeFromScore;
 
   const getGradeLabel = (avg: number) => {
     const full = getGrade(avg);
