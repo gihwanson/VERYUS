@@ -8,6 +8,7 @@ import '../styles/contest-ui-refresh.css';
 
 import type { ContestType } from '../types/contest';
 import { registerOnParticipateClick } from '../utils/contestParticipant';
+import { computeContestTop3Targets, type ContestGradeRecord } from '../utils/contestGradesAggregation';
 
 interface Contest {
   id: string;
@@ -109,22 +110,15 @@ const ContestListClassic: React.FC = () => {
     try {
       // 1. grades 컬렉션에서 점수순 top3 계산
       const gradesSnap = await getDocs(collection(db, 'contests', contest.id, 'grades'));
-      const grades = gradesSnap.docs.map(doc => doc.data());
-      
-      // 참가자별 평균점수 계산
-      const participantMap: Record<string, { scores: number[] }> = {};
-      grades.forEach(g => {
-        if (!participantMap[g.target]) participantMap[g.target] = { scores: [] };
-        participantMap[g.target].scores.push(Number(g.score));
+      const grades = gradesSnap.docs.map(doc => doc.data()) as ContestGradeRecord[];
+      const usersSnap = await getDocs(collection(db, 'users'));
+      const evaluatorGradeByNickname: Record<string, string> = {};
+      usersSnap.forEach((d) => {
+        const data = d.data();
+        if (data.nickname) evaluatorGradeByNickname[data.nickname] = data.grade ?? '';
       });
-      
-      const sorted = Object.entries(participantMap)
-        .map(([target, { scores }]) => ({
-          target,
-          avg: scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length) : 0
-        }))
-        .sort((a, b) => b.avg - a.avg)
-        .slice(0, 3);
+
+      const sorted = computeContestTop3Targets(grades, evaluatorGradeByNickname);
       
       // 참가자/팀명 가져오기
       let top3: Top3Item[] = [];

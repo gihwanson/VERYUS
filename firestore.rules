@@ -292,6 +292,25 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    /** 멤버 월드컵 — 멤버 질문 제안 (너래만 전체 열람·반영) */
+    match /memberWorldCupQuestionProposals/{proposalId} {
+      allow read: if signedIn() && (
+        isNerae() ||
+        resource.data.createdBy == request.auth.uid
+      );
+      allow create: if canVoteMemberWorldCup()
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 200
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdByNickname == userDoc().nickname
+        && request.resource.data.status == 'pending';
+      allow update: if isNerae()
+        && resource.data.status == 'pending'
+        && request.resource.data.status in ['scheduled', 'rejected'];
+      allow delete: if false;
+    }
+
     /** 멤버 월드컵 — 너래가 작성하는 커스텀 질문 풀 */
     match /memberWorldCupCustomQuestions/{questionId} {
       allow read: if signedIn();

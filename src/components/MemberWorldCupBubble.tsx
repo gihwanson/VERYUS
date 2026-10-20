@@ -31,7 +31,11 @@ import {
   fetchWorldCupMemberOptions,
   createCustomMemberWorldCupQuestion,
   fetchCustomMemberWorldCupQuestions,
+  fetchPendingMemberWorldCupProposals,
+  submitMemberWorldCupQuestionProposal,
+  approveMemberWorldCupProposalForNextDay,
   groupVotesBySelectedMember,
+  type MemberWorldCupQuestionProposal,
   MAX_WORLD_CUP_SELECTIONS,
   submitMemberWorldCupVote,
   syncMemberWorldCupQuestionStatsFromVotes,
@@ -42,6 +46,7 @@ import {
 import {
   MEMBER_WORLD_CUP_DAILY_MEMBER_NOTICE,
   MEMBER_WORLD_CUP_DAILY_RESET_NOTICE,
+  MEMBER_WORLD_CUP_QUESTION_PROPOSAL_ANON_NOTICE,
   formatDayKeyLabel,
   formatQuestionScheduleLabel,
   getScheduledDayKeyForOrder,
@@ -175,6 +180,11 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
   const [customQuestions, setCustomQuestions] = useState<MemberWorldCupQuestionDefinition[]>([]);
   const [newQuestionText, setNewQuestionText] = useState('');
   const [creatingQuestion, setCreatingQuestion] = useState(false);
+  const [proposalText, setProposalText] = useState('');
+  const [submittingProposal, setSubmittingProposal] = useState(false);
+  const [pendingProposals, setPendingProposals] = useState<MemberWorldCupQuestionProposal[]>([]);
+  const [pendingProposalsLoading, setPendingProposalsLoading] = useState(false);
+  const [approvingProposalId, setApprovingProposalId] = useState<string | null>(null);
   const [showPastResultModal, setShowPastResultModal] = useState(false);
   const [showPastListModal, setShowPastListModal] = useState(false);
   const [pastResultLoading, setPastResultLoading] = useState(false);
@@ -708,6 +718,20 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
     window.history.go(-depth);
   };
 
+  const loadPendingProposals = useCallback(async () => {
+    if (!canViewVoters) return;
+    setPendingProposalsLoading(true);
+    try {
+      const items = await fetchPendingMemberWorldCupProposals();
+      setPendingProposals(items);
+    } catch (error) {
+      console.error('질문 제안 목록 로딩 실패:', error);
+      showMwcToast('error', '들어온 질문을 불러오지 못했습니다.');
+    } finally {
+      setPendingProposalsLoading(false);
+    }
+  }, [canViewVoters]);
+
   const openQuestionPicker = () => {
     setNewQuestionText('');
     if (queueGroups.todayItem) {
@@ -720,6 +744,7 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
     if (showQuestionPicker) return;
     setShowQuestionPicker(true);
     pushModalHistory('picker');
+    void loadPendingProposals();
   };
 
   const closeQuestionPicker = () => {
@@ -816,6 +841,68 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
       closePastResultModal();
     } finally {
       setPastResultLoading(false);
+    }
+  };
+
+  const handleSubmitQuestionProposal = async () => {
+    const authUid = auth.currentUser?.uid;
+    const nickname = user?.nickname?.trim();
+    const trimmed = proposalText.trim();
+
+    if (!authUid || !nickname) {
+      showMwcToast('error', '로그인 정보를 확인할 수 없습니다.');
+      return;
+    }
+    if (isTestVoter) {
+      showMwcToast('error', TEST_NICKNAME_VOTE_BLOCKED_MESSAGE);
+      return;
+    }
+    if (!trimmed) {
+      showMwcToast('error', '질문 내용을 입력해 주세요.');
+      return;
+    }
+    if (trimmed.length > 200) {
+      showMwcToast('error', '질문은 200자 이내로 입력해 주세요.');
+      return;
+    }
+
+    setSubmittingProposal(true);
+    try {
+      await submitMemberWorldCupQuestionProposal({
+        text: trimmed,
+        createdBy: authUid,
+        createdByNickname: nickname,
+      });
+      setProposalText('');
+      showMwcToast(
+        'success',
+        '질문을 제안했습니다. 검토 후 내일 질문으로 올라갈 수 있어요.'
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '질문 제안에 실패했습니다.';
+      showMwcToast('error', message);
+    } finally {
+      setSubmittingProposal(false);
+    }
+  };
+
+  const handleApproveProposal = async (proposalId: string) => {
+    setApprovingProposalId(proposalId);
+    try {
+      const result = await approveMemberWorldCupProposalForNextDay(proposalId);
+      showMwcToast(
+        'success',
+        `내일(${result.scheduleLabel}) 질문으로 반영했습니다.`
+      );
+      setPendingProposals((prev) => prev.filter((item) => item.id !== proposalId));
+      const refreshed = await fetchCustomMemberWorldCupQuestions();
+      setCustomQuestions(refreshed);
+      await loadData();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '반영에 실패했습니다.';
+      showMwcToast('error', message);
+    } finally {
+      setApprovingProposalId(null);
     }
   };
 
@@ -1124,6 +1211,43 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
           )}
             </>
           )}
+
+          <div className="mwc-modal__proposal">
+            <div className="mwc-modal__proposal-head">
+              <Pencil size={15} aria-hidden />
+              <strong>질문 제안하기</strong>
+            </div>
+            <p className="mwc-modal__proposal-notice">
+              🔒 <strong>질문·작성자 모두 익명</strong>입니다. 누가 어떤 질문을 올렸는지
+              멤버에게는 공개되지 않아요. {MEMBER_WORLD_CUP_QUESTION_PROPOSAL_ANON_NOTICE}
+            </p>
+            {isTestVoter ? (
+              <p className="mwc-modal__test-blocked">{TEST_NICKNAME_VOTE_BLOCKED_MESSAGE}</p>
+            ) : (
+              <>
+                <textarea
+                  className="mwc-modal__proposal-input"
+                  value={proposalText}
+                  onChange={(e) => setProposalText(e.target.value)}
+                  placeholder="내일 올리고 싶은 질문을 적어 주세요"
+                  maxLength={200}
+                  rows={2}
+                  disabled={submittingProposal}
+                />
+                <div className="mwc-modal__proposal-actions">
+                  <span className="mwc-picker__compose-count">{proposalText.trim().length}/200</span>
+                  <button
+                    type="button"
+                    className="mwc-modal__proposal-submit"
+                    disabled={submittingProposal || !proposalText.trim()}
+                    onClick={() => void handleSubmitQuestionProposal()}
+                  >
+                    {submittingProposal ? '제안 중…' : '익명으로 질문 제안'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="mwc-modal__foot">
@@ -1135,10 +1259,10 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
               <History size={14} aria-hidden />
               지난 질문
             </button>
-            {canManageQuestions && (
+            {(canManageQuestions || canViewVoters) && (
               <button type="button" className="mwc-modal__manage" onClick={openQuestionPicker}>
                 <ListChecks size={14} aria-hidden />
-                질문 설정
+                {canViewVoters ? '질문·제안 관리' : '질문 설정'}
               </button>
             )}
             {canViewVoters && currentQuestion && (
@@ -1269,6 +1393,50 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
         </div>
 
         <div className="mwc-modal__body">
+          {canViewVoters && (
+            <div className="mwc-picker__inbox">
+              <div className="mwc-picker__inbox-head">
+                <strong>들어온 질문</strong>
+                <span className="mwc-picker__count-badge">{pendingProposals.length}건 대기</span>
+                <button
+                  type="button"
+                  className="mwc-picker__inbox-refresh"
+                  disabled={pendingProposalsLoading}
+                  onClick={() => void loadPendingProposals()}
+                >
+                  <RefreshCw size={14} aria-hidden />
+                  새로고침
+                </button>
+              </div>
+              <p className="mwc-picker__inbox-note">
+                멤버에게는 질문·작성자가 모두 익명입니다. 아래에서만 작성자를 확인할 수
+                있어요.
+              </p>
+              {pendingProposalsLoading ? (
+                <p className="mwc-picker__queue-empty">불러오는 중…</p>
+              ) : pendingProposals.length === 0 ? (
+                <p className="mwc-picker__queue-empty">대기 중인 제안이 없습니다.</p>
+              ) : (
+                <ul className="mwc-picker__inbox-list">
+                  {pendingProposals.map((item) => (
+                    <li key={item.id} className="mwc-picker__inbox-item">
+                      <p className="mwc-picker__inbox-text">{item.text}</p>
+                      <p className="mwc-picker__inbox-author">제안: {item.createdByNickname}</p>
+                      <button
+                        type="button"
+                        className="mwc-picker__inbox-approve"
+                        disabled={approvingProposalId === item.id}
+                        onClick={() => void handleApproveProposal(item.id)}
+                      >
+                        {approvingProposalId === item.id ? '반영 중…' : '내일 반영'}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
           {canWriteCustomQuestions && (
             <div className="mwc-picker__compose">
               <div className="mwc-picker__compose-head">

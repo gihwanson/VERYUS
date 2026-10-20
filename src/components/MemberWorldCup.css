@@ -791,6 +791,152 @@
   text-underline-offset: 2px;
 }
 
+.mwc-modal__proposal {
+  margin-top: 16px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px dashed #c4b5fd;
+  background: rgba(237, 233, 254, 0.45);
+}
+
+.mwc-modal__proposal-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.92rem;
+  color: #5b21b6;
+  margin-bottom: 8px;
+}
+
+.mwc-modal__proposal-notice {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: #475569;
+}
+
+.mwc-modal__proposal-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #c4b5fd;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.86rem;
+  resize: vertical;
+  min-height: 56px;
+}
+
+.mwc-modal__proposal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.mwc-modal__proposal-submit {
+  border: none;
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: #6d28d9;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mwc-modal__proposal-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.mwc-picker__inbox {
+  margin-bottom: 16px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid #fcd34d;
+  background: #fffbeb;
+}
+
+.mwc-picker__inbox-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.mwc-picker__inbox-head strong {
+  color: #92400e;
+}
+
+.mwc-picker__inbox-note {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: #78350f;
+}
+
+.mwc-picker__inbox-refresh {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  color: #b45309;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mwc-picker__inbox-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.mwc-picker__inbox-item {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #fde68a;
+}
+
+.mwc-picker__inbox-text {
+  margin: 0 0 6px;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: #1e293b;
+}
+
+.mwc-picker__inbox-author {
+  margin: 0 0 8px;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.mwc-picker__inbox-approve {
+  border: none;
+  border-radius: 8px;
+  padding: 7px 12px;
+  background: #d97706;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.mwc-picker__inbox-approve:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .mwc-modal__foot {
   flex-shrink: 0;
   display: flex;

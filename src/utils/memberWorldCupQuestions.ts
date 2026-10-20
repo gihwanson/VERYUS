@@ -25,6 +25,9 @@ export const MEMBER_WORLD_CUP_DAILY_RESET_NOTICE =
 export const MEMBER_WORLD_CUP_DAILY_MEMBER_NOTICE =
   '매일 하나씩 새 질문이 공개됩니다. 말풍선을 눌러 오늘의 질문에 참여해 보세요!';
 
+export const MEMBER_WORLD_CUP_QUESTION_PROPOSAL_ANON_NOTICE =
+  '제안한 질문·작성자 정보는 멤버에게 공개되지 않습니다. 너래만 검토 후 채택 여부를 결정해요.';
+
 export const MEMBER_WORLD_CUP_COLLECTION = 'memberWorldCupQuestions';
 export const MEMBER_WORLD_CUP_VOTES_COLLECTION = 'memberWorldCupVotes';
 

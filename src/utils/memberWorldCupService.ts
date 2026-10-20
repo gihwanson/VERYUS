@@ -9,6 +9,7 @@ import {
   setDoc,
   where,
   addDoc,
+  writeBatch,
   type DocumentData,
 } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -20,11 +21,15 @@ import {
   MEMBER_WORLD_CUP_VOTES_COLLECTION,
   resolveActiveMemberWorldCupQuestions,
   sortScheduledQuestions,
+  getMemberWorldCupDayIndex,
+  getScheduledDayKeyForOrder,
+  formatQuestionScheduleLabel,
   type MemberWorldCupQuestion,
   type MemberWorldCupQuestionDefinition,
 } from './memberWorldCupQuestions';
 
 export const MEMBER_WORLD_CUP_CUSTOM_QUESTIONS_COLLECTION = 'memberWorldCupCustomQuestions';
+export const MEMBER_WORLD_CUP_PROPOSALS_COLLECTION = 'memberWorldCupQuestionProposals';
 
 export const MAX_WORLD_CUP_SELECTIONS = 3;
 
@@ -729,4 +734,187 @@ export async function hasMemberWorldCupVote(
     )
   );
   return snap.exists();
+}
+
+export type MemberWorldCupQuestionProposal = {
+  id: string;
+  text: string;
+  createdBy: string;
+  createdByNickname: string;
+  status: 'pending' | 'scheduled' | 'rejected';
+  createdAt: unknown;
+  scheduledForDayKey?: string | null;
+  customQuestionId?: string | null;
+};
+
+export async function submitMemberWorldCupQuestionProposal(input: {
+  text: string;
+  createdBy: string;
+  createdByNickname: string;
+}): Promise<void> {
+  if (!auth.currentUser?.uid) {
+    await auth.authStateReady();
+  }
+  const authUid = auth.currentUser?.uid;
+  if (!authUid) {
+    throw new Error('로그인 세션이 만료되었습니다. 다시 로그인해 주세요.');
+  }
+  if (input.createdBy !== authUid) {
+    throw new Error('계정 정보가 일치하지 않습니다. 다시 로그인해 주세요.');
+  }
+  if (isTestNickname(input.createdByNickname)) {
+    throw new Error(TEST_NICKNAME_VOTE_BLOCKED_MESSAGE);
+  }
+
+  const trimmed = input.text.trim();
+  if (!trimmed) {
+    throw new Error('질문 내용을 입력해 주세요.');
+  }
+  if (trimmed.length > 200) {
+    throw new Error('질문은 200자 이내로 입력해 주세요.');
+  }
+
+  try {
+    await addDoc(collection(db, MEMBER_WORLD_CUP_PROPOSALS_COLLECTION), {
+      text: trimmed,
+      createdBy: authUid,
+      createdByNickname: input.createdByNickname.trim(),
+      status: 'pending',
+      createdAt: serverTimestamp(),
+    });
+  } catch (error) {
+    throw new Error(getFirestoreErrorMessage(error));
+  }
+}
+
+export async function fetchPendingMemberWorldCupProposals(): Promise<
+  MemberWorldCupQuestionProposal[]
+> {
+  const snap = await getDocs(
+    query(
+      collection(db, MEMBER_WORLD_CUP_PROPOSALS_COLLECTION),
+      where('status', '==', 'pending')
+    )
+  );
+
+  const items: MemberWorldCupQuestionProposal[] = snap.docs.map((docSnap) => {
+    const data = docSnap.data();
+    return {
+      id: docSnap.id,
+      text: String(data.text || ''),
+      createdBy: String(data.createdBy || ''),
+      createdByNickname: String(data.createdByNickname || ''),
+      status: 'pending',
+      createdAt: data.createdAt,
+      scheduledForDayKey: data.scheduledForDayKey ? String(data.scheduledForDayKey) : null,
+      customQuestionId: data.customQuestionId ? String(data.customQuestionId) : null,
+    };
+  });
+
+  items.sort((a, b) => {
+    const aMs =
+      a.createdAt && typeof (a.createdAt as { toMillis?: () => number }).toMillis === 'function'
+        ? (a.createdAt as { toMillis: () => number }).toMillis()
+        : 0;
+    const bMs =
+      b.createdAt && typeof (b.createdAt as { toMillis?: () => number }).toMillis === 'function'
+        ? (b.createdAt as { toMillis: () => number }).toMillis()
+        : 0;
+    return bMs - aMs;
+  });
+
+  return items;
+}
+
+/** 너래 전용 — 제안 질문을 내일(다음 KST 0시) 노출 큐에 반영 */
+export async function approveMemberWorldCupProposalForNextDay(
+  proposalId: string
+): Promise<{ scheduleLabel: string; scheduleOrder: number }> {
+  if (!auth.currentUser?.uid) {
+    await auth.authStateReady();
+  }
+  if (!auth.currentUser?.uid) {
+    throw new Error('로그인 세션이 만료되었습니다.');
+  }
+
+  const proposalRef = doc(db, MEMBER_WORLD_CUP_PROPOSALS_COLLECTION, proposalId);
+  const proposalSnap = await getDoc(proposalRef);
+  if (!proposalSnap.exists()) {
+    throw new Error('질문 제안을 찾을 수 없습니다.');
+  }
+
+  const proposal = proposalSnap.data();
+  if (proposal.status !== 'pending') {
+    throw new Error('이미 처리된 제안입니다.');
+  }
+
+  const text = String(proposal.text || '').trim();
+  if (!text) {
+    throw new Error('질문 내용이 비어 있습니다.');
+  }
+
+  const activeSnap = await getDocs(
+    query(
+      collection(db, MEMBER_WORLD_CUP_CUSTOM_QUESTIONS_COLLECTION),
+      where('isActive', '==', true)
+    )
+  );
+
+  type QueueRow = { id: string; text: string; scheduleOrder: number };
+  const queue: QueueRow[] = activeSnap.docs.map((docSnap) => {
+    const data = docSnap.data();
+    return {
+      id: docSnap.id,
+      text: String(data.text || ''),
+      scheduleOrder: parseScheduleOrder(data, 0) || 0,
+    };
+  });
+
+  queue.sort((a, b) => a.scheduleOrder - b.scheduleOrder || a.id.localeCompare(b.id));
+
+  const tomorrowSlotIndex = getMemberWorldCupDayIndex() + 1;
+  const insertIndex = Math.min(Math.max(0, tomorrowSlotIndex), queue.length);
+  const targetScheduleOrder = insertIndex + 1;
+
+  const batch = writeBatch(db);
+
+  const newQuestionRef = doc(collection(db, MEMBER_WORLD_CUP_CUSTOM_QUESTIONS_COLLECTION));
+  batch.set(newQuestionRef, {
+    text,
+    createdBy: proposal.createdBy,
+    createdByNickname: proposal.createdByNickname,
+    scheduleOrder: targetScheduleOrder,
+    isActive: true,
+    sourceProposalId: proposalId,
+    createdAt: serverTimestamp(),
+  });
+
+  for (let i = insertIndex; i < queue.length; i += 1) {
+    const row = queue[i];
+    const nextOrder = i + 2;
+    if (row.scheduleOrder !== nextOrder) {
+      batch.update(doc(db, MEMBER_WORLD_CUP_CUSTOM_QUESTIONS_COLLECTION, row.id), {
+        scheduleOrder: nextOrder,
+      });
+    }
+  }
+
+  const scheduledForDayKey = getScheduledDayKeyForOrder(targetScheduleOrder);
+  batch.update(proposalRef, {
+    status: 'scheduled',
+    customQuestionId: newQuestionRef.id,
+    scheduledForDayKey,
+    scheduledAt: serverTimestamp(),
+  });
+
+  try {
+    await batch.commit();
+  } catch (error) {
+    throw new Error(getFirestoreErrorMessage(error));
+  }
+
+  return {
+    scheduleLabel: formatQuestionScheduleLabel(targetScheduleOrder),
+    scheduleOrder: targetScheduleOrder,
+  };
 }

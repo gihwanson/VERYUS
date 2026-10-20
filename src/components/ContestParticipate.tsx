@@ -10,9 +10,16 @@ import {
   registerOnParticipateClick,
 } from '../utils/contestParticipant';
 import { getContestGradeFromScore } from '../utils/contestGrade';
+import { getGradeEmoji } from '../utils/gradeDisplay';
 import ContestAccessBlock from './ContestAccessBlock';
 import RoundMatchVoteView from './roundMatch/RoundMatchVoteView';
 import '../styles/contest-ui-refresh.css';
+const contestGradeEvaluatorFields = (u: { nickname: string; role: string; grade?: string }) => ({
+  evaluator: u.nickname,
+  evaluatorRole: u.role,
+  evaluatorGrade: getGradeEmoji(u.grade),
+});
+
 const ContestParticipate: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -309,8 +316,7 @@ const ContestParticipate: React.FC = () => {
       if (!snap.empty) return setError('이미 이 참가자를 평가하셨습니다.');
     }
     await addDoc(collection(db, 'contests', id, 'grades'), {
-      evaluator: user.nickname,
-      evaluatorRole: user.role,
+      ...contestGradeEvaluatorFields(user),
       target: nickname,
       score,
       comment: comment ?? '',
@@ -347,12 +353,12 @@ const ContestParticipate: React.FC = () => {
       await updateDoc(gradeDocRef, {
         score: numScore,
         comment: comment ?? '',
+        evaluatorGrade: getGradeEmoji(user.grade),
         updatedAt: new Date()
       });
     } else {
       await addDoc(collection(db, 'contests', id, 'grades'), {
-        evaluator: user.nickname,
-        evaluatorRole: user.role,
+        ...contestGradeEvaluatorFields(user),
         target: targetId,
         score: numScore,
         comment: comment ?? '',
@@ -446,8 +452,7 @@ const ContestParticipate: React.FC = () => {
           
           if (snap.empty) {
             await addDoc(collection(db, 'contests', id, 'grades'), {
-              evaluator: user.nickname,
-              evaluatorRole: user.role,
+              ...contestGradeEvaluatorFields(user),
               target: submission.target,
               score: submission.score,
               comment: submission.comment,
