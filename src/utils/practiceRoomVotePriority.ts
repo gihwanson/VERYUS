@@ -441,6 +441,69 @@ export function formatSlotReservationSummary<T extends {
     .join(', ');
 }
 
+/** 예약 블록이 끝나는 시각(해당 슬롯 문서 기준) */
+export function getReservationBlockEndDate(
+  r: {
+    date?: string;
+    startTime?: string;
+    endTime?: string;
+    totalDuration?: number;
+    isFirstSlot?: boolean;
+  },
+): Date | null {
+  const dateStr = String(r.date || '').trim();
+  const startTime = String(r.startTime || '').trim();
+  if (!dateStr || !startTime) return null;
+
+  if (r.isFirstSlot === false) {
+    const endTime = String(r.endTime || '').trim();
+    if (!endTime) return null;
+    return new Date(`${dateStr}T${endTime}`);
+  }
+
+  const totalMin = Number(r.totalDuration);
+  if (Number.isFinite(totalMin) && totalMin > 0) {
+    const start = new Date(`${dateStr}T${startTime}`);
+    return new Date(start.getTime() + totalMin * 60 * 1000);
+  }
+
+  const hours = getReservationBlockHours(r);
+  const [hour] = startTime.split(':').map(Number);
+  const endHour = hour + hours;
+  return new Date(`${dateStr}T${String(endHour).padStart(2, '0')}:00`);
+}
+
+/** 슬롯 시작 시각이 지났어도, 확정 예약 이용 중이면 past로 치지 않음 */
+export function isSlotReservationCurrentlyInUse(
+  reservation:
+    | {
+        date?: string;
+        startTime?: string;
+        endTime?: string;
+        totalDuration?: number;
+        isFirstSlot?: boolean;
+        status?: string;
+      }
+    | undefined
+    | null,
+  dateStr: string,
+  slotStartTime: string,
+  now = new Date()
+): boolean {
+  if (!reservation || reservation.status === 'outbid' || reservation.status === 'cancelled') {
+    return false;
+  }
+  if (!isEffectivelyConfirmedReservation(reservation, now)) return false;
+
+  const slotStart = new Date(`${dateStr}T${slotStartTime}`);
+  if (Number.isNaN(slotStart.getTime()) || now < slotStart) return false;
+
+  const blockEnd = getReservationBlockEndDate({ ...reservation, date: dateStr });
+  if (!blockEnd || Number.isNaN(blockEnd.getTime())) return false;
+
+  return now < blockEnd;
+}
+
 /** 연속 예약 블록 시간(시간 단위) */
 export function getReservationBlockHours(r: {
   totalDuration?: number;

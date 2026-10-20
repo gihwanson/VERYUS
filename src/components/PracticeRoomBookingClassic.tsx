@@ -43,6 +43,7 @@ import {
   getReservationPhaseLabel,
   getReservationBlockHours,
   getSlotMergeInfo,
+  isSlotReservationCurrentlyInUse,
   getSundayPendingBannerText,
   isEffectivelyConfirmedReservation,
   isEffectivelyPendingReservation,
@@ -89,6 +90,8 @@ interface TimeSlot {
   endTime: string;
   isAvailable: boolean;
   isPast: boolean;
+  /** 확정 예약 이용 중(슬롯 시작은 지났지만 종료 전) */
+  isInUse?: boolean;
   isBlocked: boolean;
   isException?: boolean; // 규칙 예외 허용
   isWalkInOpen?: boolean;
@@ -788,13 +791,19 @@ const PracticeRoomBookingClassic: React.FC = () => {
       // 과거 시간 체크
       const slotDateTime = new Date(`${dateStr}T${timeStr}`);
       const isPast = slotDateTime < now;
-      
+
       // 해당 날짜와 시간의 예약들 (선두 + 밀린 예약 포함)
       const slotReservations = sortReservationsForDisplay(
         reservations.filter((r) => r.date === dateStr && r.startTime === timeStr),
         priorityRanking
       );
       const reservation = pickLeadingReservation(slotReservations, priorityRanking) || undefined;
+      const isInUse = isSlotReservationCurrentlyInUse(
+        reservation,
+        dateStr,
+        timeStr,
+        now
+      );
 
       // 관리자(너래·리더·운영진)는 타인 비관리자 예약을 가져갈 수 있음(pending/confirmed).
       // 일반 멤버는 일요일 확정대기(pending)만 우선권으로 뺏기 가능 — 월 00시 이후(확정)는 불가.
@@ -904,6 +913,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
           !isWalkInOpen &&
           ticketingBookCheck.allowed,
         isPast: isPast,
+        isInUse,
         isBlocked: isBlocked || alwaysOpen,
         isWalkInOpen,
         isTicketingBlock,
@@ -916,7 +926,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
         reservations: slotReservations,
       });
     }
-    
+
     return slots;
   };
 
@@ -1041,8 +1051,8 @@ const PracticeRoomBookingClassic: React.FC = () => {
       return;
     }
     
-    // 과거 시간은 클릭 불가
-    if (slot.isPast) {
+    // 과거 시간은 클릭 불가 (확정 예약 이용 중인 슬롯은 상세 보기 가능)
+    if (slot.isPast && !slot.isInUse) {
       return;
     }
 
@@ -1137,7 +1147,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
     if (now - lastSlotInteractionAtRef.current < 250) return;
     lastSlotInteractionAtRef.current = now;
 
-    if (slot.isPast) return;
+    if (slot.isPast && !slot.isInUse) return;
     if (!isUnlimitedUser && slot.isAvailable && weeklyReservationCount >= MAX_WEEKLY_RESERVATIONS) {
       window.alert(weeklyLimitExceededMessage);
       return;
@@ -2310,7 +2320,9 @@ const PracticeRoomBookingClassic: React.FC = () => {
                 <div
                   key={idx}
                   className={`mobile-time-slot ${
-                    slot.isPast
+                    slot.isInUse
+                      ? 'in-use reserved'
+                      : slot.isPast
                       ? 'past'
                       : slot.isWalkInOpen
                         ? 'walk-in'
@@ -2334,7 +2346,32 @@ const PracticeRoomBookingClassic: React.FC = () => {
                     )}
                   </div>
                   <div className="mobile-slot-content">
-                    {slot.isPast ? (
+                    {slot.isInUse && (slot.reservation || (slot.reservations && slot.reservations.length > 0)) ? (
+                      <div className="reservation-card">
+                        <div className="reservation-header">
+                          <User size={14} />
+                          <span className="reservation-user">
+                            {formatSlotOccupancyLabel(slot.reservations, slot.reservation)}
+                          </span>
+                          <span className="in-use-badge">사용 중</span>
+                        </div>
+                        {(!hideTicketingReservationIdentities ||
+                          reservationHasAdminPriority(slot.reservation || {})) &&
+                          slot.reservation?.members &&
+                          slot.reservation.members.length > 0 && (
+                          <div className="reservation-members-mobile">
+                            👥 {slot.reservation.members.join(', ')}
+                          </div>
+                        )}
+                        {(!hideTicketingReservationIdentities ||
+                          reservationHasAdminPriority(slot.reservation || {})) &&
+                          slot.reservation?.purpose && (
+                          <div className="reservation-purpose-mobile">
+                            💡 {slot.reservation.purpose}
+                          </div>
+                        )}
+                      </div>
+                    ) : slot.isPast ? (
                       <span className="slot-status past-label">지난 시간</span>
                     ) : slot.isWalkInOpen ? (
                       <div className="walk-in-card">
@@ -2479,7 +2516,9 @@ const PracticeRoomBookingClassic: React.FC = () => {
                     <div
                       key={`${dayIdx}-${hourIdx}`}
                       className={`time-slot ${
-                        slot.isPast
+                        slot.isInUse
+                          ? 'in-use reserved'
+                          : slot.isPast
                           ? 'past'
                           : slot.isWalkInOpen
                             ? 'walk-in'
@@ -2493,11 +2532,18 @@ const PracticeRoomBookingClassic: React.FC = () => {
                       }`}
                       onClick={(e) => handleSlotActivate(slot, date, e)}
                       style={{
-                        cursor: slot.isPast ? 'not-allowed' : 'pointer',
+                        cursor: slot.isPast && !slot.isInUse ? 'not-allowed' : 'pointer',
                         ...(merge.span > 1 ? { gridRow: `span ${merge.span}` } : {}),
                       }}
                     >
-                      {slot.isWalkInOpen ? (
+                      {slot.isInUse && (slot.reservation || (slot.reservations && slot.reservations.length > 0)) ? (
+                        <div className="reservation-info">
+                          <span className="user-name">
+                            {formatSlotOccupancyLabel(slot.reservations, slot.reservation)}
+                          </span>
+                          <span className="in-use-label">사용 중</span>
+                        </div>
+                      ) : slot.isWalkInOpen ? (
                         <div className="walk-in-info">
                           <span className="walk-in-label">🟢</span>
                           <span className="walk-in-reason-small">자유</span>
