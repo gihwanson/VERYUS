@@ -918,3 +918,37 @@ export async function approveMemberWorldCupProposalForNextDay(
     scheduleOrder: targetScheduleOrder,
   };
 }
+
+/** 너래 전용 — 제안 질문 거부 (큐에 넣지 않음) */
+export async function rejectMemberWorldCupQuestionProposal(proposalId: string): Promise<void> {
+  if (!auth.currentUser?.uid) {
+    await auth.authStateReady();
+  }
+  if (!auth.currentUser?.uid) {
+    throw new Error('로그인 세션이 만료되었습니다.');
+  }
+
+  const proposalRef = doc(db, MEMBER_WORLD_CUP_PROPOSALS_COLLECTION, proposalId);
+  const proposalSnap = await getDoc(proposalRef);
+  if (!proposalSnap.exists()) {
+    throw new Error('질문 제안을 찾을 수 없습니다.');
+  }
+
+  const proposal = proposalSnap.data();
+  if (proposal.status !== 'pending') {
+    throw new Error('이미 처리된 제안입니다.');
+  }
+
+  try {
+    await setDoc(
+      proposalRef,
+      {
+        status: 'rejected',
+        rejectedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch (error) {
+    throw new Error(getFirestoreErrorMessage(error));
+  }
+}

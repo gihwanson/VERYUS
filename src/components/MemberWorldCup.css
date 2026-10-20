@@ -921,6 +921,12 @@
   color: #64748b;
 }
 
+.mwc-picker__inbox-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .mwc-picker__inbox-approve {
   border: none;
   border-radius: 8px;
@@ -932,7 +938,19 @@
   cursor: pointer;
 }
 
-.mwc-picker__inbox-approve:disabled {
+.mwc-picker__inbox-reject {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 7px 12px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mwc-picker__inbox-approve:disabled,
+.mwc-picker__inbox-reject:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }

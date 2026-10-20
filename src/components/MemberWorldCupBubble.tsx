@@ -34,6 +34,7 @@ import {
   fetchPendingMemberWorldCupProposals,
   submitMemberWorldCupQuestionProposal,
   approveMemberWorldCupProposalForNextDay,
+  rejectMemberWorldCupQuestionProposal,
   groupVotesBySelectedMember,
   type MemberWorldCupQuestionProposal,
   MAX_WORLD_CUP_SELECTIONS,
@@ -185,6 +186,7 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
   const [pendingProposals, setPendingProposals] = useState<MemberWorldCupQuestionProposal[]>([]);
   const [pendingProposalsLoading, setPendingProposalsLoading] = useState(false);
   const [approvingProposalId, setApprovingProposalId] = useState<string | null>(null);
+  const [rejectingProposalId, setRejectingProposalId] = useState<string | null>(null);
   const [showPastResultModal, setShowPastResultModal] = useState(false);
   const [showPastListModal, setShowPastListModal] = useState(false);
   const [pastResultLoading, setPastResultLoading] = useState(false);
@@ -906,6 +908,23 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
     }
   };
 
+  const handleRejectProposal = async (proposalId: string) => {
+    if (!window.confirm('이 질문 제안을 거부할까요? 멤버에게는 별도 알림이 가지 않습니다.')) {
+      return;
+    }
+    setRejectingProposalId(proposalId);
+    try {
+      await rejectMemberWorldCupQuestionProposal(proposalId);
+      setPendingProposals((prev) => prev.filter((item) => item.id !== proposalId));
+      showMwcToast('info', '질문 제안을 거부했습니다.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '거부 처리에 실패했습니다.';
+      showMwcToast('error', message);
+    } finally {
+      setRejectingProposalId(null);
+    }
+  };
+
   const handleCreateCustomQuestion = async () => {
     const authUid = auth.currentUser?.uid;
     const nickname = user?.nickname?.trim();
@@ -1422,14 +1441,28 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
                     <li key={item.id} className="mwc-picker__inbox-item">
                       <p className="mwc-picker__inbox-text">{item.text}</p>
                       <p className="mwc-picker__inbox-author">제안: {item.createdByNickname}</p>
-                      <button
-                        type="button"
-                        className="mwc-picker__inbox-approve"
-                        disabled={approvingProposalId === item.id}
-                        onClick={() => void handleApproveProposal(item.id)}
-                      >
-                        {approvingProposalId === item.id ? '반영 중…' : '내일 반영'}
-                      </button>
+                      <div className="mwc-picker__inbox-actions">
+                        <button
+                          type="button"
+                          className="mwc-picker__inbox-reject"
+                          disabled={
+                            rejectingProposalId === item.id || approvingProposalId === item.id
+                          }
+                          onClick={() => void handleRejectProposal(item.id)}
+                        >
+                          {rejectingProposalId === item.id ? '처리 중…' : '거부'}
+                        </button>
+                        <button
+                          type="button"
+                          className="mwc-picker__inbox-approve"
+                          disabled={
+                            approvingProposalId === item.id || rejectingProposalId === item.id
+                          }
+                          onClick={() => void handleApproveProposal(item.id)}
+                        >
+                          {approvingProposalId === item.id ? '반영 중…' : '내일 반영'}
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>
