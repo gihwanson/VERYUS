@@ -133,7 +133,7 @@ const EvaluationGradeBattleSection: React.FC<Props> = ({
       return;
     }
     if (requireFullListen && !hasFullyListened) {
-      setError('녹음을 끝까지 들은 뒤 채점할 수 있습니다.');
+      setError('녹음 파일을 절반 이상(실제 재생 시간 기준) 들은 뒤 채점할 수 있습니다.');
       return;
     }
     if (!scoringOpen) {
@@ -306,8 +306,14 @@ const EvaluationGradeBattleSection: React.FC<Props> = ({
             {myExisting ? '채점 수정 제출' : '채점 제출'}
           </button>
           {requireFullListen && !hasFullyListened && (
-            <p style={{ fontSize: 13, color: '#64748B', textAlign: 'center', marginTop: 8 }}>
-              녹음을 끝까지 재생한 뒤 채점할 수 있습니다.
+            <p style={{ fontSize: 13, color: '#64748B', textAlign: 'center', marginTop: 8, lineHeight: 1.5 }}>
+              녹음 파일을 절반 이상(실제 재생 시간 기준) 들어야 채점할 수 있습니다. 원하는 구간으로 이동해 들을 수
+              있습니다.
+            </p>
+          )}
+          {requireFullListen && hasFullyListened && (
+            <p style={{ fontSize: 13, color: '#059669', textAlign: 'center', marginTop: 8, fontWeight: 600 }}>
+              녹음을 절반 이상 들으셨습니다. 채점을 진행해 주세요.
             </p>
           )}
         </div>
