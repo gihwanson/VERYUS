@@ -68,6 +68,16 @@ import {
   type MemberVoteChoice,
   type MemberVotesMap,
 } from '../utils/evaluationMemberRound';
+import {
+  GRADE_BATTLE_CATEGORY,
+  GRADE_BATTLE_STATUS_ASSIGNED,
+  GRADE_BATTLE_STATUS_PENDING_ASSIGN,
+  ensureGradeBattleEndsAt,
+  formatGradeBattleDday,
+  isGradeBattleScoringOpen,
+  tryResolveExpiredGradeBattle,
+} from '../utils/evaluationGradeBattle';
+import EvaluationGradeBattleSection from './EvaluationGradeBattleSection';
 
 interface User {
   uid: string;
@@ -103,6 +113,8 @@ interface EvaluationPost {
   members?: string[];
   memberVotes?: MemberVotesMap;
   memberRoundEndsAt?: any;
+  gradeBattleEndsAt?: any;
+  assignedMemberGrade?: string;
 }
 
 // 타입 선언 추가
@@ -345,6 +357,36 @@ const EvaluationPostDetail: React.FC = () => {
       cancelled = true;
     };
   }, [post?.id, post?.status, post?.category, post?.memberRoundEndsAt, post?.memberVotes]);
+
+  useEffect(() => {
+    if (!post?.id || post.category !== GRADE_BATTLE_CATEGORY) return;
+    if (post.status && post.status !== '대기') return;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        if (!post.gradeBattleEndsAt) {
+          const endsAt = await ensureGradeBattleEndsAt(post);
+          if (cancelled || !endsAt) return;
+          setPost((p) => (p ? { ...p, gradeBattleEndsAt: endsAt } : p));
+          return;
+        }
+        if (isGradeBattleScoringOpen(post)) return;
+        const nextStatus = await tryResolveExpiredGradeBattle(post);
+        if (nextStatus && !cancelled) {
+          setPost((p) =>
+            p ? { ...p, status: nextStatus, statusUpdatedAt: new Date() } : p
+          );
+        }
+      } catch (err) {
+        console.error('등급전 마감 처리 실패:', err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [post?.id, post?.status, post?.category, post?.gradeBattleEndsAt]);
 
   const handleMemberVote = async (choice: MemberVoteChoice) => {
     if (!user || !post) {
@@ -627,6 +669,17 @@ const EvaluationPostDetail: React.FC = () => {
                 1차 합격 / 너래 평가대기
               </div>
             )}
+            {post.status === GRADE_BATTLE_STATUS_PENDING_ASSIGN && (
+              <div style={{marginBottom: 12, color: '#1D4ED8', fontWeight: 700, fontSize: '1.08rem', background:'#EFF6FF', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
+                등급부여 대기중
+              </div>
+            )}
+            {post.status === GRADE_BATTLE_STATUS_ASSIGNED && (
+              <div style={{marginBottom: 12, color: '#047857', fontWeight: 700, fontSize: '1.08rem', background:'#ECFDF5', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
+                등급 부여 완료
+                {post.assignedMemberGrade ? ` · ${post.assignedMemberGrade}` : ''}
+              </div>
+            )}
             {(!post.status || post.status === '대기') && (
               post.category === 'feedback' ? (
                 <div style={{marginBottom: 12, color: 'var(--primary-color, #8b5a2b)', fontWeight: 700, fontSize: '1.08rem', background:'var(--paper-tag-bg, #f0e6d6)', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
@@ -635,6 +688,12 @@ const EvaluationPostDetail: React.FC = () => {
               ) : post.category === 'rejudge' ? (
                 <div style={{marginBottom: 12, color: '#888', fontWeight: 600, fontSize: '1.05rem', background:'#F3F4F6', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
                   재심사 대기중 입니다
+                </div>
+              ) : post.category === GRADE_BATTLE_CATEGORY ? (
+                <div style={{marginBottom: 12, color: '#7C3AED', fontWeight: 600, fontSize: '1.05rem', background:'#F5F3FF', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
+                  {isGradeBattleScoringOpen(post)
+                    ? `등급전 멤버 채점 중${formatGradeBattleDday(post) ? ` · ${formatGradeBattleDday(post)}` : ''}`
+                    : '채점 마감 · 등급부여 대기중'}
                 </div>
               ) : (
                 <div style={{marginBottom: 12, color: '#888', fontWeight: 600, fontSize: '1.05rem', background:'#F3F4F6', borderRadius:12, padding:'10px 18px', textAlign:'center'}}>
@@ -679,7 +738,10 @@ const EvaluationPostDetail: React.FC = () => {
               <AudioPlayer
                 audioUrl={post.audioUrl}
                 duration={post.duration}
-                requireFullListen={post.category === 'busking' && !hasFullyListened}
+                requireFullListen={
+                  (post.category === 'busking' || post.category === GRADE_BATTLE_CATEGORY) &&
+                  !hasFullyListened
+                }
                 onFullyListened={markFullyListened}
               />
               <a
@@ -692,6 +754,16 @@ const EvaluationPostDetail: React.FC = () => {
                 <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 <span style={{ fontSize: 15 }}>다운로드</span>
               </a>
+
+              {post.category === GRADE_BATTLE_CATEGORY && post.audioUrl && (
+                <EvaluationGradeBattleSection
+                  post={post}
+                  user={user}
+                  requireFullListen
+                  hasFullyListened={hasFullyListened}
+                  onPostPatch={(patch) => setPost((p) => (p ? { ...p, ...patch } : p))}
+                />
+              )}
 
               {/* 멤버 1차 좋아요/아쉬워요 평가 (버스킹심사곡) */}
               {post.category === 'busking' && (

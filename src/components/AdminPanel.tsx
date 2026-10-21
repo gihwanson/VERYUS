@@ -87,7 +87,9 @@ import {
 import { 
   GRADE_SYSTEM, 
   ROLE_SYSTEM, 
-  GRADE_ORDER, 
+  GRADE_ORDER,
+  GRADES_FOR_ADMIN_SELECT,
+  isStandaloneGrade, 
   GRADE_NAMES, 
   ROLE_OPTIONS,
   getLeaderRoleAssignmentError,
@@ -1589,7 +1591,7 @@ const AdminPanel: React.FC = () => {
   // 등급 통계 카드
   const renderGradeStats = () => (
     <div className="grade-stats-grid">
-      {GRADE_ORDER.map(grade => {
+      {GRADES_FOR_ADMIN_SELECT.map(grade => {
         const count = gradeStats[grade] || 0;
         const percentage = filteredUsers.length > 0 ? ((count / filteredUsers.length) * 100).toFixed(1) : 0;
         return (
@@ -1615,7 +1617,7 @@ const AdminPanel: React.FC = () => {
           onChange={(e) => setGradeFilter(e.target.value)}
         >
           <option value="all">전체 등급</option>
-          {GRADE_ORDER.map(grade => (
+          {GRADES_FOR_ADMIN_SELECT.map(grade => (
             <option key={grade} value={grade}>
               {grade} {GRADE_NAMES[grade]}
             </option>
@@ -1899,8 +1901,12 @@ const AdminPanel: React.FC = () => {
                         )}
                       </td>
                       <td>
-                        {(user.grade === GRADE_SYSTEM.SUN || user.grade === GRADE_SYSTEM.GALAXY) ? (
-                          <span className="status-badge max-grade">최고등급</span>
+                        {(user.grade === GRADE_SYSTEM.SUN ||
+                          user.grade === GRADE_SYSTEM.GALAXY ||
+                          isStandaloneGrade(user.grade)) ? (
+                          <span className="status-badge max-grade">
+                            {isStandaloneGrade(user.grade) ? '특수등급' : '최고등급'}
+                          </span>
                         ) : canPromoteUser ? (
                           <div className="promotion-ready">
                             <span className="promotion-status">승급 가능</span>
@@ -1919,8 +1925,12 @@ const AdminPanel: React.FC = () => {
                         )}
                       </td>
                       <td>
-                        {(user.grade === GRADE_SYSTEM.SUN || user.grade === GRADE_SYSTEM.GALAXY) ? (
-                          <span className="status-badge">최고등급</span>
+                        {(user.grade === GRADE_SYSTEM.SUN ||
+                          user.grade === GRADE_SYSTEM.GALAXY ||
+                          isStandaloneGrade(user.grade)) ? (
+                          <span className="status-badge">
+                            {isStandaloneGrade(user.grade) ? '특수등급' : '최고등급'}
+                          </span>
                         ) : canPromoteUser ? (
                           <button
                             className="promote-button"
@@ -2351,7 +2361,7 @@ const AdminPanel: React.FC = () => {
                   value={newUser.grade}
                   onChange={(e) => setNewUser({...newUser, grade: e.target.value as any})}
                 >
-                  {GRADE_ORDER.map(grade => (
+                  {GRADES_FOR_ADMIN_SELECT.map(grade => (
                     <option key={grade} value={grade}>
                       {grade} {GRADE_NAMES[grade]}
                     </option>
@@ -2414,7 +2424,7 @@ const AdminPanel: React.FC = () => {
                   onChange={(e) => setBulkGrade(e.target.value as any)}
                   className="filter-select"
                 >
-                  {GRADE_ORDER.map(grade => (
+                  {GRADES_FOR_ADMIN_SELECT.map(grade => (
                     <option key={grade} value={grade}>
                       {grade} {GRADE_NAMES[grade]}
                     </option>

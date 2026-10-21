@@ -112,8 +112,13 @@ export const GRADE_SYSTEM = {
   SATURN: '🪐',
   SUN: '☀️',
   CRESCENT: '🌙',
-  GALAXY: '🌌'
+  GALAXY: '🌌',
+  /** 점수·활동 승급과 무관, 수동 부여만 */
+  STAR: '⭐',
 } as const;
+
+/** 등급 순서(활동·점수)와 무관한 수동 전용 등급 */
+export const SPECIAL_STANDALONE_GRADES = [GRADE_SYSTEM.STAR] as const;
 
 // 등급 순서 (낮은 등급부터 높은 등급 순)
 export const GRADE_ORDER = [
@@ -128,6 +133,16 @@ export const GRADE_ORDER = [
   GRADE_SYSTEM.CRESCENT,    // 초승달 (예외 등급)
   GRADE_SYSTEM.GALAXY       // 은하 (평가자 등급)
 ] as const;
+
+/** 관리자 부여·필터 UI (일반 순서 + 별 등급) */
+export const GRADES_FOR_ADMIN_SELECT = [
+  ...GRADE_ORDER,
+  ...SPECIAL_STANDALONE_GRADES,
+] as const;
+
+export function isStandaloneGrade(grade: string): boolean {
+  return (SPECIAL_STANDALONE_GRADES as readonly string[]).includes(grade);
+}
 
 /** 더 이상 부여하지 않는 등급. 기존 회원 표시용 */
 export const LEGACY_GRADE_NAMES: Record<string, string> = {
@@ -147,6 +162,7 @@ export const GRADE_NAMES: Record<string, string> = {
   [GRADE_SYSTEM.SUN]: '태양',
   [GRADE_SYSTEM.CRESCENT]: '초승달',
   [GRADE_SYSTEM.GALAXY]: '은하',
+  [GRADE_SYSTEM.STAR]: '별',
   ...LEGACY_GRADE_NAMES,
 };
 
@@ -161,7 +177,8 @@ export const GRADE_REQUIREMENTS: Record<string, number> = {
   [GRADE_SYSTEM.SATURN]: 630,
   [GRADE_SYSTEM.SUN]: 720,
   [GRADE_SYSTEM.CRESCENT]: 9999, // 예외 등급 (수동 부여)
-  [GRADE_SYSTEM.GALAXY]: 999 // 평가자 등급 (수동 부여)
+  [GRADE_SYSTEM.GALAXY]: 999, // 평가자 등급 (수동 부여)
+  [GRADE_SYSTEM.STAR]: 9999, // 별 — 점수·승급과 무관 (수동 부여)
 };
 
 // 역할 시스템 정의
@@ -264,7 +281,10 @@ export const isAdminUser = (user: any): user is AdminUser => {
 };
 
 export const isValidGrade = (grade: string): boolean => {
-  return GRADE_ORDER.includes(grade as any);
+  return (
+    GRADE_ORDER.includes(grade as (typeof GRADE_ORDER)[number]) ||
+    isStandaloneGrade(grade)
+  );
 };
 
 export const isValidRole = (role: string): boolean => {

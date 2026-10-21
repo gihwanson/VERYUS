@@ -32,6 +32,14 @@ import {
   tryResolveExpiredMemberRound,
   type MemberVotesMap,
 } from '../utils/evaluationMemberRound';
+import {
+  GRADE_BATTLE_CATEGORY,
+  GRADE_BATTLE_STATUS_ASSIGNED,
+  GRADE_BATTLE_STATUS_PENDING_ASSIGN,
+  ensureGradeBattleEndsAt,
+  formatGradeBattleDday,
+  tryResolveExpiredGradeBattle,
+} from '../utils/evaluationGradeBattle';
 import { 
   Plus, 
   Heart, 
@@ -67,6 +75,7 @@ interface EvaluationPost {
   lastCommentAt?: any;
   memberVotes?: MemberVotesMap;
   memberRoundEndsAt?: any;
+  gradeBattleEndsAt?: any;
 }
 
 interface User {
@@ -100,6 +109,8 @@ const getCreatedAtMs = (value: any): number => {
 
 const getEvaluationStatusBadgeClass = (post: Pick<EvaluationPost, 'category' | 'status'>): string => {
   if (post.category === 'feedback') return 'feedback';
+  if (post.status === GRADE_BATTLE_STATUS_PENDING_ASSIGN) return 'first-pass';
+  if (post.status === GRADE_BATTLE_STATUS_ASSIGNED) return 'approved';
   if (post.status === MEMBER_FIRST_PASS_STATUS) return 'first-pass';
   if (post.status === '합격' || post.status === '유지') return 'approved';
   if (post.status === '불합격' || post.status === '삭제') return 'rejected';
@@ -111,22 +122,29 @@ const getEvaluationStatusLabel = (
   fallback = '대기'
 ): string => {
   if (post.category === 'feedback') return '피드백';
+  if (post.status === GRADE_BATTLE_STATUS_PENDING_ASSIGN) return GRADE_BATTLE_STATUS_PENDING_ASSIGN;
+  if (post.status === GRADE_BATTLE_STATUS_ASSIGNED) return GRADE_BATTLE_STATUS_ASSIGNED;
   if (post.status === MEMBER_FIRST_PASS_STATUS) return '1차합격 / 너래평가대기';
   return post.status || fallback;
 };
 
 const getEvaluationCategoryLabel = (category: string): string => {
   if (category === 'busking') return '버스킹심사곡';
+  if (category === GRADE_BATTLE_CATEGORY) return '등급전';
   if (category === 'rejudge') return '재심사';
   if (category === 'feedback') return '피드백요청';
   return '평가';
 };
 
 const isJudgedCompletedStatus = (status?: string): boolean =>
-  status === '합격' || status === '불합격' || status === '유지' || status === '삭제';
+  status === '합격' ||
+  status === '불합격' ||
+  status === '유지' ||
+  status === '삭제' ||
+  status === GRADE_BATTLE_STATUS_ASSIGNED;
 
 const isJudgedCategory = (category: string): boolean =>
-  category === 'busking' || category === 'rejudge';
+  category === 'busking' || category === 'rejudge' || category === GRADE_BATTLE_CATEGORY;
 
 const getEvaluationPostCardClass = (post: Pick<EvaluationPost, 'category' | 'status'>): string =>
   `post-card post-card--eval-${getEvaluationStatusBadgeClass(post)}`;
@@ -240,6 +258,28 @@ const EvaluationPostList: React.FC = () => {
         })
       );
 
+      await Promise.all(
+        rawPosts.map(async (post) => {
+          if (post.category !== GRADE_BATTLE_CATEGORY || (post.status && post.status !== '대기')) {
+            return;
+          }
+          try {
+            if (!post.gradeBattleEndsAt) {
+              const endsAt = await ensureGradeBattleEndsAt(post);
+              if (endsAt) post.gradeBattleEndsAt = endsAt;
+              return;
+            }
+            const nextStatus = await tryResolveExpiredGradeBattle(post);
+            if (nextStatus) {
+              post.status = nextStatus;
+              post.statusUpdatedAt = new Date();
+            }
+          } catch (err) {
+            console.warn('등급전 마감 처리 실패:', post.id, err);
+          }
+        })
+      );
+
       // lastCommentAt 누락된 피드백 게시글은 최신 댓글 기준으로 보정
       const needsLastCommentAt = rawPosts.filter(
         post => post.category === 'feedback' && post.commentCount > 0 && !post.lastCommentAt
@@ -335,7 +375,8 @@ const EvaluationPostList: React.FC = () => {
             return (
               !post.status ||
               post.status === '대기' ||
-              post.status === MEMBER_FIRST_PASS_STATUS
+              post.status === MEMBER_FIRST_PASS_STATUS ||
+              post.status === GRADE_BATTLE_STATUS_PENDING_ASSIGN
             );
           });
 
@@ -810,6 +851,11 @@ const EvaluationPostList: React.FC = () => {
                 {formatMemberRoundDday(post) && (
                   <span className="post-status-badge member-round-dday" style={{ marginLeft: 6 }}>
                     {formatMemberRoundDday(post)}
+                  </span>
+                )}
+                {formatGradeBattleDday(post) && (
+                  <span className="post-status-badge member-round-dday" style={{ marginLeft: 6 }}>
+                    {formatGradeBattleDday(post)}
                   </span>
                 )}
                 <div className="eval-song-heading">

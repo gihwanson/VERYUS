@@ -8,6 +8,10 @@ import { startOfWeek, endOfWeek, format as formatDate } from 'date-fns';
 import '../styles/EvaluationPostWrite.css';
 import { formatAttachmentSize, rejectBoardAttachmentIfTooLarge } from '../utils/boardAttachmentLimits';
 import { computeMemberRoundEndsAt } from '../utils/evaluationMemberRound';
+import {
+  GRADE_BATTLE_CATEGORY,
+  computeGradeBattleEndsAt,
+} from '../utils/evaluationGradeBattle';
 import EvaluationWriteNoticeModal, { isEvalWriteNoticeHidden } from './EvaluationWriteNoticeModal';
 import NicknameSuggestInput, {
   findInvalidMemberNicknames,
@@ -45,6 +49,7 @@ const EvaluationPostWrite: React.FC = () => {
 
   const categoryOptions = [
     { id: 'busking', name: '버스킹심사곡' },
+    { id: 'gradeBattle', name: '등급전' },
     { id: 'rejudge', name: '재심사' },
     { id: 'feedback', name: '피드백요청' }
   ];
@@ -341,6 +346,9 @@ const EvaluationPostWrite: React.FC = () => {
         writerPosition: writerPosition || '',
         createdAt: serverTimestamp(),
         ...(category === 'busking' ? { memberRoundEndsAt: computeMemberRoundEndsAt() } : {}),
+        ...(category === GRADE_BATTLE_CATEGORY
+          ? { gradeBattleEndsAt: computeGradeBattleEndsAt() }
+          : {}),
         audioUrl: audioDownloadUrl,
         duration,
         fileName: fileName || '',
@@ -382,6 +390,8 @@ const EvaluationPostWrite: React.FC = () => {
         });
         
         alert(`버스킹심사곡이 업로드되었습니다!\n\n이번 주 업로드: ${thisWeekPosts.length}/${effectiveLimit}곡`);
+      } else if (category === GRADE_BATTLE_CATEGORY) {
+        alert('등급전 글이 업로드되었습니다!\n\n3일간 멤버 채점 후 등급 부여 대기 상태가 됩니다.');
       } else if (category === 'rejudge') {
         alert('재심사 글이 업로드되었습니다!');
       } else {

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ModalPortal from './ModalPortal';
 import { Crown, Shield, User, Users, Activity, X, Edit3, AlertCircle, MessageSquare, Heart, FileText, Clock, TrendingUp, History, Eye, Search, Filter, Award, Plus, Target, Mail, Send, Trash2 } from 'lucide-react';
 import type { AdminUser, UserActivity, ActivityStats, UserActivitySummary, AdminLog, AdminAction, LogStats, ExtendedUserStats, UserAnalytics, BulkAction, Notification, NotificationType, NotificationTemplate, NotificationStats, NotificationTarget } from './AdminTypes';
-import { NOTIFICATION_TYPE_LABELS, NOTIFICATION_TYPE_COLORS, ADMIN_ACTION_LABELS, ADMIN_ACTION_COLORS, ROLE_SYSTEM, ROLE_OPTIONS, GRADE_ORDER, GRADE_NAMES } from './AdminTypes';
+import { NOTIFICATION_TYPE_LABELS, NOTIFICATION_TYPE_COLORS, ADMIN_ACTION_LABELS, ADMIN_ACTION_COLORS, ROLE_SYSTEM, ROLE_OPTIONS, GRADE_NAMES, GRADES_FOR_ADMIN_SELECT } from './AdminTypes';
 import { formatDate, getGradeDisplay, calculateActivityDays, createRoleDisplay, createRoleIcon, getUserStatus, createStatusDisplay, getSuspensionTimeLeft, getActivityIcon, formatActivityTime, getActivityLevel, getLogActionIcon, formatLogTime, calculateStats, calculateActivityScore, calculateActivityStats, changeUserStatus, isUserSuspended, executeBulkAction, generateUserAnalytics, logAdminAction, fetchAdminLogs, calculateLogStats, getNotificationTypeIcon, getNotificationStatusDisplay, getDefaultTemplates, createNotificationTargets, fetchNotificationTemplates, toggleAllTargets } from './AdminUtils';
 import { Timestamp } from 'firebase/firestore';
 import GlobalLoadingScreen from './GlobalLoadingScreen';
@@ -187,9 +187,9 @@ export const UserCard: React.FC<UserCardProps> = ({
               onChange={(e) => onEditChange('grade', e.target.value)}
             >
               {(
-                (GRADE_ORDER as readonly string[]).includes(editingUser.grade)
-                  ? GRADE_ORDER
-                  : [editingUser.grade, ...GRADE_ORDER]
+                (GRADES_FOR_ADMIN_SELECT as readonly string[]).includes(editingUser.grade)
+                  ? GRADES_FOR_ADMIN_SELECT
+                  : [editingUser.grade, ...GRADES_FOR_ADMIN_SELECT]
               ).map((grade) => (
                 <option key={grade} value={grade}>
                   {grade} {GRADE_NAMES[grade] || grade}
