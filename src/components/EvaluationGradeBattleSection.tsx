@@ -57,6 +57,7 @@ const EvaluationGradeBattleSection: React.FC<Props> = ({
   const [commentInput, setCommentInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [submitAck, setSubmitAck] = useState<'created' | 'updated' | null>(null);
   const [evaluatorGradeByNickname, setEvaluatorGradeByNickname] = useState<Record<string, string>>({});
   const [selectedGrade, setSelectedGrade] = useState('');
   const [assigning, setAssigning] = useState(false);
@@ -115,9 +116,24 @@ const EvaluationGradeBattleSection: React.FC<Props> = ({
       : '';
 
   const myExisting = useMemo(
-    () => (user ? grades.find((g) => g.evaluator === user.nickname) : undefined),
-    [grades, user]
+    () =>
+      user
+        ? grades.find((g) => g.evaluator === user.nickname && g.target === targetNickname)
+        : undefined,
+    [grades, user, targetNickname]
   );
+
+  /** 너래 전용: 해당 글 작성자에 대한 멤버 채점·코멘트 */
+  const memberSubmissionsForNerae = useMemo(() => {
+    return grades
+      .filter((g) => g.target === targetNickname)
+      .map((g) => ({
+        evaluator: String(g.evaluator || '익명').trim() || '익명',
+        score: Number(g.score),
+        comment: String(g.comment || '').trim(),
+      }))
+      .sort((a, b) => a.evaluator.localeCompare(b.evaluator, 'ko'));
+  }, [grades, targetNickname]);
 
   useEffect(() => {
     if (myExisting) {
@@ -125,6 +141,20 @@ const EvaluationGradeBattleSection: React.FC<Props> = ({
       setCommentInput(String(myExisting.comment ?? ''));
     }
   }, [myExisting?.evaluator, myExisting?.score, myExisting?.comment]);
+
+  const hasSubmittedScore = Boolean(myExisting);
+  const savedScore = myExisting ? Number(myExisting.score) : NaN;
+  const savedComment = String(myExisting?.comment ?? '').trim();
+  const isScoreDirty =
+    hasSubmittedScore &&
+    (scoreInput !== String(myExisting?.score ?? '') ||
+      commentInput.trim() !== savedComment);
+
+  useEffect(() => {
+    if (!submitAck) return;
+    const t = window.setTimeout(() => setSubmitAck(null), 5000);
+    return () => window.clearTimeout(t);
+  }, [submitAck]);
 
   const handleSubmitScore = async () => {
     if (!user || !post.id) return;
@@ -161,16 +191,14 @@ const EvaluationGradeBattleSection: React.FC<Props> = ({
         comment: commentInput.trim(),
       };
       if (!snap.empty) {
-        if (user.nickname !== '너래') {
-          setError('이미 채점을 제출했습니다.');
-          return;
-        }
         await updateDoc(snap.docs[0].ref, { ...payload, updatedAt: new Date() });
+        setSubmitAck('updated');
       } else {
         await addDoc(gradeBattleScoresCollection(post.id), {
           ...payload,
           createdAt: new Date(),
         });
+        setSubmitAck('created');
       }
     } catch (e) {
       console.error(e);
@@ -265,6 +293,53 @@ const EvaluationGradeBattleSection: React.FC<Props> = ({
 
       {scoringOpen && user && !isAuthor && (
         <div style={{ maxWidth: 420, margin: '0 auto' }}>
+          {hasSubmittedScore && Number.isFinite(savedScore) && (
+            <div
+              style={{
+                marginBottom: 14,
+                padding: '12px 14px',
+                borderRadius: 10,
+                background: '#ECFDF5',
+                border: '1px solid #A7F3D0',
+                color: '#047857',
+              }}
+            >
+              <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 4 }}>✅ 채점 제출 완료</div>
+              <div style={{ fontSize: 14 }}>
+                제출 점수: <strong>{savedScore}점</strong>
+                {getContestGradeFromScore(savedScore) && (
+                  <span style={{ marginLeft: 6, color: '#6D28D9' }}>
+                    ({getContestGradeFromScore(savedScore)})
+                  </span>
+                )}
+              </div>
+              {savedComment ? (
+                <div style={{ fontSize: 13, marginTop: 6, color: '#065F46' }}>코멘트: {savedComment}</div>
+              ) : null}
+              <div style={{ fontSize: 12, marginTop: 8, color: '#059669' }}>
+                {isScoreDirty
+                  ? '입력을 변경했습니다. 아래 「수정 저장」을 눌러 반영해 주세요.'
+                  : '점수·코멘트를 바꾼 뒤 「수정 저장」으로 다시 제출할 수 있습니다.'}
+              </div>
+            </div>
+          )}
+          {submitAck && (
+            <div
+              style={{
+                marginBottom: 12,
+                padding: '10px 12px',
+                borderRadius: 8,
+                background: '#F0FDF4',
+                border: '1px solid #86EFAC',
+                color: '#166534',
+                fontWeight: 700,
+                fontSize: 14,
+                textAlign: 'center',
+              }}
+            >
+              {submitAck === 'created' ? '채점이 제출되었습니다.' : '수정 내용이 저장되었습니다.'}
+            </div>
+          )}
           <label style={{ fontWeight: 600, display: 'block', marginBottom: 6 }}>점수 (0~100)</label>
           <input
             type="number"
@@ -288,23 +363,30 @@ const EvaluationGradeBattleSection: React.FC<Props> = ({
           {error && <div style={{ color: '#DC2626', marginTop: 8, fontSize: 14 }}>{error}</div>}
           <button
             type="button"
-            disabled={submitting || (requireFullListen && !hasFullyListened)}
+            disabled={
+              submitting || (requireFullListen && !hasFullyListened) || (hasSubmittedScore && !isScoreDirty)
+            }
             onClick={() => void handleSubmitScore()}
             style={{
               marginTop: 12,
               width: '100%',
               padding: '12px 16px',
               borderRadius: 10,
-              border: 'none',
-              background: '#8B5CF6',
-              color: '#fff',
+              border: hasSubmittedScore ? '2px solid #8B5CF6' : 'none',
+              background: hasSubmittedScore ? '#fff' : '#8B5CF6',
+              color: hasSubmittedScore ? '#6D28D9' : '#fff',
               fontWeight: 700,
               cursor: submitting ? 'wait' : 'pointer',
-              opacity: requireFullListen && !hasFullyListened ? 0.6 : 1,
+              opacity: requireFullListen && !hasFullyListened ? 0.6 : hasSubmittedScore && !isScoreDirty ? 0.55 : 1,
             }}
           >
-            {myExisting ? '채점 수정 제출' : '채점 제출'}
+            {!hasSubmittedScore ? '채점 제출' : isScoreDirty ? '수정 저장' : '제출 완료됨'}
           </button>
+          {hasSubmittedScore && !isScoreDirty && (
+            <p style={{ fontSize: 12, color: '#64748B', textAlign: 'center', marginTop: 8 }}>
+              이미 제출된 채점입니다. 변경 후에만 다시 저장할 수 있습니다.
+            </p>
+          )}
           {requireFullListen && !hasFullyListened && (
             <p style={{ fontSize: 13, color: '#64748B', textAlign: 'center', marginTop: 8, lineHeight: 1.5 }}>
               녹음 파일을 절반 이상(실제 재생 시간 기준) 들어야 채점할 수 있습니다. 원하는 구간으로 이동해 들을 수
@@ -445,6 +527,59 @@ const EvaluationGradeBattleSection: React.FC<Props> = ({
         <p style={{ textAlign: 'center', color: '#64748B', fontSize: 14, marginTop: 8 }}>
           채점이 마감되었습니다. 너래 등급 부여를 기다려 주세요.
         </p>
+      )}
+
+      {isNerae && memberSubmissionsForNerae.length > 0 && (
+        <div
+          style={{
+            marginTop: 16,
+            padding: 14,
+            borderRadius: 12,
+            background: '#FFFBEB',
+            border: '1px solid #FDE68A',
+          }}
+        >
+          <div style={{ fontWeight: 800, fontSize: 14, color: '#92400E', marginBottom: 10 }}>
+            멤버 채점·코멘트 (너래만 표시)
+          </div>
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {memberSubmissionsForNerae.map((row) => {
+              const scoreLabel = Number.isFinite(row.score) ? `${row.score}점` : '—';
+              const gradeHint =
+                Number.isFinite(row.score) && row.score >= 0 && row.score <= 100
+                  ? getContestGradeFromScore(row.score)
+                  : '';
+              return (
+                <li
+                  key={row.evaluator}
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: 8,
+                    background: '#fff',
+                    border: '1px solid #FEF3C7',
+                  }}
+                >
+                  <div style={{ fontWeight: 700, color: '#334155', fontSize: 14 }}>
+                    {row.evaluator}
+                    <span style={{ marginLeft: 8, color: '#6D28D9' }}>{scoreLabel}</span>
+                    {gradeHint ? (
+                      <span style={{ marginLeft: 6, fontWeight: 600, fontSize: 13, color: '#7C3AED' }}>
+                        {gradeHint}
+                      </span>
+                    ) : null}
+                  </div>
+                  {row.comment ? (
+                    <div style={{ marginTop: 6, fontSize: 13, color: '#475569', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                      {row.comment}
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: 4, fontSize: 12, color: '#94A3B8' }}>코멘트 없음</div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
     </div>
   );

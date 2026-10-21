@@ -10,6 +10,22 @@ export interface MemberWorldCupQuestion {
   id: string;
   text: string;
   order: number;
+  /** 멤버 제안 → 너래 「내일 반영」으로 큐에 들어간 경우 */
+  sourceProposalId?: string | null;
+}
+
+export const MEMBER_WORLD_CUP_PROPOSED_QUESTION_PREFIX = '제안된 질문: ';
+
+/** 멤버에게 보이는 질문 문구 (제안 채택 시 접두어) */
+export function formatMemberWorldCupQuestionDisplay(question: {
+  text: string;
+  sourceProposalId?: string | null;
+}): string {
+  const text = question.text.trim();
+  if (!text) return text;
+  if (!question.sourceProposalId) return text;
+  if (text.startsWith(MEMBER_WORLD_CUP_PROPOSED_QUESTION_PREFIX)) return text;
+  return `${MEMBER_WORLD_CUP_PROPOSED_QUESTION_PREFIX}${text}`;
 }
 
 export type MemberWorldCupQuestionDefinition = Omit<MemberWorldCupQuestion, 'order'> & {
@@ -67,7 +83,14 @@ export function resolveActiveMemberWorldCupQuestions(
   const todayQuestion = sorted[dayIndex];
   if (!todayQuestion) return [];
 
-  return [{ id: todayQuestion.id, text: todayQuestion.text, order: 1 }];
+  return [
+    {
+      id: todayQuestion.id,
+      text: todayQuestion.text,
+      order: 1,
+      sourceProposalId: todayQuestion.sourceProposalId ?? null,
+    },
+  ];
 }
 
 export function sortScheduledQuestions(
@@ -95,7 +118,12 @@ export function findMemberWorldCupQuestionById(
 ): MemberWorldCupQuestion | undefined {
   const item = scheduledQuestions.find((question) => question.id === id);
   if (!item) return undefined;
-  return { id: item.id, text: item.text, order: 0 };
+  return {
+    id: item.id,
+    text: item.text,
+    order: 0,
+    sourceProposalId: item.sourceProposalId ?? null,
+  };
 }
 
 export function isActiveMemberWorldCupQuestionId(

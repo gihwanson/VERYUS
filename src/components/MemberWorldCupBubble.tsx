@@ -49,6 +49,7 @@ import {
   MEMBER_WORLD_CUP_DAILY_RESET_NOTICE,
   MEMBER_WORLD_CUP_QUESTION_PROPOSAL_ANON_NOTICE,
   formatDayKeyLabel,
+  formatMemberWorldCupQuestionDisplay,
   formatQuestionScheduleLabel,
   getScheduledDayKeyForOrder,
   getUpcomingScheduledQuestions,
@@ -193,6 +194,7 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
   const [pastResultQuestion, setPastResultQuestion] = useState<{
     id: string;
     text: string;
+    sourceProposalId?: string | null;
     scheduleLabel: string;
     scheduleDayKey: string;
   } | null>(null);
@@ -354,7 +356,7 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
 
   const bubblePreview = useMemo(() => {
     if (!currentQuestion) return '오늘 질문 준비 중…';
-    const text = currentQuestion.text.replace(/^베리어스 내\s?/, '');
+    const text = formatMemberWorldCupQuestionDisplay(currentQuestion).replace(/^베리어스 내\s?/, '');
     return text.length > 28 ? `${text.slice(0, 28)}…` : text;
   }, [currentQuestion]);
 
@@ -790,6 +792,7 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
   const openPastQuestionResults = async (question: {
     id: string;
     text: string;
+    sourceProposalId?: string | null;
     scheduleLabel: string;
     scheduleDayKey: string;
   }) => {
@@ -1019,7 +1022,9 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
 
           <div className="mwc-modal__question-card">
             <span className="mwc-modal__question-num">오늘</span>
-            <p className="mwc-modal__question">{currentQuestion.text}</p>
+            <p className="mwc-modal__question">
+              {formatMemberWorldCupQuestionDisplay(currentQuestion)}
+            </p>
             {hasVotedCurrent && showResultsPanel && (
               <span className="mwc-modal__status-pill">
                 <Check size={11} aria-hidden />
@@ -1208,21 +1213,21 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
                   </p>
                 ) : (
                   <>
-                <button
-                  type="button"
-                  className="mwc-modal__submit-vote"
-                  disabled={
-                    submitting ||
-                    customNicknameInvalid ||
-                    (selectedUids.length === 0 && filledCustomCount === 0)
-                  }
-                  onClick={() => void handleSubmitVote()}
-                >
-                  {submitting ? '제출 중…' : '🔒 익명 제출하기'}
-                </button>
-                <span className="mwc-modal__result-hint">
-                  1~{MAX_WORLD_CUP_SELECTIONS}명 선택 · 제출 후 오늘은 수정 불가
-                </span>
+                    <button
+                      type="button"
+                      className="mwc-modal__submit-vote"
+                      disabled={
+                        submitting ||
+                        customNicknameInvalid ||
+                        (selectedUids.length === 0 && filledCustomCount === 0)
+                      }
+                      onClick={() => void handleSubmitVote()}
+                    >
+                      {submitting ? '제출 중…' : '🔒 익명 제출하기'}
+                    </button>
+                    <span className="mwc-modal__result-hint">
+                      1~{MAX_WORLD_CUP_SELECTIONS}명 선택 · 제출 후 오늘은 수정 불가
+                    </span>
                   </>
                 )}
               </div>
@@ -1326,7 +1331,7 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
         <div className="mwc-reveal-modal__question-bar">
           <div className="mwc-reveal-modal__question-text">
             <span className="mwc-modal__question-num">오늘 · {dayLabel}</span>
-            <p>{revealQuestion.text}</p>
+            <p>{formatMemberWorldCupQuestionDisplay(revealQuestion)}</p>
           </div>
         </div>
 
@@ -1557,7 +1562,9 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
                         {queueGroups.todayItem.scheduleLabel} ·{' '}
                         {formatDayKeyLabel(queueGroups.todayItem.scheduleDayKey)}
                       </span>
-                      <p className="mwc-picker__queue-text">{queueGroups.todayItem.text}</p>
+                      <p className="mwc-picker__queue-text">
+                        {formatMemberWorldCupQuestionDisplay(queueGroups.todayItem)}
+                      </p>
                     </div>
                     <span className="mwc-picker__queue-badge">오늘 노출</span>
                   </div>
@@ -1578,8 +1585,11 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
                           <span className="mwc-picker__queue-label">
                             {question.scheduleLabel} · {formatDayKeyLabel(question.scheduleDayKey)}
                           </span>
-                          <p className="mwc-picker__queue-text" title={question.text}>
-                            {question.text}
+                          <p
+                            className="mwc-picker__queue-text"
+                            title={formatMemberWorldCupQuestionDisplay(question)}
+                          >
+                            {formatMemberWorldCupQuestionDisplay(question)}
                           </p>
                         </div>
                       </div>
@@ -1609,9 +1619,9 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
                           </div>
                           <p
                             className="mwc-picker__queue-text mwc-picker__queue-text--compact"
-                            title={question.text}
+                            title={formatMemberWorldCupQuestionDisplay(question)}
                           >
-                            {question.text}
+                            {formatMemberWorldCupQuestionDisplay(question)}
                           </p>
                           <span
                             className={`mwc-picker__queue-badge mwc-picker__queue-badge--past${
@@ -1678,7 +1688,7 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
 
         <div className="mwc-reveal-modal__question-bar">
           <div className="mwc-reveal-modal__question-text">
-            <p>{pastResultQuestion.text}</p>
+            <p>{formatMemberWorldCupQuestionDisplay(pastResultQuestion)}</p>
           </div>
         </div>
 
@@ -1829,9 +1839,9 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
                     </div>
                     <p
                       className="mwc-picker__queue-text mwc-picker__queue-text--compact"
-                      title={question.text}
+                      title={formatMemberWorldCupQuestionDisplay(question)}
                     >
-                      {question.text}
+                      {formatMemberWorldCupQuestionDisplay(question)}
                     </p>
                     <span
                       className={`mwc-picker__queue-badge mwc-picker__queue-badge--past${

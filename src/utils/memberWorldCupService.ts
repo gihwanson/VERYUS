@@ -19,6 +19,7 @@ import { isTestNickname, TEST_NICKNAME_VOTE_BLOCKED_MESSAGE } from './testNickna
 import {
   MEMBER_WORLD_CUP_COLLECTION,
   MEMBER_WORLD_CUP_VOTES_COLLECTION,
+  MEMBER_WORLD_CUP_PROPOSED_QUESTION_PREFIX,
   resolveActiveMemberWorldCupQuestions,
   sortScheduledQuestions,
   getMemberWorldCupDayIndex,
@@ -126,10 +127,13 @@ export async function fetchCustomMemberWorldCupQuestions(): Promise<MemberWorldC
           ? (data.createdAt as { toMillis: () => number }).toMillis()
           : index;
 
+      const sourceProposalId = data.sourceProposalId ? String(data.sourceProposalId) : null;
+
       items.push({
         id: docSnap.id,
         text,
         scheduleOrder: parseScheduleOrder(data, 0) || undefined,
+        sourceProposalId,
         createdAtMs,
       });
     });
@@ -146,10 +150,16 @@ export async function fetchCustomMemberWorldCupQuestions(): Promise<MemberWorldC
       id: item.id,
       text: item.text,
       scheduleOrder: nextOrder++,
+      sourceProposalId: item.sourceProposalId ?? null,
     }));
 
     return sortScheduledQuestions([
-      ...withOrder.map(({ id, text, scheduleOrder }) => ({ id, text, scheduleOrder })),
+      ...withOrder.map(({ id, text, scheduleOrder, sourceProposalId }) => ({
+        id,
+        text,
+        scheduleOrder,
+        sourceProposalId: sourceProposalId ?? null,
+      })),
       ...normalizedWithoutOrder,
     ]);
   } catch (error) {
@@ -848,10 +858,13 @@ export async function approveMemberWorldCupProposalForNextDay(
     throw new Error('이미 처리된 제안입니다.');
   }
 
-  const text = String(proposal.text || '').trim();
-  if (!text) {
+  const rawText = String(proposal.text || '').trim();
+  if (!rawText) {
     throw new Error('질문 내용이 비어 있습니다.');
   }
+  const text = rawText.startsWith(MEMBER_WORLD_CUP_PROPOSED_QUESTION_PREFIX)
+    ? rawText
+    : `${MEMBER_WORLD_CUP_PROPOSED_QUESTION_PREFIX}${rawText}`;
 
   const activeSnap = await getDocs(
     query(
