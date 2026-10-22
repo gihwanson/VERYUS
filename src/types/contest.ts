@@ -1,5 +1,9 @@
 export type ContestType = '정규등급전' | '세미등급전' | '경연' | '라운드매치';
 
+export function contestTypeLabel(type: string): string {
+  return type === '경연' ? '등급전' : type;
+}
+
 export type RoundStatus = 'voting' | 'closed' | 'published';
 
 export type RoundWinner = 'A' | 'B' | 'draw';

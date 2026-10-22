@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { doc, getDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
-import type { RoundDoc, RoundVote } from '../types/contest';
+import { contestTypeLabel, type RoundDoc, type RoundVote } from '../types/contest';
 import { getContestGradeFromScore } from '../utils/contestGrade';
+import { formatContestStageInline, formatContestStageLines } from '../utils/contestStage';
 import type { ClusterMeanBreakdown, ContestScoreBinScoreEntry } from '../utils/contestScoreAggregation';
 import {
   buildContestAggregationContext,
@@ -220,80 +221,49 @@ const ContestResults: React.FC = () => {
     return parts.length > 1 ? parts.slice(1).join(' ') : full;
   };
 
+  const nicknameOfUid = (uid: string) => {
+    const evalTarget = evaluationTargets.find((et) => et.uid === uid);
+    if (evalTarget?.nickname) return evalTarget.nickname;
+    const solo = participants.find((p) => p.uid === uid);
+    if (solo?.nickname) return solo.nickname;
+    if (uid.startsWith('target_') || uid.startsWith('custom_')) {
+      const parts = uid.split('_');
+      if (parts.length >= 2) return parts[1];
+    }
+    return `참가자_${uid.slice(-4)}`;
+  };
+
   // 피평가자 표시 함수
   const getTargetDisplay = (target: string) => {
     const team = teams.find(t => t.id === target);
     if (team) {
-      // 팀: 멤버들의 닉네임을 evaluationTargets에서 먼저 찾기
-      const memberNames = Array.isArray(team.members) ? team.members.map((uid: string) => {
-        // 1순위: evaluationTargets에서 찾기 (참가자 관리에서 설정한 닉네임)
-        const evalTarget = evaluationTargets.find(et => et.uid === uid);
-        if (evalTarget && evalTarget.nickname) {
-          return evalTarget.nickname;
-        }
-        
-        // 2순위: participants에서 찾기
-        const p = participants.find(pp => pp.uid === uid);
-        if (p && p.nickname) {
-          return p.nickname;
-        }
-        
-        // 3순위: uid에서 닉네임 추출 시도 (target_닉네임_... 또는 custom_닉네임_... 형태)
-        if (uid.startsWith('target_')) {
-          const parts = uid.split('_');
-          if (parts.length >= 2) {
-            return parts[1]; // target_닉네임_...에서 닉네임 부분
-          }
-        }
-        if (uid.startsWith('custom_')) {
-          const parts = uid.split('_');
-          if (parts.length >= 2) {
-            return parts[1]; // custom_닉네임_timestamp_random에서 닉네임 부분
-          }
-        }
-        
-        // 최후의 수단으로 uid 표시 (하지만 더 읽기 쉽게)
-        return `참가자_${uid.slice(-4)}`;
-      }).join(' & ') : '';
+      const inline = formatContestStageInline(team, nicknameOfUid);
+      if (inline) return inline;
+      const memberNames = Array.isArray(team.members)
+        ? team.members.map((uid: string) => nicknameOfUid(uid)).join(' & ')
+        : '';
       return memberNames || `팀 (${team.members?.length || 0}명)`;
     }
-    
-    // 솔로: evaluationTargets에서 먼저 찾기
-    const evalTarget = evaluationTargets.find(et => et.uid === target);
-    if (evalTarget && evalTarget.nickname) {
-      return evalTarget.nickname;
-    }
-    
-    // participants에서 찾기
-    const solo = participants.find(p => p.uid === target);
-    if (solo && solo.nickname) {
-      return solo.nickname;
-    }
-    
-    // uid에서 닉네임 추출 시도
-    if (target.startsWith('target_')) {
-      const parts = target.split('_');
-      if (parts.length >= 2) {
-        return parts[1];
-      }
-    }
-    if (target.startsWith('custom_')) {
-      const parts = target.split('_');
-      if (parts.length >= 2) {
-        return parts[1];
-      }
-    }
-    
-    return `참가자_${target.slice(-4)}`;
+
+    return nicknameOfUid(target);
+  };
+
+  const getStageLines = (target: string) => {
+    const team = teams.find((item) => item.id === target);
+    if (!team) return null;
+    return formatContestStageLines(team, nicknameOfUid);
   };
 
   const buildSortedParticipantRows = (ctx: ContestAggregationContext) =>
     Object.entries(ctx.byTarget)
       .map(([target, data]) => {
         const avg = data.overallMean ?? 0;
+        const stageLines = getStageLines(target);
         return {
           target,
-          display: getTargetDisplay(target),
+          display: stageLines?.title || getTargetDisplay(target),
+          support: stageLines?.support || '',
+          bothMains: Boolean(stageLines?.bothMains),
           avg,
           clusterAvg: data.clusterMean,
           count: data.rawVoteCount,
@@ -309,6 +279,8 @@ const ContestResults: React.FC = () => {
   type ParticipantRankRow = {
     target: string;
     display: string;
+    support: string;
+    bothMains: boolean;
     avg: number;
     clusterAvg: number | null;
     count: number;
@@ -423,6 +395,9 @@ const ContestResults: React.FC = () => {
                 </span>
                 <div className="contest-results-rank-card-identity">
                   <div className="contest-results-rank-card-name">{row.display}</div>
+                  {row.support && (
+                    <div className={row.bothMains ? 'contest-results-rank-card-support contest-results-rank-card-support--main' : 'contest-results-rank-card-support'}>{row.support}</div>
+                  )}
                   <div className="contest-results-rank-card-meta">
                     평가 {row.count}표 · 유효 가중 {row.effectiveWeight}
                   </div>
@@ -474,7 +449,12 @@ const ContestResults: React.FC = () => {
               return (
                 <tr key={row.target} className={rankRowClass(rank)}>
                   <td className="contest-results-rank-num">{rankEmojiFor(rank)}</td>
-                  <td className="contest-results-rank-name">{row.display}</td>
+                  <td className="contest-results-rank-name">
+                    <div>{row.display}</div>
+                    {row.support && (
+                      <div className={row.bothMains ? 'contest-results-rank-support contest-results-rank-support--main' : 'contest-results-rank-support'}>{row.support}</div>
+                    )}
+                  </td>
                   <td>
                     <ScoreSummaryCell
                       mean={row.avg}
@@ -561,7 +541,10 @@ const ContestResults: React.FC = () => {
               open={rowIndex === 0}
             >
               <summary className="contest-results-cluster-summary">
-                <span className="contest-results-cluster-summary-name">{row.display}</span>
+                <span className="contest-results-cluster-summary-name">
+                  {row.display}
+                  {row.support ? ` · ${row.support}` : ''}
+                </span>
                 <span className="contest-results-cluster-summary-mean">
                   중심 평균{' '}
                   <strong>
@@ -778,7 +761,7 @@ const ContestResults: React.FC = () => {
             {contest.title} 결과
           </div>
           <div className="contest-results-subtitle" style={{ marginBottom: 12, fontSize: 18 }}>
-            {contest.type}
+            {contestTypeLabel(contest.type)}
           </div>
           <div className="contest-results-subtitle">
             📅 마감: {contest.deadline && (contest.deadline.seconds ? new Date(contest.deadline.seconds * 1000).toLocaleDateString('ko-KR') : '')}

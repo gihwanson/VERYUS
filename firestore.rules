@@ -432,12 +432,11 @@ service cloud.firestore {
         allow create: if signedIn() && (
           isNeraeOrLeader() ||
           (
-            isContestTypeAutoJoin(contestId) &&
+            isParticipantSelfWrite(docId) &&
             (
-              !contestDoc(contestId).isStarted ||
-              (contestDoc(contestId).isStarted && isNeraeOrLeader())
-            ) &&
-            isParticipantSelfWrite(docId)
+              contestDoc(contestId).isStarted ||
+              isContestTypeAutoJoin(contestId)
+            )
           )
         );
         allow update, delete: if isNeraeOrLeader();

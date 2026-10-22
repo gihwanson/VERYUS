@@ -286,20 +286,139 @@
   box-shadow: 0 6px 16px rgba(138, 85, 204, 0.4);
 }
 
-.contest-ui-refresh .contest-targets-cancel-btn {
-  margin-top: 8px;
-  background: transparent;
-  color: #9ca3af;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  padding: 6px 16px;
+.contest-ui-refresh .contest-targets-create-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.contest-ui-refresh .contest-stage-role-label {
+  margin-bottom: 8px;
+  color: #6b21a8;
   font-size: 13px;
+  font-weight: 600;
+}
+
+.contest-ui-refresh .contest-stage-role-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+.contest-ui-refresh .contest-stage-role-btn {
+  border: 1px solid #e9d5ff;
+  background: #fff;
+  color: #6b21a8;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
+}
+
+.contest-ui-refresh .contest-stage-role-btn.active {
+  background: #8a55cc;
+  border-color: #8a55cc;
+  color: #fff;
+}
+
+.contest-ui-refresh .contest-stage-role-badge {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #6b21a8;
+  background: rgba(138, 85, 204, 0.14);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.contest-ui-refresh .contest-stage-role-badge--sub {
+  color: #c2410c;
+  background: rgba(251, 146, 60, 0.18);
+}
+
+.contest-ui-refresh .contest-stage-main-line {
+  margin-top: 4px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #8a55cc;
+  line-height: 1.4;
+}
+
+.contest-ui-refresh .contest-stage-support,
+.contest-ui-refresh .contest-results-rank-card-support,
+.contest-ui-refresh .contest-results-rank-support {
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #c2410c;
+  line-height: 1.4;
+}
+
+.contest-ui-refresh .contest-results-rank-card-support--main,
+.contest-ui-refresh .contest-results-rank-support--main {
+  color: #7c3aed;
+  font-size: 1.05rem;
+  font-weight: 700;
 }
 
 .contest-ui-refresh .contest-detail-team-button.danger {
   background: #f43f5e;
   color: #fff;
+}
+
+.contest-ui-refresh .contest-detail-participant-item {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.contest-ui-refresh .contest-pair-actions {
+  flex: 1 0 100%;
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.contest-ui-refresh .contest-pair-btn {
+  flex: 1;
+  border: 1px solid #e9d5ff;
+  background: #fff;
+  color: #6b21a8;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.contest-ui-refresh .contest-pair-btn--main {
+  background: #8a55cc;
+  border-color: #8a55cc;
+  color: #fff;
+}
+
+.contest-ui-refresh .contest-stage-switch {
+  display: inline-flex;
+  margin-top: 8px;
+  border: 1px solid #e9d5ff;
+  background: #fff;
+  color: #6b21a8;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.contest-ui-refresh .contest-detail-team-actions {
+  width: 100%;
+}
+
+.contest-ui-refresh .contest-detail-team-actions .danger {
+  margin-left: auto;
 }
 
 .contest-ui-refresh .contest-detail-participant-item.in-team {

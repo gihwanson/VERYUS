@@ -4,12 +4,13 @@ import { doc, getDoc, collection, addDoc, getDocs, query, where, onSnapshot, upd
 import { db } from '../firebase';
 import {
   canAutoJoinBeforeStart,
-  CONTEST_LATE_JOIN_MESSAGE,
   CONTEST_NOT_REGISTERED_MESSAGE,
   isRegisteredParticipant,
   registerOnParticipateClick,
 } from '../utils/contestParticipant';
 import { getContestGradeFromScore } from '../utils/contestGrade';
+import { formatContestStageLines, contestGradeTargetIds } from '../utils/contestStage';
+import { contestTypeLabel } from '../types/contest';
 import { getGradeEmoji } from '../utils/gradeDisplay';
 import ContestAccessBlock from './ContestAccessBlock';
 import RoundMatchVoteView from './roundMatch/RoundMatchVoteView';
@@ -19,6 +20,180 @@ const contestGradeEvaluatorFields = (u: { nickname: string; role: string; grade?
   evaluatorRole: u.role,
   evaluatorGrade: getGradeEmoji(u.grade),
 });
+
+function ContestGradeFields({
+  targetId,
+  personLabel,
+  gradeInputs,
+  setGradeInputs,
+  grading,
+  alreadyGraded,
+  isEditing,
+  onSubmit,
+  onEdit,
+  onCancelEdit,
+}: {
+  targetId: string;
+  personLabel?: string;
+  gradeInputs: Record<string, { score: string; comment: string }>;
+  setGradeInputs: React.Dispatch<React.SetStateAction<Record<string, { score: string; comment: string }>>>;
+  grading: Record<string, boolean>;
+  alreadyGraded: boolean;
+  isEditing: boolean;
+  onSubmit: (targetId: string) => void;
+  onEdit: (targetId: string) => void;
+  onCancelEdit: (targetId: string) => void;
+}) {
+  const score = gradeInputs[targetId]?.score || '';
+  const comment = gradeInputs[targetId]?.comment || '';
+  const scoreNumber = Number(score);
+  const hasGradeHint = score !== '' && !isNaN(scoreNumber) && scoreNumber >= 1 && scoreNumber <= 100;
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '12px 16px',
+    borderRadius: 8,
+    border: '1px solid #E5DAF5',
+    fontSize: 16,
+    boxSizing: 'border-box',
+    background: '#FAFAFA',
+    color: '#1F2937',
+  };
+
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 10,
+      width: '100%',
+      ...(personLabel ? {
+        padding: 14,
+        borderRadius: 14,
+        background: 'rgba(255, 255, 255, 0.78)',
+        border: '1px solid rgba(138, 85, 204, 0.28)',
+      } : {}),
+    }}>
+      {personLabel && (
+        <div style={{ fontWeight: 800, color: '#6B21A8', textAlign: 'center', fontSize: 16 }}>
+          메인 {personLabel}
+        </div>
+      )}
+      {alreadyGraded && !isEditing ? (
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 8,
+          padding: '18px',
+          background: 'rgba(255, 255, 255, 0.75)',
+          borderRadius: 12,
+          border: '1px solid rgba(138, 85, 204, 0.2)',
+          width: '100%',
+        }}>
+          <div style={{ color: '#6B7280', fontWeight: 600, fontSize: 16, textAlign: 'center' }}>평가 제출 완료</div>
+          {score && (
+            <div style={{ color: '#9CA3AF', fontSize: 14, textAlign: 'center' }}>
+              점수: {score}점
+              {hasGradeHint && (
+                <span style={{ marginLeft: 8, color: '#8A55CC' }}>({getContestGradeFromScore(scoreNumber)})</span>
+              )}
+            </div>
+          )}
+          {comment && (
+            <div style={{ color: '#9CA3AF', fontSize: 13, textAlign: 'center', fontStyle: 'italic' }}>"{comment}"</div>
+          )}
+          <button
+            type="button"
+            style={{
+              marginTop: 8,
+              background: 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)',
+              color: '#fff',
+              borderRadius: 12,
+              padding: '10px 16px',
+              fontWeight: 700,
+              fontSize: 15,
+              border: 'none',
+              cursor: 'pointer',
+            }}
+            onClick={() => onEdit(targetId)}
+          >
+            제출취소
+          </button>
+        </div>
+      ) : (
+        <>
+          <input
+            type="number"
+            min={0}
+            max={100}
+            placeholder="0~100 사이의 점수 입력"
+            value={score}
+            onChange={(e) => setGradeInputs((inputs) => ({
+              ...inputs,
+              [targetId]: { ...inputs[targetId], score: e.target.value },
+            }))}
+            disabled={grading[targetId]}
+            style={inputStyle}
+          />
+          {hasGradeHint && (
+            <div style={{ color: '#8A55CC', fontWeight: 600, fontSize: 14, textAlign: 'center' }}>
+              추천등급: {getContestGradeFromScore(scoreNumber)}
+            </div>
+          )}
+          <input
+            type="text"
+            placeholder="코멘트(선택)"
+            value={comment}
+            onChange={(e) => setGradeInputs((inputs) => ({
+              ...inputs,
+              [targetId]: { ...inputs[targetId], comment: e.target.value },
+            }))}
+            disabled={grading[targetId]}
+            style={inputStyle}
+          />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              type="button"
+              style={{
+                background: '#8A55CC',
+                color: '#fff',
+                borderRadius: 12,
+                padding: '14px 24px',
+                fontWeight: 600,
+                fontSize: 16,
+                border: 'none',
+                cursor: grading[targetId] ? 'not-allowed' : 'pointer',
+                boxShadow: '0 4px 12px rgba(138, 85, 204, 0.3)',
+                width: '100%',
+              }}
+              onClick={() => onSubmit(targetId)}
+              disabled={grading[targetId]}
+            >
+              {alreadyGraded ? '수정제출' : '제출'}
+            </button>
+            {alreadyGraded && (
+              <button
+                type="button"
+                style={{
+                  background: '#9CA3AF',
+                  color: '#fff',
+                  borderRadius: 12,
+                  padding: '14px 20px',
+                  fontWeight: 600,
+                  fontSize: 15,
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+                onClick={() => onCancelEdit(targetId)}
+              >
+                취소
+              </button>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 const ContestParticipate: React.FC = () => {
   const { id } = useParams();
@@ -265,42 +440,32 @@ const ContestParticipate: React.FC = () => {
     return uidOrNickname;
   }
 
-  // 팀 멤버 닉네임 추출 함수
-  const getMemberNicknames = (team: any) => {
-    return (Array.isArray(team.members) ? team.members : []).map((uidOrNickname: string) => {
-      // 평가받는 대상에서 먼저 찾기 (정확한 uid 매칭)
-      const target = uniqueEvaluationTargets.find(tt => tt.uid === uidOrNickname);
-      if (target && target.nickname) {
-        return target.nickname;
-      }
-      
-      // 평가받는 대상에서 닉네임으로도 찾기 (uid가 다른 경우 대비)
-      const targetByNickname = uniqueEvaluationTargets.find(tt => {
-        const extractedNickname = extractNickname(uidOrNickname);
-        return tt.nickname && tt.nickname.toLowerCase().trim() === extractedNickname.toLowerCase().trim();
-      });
-      if (targetByNickname && targetByNickname.nickname) {
-        return targetByNickname.nickname;
-      }
-      
-      // 참가자에서 찾기
-      const p = uniqueParticipants.find(pp => pp.uid === uidOrNickname);
-      if (p && p.nickname) {
-        return p.nickname;
-      }
-      
-      // 참가자에서 닉네임으로도 찾기
-      const pByNickname = uniqueParticipants.find(pp => {
-        const extractedNickname = extractNickname(uidOrNickname);
-        return pp.nickname && pp.nickname.toLowerCase().trim() === extractedNickname.toLowerCase().trim();
-      });
-      if (pByNickname && pByNickname.nickname) {
-        return pByNickname.nickname;
-      }
-      
-      // 모두 찾지 못한 경우 uid에서 닉네임 추출 시도
-      return extractNickname(uidOrNickname);
-    }).filter(Boolean); // 빈 값 제거
+  const nicknameOfMember = (uidOrNickname: string) => {
+    const target = uniqueEvaluationTargets.find((tt) => tt.uid === uidOrNickname);
+    if (target?.nickname) return target.nickname;
+
+    const targetByNickname = uniqueEvaluationTargets.find((tt) => {
+      const extractedNickname = extractNickname(uidOrNickname);
+      return tt.nickname && tt.nickname.toLowerCase().trim() === extractedNickname.toLowerCase().trim();
+    });
+    if (targetByNickname?.nickname) return targetByNickname.nickname;
+
+    const participant = uniqueParticipants.find((pp) => pp.uid === uidOrNickname);
+    if (participant?.nickname) return participant.nickname;
+
+    const participantByNickname = uniqueParticipants.find((pp) => {
+      const extractedNickname = extractNickname(uidOrNickname);
+      return pp.nickname && pp.nickname.toLowerCase().trim() === extractedNickname.toLowerCase().trim();
+    });
+    if (participantByNickname?.nickname) return participantByNickname.nickname;
+
+    return extractNickname(uidOrNickname);
+  };
+
+  const getMemberNicknames = (team: { members?: string[] }) => {
+    return (Array.isArray(team.members) ? team.members : [])
+      .map((uidOrNickname: string) => nicknameOfMember(uidOrNickname))
+      .filter(Boolean);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -402,22 +567,25 @@ const ContestParticipate: React.FC = () => {
       
       // 팀 평가 데이터 수집
       for (const team of teams) {
-        const input = gradeInputs[team.id];
-        if (input && input.score && !submittedTargetIds.includes(team.id)) {
-          const numScore = Number(input.score);
-          if (!isNaN(numScore) && numScore >= 0 && numScore <= 100) {
-            const isMyTeam = user && (
-              team.members.includes(user.uid) ||
-              getMemberNicknames(team).some((nick: string) =>
-                extractNickname(nick).toLowerCase().replace(/\s/g, '') === user.nickname.toLowerCase().replace(/\s/g, '')
-              )
-            );
-            if (!isMyTeam) {
-              submissionsToProcess.push({
-                target: team.id,
-                score: numScore,
-                comment: input.comment || ''
-              });
+        const targetIds = contestGradeTargetIds(team);
+        for (const targetId of targetIds) {
+          const input = gradeInputs[targetId];
+          if (input && input.score && !submittedTargetIds.includes(targetId)) {
+            const numScore = Number(input.score);
+            if (!isNaN(numScore) && numScore >= 0 && numScore <= 100) {
+              const isMyTeam = user && (
+                team.members.includes(user.uid) ||
+                getMemberNicknames(team).some((nick: string) =>
+                  extractNickname(nick).toLowerCase().replace(/\s/g, '') === user.nickname.toLowerCase().replace(/\s/g, '')
+                )
+              );
+              if (!isMyTeam) {
+                submissionsToProcess.push({
+                  target: targetId,
+                  score: numScore,
+                  comment: input.comment || ''
+                });
+              }
             }
           }
         }
@@ -521,21 +689,6 @@ const ContestParticipate: React.FC = () => {
           <div style={{ color: 'white', fontSize: '18px', fontWeight: 600 }}>콘테스트 정보를 불러오는 중...</div>
         </div>
       </div>
-    );
-  }
-
-  if (
-    id &&
-    user &&
-    contest.isStarted &&
-    !isLeader &&
-    !isContestParticipant
-  ) {
-    return (
-      <ContestAccessBlock
-        contestId={id}
-        message={CONTEST_LATE_JOIN_MESSAGE}
-      />
     );
   }
 
@@ -720,7 +873,7 @@ const ContestParticipate: React.FC = () => {
             textAlign: 'center',
             fontSize: '16px'
           }}>
-            {contest.type}
+            {contestTypeLabel(contest.type)}
           </div>
           <div style={{ 
             color: 'rgba(255, 255, 255, 0.8)', 
@@ -873,7 +1026,7 @@ const ContestParticipate: React.FC = () => {
               </form>
             ) : contest.type === '경연' ? (
               <>
-                <div style={{ color: 'white', fontWeight: 800, fontSize: 24, marginBottom: 24, textAlign: 'center', textShadow: '0 2px 8px rgba(0,0,0,0.25)' }}>경연 참가자/팀 평가</div>
+                <div style={{ color: 'white', fontWeight: 800, fontSize: 24, marginBottom: 24, textAlign: 'center', textShadow: '0 2px 8px rgba(0,0,0,0.25)' }}>등급전 평가</div>
                 {/* 평가받는 대상이 없을 때 안내 */}
                 {teams.length === 0 && uniqueEvaluationTargets.filter(t => !teams.some(team => Array.isArray(team.members) && team.members.includes(t.uid))).length === 0 && (
                   <div style={{
@@ -896,7 +1049,7 @@ const ContestParticipate: React.FC = () => {
                 {/* 듀엣 팀 */}
                 {teams.length > 0 && (
                   <div style={{ marginBottom: 32, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
-                    <div style={{ fontWeight: 700, color: 'rgba(255,255,255,0.95)', marginBottom: 10, textAlign: 'center', fontSize: 18 }}>듀엣 팀</div>
+                    <div style={{ fontWeight: 700, color: 'rgba(255,255,255,0.95)', marginBottom: 10, textAlign: 'center', fontSize: 18 }}>무대</div>
                     {teams
                       .sort((a, b) => {
                         // order 기준으로 정렬 (order가 없으면 createdAt 기준)
@@ -911,8 +1064,8 @@ const ContestParticipate: React.FC = () => {
                             extractNickname(nick).toLowerCase().replace(/\s/g, '') === user.nickname.toLowerCase().replace(/\s/g, '')
                           )
                         );
-                        const alreadyGraded = gradedTargets.includes(team.id);
-                        const isEditingSubmitted = !!editingSubmittedTargets[team.id];
+                        const scoreTargetIds = contestGradeTargetIds(team);
+                        const alreadyGraded = scoreTargetIds.every((targetId) => gradedTargets.includes(targetId));
                         return (
                           <div key={team.id} style={{ 
                             background: alreadyGraded 
@@ -940,7 +1093,18 @@ const ContestParticipate: React.FC = () => {
                               fontSize: 18,
                               textDecoration: alreadyGraded ? 'line-through' : 'none'
                             }}>
-                              {getMemberNicknames(team).join(' & ')}
+                              {(() => {
+                                const stageLines = formatContestStageLines(team, nicknameOfMember);
+                                if (!stageLines) return getMemberNicknames(team).join(' & ');
+                                return (
+                                  <>
+                                    <div>{stageLines.title}</div>
+                                    <div style={{ marginTop: 4, fontSize: stageLines.bothMains ? 18 : 14, fontWeight: stageLines.bothMains ? 700 : 600, color: alreadyGraded ? '#6B7280' : (stageLines.bothMains ? '#8A55CC' : '#C2410C') }}>
+                                      {stageLines.support}
+                                    </div>
+                                  </>
+                                );
+                              })()}
                               {alreadyGraded && <span style={{ marginLeft: 8, fontSize: 14, color: '#10B981' }}>✅ 제출완료</span>}
                             </div>
                             {/* 곡 제목 입력 필드 */}
@@ -1014,145 +1178,27 @@ const ContestParticipate: React.FC = () => {
                                 </div>
                               )}
                             </div>
-                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', marginTop: 4 }}>
                               {isMyTeam ? (
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                                   <span style={{ color: '#F43F5E', fontWeight: 600, fontSize: 16 }}>본인이 속한 팀은 평가할 수 없습니다.</span>
                                   <span style={{ color: '#9CA3AF', fontSize: 14 }}>자기 평가는 금지되어 있습니다.</span>
                                 </div>
-                              ) : alreadyGraded && !isEditingSubmitted ? (
-                                <div style={{ 
-                                  display: 'flex', 
-                                  flexDirection: 'column', 
-                                  alignItems: 'center',
-                                  gap: 8,
-                                  padding: '18px',
-                                  background: 'rgba(255, 255, 255, 0.75)',
-                                  borderRadius: 12,
-                                  border: '1px solid rgba(138, 85, 204, 0.2)',
-                                  width: '100%'
-                                }}>
-                                  <div style={{ color: '#6B7280', fontWeight: 600, fontSize: 16, textAlign: 'center' }}>
-                                    평가 제출 완료
-                                  </div>
-                                  {gradeInputs[team.id]?.score && (
-                                    <div style={{ color: '#9CA3AF', fontSize: 14, textAlign: 'center' }}>
-                                      점수: {gradeInputs[team.id].score}점
-                                      {!isNaN(Number(gradeInputs[team.id]?.score)) && Number(gradeInputs[team.id]?.score) >= 1 && Number(gradeInputs[team.id]?.score) <= 100 && (
-                                        <span style={{ marginLeft: 8, color: '#8A55CC' }}>
-                                          ({getGradeFromScore(Number(gradeInputs[team.id]?.score))})
-                                        </span>
-                                      )}
-                                    </div>
-                                  )}
-                                  {gradeInputs[team.id]?.comment && (
-                                    <div style={{ color: '#9CA3AF', fontSize: 13, textAlign: 'center', fontStyle: 'italic' }}>
-                                      "{gradeInputs[team.id].comment}"
-                                    </div>
-                                  )}
-                                  <button
-                                    style={{
-                                      marginTop: 8,
-                                      background: 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)',
-                                      color: '#fff',
-                                      borderRadius: 12,
-                                      padding: '10px 16px',
-                                      fontWeight: 700,
-                                      fontSize: 15,
-                                      border: 'none',
-                                      cursor: 'pointer',
-                                      boxShadow: '0 6px 16px rgba(225,29,72,0.25)'
-                                    }}
-                                    onClick={() => setEditingSubmittedTargets(prev => ({ ...prev, [team.id]: true }))}
-                                  >
-                                    제출취소
-                                  </button>
-                                </div>
-                              ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
-                                  <div>
-                                    <input
-                                      type="number"
-                                      min={0}
-                                      max={100}
-                                      placeholder="0~100 사이의 점수 입력"
-                                      value={gradeInputs[team.id]?.score || ''}
-                                      onChange={e => setGradeInputs(inputs => ({ ...inputs, [team.id]: { ...inputs[team.id], score: e.target.value } }))}
-                                      disabled={grading[team.id]}
-                                      style={{ 
-                                        width: '100%', 
-                                        padding: '12px 16px', 
-                                        borderRadius: 8, 
-                                        border: '1px solid #E5DAF5', 
-                                        fontSize: 16,
-                                        boxSizing: 'border-box',
-                                        background: '#FAFAFA',
-                                        color: '#1F2937'
-                                      }}
-                                    />
-                                    {gradeInputs[team.id]?.score && !isNaN(Number(gradeInputs[team.id]?.score)) && Number(gradeInputs[team.id]?.score) >= 1 && Number(gradeInputs[team.id]?.score) <= 100 && (
-                                      <div style={{ marginTop: 6, color: '#8A55CC', fontWeight: 600, fontSize: 14, textAlign: 'center' }}>
-                                        추천등급: {getGradeFromScore(Number(gradeInputs[team.id]?.score))}
-                                      </div>
-                                    )}
-                                  </div>
-                                  <input
-                                    type="text"
-                                    placeholder="코멘트(선택)"
-                                    value={gradeInputs[team.id]?.comment || ''}
-                                    onChange={e => setGradeInputs(inputs => ({ ...inputs, [team.id]: { ...inputs[team.id], comment: e.target.value } }))}
-                                    disabled={grading[team.id]}
-                                    style={{ 
-                                      width: '100%', 
-                                      padding: '12px 16px', 
-                                      borderRadius: 8, 
-                                      border: '1px solid #E5DAF5',
-                                      fontSize: 16,
-                                      boxSizing: 'border-box',
-                                      background: '#FAFAFA',
-                                      color: '#1F2937'
-                                    }}
-                                  />
-                                  <div style={{ display: 'flex', gap: 8 }}>
-                                    <button
-                                      style={{
-                                        background: '#8A55CC',
-                                        color: '#fff',
-                                        borderRadius: 12,
-                                        padding: '14px 24px',
-                                        fontWeight: 600,
-                                        fontSize: 16,
-                                        border: 'none',
-                                        cursor: grading[team.id] ? 'not-allowed' : 'pointer',
-                                        transition: 'all 0.2s',
-                                        boxShadow: '0 4px 12px rgba(138, 85, 204, 0.3)',
-                                        width: '100%'
-                                      }}
-                                      onClick={() => handleSubmitGrade(team.id)}
-                                      disabled={grading[team.id]}
-                                    >
-                                      {alreadyGraded ? '수정제출' : '제출'}
-                                    </button>
-                                    {alreadyGraded && (
-                                      <button
-                                        style={{
-                                          background: '#9CA3AF',
-                                          color: '#fff',
-                                          borderRadius: 12,
-                                          padding: '14px 20px',
-                                          fontWeight: 600,
-                                          fontSize: 15,
-                                          border: 'none',
-                                          cursor: 'pointer'
-                                        }}
-                                        onClick={() => setEditingSubmittedTargets(prev => ({ ...prev, [team.id]: false }))}
-                                      >
-                                        취소
-                                      </button>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
+                              ) : scoreTargetIds.map((targetId) => (
+                                <ContestGradeFields
+                                  key={targetId}
+                                  targetId={targetId}
+                                  personLabel={scoreTargetIds.length > 1 ? nicknameOfMember(targetId) : undefined}
+                                  gradeInputs={gradeInputs}
+                                  setGradeInputs={setGradeInputs}
+                                  grading={grading}
+                                  alreadyGraded={gradedTargets.includes(targetId)}
+                                  isEditing={!!editingSubmittedTargets[targetId]}
+                                  onSubmit={handleSubmitGrade}
+                                  onEdit={(id) => setEditingSubmittedTargets((prev) => ({ ...prev, [id]: true }))}
+                                  onCancelEdit={(id) => setEditingSubmittedTargets((prev) => ({ ...prev, [id]: false }))}
+                                />
+                              ))}
                             </div>
                           </div>
                         );
@@ -1433,21 +1479,24 @@ const ContestParticipate: React.FC = () => {
                 })()}
                 {/* 평가 진행 상황 표시 */}
                 {(() => {
-                  const totalEvaluatable = teams.filter(team => {
-                    const isMyTeam = user && (
-                      team.members.includes(user.uid) ||
-                      getMemberNicknames(team).some((nick: string) =>
-                        extractNickname(nick).toLowerCase().replace(/\s/g, '') === user.nickname.toLowerCase().replace(/\s/g, '')
-                      )
-                    );
-                    return !isMyTeam;
-                  }).length + uniqueEvaluationTargets.filter(t => {
-                    const isMe = user && t.uid === user.uid;
-                    const isMeByNickname = user && t.nickname && user.nickname && t.nickname.toLowerCase().trim() === user.nickname.toLowerCase().trim();
-                    return !isMe && !isMeByNickname && !teams.some(team => Array.isArray(team.members) && team.members.includes(t.uid));
-                  }).length;
-                  
-                  const gradedCount = gradedTargets.length;
+                  const isMyStage = (team: { members?: string[] }) => user && (
+                    (team.members || []).includes(user.uid) ||
+                    getMemberNicknames(team).some((nick: string) =>
+                      extractNickname(nick).toLowerCase().replace(/\s/g, '') === user.nickname.toLowerCase().replace(/\s/g, '')
+                    )
+                  );
+                  const evaluatableIds = [
+                    ...teams.flatMap((team) => (isMyStage(team) ? [] : contestGradeTargetIds(team))),
+                    ...uniqueEvaluationTargets
+                      .filter((t) => {
+                        const isMe = user && t.uid === user.uid;
+                        const isMeByNickname = user && t.nickname && user.nickname && t.nickname.toLowerCase().trim() === user.nickname.toLowerCase().trim();
+                        return !isMe && !isMeByNickname && !teams.some((team) => Array.isArray(team.members) && team.members.includes(t.uid));
+                      })
+                      .map((t) => t.uid),
+                  ];
+                  const totalEvaluatable = evaluatableIds.length;
+                  const gradedCount = evaluatableIds.filter((id) => gradedTargets.includes(id)).length;
                   
                   if (totalEvaluatable > 0) {
                     return (
@@ -1485,7 +1534,7 @@ const ContestParticipate: React.FC = () => {
                 {/* 평가 전체 제출완료 안내문구 */}
                 {(() => {
                   // 평가가 남아있는 팀/참가자가 있는지 확인
-                  const ungradedTeams = teams.filter(team => !gradedTargets.includes(team.id));
+                  const ungradedTeams = teams.filter((team) => contestGradeTargetIds(team).some((targetId) => !gradedTargets.includes(targetId)));
                   const ungradedSolo = uniqueEvaluationTargets.filter(t => !teams.some(team => Array.isArray(team.members) && team.members.includes(t.uid)) && !gradedTargets.includes(t.uid));
                   if (ungradedTeams.length > 0 || ungradedSolo.length > 0) {
                     return (
@@ -1517,7 +1566,7 @@ const ContestParticipate: React.FC = () => {
                         extractNickname(nick).toLowerCase().replace(/\s/g, '') === user.nickname.toLowerCase().replace(/\s/g, '')
                       )
                     );
-                    return !isMyTeam && !gradedTargets.includes(team.id);
+                    return !isMyTeam && contestGradeTargetIds(team).some((targetId) => !gradedTargets.includes(targetId));
                   });
                   
                   const evaluatableSolo = uniqueEvaluationTargets.filter(t => {

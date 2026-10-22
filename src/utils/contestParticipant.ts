@@ -2,9 +2,6 @@ import { doc, getDoc, getDocs, collection, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { ContestType, ParticipantRecord, RoundVote } from '../types/contest';
 
-export const CONTEST_LATE_JOIN_MESSAGE =
-  '콘테스트가 이미 개최되었습니다. 참여하려면 관리자에게 참가 등록을 요청해주세요.';
-
 export const CONTEST_NOT_REGISTERED_MESSAGE =
   '참가자 목록에 등록된 멤버만 참여할 수 있습니다. 관리자에게 참가 등록을 요청해주세요.';
 
@@ -173,19 +170,15 @@ export function canAutoJoinBeforeStart(type: ContestType): boolean {
   return type === '경연' || type === '라운드매치';
 }
 
-/** 참여 버튼 클릭 시 참가자 명단 등록
- * - 개최 전(경연·라운드매치): 모든 멤버
- * - 개최 후: 리더만 (일반 멤버는 관리자가 수동 추가)
+/** 참여 시 참가자 명단 등록
+ * - 개최 전: 등급전·라운드매치만
+ * - 개최 후: 로그인한 앱 사용자 전원
  */
 export async function registerOnParticipateClick(
   contestId: string,
   contest: { isStarted: boolean; type: ContestType },
   user: { uid: string; nickname?: string; role?: string }
 ): Promise<void> {
-  if (!canAutoJoinBeforeStart(contest.type)) return;
-
-  const isLeader = user.role === '리더';
-  if (!contest.isStarted || isLeader) {
-    await ensureContestParticipant(contestId, user);
-  }
+  if (!contest.isStarted && !canAutoJoinBeforeStart(contest.type)) return;
+  await ensureContestParticipant(contestId, user);
 }

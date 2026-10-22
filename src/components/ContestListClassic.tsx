@@ -7,6 +7,7 @@ import '../styles/variables.css';
 import '../styles/contest-ui-refresh.css';
 
 import type { ContestType } from '../types/contest';
+import { contestTypeLabel } from '../types/contest';
 import { registerOnParticipateClick } from '../utils/contestParticipant';
 import { computeContestTop3Targets, type ContestGradeRecord } from '../utils/contestGradesAggregation';
 
@@ -264,7 +265,7 @@ const ContestListClassic: React.FC = () => {
                     <div className="contest-card-content">
                       <div className="contest-card-title">{contest.title}</div>
                       <div className="contest-tags">
-                        <span className="contest-tag type">{contest.type}</span>
+                        <span className="contest-tag type">{contestTypeLabel(contest.type)}</span>
                         {contest.isStarted && (
                           <span className="contest-tag started">✅ 개최됨</span>
                         )}
@@ -310,7 +311,7 @@ const ContestListClassic: React.FC = () => {
                         </div>
                       )}
                       <div className="contest-tags">
-                        <span className="contest-tag type">{contest.type}</span>
+                        <span className="contest-tag type">{contestTypeLabel(contest.type)}</span>
                         <span className="contest-tag ended">종료됨</span>
                       </div>
                     </div>

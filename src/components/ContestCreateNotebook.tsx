@@ -150,20 +150,20 @@ const ContestCreateNotebook: React.FC = () => {
               value={formData.type}
               onChange={(e) => handleInputChange('type', e.target.value as ContestType)}
             >
-              <option value="경연">등급전/경연 - 참가자 상호 평가 콘테스트</option>
+              <option value="경연">등급전 - 현장에서 라이브를 듣고 평가</option>
               <option value="라운드매치">라운드매치 - A/B 팀 투표 대결</option>
             </select>
             <div className={`contest-type-hint${isRoundMatch ? ' contest-type-hint--round' : ''}`}>
               {formData.type === '경연' && (
                 <div>
-                  <strong>등급전 / 경연</strong>
+                  <strong>등급전</strong>
                   <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
-                    <li>참여 버튼을 누른 멤버가 참가자 목록에 표시됩니다</li>
-                    <li>참가자들이 서로 점수를 부여하는 방식입니다</li>
-                    <li>솔로·듀엣 팀 구성이 가능합니다</li>
+                    <li>현장에서 라이브를 듣고 점수를 줍니다</li>
+                    <li>솔로, 메인과 서브, 또는 서로 메인이 한 무대를 이룹니다</li>
+                    <li>메인과 서브는 점수 하나, 서로 메인은 사람마다 점수 하나입니다</li>
                   </ul>
                   <div className="contest-type-hint__note">
-                    <strong>다음 단계:</strong> 생성 후 상세 페이지에서 참가자·평가 대상을 등록해주세요.
+                    <strong>다음 단계:</strong> 개최하면 앱 사용자가 바로 참여합니다. 무대에 서는 사람은 상세 페이지의 평가 대상에서 등록해주세요.
                   </div>
                 </div>
               )}

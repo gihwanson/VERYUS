@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { doc, getDoc, collection, getDocs, setDoc, doc as firestoreDoc, updateDoc, onSnapshot, deleteDoc, query, where } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, setDoc, doc as firestoreDoc, updateDoc, onSnapshot, deleteDoc, query, where, deleteField } from 'firebase/firestore';
 import { db } from '../firebase';
 import { v4 as uuidv4 } from 'uuid';
 import '../styles/variables.css';
 import '../styles/contest-ui-refresh.css';
 import type { ContestType, RoundVote } from '../types/contest';
+import { contestTypeLabel } from '../types/contest';
 import {
   canAutoJoinBeforeStart,
   dedupeContestParticipants,
@@ -16,6 +17,13 @@ import {
   coerceFirestoreString,
 } from '../utils/contestParticipant';
 import RoundMatchLeaderPanel from './roundMatch/RoundMatchLeaderPanel';
+import {
+  assignContestStageUid,
+  CONTEST_SUB_ROLES,
+  formatContestStageInline,
+  formatContestStageLines,
+  type ContestSubRole,
+} from '../utils/contestStage';
 
 interface Contest {
   id: string;
@@ -53,6 +61,11 @@ interface Team {
   id: string;
   teamName: string;
   members: string[];
+  mainUid?: string;
+  subUid?: string;
+  coMainUid?: string;
+  partnerRole?: 'main' | 'sub';
+  subRole?: string;
   createdAt: any;
   updatedAt: any;
   order?: number; // 팀 순서 (낮을수록 위에 표시)
@@ -77,7 +90,13 @@ const ContestDetail: React.FC = () => {
   const [ended, setEnded] = useState(false);
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [selectedSolo, setSelectedSolo] = useState<string[]>([]);
-  const [selectedEvaluationTargets, setSelectedEvaluationTargets] = useState<string[]>([]); // 평가받는 대상 선택용
+  const [participantMainUid, setParticipantMainUid] = useState('');
+  const [participantSubUid, setParticipantSubUid] = useState('');
+  const [participantSubRole, setParticipantSubRole] = useState<ContestSubRole | ''>('');
+  const [targetMainUid, setTargetMainUid] = useState('');
+  const [targetSubUid, setTargetSubUid] = useState('');
+  const targetStagePickRef = useRef({ mainUid: '', subUid: '' });
+  const makingTargetStageRef = useRef(false);
   const [newParticipantNickname, setNewParticipantNickname] = useState('');
   const [newEvaluationTargetNickname, setNewEvaluationTargetNickname] = useState('');
   const [addingParticipant, setAddingParticipant] = useState(false);
@@ -106,6 +125,23 @@ const ContestDetail: React.FC = () => {
   const isLeader = useMemo(() => {
     return user && user.role === '리더';
   }, [user]);
+
+  const nicknameOf = useCallback((uid: string) => {
+    const target = evaluationTargets.find((item) => item.uid === uid);
+    if (target?.nickname) return target.nickname;
+    const participant = participants.find((item) => item.uid === uid);
+    if (participant?.nickname) return participant.nickname;
+    return uid;
+  }, [evaluationTargets, participants]);
+
+  const nextTeamOrder = useCallback(() => {
+    if (teams.length === 0) return Date.now();
+    return Math.max(...teams.map((team) => {
+      if (team.order !== undefined) return team.order;
+      if (team.createdAt?.toDate) return team.createdAt.toDate().getTime();
+      return Date.now();
+    })) + 1;
+  }, [teams]);
 
   // Callbacks
   const handleParticipate = useCallback(async () => {
@@ -147,7 +183,7 @@ const ContestDetail: React.FC = () => {
 
   const handleStartContest = useCallback(async () => {
     if (!id || !contest || startingContest) return;
-    if (!window.confirm('콘테스트를 개최하시겠습니까? 개최 후에는 참가자들이 참여할 수 있습니다.')) {
+    if (!window.confirm('콘테스트를 개최하시겠습니까? 개최 후에는 앱에 로그인한 사용자 누구나 참여할 수 있습니다.')) {
       return;
     }
 
@@ -186,21 +222,34 @@ const ContestDetail: React.FC = () => {
   const handleMakeDuet = useCallback(async () => {
     if (!id || selectedSolo.length !== 2) return;
     const teamId = uuidv4();
-    const members = selectedSolo;
-    const teamName = `듀엣${teams.length + 1}`;
-    // 기존 팀들의 최대 order 값 계산 (없으면 현재 시간 사용)
-    const maxOrder = teams.length > 0 
-      ? Math.max(...teams.map(t => t.order ?? (t.createdAt?.toDate ? t.createdAt.toDate().getTime() : Date.now())))
-      : Date.now();
     await setDoc(firestoreDoc(db, 'contests', id, 'teams', teamId), {
-      teamName,
-      members,
+      teamName: `듀엣${teams.length + 1}`,
+      members: selectedSolo,
       createdAt: new Date(),
       updatedAt: new Date(),
-      order: maxOrder + 1, // 새 팀은 맨 아래에 추가
+      order: nextTeamOrder(),
     });
     setSelectedSolo([]);
-  }, [id, selectedSolo, teams]);
+  }, [id, selectedSolo, teams.length, nextTeamOrder]);
+
+  const handleMakeParticipantStage = useCallback(async () => {
+    if (!id || !participantMainUid || !participantSubUid || !participantSubRole) return;
+    if (participantMainUid === participantSubUid) return;
+    const teamId = uuidv4();
+    await setDoc(firestoreDoc(db, 'contests', id, 'teams', teamId), {
+      teamName: `듀엣${teams.length + 1}`,
+      members: [participantMainUid, participantSubUid],
+      mainUid: participantMainUid,
+      subUid: participantSubUid,
+      subRole: participantSubRole,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      order: nextTeamOrder(),
+    });
+    setParticipantMainUid('');
+    setParticipantSubUid('');
+    setParticipantSubRole('');
+  }, [id, participantMainUid, participantSubUid, participantSubRole, teams.length, nextTeamOrder]);
 
   const handleBreakDuet = useCallback(async (teamId: string) => {
     if (!id) return;
@@ -213,12 +262,8 @@ const ContestDetail: React.FC = () => {
     const team = teams.find(t => t.id === teamId);
     if (!team) return;
     
-    const teamMembers = Array.isArray(team.members) ? team.members.map((uid: string) => {
-      const target = evaluationTargets.find(tt => tt.uid === uid);
-      if (target) return target.nickname;
-      const p = participants.find(pp => pp.uid === uid);
-      return p ? p.nickname : uid;
-    }).join(' & ') : '';
+    const teamMembers = formatContestStageInline(team, nicknameOf)
+      || (Array.isArray(team.members) ? team.members.map((uid) => nicknameOf(uid)).join(' & ') : '');
     
     if (!window.confirm(`정말로 이 팀(${teamMembers})을 삭제하시겠습니까?\n평가지에서도 제거됩니다.`)) return;
     
@@ -239,7 +284,7 @@ const ContestDetail: React.FC = () => {
       console.error('팀 삭제 중 오류:', error);
       alert('팀 삭제 중 오류가 발생했습니다.');
     }
-  }, [id, teams, evaluationTargets, participants]);
+  }, [id, teams, nicknameOf, evaluationTargets]);
 
 
   const handleAddParticipant = useCallback(async () => {
@@ -324,34 +369,77 @@ const ContestDetail: React.FC = () => {
     setEditingEvaluationTargetNickname('');
   }, [id, editingEvaluationTargetNickname]);
 
-  // 평가받는 대상 선택 (팀 만들기용)
+  const createTargetStage = useCallback(async (mainUid: string, partnerUid: string, bothMains: boolean) => {
+    if (!id || makingTargetStageRef.current) return;
+    if (!mainUid || !partnerUid || mainUid === partnerUid) return;
+    makingTargetStageRef.current = true;
+    try {
+      const teamId = uuidv4();
+      await setDoc(firestoreDoc(db, 'contests', id, 'teams', teamId), {
+        teamName: `듀엣${teams.length + 1}`,
+        members: [mainUid, partnerUid],
+        mainUid,
+        partnerRole: bothMains ? 'main' : 'sub',
+        ...(bothMains ? { coMainUid: partnerUid } : { subUid: partnerUid }),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        order: nextTeamOrder(),
+      });
+      targetStagePickRef.current = { mainUid: '', subUid: '' };
+      setTargetMainUid('');
+      setTargetSubUid('');
+      setAdminTab('teams');
+    } catch (error) {
+      console.error('무대 만들기 중 오류:', error);
+      targetStagePickRef.current = { mainUid, subUid: '' };
+      setTargetMainUid(mainUid);
+      setTargetSubUid('');
+      alert('팀을 만드는 중 오류가 발생했습니다.');
+    } finally {
+      makingTargetStageRef.current = false;
+    }
+  }, [id, teams.length, nextTeamOrder]);
+
   const handleEvaluationTargetClick = useCallback((uid: string) => {
-    setSelectedEvaluationTargets(prev => 
-      prev.includes(uid) 
-        ? prev.filter(id => id !== uid)
-        : [...prev, uid]
-    );
+    if (makingTargetStageRef.current) return;
+    if (uid === targetStagePickRef.current.mainUid) {
+      targetStagePickRef.current = { mainUid: '', subUid: '' };
+      setTargetMainUid('');
+      setTargetSubUid('');
+      return;
+    }
+    if (targetStagePickRef.current.mainUid) return;
+    targetStagePickRef.current = { mainUid: uid, subUid: '' };
+    setTargetMainUid(uid);
+    setTargetSubUid('');
   }, []);
 
-  // 평가받는 대상으로 팀 만들기
-  const handleMakeTeamFromTargets = useCallback(async () => {
-    if (!id || selectedEvaluationTargets.length < 2) return;
-    const teamId = uuidv4();
-    const members = selectedEvaluationTargets;
-    const teamName = `팀${teams.length + 1}`;
-    // 기존 팀들의 최대 order 값 계산 (없으면 현재 시간 사용)
-    const maxOrder = teams.length > 0 
-      ? Math.max(...teams.map(t => t.order ?? (t.createdAt?.toDate ? t.createdAt.toDate().getTime() : Date.now())))
-      : Date.now();
-    await setDoc(firestoreDoc(db, 'contests', id, 'teams', teamId), {
-      teamName,
-      members,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      order: maxOrder + 1, // 새 팀은 맨 아래에 추가
-    });
-    setSelectedEvaluationTargets([]);
-  }, [id, selectedEvaluationTargets, teams]);
+  const handleToggleBothMains = useCallback(async (team: Team) => {
+    if (!id) return;
+    const mainUid = team.mainUid || team.members?.[0];
+    const partnerUid = team.coMainUid || team.subUid || team.members?.find((uid) => uid !== mainUid);
+    if (!mainUid || !partnerUid) return;
+    const bothMains = Boolean(team.coMainUid) || team.partnerRole === 'main';
+    try {
+      await updateDoc(firestoreDoc(db, 'contests', id, 'teams', team.id), bothMains
+        ? {
+            subUid: partnerUid,
+            partnerRole: 'sub',
+            coMainUid: deleteField(),
+            updatedAt: new Date(),
+          }
+        : {
+            coMainUid: partnerUid,
+            partnerRole: 'main',
+            subUid: deleteField(),
+            subRole: deleteField(),
+            updatedAt: new Date(),
+          });
+    } catch (error) {
+      console.error('메인 구성 변경 중 오류:', error);
+      alert('메인 구성을 바꾸는 중 오류가 발생했습니다.');
+    }
+  }, [id]);
 
   const handleDeleteParticipant = useCallback(async (uid: string) => {
     if (!id) return;
@@ -607,7 +695,7 @@ const ContestDetail: React.FC = () => {
           <div className="contest-detail-summary-header">
             <h2 className="contest-detail-title">{contest.title}</h2>
             <div className="contest-detail-status-badges">
-              <span className="contest-detail-info-item">{contest.type}</span>
+              <span className="contest-detail-info-item">{contestTypeLabel(contest.type)}</span>
               <span className="contest-detail-info-item">📅 마감: {formatDeadline(contest.deadline)}</span>
               {ended ? (
                 <span className="contest-detail-badge ended">종료됨</span>
@@ -648,12 +736,12 @@ const ContestDetail: React.FC = () => {
           <section className="contest-detail-section contest-info-section">
             <div className="contest-info-card">
               <h3 className="contest-info-title">
-                🎭 경연 유형 안내
+                🎭 등급전 안내
               </h3>
               <ul className="contest-info-list">
-                <li>참여 버튼을 누른 멤버가 참가자 목록에 표시됩니다</li>
-                <li>참가자들이 서로 평가하는 콘테스트입니다</li>
-                <li>솔로 참가 또는 듀엣 팀 구성이 가능합니다</li>
+                <li>현장에서 라이브를 듣고 점수를 줍니다</li>
+                <li>솔로, 메인과 서브, 또는 서로 메인이 한 무대를 이룹니다</li>
+                <li>메인과 서브는 점수 하나, 서로 메인은 사람마다 점수 하나입니다</li>
                 <li>0~100점 사이로 점수를 부여할 수 있습니다</li>
               </ul>
             </div>
@@ -693,14 +781,14 @@ const ContestDetail: React.FC = () => {
                   className={`contest-admin-tab-btn ${adminTab === 'participants' ? 'active' : ''}`}
                   onClick={() => setAdminTab('participants')}
                 >
-                  참가자현황
+                  평가자
                 </button>
                 <button
                   type="button"
                   className={`contest-admin-tab-btn ${adminTab === 'targets' ? 'active' : ''}`}
                   onClick={() => setAdminTab('targets')}
                 >
-                  참가자 관리
+                  평가 대상
                 </button>
                 <button
                   type="button"
@@ -717,16 +805,18 @@ const ContestDetail: React.FC = () => {
         {/* 참가자현황 섹션 (평가하는 인원) */}
         {isAdmin && adminTab === 'participants' && (
           <section className="contest-detail-section">
-            <h3 className="contest-detail-section-title">👥 참가자현황</h3>
+            <h3 className="contest-detail-section-title">{contest.type === '경연' ? '👥 평가자' : '👥 참가자'}</h3>
             <hr className="contest-detail-section-divider" />
             
             <div className="contest-helper-box">
-              {canAutoJoinBeforeStart(contest.type) ? (
+              {contest.type === '경연' && (
                 <>
-                  💡 <strong>개최 전:</strong> 참여 버튼을 누른 멤버가 자동으로 명단에 등록됩니다.
+                  💡 점수를 주는 사람입니다. 노래를 평가받는 사람은 평가 대상 탭에서 등록합니다.
                   <br />
-                  💡 <strong>개최 후:</strong> 새로 참여할 멤버는 아래에서 닉네임을 직접 추가해주세요.
                 </>
+              )}
+              {canAutoJoinBeforeStart(contest.type) ? (
+                <>💡 개최 후 참여한 멤버는 이 명단에 자동으로 들어옵니다. 미리 등록하지 않아도 됩니다.</>
               ) : (
                 <>💡 참가자는 관리자가 닉네임을 추가해 등록합니다. 개최 후 늦게 참여할 멤버도 여기서 추가할 수 있습니다.</>
               )}
@@ -736,7 +826,7 @@ const ContestDetail: React.FC = () => {
               <input
                 type="text"
                 className="contest-detail-add-input"
-                placeholder="참가자 닉네임을 입력하세요"
+                placeholder={contest.type === '경연' ? '평가자 닉네임을 입력하세요' : '참가자 닉네임을 입력하세요'}
                 value={newParticipantNickname}
                 onChange={(e) => setNewParticipantNickname(e.target.value)}
                 onKeyDown={(e) => !e.nativeEvent.isComposing && e.key === 'Enter' && handleAddParticipant()}
@@ -753,7 +843,7 @@ const ContestDetail: React.FC = () => {
             {/* 실시간 참가자 명단 */}
             <div className="contest-list-header-box">
               <div className="contest-list-header-title">
-                📋 실시간 참가자 명단 ({uniqueParticipants.length}명)
+                📋 {contest.type === '경연' ? '평가자' : '참가자'} 명단 ({uniqueParticipants.length}명)
               </div>
             </div>
             <div className="contest-detail-participant-list" ref={soloListRef}>
@@ -765,14 +855,30 @@ const ContestDetail: React.FC = () => {
                       : isParticipantSubmitted(p.nickname);
                   const isInTeam = teams.some(t => Array.isArray(t.members) && t.members.includes(p.uid));
                   const teamInfo = teams.find(t => Array.isArray(t.members) && t.members.includes(p.uid));
+                  const isStagePick = contest.type === '경연'
+                    && (p.uid === participantMainUid || p.uid === participantSubUid);
                   return (
                     <div 
                       key={p.uid} 
-                      className={`contest-detail-participant-item ${selectedSolo.includes(p.uid) ? 'selected' : ''} ${isInTeam ? 'in-team' : ''}`}
-                      onClick={() => handleParticipantClick(p.uid)}
+                      className={`contest-detail-participant-item ${contest.type === '경연' ? (isStagePick ? 'selected' : '') : (selectedSolo.includes(p.uid) ? 'selected' : '')} ${isInTeam ? 'in-team' : ''}`}
+                      onClick={() => {
+                        if (contest.type === '경연') {
+                          const next = assignContestStageUid(participantMainUid, participantSubUid, p.uid);
+                          setParticipantMainUid(next.mainUid);
+                          setParticipantSubUid(next.subUid);
+                          return;
+                        }
+                        handleParticipantClick(p.uid);
+                      }}
                     >
                       <span className="contest-detail-participant-name">
                         {p.nickname}
+                        {contest.type === '경연' && p.uid === participantMainUid && (
+                          <span className="contest-stage-role-badge">메인</span>
+                        )}
+                        {contest.type === '경연' && p.uid === participantSubUid && (
+                          <span className="contest-stage-role-badge contest-stage-role-badge--sub">서브</span>
+                        )}
                         {isInTeam && teamInfo && (
                           <span className="contest-team-member-badge">
                             (팀 소속)
@@ -807,7 +913,21 @@ const ContestDetail: React.FC = () => {
                 <div className="contest-empty-message">참가자가 없습니다. 닉네임을 추가해주세요.</div>
               )}
             </div>
-            {selectedSolo.length === 2 && (
+            {contest.type === '경연' && participantMainUid && participantSubUid && (
+              <ContestStageBuildPanel
+                mainName={nicknameOf(participantMainUid)}
+                subName={nicknameOf(participantSubUid)}
+                subRole={participantSubRole}
+                onSelectRole={setParticipantSubRole}
+                onCreate={handleMakeParticipantStage}
+                onClear={() => {
+                  setParticipantMainUid('');
+                  setParticipantSubUid('');
+                  setParticipantSubRole('');
+                }}
+              />
+            )}
+            {contest.type !== '경연' && selectedSolo.length === 2 && (
               <div className="contest-detail-duet-actions">
                 <button 
                   className="btn btn-primary"
@@ -823,10 +943,10 @@ const ContestDetail: React.FC = () => {
         {/* 참가자 관리 섹션 (평가받는 대상) - 경연 유형만 */}
         {isAdmin && contest.type === '경연' && adminTab === 'targets' && (
           <section className="contest-detail-section">
-            <h3 className="contest-detail-section-title">🎯 참가자 관리</h3>
+            <h3 className="contest-detail-section-title">🎯 평가 대상</h3>
             <hr className="contest-detail-section-divider" />
             <div className="contest-helper-box">
-              💡 평가받는 대상들을 관리합니다. 이 인원들이 평가 페이지에 표시됩니다.
+              💡 노래를 평가받는 사람입니다. 한 명을 누르면 메인이 됩니다. 다른 사람은 서브로 묶기 또는 서로 메인으로 고르면 팀이 만들어지고 팀 목록으로 이동합니다.
             </div>
             
             {/* 평가받는 대상 추가 폼 */}
@@ -853,14 +973,13 @@ const ContestDetail: React.FC = () => {
               <div className="contest-list-header-title">
                 📋 평가받는 대상 목록 ({evaluationTargets.length}명)
               </div>
-              {selectedEvaluationTargets.length > 0 && (
+              {targetMainUid ? (
                 <div className="contest-selection-hint selected">
-                  ✅ {selectedEvaluationTargets.length}명 선택됨 {selectedEvaluationTargets.length >= 2 && '(팀 만들기 가능)'}
+                  메인 {nicknameOf(targetMainUid)}. 다른 사람 옆에서 서브로 묶기 또는 서로 메인을 고르세요.
                 </div>
-              )}
-              {selectedEvaluationTargets.length === 0 && (
+              ) : (
                 <div className="contest-selection-hint">
-                  💡 팀으로 묶을 인원을 클릭하여 선택하세요 (2명 이상 선택 시 팀 만들기 가능)
+                  이름을 누르면 메인이 됩니다. 다시 누르면 해제됩니다.
                 </div>
               )}
             </div>
@@ -870,8 +989,11 @@ const ContestDetail: React.FC = () => {
                 .map(t => (
                   <div 
                     key={t.uid} 
-                    className={`contest-detail-participant-item ${selectedEvaluationTargets.includes(t.uid) ? 'selected' : ''} ${editingEvaluationTargetId === t.uid ? 'editing' : ''}`}
-                    onClick={() => handleEvaluationTargetClick(t.uid)}
+                    className={`contest-detail-participant-item ${(t.uid === targetMainUid || t.uid === targetSubUid) ? 'selected' : ''} ${editingEvaluationTargetId === t.uid ? 'editing' : ''}`}
+                    onClick={() => {
+                      if (editingEvaluationTargetId === t.uid) return;
+                      handleEvaluationTargetClick(t.uid);
+                    }}
                   >
                     {editingEvaluationTargetId === t.uid ? (
                       <input
@@ -886,6 +1008,12 @@ const ContestDetail: React.FC = () => {
                     ) : (
                       <span className="contest-detail-participant-name">
                         {t.nickname}
+                        {t.uid === targetMainUid && (
+                          <span className="contest-stage-role-badge">메인</span>
+                        )}
+                        {t.uid === targetSubUid && (
+                          <span className="contest-stage-role-badge contest-stage-role-badge--sub">서브</span>
+                        )}
                       </span>
                     )}
                     {editingEvaluationTargetId === t.uid ? (
@@ -932,6 +1060,24 @@ const ContestDetail: React.FC = () => {
                         </button>
                       </div>
                     )}
+                    {editingEvaluationTargetId !== t.uid && targetMainUid && t.uid !== targetMainUid && (
+                      <div className="contest-pair-actions" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          className="contest-pair-btn"
+                          onClick={() => void createTargetStage(targetMainUid, t.uid, false)}
+                        >
+                          서브로 묶기
+                        </button>
+                        <button
+                          type="button"
+                          className="contest-pair-btn contest-pair-btn--main"
+                          onClick={() => void createTargetStage(targetMainUid, t.uid, true)}
+                        >
+                          서로 메인
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               {evaluationTargets.filter(t => !teams.some(team => Array.isArray(team.members) && team.members.includes(t.uid))).length === 0 && (
@@ -940,25 +1086,6 @@ const ContestDetail: React.FC = () => {
                 </div>
               )}
             </div>
-            {selectedEvaluationTargets.length >= 2 && (
-              <div className="contest-targets-action-panel">
-                <div className="contest-targets-action-title">
-                  {selectedEvaluationTargets.length}명이 선택되었습니다
-                </div>
-                <button 
-                  className="btn btn-primary contest-targets-create-btn"
-                  onClick={handleMakeTeamFromTargets}
-                >
-                  🎭 팀 만들기
-                </button>
-                <button
-                  onClick={() => setSelectedEvaluationTargets([])}
-                  className="contest-targets-cancel-btn"
-                >
-                  선택 취소
-                </button>
-              </div>
-            )}
           </section>
         )}
 
@@ -984,11 +1111,29 @@ const ContestDetail: React.FC = () => {
                   <div key={team.id} className="contest-detail-team-item">
                     <div className="contest-team-head">
                       <div className="contest-detail-team-members contest-team-members-strong">
-                        {Array.isArray(team.members) ? team.members.map((uid: string) => {
-                          // 평가받는 대상에서만 찾기 (participants는 사용하지 않음)
-                          const target = evaluationTargets.find(tt => tt.uid === uid);
-                          return target ? target.nickname : uid;
-                        }).join(' & ') : ''}
+                        {(() => {
+                          const lines = formatContestStageLines(team, nicknameOf);
+                          if (!lines) {
+                            return Array.isArray(team.members)
+                              ? team.members.map((uid) => nicknameOf(uid)).join(' & ')
+                              : '';
+                          }
+                          return (
+                            <>
+                              <div>{lines.title}</div>
+                              <div className={lines.bothMains ? 'contest-stage-main-line' : 'contest-stage-support'}>{lines.support}</div>
+                              {(team.mainUid || (Array.isArray(team.members) && team.members.length >= 2)) && (
+                                <button
+                                  type="button"
+                                  className="contest-stage-switch"
+                                  onClick={() => handleToggleBothMains(team)}
+                                >
+                                  {team.coMainUid || team.partnerRole === 'main' ? '한 명은 서브로' : '서로 메인으로'}
+                                </button>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                       {isAdmin && (
                         <div className="contest-team-move-controls">
@@ -1072,5 +1217,53 @@ const ContestDetail: React.FC = () => {
     </div>
   );
 };
+
+function ContestStageBuildPanel({
+  mainName,
+  subName,
+  subRole,
+  onSelectRole,
+  onCreate,
+  onClear,
+}: {
+  mainName: string;
+  subName: string;
+  subRole: ContestSubRole | '';
+  onSelectRole: (role: ContestSubRole) => void;
+  onCreate: () => void;
+  onClear: () => void;
+}) {
+  return (
+    <div className="contest-targets-action-panel">
+      <div className="contest-targets-action-title">
+        메인 {mainName} · 서브 {subName}
+      </div>
+      <div className="contest-stage-role-label">서브 역할</div>
+      <div className="contest-stage-role-row">
+        {CONTEST_SUB_ROLES.map((role) => (
+          <button
+            key={role}
+            type="button"
+            className={`contest-stage-role-btn${subRole === role ? ' active' : ''}`}
+            onClick={() => onSelectRole(role)}
+          >
+            {role}
+          </button>
+        ))}
+      </div>
+      <button
+        type="button"
+        className="btn btn-primary contest-targets-create-btn"
+        onClick={onCreate}
+        disabled={!subRole}
+      >
+        무대 만들기
+      </button>
+      <button type="button" className="contest-targets-cancel-btn" onClick={onClear}>
+        선택 취소
+      </button>
+    </div>
+  );
+}
 
 export default ContestDetail; 
