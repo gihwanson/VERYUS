@@ -548,3 +548,59 @@ html[data-ui-style="warm-paper"] .approved-songs-card--manage-list {
     justify-content: flex-start;
   }
 }
+
+html[data-ui-style="warm-paper"] .approved-songs-rename {
+  margin-bottom: 16px;
+  padding: 14px;
+  border-radius: var(--paper-radius, 4px);
+  background: var(--paper-card, #fffdf8);
+  border: 1px solid var(--paper-border, #e8dcc8);
+}
+
+html[data-ui-style="warm-paper"] .approved-songs-rename__title,
+html[data-ui-style="warm-paper"] .approved-songs-rename__field,
+html[data-ui-style="warm-paper"] .approved-songs-rename__preview li {
+  color: var(--paper-ink, #2c2416);
+}
+
+html[data-ui-style="warm-paper"] .approved-songs-rename__desc,
+html[data-ui-style="warm-paper"] .approved-songs-rename__count,
+html[data-ui-style="warm-paper"] .approved-songs-rename__preview li span,
+html[data-ui-style="warm-paper"] .approved-songs-rename__chip span {
+  color: var(--paper-muted, #8b7355);
+}
+
+html[data-ui-style="warm-paper"] .approved-songs-rename__label {
+  color: var(--paper-accent, #8b5a2b);
+}
+
+html[data-ui-style="warm-paper"] .approved-songs-rename__chip {
+  border-color: var(--paper-border, #e8dcc8);
+  background: var(--paper-tag-bg, #f0e6d6);
+  color: var(--paper-ink, #2c2416);
+}
+
+html[data-ui-style="warm-paper"] .approved-songs-rename__chip.is-selected {
+  background: var(--paper-accent, #8b5a2b);
+  border-color: transparent;
+  color: #fffdf8;
+}
+
+html[data-ui-style="warm-paper"] .approved-songs-rename__chip.is-selected span {
+  color: rgba(255, 253, 248, 0.8);
+}
+
+html[data-ui-style="warm-paper"] .approved-songs-rename__field input {
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-radius: var(--paper-radius, 4px);
+  background: #fff;
+  color: var(--paper-ink, #2c2416);
+}
+
+html[data-ui-style="warm-paper"] .approved-songs-rename__field input::placeholder {
+  color: var(--paper-muted, #a89880);
+}
+
+html[data-ui-style="warm-paper"] .approved-songs-rename__preview li {
+  border-bottom-color: var(--paper-border, #e8dcc8);
+}

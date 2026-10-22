@@ -270,6 +270,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
         } catch (err) {
           console.warn('pending 예약 확정 처리 실패:', err);
         }
+        await loadPriorityRanking();
         await loadReservations();
         await loadMyReservations();
         await calculateDailyUsedHours();
@@ -278,7 +279,6 @@ const PracticeRoomBookingClassic: React.FC = () => {
         await loadBlockingRules();
         await loadAlwaysOpenSettings();
         await loadTicketingSettings();
-        await loadPriorityRanking();
       })();
     }
   }, [selectedDate, currentUser]);
@@ -805,7 +805,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
         now
       );
 
-      // 관리자(너래·리더·운영진)는 타인 비관리자 예약을 가져갈 수 있음(pending/confirmed).
+      // 너래·리더는 타인 비관리자 예약을 가져갈 수 있음(pending/confirmed). 운영진은 티켓팅 순위를 따른다.
       // 일반 멤버는 일요일 확정대기(pending)만 우선권으로 뺏기 가능 — 월 00시 이후(확정)는 불가.
       const canSteal =
         Boolean(

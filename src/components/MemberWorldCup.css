@@ -877,6 +877,25 @@
   color: #78350f;
 }
 
+.mwc-picker__inbox-notice {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.mwc-picker__inbox-notice.is-success {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.mwc-picker__inbox-notice.is-error {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
 .mwc-picker__inbox-refresh {
   margin-left: auto;
   display: inline-flex;

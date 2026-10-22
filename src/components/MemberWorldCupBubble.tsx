@@ -188,6 +188,10 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
   const [pendingProposalsLoading, setPendingProposalsLoading] = useState(false);
   const [approvingProposalId, setApprovingProposalId] = useState<string | null>(null);
   const [rejectingProposalId, setRejectingProposalId] = useState<string | null>(null);
+  const [proposalActionNotice, setProposalActionNotice] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
   const [showPastResultModal, setShowPastResultModal] = useState(false);
   const [showPastListModal, setShowPastListModal] = useState(false);
   const [pastResultLoading, setPastResultLoading] = useState(false);
@@ -893,18 +897,19 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
 
   const handleApproveProposal = async (proposalId: string) => {
     setApprovingProposalId(proposalId);
+    setProposalActionNotice(null);
     try {
       const result = await approveMemberWorldCupProposalForNextDay(proposalId);
-      showMwcToast(
-        'success',
-        `내일(${result.scheduleLabel}) 질문으로 반영했습니다.`
-      );
+      const message = `내일(${result.scheduleLabel}) 질문으로 반영했습니다.`;
+      setProposalActionNotice({ type: 'success', message });
+      showMwcToast('success', message);
       setPendingProposals((prev) => prev.filter((item) => item.id !== proposalId));
       const refreshed = await fetchCustomMemberWorldCupQuestions();
       setCustomQuestions(refreshed);
       await loadData();
     } catch (error) {
       const message = error instanceof Error ? error.message : '반영에 실패했습니다.';
+      setProposalActionNotice({ type: 'error', message });
       showMwcToast('error', message);
     } finally {
       setApprovingProposalId(null);
@@ -916,12 +921,15 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
       return;
     }
     setRejectingProposalId(proposalId);
+    setProposalActionNotice(null);
     try {
       await rejectMemberWorldCupQuestionProposal(proposalId);
       setPendingProposals((prev) => prev.filter((item) => item.id !== proposalId));
+      setProposalActionNotice({ type: 'success', message: '질문 제안을 거부했습니다.' });
       showMwcToast('info', '질문 제안을 거부했습니다.');
     } catch (error) {
       const message = error instanceof Error ? error.message : '거부 처리에 실패했습니다.';
+      setProposalActionNotice({ type: 'error', message });
       showMwcToast('error', message);
     } finally {
       setRejectingProposalId(null);
@@ -1436,6 +1444,14 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
                 멤버에게는 질문·작성자가 모두 익명입니다. 아래에서만 작성자를 확인할 수
                 있어요.
               </p>
+              {proposalActionNotice && (
+                <p
+                  className={`mwc-picker__inbox-notice is-${proposalActionNotice.type}`}
+                  role="status"
+                >
+                  {proposalActionNotice.message}
+                </p>
+              )}
               {pendingProposalsLoading ? (
                 <p className="mwc-picker__queue-empty">불러오는 중…</p>
               ) : pendingProposals.length === 0 ? (

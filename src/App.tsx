@@ -1240,7 +1240,8 @@ function App() {
             theme="light"
             style={{
               fontSize: '14px',
-              fontFamily: 'Pretendard, sans-serif'
+              fontFamily: 'Pretendard, sans-serif',
+              zIndex: 100000
             }}
             toastStyle={{
               borderRadius: '12px',

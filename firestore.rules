@@ -316,23 +316,39 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    /** 멤버 월드컵 — 너래가 작성하는 커스텀 질문 풀 */
+    /** 멤버 월드컵 — 너래가 작성하거나, 멤버 제안을 내일 큐에 반영 */
+    function isMemberWorldCupCustomQuestionShape() {
+      return request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        // 제안 접두어 "제안된 질문: "(8자) + 본문 200자
+        && request.resource.data.text.size() <= 208
+        && request.resource.data.createdBy is string
+        && request.resource.data.createdBy.size() > 0
+        && request.resource.data.createdByNickname is string
+        && request.resource.data.createdByNickname.size() > 0
+        && request.resource.data.isActive == true;
+    }
+
+    function isMemberWorldCupProposalAdoption() {
+      return request.resource.data.sourceProposalId is string
+        && exists(/databases/$(database)/documents/memberWorldCupQuestionProposals/$(request.resource.data.sourceProposalId))
+        && get(/databases/$(database)/documents/memberWorldCupQuestionProposals/$(request.resource.data.sourceProposalId)).data.createdBy == request.resource.data.createdBy;
+    }
+
     match /memberWorldCupCustomQuestions/{questionId} {
       allow read: if signedIn();
       allow create: if isNerae()
-        && request.resource.data.text is string
-        && request.resource.data.text.size() > 0
-        && request.resource.data.text.size() <= 200
-        && request.resource.data.createdBy == request.auth.uid
-        && request.resource.data.createdByNickname is string
-        && request.resource.data.createdByNickname.size() > 0
-        && request.resource.data.isActive == true
+        && isMemberWorldCupCustomQuestionShape()
         && request.resource.data.scheduleOrder is int
-        && request.resource.data.scheduleOrder > 0;
+        && request.resource.data.scheduleOrder > 0
+        && (
+          request.resource.data.createdBy == request.auth.uid
+          || isMemberWorldCupProposalAdoption()
+        );
       allow update: if isNerae()
         && request.resource.data.text is string
         && request.resource.data.text.size() > 0
-        && request.resource.data.text.size() <= 200
+        && request.resource.data.text.size() <= 208
         && request.resource.data.isActive == true;
       allow delete: if false;
     }

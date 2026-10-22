@@ -60,6 +60,8 @@ interface RecordingPost {
   writerGrade?: string;
   writerRole?: string;
   writerPosition?: string;
+  artist?: string;
+  members?: string[] | string;
 }
 
 interface User {
@@ -116,14 +118,17 @@ const RecordingPostList: React.FC = () => {
       setError(null);
       
       let baseQuery;
+      const hasSearchTerm = Boolean(searchTerm && searchTerm.trim().length > 0);
       const isClientSort = sortOrder === 'likes' || sortOrder === 'comments';
+      const shouldLoadAll = hasSearchTerm || isClientSort;
       const sortDirection = sortOrder === 'oldest' ? 'asc' : 'desc';
       
-      if (isClientSort) {
+      if (shouldLoadAll) {
+        // 검색 중에는 페이지에 안 올라온 글까지 포함해 전체를 가져온다.
         baseQuery = query(
           collection(db, 'posts'),
           where('type', '==', 'recording'),
-          orderBy('createdAt', 'desc')
+          orderBy('createdAt', isClientSort ? 'desc' : sortDirection)
         );
       } else if (!isInitial && lastVisible) {
         baseQuery = query(
@@ -152,11 +157,8 @@ const RecordingPostList: React.FC = () => {
         return;
       }
 
-      const lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
-      if (!isClientSort) {
-        setLastVisible(lastVisibleDoc);
-      } else {
-        setHasMore(false);
+      if (!shouldLoadAll && snapshot.docs.length > 0) {
+        setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
       }
 
       let newPosts = snapshot.docs.map(doc => ({
@@ -165,11 +167,26 @@ const RecordingPostList: React.FC = () => {
         createdAt: doc.data().createdAt?.toDate() || new Date()
       })) as RecordingPost[];
 
-      if (searchTerm) {
-        newPosts = newPosts.filter(post => 
-          post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          post.description.toLowerCase().includes(searchTerm.toLowerCase())
-        );
+      if (hasSearchTerm) {
+        const searchLower = searchTerm.toLowerCase().trim();
+        newPosts = newPosts.filter(post => {
+          const matchesTitleOrDescription =
+            (typeof post.title === 'string' && post.title.toLowerCase().includes(searchLower)) ||
+            (typeof post.artist === 'string' && post.artist.toLowerCase().includes(searchLower)) ||
+            (typeof post.description === 'string' && post.description.toLowerCase().includes(searchLower));
+          const matchesWriter =
+            typeof post.writerNickname === 'string' &&
+            post.writerNickname.toLowerCase().includes(searchLower);
+          let matchesMembers = false;
+          if (Array.isArray(post.members)) {
+            matchesMembers = post.members.some((member) =>
+              String(member || '').trim().toLowerCase().includes(searchLower)
+            );
+          } else if (typeof post.members === 'string') {
+            matchesMembers = post.members.toLowerCase().includes(searchLower);
+          }
+          return matchesTitleOrDescription || matchesWriter || matchesMembers;
+        });
       }
 
       if (isClientSort) {
@@ -206,12 +223,17 @@ const RecordingPostList: React.FC = () => {
         post.writerPosition = userInfo?.position || '';
       }));
 
-      setHasMore(snapshot.docs.length === POSTS_PER_PAGE);
-
-      if (isInitial) {
+      if (shouldLoadAll) {
+        setHasMore(false);
+        setLastVisible(null);
         setPosts(newPosts);
       } else {
-        setPosts(prev => [...prev, ...newPosts]);
+        setHasMore(snapshot.docs.length === POSTS_PER_PAGE);
+        if (isInitial) {
+          setPosts(newPosts);
+        } else {
+          setPosts(prev => [...prev, ...newPosts]);
+        }
       }
 
       setLoading(false);

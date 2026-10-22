@@ -37,6 +37,7 @@ import {
   notifyStaffOnApprovedSongCountMilestones
 } from '../utils/approvedSongMilestone';
 import ApprovedSongDeletionHistory from './ApprovedSongDeletionHistory';
+import ApprovedSongMemberRenamePanel from './ApprovedSongMemberRenamePanel';
 
 const ApprovedSongsNotebook: React.FC = () => {
   type RepairFailureItem = {
@@ -544,6 +545,11 @@ const ApprovedSongsNotebook: React.FC = () => {
             {/* 관리 탭: 닉네임별 합격곡 관리 */}
             {manageTab === 'manage' && isAdmin && (
               <div className="approved-songs-manage-section">
+                <ApprovedSongMemberRenamePanel
+                  songs={songs}
+                  registeredNicknames={allNicknames}
+                  updatedBy={user?.nickname || user?.email || ''}
+                />
                 <h4 className="approved-songs-manage-title">
                   합격곡에 등재된 닉네임
                 </h4>
@@ -628,7 +634,7 @@ const ApprovedSongsNotebook: React.FC = () => {
                     className="approved-songs-copy-textarea"
                     readOnly
                     value={uniqueMembersText}
-                    placeholder="합격곡에 등재된 닉네임이 없습니다."
+                    placeholder="버스킹멤버가 없습니다."
                   />
                 </div>
                 <div className="approved-songs-copy-box">

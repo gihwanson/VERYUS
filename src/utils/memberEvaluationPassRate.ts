@@ -163,6 +163,7 @@ export function computeMemberPassRatesFromDocs(params: {
   const map = new Map<string, MemberPassRateStats>();
   const countedEvalKeys = new Set<string>();
   const countedEvalPassTitles = new Set<string>();
+  const countedEvalPassPostIds = new Set<string>();
 
   for (const postDoc of params.evaluationPosts) {
     const data = postDoc.data() as Record<string, unknown>;
@@ -183,6 +184,7 @@ export function computeMemberPassRatesFromDocs(params: {
         const passKey = titleKey ? `${titleKey}\0${nick}` : `${postId}\0${nick}\0합격`;
         if (countedEvalPassTitles.has(passKey)) continue;
         countedEvalPassTitles.add(passKey);
+        if (postId) countedEvalPassPostIds.add(`${postId}\0${nick}`);
         ensureStats(map, nick).evalPasses += 1;
         continue;
       }
@@ -198,9 +200,6 @@ export function computeMemberPassRatesFromDocs(params: {
   for (const songDoc of params.approvedSongs) {
     const data = songDoc.data() as Record<string, unknown>;
     const approvedPostId = String(data.approvedPostId ?? '').trim();
-    // 평가 합격으로 생성된 곡은 평가 집계에 이미 포함되므로 제외
-    if (approvedPostId) continue;
-
     const titleKey = normalizeApprovedSongTitleKey(data);
     if (!titleKey) continue;
 
@@ -216,12 +215,19 @@ export function computeMemberPassRatesFromDocs(params: {
         if (seenInDoc.has(nick)) continue;
         seenInDoc.add(nick);
 
-        // 명예의전당과 동일: 제목+멤버 중복은 1곡 (평가 합격과 중복 시 제외)
+        // 평가글에 이미 집계된 곡은 다시 더하지 않는다.
+        // 닉네임 변경 후 평가글에 예전 이름이 남아 있으면, 합격곡 멤버 기준으로 집계한다.
         const key = `${titleKey}\0${nick}`;
-        if (countedEvalPassTitles.has(key) || countedAdminKeys.has(key)) continue;
+        const countedOnPost =
+          Boolean(approvedPostId) && countedEvalPassPostIds.has(`${approvedPostId}\0${nick}`);
+        if (countedEvalPassTitles.has(key) || countedOnPost || countedAdminKeys.has(key)) continue;
         countedAdminKeys.add(key);
 
-        ensureStats(map, nick).adminDirectPasses += 1;
+        if (approvedPostId) {
+          ensureStats(map, nick).evalPasses += 1;
+        } else {
+          ensureStats(map, nick).adminDirectPasses += 1;
+        }
       }
     }
   }

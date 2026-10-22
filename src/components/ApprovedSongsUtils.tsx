@@ -1,5 +1,6 @@
 import { Timestamp } from 'firebase/firestore';
 import { GRADE_ORDER, GRADE_SYSTEM } from './AdminTypes';
+import { getGradeEmoji } from '../utils/gradeDisplay';
 
 // 타입 정의
 export interface ApprovedSong {
@@ -161,12 +162,39 @@ export const getApprovedSongMembers = (songs: ApprovedSong[], userMap: UserMap):
     .sort((a, b) => a.localeCompare(b, 'ko'));
 };
 
-/** 합격곡 관리 탭 버스킹멤버 (당월 최초 등재·일반멤버 전환·삭제된 회원 제외) */
+/** 합격곡이 없어도 버스킹멤버에 포함하는 등급 (사과~태양, 은하) */
+const BUSKING_MEMBER_GRADE_EMOJIS = new Set<string>([
+  GRADE_SYSTEM.APPLE,
+  GRADE_SYSTEM.MELON,
+  GRADE_SYSTEM.WATERMELON,
+  GRADE_SYSTEM.EARTH,
+  GRADE_SYSTEM.SATURN,
+  GRADE_SYSTEM.SUN,
+  GRADE_SYSTEM.GALAXY,
+].map((grade) => grade.replace(/\uFE0F/g, '')));
+
+export const isBuskingMemberGrade = (grade: string | undefined): boolean => {
+  const raw = (grade ?? '').trim().replace(/\uFE0F/g, '');
+  if (raw && BUSKING_MEMBER_GRADE_EMOJIS.has(raw)) return true;
+  const emoji = getGradeEmoji(grade).replace(/\uFE0F/g, '');
+  return BUSKING_MEMBER_GRADE_EMOJIS.has(emoji);
+};
+
+/** 합격곡 관리 탭 버스킹멤버. 합격곡 보유(당월 최초 등재 제외) 또는 사과·멜론·수박·지구·토성·태양·은하. 일반멤버 전환·삭제된 회원 제외 */
 export const getBuskingMembers = (songs: ApprovedSong[], userMap: UserMap): string[] => {
   const firstApprovedDates = getMemberFirstApprovedDates(songs);
-  return getApprovedSongMembers(songs, userMap).filter(
-    (nickname) => !isApprovedInCurrentMonth(firstApprovedDates[nickname])
+  const members = new Set(
+    getApprovedSongMembers(songs, userMap).filter(
+      (nickname) => !isApprovedInCurrentMonth(firstApprovedDates[nickname])
+    )
   );
+
+  for (const [nickname, user] of Object.entries(userMap)) {
+    if (!nickname || user.isRegularMember) continue;
+    if (isBuskingMemberGrade(user.grade)) members.add(nickname);
+  }
+
+  return Array.from(members).sort((a, b) => a.localeCompare(b, 'ko'));
 };
 
 /** 합격곡 관리 탭 일반멤버 */
@@ -182,8 +210,8 @@ export const getRegularMembers = (
     .filter((nickname) => {
       if (userMap[nickname]?.grade === GRADE_SYSTEM.CRESCENT) return false;
       if (userMap[nickname]?.isRegularMember) return true;
-      if (isApprovedInCurrentMonth(firstApprovedDates[nickname])) return true;
       if (buskingSet.has(nickname)) return false;
+      if (isApprovedInCurrentMonth(firstApprovedDates[nickname])) return true;
       const joinDate = parseFirestoreDate(userMap[nickname]?.createdAt);
       return !isJoinedInCurrentMonth(joinDate);
     })

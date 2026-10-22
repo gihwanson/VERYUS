@@ -640,3 +640,140 @@
   resize: vertical;
   line-height: 1.6;
 }
+
+.approved-songs-rename {
+  margin-bottom: 20px;
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.approved-songs-rename__title {
+  margin: 0 0 6px;
+  color: white;
+  font-size: 16px;
+  font-weight: 800;
+  text-align: left;
+}
+
+.approved-songs-rename__desc,
+.approved-songs-rename__count {
+  margin: 0 0 12px;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.approved-songs-rename__label {
+  display: block;
+  margin-bottom: 8px;
+  color: #ffe08a;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.approved-songs-rename__orphans {
+  margin-bottom: 12px;
+}
+
+.approved-songs-rename__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.approved-songs-rename__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.approved-songs-rename__chip span {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.approved-songs-rename__chip.is-selected {
+  background: rgba(138, 85, 204, 0.85);
+  border-color: transparent;
+}
+
+.approved-songs-rename__fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.approved-songs-rename__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.approved-songs-rename__field input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  font-size: 14px;
+}
+
+.approved-songs-rename__field input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.approved-songs-rename__preview {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.approved-songs-rename__preview li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.approved-songs-rename__preview li span {
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+  text-align: right;
+}
+
+.approved-songs-rename__submit {
+  margin-top: 4px;
+}
+
+.approved-songs-rename__submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .approved-songs-rename__fields {
+    grid-template-columns: 1fr;
+  }
+}

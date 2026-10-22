@@ -11,14 +11,27 @@ import { formatDateYmdKst, getBookableWeekRangeOnOpenSunday } from './practiceRo
  */
 export const EVALUATION_UPLOAD_PRIORITY_START_MS = Date.parse('2026-10-18T22:45:00+09:00');
 
-/** 연습실 티켓팅에서 무조건 1순위(관리자) */
+/** 운영진은 일반 회원과 같이 티켓팅 순위를 따른다. 이미 저장된 예약 비교에도 쓴다. */
+const practiceRoomTicketingRankUserIds = new Set<string>();
+
+function rememberPracticeRoomTicketingRankUsers(
+  usersSnap: { forEach: (fn: (userDoc: { id: string; data: () => { role?: string } }) => void) => void }
+): void {
+  practiceRoomTicketingRankUserIds.clear();
+  usersSnap.forEach((userDoc) => {
+    const role = String(userDoc.data()?.role || '').trim();
+    if (role === '운영진') practiceRoomTicketingRankUserIds.add(userDoc.id);
+  });
+}
+
+/** 연습실 티켓팅에서 무조건 1순위. 너래·리더만 해당하고 운영진은 제외한다. */
 export function isPracticeRoomAdminPriorityUser(
   user: { nickname?: string; role?: string } | null | undefined
 ): boolean {
   if (!user) return false;
   if (user.nickname && SUPER_ADMIN_NICKNAMES.includes(user.nickname)) return true;
   const role = (user.role || '').trim();
-  return role === '리더' || role === '운영진';
+  return role === '리더';
 }
 
 export type PriorityTally = {
@@ -308,15 +321,17 @@ export function getCreatedAtMs(value: unknown): number {
 
 /** 관리자 예약 여부 (구데이터: purpose/닉네임으로도 판별) */
 export function reservationHasAdminPriority(r: {
+  userId?: string;
   adminPriority?: boolean;
   purpose?: string;
   userDisplayName?: string;
 }): boolean {
+  const nickname = String(r.userDisplayName || '').trim();
+  if (nickname && SUPER_ADMIN_NICKNAMES.includes(nickname)) return true;
+  if (r.userId && practiceRoomTicketingRankUserIds.has(r.userId)) return false;
   if (r.adminPriority === true) return true;
   const purpose = String(r.purpose || '').replace(/\s+/g, '');
   if (purpose.includes('관리자')) return true;
-  const nickname = String(r.userDisplayName || '').trim();
-  if (nickname && SUPER_ADMIN_NICKNAMES.includes(nickname)) return true;
   return false;
 }
 
@@ -662,6 +677,7 @@ export async function loadPriorityRankingForWindow(
     getDocs(collection(db, 'users')),
   ]);
   const nicknameToUid = new Map<string, string>();
+  rememberPracticeRoomTicketingRankUsers(usersSnap);
   usersSnap.forEach((userDoc) => {
     const nickname = String(userDoc.data()?.nickname || '').trim();
     if (nickname) nicknameToUid.set(nickname, userDoc.id);
