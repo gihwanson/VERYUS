@@ -51,23 +51,88 @@
   backdrop-filter: blur(14px);
 }
 
-.contest-ui-refresh .contest-detail-summary-header {
+.contest-ui-refresh .contest-detail-summary-head {
   display: flex;
-  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 12px;
 }
 
-.contest-ui-refresh .contest-detail-status-badges {
+.contest-ui-refresh .contest-detail-summary-head .contest-detail-title {
+  margin: 0;
+  font-size: 1.35rem;
+  line-height: 1.35;
+  flex: 1;
+  min-width: 0;
+}
+
+.contest-ui-refresh .contest-detail-summary-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  align-items: center;
+  gap: 8px 14px;
+  margin-top: 10px;
+}
+
+.contest-ui-refresh .contest-detail-summary-deadline {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--cu-text-soft);
 }
 
 .contest-ui-refresh .contest-detail-summary-actions {
-  margin-top: 14px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.22);
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
+  width: 100%;
+}
+
+.contest-ui-refresh .contest-detail-summary-actions .contest-button.participate {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+.contest-ui-refresh .contest-detail-summary-actions .contest-button.detail,
+.contest-ui-refresh .contest-detail-summary-actions .contest-button.end {
+  flex: 0 1 auto;
+}
+
+.contest-ui-refresh .contest-detail-admin-bar {
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+  margin-bottom: 12px !important;
+}
+
+.contest-ui-refresh .contest-admin-tabs--segmented {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.contest-ui-refresh .contest-admin-tabs--segmented .contest-admin-tab-btn {
+  width: 100%;
+  text-align: center;
+  justify-content: center;
+}
+
+.contest-ui-refresh .contest-detail-section .contest-section-label {
+  margin-bottom: 14px;
+}
+
+.contest-ui-refresh .contest-info-title {
+  text-align: left;
+  font-size: 1rem;
+  margin-bottom: 10px;
+}
+
+.contest-ui-refresh .contest-info-list {
+  text-align: left;
+  padding-left: 1.15rem;
+  line-height: 1.65;
 }
 
 .contest-ui-refresh .contest-admin-tabs {
@@ -341,11 +406,17 @@
 }
 
 .contest-ui-refresh .contest-stage-main-line {
-  margin-top: 4px;
-  font-size: 18px;
+  margin-top: 0;
+  font-size: 16px;
   font-weight: 700;
-  color: #8a55cc;
-  line-height: 1.4;
+  color: #6b21a8;
+  line-height: 1.45;
+}
+
+.contest-ui-refresh .contest-stage-main-line--partner {
+  margin-top: 2px;
+  font-size: 15px;
+  color: #7c3aed;
 }
 
 .contest-ui-refresh .contest-stage-support,
@@ -371,8 +442,71 @@
 }
 
 .contest-ui-refresh .contest-detail-participant-item {
-  flex-wrap: wrap;
-  align-items: flex-start;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.contest-ui-refresh .contest-detail-participant-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.contest-ui-refresh .contest-detail-participant-trailing {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.contest-ui-refresh .contest-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.contest-ui-refresh .contest-status-pill--done {
+  background: rgba(16, 185, 129, 0.14);
+  color: #047857;
+  border-color: rgba(16, 185, 129, 0.32);
+}
+
+.contest-ui-refresh .contest-status-pill--pending {
+  background: rgba(148, 163, 184, 0.14);
+  color: #64748b;
+  border-color: rgba(148, 163, 184, 0.28);
+}
+
+.contest-ui-refresh .contest-participant-kick-btn {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 4px 8px;
+  margin: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  line-height: 1.3;
+  flex-shrink: 0;
+}
+
+.contest-ui-refresh .contest-participant-kick-btn:hover {
+  color: #be123c;
+  background: rgba(244, 63, 94, 0.08);
+}
+
+.contest-ui-refresh .contest-participant-kick-btn:focus-visible {
+  outline: 2px solid rgba(244, 63, 94, 0.45);
+  outline-offset: 1px;
 }
 
 .contest-ui-refresh .contest-pair-actions {
@@ -402,23 +536,193 @@
 
 .contest-ui-refresh .contest-stage-switch {
   display: inline-flex;
+  align-items: center;
+  gap: 8px;
   margin-top: 8px;
-  border: 1px solid #e9d5ff;
-  background: #fff;
+  border: 1px solid rgba(138, 85, 204, 0.28);
+  background: linear-gradient(180deg, #ffffff 0%, #faf5ff 100%);
   color: #6b21a8;
+  border-radius: 10px;
+  padding: 6px 12px 6px 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  line-height: 1.2;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.1s ease;
+  box-shadow: 0 1px 2px rgba(107, 33, 168, 0.06);
+}
+
+.contest-ui-refresh .contest-stage-switch:hover {
+  border-color: #c4b5fd;
+  background: #f5f3ff;
+  box-shadow: 0 2px 6px rgba(107, 33, 168, 0.1);
+}
+
+.contest-ui-refresh .contest-stage-switch:active {
+  transform: scale(0.98);
+}
+
+.contest-ui-refresh .contest-stage-switch__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  color: #6b21a8;
+  background: rgba(138, 85, 204, 0.12);
+}
+
+.contest-ui-refresh .contest-stage-switch--to-co-main .contest-stage-switch__icon {
+  color: #5b21b6;
+  background: rgba(124, 58, 237, 0.14);
+}
+
+.contest-ui-refresh .contest-stage-switch--to-sub {
+  color: #9a3412;
+  border-color: rgba(251, 146, 60, 0.45);
+  background: linear-gradient(180deg, #fff 0%, #fff7ed 100%);
+}
+
+.contest-ui-refresh .contest-stage-switch--to-sub .contest-stage-switch__icon {
+  color: #c2410c;
+  background: rgba(251, 146, 60, 0.18);
+}
+
+.contest-ui-refresh .contest-stage-switch--to-sub:hover {
+  border-color: #fdba74;
+  background: #ffedd5;
+}
+
+.contest-ui-refresh .contest-stage-switch__label {
+  padding-right: 2px;
+}
+
+.contest-ui-refresh .contest-pair-btn--icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.contest-ui-refresh .contest-pair-btn--icon .contest-stage-switch__icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+.contest-ui-refresh .contest-detail-team-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.contest-ui-refresh .contest-team-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.contest-ui-refresh .contest-team-card__header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px 14px;
+  align-items: start;
+  padding: 14px 16px;
+}
+
+.contest-ui-refresh .contest-team-card__index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #6b21a8;
+  background: rgba(138, 85, 204, 0.12);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.contest-ui-refresh .contest-team-card__index--solo {
+  color: #64748b;
+  background: rgba(100, 116, 139, 0.12);
+}
+
+.contest-ui-refresh .contest-team-card__info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.contest-ui-refresh .contest-team-card__solo-tag {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #64748b;
+  background: rgba(100, 116, 139, 0.12);
   border-radius: 999px;
-  padding: 4px 10px;
+  padding: 2px 8px;
+}
+
+.contest-ui-refresh .contest-team-card__status {
   font-size: 12px;
   font-weight: 700;
-  cursor: pointer;
+  white-space: nowrap;
+  border-radius: 999px;
+  padding: 4px 10px;
+  line-height: 1.2;
 }
 
-.contest-ui-refresh .contest-detail-team-actions {
-  width: 100%;
+.contest-ui-refresh .contest-team-card__status.pending {
+  color: #92400e;
+  background: rgba(251, 191, 36, 0.2);
 }
 
-.contest-ui-refresh .contest-detail-team-actions .danger {
+.contest-ui-refresh .contest-team-card__status.submitted {
+  color: #047857;
+  background: rgba(16, 185, 129, 0.16);
+}
+
+.contest-ui-refresh .contest-team-card__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 16px 12px;
+  border-top: 1px solid rgba(138, 85, 204, 0.14);
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.contest-ui-refresh .contest-team-card__footer--solo {
+  justify-content: flex-end;
+}
+
+.contest-ui-refresh .contest-team-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-left: auto;
+}
+
+.contest-ui-refresh .contest-team-card__footer .contest-detail-team-button {
+  min-height: 36px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
 }
 
 .contest-ui-refresh .contest-detail-participant-item.in-team {
@@ -430,37 +734,24 @@
   cursor: default;
 }
 
-.contest-ui-refresh .contest-team-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.contest-ui-refresh .contest-team-members-strong {
-  font-weight: 700;
-  font-size: 18px;
-  color: #8a55cc;
-  flex: 1;
-}
-
-.contest-ui-refresh .contest-team-members-solo {
-  margin-bottom: 8px;
-}
-
 .contest-ui-refresh .contest-team-move-controls {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  gap: 6px;
 }
 
 .contest-ui-refresh .contest-team-move-btn {
   color: #fff;
   border: none;
-  border-radius: 4px;
-  padding: 4px 8px;
-  font-size: 12px;
-  min-width: 32px;
+  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .contest-ui-refresh .contest-team-move-btn.enabled {
@@ -470,13 +761,10 @@
 }
 
 .contest-ui-refresh .contest-team-move-btn.disabled {
-  background: #d1d5db;
+  background: #e5e7eb;
+  color: #9ca3af;
   cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.contest-ui-refresh .contest-team-status-wrap {
-  margin-top: 8px;
+  opacity: 1;
 }
 
 .contest-ui-refresh .contest-results-content {
@@ -571,7 +859,109 @@
 }
 
 .contest-ui-refresh .contest-section {
-  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+/* ---- 콘테스트 목록 카드 ---- */
+.contest-ui-refresh .contest-list-card {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 16px 18px !important;
+}
+
+.contest-ui-refresh .contest-list-card__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.contest-ui-refresh .contest-list-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.contest-ui-refresh .contest-list-card__header .contest-card-title {
+  margin-bottom: 0 !important;
+  font-size: 1.25rem !important;
+  line-height: 1.35;
+  flex: 1;
+  min-width: 0;
+}
+
+.contest-ui-refresh .contest-list-card__status {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  line-height: 1.3;
+}
+
+.contest-ui-refresh .contest-list-card__status--live {
+  background: rgba(16, 185, 129, 0.18);
+  color: #047857;
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.contest-ui-refresh .contest-list-card__status--waiting {
+  background: rgba(245, 158, 11, 0.16);
+  color: #b45309;
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.contest-ui-refresh .contest-list-card__status--ended {
+  background: rgba(148, 163, 184, 0.2);
+  color: #475569;
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
+.contest-ui-refresh .contest-list-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin-top: 10px;
+}
+
+.contest-ui-refresh .contest-list-card__deadline {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--cu-text-soft);
+}
+
+.contest-ui-refresh .contest-list-card__top3 {
+  margin-top: 10px;
+  margin-bottom: 0;
+}
+
+.contest-ui-refresh .contest-list-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.22);
+  width: 100%;
+}
+
+.contest-ui-refresh .contest-list-card__actions .contest-button.participate {
+  flex: 1 1 7rem;
+  min-width: 0;
+}
+
+.contest-ui-refresh .contest-list-card__actions .contest-button.detail,
+.contest-ui-refresh .contest-list-card__actions .contest-button.end {
+  flex: 0 1 auto;
+}
+
+.contest-ui-refresh .contest-list-card.ended .contest-list-card__actions .contest-button.detail {
+  flex: 1 1 auto;
 }
 
 .contest-ui-refresh .contest-section-label {
@@ -685,6 +1075,126 @@
   padding-bottom: 22px;
 }
 
+/* ===== 경연·참가(채점) 페이지 셸 ===== */
+.contest-ui-refresh.contest-participate-refresh {
+  min-height: 100vh;
+  background: var(--app-page-gradient);
+  background-attachment: fixed;
+  position: relative;
+  overflow: hidden;
+  color: var(--cu-text);
+}
+
+.contest-participate-refresh .contest-participate-bg-pattern {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 40% 80%, rgba(120, 119, 198, 0.2) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.contest-participate-refresh .contest-participate-inner {
+  position: relative;
+  z-index: 1;
+  padding: 24px clamp(16px, 4vw, 40px) 40px;
+  max-width: var(--app-content-max-width);
+  margin: 0 auto;
+}
+
+.contest-participate-refresh .contest-participate-hero-title {
+  color: var(--cu-text);
+  font-weight: 700;
+  font-size: 28px;
+  margin: 0 0 8px;
+  text-align: center;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.contest-participate-refresh .contest-participate-hero-type {
+  color: var(--cu-text-soft);
+  font-weight: 500;
+  margin-bottom: 8px;
+  text-align: center;
+  font-size: 16px;
+}
+
+.contest-participate-refresh .contest-participate-hero-type--tail {
+  margin-bottom: 24px;
+}
+
+.contest-ui-refresh.contest-participate-refresh .contest-section-label.contest-participate-group-label {
+  display: block;
+  width: 100%;
+  margin: 0 0 12px !important;
+  padding: 0;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--cu-text) !important;
+  text-shadow: none !important;
+}
+
+.contest-participate-refresh .contest-participate-leader-notice {
+  background: rgba(251, 191, 36, 0.2);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 24px;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  text-align: center;
+}
+
+.contest-participate-refresh .contest-participate-leader-notice__title {
+  color: var(--cu-text);
+  font-weight: 600;
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.contest-participate-refresh .contest-participate-leader-notice__body {
+  color: var(--cu-text-soft);
+  font-size: 14px;
+}
+
+.contest-participate-refresh .contest-participate-state-screen {
+  min-height: 100vh;
+  background: var(--app-page-gradient);
+  background-attachment: fixed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cu-text);
+}
+
+.contest-participate-refresh .contest-participate-state-card {
+  border-radius: 20px;
+  padding: 40px;
+  text-align: center;
+  backdrop-filter: blur(15px);
+}
+
+.contest-participate-refresh .contest-participate-state-card--ended {
+  background: rgba(239, 68, 68, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.contest-participate-refresh .contest-participate-state-card--loading {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.contest-participate-refresh .contest-participate-state-msg {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--cu-text);
+}
+
+.contest-participate-refresh .contest-participate-state-msg--loading {
+  font-weight: 600;
+}
+
 .contest-participate-refresh input,
 .contest-participate-refresh textarea {
   background: rgba(255, 255, 255, 0.92) !important;
@@ -695,6 +1205,374 @@
 .contest-participate-refresh input::placeholder,
 .contest-participate-refresh textarea::placeholder {
   color: #6b7280 !important;
+}
+
+/* ── 참가(경연 채점) 무대 카드 ── */
+.contest-participate-refresh .contest-participate-stage-card {
+  background: linear-gradient(165deg, #ffffff 0%, #f8f5ff 100%);
+  border: 1px solid rgba(138, 85, 204, 0.18);
+  border-radius: 16px;
+  padding: 18px 16px;
+  margin-bottom: 14px;
+  width: 100%;
+  box-shadow: 0 4px 18px rgba(88, 55, 150, 0.08);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+.contest-participate-refresh .contest-participate-stage-card.is-done {
+  background: linear-gradient(165deg, #f3f4f6 0%, #e5e7eb 100%);
+  border-color: #cbd5e1;
+  opacity: 0.88;
+}
+
+.contest-participate-refresh .contest-participate-stage-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.contest-participate-refresh .contest-participate-stage-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #6b21a8;
+  line-height: 1.45;
+}
+
+.contest-participate-refresh .contest-participate-stage-title.is-muted {
+  color: #6b7280;
+  text-decoration: line-through;
+  text-decoration-color: rgba(107, 114, 128, 0.45);
+}
+
+.contest-participate-refresh .contest-participate-stage-title--solo {
+  font-size: 18px;
+}
+
+.contest-participate-refresh .contest-participate-stage-sub {
+  font-size: 14px;
+  font-weight: 600;
+  color: #c2410c;
+  line-height: 1.45;
+}
+
+.contest-participate-refresh .contest-participate-stage-sub--co-main {
+  font-size: 15px;
+  font-weight: 700;
+  color: #7c3aed;
+}
+
+.contest-participate-refresh .contest-participate-stage-badge {
+  font-size: 12px;
+  font-weight: 700;
+  color: #047857;
+  background: rgba(16, 185, 129, 0.14);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+.contest-participate-refresh .contest-participate-member-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  vertical-align: baseline;
+}
+
+.contest-participate-refresh .contest-participate-grade {
+  font-size: 1.05em;
+  line-height: 1;
+}
+
+.contest-participate-refresh .contest-participate-nickname {
+  font-weight: 700;
+}
+
+.contest-participate-refresh .contest-participate-song-wrap {
+  margin: 10px 0 6px;
+}
+
+.contest-participate-refresh .contest-participate-song-display {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f9fafb;
+  border: 1px solid #e9d5ff;
+  font-size: 14px;
+  color: #9ca3af;
+  font-style: italic;
+  text-align: center;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.contest-participate-refresh .contest-participate-song-display.has-title {
+  background: #f5f3ff;
+  color: #6b21a8;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.contest-participate-refresh .contest-participate-song-display.is-editable {
+  cursor: pointer;
+}
+
+.contest-participate-refresh .contest-participate-grade-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.contest-participate-refresh .contest-participate-grade-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.contest-participate-refresh .contest-participate-co-main-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.contest-participate-refresh .contest-participate-co-main-badge {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6d28d9;
+  background: rgba(124, 58, 237, 0.12);
+  border-radius: 999px;
+  padding: 4px 12px;
+}
+
+.contest-participate-refresh .contest-participate-member-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.contest-participate-refresh .contest-participate-member-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid rgba(138, 85, 204, 0.2);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.contest-participate-refresh .contest-participate-co-main-hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #64748b;
+  text-align: center;
+  max-width: 28rem;
+}
+
+.contest-participate-refresh .contest-participate-team-grade-hint {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #64748b;
+  text-align: center;
+}
+
+.contest-participate-refresh .contest-participate-grade-block--slice {
+  padding-top: 14px;
+  margin-top: 4px;
+  border-top: 1px dashed rgba(138, 85, 204, 0.22);
+}
+
+.contest-participate-refresh .contest-participate-grade-block--slice:first-child {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.contest-participate-refresh .contest-participate-slice-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.contest-participate-refresh .contest-participate-slice-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  height: 1.65rem;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: rgba(138, 85, 204, 0.14);
+  color: #6b21a8;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.contest-participate-refresh .contest-participate-slice-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: #334155;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.contest-participate-refresh .contest-participate-slice-suffix {
+  font-weight: 600;
+  color: #64748b;
+  margin-left: 2px;
+}
+
+.contest-participate-refresh .contest-participate-slice-done {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: #047857;
+  background: rgba(16, 185, 129, 0.14);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.contest-participate-refresh .contest-participate-grade-block--slice .contest-participate-done-card {
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.contest-participate-refresh .contest-participate-field {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(138, 85, 204, 0.22);
+  font-size: 16px;
+  box-sizing: border-box;
+  background: #fff;
+  color: #1f2937;
+  font-family: inherit;
+}
+
+.contest-participate-refresh .contest-participate-grade-hint {
+  color: #7c3aed;
+  font-weight: 600;
+  font-size: 14px;
+  text-align: center;
+}
+
+.contest-participate-refresh .contest-participate-grade-hint-inline {
+  margin-left: 8px;
+  color: #8a55cc;
+}
+
+.contest-participate-refresh .contest-participate-submit-row {
+  display: flex;
+  gap: 8px;
+}
+
+.contest-participate-refresh .contest-participate-submit-btn {
+  flex: 1;
+  background: linear-gradient(135deg, #8a55cc 0%, #7c4dbc 100%);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 20px;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(138, 85, 204, 0.28);
+  font-family: inherit;
+}
+
+.contest-participate-refresh .contest-participate-submit-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.contest-participate-refresh .contest-participate-secondary-btn {
+  background: #94a3b8;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 18px;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.contest-participate-refresh .contest-participate-done-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.88);
+  border-radius: 12px;
+  border: 1px solid rgba(138, 85, 204, 0.16);
+  width: 100%;
+}
+
+.contest-participate-refresh .contest-participate-done-title {
+  color: #6b7280;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.contest-participate-refresh .contest-participate-done-score {
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+.contest-participate-refresh .contest-participate-done-comment {
+  color: #9ca3af;
+  font-size: 13px;
+  font-style: italic;
+  text-align: center;
+}
+
+.contest-participate-refresh .contest-participate-cancel-btn {
+  margin-top: 4px;
+  background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.contest-participate-refresh .contest-participate-self-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px;
+  text-align: center;
+}
+
+.contest-participate-refresh .contest-participate-self-block__title {
+  color: #f43f5e;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.contest-participate-refresh .contest-participate-self-block__sub {
+  color: #9ca3af;
+  font-size: 13px;
 }
 
 /* 결과표 가로 스크롤 — 래퍼는 투명(이중 흰 박스 제거), 표만 한 겹 배경 */
@@ -883,6 +1761,100 @@
   border-top: 2px solid #fecdd3;
   padding-top: 16px;
   margin-top: 8px;
+}
+
+/* ===== 결과·접근 차단 페이지 셸 ===== */
+.contest-results-container.contest-ui-refresh {
+  min-height: 100vh;
+  background: var(--app-page-gradient);
+  background-attachment: fixed;
+  position: relative;
+  overflow: hidden;
+  color: var(--cu-text);
+}
+
+.contest-results-container .contest-results-bg-pattern {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 40% 80%, rgba(120, 119, 198, 0.2) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.contest-access-block-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: var(--app-page-gradient);
+  background-attachment: fixed;
+  color: var(--cu-text);
+}
+
+.contest-access-block-card {
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+  padding: 32px 24px;
+  border-radius: 16px;
+  background: var(--cu-card);
+  border: 1px solid var(--cu-card-border);
+  box-shadow: var(--cu-shadow);
+  backdrop-filter: blur(14px);
+}
+
+.contest-access-block-icon {
+  font-size: 2.5rem;
+  line-height: 1;
+  margin-bottom: 12px;
+}
+
+.contest-access-block-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin: 0 0 10px;
+  color: var(--cu-text);
+}
+
+.contest-access-block-message {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin: 0 0 20px;
+  color: var(--cu-text-soft);
+  white-space: pre-line;
+}
+
+.contest-results-hero-panel .contest-results-title {
+  margin: 0;
+  font-size: 1.35rem;
+  text-align: left;
+}
+
+.contest-results-hero-panel .contest-results-subtitle {
+  margin: 8px 0 0;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.contest-ui-refresh .contest-results-round-title {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--cu-text);
+}
+
+.contest-ui-refresh .contest-results-round-meta {
+  font-size: 0.88rem;
+  color: var(--cu-text-soft);
+  margin: 0 0 8px;
+}
+
+.contest-ui-refresh .contest-results-round-meta--strong {
+  font-weight: 600;
+  color: var(--cu-text);
 }
 
 .contest-ui-refresh .contest-results-main-tabs {

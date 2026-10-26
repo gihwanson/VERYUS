@@ -95,3 +95,30 @@ export function formatContestStageInline(
   if (!lines) return '';
   return `${lines.title} · ${lines.support}`;
 }
+
+/** 팀 목록 「서로 메인 ↔ 서브」 버튼: 3단계 (서로 메인 → 뒤 멤버 서브 → 앞 멤버 서브 → 서로 메인) */
+export type ContestStageRoleToggleStep = 'to-default-sub' | 'swap-sub' | 'to-co-main';
+
+export function contestStageRoleToggleStep(team: ContestStageTeamLike): ContestStageRoleToggleStep | null {
+  const members = Array.isArray(team.members) ? team.members.filter(Boolean) : [];
+  if (members.length < 2) return null;
+  const [firstUid, secondUid] = members;
+  const bothMains = Boolean(team.coMainUid) || team.partnerRole === 'main';
+  if (bothMains) return 'to-default-sub';
+  const mainUid = (team.mainUid || firstUid).trim();
+  const subUid = (team.subUid || '').trim();
+  if (mainUid === firstUid && subUid === secondUid) return 'swap-sub';
+  if (mainUid === secondUid && subUid === firstUid) return 'to-co-main';
+  return 'swap-sub';
+}
+
+export function contestStageRoleToggleLabel(step: ContestStageRoleToggleStep): string {
+  switch (step) {
+    case 'to-default-sub':
+      return '한 명은 서브로';
+    case 'swap-sub':
+      return '다른 멤버를 서브로';
+    case 'to-co-main':
+      return '서로 메인으로';
+  }
+}

@@ -7,9 +7,9 @@ import '../styles/variables.css';
 import '../styles/contest-ui-refresh.css';
 
 import type { ContestType } from '../types/contest';
-import { contestTypeLabel } from '../types/contest';
 import { registerOnParticipateClick } from '../utils/contestParticipant';
 import { computeContestTop3Targets, type ContestGradeRecord } from '../utils/contestGradesAggregation';
+import ContestListItem from './ContestListItem';
 
 interface Contest {
   id: string;
@@ -261,34 +261,17 @@ const ContestListClassic: React.FC = () => {
               <div className="contest-section">
                 <h3 className="contest-section-label">🔥 진행중</h3>
                 {contests.filter(c => !isContestEnded(c)).map(contest => (
-                  <div key={contest.id} className="contest-card">
-                    <div className="contest-card-content">
-                      <div className="contest-card-title">{contest.title}</div>
-                      <div className="contest-tags">
-                        <span className="contest-tag type">{contestTypeLabel(contest.type)}</span>
-                        {contest.isStarted && (
-                          <span className="contest-tag started">✅ 개최됨</span>
-                        )}
-                        {!contest.isStarted && (
-                          <span className="contest-tag waiting">⏸️ 대기중</span>
-                        )}
-                        <span className="contest-date">📅 마감: {formatDeadline(contest.deadline)}</span>
-                      </div>
-                    </div>
-                    <div className="contest-buttons">
-                      <button className="contest-button detail" onClick={() => navigate(`/contests/${contest.id}`)}>
-                        📋 상세
-                      </button>
-                      <button className="contest-button participate" onClick={() => handleParticipate(contest)}>
-                        🎯 참여
-                      </button>
-                      {user && user.role === '리더' && user.nickname === '너래' && (
-                        <button className="contest-button end" onClick={async () => await updateDoc(firestoreDoc(db, 'contests', contest.id), { ended: true })}>
-                          🛑 종료
-                        </button>
-                      )}
-                    </div>
-                  </div>
+                  <ContestListItem
+                    key={contest.id}
+                    contest={contest}
+                    inEndedSection={false}
+                    deadlineText={formatDeadline(contest.deadline)}
+                    onDetail={() => navigate(`/contests/${contest.id}`)}
+                    onParticipate={() => void handleParticipate(contest)}
+                    showQuickEnd={Boolean(user && user.role === '리더' && user.nickname === '너래')}
+                    onQuickEnd={() => void updateDoc(firestoreDoc(db, 'contests', contest.id), { ended: true })}
+                    rankLabel={getRankEmoji}
+                  />
                 ))}
               </div>
             )}
@@ -298,29 +281,14 @@ const ContestListClassic: React.FC = () => {
               <div className="contest-section">
                 <h3 className="contest-section-label">📁 종료됨</h3>
                 {contests.filter(c => isContestEnded(c)).map(contest => (
-                  <div key={contest.id} className="contest-card ended">
-                    <div className="contest-card-content">
-                      <div className="contest-card-title">{contest.title}</div>
-                      {Array.isArray(contest.top3) && contest.top3.length > 0 && (
-                        <div className="contest-top3">
-                          {contest.top3.map((item) => (
-                            <span key={item.rank} className={`contest-top3-badge rank-${item.rank}`}>
-                              {getRankEmoji(item.rank)} {item.name} ({item.score ? item.score.toFixed(1) : '-'})
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      <div className="contest-tags">
-                        <span className="contest-tag type">{contestTypeLabel(contest.type)}</span>
-                        <span className="contest-tag ended">종료됨</span>
-                      </div>
-                    </div>
-                    <div className="contest-buttons">
-                      <button className="contest-button detail" onClick={() => navigate(`/contests/${contest.id}`)}>
-                        📋 상세
-                      </button>
-                    </div>
-                  </div>
+                  <ContestListItem
+                    key={contest.id}
+                    contest={contest}
+                    inEndedSection
+                    deadlineText=""
+                    onDetail={() => navigate(`/contests/${contest.id}`)}
+                    rankLabel={getRankEmoji}
+                  />
                 ))}
               </div>
             )}

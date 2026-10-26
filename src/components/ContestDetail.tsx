@@ -23,6 +23,8 @@ import {
   formatContestStageInline,
   formatContestStageLines,
   type ContestSubRole,
+  contestStageRoleToggleLabel,
+  contestStageRoleToggleStep,
 } from '../utils/contestStage';
 
 interface Contest {
@@ -416,25 +418,43 @@ const ContestDetail: React.FC = () => {
 
   const handleToggleBothMains = useCallback(async (team: Team) => {
     if (!id) return;
-    const mainUid = team.mainUid || team.members?.[0];
-    const partnerUid = team.coMainUid || team.subUid || team.members?.find((uid) => uid !== mainUid);
-    if (!mainUid || !partnerUid) return;
-    const bothMains = Boolean(team.coMainUid) || team.partnerRole === 'main';
+    const members = Array.isArray(team.members) ? team.members.filter(Boolean) : [];
+    if (members.length < 2) return;
+    const [firstUid, secondUid] = members;
+    const step = contestStageRoleToggleStep(team);
+    if (!step) return;
+
+    const mainUid = team.mainUid || firstUid;
+    const partnerUid =
+      team.coMainUid || team.subUid || members.find((uid) => uid !== mainUid) || secondUid;
+
     try {
-      await updateDoc(firestoreDoc(db, 'contests', id, 'teams', team.id), bothMains
-        ? {
-            subUid: partnerUid,
-            partnerRole: 'sub',
-            coMainUid: deleteField(),
-            updatedAt: new Date(),
-          }
-        : {
-            coMainUid: partnerUid,
-            partnerRole: 'main',
-            subUid: deleteField(),
-            subRole: deleteField(),
-            updatedAt: new Date(),
-          });
+      if (step === 'to-default-sub') {
+        await updateDoc(firestoreDoc(db, 'contests', id, 'teams', team.id), {
+          mainUid,
+          subUid: partnerUid,
+          partnerRole: 'sub',
+          coMainUid: deleteField(),
+          updatedAt: new Date(),
+        });
+      } else if (step === 'swap-sub') {
+        await updateDoc(firestoreDoc(db, 'contests', id, 'teams', team.id), {
+          mainUid: secondUid,
+          subUid: firstUid,
+          partnerRole: 'sub',
+          coMainUid: deleteField(),
+          updatedAt: new Date(),
+        });
+      } else {
+        await updateDoc(firestoreDoc(db, 'contests', id, 'teams', team.id), {
+          mainUid: firstUid,
+          coMainUid: secondUid,
+          partnerRole: 'main',
+          subUid: deleteField(),
+          subRole: deleteField(),
+          updatedAt: new Date(),
+        });
+      }
     } catch (error) {
       console.error('메인 구성 변경 중 오류:', error);
       alert('메인 구성을 바꾸는 중 오류가 발생했습니다.');
@@ -669,64 +689,77 @@ const ContestDetail: React.FC = () => {
 
   if (!contest) {
     return (
-      <div className="contest-loading">
-        <div className="contest-loading-content">
-          콘테스트 정보를 불러오는 중...
+      <div className="contest-detail-container contest-ui-refresh">
+        <div className="contest-detail-content">
+          <div className="contest-loading-state" aria-busy="true">
+            <div className="contest-loading-spinner" />
+            <span>콘테스트 정보를 불러오는 중...</span>
+          </div>
         </div>
       </div>
     );
   }
 
+  const detailStatusClass = ended
+    ? 'contest-list-card__status--ended'
+    : contest.isStarted
+      ? 'contest-list-card__status--live'
+      : 'contest-list-card__status--waiting';
+  const detailStatusLabel = ended ? '종료됨' : contest.isStarted ? '개최됨' : '대기 중';
+  const deadlineText = formatDeadline(contest.deadline);
+
   return (
     <div className="contest-detail-container contest-ui-refresh">
       <div className="contest-detail-pattern" />
       <div className="contest-detail-content">
-        <div style={{ marginBottom: 12 }}>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => navigate('/contests')}
-          >
-            ← 콘테스트 목록으로
-          </button>
-        </div>
-        {/* 상단 요약 카드 */}
+        <button
+          type="button"
+          className="contest-back-button"
+          onClick={() => navigate('/contests')}
+        >
+          ← 콘테스트 목록으로
+        </button>
+
         <div className="contest-detail-summary-card">
-          <div className="contest-detail-summary-header">
+          <div className="contest-detail-summary-head">
             <h2 className="contest-detail-title">{contest.title}</h2>
-            <div className="contest-detail-status-badges">
-              <span className="contest-detail-info-item">{contestTypeLabel(contest.type)}</span>
-              <span className="contest-detail-info-item">📅 마감: {formatDeadline(contest.deadline)}</span>
-              {ended ? (
-                <span className="contest-detail-badge ended">종료됨</span>
-              ) : contest.isStarted ? (
-                <span className="contest-detail-badge started">진행중</span>
-              ) : (
-                <span className="contest-detail-badge waiting">대기중</span>
-              )}
-            </div>
+            <span className={`contest-list-card__status ${detailStatusClass}`}>{detailStatusLabel}</span>
           </div>
-          <div className="contest-detail-summary-actions">
+          <div className="contest-detail-summary-meta">
+            <span className="contest-tag type">{contestTypeLabel(contest.type)}</span>
+            {deadlineText ? (
+              <span className="contest-detail-summary-deadline">마감 {deadlineText}</span>
+            ) : null}
+          </div>
+          <div className="contest-detail-summary-actions contest-buttons">
             {!ended && (
-              <button className="btn btn-primary" onClick={handleParticipate}>참여</button>
+              <button type="button" className="contest-button participate" onClick={handleParticipate}>
+                참여
+              </button>
             )}
             {(contest.type !== '라운드매치' || isLeader) && (
-              <button className="btn btn-secondary" onClick={() => navigate(`/contests/${contest.id}/results`)}>
+              <button
+                type="button"
+                className="contest-button detail"
+                onClick={() => navigate(`/contests/${contest.id}/results`)}
+              >
                 결과 보기
               </button>
             )}
             {isLeader && !contest.isStarted && !ended && (
               <button
                 type="button"
-                className="btn btn-success contest-start-btn"
+                className="contest-button participate contest-start-btn"
                 onClick={handleStartContest}
                 disabled={startingContest}
               >
-                {startingContest ? '개최 중...' : '🚀 콘테스트 개최'}
+                {startingContest ? '개최 중...' : '콘테스트 개최'}
               </button>
             )}
             {isAdmin && (
-              <button className="btn btn-danger" onClick={handleDeleteContest}>삭제</button>
+              <button type="button" className="contest-button end" onClick={handleDeleteContest}>
+                삭제
+              </button>
             )}
           </div>
         </div>
@@ -735,9 +768,7 @@ const ContestDetail: React.FC = () => {
         {contest.type === '경연' && (
           <section className="contest-detail-section contest-info-section">
             <div className="contest-info-card">
-              <h3 className="contest-info-title">
-                🎭 등급전 안내
-              </h3>
+              <h3 className="contest-info-title">등급전 안내</h3>
               <ul className="contest-info-list">
                 <li>현장에서 라이브를 듣고 점수를 줍니다</li>
                 <li>솔로, 메인과 서브, 또는 서로 메인이 한 무대를 이룹니다</li>
@@ -751,7 +782,7 @@ const ContestDetail: React.FC = () => {
         {contest.type === '라운드매치' && (
           <section className="contest-detail-section contest-info-section">
             <div className="contest-info-card">
-              <h3 className="contest-info-title">⚔️ 라운드매치 안내</h3>
+              <h3 className="contest-info-title">라운드매치 안내</h3>
               <ul className="contest-info-list">
                 <li>참여 버튼을 누른 멤버가 참가자 목록에 표시됩니다</li>
                 <li>등록된 참가자가 A팀/B팀 중 하나에 투표합니다</li>
@@ -773,9 +804,9 @@ const ContestDetail: React.FC = () => {
         )}
 
         {isAdmin && (
-          <section className="contest-detail-section">
+          <section className="contest-detail-section contest-detail-admin-bar">
             {contest.type === '경연' && (
-              <div className="contest-admin-tabs">
+              <div className="contest-admin-tabs contest-admin-tabs--segmented">
                 <button
                   type="button"
                   className={`contest-admin-tab-btn ${adminTab === 'participants' ? 'active' : ''}`}
@@ -805,8 +836,7 @@ const ContestDetail: React.FC = () => {
         {/* 참가자현황 섹션 (평가하는 인원) */}
         {isAdmin && adminTab === 'participants' && (
           <section className="contest-detail-section">
-            <h3 className="contest-detail-section-title">{contest.type === '경연' ? '👥 평가자' : '👥 참가자'}</h3>
-            <hr className="contest-detail-section-divider" />
+            <h3 className="contest-section-label">{contest.type === '경연' ? '평가자' : '참가자'}</h3>
             
             <div className="contest-helper-box">
               {contest.type === '경연' && (
@@ -843,7 +873,7 @@ const ContestDetail: React.FC = () => {
             {/* 실시간 참가자 명단 */}
             <div className="contest-list-header-box">
               <div className="contest-list-header-title">
-                📋 {contest.type === '경연' ? '평가자' : '참가자'} 명단 ({uniqueParticipants.length}명)
+                {contest.type === '경연' ? '평가자' : '참가자'} 명단 ({uniqueParticipants.length}명)
               </div>
             </div>
             <div className="contest-detail-participant-list" ref={soloListRef}>
@@ -885,27 +915,31 @@ const ContestDetail: React.FC = () => {
                           </span>
                         )}
                       </span>
-                      <span className={`contest-detail-participant-status ${isSubmitted ? 'submitted' : 'pending'}`}>
-                        {contest.type === '라운드매치'
-                          ? isSubmitted
-                            ? '✅ 투표완료'
-                            : '⏳ 미투표'
-                          : isSubmitted
-                            ? '✅ 제출완료'
-                            : '⏳ 대기중'}
-                      </span>
-                      <button
-                        type="button"
-                        className={`contest-detail-team-button break danger`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (window.confirm(`${p.nickname}님을 참가자 목록에서 제거하시겠습니까?`)) {
-                            handleDeleteParticipant(p.uid);
-                          }
-                        }}
-                      >
-                        {contest.type === '경연' || contest.type === '라운드매치' ? '강퇴' : '삭제'}
-                      </button>
+                      <div className="contest-detail-participant-trailing">
+                        <span
+                          className={`contest-status-pill ${isSubmitted ? 'contest-status-pill--done' : 'contest-status-pill--pending'}`}
+                        >
+                          {contest.type === '라운드매치'
+                            ? isSubmitted
+                              ? '투표 완료'
+                              : '미투표'
+                            : isSubmitted
+                              ? '제출 완료'
+                              : '대기 중'}
+                        </span>
+                        <button
+                          type="button"
+                          className="contest-participant-kick-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`${p.nickname}님을 참가자 목록에서 제거하시겠습니까?`)) {
+                              handleDeleteParticipant(p.uid);
+                            }
+                          }}
+                        >
+                          {contest.type === '경연' || contest.type === '라운드매치' ? '강퇴' : '삭제'}
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -943,8 +977,7 @@ const ContestDetail: React.FC = () => {
         {/* 참가자 관리 섹션 (평가받는 대상) - 경연 유형만 */}
         {isAdmin && contest.type === '경연' && adminTab === 'targets' && (
           <section className="contest-detail-section">
-            <h3 className="contest-detail-section-title">🎯 평가 대상</h3>
-            <hr className="contest-detail-section-divider" />
+            <h3 className="contest-section-label">평가 대상</h3>
             <div className="contest-helper-box">
               💡 노래를 평가받는 사람입니다. 한 명을 누르면 메인이 됩니다. 다른 사람은 서브로 묶기 또는 서로 메인으로 고르면 팀이 만들어지고 팀 목록으로 이동합니다.
             </div>
@@ -1071,10 +1104,11 @@ const ContestDetail: React.FC = () => {
                         </button>
                         <button
                           type="button"
-                          className="contest-pair-btn contest-pair-btn--main"
+                          className="contest-pair-btn contest-pair-btn--main contest-pair-btn--icon"
                           onClick={() => void createTargetStage(targetMainUid, t.uid, true)}
                         >
-                          서로 메인
+                          <ContestStageRoleSwitchIcon toCoMain compact />
+                          <span>서로 메인</span>
                         </button>
                       </div>
                     )}
@@ -1092,8 +1126,7 @@ const ContestDetail: React.FC = () => {
         {/* 팀 목록 섹션 - 관리자만 표시 (팀 + evaluationTargets의 솔로참가자만 포함) */}
         {isAdmin && contest.type === '경연' && adminTab === 'teams' && hasTeamItems && (
           <section className="contest-detail-section">
-            <h3 className="contest-detail-section-title">🎭 팀 목록</h3>
-            <hr className="contest-detail-section-divider" />
+            <h3 className="contest-section-label">팀 목록</h3>
             <div className="contest-detail-team-list">
               {/* 팀 목록 */}
               {sortedTeams.map((team, index) => {
@@ -1108,36 +1141,69 @@ const ContestDetail: React.FC = () => {
                 const canMoveUp = index > 0;
                 const canMoveDown = index < sortedTeams.length - 1;
                 return (
-                  <div key={team.id} className="contest-detail-team-item">
-                    <div className="contest-team-head">
-                      <div className="contest-detail-team-members contest-team-members-strong">
+                  <div key={team.id} className="contest-detail-team-item contest-team-card">
+                    <div className="contest-team-card__header">
+                      <span className="contest-team-card__index" aria-hidden>
+                        {index + 1}
+                      </span>
+                      <div className="contest-team-card__info">
                         {(() => {
                           const lines = formatContestStageLines(team, nicknameOf);
                           if (!lines) {
-                            return Array.isArray(team.members)
-                              ? team.members.map((uid) => nicknameOf(uid)).join(' & ')
-                              : '';
+                            return (
+                              <div className="contest-stage-main-line">
+                                {Array.isArray(team.members)
+                                  ? team.members.map((uid) => nicknameOf(uid)).join(' · ')
+                                  : ''}
+                              </div>
+                            );
                           }
                           return (
                             <>
-                              <div>{lines.title}</div>
-                              <div className={lines.bothMains ? 'contest-stage-main-line' : 'contest-stage-support'}>{lines.support}</div>
+                              <div className="contest-stage-main-line">{lines.title}</div>
+                              <div
+                                className={
+                                  lines.bothMains
+                                    ? 'contest-stage-main-line contest-stage-main-line--partner'
+                                    : 'contest-stage-support'
+                                }
+                              >
+                                {lines.support}
+                              </div>
                               {(team.mainUid || (Array.isArray(team.members) && team.members.length >= 2)) && (
-                                <button
-                                  type="button"
-                                  className="contest-stage-switch"
-                                  onClick={() => handleToggleBothMains(team)}
-                                >
-                                  {team.coMainUid || team.partnerRole === 'main' ? '한 명은 서브로' : '서로 메인으로'}
-                                </button>
+                                (() => {
+                                  const toggleStep = contestStageRoleToggleStep(team);
+                                  if (!toggleStep) return null;
+                                  const toCoMain = toggleStep === 'to-co-main';
+                                  return (
+                                    <button
+                                      type="button"
+                                      className={`contest-stage-switch ${toCoMain ? 'contest-stage-switch--to-co-main' : 'contest-stage-switch--to-sub'}`}
+                                      onClick={() => handleToggleBothMains(team)}
+                                    >
+                                      <ContestStageRoleSwitchIcon toCoMain={toCoMain} />
+                                      <span className="contest-stage-switch__label">
+                                        {contestStageRoleToggleLabel(toggleStep)}
+                                      </span>
+                                    </button>
+                                  );
+                                })()
                               )}
                             </>
                           );
                         })()}
                       </div>
-                      {isAdmin && (
-                        <div className="contest-team-move-controls">
+                      <span
+                        className={`contest-status-pill ${teamSubmitted ? 'contest-status-pill--done' : 'contest-status-pill--pending'}`}
+                      >
+                        {teamSubmitted ? '제출 완료' : '대기 중'}
+                      </span>
+                    </div>
+                    {isAdmin && (
+                      <div className="contest-team-card__footer">
+                        <div className="contest-team-move-controls" aria-label="출연 순서">
                           <button
+                            type="button"
                             onClick={() => handleMoveTeam(team.id, 'up')}
                             disabled={!canMoveUp}
                             className={`contest-team-move-btn ${canMoveUp ? 'enabled' : 'disabled'}`}
@@ -1146,6 +1212,7 @@ const ContestDetail: React.FC = () => {
                             ↑
                           </button>
                           <button
+                            type="button"
                             onClick={() => handleMoveTeam(team.id, 'down')}
                             disabled={!canMoveDown}
                             className={`contest-team-move-btn ${canMoveDown ? 'enabled' : 'disabled'}`}
@@ -1154,59 +1221,63 @@ const ContestDetail: React.FC = () => {
                             ↓
                           </button>
                         </div>
-                      )}
-                    </div>
-                    {isAdmin && (
-                      <div className="contest-detail-team-actions contest-inline-actions">
-                        <button 
-                          className="contest-detail-team-button break"
-                          onClick={() => handleBreakDuet(team.id)}
-                        >
-                          팀 해제
-                        </button>
-                        <button 
-                          className="contest-detail-team-button break danger"
-                          onClick={() => handleDeleteTeam(team.id)}
-                        >
-                          삭제
-                        </button>
+                        <div className="contest-team-card__actions">
+                          <button
+                            type="button"
+                            className="contest-detail-team-button edit"
+                            onClick={() => handleBreakDuet(team.id)}
+                          >
+                            팀 해제
+                          </button>
+                          <button
+                            type="button"
+                            className="contest-detail-team-button break danger"
+                            onClick={() => handleDeleteTeam(team.id)}
+                          >
+                            삭제
+                          </button>
+                        </div>
                       </div>
                     )}
-                    <div className="contest-team-status-wrap">
-                      <span className={`contest-detail-participant-status ${teamSubmitted ? 'submitted' : 'pending'}`}>
-                        {teamSubmitted ? '✅ 제출완료' : '⏳ 대기중'}
-                      </span>
-                    </div>
                   </div>
                 );
               })}
               {/* 솔로 참가자 목록 (evaluationTargets만 표시) */}
               {evaluationTargets
                 .filter(t => !teams.some(team => Array.isArray(team.members) && team.members.includes(t.uid)))
-                .map(t => {
+                .map((t, soloIndex) => {
                   // evaluationTargets의 닉네임으로 participants에서 찾아서 제출 상태 확인
                   const p = participants.find(pp => pp.nickname === t.nickname);
                   const isSubmitted = p ? isParticipantSubmitted(p.nickname) : false;
                   return (
-                    <div key={t.uid} className="contest-detail-team-item">
-                      <div className="contest-detail-team-members contest-team-members-strong contest-team-members-solo">
-                        {t.nickname}
-                      </div>
-                      {isAdmin && (
-                        <div className="contest-detail-team-actions contest-inline-actions">
-                          <button 
-                            className="contest-detail-team-button break danger"
-                            onClick={() => handleDeleteEvaluationTarget(t.uid)}
-                          >
-                            삭제
-                          </button>
+                    <div key={t.uid} className="contest-detail-team-item contest-team-card contest-team-card--solo">
+                      <div className="contest-team-card__header">
+                        <span className="contest-team-card__index contest-team-card__index--solo" aria-hidden>
+                          {sortedTeams.length + soloIndex + 1}
+                        </span>
+                        <div className="contest-team-card__info">
+                          <div className="contest-stage-main-line">{t.nickname}</div>
+                          <span className="contest-team-card__solo-tag">솔로</span>
                         </div>
-                      )}
-                      <div className="contest-team-status-wrap">
-                        <span className={`contest-detail-participant-status ${isSubmitted ? 'submitted' : 'pending'}`}>
-                          {isSubmitted ? '✅ 제출완료' : '⏳ 대기중'}
+                        <span
+                          className={`contest-status-pill ${isSubmitted ? 'contest-status-pill--done' : 'contest-status-pill--pending'}`}
+                        >
+                          {isSubmitted ? '제출 완료' : '대기 중'}
                         </span>
                       </div>
+                      {isAdmin && (
+                        <div className="contest-team-card__footer contest-team-card__footer--solo">
+                          <div className="contest-team-card__actions">
+                            <button
+                              type="button"
+                              className="contest-detail-team-button break danger"
+                              onClick={() => handleDeleteEvaluationTarget(t.uid)}
+                            >
+                              삭제
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -1217,6 +1288,53 @@ const ContestDetail: React.FC = () => {
     </div>
   );
 };
+
+function ContestStageRoleSwitchIcon({
+  toCoMain,
+  compact = false,
+}: {
+  toCoMain: boolean;
+  compact?: boolean;
+}) {
+  const size = compact ? 13 : 14;
+  return (
+    <span className="contest-stage-switch__icon" aria-hidden>
+      {toCoMain ? (
+        <svg
+          width={size}
+          height={size}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M16 3h5v5" />
+          <path d="M4 20 21 3" />
+          <path d="M21 16v5h-5" />
+          <path d="M15 15l6 6" />
+          <path d="M4 4l5 5" />
+        </svg>
+      ) : (
+        <svg
+          width={size}
+          height={size}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M12 3v12" />
+          <path d="m8 11 4 4 4-4" />
+          <path d="M5 21h14" />
+        </svg>
+      )}
+    </span>
+  );
+}
 
 function ContestStageBuildPanel({
   mainName,

@@ -151,4 +151,26 @@ export function getUpcomingScheduledQuestions(
     .filter((_, index) => index >= dayIndex);
 }
 
+/** KST 기준 다음 날(내일) 00시에 공개될 큐 질문 */
+export function getTomorrowMemberWorldCupQuestion(
+  scheduledQuestions: MemberWorldCupQuestionDefinition[],
+  at = new Date()
+): (MemberWorldCupQuestionDefinition & {
+  scheduleLabel: string;
+  scheduleDayKey: string;
+  scheduleOrder: number;
+}) | null {
+  const dayIndex = getMemberWorldCupDayIndex(at);
+  const sorted = sortScheduledQuestions(scheduledQuestions);
+  const question = sorted[dayIndex + 1];
+  if (!question) return null;
+  const scheduleOrder = question.scheduleOrder ?? dayIndex + 2;
+  return {
+    ...question,
+    scheduleOrder,
+    scheduleLabel: formatQuestionScheduleLabel(scheduleOrder, at),
+    scheduleDayKey: getScheduledDayKeyForOrder(scheduleOrder),
+  };
+}
+
 export { formatDayKeyLabel, formatScheduledDayLabel };

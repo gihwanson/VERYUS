@@ -90,24 +90,12 @@ const ContestResults: React.FC = () => {
 
   if (!contest) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        background: 'var(--app-page-gradient)',
-        backgroundAttachment: 'fixed',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.15)',
-          backdropFilter: 'blur(15px)',
-          borderRadius: '20px',
-          padding: '40px',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          textAlign: 'center'
-        }}>
+      <div className="contest-ui-refresh contest-results-container contest-participate-state-screen">
+        <div className="contest-participate-state-card contest-participate-state-card--loading">
           <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
-          <div style={{ color: 'white', fontSize: '18px', fontWeight: 600 }}>콘테스트 정보를 불러오는 중...</div>
+          <div className="contest-participate-state-msg contest-participate-state-msg--loading">
+            콘테스트 정보를 불러오는 중...
+          </div>
         </div>
       </div>
     );
@@ -115,24 +103,16 @@ const ContestResults: React.FC = () => {
 
   if (!user || user.role !== '리더') {
     return (
-      <div style={{
-        minHeight: '100vh',
-        background: 'var(--app-page-gradient)',
-        backgroundAttachment: 'fixed',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.15)',
-          backdropFilter: 'blur(15px)',
-          borderRadius: '20px',
-          padding: '40px',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          textAlign: 'center'
-        }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🚫</div>
-          <div style={{ color: 'white', fontSize: '18px', fontWeight: 600 }}>콘테스트 결과는 리더만 확인할 수 있습니다.</div>
+      <div className="contest-ui-refresh contest-access-block-screen">
+        <div className="contest-access-block-card">
+          <div className="contest-access-block-icon" aria-hidden>
+            🚫
+          </div>
+          <h2 className="contest-access-block-title">결과 열람 제한</h2>
+          <p className="contest-access-block-message">콘테스트 결과는 리더만 확인할 수 있습니다.</p>
+          <button type="button" className="contest-back-button" onClick={() => navigate(`/contests/${id}`)}>
+            ← 콘테스트 상세로
+          </button>
         </div>
       </div>
     );
@@ -140,46 +120,35 @@ const ContestResults: React.FC = () => {
 
   if (contest.type === '라운드매치') {
     return (
-      <div
-        className="contest-ui-refresh"
-        style={{
-          minHeight: '100vh',
-          background: 'var(--app-page-gradient)',
-          backgroundAttachment: 'fixed',
-          padding: '28px 16px 48px',
-        }}
-      >
-        <div style={{ maxWidth: 720, margin: '0 auto' }}>
-          <div style={{ marginBottom: 14 }}>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => navigate(`/contests/${id}`)}
-            >
-              ← 콘테스트 상세로
-            </button>
+      <div className="contest-results-container contest-ui-refresh">
+        <div className="contest-results-bg-pattern" aria-hidden />
+        <div className="contest-results-content">
+          <button type="button" className="contest-back-button" onClick={() => navigate(`/contests/${id}`)}>
+            ← 콘테스트 상세로
+          </button>
+          <div className="contest-results-panel contest-results-hero-panel">
+            <h2 className="contest-results-title">{contest.title}</h2>
+            <p className="contest-results-subtitle">라운드매치 히스토리 · 리더 전용</p>
           </div>
-          <h2 style={{ color: '#fff', fontWeight: 800, marginBottom: 8 }}>{contest.title}</h2>
-          <p style={{ color: 'rgba(255,255,255,0.85)', marginBottom: 24 }}>⚔️ 라운드매치 히스토리 (리더 전용)</p>
           {rounds.length === 0 ? (
-            <p style={{ color: 'rgba(255,255,255,0.7)' }}>기록된 라운드가 없습니다.</p>
+            <p className="contest-empty-state">기록된 라운드가 없습니다.</p>
           ) : (
             rounds.map((round) => (
               <div key={round.id} className="contest-results-panel" style={{ marginBottom: 20 }}>
-                <h3 style={{ color: '#7C4DBC', fontWeight: 700, marginBottom: 8 }}>
+                <h3 className="contest-results-round-title">
                   라운드 {round.roundNumber}: {round.teamAName} vs {round.teamBName}
                 </h3>
                 {round.status === 'published' ? (
-                  <p style={{ fontWeight: 600, marginBottom: 8 }}>
+                  <p className="contest-results-round-meta contest-results-round-meta--strong">
                     결과: {round.winnerTeamName}
                     {round.votesA != null && (
-                      <span style={{ fontWeight: 400, marginLeft: 8, fontSize: 14 }}>
+                      <span className="contest-results-round-meta" style={{ marginLeft: 8 }}>
                         ({round.teamAName} {round.votesA}표 / {round.teamBName} {round.votesB}표)
                       </span>
                     )}
                   </p>
                 ) : (
-                  <p style={{ color: '#666', fontSize: 14 }}>
+                  <p className="contest-results-round-meta">
                     {round.status === 'voting' ? '진행 중' : '마감 · 미공개'}
                   </p>
                 )}
@@ -719,53 +688,17 @@ const ContestResults: React.FC = () => {
   };
 
   return (
-    <div className="contest-ui-refresh" style={{
-      minHeight: '100vh',
-      background: 'var(--app-page-gradient)',
-      backgroundAttachment: 'fixed',
-      position: 'relative',
-      overflow: 'hidden'
-    }}>
-      {/* 배경 패턴 */}
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: `
-          radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-          radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-          radial-gradient(circle at 40% 80%, rgba(120, 119, 198, 0.2) 0%, transparent 50%)
-        `,
-        pointerEvents: 'none'
-      }} />
-      
-      <div className="contest-results-content">
-        {/* 뒤로가기 버튼 */}
-        <div style={{ marginBottom: '20px' }}>
-          <button
-            className="contest-results-back"
-            onClick={() => navigate(`/contests/${id}`)}
-          >
-            ← 콘테스트 상세로
-          </button>
-        </div>
+    <div className="contest-results-container contest-ui-refresh">
+      <div className="contest-results-bg-pattern" aria-hidden />
 
-        {/* 헤더 */}
-        <div className="contest-results-panel">
-          <h2 className="contest-results-title">
-            🏆 최종 결과
-          </h2>
-          <div className="contest-results-title" style={{ fontSize: 24, marginBottom: 8 }}>
-            {contest.title} 결과
-          </div>
-          <div className="contest-results-subtitle" style={{ marginBottom: 12, fontSize: 18 }}>
-            {contestTypeLabel(contest.type)}
-          </div>
-          <div className="contest-results-subtitle">
-            📅 마감: {contest.deadline && (contest.deadline.seconds ? new Date(contest.deadline.seconds * 1000).toLocaleDateString('ko-KR') : '')}
-          </div>
+      <div className="contest-results-content">
+        <button type="button" className="contest-back-button" onClick={() => navigate(`/contests/${id}`)}>
+          ← 콘테스트 상세로
+        </button>
+
+        <div className="contest-results-panel contest-results-hero-panel">
+          <h2 className="contest-results-title">{contest.title}</h2>
+          <p className="contest-results-subtitle">{contestTypeLabel(contest.type)} · 최종 결과</p>
         </div>
       <div className="contest-results-panel">
         <div

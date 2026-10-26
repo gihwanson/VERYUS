@@ -52,6 +52,7 @@ import {
   formatMemberWorldCupQuestionDisplay,
   formatQuestionScheduleLabel,
   getScheduledDayKeyForOrder,
+  getTomorrowMemberWorldCupQuestion,
   getUpcomingScheduledQuestions,
   resolveActiveMemberWorldCupQuestions,
   sortScheduledQuestions,
@@ -253,6 +254,10 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
   );
   const upcomingQuestions = useMemo(
     () => getUpcomingScheduledQuestions(customQuestions),
+    [customQuestions, currentDayKey]
+  );
+  const tomorrowQuestion = useMemo(
+    () => getTomorrowMemberWorldCupQuestion(customQuestions),
     [customQuestions, currentDayKey]
   );
   const currentQuestion = activeQuestions[0];
@@ -1427,6 +1432,31 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
         <div className="mwc-modal__body">
           {canViewVoters && (
             <div className="mwc-picker__inbox">
+              <div className="mwc-picker__tomorrow" aria-live="polite">
+                <div className="mwc-picker__tomorrow-head">
+                  <strong>내일 공개 예정</strong>
+                  {tomorrowQuestion ? (
+                    <span className="mwc-picker__tomorrow-date">
+                      {tomorrowQuestion.scheduleLabel} ·{' '}
+                      {formatDayKeyLabel(tomorrowQuestion.scheduleDayKey)}
+                    </span>
+                  ) : (
+                    <span className="mwc-picker__tomorrow-date mwc-picker__tomorrow-date--muted">
+                      미정
+                    </span>
+                  )}
+                </div>
+                {tomorrowQuestion ? (
+                  <p className="mwc-picker__tomorrow-text">
+                    {formatMemberWorldCupQuestionDisplay(tomorrowQuestion)}
+                  </p>
+                ) : (
+                  <p className="mwc-picker__tomorrow-empty">
+                    예약 큐에 내일 질문이 없습니다. 아래 제안을 「내일 반영」하거나 질문 작성으로
+                    큐에 추가하세요.
+                  </p>
+                )}
+              </div>
               <div className="mwc-picker__inbox-head">
                 <strong>들어온 질문</strong>
                 <span className="mwc-picker__count-badge">{pendingProposals.length}건 대기</span>

@@ -17,46 +17,16 @@ const ContestAccessBlock: React.FC<Props> = ({
   const navigate = useNavigate();
 
   return (
-    <div
-      className="contest-ui-refresh"
-      style={{
-        minHeight: '100vh',
-        background: 'var(--app-page-gradient)',
-        backgroundAttachment: 'fixed',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 20,
-      }}
-    >
-      <div
-        style={{
-          background: 'rgba(244, 63, 94, 0.85)',
-          backdropFilter: 'blur(15px)',
-          borderRadius: 20,
-          padding: '40px 32px',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          textAlign: 'center',
-          maxWidth: 400,
-          width: '100%',
-        }}
-      >
-        <div style={{ fontSize: 48, marginBottom: 16 }}>{icon}</div>
-        <div style={{ color: 'white', fontSize: 20, fontWeight: 700, marginBottom: 12 }}>{title}</div>
-        <div
-          style={{
-            color: 'rgba(255, 255, 255, 0.95)',
-            fontSize: 16,
-            lineHeight: 1.6,
-            marginBottom: 24,
-            whiteSpace: 'pre-line',
-          }}
-        >
-          {message}
+    <div className="contest-ui-refresh contest-access-block-screen">
+      <div className="contest-access-block-card">
+        <div className="contest-access-block-icon" aria-hidden>
+          {icon}
         </div>
+        <h2 className="contest-access-block-title">{title}</h2>
+        <p className="contest-access-block-message">{message}</p>
         <button
           type="button"
-          className="btn btn-secondary"
+          className="contest-back-button"
           onClick={() => navigate(`/contests/${contestId}`)}
         >
           ← 콘테스트 상세로
