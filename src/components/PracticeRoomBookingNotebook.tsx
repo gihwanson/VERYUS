@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { collection, query, where, getDocs, addDoc, deleteDoc, doc, Timestamp, orderBy, serverTimestamp, onSnapshot, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { SUPER_ADMIN_NICKNAMES, GRADE_SYSTEM } from './AdminTypes';
@@ -14,6 +15,7 @@ import {
 import {
   canBookDateUnderTicketing,
   formatDateYmdKst,
+  formatKoreanPracticeDate,
   getBookableWeekRangeForDate,
   getTicketingStatusMessage,
   isTargetDateUnderTicketing,
@@ -63,6 +65,23 @@ import NicknameSuggestInput, {
 } from './NicknameSuggestInput';
 import { getUserMentions, type UserMention } from '../utils/getUserMentions';
 import { Calendar, Clock, User, X, ChevronLeft, ChevronRight, Info, RefreshCw, LogIn, LogOut, Users, Music2, Settings } from 'lucide-react';
+
+function notifyBooking(message: string) {
+  toast(message, {
+    position: 'top-center',
+    autoClose: 4200,
+    style: { whiteSpace: 'pre-line' },
+  });
+}
+
+interface PracticeConfirmRequest {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  danger?: boolean;
+  action: () => void | Promise<void>;
+}
+
 interface Reservation {
   id: string;
   userId: string;
@@ -151,6 +170,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [showAdminActionModal, setShowAdminActionModal] = useState(false);
+  const [pendingConfirm, setPendingConfirm] = useState<PracticeConfirmRequest | null>(null);
   const [blockReason, setBlockReason] = useState('');
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
   const [blockingRules, setBlockingRules] = useState<BlockingRule[]>([]);
@@ -227,6 +247,26 @@ const PracticeRoomBookingNotebook: React.FC = () => {
   const MAX_WEEKLY_RESERVATIONS = 1; // 1인당 주간 최대 예약 횟수
   const AUTO_CHECKOUT_MS = 4 * 60 * 60 * 1000; // 4시간 자동 퇴실
   const CHECK_IN_HISTORY_PREVIEW_LIMIT = 5; // 인라인 미리보기 개수
+
+  const requestConfirm = (next: PracticeConfirmRequest) => {
+    setPendingConfirm(next);
+  };
+
+  const runPendingConfirm = () => {
+    const current = pendingConfirm;
+    if (!current) return;
+    setPendingConfirm(null);
+    void current.action();
+  };
+
+  useEffect(() => {
+    if (!pendingConfirm) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setPendingConfirm(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [pendingConfirm]);
 
   useEffect(() => {
     const userString = localStorage.getItem('veryus_user');
@@ -716,6 +756,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
   };
 
   const formatDate = (date: Date): string => formatDateYmdKst(date);
+  const formatDisplayDate = (date: Date): string => formatKoreanPracticeDate(formatDate(date));
 
   const getWeekStart = (date: Date): Date => {
     if (usesTicketingWeekNavForDate(date)) {
@@ -866,9 +907,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
       ) {
         isBlocked = true;
         isTicketingBlock = true;
-        blockReason = isTicketingNonBookableWeekday(dateStr)
-          ? '주말 예약 차단'
-          : ticketingBookCheck.reason || '예약 오픈 전';
+        blockReason = isTicketingNonBookableWeekday(dateStr) ? '금·토 휴무' : '예약 마감';
         blockedBy = '티켓팅';
       } else if (individualSlot) {
         // 개별 설정이 있는 경우
@@ -977,7 +1016,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
     options?: { ignoreBlocks?: boolean; ignoreReservations?: boolean }
   ) => {
     if (isAlwaysOpenDate(date)) {
-      alert(`🟢 ${ALWAYS_OPEN_NOTICE}`);
+      notifyBooking(`🟢 ${ALWAYS_OPEN_NOTICE}`);
       return;
     }
 
@@ -988,29 +1027,29 @@ const PracticeRoomBookingNotebook: React.FC = () => {
       isUnlimitedUser
     );
     if (!bookingCheck.allowed) {
-      alert(bookingCheck.reason || '현재 예약할 수 없습니다.');
+      notifyBooking(bookingCheck.reason || '현재 예약할 수 없습니다.');
       return;
     }
 
     if (!isUnlimitedUser && isCherryGradeUser()) {
-      alert(CHERRY_GRADE_BOOKING_MESSAGE);
+      notifyBooking(CHERRY_GRADE_BOOKING_MESSAGE);
       return;
     }
 
     if (!isUnlimitedUser) {
       if (weeklyReservationCount >= MAX_WEEKLY_RESERVATIONS) {
-        alert(weeklyLimitExceededMessage);
+        notifyBooking(weeklyLimitExceededMessage);
         return;
       }
       const weeklyCount = await calculateWeeklyReservationCount(date);
       if (weeklyCount >= MAX_WEEKLY_RESERVATIONS) {
-        alert(weeklyLimitExceededMessage);
+        notifyBooking(weeklyLimitExceededMessage);
         return;
       }
 
       const currentUsedHours = await calculateDailyUsedHours(date);
       if (currentUsedHours >= MAX_DAILY_HOURS) {
-        alert('일일 예약은 3시간까지만 가능합니다.');
+        notifyBooking('일일 예약은 3시간까지만 가능합니다.');
         return;
       }
     }
@@ -1024,17 +1063,12 @@ const PracticeRoomBookingNotebook: React.FC = () => {
         );
 
     if (allowedDuration < 1) {
-      alert('예약 가능한 연속 시간이 없습니다.');
+      notifyBooking('예약 가능한 연속 시간이 없습니다.');
       return;
     }
 
-    // 멤버 미입력 상태(본인만)에서는 2~3명 규칙과 동일하게 최대 2시간
-    const defaultDuration = isUnlimitedUser
-      ? allowedDuration
-      : Math.min(getMaxHoursByParticipantCount(1), allowedDuration);
-
     setMaxAvailableDuration(allowedDuration);
-    setDuration(defaultDuration);
+    setDuration(1);
     setPurpose('');
     setMembers([]);
     setMemberInput('');
@@ -1056,19 +1090,25 @@ const PracticeRoomBookingNotebook: React.FC = () => {
     }
 
     if (isAlwaysOpenDate(date)) {
-      alert(`🟢 ${ALWAYS_OPEN_NOTICE}`);
+      notifyBooking(`🟢 ${ALWAYS_OPEN_NOTICE}`);
       return;
     }
 
     if (slot.isWalkInOpen && !isUnlimitedUser) {
-      alert(`🟢 ${TICKETING_WALKIN_NOTICE}`);
+      notifyBooking(`🟢 ${TICKETING_WALKIN_NOTICE}`);
       return;
     }
     
     // 차단된 시간대 클릭
     if (slot.isBlocked) {
       if (slot.isTicketingBlock && !isUnlimitedUser) {
-        alert(`🎫 ${slot.blockReason || '현재 예약할 수 없습니다.'}`);
+        const dateStr = formatDate(date);
+        const closedCheck = canBookDateUnderTicketing(dateStr, ticketingSettings, new Date(), false);
+        notifyBooking(
+          isTicketingNonBookableWeekday(dateStr)
+            ? TICKETING_NON_BOOKABLE_NOTICE
+            : closedCheck.reason || '현재 예약할 수 없습니다.'
+        );
         return;
       }
       if (isUnlimitedUser) {
@@ -1080,7 +1120,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
         setShowBlockModal(true);
       } else {
         // 일반 사용자: 차단 사유만 표시
-        alert(`🚫 이 시간대는 차단되었습니다.\n\n사유: ${slot.blockReason || '관리자가 차단함'}`);
+        notifyBooking(`🚫 이 시간대는 차단되었습니다.\n\n사유: ${slot.blockReason || '관리자가 차단함'}`);
       }
       return;
     }
@@ -1091,21 +1131,25 @@ const PracticeRoomBookingNotebook: React.FC = () => {
       console.log('📅 클릭한 날짜:', formatDate(date));
       console.log('🕐 선택한 시간:', slot.time);
 
-      if (
-        slot.canSteal &&
-        slot.reservation &&
-        !window.confirm(
-          (() => {
-            const priorityHint = getLeadingPriorityHint(slot.reservations, slot.reservation);
-            return (
-              `이 시간대를 우선 예약하시겠습니까?\n` +
-              `(${formatDate(date)} ${slot.time})\n` +
-              (priorityHint ? `${priorityHint}\n` : '') +
-              `기존 대기 예약은 밀림 처리되고 알림이 전송됩니다.`
-            );
-          })()
-        )
-      ) {
+      if (slot.canSteal && slot.reservation) {
+        const priorityHint = getLeadingPriorityHint(slot.reservations, slot.reservation);
+        const targetSlot = slot;
+        const targetDate = date;
+        const pending = isEffectivelyPendingReservation(slot.reservation);
+        requestConfirm({
+          title: '우선 예약',
+          message: [
+            `${formatDisplayDate(targetDate)} ${targetSlot.time}을 우선 예약합니다.`,
+            priorityHint,
+            pending
+              ? '기존 대기 예약은 밀림 처리되고 알림이 전송됩니다.'
+              : '기존 예약은 밀림 처리됩니다.',
+          ].filter(Boolean).join('\n'),
+          confirmLabel: '우선 예약',
+          action: async () => {
+            await openBookingFlow(targetSlot, targetDate, { ignoreReservations: true });
+          },
+        });
         return;
       }
 
@@ -1147,7 +1191,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
 
     if (slot.isPast && !slot.isInUse) return;
     if (!isUnlimitedUser && slot.isAvailable && weeklyReservationCount >= MAX_WEEKLY_RESERVATIONS) {
-      window.alert(weeklyLimitExceededMessage);
+      notifyBooking(weeklyLimitExceededMessage);
       return;
     }
     void handleTimeSlotClick(slot, date);
@@ -1186,6 +1230,28 @@ const PracticeRoomBookingNotebook: React.FC = () => {
     return trimmedPurpose.length > 0 && trimmedMembers.length >= 1;
   };
 
+  const bookingDisabledReason = () => {
+    if (isUnlimitedUser || isBookingFormValid()) return '';
+    const needsMember = getTrimmedMembers().length < 1;
+    const needsPurpose = purpose.trim().length === 0;
+    if (needsMember && needsPurpose) return '멤버와 사용 목적을 입력해 주세요';
+    if (needsMember) return '멤버 1명 이상을 추가해 주세요';
+    return '사용 목적을 입력해 주세요';
+  };
+
+  const repeatedWeekendLabel = (date: Date): string | null => {
+    if (!isUnlimitedUser) return null;
+    const dateStr = formatDate(date);
+    if (!isTargetDateUnderTicketing(dateStr, ticketingSettings)) return null;
+    if (!isTicketingNonBookableWeekday(dateStr)) return null;
+    const reasons = generateTimeSlots(date)
+      .filter((slot) => slot.isBlocked && !slot.reservation && !slot.isException && !slot.isWalkInOpen)
+      .map((slot) => (slot.blockReason || '').trim())
+      .filter(Boolean);
+    if (reasons.length < 2 || new Set(reasons).size !== 1) return null;
+    return '금·토 휴무';
+  };
+
   const handleBooking = async () => {
     if (!selectedTimeSlot || !currentUser || !bookingDate) return;
 
@@ -1196,12 +1262,12 @@ const PracticeRoomBookingNotebook: React.FC = () => {
       isUnlimitedUser
     );
     if (!bookingCheck.allowed) {
-      alert(bookingCheck.reason || '현재 예약할 수 없습니다.');
+      notifyBooking(bookingCheck.reason || '현재 예약할 수 없습니다.');
       return;
     }
 
     if (!isUnlimitedUser && isCherryGradeUser()) {
-      alert(CHERRY_GRADE_BOOKING_MESSAGE);
+      notifyBooking(CHERRY_GRADE_BOOKING_MESSAGE);
       return;
     }
 
@@ -1214,26 +1280,26 @@ const PracticeRoomBookingNotebook: React.FC = () => {
     if (!isUnlimitedUser) {
       const invalidMembers = findInvalidMemberNicknames(rawMembers, memberCandidates);
       if (invalidMembers.length > 0) {
-        alert(`등록되지 않은 멤버 닉네임입니다: ${invalidMembers.join(', ')}`);
+        notifyBooking(`등록되지 않은 멤버 닉네임입니다: ${invalidMembers.join(', ')}`);
         return;
       }
     }
 
     if (!isUnlimitedUser) {
       if (!trimmedPurpose) {
-        alert('사용 목적을 입력해주세요.');
+        notifyBooking('사용 목적을 입력해주세요.');
         return;
       }
 
       if (trimmedMembers.length < 1) {
-        alert('함께 사용할 멤버를 1명 이상 추가해주세요.\n(2인 이상부터 예약 가능합니다)');
+        notifyBooking('함께 사용할 멤버를 1명 이상 추가해주세요.\n(2인 이상부터 예약 가능합니다)');
         return;
       }
 
       const participantCount = 1 + trimmedMembers.length;
       const memberMaxHours = getMaxHoursByParticipantCount(participantCount);
       if (duration > memberMaxHours) {
-        alert(
+        notifyBooking(
           `예약 인원 ${participantCount}명(본인 포함)은 최대 ${memberMaxHours}시간까지 예약할 수 있습니다.\n\n` +
             '2~3명: 최대 2시간\n4명 이상: 최대 3시간'
         );
@@ -1276,14 +1342,14 @@ const PracticeRoomBookingNotebook: React.FC = () => {
             reservations,
           });
           if (!participationCheck.allowed) {
-            alert(participationCheck.reason || '이번 주 예약/참여 한도로 예약할 수 없습니다.');
+            notifyBooking(participationCheck.reason || '이번 주 예약/참여 한도로 예약할 수 없습니다.');
             isBookingInProgress.current = false;
             setLoading(false);
             setShowBookingModal(false);
             return;
           }
         } else if (weeklyCount >= MAX_WEEKLY_RESERVATIONS) {
-          alert(weeklyLimitExceededMessage);
+          notifyBooking(weeklyLimitExceededMessage);
           isBookingInProgress.current = false;
           setLoading(false);
           setShowBookingModal(false);
@@ -1311,7 +1377,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
           console.log('🚫🚫🚫 ================================');
           console.log('');
           
-          alert('일일 예약은 3시간까지만 가능합니다.');
+          notifyBooking('일일 예약은 3시간까지만 가능합니다.');
           isBookingInProgress.current = false;
           setLoading(false);
           setShowBookingModal(false);
@@ -1330,7 +1396,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
           console.log('🚫🚫🚫 ================================');
           console.log('');
           
-          alert(`예약 불가!\n\n현재: ${currentUsedHours}시간\n요청: ${duration}시간\n합계: ${currentUsedHours + duration}시간\n\n일일 한도 ${MAX_DAILY_HOURS}시간을 초과합니다.`);
+          notifyBooking(`예약 불가!\n\n현재: ${currentUsedHours}시간\n요청: ${duration}시간\n합계: ${currentUsedHours + duration}시간\n\n일일 한도 ${MAX_DAILY_HOURS}시간을 초과합니다.`);
           isBookingInProgress.current = false;
           setLoading(false);
           setShowBookingModal(false);
@@ -1372,7 +1438,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
             const existing = existingDoc.data() as Reservation;
             if (existing.userId === currentUser.uid) continue;
             if (reservationHasAdminPriority(existing) && !isUnlimitedUser) {
-              alert(`${checkTime} 시간대는 관리자 예약이라 덮어쓸 수 없습니다.`);
+              notifyBooking(`${checkTime} 시간대는 관리자 예약이라 덮어쓸 수 없습니다.`);
               isBookingInProgress.current = false;
               setLoading(false);
               setShowBookingModal(false);
@@ -1394,7 +1460,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
         for (const existingDoc of existingSnapshot.docs) {
           const existing = existingDoc.data() as Reservation;
           if (existing.userId === currentUser.uid) {
-            alert(`${checkTime} 시간대에 이미 본인 예약이 있습니다.`);
+            notifyBooking(`${checkTime} 시간대에 이미 본인 예약이 있습니다.`);
             isBookingInProgress.current = false;
             setLoading(false);
             setShowBookingModal(false);
@@ -1402,7 +1468,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
           }
 
           if (isEffectivelyConfirmedReservation(existing)) {
-            alert(`${checkTime} 시간대가 이미 확정 예약되어 있습니다.`);
+            notifyBooking(`${checkTime} 시간대가 이미 확정 예약되어 있습니다.`);
             isBookingInProgress.current = false;
             setLoading(false);
             setShowBookingModal(false);
@@ -1411,7 +1477,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
 
           // 확정대기(pending, 월 00시 전): 우선권이 더 높을 때만 뺏기 가능
           if (!isEffectivelyPendingReservation(existing)) {
-            alert(`${checkTime} 시간대가 이미 예약되어 있습니다.`);
+            notifyBooking(`${checkTime} 시간대가 이미 예약되어 있습니다.`);
             isBookingInProgress.current = false;
             setLoading(false);
             setShowBookingModal(false);
@@ -1425,7 +1491,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
             defenderIsAdminPriority: reservationHasAdminPriority(existing),
           });
           if (!canSteal) {
-            alert(
+            notifyBooking(
               `${checkTime} 시간대는 이미 다른 팀의 대기 예약입니다.\n` +
                 `우선순위가 더 높지 않아 우선 예약할 수 없습니다.`
             );
@@ -1552,7 +1618,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
       const pendingNote = usePendingStatus
         ? '\n\n※ 일요일 대기 예약입니다. 월요일 00시에 확정됩니다.\n우선순위가 더 높은 멤버가 이 시간대를 가져갈 수 있습니다.'
         : '';
-      alert(
+      notifyBooking(
         isUnlimitedUser
           ? `${reservedDuration}시간 예약 완료!\n\n${dateStr}`
           : `${reservedDuration}시간 ${usePendingStatus ? '대기 ' : ''}예약 완료!\n\n${dateStr}\n일일 사용: ${newUsedHours}/${MAX_DAILY_HOURS}시간\n주간 예약: ${newWeeklyCount}/${MAX_WEEKLY_RESERVATIONS}회${pendingNote}`
@@ -1560,7 +1626,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
       console.log('🔓 잠금 해제');
     } catch (error) {
       console.error('❌ 예약 실패:', error);
-      alert('예약에 실패했습니다. 다시 시도해주세요.');
+      notifyBooking('예약에 실패했습니다. 다시 시도해주세요.');
     } finally {
       isBookingInProgress.current = false; // 항상 잠금 해제
       setLoading(false);
@@ -1576,12 +1642,18 @@ const PracticeRoomBookingNotebook: React.FC = () => {
     }
     
     const isOwnReservation = reservation.userId === currentUser?.uid;
-    const confirmMessage = isAdmin && !isOwnReservation
-      ? `관리자 권한으로 ${reservation.userDisplayName}님의 예약을 취소하시겠습니까?\n(연속된 예약이 모두 취소됩니다)`
-      : '예약을 취소하시겠습니까? (연속된 예약이 모두 취소됩니다)';
-    
-    if (!window.confirm(confirmMessage)) return;
-    
+    requestConfirm({
+      title: isAdmin && !isOwnReservation ? '관리자 취소' : '예약 취소',
+      message: isAdmin && !isOwnReservation
+        ? `${reservation.userDisplayName}님의 예약을 취소합니다. 이어진 시간도 함께 취소됩니다.`
+        : '이 예약을 취소합니다. 이어진 시간도 함께 취소됩니다.',
+      confirmLabel: '취소하기',
+      danger: true,
+      action: () => performCancelReservation(reservation),
+    });
+  };
+
+  const performCancelReservation = async (reservation: Reservation) => {
     setLoading(true);
     try {
       // 같은 그룹의 모든 예약 찾기
@@ -1635,10 +1707,10 @@ const PracticeRoomBookingNotebook: React.FC = () => {
       await calculateWeeklyReservationCount(canceledDate);
       console.log('새로고침 완료. 총 사용 시간:', newUsedHours, '/', MAX_DAILY_HOURS);
       
-      alert('예약이 취소되었습니다.');
+      notifyBooking('예약이 취소되었습니다.');
     } catch (error) {
       console.error('예약 취소 실패:', error);
-      alert('예약 취소에 실패했습니다.');
+      notifyBooking('예약 취소에 실패했습니다.');
     } finally {
       setLoading(false);
     }
@@ -1648,7 +1720,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
     if (!selectedTimeSlot || !bookingDate || !currentUser) return;
     
     if (!blockReason.trim()) {
-      alert('차단 사유를 입력해주세요.');
+      notifyBooking('차단 사유를 입력해주세요.');
       return;
     }
     
@@ -1675,11 +1747,11 @@ const PracticeRoomBookingNotebook: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 500));
       await loadBlockedSlots();
       
-      alert('시간대가 차단되었습니다.');
+      notifyBooking('시간대가 차단되었습니다.');
       console.log('✅ 시간대 차단 완료');
     } catch (error) {
       console.error('시간대 차단 실패:', error);
-      alert('시간대 차단에 실패했습니다.');
+      notifyBooking('시간대 차단에 실패했습니다.');
     } finally {
       setLoading(false);
     }
@@ -1690,7 +1762,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
     
     // 규칙에 의한 차단인지 확인
     if (!selectedTimeSlot.blockId) {
-      alert('⚠️ 이 시간대는 반복 규칙에 의해 차단되었습니다.\n\n차단 해제는 "연습실 관리" 페이지에서 규칙을 비활성화하거나 삭제해주세요.');
+      notifyBooking('⚠️ 이 시간대는 반복 규칙에 의해 차단되었습니다.\n\n차단 해제는 "연습실 관리" 페이지에서 규칙을 비활성화하거나 삭제해주세요.');
       return;
     }
     
@@ -1707,11 +1779,11 @@ const PracticeRoomBookingNotebook: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 500));
       await loadBlockedSlots();
       
-      alert('차단이 해제되었습니다.');
+      notifyBooking('차단이 해제되었습니다.');
       console.log('✅ 차단 해제 완료');
     } catch (error) {
       console.error('차단 해제 실패:', error);
-      alert('차단 해제에 실패했습니다.');
+      notifyBooking('차단 해제에 실패했습니다.');
     } finally {
       setLoading(false);
     }
@@ -1744,11 +1816,11 @@ const PracticeRoomBookingNotebook: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 500));
       await loadBlockedSlots();
       
-      alert('✅ 이 시간대가 예약 가능하도록 허용되었습니다.');
+      notifyBooking('✅ 이 시간대가 예약 가능하도록 허용되었습니다.');
       console.log('✅ 예외 허용 완료');
     } catch (error) {
       console.error('예외 허용 실패:', error);
-      alert('예외 허용에 실패했습니다.');
+      notifyBooking('예외 허용에 실패했습니다.');
     } finally {
       setLoading(false);
     }
@@ -1766,11 +1838,11 @@ const PracticeRoomBookingNotebook: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 500));
       await loadBlockedSlots();
       
-      alert('예외가 취소되었습니다.\n규칙에 의해 다시 차단됩니다.');
+      notifyBooking('예외가 취소되었습니다.\n규칙에 의해 다시 차단됩니다.');
       console.log('✅ 예외 취소 완료');
     } catch (error) {
       console.error('예외 취소 실패:', error);
-      alert('예외 취소에 실패했습니다.');
+      notifyBooking('예외 취소에 실패했습니다.');
     } finally {
       setLoading(false);
     }
@@ -1818,12 +1890,12 @@ const PracticeRoomBookingNotebook: React.FC = () => {
     const trimmedInput = memberInput.trim();
     if (!trimmedInput) return;
     if (trimmedInput === currentUser?.nickname) {
-      alert('본인은 이미 예약자로 포함됩니다. 다른 멤버를 추가해주세요.');
+      notifyBooking('본인은 이미 예약자로 포함됩니다. 다른 멤버를 추가해주세요.');
       return;
     }
     const invalidMembers = findInvalidMemberNicknames([trimmedInput], memberCandidates);
     if (invalidMembers.length > 0) {
-      alert(`등록되지 않은 멤버 닉네임입니다: ${invalidMembers.join(', ')}`);
+      notifyBooking(`등록되지 않은 멤버 닉네임입니다: ${invalidMembers.join(', ')}`);
       return;
     }
     const normalized = normalizeMemberNicknames([trimmedInput], memberCandidates);
@@ -1879,13 +1951,13 @@ const PracticeRoomBookingNotebook: React.FC = () => {
   // 입실 처리
   const handleCheckIn = async () => {
     if (!currentUser) {
-      alert('로그인이 필요합니다.');
+      notifyBooking('로그인이 필요합니다.');
       return;
     }
 
     // 이미 입실 중인지 확인
     if (myCheckIn) {
-      alert('이미 입실하셨습니다.');
+      notifyBooking('이미 입실하셨습니다.');
       return;
     }
 
@@ -1914,12 +1986,12 @@ const PracticeRoomBookingNotebook: React.FC = () => {
       // 즉시 상태 업데이트를 위해 약간의 지연
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      alert('입실이 완료되었습니다.');
+      notifyBooking('입실이 완료되었습니다.');
     } catch (error: any) {
       console.error('❌ 입실 실패:', error);
       console.error('에러 코드:', error.code);
       console.error('에러 메시지:', error.message);
-      alert(`입실 처리에 실패했습니다: ${error.message}`);
+      notifyBooking(`입실 처리에 실패했습니다: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -1928,52 +2000,60 @@ const PracticeRoomBookingNotebook: React.FC = () => {
   // 퇴실 처리
   const handleCheckOut = async () => {
     if (!currentUser || !myCheckIn) {
-      alert('입실 상태가 아닙니다.');
+      notifyBooking('입실 상태가 아닙니다.');
       return;
     }
 
-    if (!window.confirm('퇴실하시겠습니까?')) {
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const checkInRef = doc(db, 'practiceRoomCheckIn', myCheckIn.id);
-      await updateDoc(checkInRef, {
-        checkOutTime: serverTimestamp(),
-        status: 'checked_out'
-      });
-      alert('퇴실이 완료되었습니다.');
-      console.log('✅ 퇴실 완료');
-    } catch (error) {
-      console.error('퇴실 실패:', error);
-      alert('퇴실 처리에 실패했습니다.');
-    } finally {
-      setLoading(false);
-    }
+    const checkInId = myCheckIn.id;
+    requestConfirm({
+      title: '퇴실',
+      message: '지금 퇴실 처리합니다.',
+      confirmLabel: '퇴실하기',
+      danger: true,
+      action: async () => {
+        try {
+          setLoading(true);
+          const checkInRef = doc(db, 'practiceRoomCheckIn', checkInId);
+          await updateDoc(checkInRef, {
+            checkOutTime: serverTimestamp(),
+            status: 'checked_out'
+          });
+          notifyBooking('퇴실이 완료되었습니다.');
+        } catch (error) {
+          console.error('퇴실 실패:', error);
+          notifyBooking('퇴실 처리에 실패했습니다.');
+        } finally {
+          setLoading(false);
+        }
+      },
+    });
   };
 
   const handleForceCheckOut = async (checkIn: CheckIn) => {
     if (!currentUser || !isAdmin) return;
 
-    const confirmMessage = `${checkIn.userNickname}님을 퇴실 처리하시겠습니까?`;
-    if (!window.confirm(confirmMessage)) return;
-
-    try {
-      setLoading(true);
-      const checkInRef = doc(db, 'practiceRoomCheckIn', checkIn.id);
-      await updateDoc(checkInRef, {
-        checkOutTime: serverTimestamp(),
-        status: 'checked_out'
-      });
-      console.log('✅ 관리자 퇴실 처리:', checkIn.userNickname);
-      alert('퇴실 처리되었습니다.');
-    } catch (error) {
-      console.error('관리자 퇴실 처리 실패:', error);
-      alert('퇴실 처리에 실패했습니다.');
-    } finally {
-      setLoading(false);
-    }
+    requestConfirm({
+      title: '퇴실 처리',
+      message: `${checkIn.userNickname}님을 퇴실 처리합니다.`,
+      confirmLabel: '퇴실 처리',
+      danger: true,
+      action: async () => {
+        try {
+          setLoading(true);
+          const checkInRef = doc(db, 'practiceRoomCheckIn', checkIn.id);
+          await updateDoc(checkInRef, {
+            checkOutTime: serverTimestamp(),
+            status: 'checked_out'
+          });
+          notifyBooking('퇴실 처리되었습니다.');
+        } catch (error) {
+          console.error('관리자 퇴실 처리 실패:', error);
+          notifyBooking('퇴실 처리에 실패했습니다.');
+        } finally {
+          setLoading(false);
+        }
+      },
+    });
   };
 
   const toDateFromTimestamp = (time: any): Date | null => {
@@ -2038,6 +2118,10 @@ const PracticeRoomBookingNotebook: React.FC = () => {
   );
 
   const weekDates = getWeekDates();
+  const weekendLabelByDate = new Map(
+    weekDates.map((date) => [formatDate(date), repeatedWeekendLabel(date)])
+  );
+  const selectedWeekendLabel = repeatedWeekendLabel(selectedDate);
 
   return (
     <div className="practice-room-booking">
@@ -2051,7 +2135,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
             <Music2 size={20} className="booking-header__icon" aria-hidden />
             연습실 예약
           </h1>
-          <p className="booking-header__sub">매일 09:00 – 22:00 · 1시간 단위</p>
+            <p className="booking-header__sub">09:00–22:00 · 1시간</p>
         </div>
         <div className="header-buttons">
           {isUnlimitedUser && (
@@ -2221,25 +2305,25 @@ const PracticeRoomBookingNotebook: React.FC = () => {
         <div className="week-navigation">
           {isMobile ? (
             <>
-              <button onClick={goToPreviousDay} className="nav-button">
+              <button type="button" onClick={goToPreviousDay} className="nav-button" aria-label="이전 날">
                 <ChevronLeft size={20} />
               </button>
               <button onClick={goToToday} className="today-button">
                 오늘
               </button>
-              <button onClick={goToNextDay} className="nav-button">
+              <button type="button" onClick={goToNextDay} className="nav-button" aria-label="다음 날">
                 <ChevronRight size={20} />
               </button>
             </>
           ) : (
             <>
-              <button onClick={goToPreviousWeek} className="nav-button">
+              <button type="button" onClick={goToPreviousWeek} className="nav-button" aria-label="이전 주">
                 <ChevronLeft size={20} />
               </button>
               <button onClick={goToToday} className="today-button">
                 오늘
               </button>
-              <button onClick={goToNextWeek} className="nav-button">
+              <button type="button" onClick={goToNextWeek} className="nav-button" aria-label="다음 주">
                 <ChevronRight size={20} />
               </button>
             </>
@@ -2248,10 +2332,10 @@ const PracticeRoomBookingNotebook: React.FC = () => {
         <div className="current-week">
           {isMobile ? (
             <div className="mobile-date-display">
-              {formatDate(selectedDate)} ({getDayName(selectedDate)})
+              {formatDisplayDate(selectedDate)}
             </div>
           ) : (
-            `${formatDate(weekDates[0])} ~ ${formatDate(weekDates[6])}`
+            `${formatDisplayDate(weekDates[0])} – ${formatDisplayDate(weekDates[6])}`
           )}
         </div>
         
@@ -2283,6 +2367,14 @@ const PracticeRoomBookingNotebook: React.FC = () => {
             <div className="legend-color past"></div>
             <span>지난 시간</span>
           </div>
+          <div className="legend-item">
+            <div className="legend-color priority"></div>
+            <span>우선 예약</span>
+          </div>
+          <div className="legend-item">
+            <div className="legend-color walk-in"></div>
+            <span>자유 이용</span>
+          </div>
         </div>
         
         {/* 일일 예약 현황 */}
@@ -2308,13 +2400,16 @@ const PracticeRoomBookingNotebook: React.FC = () => {
           !isUnlimitedUser ? (
             <div
               className="weekend-blocked-mobile"
-              onClick={() => alert(TICKETING_NON_BOOKABLE_NOTICE)}
+              onClick={() => notifyBooking(TICKETING_NON_BOOKABLE_NOTICE)}
             >
-              주말 예약 차단
+              금·토 휴무
               <span>금요일·토요일은 예약할 수 없습니다</span>
             </div>
           ) : (
           <div className="day-slots">
+            {selectedWeekendLabel && (
+              <p className="weekend-once-note">{selectedWeekendLabel}. 예약할 시간을 누르세요.</p>
+            )}
             {(() => {
               const daySlots = generateTimeSlots(selectedDate);
               return daySlots.map((slot, idx) => {
@@ -2343,8 +2438,16 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                             ? 'available'
                             : 'reserved'
                   } ${isMyReservation ? 'my-reservation' : ''} ${slot.isException ? 'exception' : ''} ${
-                    merge.span > 1 ? 'merged-block' : ''
-                  }`}
+                    slot.canSteal && !slot.isPast && !slot.isInUse ? 'can-steal' : ''
+                  } ${merge.span > 1 ? 'merged-block' : ''}`}
+                  role="button"
+                  tabIndex={slot.isPast && !slot.isInUse ? -1 : 0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleSlotActivate(slot, selectedDate);
+                    }
+                  }}
                   onClick={(e) => handleSlotActivate(slot, selectedDate, e)}
                   style={merge.span > 1 ? { minHeight: `${Math.max(72, merge.span * 64)}px` } : undefined}
                 >
@@ -2390,6 +2493,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                         <div className="walk-in-reason">예약 없음 · 누구나 이용</div>
                       </div>
                     ) : slot.isBlocked ? (
+                      selectedWeekendLabel && !slot.reservation && !slot.isException && !slot.isWalkInOpen ? null : (
                       <div className="blocked-card">
                         <div className="blocked-header">
                           {slot.isTicketingBlock ? '🎫 예약 대기' : '🚫 차단됨'}
@@ -2400,15 +2504,16 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                           </div>
                         )}
                       </div>
+                      )
                     ) : slot.isAvailable ? (
                       <div className="available-status">
                         {slot.canSteal && slot.reservation ? (
-                          <>
-                            <span className="slot-status available-label">우선 예약 가능</span>
-                            <div className="reservation-user" style={{ fontSize: 12, marginTop: 4 }}>
+                          <div className="priority-slot priority-slot--mobile">
+                            <span className="priority-slot__badge">우선 예약</span>
+                            <span className="priority-slot__name">
                               {formatSlotOccupancyLabel(slot.reservations, slot.reservation)}
-                            </div>
-                          </>
+                            </span>
+                          </div>
                         ) : (
                           <span className="slot-status available-label">예약 가능</span>
                         )}
@@ -2480,6 +2585,9 @@ const PracticeRoomBookingNotebook: React.FC = () => {
             >
               <div className="day-name">{getDayName(date)}</div>
               <div className="day-date">{date.getDate()}</div>
+              {weekendLabelByDate.get(formatDate(date)) && (
+                <div className="day-closure">{weekendLabelByDate.get(formatDate(date))}</div>
+              )}
             </div>
           ))}
           
@@ -2508,10 +2616,10 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                         key={`${dayIdx}-weekend`}
                         className="time-slot weekend-blocked"
                         style={{ gridRow: `span ${CLOSE_TIME - OPEN_TIME}` }}
-                        onClick={() => alert(TICKETING_NON_BOOKABLE_NOTICE)}
+                        onClick={() => notifyBooking(TICKETING_NON_BOOKABLE_NOTICE)}
                         title={TICKETING_NON_BOOKABLE_NOTICE}
                       >
-                        <span className="weekend-blocked-label">주말 예약 차단</span>
+                        <span className="weekend-blocked-label">금·토 휴무</span>
                       </div>
                     );
                   }
@@ -2522,6 +2630,11 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                   if (merge.isContinuation) return null;
 
                   const isMyReservation = slot.reservation?.userId === currentUser?.uid;
+                  const hideRepeatedBlockText = Boolean(weekendLabelByDate.get(dateStr))
+                    && slot.isBlocked
+                    && !slot.reservation
+                    && !slot.isException
+                    && !slot.isWalkInOpen;
                   
                   return (
                     <div
@@ -2539,9 +2652,18 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                                 ? 'available'
                                 : 'reserved'
                       } ${isMyReservation ? 'my-reservation' : ''} ${slot.isException ? 'exception' : ''} ${
-                        merge.span > 1 ? 'merged-block' : ''
-                      }`}
+                        slot.canSteal && !slot.isPast && !slot.isInUse ? 'can-steal' : ''
+                      } ${merge.span > 1 ? 'merged-block' : ''}`}
+                      role="button"
+                      tabIndex={slot.isPast && !slot.isInUse ? -1 : 0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleSlotActivate(slot, date);
+                        }
+                      }}
                       onClick={(e) => handleSlotActivate(slot, date, e)}
+                      title={hideRepeatedBlockText ? '금·토 휴무. 이 시간을 눌러 예약할 수 있습니다.' : undefined}
                       style={{
                         cursor: slot.isPast && !slot.isInUse ? 'not-allowed' : 'pointer',
                         ...(merge.span > 1 ? { gridRow: `span ${merge.span}` } : {}),
@@ -2560,16 +2682,18 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                           <span className="walk-in-reason-small">자유</span>
                         </div>
                       ) : slot.isBlocked ? (
-                        <div className="blocked-info">
-                          <span className="blocked-label">{slot.isTicketingBlock ? '🎫' : '🚫'}</span>
-                          {slot.blockReason && (
-                            <span className="blocked-reason-small">{slot.blockReason}</span>
-                          )}
-                        </div>
+                        hideRepeatedBlockText ? null : (
+                          <div className="blocked-info">
+                            <span className="blocked-label">{slot.isTicketingBlock ? '🎫' : '🚫'}</span>
+                            {slot.blockReason && (
+                              <span className="blocked-reason-small">{slot.blockReason}</span>
+                            )}
+                          </div>
+                        )
                       ) : slot.isAvailable && slot.canSteal && slot.reservation ? (
-                        <div className="reservation-info">
-                          <span className="user-name">우선 예약 가능</span>
-                          <span className="member-names">
+                        <div className="priority-slot">
+                          <span className="priority-slot__badge">우선</span>
+                          <span className="priority-slot__name">
                             {formatSlotOccupancyLabel(slot.reservations, slot.reservation)}
                           </span>
                         </div>
@@ -2606,7 +2730,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                 <div className="reservation-date">
                   <Calendar size={16} />
                   <span>
-                    {reservation.date}
+                    {formatKoreanPracticeDate(reservation.date)}
                     {(() => {
                       const phase = getReservationPhaseLabel(reservation);
                       if (phase === '대기') return ' · 대기(월 00시 확정)';
@@ -2655,7 +2779,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>연습실 예약</h3>
-              <button className="close-button" onClick={() => setShowBookingModal(false)}>
+              <button type="button" className="close-button" aria-label="닫기" onClick={() => setShowBookingModal(false)}>
                 <X size={24} />
               </button>
             </div>
@@ -2671,7 +2795,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
               <div className="booking-info">
                 <div className="info-row">
                   <Calendar size={18} />
-                  <span>{bookingDate && formatDate(bookingDate)}</span>
+                  <span>{bookingDate && formatDisplayDate(bookingDate)}</span>
                 </div>
                 <div className="info-row">
                   <Clock size={18} />
@@ -2683,7 +2807,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                 </div>
               </div>
               <div className="duration-selector">
-                <label>예약 시간 <span className="auto-selected">✓ 자동 선택됨</span></label>
+                <label>예약 시간 <span className="auto-selected">기본 1시간</span></label>
                 <div className="duration-buttons">
                   {(isUnlimitedUser
                     ? Array.from({ length: maxAvailableDuration }, (_, i) => i + 1)
@@ -2728,7 +2852,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                   </p>
                 )}
                 <p className="duration-info">
-                  💡 기본적으로 최대 시간이 선택됩니다. 필요시 변경하세요.
+                  기본은 1시간입니다. 더 필요하면 위에서 시간을 바꿔 주세요.
                 </p>
               </div>
               <div className="members-input">
@@ -2737,9 +2861,13 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                   {!isUnlimitedUser && <span style={{ color: '#ef4444' }}> *</span>}
                 </label>
                 <p className="duration-hint">
-                  단독 사용은 불가합니다. 본인 포함 <strong>2인 이상</strong>일 때만 예약할 수 있습니다.
-                  {!isUnlimitedUser && (
-                    <> 3시간 예약은 본인 포함 <strong>4명 이상</strong>일 때 가능합니다.</>
+                  {isUnlimitedUser ? (
+                    <>함께 쓸 멤버는 선택입니다. 혼자 예약할 수 있습니다.</>
+                  ) : (
+                    <>
+                      혼자서는 예약할 수 없습니다. 본인 포함 <strong>2명 이상</strong>일 때만 예약됩니다.
+                      3시간은 본인 포함 <strong>4명 이상</strong>일 때 가능합니다.
+                    </>
                   )}
                 </p>
                 <div className="member-input-container">
@@ -2762,9 +2890,6 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                 </div>
                 <p className="duration-hint">
                   예약 인원: <strong>{getBookingParticipantCount()}명</strong> (본인 포함)
-                  {getTrimmedMembers().length < 1 && !isUnlimitedUser && (
-                    <span style={{ color: '#ef4444' }}> · 멤버 1명 이상 추가 필요</span>
-                  )}
                 </p>
                 {members.length > 0 && (
                   <div className="members-list">
@@ -2803,10 +2928,16 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                 <button 
                   className="delete-btn" 
                   onClick={() => {
+                    const slot = selectedTimeSlot;
+                    if (!slot) return;
                     setShowBookingModal(false);
-                    if (confirm('예외 허용을 취소하시겠습니까?\n\n규칙에 의해 다시 차단됩니다.')) {
-                      handleCancelException(selectedTimeSlot);
-                    }
+                    requestConfirm({
+                      title: '예외 취소',
+                      message: '예외 허용을 취소합니다. 이 시간은 규칙에 따라 다시 차단됩니다.',
+                      confirmLabel: '다시 차단',
+                      danger: true,
+                      action: () => handleCancelException(slot),
+                    });
                   }}
                   disabled={loading}
                   style={{ width: '100%', background: '#f59e0b' }}
@@ -2814,22 +2945,26 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                   ❌ 예외 취소 (다시 차단)
                 </button>
               )}
-              <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
+              <div className="booking-submit-actions">
                 <button 
                   className="cancel-btn" 
                   onClick={() => setShowBookingModal(false)}
                   disabled={loading}
-                  style={{ flex: 1 }}
                 >
                   취소
                 </button>
+                {bookingDisabledReason() && (
+                  <p className="booking-submit-hint" id="booking-submit-hint">
+                    {bookingDisabledReason()}
+                  </p>
+                )}
                 <button 
                   className="confirm-btn" 
                   onClick={() => {
                     void handleBooking();
                   }}
                   disabled={loading || (!isUnlimitedUser && !isBookingFormValid())}
-                  style={{ flex: 1 }}
+                  aria-describedby={bookingDisabledReason() ? 'booking-submit-hint' : undefined}
                 >
                   {loading ? '예약 중...' : '예약하기'}
                 </button>
@@ -2846,7 +2981,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>예약 상세 정보</h3>
-              <button className="close-button" onClick={() => setShowDetailModal(false)}>
+              <button type="button" className="close-button" aria-label="닫기" onClick={() => setShowDetailModal(false)}>
                 <X size={24} />
               </button>
             </div>
@@ -2854,7 +2989,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
               <div className="booking-info">
                 <div className="info-row">
                   <Calendar size={18} />
-                  <span>{selectedTimeSlot.reservation.date}</span>
+                  <span>{formatKoreanPracticeDate(selectedTimeSlot.reservation.date)}</span>
                 </div>
                 <div className="info-row">
                   <Clock size={18} />
@@ -3006,25 +3141,28 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                 !reservationHasAdminPriority(selectedTimeSlot.reservation) && (
                 <button
                   className="confirm-btn"
-                  onClick={async () => {
+                  onClick={() => {
                     if (!selectedTimeSlot || !bookingDate || !selectedTimeSlot.reservation) return;
-                    const targetReservation = selectedTimeSlot.reservation;
-                    const priorityHint = getLeadingPriorityHint(
-                      selectedTimeSlot.reservations,
-                      targetReservation
-                    );
-                    const ok = window.confirm(
-                      `이 시간대를 우선 예약하시겠습니까?\n` +
-                        `(${targetReservation.date} ${selectedTimeSlot.time})\n` +
-                        (priorityHint ? `${priorityHint}\n` : '') +
-                        (isEffectivelyPendingReservation(targetReservation)
+                    const slot = selectedTimeSlot;
+                    const date = bookingDate;
+                    const targetReservation = slot.reservation;
+                    if (!targetReservation) return;
+                    const priorityHint = getLeadingPriorityHint(slot.reservations, targetReservation);
+                    const pending = isEffectivelyPendingReservation(targetReservation);
+                    requestConfirm({
+                      title: '우선 예약',
+                      message: [
+                        `${formatKoreanPracticeDate(targetReservation.date)} ${slot.time}을 우선 예약합니다.`,
+                        priorityHint,
+                        pending
                           ? '기존 대기 예약은 밀림 처리되고 알림이 전송됩니다.'
-                          : '기존 예약을 밀림 처리합니다.')
-                    );
-                    if (!ok) return;
-                    setShowDetailModal(false);
-                    await openBookingFlow(selectedTimeSlot, bookingDate, {
-                      ignoreReservations: true,
+                          : '기존 예약은 밀림 처리됩니다.',
+                      ].filter(Boolean).join('\n'),
+                      confirmLabel: '우선 예약',
+                      action: async () => {
+                        setShowDetailModal(false);
+                        await openBookingFlow(slot, date, { ignoreReservations: true });
+                      },
                     });
                   }}
                   disabled={loading}
@@ -3064,7 +3202,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>🔧 관리자 액션 선택</h3>
-              <button className="close-button" onClick={() => setShowAdminActionModal(false)}>
+              <button type="button" className="close-button" aria-label="닫기" onClick={() => setShowAdminActionModal(false)}>
                 <X size={24} />
               </button>
             </div>
@@ -3072,7 +3210,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
               <div className="booking-info">
                 <div className="info-row">
                   <Calendar size={18} />
-                  <span>{formatDate(bookingDate)}</span>
+                  <span>{formatDisplayDate(bookingDate)}</span>
                 </div>
                 <div className="info-row">
                   <Clock size={18} />
@@ -3125,7 +3263,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{selectedTimeSlot.isBlocked ? '🔓 차단 해제' : '🚫 시간대 차단'}</h3>
-              <button className="close-button" onClick={() => setShowBlockModal(false)}>
+              <button type="button" className="close-button" aria-label="닫기" onClick={() => setShowBlockModal(false)}>
                 <X size={24} />
               </button>
             </div>
@@ -3133,7 +3271,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
               <div className="booking-info">
                 <div className="info-row">
                   <Calendar size={18} />
-                  <span>{formatDate(bookingDate)}</span>
+                  <span>{formatDisplayDate(bookingDate)}</span>
                 </div>
                 <div className="info-row">
                   <Clock size={18} />
@@ -3275,6 +3413,49 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                   {checkInHistory.map((record) => renderCheckInHistoryItem(record))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {pendingConfirm && typeof document !== 'undefined' && createPortal(
+        <div
+          className="modal-overlay practice-booking-modal-overlay practice-confirm-overlay"
+          onClick={() => setPendingConfirm(null)}
+        >
+          <div
+            className="modal-content practice-confirm-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="practice-confirm-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h3 id="practice-confirm-title">{pendingConfirm.title}</h3>
+              <button
+                type="button"
+                className="close-button"
+                aria-label="닫기"
+                onClick={() => setPendingConfirm(null)}
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <p className="practice-confirm-message">{pendingConfirm.message}</p>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="cancel-btn" onClick={() => setPendingConfirm(null)}>
+                돌아가기
+              </button>
+              <button
+                type="button"
+                className={pendingConfirm.danger ? 'delete-btn' : 'confirm-btn'}
+                onClick={runPendingConfirm}
+              >
+                {pendingConfirm.confirmLabel}
+              </button>
             </div>
           </div>
         </div>,

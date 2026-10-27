@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, Timestamp, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useNavigate } from 'react-router-dom';
@@ -64,6 +65,13 @@ const ApprovedSongsNotebook: React.FC = () => {
   const [currentPlayingId, setCurrentPlayingId] = useState<string | null>(null);
   const [isRepairingAudioLinks, setIsRepairingAudioLinks] = useState(false);
   const [repairFailures, setRepairFailures] = useState<RepairFailureItem[]>([]);
+  const [buskingNotice, setBuskingNotice] = useState<string | null>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<{
+    title: string;
+    message: string;
+    confirmLabel: string;
+    action: () => void | Promise<void>;
+  } | null>(null);
 
   // 사용자 정보 및 권한
   const userString = localStorage.getItem('veryus_user');
@@ -168,9 +176,30 @@ const ApprovedSongsNotebook: React.FC = () => {
 
   const handleBuskingSearch = () => {
     const attendees = buskingMembers.map(m => m.trim()).filter(Boolean);
+    if (attendees.length === 0) {
+      setFilteredSongs([]);
+      setBuskingNotice('닉네임을 입력한 뒤 조회해 주세요.');
+      return;
+    }
     const result = searchBuskingSongs(validSongs, attendees);
     setFilteredSongs(result);
+    setBuskingNotice(
+      result.length === 0 ? '적은 닉네임이 모두 멤버인 곡이 없습니다.' : null
+    );
   };
+
+  const requestConfirm = (next: NonNullable<typeof pendingConfirm>) => {
+    setPendingConfirm(next);
+  };
+
+  useEffect(() => {
+    if (!pendingConfirm) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setPendingConfirm(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [pendingConfirm]);
 
   const handleEdit = (song: ApprovedSong) => {
     setForm({ title: song.title, members: Array.isArray(song.members) ? song.members : [''] });
@@ -178,18 +207,30 @@ const ApprovedSongsNotebook: React.FC = () => {
     setActiveTab('register');
   };
 
-  const handleDelete = async (songId: string) => {
-    if (window.confirm('정말 삭제하시겠습니까?')) {
-      await deleteDoc(doc(db, 'approvedSongs', songId));
-      setSongs(songs => songs.filter(s => s.id !== songId));
-    }
+  const handleDelete = (songId: string) => {
+    const song = songs.find(item => item.id === songId);
+    requestConfirm({
+      title: '합격곡 삭제',
+      message: song ? `「${song.title}」을 삭제합니다.` : '이 합격곡을 삭제합니다.',
+      confirmLabel: '삭제',
+      action: async () => {
+        await deleteDoc(doc(db, 'approvedSongs', songId));
+        setSongs(current => current.filter(item => item.id !== songId));
+      },
+    });
   };
 
-  const handleDeleteMember = async (nickname: string) => {
-    if (!window.confirm(`${nickname}의 모든 합격곡을 삭제할까요?`)) return;
-    const toDelete = songs.filter(song => (song.members || []).includes(nickname));
-    await Promise.all(toDelete.map(song => deleteDoc(doc(db, 'approvedSongs', song.id))));
-    setSongs(songs => songs.filter(song => !toDelete.some(s => s.id === song.id)));
+  const handleDeleteMember = (nickname: string) => {
+    requestConfirm({
+      title: '합격곡 삭제',
+      message: `${nickname}의 합격곡을 모두 삭제합니다.`,
+      confirmLabel: '삭제',
+      action: async () => {
+        const toDelete = songs.filter(song => (song.members || []).includes(nickname));
+        await Promise.all(toDelete.map(song => deleteDoc(doc(db, 'approvedSongs', song.id))));
+        setSongs(current => current.filter(song => !toDelete.some(item => item.id === song.id)));
+      },
+    });
   };
 
   const normalizeTitle = (value: string) => value.replace(/\s/g, '').toLowerCase();
@@ -450,12 +491,13 @@ const ApprovedSongsNotebook: React.FC = () => {
             }}
           />
           <TabButton
-            label="버스킹용 합격곡 조회"
+            label="버스킹 조회"
             isActive={activeTab === 'busking'}
             onClick={() => { 
               setActiveTab('busking');
               setBuskingMembers(['']);
               setFilteredSongs([]);
+              setBuskingNotice(null);
             }}
           />
           {isAdmin && (
@@ -467,7 +509,15 @@ const ApprovedSongsNotebook: React.FC = () => {
           )}
         </nav>
 
-        <section className="approved-songs-panel" aria-live="polite">
+        <section
+          className={`approved-songs-panel${
+            (activeTab === 'list' && manageTab !== 'manage') ||
+            (activeTab === 'busking' && filteredSongs.length > 0)
+              ? ' approved-songs-panel--fill'
+              : ''
+          }`}
+          aria-live="polite"
+        >
           {activeTab === 'register' && (
             <span className="approved-songs-panel__label">등록</span>
           )}
@@ -509,9 +559,10 @@ const ApprovedSongsNotebook: React.FC = () => {
             <SearchInput
               value={searchTerm}
               onChange={setSearchTerm}
-              placeholder="곡 제목 또는 닉네임 (듀엣: 너래, 민주)"
+              placeholder="곡 제목 또는 닉네임"
             />
             
+            <div className="approved-songs-list-toolbar">
             {/* 필터 탭 */}
             <div className="approved-songs-filter-tabs">
               <FilterTab
@@ -540,6 +591,10 @@ const ApprovedSongsNotebook: React.FC = () => {
                   onClick={() => setManageTab('manage')}
                 />
               )}
+            </div>
+            {manageTab !== 'manage' && (
+              <p className="approved-songs-result-count">{displayedSongs.length}곡</p>
+            )}
             </div>
             
             {/* 관리 탭: 닉네임별 합격곡 관리 */}
@@ -726,6 +781,7 @@ const ApprovedSongsNotebook: React.FC = () => {
                 onLoadAudio={loadAudioForSong}
                 currentPlayingId={currentPlayingId}
                 onPlayChange={setCurrentPlayingId}
+                emptyText={searchTerm.trim() ? '해당하는 곡이 없습니다.' : '등록된 합격곡이 없습니다.'}
               />
             )}
           </>
@@ -734,7 +790,10 @@ const ApprovedSongsNotebook: React.FC = () => {
         {/* 버스킹용 합격곡 조회 폼 */}
         {activeTab === 'busking' && (
           <div className="approved-songs-busking-card">
-            <h3 className="approved-songs-busking-title">버스킹용 합격곡 조회</h3>
+            <h3 className="approved-songs-busking-title">참여 멤버로 찾기</h3>
+            <p className="approved-songs-busking-note">
+              적은 닉네임이 모두 멤버인 곡만 나옵니다. 솔로는 그 사람만, 듀엣은 두 사람 모두를 적어야 합니다.
+            </p>
             
             <MemberInput
               members={buskingMembers}
@@ -752,9 +811,14 @@ const ApprovedSongsNotebook: React.FC = () => {
               </button>
             </div>
             
+            {buskingNotice && (
+              <p className="approved-songs-empty" role="status">{buskingNotice}</p>
+            )}
+
             {/* 조회 결과 리스트 */}
             {filteredSongs.length > 0 && (
               <div className="approved-songs-busking-results">
+                <div className="approved-songs-list-toolbar">
                 {/* 결과 탭 */}
                 <div className="approved-songs-filter-tabs">
                   <FilterTab
@@ -782,10 +846,13 @@ const ApprovedSongsNotebook: React.FC = () => {
                     onClick={() => setBuskingTab('grade')}
                   />
                 </div>
+                <p className="approved-songs-result-count">{buskingDisplayedSongs.length}곡</p>
+                </div>
                 
                 {/* 곡 리스트 */}
                 <SongList
                   songs={buskingDisplayedSongs}
+                  emptyText="이 분류에 해당하는 곡이 없습니다."
                   isAdmin={false}
                   onEdit={() => {}}
                   onDelete={() => {}}
@@ -806,6 +873,40 @@ const ApprovedSongsNotebook: React.FC = () => {
         )}
         </section>
       </div>
+      {pendingConfirm && typeof document !== 'undefined' && createPortal(
+        <div
+          className="approved-songs-confirm-overlay"
+          onClick={() => setPendingConfirm(null)}
+        >
+          <div
+            className="approved-songs-confirm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="approved-songs-confirm-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id="approved-songs-confirm-title">{pendingConfirm.title}</h3>
+            <p>{pendingConfirm.message}</p>
+            <div className="approved-songs-confirm-actions">
+              <button type="button" className="approved-songs-btn cancel" onClick={() => setPendingConfirm(null)}>
+                돌아가기
+              </button>
+              <button
+                type="button"
+                className="approved-songs-btn remove"
+                onClick={() => {
+                  const action = pendingConfirm.action;
+                  setPendingConfirm(null);
+                  void action();
+                }}
+              >
+                {pendingConfirm.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

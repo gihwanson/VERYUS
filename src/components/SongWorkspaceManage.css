@@ -1,21 +1,37 @@
 .song-workspace {
   max-width: 100%;
   width: 100%;
-  min-height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
   margin: 0;
   background: var(--paper-bg, #f5f0e8);
-  padding: 20px 20px 96px;
+  padding: 16px 20px calc(76px + env(safe-area-inset-bottom, 0px));
   color: var(--paper-ink, #2c2416);
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .song-workspace__shell {
-  max-width: var(--app-content-max-width, 720px);
+  width: 100%;
+  max-width: min(1120px, 100%);
   margin: 0 auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
 }
 
-.song-workspace__shell:has(.sw-paper-page) {
-  max-width: 920px;
+.song-workspace__shell:has(.song-workspace__list),
+.song-workspace__shell:has(.song-workspace__empty) {
+  overflow: hidden;
+}
+
+.song-workspace__shell:has(.sw-paper-page),
+.song-workspace__shell:has(.song-workspace__panel) {
+  max-width: min(920px, 100%);
 }
 
 /* ===== A4 연습장 용지 ===== */
@@ -744,8 +760,9 @@ html.sw-lyric-selecting body {
 }
 
 .song-workspace__leader-browse__row .nickname-suggest {
-  flex: 1;
+  flex: 1 1 220px;
   min-width: min(100%, 180px);
+  max-width: 360px;
 }
 
 .song-workspace__leader-browse__banner {
@@ -835,12 +852,19 @@ html.sw-lyric-selecting body {
 }
 
 .song-workspace__list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
   display: flex;
   flex-direction: column;
+  align-content: start;
   gap: 10px;
+  padding-bottom: 8px;
 }
 
 .song-workspace__empty {
+  flex: 1 1 auto;
+  min-height: 0;
   padding: 28px 16px;
   text-align: center;
   background: var(--paper-card, #fffdf8);
@@ -851,8 +875,18 @@ html.sw-lyric-selecting body {
   font-size: 0.92rem;
 }
 
+@media (min-width: 900px) {
+  .song-workspace__list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+}
+
 .song-workspace__card {
   width: 100%;
+  min-width: 0;
+  flex: 0 0 auto;
   text-align: left;
   border: 1px solid var(--paper-border, #e8dcc8);
   background: var(--paper-card, #fffdf8);

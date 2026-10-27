@@ -270,6 +270,7 @@ interface SongListProps {
   onLoadAudio?: (song: ApprovedSong) => void;
   currentPlayingId: string | null;
   onPlayChange: (songId: string | null) => void;
+  emptyText?: string;
 }
 
 export const SongList: React.FC<SongListProps> = ({ 
@@ -282,9 +283,13 @@ export const SongList: React.FC<SongListProps> = ({
   audioMap = {},
   onLoadAudio,
   currentPlayingId,
-  onPlayChange
+  onPlayChange,
+  emptyText = '해당하는 곡이 없습니다.'
 }) => (
   <div className="approved-songs-card approved-songs-card--lined">
+    {songs.length === 0 ? (
+      <p className="approved-songs-empty" role="status">{emptyText}</p>
+    ) : (
     <ul className="approved-songs-list">
       {songs.map(song => {
         let grade: string | undefined;
@@ -318,6 +323,7 @@ export const SongList: React.FC<SongListProps> = ({
         );
       })}
     </ul>
+    )}
   </div>
 );
 

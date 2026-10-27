@@ -25,10 +25,19 @@ export const DEFAULT_TICKETING_SETTINGS: PracticeRoomTicketingSettings = {
 };
 
 export const TICKETING_BOOKING_NOTICE =
-  '이용할 주(월~일)의 바로 전날 일요일 하루만 예약할 수 있습니다. (금·토 예약 불가)';
+  '이용할 주(월~일)의 바로 전날 일요일 하루만 예약할 수 있습니다. 금·토는 예약할 수 없습니다.';
 export const TICKETING_WALKIN_NOTICE =
   '예약이 없는 시간입니다. 예약 없이 자유롭게 이용해 주세요.';
 export const TICKETING_NON_BOOKABLE_NOTICE = '금요일, 토요일은 예약할 수 없습니다.';
+
+const WEEKDAY_KO = ['일', '월', '화', '수', '목', '금', '토'];
+
+/** 화면 표시용. 예: 10월 27일 (화) */
+export function formatKoreanPracticeDate(ymd: string): string {
+  const [, month, day] = ymd.split('-').map(Number);
+  const weekday = getKstWeekdayForDateStr(ymd);
+  return `${month}월 ${day}일 (${WEEKDAY_KO[weekday]})`;
+}
 
 /** 티켓팅 적용 시 예약 불가 요일 (0=일 … 5=금, 6=토) */
 export const TICKETING_NON_BOOKABLE_WEEKDAYS = [5, 6];
@@ -178,16 +187,21 @@ export function getTicketingStatusMessage(
 
   const today = formatDateYmdKst(now);
   if (today < settings.enabledFrom) {
-    return `🎫 ${settings.enabledFrom}부터 티켓팅 시작. ${TICKETING_BOOKING_NOTICE}`;
+    return `${formatKoreanPracticeDate(settings.enabledFrom)}부터 일요일에만 예약할 수 있습니다. 금·토는 예약할 수 없습니다.`;
   }
 
   if (isBookingWindowOpen(settings, now)) {
     const { start, end } = getBookableWeekRangeOnOpenSunday(now);
-    const today = formatDateYmdKst(now);
-    return `🎫 오늘(${today})만 예약 가능! ${start}(월)~${end}(일) 중 월~목, 일 연습실을 예약하세요. (금·토 제외)`;
+    return `오늘은 예약할 수 있는 날입니다. ${formatKoreanPracticeDate(start)}~${formatKoreanPracticeDate(end)} 중 월·화·수·목·일을 고르세요. 금·토는 예약할 수 없습니다.`;
   }
 
-  return `🎫 ${TICKETING_BOOKING_NOTICE}`;
+  const kst = getKstParts(now);
+  const openDay = settings.bookingDayOfWeek ?? 0;
+  const daysUntilOpen = (openDay - kst.dayOfWeek + 7) % 7;
+  const nextOpen = formatDateYmdKst(
+    kstToUtcDate(kst.year, kst.month, kst.day + daysUntilOpen)
+  );
+  return `오늘은 예약할 수 없습니다. 다음 예약일은 ${formatKoreanPracticeDate(nextOpen)} 하루입니다. 금·토는 예약할 수 없습니다.`;
 }
 
 export function parseYmdToLocalDate(ymd: string): Date {

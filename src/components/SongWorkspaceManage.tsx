@@ -1032,8 +1032,9 @@ const SongWorkspaceManage: React.FC = () => {
                       </h2>
                       <p className="song-workspace__card-meta">
                         멤버: {item.members.join(', ') || '-'}
-                        {updated ? ` · ${updated}` : ''}
-                        {item.updatedByNickname ? ` · ${item.updatedByNickname}` : ''}
+                        {updated || item.updatedByNickname
+                          ? ` · 수정${updated ? ` ${updated}` : ''}${item.updatedByNickname ? ` · ${item.updatedByNickname}` : ''}`
+                          : ''}
                       </p>
                     </button>
                   );

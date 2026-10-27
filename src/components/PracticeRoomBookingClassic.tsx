@@ -867,9 +867,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
       ) {
         isBlocked = true;
         isTicketingBlock = true;
-        blockReason = isTicketingNonBookableWeekday(dateStr)
-          ? '주말 예약 차단'
-          : ticketingBookCheck.reason || '예약 오픈 전';
+        blockReason = isTicketingNonBookableWeekday(dateStr) ? '금·토 휴무' : '예약 마감';
         blockedBy = '티켓팅';
       } else if (individualSlot) {
         // 개별 설정이 있는 경우
@@ -1030,9 +1028,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
     }
 
     // 멤버 미입력 상태(본인만)에서는 2~3명 규칙과 동일하게 최대 2시간
-    const defaultDuration = isUnlimitedUser
-      ? allowedDuration
-      : Math.min(getMaxHoursByParticipantCount(1), allowedDuration);
+    const defaultDuration = 1;
 
     setMaxAvailableDuration(allowedDuration);
     setDuration(defaultDuration);
@@ -2299,7 +2295,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
               className="weekend-blocked-mobile"
               onClick={() => alert(TICKETING_NON_BOOKABLE_NOTICE)}
             >
-              주말 예약 차단
+              금·토 휴무
               <span>금요일·토요일은 예약할 수 없습니다</span>
             </div>
           ) : (
@@ -2393,7 +2389,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
                       <div className="available-status">
                         {slot.canSteal && slot.reservation ? (
                           <>
-                            <span className="slot-status available-label">우선 예약 가능</span>
+                            <span className="slot-status available-label">우선 예약</span>
                             <div className="reservation-user" style={{ fontSize: 12, marginTop: 4 }}>
                               {formatSlotOccupancyLabel(slot.reservations, slot.reservation)}
                             </div>
@@ -2500,7 +2496,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
                         onClick={() => alert(TICKETING_NON_BOOKABLE_NOTICE)}
                         title={TICKETING_NON_BOOKABLE_NOTICE}
                       >
-                        <span className="weekend-blocked-label">주말 예약 차단</span>
+                        <span className="weekend-blocked-label">금·토 휴무</span>
                       </div>
                     );
                   }
@@ -2557,7 +2553,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
                         </div>
                       ) : slot.isAvailable && slot.canSteal && slot.reservation ? (
                         <div className="reservation-info">
-                          <span className="user-name">우선 예약 가능</span>
+                          <span className="user-name">우선 예약</span>
                           <span className="member-names">
                             {formatSlotOccupancyLabel(slot.reservations, slot.reservation)}
                           </span>
@@ -2669,7 +2665,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
                 </div>
               </div>
               <div className="duration-selector">
-                <label>예약 시간 <span className="auto-selected">✓ 자동 선택됨</span></label>
+                <label>예약 시간 <span className="auto-selected">기본 1시간</span></label>
                 <div className="duration-buttons">
                   {(isUnlimitedUser
                     ? Array.from({ length: maxAvailableDuration }, (_, i) => i + 1)
@@ -2714,7 +2710,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
                   </p>
                 )}
                 <p className="duration-info">
-                  💡 기본적으로 최대 시간이 선택됩니다. 필요시 변경하세요.
+                  기본은 1시간입니다. 더 필요하면 위에서 시간을 바꿔 주세요.
                 </p>
               </div>
               <div className="members-input">
@@ -2723,7 +2719,9 @@ const PracticeRoomBookingClassic: React.FC = () => {
                   {!isUnlimitedUser && <span style={{ color: '#ef4444' }}> *</span>}
                 </label>
                 <p className="duration-hint">
-                  단독 사용은 불가합니다. 본인 포함 <strong>2인 이상</strong>일 때만 예약할 수 있습니다.
+                  {isUnlimitedUser
+                    ? '함께 쓸 멤버는 선택입니다. 혼자 예약할 수 있습니다.'
+                    : '혼자서는 예약할 수 없습니다. 본인 포함 2명 이상일 때만 예약됩니다.'}
                   {!isUnlimitedUser && (
                     <> 3시간 예약은 본인 포함 <strong>4명 이상</strong>일 때 가능합니다.</>
                   )}

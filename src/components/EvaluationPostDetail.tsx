@@ -931,19 +931,22 @@ const EvaluationPostDetail: React.FC = () => {
                 </div>
               )}
 
-              {/* 합불 판정 버튼 — 멤버 1차 종료 후(1차합격·대기 마감) 또는 최종 합불 전환 */}
+              {/* 합불 판정 — 평가자는 1차 종료 후. 너래는 1차 합격 전에도 바로 판정 */}
               {isEvaluationJudge(user) &&
                 post.category === 'busking' &&
                 (post.status === '합격' ||
                   post.status === '불합격' ||
                   post.status === MEMBER_FIRST_PASS_STATUS ||
-                  (((!post.status || post.status === '대기') && !isBuskingMemberRoundOpen(post)))) && (
+                  ((!post.status || post.status === '대기') &&
+                    (!isBuskingMemberRoundOpen(post) || user?.nickname === '너래'))) && (
                 <div style={{margin:'18px 0 0 0', display:'flex', justifyContent:'center', gap:16, flexDirection:'column', alignItems:'center'}}>
                   {(post.status === MEMBER_FIRST_PASS_STATUS || !post.status || post.status === '대기') && (
                     <div style={{ fontSize: '0.85rem', color: '#64748B', marginBottom: 4 }}>
                       {post.status === MEMBER_FIRST_PASS_STATUS
                         ? '멤버 1차 합격 · 최종 합/불을 판정해 주세요'
-                        : '1차 심사 마감 · 최종 합/불을 판정해 주세요'}
+                        : isBuskingMemberRoundOpen(post)
+                          ? '1차 심사 중에도 바로 합/불을 판정할 수 있습니다'
+                          : '1차 심사 마감 · 최종 합/불을 판정해 주세요'}
                     </div>
                   )}
                   <div style={{ display: 'flex', justifyContent: 'center', gap: 16 }}>
