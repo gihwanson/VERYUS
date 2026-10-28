@@ -566,6 +566,38 @@
   transform: scale(0.98);
 }
 
+.contest-ui-refresh .contest-stage-icon-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.contest-ui-refresh .contest-stage-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-radius: 8px;
+  background: var(--paper-card, #fffdf8);
+  color: var(--paper-accent, #8b5a2b);
+  cursor: pointer;
+}
+
+.contest-ui-refresh .contest-stage-icon-btn:hover {
+  background: var(--paper-tag-bg, #f0e6d6);
+  border-color: var(--paper-accent, #8b5a2b);
+}
+
+.contest-ui-refresh .contest-stage-icon-btn__mark {
+  font-size: 15px;
+  line-height: 1;
+  filter: grayscale(1) sepia(0.35);
+  opacity: 0.9;
+}
+
 .contest-ui-refresh .contest-stage-switch__icon {
   display: inline-flex;
   align-items: center;

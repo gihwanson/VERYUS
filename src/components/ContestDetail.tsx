@@ -22,9 +22,8 @@ import {
   CONTEST_SUB_ROLES,
   formatContestStageInline,
   formatContestStageLines,
-  type ContestSubRole,
-  contestStageRoleToggleLabel,
   contestStageRoleToggleStep,
+  type ContestSubRole,
 } from '../utils/contestStage';
 
 interface Contest {
@@ -97,8 +96,13 @@ const ContestDetail: React.FC = () => {
   const [participantSubRole, setParticipantSubRole] = useState<ContestSubRole | ''>('');
   const [targetMainUid, setTargetMainUid] = useState('');
   const [targetSubUid, setTargetSubUid] = useState('');
+  const [waitingMainName, setWaitingMainName] = useState('');
   const targetStagePickRef = useRef({ mainUid: '', subUid: '' });
+  const pendingMainUidRef = useRef('');
   const makingTargetStageRef = useRef(false);
+  const createTargetStageRef = useRef<
+    (mainUid: string, partnerUid: string, bothMains: boolean) => Promise<boolean>
+  >(async () => false);
   const [newParticipantNickname, setNewParticipantNickname] = useState('');
   const [newEvaluationTargetNickname, setNewEvaluationTargetNickname] = useState('');
   const [addingParticipant, setAddingParticipant] = useState(false);
@@ -253,11 +257,6 @@ const ContestDetail: React.FC = () => {
     setParticipantSubRole('');
   }, [id, participantMainUid, participantSubUid, participantSubRole, teams.length, nextTeamOrder]);
 
-  const handleBreakDuet = useCallback(async (teamId: string) => {
-    if (!id) return;
-    await deleteDoc(firestoreDoc(db, 'contests', id, 'teams', teamId));
-  }, [id]);
-
   // 팀 삭제 (팀과 팀 멤버들을 evaluationTargets에서도 삭제)
   const handleDeleteTeam = useCallback(async (teamId: string) => {
     if (!id) return;
@@ -314,16 +313,24 @@ const ContestDetail: React.FC = () => {
     }
   }, [id, newParticipantNickname]);
 
-  // 평가받는 대상 추가
+  // 평가받는 대상 추가. 대기 중인 메인이 없으면 메인, 있으면 그 메인의 서브로 팀을 만든다.
   const handleAddEvaluationTarget = useCallback(async () => {
     if (!id || !newEvaluationTargetNickname.trim()) return;
     setAddingEvaluationTarget(true);
-    
+
+    const normalizedNickname = newEvaluationTargetNickname.trim();
+    const docId = 'target_' + normalizedNickname.toLowerCase().replace(/\s/g, '_') + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    const waitingMainUid = pendingMainUidRef.current;
+    const pairAsSub = Boolean(
+      waitingMainUid &&
+      waitingMainUid !== docId &&
+      !teams.some((team) => Array.isArray(team.members) && team.members.includes(waitingMainUid))
+    );
+    if (pairAsSub) pendingMainUidRef.current = '';
+    else pendingMainUidRef.current = docId;
+
     try {
-      const normalizedNickname = newEvaluationTargetNickname.trim();
-      const docId = 'target_' + normalizedNickname.toLowerCase().replace(/\s/g, '_') + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
       const targetRef = firestoreDoc(db, 'contests', id, 'evaluationTargets', docId);
-      
       await setDoc(targetRef, {
         nickname: normalizedNickname,
         uid: docId,
@@ -331,13 +338,32 @@ const ContestDetail: React.FC = () => {
         updatedAt: new Date(),
       });
       setNewEvaluationTargetNickname('');
+
+      if (pairAsSub) {
+        const paired = await createTargetStageRef.current(waitingMainUid, docId, false);
+        if (!paired) {
+          pendingMainUidRef.current = waitingMainUid;
+          targetStagePickRef.current = { mainUid: waitingMainUid, subUid: '' };
+          setTargetMainUid(waitingMainUid);
+          setTargetSubUid('');
+        } else {
+          setWaitingMainName('');
+        }
+      } else {
+        targetStagePickRef.current = { mainUid: docId, subUid: '' };
+        setTargetMainUid(docId);
+        setTargetSubUid('');
+        setWaitingMainName(normalizedNickname);
+      }
     } catch (error) {
+      if (pairAsSub) pendingMainUidRef.current = waitingMainUid;
+      else if (pendingMainUidRef.current === docId) pendingMainUidRef.current = '';
       console.error('평가 대상 추가 중 오류:', error);
       alert('평가 대상 추가 중 오류가 발생했습니다.');
     } finally {
       setAddingEvaluationTarget(false);
     }
-  }, [id, newEvaluationTargetNickname]);
+  }, [id, newEvaluationTargetNickname, teams]);
 
   // 평가받는 대상 삭제
   const handleDeleteEvaluationTarget = useCallback(async (uid: string) => {
@@ -346,6 +372,13 @@ const ContestDetail: React.FC = () => {
     
     try {
       await deleteDoc(firestoreDoc(db, 'contests', id, 'evaluationTargets', uid));
+      if (pendingMainUidRef.current === uid) {
+        pendingMainUidRef.current = '';
+        targetStagePickRef.current = { mainUid: '', subUid: '' };
+        setTargetMainUid('');
+        setTargetSubUid('');
+        setWaitingMainName('');
+      }
       // 해당 대상이 팀에 속해 있다면 팀도 해제
       const team = teams.find(t => Array.isArray(t.members) && t.members.includes(uid));
       if (team) await deleteDoc(firestoreDoc(db, 'contests', id, 'teams', team.id));
@@ -372,8 +405,8 @@ const ContestDetail: React.FC = () => {
   }, [id, editingEvaluationTargetNickname]);
 
   const createTargetStage = useCallback(async (mainUid: string, partnerUid: string, bothMains: boolean) => {
-    if (!id || makingTargetStageRef.current) return;
-    if (!mainUid || !partnerUid || mainUid === partnerUid) return;
+    if (!id || makingTargetStageRef.current) return false;
+    if (!mainUid || !partnerUid || mainUid === partnerUid) return false;
     makingTargetStageRef.current = true;
     try {
       const teamId = uuidv4();
@@ -387,46 +420,60 @@ const ContestDetail: React.FC = () => {
         updatedAt: new Date(),
         order: nextTeamOrder(),
       });
+      if (pendingMainUidRef.current === mainUid || pendingMainUidRef.current === partnerUid) {
+        pendingMainUidRef.current = '';
+      }
       targetStagePickRef.current = { mainUid: '', subUid: '' };
       setTargetMainUid('');
       setTargetSubUid('');
-      setAdminTab('teams');
+      setWaitingMainName('');
+      return true;
     } catch (error) {
       console.error('무대 만들기 중 오류:', error);
       targetStagePickRef.current = { mainUid, subUid: '' };
+      pendingMainUidRef.current = mainUid;
       setTargetMainUid(mainUid);
       setTargetSubUid('');
       alert('팀을 만드는 중 오류가 발생했습니다.');
+      return false;
     } finally {
       makingTargetStageRef.current = false;
     }
   }, [id, teams.length, nextTeamOrder]);
 
+  createTargetStageRef.current = createTargetStage;
+
   const handleEvaluationTargetClick = useCallback((uid: string) => {
     if (makingTargetStageRef.current) return;
     if (uid === targetStagePickRef.current.mainUid) {
       targetStagePickRef.current = { mainUid: '', subUid: '' };
+      pendingMainUidRef.current = '';
       setTargetMainUid('');
       setTargetSubUid('');
+      setWaitingMainName('');
       return;
     }
-    if (targetStagePickRef.current.mainUid) return;
+    const mainUid = targetStagePickRef.current.mainUid;
+    if (mainUid) {
+      void createTargetStage(mainUid, uid, false);
+      return;
+    }
     targetStagePickRef.current = { mainUid: uid, subUid: '' };
+    pendingMainUidRef.current = uid;
     setTargetMainUid(uid);
     setTargetSubUid('');
-  }, []);
+    setWaitingMainName(nicknameOf(uid));
+  }, [createTargetStage, nicknameOf]);
 
-  const handleToggleBothMains = useCallback(async (team: Team) => {
+  const handleToggleContestRole = useCallback(async (team: Team) => {
     if (!id) return;
     const members = Array.isArray(team.members) ? team.members.filter(Boolean) : [];
     if (members.length < 2) return;
     const [firstUid, secondUid] = members;
     const step = contestStageRoleToggleStep(team);
     if (!step) return;
-
-    const mainUid = team.mainUid || firstUid;
-    const partnerUid =
-      team.coMainUid || team.subUid || members.find((uid) => uid !== mainUid) || secondUid;
+    const mainUid = (team.mainUid || firstUid).trim();
+    const partnerUid = (team.coMainUid || team.subUid || members.find((uid) => uid !== mainUid) || secondUid).trim();
 
     try {
       if (step === 'to-default-sub') {
@@ -458,6 +505,21 @@ const ContestDetail: React.FC = () => {
     } catch (error) {
       console.error('메인 구성 변경 중 오류:', error);
       alert('메인 구성을 바꾸는 중 오류가 발생했습니다.');
+    }
+  }, [id]);
+
+  const handleSplitTeamToSolos = useCallback(async (teamId: string) => {
+    if (!id) return;
+    try {
+      await deleteDoc(firestoreDoc(db, 'contests', id, 'teams', teamId));
+      pendingMainUidRef.current = '';
+      targetStagePickRef.current = { mainUid: '', subUid: '' };
+      setTargetMainUid('');
+      setTargetSubUid('');
+      setWaitingMainName('');
+    } catch (error) {
+      console.error('솔로 전환 중 오류:', error);
+      alert('솔로로 바꾸는 중 오류가 발생했습니다.');
     }
   }, [id]);
 
@@ -522,13 +584,6 @@ const ContestDetail: React.FC = () => {
       return aOrder - bOrder;
     });
   }, [teams]);
-
-  const hasTeamItems = useMemo(
-    () =>
-      teams.length > 0 ||
-      evaluationTargets.filter((t) => !teams.some((team) => Array.isArray(team.members) && team.members.includes(t.uid))).length > 0,
-    [teams, evaluationTargets]
-  );
 
   // 팀 순서 변경 함수
   const handleMoveTeam = useCallback(async (teamId: string, direction: 'up' | 'down') => {
@@ -979,7 +1034,7 @@ const ContestDetail: React.FC = () => {
           <section className="contest-detail-section">
             <h3 className="contest-section-label">평가 대상</h3>
             <div className="contest-helper-box">
-              💡 노래를 평가받는 사람입니다. 한 명을 누르면 메인이 됩니다. 다른 사람은 서브로 묶기 또는 서로 메인으로 고르면 팀이 만들어지고 팀 목록으로 이동합니다.
+              이름을 순서대로 입력하면 첫 사람은 메인, 다음 사람은 서브가 됩니다.
             </div>
             
             {/* 평가받는 대상 추가 폼 */}
@@ -1008,11 +1063,11 @@ const ContestDetail: React.FC = () => {
               </div>
               {targetMainUid ? (
                 <div className="contest-selection-hint selected">
-                  메인 {nicknameOf(targetMainUid)}. 다른 사람 옆에서 서브로 묶기 또는 서로 메인을 고르세요.
+                  메인 {nicknameOf(targetMainUid).startsWith('target_') ? waitingMainName : nicknameOf(targetMainUid)}. 다른 이름을 누르면 서브가 되어 팀이 만들어집니다.
                 </div>
               ) : (
                 <div className="contest-selection-hint">
-                  이름을 누르면 메인이 됩니다. 다시 누르면 해제됩니다.
+                  처음 입력하는 사람은 메인이 됩니다.
                 </div>
               )}
             </div>
@@ -1093,195 +1148,145 @@ const ContestDetail: React.FC = () => {
                         </button>
                       </div>
                     )}
-                    {editingEvaluationTargetId !== t.uid && targetMainUid && t.uid !== targetMainUid && (
-                      <div className="contest-pair-actions" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          className="contest-pair-btn"
-                          onClick={() => void createTargetStage(targetMainUid, t.uid, false)}
-                        >
-                          서브로 묶기
-                        </button>
-                        <button
-                          type="button"
-                          className="contest-pair-btn contest-pair-btn--main contest-pair-btn--icon"
-                          onClick={() => void createTargetStage(targetMainUid, t.uid, true)}
-                        >
-                          <ContestStageRoleSwitchIcon toCoMain compact />
-                          <span>서로 메인</span>
-                        </button>
-                      </div>
-                    )}
                   </div>
                 ))}
-              {evaluationTargets.filter(t => !teams.some(team => Array.isArray(team.members) && team.members.includes(t.uid))).length === 0 && (
+              {evaluationTargets.filter(t => !teams.some(team => Array.isArray(team.members) && team.members.includes(t.uid))).length === 0 && sortedTeams.length === 0 && (
                 <div className="contest-empty-message">
                   아직 평가받는 대상이 없습니다.
                 </div>
               )}
             </div>
-          </section>
-        )}
 
-        {/* 팀 목록 섹션 - 관리자만 표시 (팀 + evaluationTargets의 솔로참가자만 포함) */}
-        {isAdmin && contest.type === '경연' && adminTab === 'teams' && hasTeamItems && (
-          <section className="contest-detail-section">
-            <h3 className="contest-section-label">팀 목록</h3>
-            <div className="contest-detail-team-list">
-              {/* 팀 목록 */}
-              {sortedTeams.map((team, index) => {
-                const teamSubmitted = Array.isArray(team.members) && team.members.some((uid: string) => {
-                  const target = evaluationTargets.find(tt => tt.uid === uid);
-                  if (target) {
-                    const p = participants.find(pp => pp.nickname === target.nickname);
-                    return p && isParticipantSubmitted(p.nickname);
-                  }
-                  return false;
-                });
-                const canMoveUp = index > 0;
-                const canMoveDown = index < sortedTeams.length - 1;
-                return (
-                  <div key={team.id} className="contest-detail-team-item contest-team-card">
-                    <div className="contest-team-card__header">
-                      <span className="contest-team-card__index" aria-hidden>
-                        {index + 1}
-                      </span>
-                      <div className="contest-team-card__info">
-                        {(() => {
-                          const lines = formatContestStageLines(team, nicknameOf);
-                          if (!lines) {
-                            return (
-                              <div className="contest-stage-main-line">
-                                {Array.isArray(team.members)
-                                  ? team.members.map((uid) => nicknameOf(uid)).join(' · ')
-                                  : ''}
-                              </div>
-                            );
-                          }
-                          return (
-                            <>
-                              <div className="contest-stage-main-line">{lines.title}</div>
-                              <div
-                                className={
-                                  lines.bothMains
-                                    ? 'contest-stage-main-line contest-stage-main-line--partner'
-                                    : 'contest-stage-support'
-                                }
-                              >
-                                {lines.support}
-                              </div>
-                              {(team.mainUid || (Array.isArray(team.members) && team.members.length >= 2)) && (
-                                (() => {
-                                  const toggleStep = contestStageRoleToggleStep(team);
-                                  if (!toggleStep) return null;
-                                  const toCoMain = toggleStep === 'to-co-main';
-                                  return (
-                                    <button
-                                      type="button"
-                                      className={`contest-stage-switch ${toCoMain ? 'contest-stage-switch--to-co-main' : 'contest-stage-switch--to-sub'}`}
-                                      onClick={() => handleToggleBothMains(team)}
-                                    >
-                                      <ContestStageRoleSwitchIcon toCoMain={toCoMain} />
-                                      <span className="contest-stage-switch__label">
-                                        {contestStageRoleToggleLabel(toggleStep)}
-                                      </span>
-                                    </button>
-                                  );
-                                })()
-                              )}
-                            </>
-                          );
-                        })()}
-                      </div>
-                      <span
-                        className={`contest-status-pill ${teamSubmitted ? 'contest-status-pill--done' : 'contest-status-pill--pending'}`}
-                      >
-                        {teamSubmitted ? '제출 완료' : '대기 중'}
-                      </span>
-                    </div>
-                    {isAdmin && (
-                      <div className="contest-team-card__footer">
-                        <div className="contest-team-move-controls" aria-label="출연 순서">
-                          <button
-                            type="button"
-                            onClick={() => handleMoveTeam(team.id, 'up')}
-                            disabled={!canMoveUp}
-                            className={`contest-team-move-btn ${canMoveUp ? 'enabled' : 'disabled'}`}
-                            title="위로 이동"
-                          >
-                            ↑
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleMoveTeam(team.id, 'down')}
-                            disabled={!canMoveDown}
-                            className={`contest-team-move-btn ${canMoveDown ? 'enabled' : 'disabled'}`}
-                            title="아래로 이동"
-                          >
-                            ↓
-                          </button>
-                        </div>
-                        <div className="contest-team-card__actions">
-                          <button
-                            type="button"
-                            className="contest-detail-team-button edit"
-                            onClick={() => handleBreakDuet(team.id)}
-                          >
-                            팀 해제
-                          </button>
-                          <button
-                            type="button"
-                            className="contest-detail-team-button break danger"
-                            onClick={() => handleDeleteTeam(team.id)}
-                          >
-                            삭제
-                          </button>
-                        </div>
-                      </div>
-                    )}
+            {sortedTeams.length > 0 && (
+              <>
+                <div className="contest-list-header-box">
+                  <div className="contest-list-header-title">
+                    만든 팀 ({sortedTeams.length})
                   </div>
-                );
-              })}
-              {/* 솔로 참가자 목록 (evaluationTargets만 표시) */}
-              {evaluationTargets
-                .filter(t => !teams.some(team => Array.isArray(team.members) && team.members.includes(t.uid)))
-                .map((t, soloIndex) => {
-                  // evaluationTargets의 닉네임으로 participants에서 찾아서 제출 상태 확인
-                  const p = participants.find(pp => pp.nickname === t.nickname);
-                  const isSubmitted = p ? isParticipantSubmitted(p.nickname) : false;
-                  return (
-                    <div key={t.uid} className="contest-detail-team-item contest-team-card contest-team-card--solo">
-                      <div className="contest-team-card__header">
-                        <span className="contest-team-card__index contest-team-card__index--solo" aria-hidden>
-                          {sortedTeams.length + soloIndex + 1}
-                        </span>
-                        <div className="contest-team-card__info">
-                          <div className="contest-stage-main-line">{t.nickname}</div>
-                          <span className="contest-team-card__solo-tag">솔로</span>
+                  <div className="contest-selection-hint">
+                    왼쪽 버튼으로 구성을 바꾸고, 오른쪽 버튼으로 둘 다 솔로가 됩니다.
+                  </div>
+                </div>
+                <div className="contest-detail-team-list">
+                  {sortedTeams.map((team, index) => {
+                    const canMoveUp = index > 0;
+                    const canMoveDown = index < sortedTeams.length - 1;
+                    return (
+                      <div key={team.id} className="contest-detail-team-item contest-team-card">
+                        <div className="contest-team-card__header">
+                          <span className="contest-team-card__index" aria-hidden>
+                            {index + 1}
+                          </span>
+                          <div className="contest-team-card__info">
+                            <ContestStageSummary team={team} nicknameOf={nicknameOf} />
+                          </div>
                         </div>
-                        <span
-                          className={`contest-status-pill ${isSubmitted ? 'contest-status-pill--done' : 'contest-status-pill--pending'}`}
-                        >
-                          {isSubmitted ? '제출 완료' : '대기 중'}
-                        </span>
-                      </div>
-                      {isAdmin && (
-                        <div className="contest-team-card__footer contest-team-card__footer--solo">
+                        <div className="contest-team-card__footer">
+                          {Array.isArray(team.members) && team.members.filter(Boolean).length >= 2 && (
+                            <div className="contest-stage-icon-row">
+                              <button
+                                type="button"
+                                className="contest-stage-icon-btn"
+                                title="구성 전환"
+                                aria-label="구성 전환"
+                                onClick={() => handleToggleContestRole(team)}
+                              >
+                                <span className="contest-stage-icon-btn__mark" aria-hidden>🔀</span>
+                              </button>
+                              <button
+                                type="button"
+                                className="contest-stage-icon-btn"
+                                title="둘 다 솔로로"
+                                aria-label="둘 다 솔로로"
+                                onClick={() => handleSplitTeamToSolos(team.id)}
+                              >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                                  <circle cx="12" cy="8" r="3" />
+                                  <path d="M6 19c1.3-3 3.5-4.5 6-4.5s4.7 1.5 6 4.5" />
+                                </svg>
+                              </button>
+                            </div>
+                          )}
+                          <div className="contest-team-move-controls" aria-label="출연 순서">
+                            <button
+                              type="button"
+                              onClick={() => handleMoveTeam(team.id, 'up')}
+                              disabled={!canMoveUp}
+                              className={`contest-team-move-btn ${canMoveUp ? 'enabled' : 'disabled'}`}
+                              title="위로 이동"
+                            >
+                              ↑
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleMoveTeam(team.id, 'down')}
+                              disabled={!canMoveDown}
+                              className={`contest-team-move-btn ${canMoveDown ? 'enabled' : 'disabled'}`}
+                              title="아래로 이동"
+                            >
+                              ↓
+                            </button>
+                          </div>
                           <div className="contest-team-card__actions">
                             <button
                               type="button"
                               className="contest-detail-team-button break danger"
-                              onClick={() => handleDeleteEvaluationTarget(t.uid)}
+                              onClick={() => handleDeleteTeam(team.id)}
                             >
                               삭제
                             </button>
                           </div>
                         </div>
-                      )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </section>
+        )}
+
+        {isAdmin && contest.type === '경연' && adminTab === 'teams' && (
+          <section className="contest-detail-section">
+            <h3 className="contest-section-label">팀 목록</h3>
+            <div className="contest-helper-box">
+              평가 대상에서 만든 팀입니다.
+            </div>
+            {sortedTeams.length === 0 ? (
+              <div className="contest-empty-message">
+                아직 만든 팀이 없습니다.
+              </div>
+            ) : (
+              <div className="contest-detail-team-list">
+                {sortedTeams.map((team, index) => {
+                  const teamSubmitted = Array.isArray(team.members) && team.members.some((uid: string) => {
+                    const target = evaluationTargets.find(tt => tt.uid === uid);
+                    if (target) {
+                      const p = participants.find(pp => pp.nickname === target.nickname);
+                      return p && isParticipantSubmitted(p.nickname);
+                    }
+                    return false;
+                  });
+                  return (
+                    <div key={team.id} className="contest-detail-team-item contest-team-card">
+                      <div className="contest-team-card__header">
+                        <span className="contest-team-card__index" aria-hidden>
+                          {index + 1}
+                        </span>
+                        <div className="contest-team-card__info">
+                          <ContestStageSummary team={team} nicknameOf={nicknameOf} />
+                        </div>
+                        <span
+                          className={`contest-status-pill ${teamSubmitted ? 'contest-status-pill--done' : 'contest-status-pill--pending'}`}
+                        >
+                          {teamSubmitted ? '제출 완료' : '대기 중'}
+                        </span>
+                      </div>
                     </div>
                   );
                 })}
-            </div>
+              </div>
+            )}
           </section>
         )}
       </div>
@@ -1289,50 +1294,34 @@ const ContestDetail: React.FC = () => {
   );
 };
 
-function ContestStageRoleSwitchIcon({
-  toCoMain,
-  compact = false,
+function ContestStageSummary({
+  team,
+  nicknameOf,
 }: {
-  toCoMain: boolean;
-  compact?: boolean;
+  team: Team;
+  nicknameOf: (uid: string) => string;
 }) {
-  const size = compact ? 13 : 14;
+  const lines = formatContestStageLines(team, nicknameOf);
+  if (!lines) {
+    return (
+      <div className="contest-stage-main-line">
+        {Array.isArray(team.members) ? team.members.map((uid) => nicknameOf(uid)).join(' · ') : ''}
+      </div>
+    );
+  }
   return (
-    <span className="contest-stage-switch__icon" aria-hidden>
-      {toCoMain ? (
-        <svg
-          width={size}
-          height={size}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M16 3h5v5" />
-          <path d="M4 20 21 3" />
-          <path d="M21 16v5h-5" />
-          <path d="M15 15l6 6" />
-          <path d="M4 4l5 5" />
-        </svg>
-      ) : (
-        <svg
-          width={size}
-          height={size}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M12 3v12" />
-          <path d="m8 11 4 4 4-4" />
-          <path d="M5 21h14" />
-        </svg>
-      )}
-    </span>
+    <>
+      <div className="contest-stage-main-line">{lines.title}</div>
+      <div
+        className={
+          lines.bothMains
+            ? 'contest-stage-main-line contest-stage-main-line--partner'
+            : 'contest-stage-support'
+        }
+      >
+        {lines.support}
+      </div>
+    </>
   );
 }
 
