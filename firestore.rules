@@ -454,6 +454,16 @@ service cloud.firestore {
         allow read: if signedIn();
         allow write: if isNeraeOrLeader();
       }
+      match /submissionLocks/{docId} {
+        allow read: if signedIn();
+        allow create: if signedIn()
+          && docId == request.auth.uid
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.nickname is string
+          && request.resource.data.submittedAt is timestamp;
+        allow update: if false;
+        allow delete: if isNeraeOrLeader();
+      }
       match /rounds/{roundId} {
         allow read: if signedIn();
         allow write: if isNeraeOrLeader();

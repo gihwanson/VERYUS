@@ -32,7 +32,7 @@ import {
 export const MEMBER_WORLD_CUP_CUSTOM_QUESTIONS_COLLECTION = 'memberWorldCupCustomQuestions';
 export const MEMBER_WORLD_CUP_PROPOSALS_COLLECTION = 'memberWorldCupQuestionProposals';
 
-export const MAX_WORLD_CUP_SELECTIONS = 3;
+export const MAX_WORLD_CUP_SELECTIONS = 10;
 
 export interface WorldCupMemberOption {
   uid: string;

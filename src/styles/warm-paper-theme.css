@@ -752,14 +752,31 @@ html[data-ui-style="warm-paper"] .message-author-grade {
 }
 
 html[data-ui-style="warm-paper"] .contest-results-inline-grade {
-  display: inline-block;
-  font-size: 0.68rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
   font-weight: 600;
-  padding: 1px 6px;
+  padding: 2px 5px;
+  min-width: 1.5em;
   border-radius: 2px;
   background: var(--paper-tag-bg, #f0e6d6);
   color: var(--paper-tag-text, #6b5344);
   border: 1px solid var(--paper-border, #e8dcc8);
+}
+
+/* 상세 심사표 점수 칸: 배지 없이 이모지만 — 칸 밖으로 나가지 않게 */
+html[data-ui-style="warm-paper"] .contest-results-detail-table .contest-results-inline-grade {
+  display: block;
+  padding: 0;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font-size: 1.05rem;
+}
+
+html[data-ui-style="warm-paper"] .contest-results-detail-table td.contest-results-score-td {
+  background: var(--paper-card, #fffdf8);
 }
 
 html[data-ui-style="warm-paper"] .hall-rank {

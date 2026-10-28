@@ -5,7 +5,10 @@ import { db } from '../firebase';
 import {
   canAutoJoinBeforeStart,
   CONTEST_NOT_REGISTERED_MESSAGE,
+  CONTEST_SUBMISSION_DONE_MESSAGE,
+  hasFinalContestSubmission,
   isRegisteredParticipant,
+  markFinalContestSubmission,
   registerOnParticipateClick,
 } from '../utils/contestParticipant';
 import { getContestGradeFromScore } from '../utils/contestGrade';
@@ -226,6 +229,8 @@ const ContestParticipate: React.FC = () => {
   const [editingSubmittedTargets, setEditingSubmittedTargets] = useState<Record<string, boolean>>({});
   const [allSubmitted, setAllSubmitted] = useState(false);
   const [showSubmitMsg, setShowSubmitMsg] = useState(false);
+  const [finalSubmitted, setFinalSubmitted] = useState(false);
+  const [finalSubmitChecked, setFinalSubmitChecked] = useState(false);
   const [entryRestricted, setEntryRestricted] = useState(false);
   const [songTitles, setSongTitles] = useState<Record<string, string>>({}); // targetId -> songTitle
   const [editingSongTitle, setEditingSongTitle] = useState<string | null>(null); // 현재 수정 중인 targetId
@@ -255,6 +260,27 @@ const ContestParticipate: React.FC = () => {
       console.error('참가자 자동 등록 실패:', err);
     });
   }, [id, user?.uid, contest?.type, contest?.isStarted]);
+
+  useEffect(() => {
+    if (!id || !user?.uid) {
+      setFinalSubmitted(false);
+      setFinalSubmitChecked(true);
+      return;
+    }
+    const unsub = onSnapshot(
+      doc(db, 'contests', id, 'submissionLocks', user.uid),
+      (snap) => {
+        setFinalSubmitted(snap.exists());
+        setFinalSubmitChecked(true);
+      },
+      () => {
+        void hasFinalContestSubmission(id, user.uid)
+          .then(setFinalSubmitted)
+          .finally(() => setFinalSubmitChecked(true));
+      }
+    );
+    return () => unsub();
+  }, [id, user?.uid]);
 
   useEffect(() => {
     if (!id) return;
@@ -516,9 +542,16 @@ const ContestParticipate: React.FC = () => {
     // setSubmitted(true); // 정규등급전에서는 사용하지 않음
   };
 
-  const handleComplete = () => {
-    if (window.confirm('평가를 모두 완료하시겠습니까?')) {
+  const handleComplete = async () => {
+    if (!window.confirm('평가를 모두 완료하시겠습니까?')) return;
+    if (!id || !user?.uid) return;
+    try {
+      await markFinalContestSubmission(id, user);
       setSubmitted(true);
+      setFinalSubmitted(true);
+    } catch (error) {
+      console.error('제출 완료 처리 중 오류:', error);
+      alert('제출 완료 처리 중 오류가 발생했습니다.');
     }
   };
 
@@ -651,12 +684,9 @@ const ContestParticipate: React.FC = () => {
         }
       }
 
-      // 제출 완료 메시지 표시 및 메인보드로 이동
-      alert('제출을 완료했습니다!');
+      await markFinalContestSubmission(id, user);
+      setFinalSubmitted(true);
       setShowSubmitMsg(true);
-      setTimeout(() => {
-        navigate('/');
-      }, 500);
     } catch (error) {
       console.error('평가 제출 중 오류:', error);
       alert('평가 제출 중 오류가 발생했습니다. 다시 시도해주세요.');
@@ -674,7 +704,7 @@ const ContestParticipate: React.FC = () => {
     );
   }
 
-  if (!contest) {
+  if (!contest || (user?.uid && !finalSubmitChecked)) {
     return (
       <div className="contest-ui-refresh contest-participate-refresh contest-participate-state-screen">
         <div className="contest-participate-state-card contest-participate-state-card--loading">
@@ -682,6 +712,17 @@ const ContestParticipate: React.FC = () => {
           <div className="contest-participate-state-msg contest-participate-state-msg--loading">콘테스트 정보를 불러오는 중...</div>
         </div>
       </div>
+    );
+  }
+
+  if (finalSubmitted && id) {
+    return (
+      <ContestAccessBlock
+        contestId={id}
+        title={CONTEST_SUBMISSION_DONE_MESSAGE}
+        message="평가 화면을 다시 열 수 없습니다."
+        icon="✅"
+      />
     );
   }
 
@@ -1386,7 +1427,7 @@ const ContestParticipate: React.FC = () => {
                 })()}
                 {showSubmitMsg && (
                   <div style={{ color: '#10B981', fontWeight: 700, fontSize: 20, margin: '32px 0', textAlign: 'center' }}>
-                    제출이 완료되었습니다.
+                    {CONTEST_SUBMISSION_DONE_MESSAGE}
                   </div>
                 )}
               </>

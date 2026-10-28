@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { doc, getDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { contestTypeLabel, type RoundDoc, type RoundVote } from '../types/contest';
-import { getContestGradeFromScore } from '../utils/contestGrade';
+import { getContestGradeEmojiFromScore, getContestGradeFromScore } from '../utils/contestGrade';
 import { formatContestStageInline, formatContestStageLines } from '../utils/contestStage';
 import type { ClusterMeanBreakdown, ContestScoreBinScoreEntry } from '../utils/contestScoreAggregation';
 import {
@@ -15,6 +15,16 @@ import { GRADE_NAMES, GRADE_SYSTEM } from './AdminTypes';
 import { parseRoundVoteFromDoc } from '../utils/contestParticipant';
 import { db } from '../firebase';
 import '../styles/contest-ui-refresh.css';
+
+const contestResultsDetailColgroup = (
+  <colgroup>
+    <col className="contest-results-col-evaluator" />
+    <col className="contest-results-col-target" />
+    <col className="contest-results-col-score" />
+    <col className="contest-results-col-comment" />
+  </colgroup>
+);
+
 const ContestResults: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -182,13 +192,6 @@ const ContestResults: React.FC = () => {
 
   // 등급 계산 함수
   const getGrade = getContestGradeFromScore;
-
-  const getGradeLabel = (avg: number) => {
-    const full = getGrade(avg);
-    if (!full) return '';
-    const parts = full.split(' ');
-    return parts.length > 1 ? parts.slice(1).join(' ') : full;
-  };
 
   const nicknameOfUid = (uid: string) => {
     const evalTarget = evaluationTargets.find((et) => et.uid === uid);
@@ -842,24 +845,33 @@ const ContestResults: React.FC = () => {
 
           <div className="contest-results-table-scroll">
           <table className="contest-table contest-results-detail-table">
+            {contestResultsDetailColgroup}
             <thead>
               <tr style={{ background: '#F6F2FF', color: '#8A55CC' }}>
                 <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>평가자</th>
                 <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>피평가자</th>
                 <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>점수</th>
-                <th style={{ padding: 8, border: '1px solid #E5DAF5', maxWidth: 320, wordBreak: 'break-all', whiteSpace: 'pre-line' }}>심사코멘트</th>
+                <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>심사코멘트</th>
               </tr>
             </thead>
             <tbody>
               {filteredGrades.map((g, i) => (
                 <tr key={i}>
-                  <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>{g.evaluator}</td>
-                  <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>{getTargetDisplay(g.target)}</td>
-                  <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>
-                    <span>{g.score}</span>
-                    <span className="contest-results-inline-grade" title={getGrade(Number(g.score))}>{getGradeLabel(Number(g.score))}</span>
+                  <td className="contest-results-evaluator-td" style={{ border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }} title={g.evaluator}>{g.evaluator}</td>
+                  <td className="contest-results-target-td" style={{ border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }} title={getTargetDisplay(g.target)}>{getTargetDisplay(g.target)}</td>
+                  <td className="contest-results-score-td" style={{ border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>
+                    <div className="contest-results-score-cell">
+                      <span className="contest-results-score-num">{g.score}</span>
+                      <span
+                        className="contest-results-inline-grade"
+                        title={getGrade(Number(g.score))}
+                        aria-label={getGrade(Number(g.score))}
+                      >
+                        {getContestGradeEmojiFromScore(Number(g.score))}
+                      </span>
+                    </div>
                   </td>
-                  <td style={{ padding: 8, border: '1px solid #E5DAF5', maxWidth: 320, wordBreak: 'break-all', whiteSpace: 'pre-line', color: 'var(--text-primary, #333)', userSelect: 'text', WebkitUserSelect: 'text', MozUserSelect: 'text', msUserSelect: 'text' }}>
+                  <td className="contest-results-comment-td" style={{ border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)', userSelect: 'text', WebkitUserSelect: 'text', MozUserSelect: 'text', msUserSelect: 'text' }}>
                     <BulletedComments comments={g.comment ? g.comment.split(',').map((s: string) => s.trim()).filter(Boolean) : []} />
                   </td>
                 </tr>
@@ -880,24 +892,33 @@ const ContestResults: React.FC = () => {
               <h3 style={{ color: '#F43F5E', fontWeight: 700, fontSize: 18, marginBottom: 12, textAlign: 'center', borderTop: '2px solid #F43F5E', paddingTop: 16 }}>부운영진 평가 결과</h3>
               <div className="contest-results-table-scroll">
               <table className="contest-table contest-results-detail-table">
+                {contestResultsDetailColgroup}
                 <thead>
                   <tr style={{ background: '#F6F2FF', color: '#F43F5E' }}>
                     <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>부운영진</th>
                     <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>피평가자</th>
                     <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>점수</th>
-                    <th style={{ padding: 8, border: '1px solid #E5DAF5', maxWidth: 320, wordBreak: 'break-all', whiteSpace: 'pre-line' }}>심사코멘트</th>
+                    <th style={{ padding: 8, border: '1px solid #E5DAF5' }}>심사코멘트</th>
                   </tr>
                 </thead>
                 <tbody>
                   {subAdmins.map((g, i) => (
                     <tr key={i}>
-                      <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>{g.evaluator}</td>
-                      <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>{getTargetDisplay(g.target)}</td>
-                      <td style={{ padding: 8, border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>
-                        <span>{g.score}</span>
-                        <span className="contest-results-inline-grade" title={getGrade(Number(g.score))}>{getGradeLabel(Number(g.score))}</span>
+                      <td className="contest-results-evaluator-td" style={{ border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }} title={g.evaluator}>{g.evaluator}</td>
+                      <td className="contest-results-target-td" style={{ border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }} title={getTargetDisplay(g.target)}>{getTargetDisplay(g.target)}</td>
+                      <td className="contest-results-score-td" style={{ border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)' }}>
+                        <div className="contest-results-score-cell">
+                          <span className="contest-results-score-num">{g.score}</span>
+                          <span
+                            className="contest-results-inline-grade"
+                            title={getGrade(Number(g.score))}
+                            aria-label={getGrade(Number(g.score))}
+                          >
+                            {getContestGradeEmojiFromScore(Number(g.score))}
+                          </span>
+                        </div>
                       </td>
-                      <td style={{ padding: 8, border: '1px solid #E5DAF5', maxWidth: 320, wordBreak: 'break-all', whiteSpace: 'pre-line', color: 'var(--text-primary, #333)', userSelect: 'text', WebkitUserSelect: 'text', MozUserSelect: 'text', msUserSelect: 'text' }}>
+                      <td className="contest-results-comment-td" style={{ border: '1px solid #E5DAF5', color: 'var(--text-primary, #333)', userSelect: 'text', WebkitUserSelect: 'text', MozUserSelect: 'text', msUserSelect: 'text' }}>
                         <BulletedComments comments={g.comment ? g.comment.split(',').map((s: string) => s.trim()).filter(Boolean) : []} />
                       </td>
                     </tr>

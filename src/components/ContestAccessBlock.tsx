@@ -19,9 +19,11 @@ const ContestAccessBlock: React.FC<Props> = ({
   return (
     <div className="contest-ui-refresh contest-access-block-screen">
       <div className="contest-access-block-card">
-        <div className="contest-access-block-icon" aria-hidden>
-          {icon}
-        </div>
+        {icon ? (
+          <div className="contest-access-block-icon" aria-hidden>
+            {icon}
+          </div>
+        ) : null}
         <h2 className="contest-access-block-title">{title}</h2>
         <p className="contest-access-block-message">{message}</p>
         <button

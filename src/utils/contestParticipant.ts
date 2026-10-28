@@ -1,4 +1,4 @@
-import { doc, getDoc, getDocs, collection, setDoc } from 'firebase/firestore';
+import { doc, getDoc, getDocs, collection, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { ContestType, ParticipantRecord, RoundVote } from '../types/contest';
 
@@ -181,4 +181,38 @@ export async function registerOnParticipateClick(
 ): Promise<void> {
   if (!contest.isStarted && !canAutoJoinBeforeStart(contest.type)) return;
   await ensureContestParticipant(contestId, user);
+}
+
+export const CONTEST_SUBMISSION_DONE_MESSAGE = '제출을 완료하였습니다.';
+
+export function contestSubmissionLockRef(contestId: string, uid: string) {
+  return doc(db, 'contests', contestId, 'submissionLocks', uid);
+}
+
+export async function hasFinalContestSubmission(contestId: string, uid: string): Promise<boolean> {
+  if (!contestId || !uid) return false;
+  const snap = await getDoc(contestSubmissionLockRef(contestId, uid));
+  return snap.exists();
+}
+
+/** 최종 제출 이후 평가 화면 재입장을 막는다. 이미 있으면 그대로 둔다. */
+export async function markFinalContestSubmission(
+  contestId: string,
+  user: { uid: string; nickname?: string }
+): Promise<void> {
+  if (!contestId || !user.uid) {
+    throw new Error('콘테스트 또는 사용자 정보가 없어 제출을 기록할 수 없습니다.');
+  }
+  const ref = contestSubmissionLockRef(contestId, user.uid);
+  const existing = await getDoc(ref);
+  if (existing.exists()) return;
+  await setDoc(ref, {
+    uid: user.uid,
+    nickname: coerceFirestoreString(user.nickname),
+    submittedAt: serverTimestamp(),
+  });
+  const written = await getDoc(ref);
+  if (!written.exists()) {
+    throw new Error('제출 기록 저장에 실패했습니다.');
+  }
 }

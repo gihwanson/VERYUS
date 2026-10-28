@@ -13,6 +13,8 @@ import {
   parseRoundVoteFromDoc,
   parseParticipantFromDoc,
   participantMatchesRoundVote,
+  CONTEST_SUBMISSION_DONE_MESSAGE,
+  hasFinalContestSubmission,
   registerOnParticipateClick,
   coerceFirestoreString,
 } from '../utils/contestParticipant';
@@ -115,6 +117,7 @@ const ContestDetail: React.FC = () => {
   const [entryRestricted, setEntryRestricted] = useState(false);
   const [adminTab, setAdminTab] = useState<AdminTab>('participants');
   const [startingContest, setStartingContest] = useState(false);
+  const [finalSubmitted, setFinalSubmitted] = useState(false);
   const soloListRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -131,6 +134,17 @@ const ContestDetail: React.FC = () => {
   const isLeader = useMemo(() => {
     return user && user.role === '리더';
   }, [user]);
+
+  useEffect(() => {
+    if (!id || !user?.uid) {
+      setFinalSubmitted(false);
+      return;
+    }
+    const unsub = onSnapshot(doc(db, 'contests', id, 'submissionLocks', user.uid), (snap) => {
+      setFinalSubmitted(snap.exists());
+    });
+    return () => unsub();
+  }, [id, user?.uid]);
 
   const nicknameOf = useCallback((uid: string) => {
     const target = evaluationTargets.find((item) => item.uid === uid);
@@ -156,6 +170,11 @@ const ContestDetail: React.FC = () => {
     const isLeaderUser = user.role === '리더';
 
     try {
+      if (user.uid && await hasFinalContestSubmission(contest.id, user.uid)) {
+        alert(CONTEST_SUBMISSION_DONE_MESSAGE);
+        return;
+      }
+
       await registerOnParticipateClick(contest.id, contest, user);
 
       if (!contest.isStarted && !isLeaderUser) {
@@ -788,9 +807,13 @@ const ContestDetail: React.FC = () => {
           </div>
           <div className="contest-detail-summary-actions contest-buttons">
             {!ended && (
-              <button type="button" className="contest-button participate" onClick={handleParticipate}>
-                참여
-              </button>
+              finalSubmitted ? (
+                <span className="contest-submit-done-note">{CONTEST_SUBMISSION_DONE_MESSAGE}</span>
+              ) : (
+                <button type="button" className="contest-button participate" onClick={handleParticipate}>
+                  참여
+                </button>
+              )
             )}
             {(contest.type !== '라운드매치' || isLeader) && (
               <button

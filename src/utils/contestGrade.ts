@@ -17,3 +17,11 @@ export function getContestGradeFromScore(score: number): string {
               : GRADE_SYSTEM.SUN;
   return `${emoji} ${GRADE_NAMES[emoji]}`;
 }
+
+/** 표·좁은 칸용 — 이모지만 (한글명은 title/aria-label에) */
+export function getContestGradeEmojiFromScore(score: number): string {
+  const full = getContestGradeFromScore(score);
+  if (!full) return '';
+  const [emoji] = full.split(' ');
+  return emoji ?? '';
+}

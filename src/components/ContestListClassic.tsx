@@ -7,9 +7,10 @@ import '../styles/variables.css';
 import '../styles/contest-ui-refresh.css';
 
 import type { ContestType } from '../types/contest';
-import { registerOnParticipateClick } from '../utils/contestParticipant';
+import { CONTEST_SUBMISSION_DONE_MESSAGE, hasFinalContestSubmission, registerOnParticipateClick } from '../utils/contestParticipant';
 import { computeContestTop3Targets, type ContestGradeRecord } from '../utils/contestGradesAggregation';
 import ContestListItem from './ContestListItem';
+import { useContestSubmissionLocks } from '../hooks/useContestSubmissionLocks';
 
 interface Contest {
   id: string;
@@ -91,6 +92,11 @@ const ContestListClassic: React.FC = () => {
     }
 
     try {
+      if (user.uid && await hasFinalContestSubmission(contest.id, user.uid)) {
+        alert(CONTEST_SUBMISSION_DONE_MESSAGE);
+        return;
+      }
+
       await registerOnParticipateClick(contest.id, contest, user);
 
       if (!contest.isStarted && !isLeader) {
@@ -167,6 +173,12 @@ const ContestListClassic: React.FC = () => {
       default: return '';
     }
   }, []);
+
+  const activeContestIds = useMemo(
+    () => contests.filter((c) => !isContestEnded(c)).map((c) => c.id),
+    [contests, isContestEnded]
+  );
+  const submissionLockedIds = useContestSubmissionLocks(activeContestIds, user?.uid);
 
   // Effects — Auth 준비 후 실시간 구독 (로딩 중 빈 목록·일시적 조회 실패로 오표시 방지)
   useEffect(() => {
@@ -268,6 +280,7 @@ const ContestListClassic: React.FC = () => {
                     deadlineText={formatDeadline(contest.deadline)}
                     onDetail={() => navigate(`/contests/${contest.id}`)}
                     onParticipate={() => void handleParticipate(contest)}
+                    finalSubmitted={submissionLockedIds.has(contest.id)}
                     showQuickEnd={Boolean(user && user.role === '리더' && user.nickname === '너래')}
                     onQuickEnd={() => void updateDoc(firestoreDoc(db, 'contests', contest.id), { ended: true })}
                     rankLabel={getRankEmoji}

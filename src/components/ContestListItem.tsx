@@ -19,6 +19,8 @@ type Props = {
   deadlineText: string;
   onDetail: () => void;
   onParticipate?: () => void;
+  /** 최종 제출 완료 시 참여 버튼 대신 표시 */
+  finalSubmitted?: boolean;
   onQuickEnd?: () => void;
   showQuickEnd?: boolean;
   rankLabel: (rank: number) => string;
@@ -30,6 +32,7 @@ const ContestListItem: React.FC<Props> = ({
   deadlineText,
   onDetail,
   onParticipate,
+  finalSubmitted = false,
   onQuickEnd,
   showQuickEnd,
   rankLabel,
@@ -75,7 +78,12 @@ const ContestListItem: React.FC<Props> = ({
       </div>
 
       <div className="contest-list-card__actions contest-buttons">
-        {!inEndedSection && onParticipate ? (
+        {!inEndedSection && finalSubmitted ? (
+          <span className="contest-submit-done-note contest-list-card__submit-done" title="제출을 완료하였습니다.">
+            제출완료
+          </span>
+        ) : null}
+        {!inEndedSection && !finalSubmitted && onParticipate ? (
           <button type="button" className="contest-button participate" onClick={onParticipate}>
             참여
           </button>

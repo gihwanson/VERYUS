@@ -1079,6 +1079,27 @@
   box-shadow: 0 6px 16px rgba(22, 163, 74, 0.35) !important;
 }
 
+.contest-ui-refresh .contest-submit-done-note {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid var(--paper-border, #e8dcc8);
+  background: var(--paper-tag-bg, #f0e6d6);
+  color: var(--paper-accent, #8b5a2b);
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.contest-ui-refresh .contest-list-card__submit-done {
+  flex-shrink: 0;
+  cursor: default;
+  user-select: none;
+  box-sizing: border-box;
+}
+
 .contest-ui-refresh .contest-button.end {
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
   border-color: rgba(255, 255, 255, 0.35) !important;
@@ -1637,18 +1658,18 @@
   max-width: none !important;
 }
 
-.contest-ui-refresh .contest-results-panel .contest-table th:last-child,
-.contest-ui-refresh .contest-results-panel .contest-table td:last-child {
+.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-detail-table) th:last-child,
+.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-detail-table) td:last-child {
   width: 100% !important;
 }
 
-/* 닉네임/점수/등급(4번째)만 nowrap — 클래스로 한정하면 등급 숨김 후 5열 구조와 혼동 없음 */
-.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table) th:nth-child(2),
-.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table) td:nth-child(2),
-.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table) th:nth-child(3),
-.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table) td:nth-child(3),
-.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table) th:nth-child(4),
-.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table) td:nth-child(4) {
+/* 닉네임/점수/등급(4번째)만 nowrap — 상세 심사표(4열)는 별도 규칙 */
+.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table):not(.contest-results-detail-table) th:nth-child(2),
+.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table):not(.contest-results-detail-table) td:nth-child(2),
+.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table):not(.contest-results-detail-table) th:nth-child(3),
+.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table):not(.contest-results-detail-table) td:nth-child(3),
+.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table):not(.contest-results-detail-table) th:nth-child(4),
+.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table):not(.contest-results-detail-table) td:nth-child(4) {
   white-space: nowrap !important;
   word-break: keep-all !important;
   overflow-wrap: normal !important;
@@ -1665,13 +1686,13 @@
   overflow-wrap: normal !important;
 }
 
-.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table) th:nth-child(2),
-.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table) td:nth-child(2) {
+.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table):not(.contest-results-detail-table) th:nth-child(2),
+.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table):not(.contest-results-detail-table) td:nth-child(2) {
   min-width: 90px !important;
 }
 
-.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table) th:nth-child(3),
-.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table) td:nth-child(3) {
+.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table):not(.contest-results-detail-table) th:nth-child(3),
+.contest-ui-refresh .contest-results-panel .contest-table:not(.contest-results-compact-table):not(.contest-results-detail-table) td:nth-child(3) {
   min-width: 96px !important;
 }
 
@@ -1681,13 +1702,32 @@
 }
 
 .contest-ui-refresh .contest-results-panel .contest-results-detail-table {
-  min-width: 760px !important;
+  min-width: 640px !important;
+  width: 100% !important;
   table-layout: fixed !important;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.contest-ui-refresh .contest-results-detail-table .contest-results-col-evaluator {
+  width: 56px;
+}
+
+.contest-ui-refresh .contest-results-detail-table .contest-results-col-target {
+  width: 26%;
+}
+
+.contest-ui-refresh .contest-results-detail-table .contest-results-col-score {
+  width: 52px;
+}
+
+.contest-ui-refresh .contest-results-detail-table .contest-results-col-comment {
+  width: auto;
 }
 
 .contest-ui-refresh .contest-results-panel .contest-results-detail-table th:last-child,
-.contest-ui-refresh .contest-results-panel .contest-results-detail-table td:last-child {
-  min-width: 360px !important;
+.contest-ui-refresh .contest-results-panel .contest-results-detail-table td.contest-results-comment-td {
+  min-width: 0 !important;
   width: auto !important;
   white-space: normal !important;
   word-break: break-word !important;
@@ -1696,25 +1736,72 @@
 
 /* 상세 심사표: 앞 3열은 고정폭, 심사코멘트 열에 폭 우선 배정 */
 .contest-ui-refresh .contest-results-panel .contest-results-detail-table th:nth-child(1),
-.contest-ui-refresh .contest-results-panel .contest-results-detail-table td:nth-child(1) {
-  width: 9% !important;
-  min-width: 64px !important;
+.contest-ui-refresh .contest-results-panel .contest-results-detail-table td.contest-results-evaluator-td {
+  width: 56px !important;
+  min-width: 56px !important;
+  max-width: 72px !important;
   white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  vertical-align: middle;
 }
 
 .contest-ui-refresh .contest-results-panel .contest-results-detail-table th:nth-child(2),
-.contest-ui-refresh .contest-results-panel .contest-results-detail-table td:nth-child(2) {
-  width: 14% !important;
-  min-width: 92px !important;
+.contest-ui-refresh .contest-results-panel .contest-results-detail-table td.contest-results-target-td {
+  width: 26% !important;
+  min-width: 100px !important;
+  max-width: 240px !important;
   white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  vertical-align: middle;
 }
 
 .contest-ui-refresh .contest-results-panel .contest-results-detail-table th:nth-child(3),
-.contest-ui-refresh .contest-results-panel .contest-results-detail-table td:nth-child(3) {
-  width: 12% !important;
-  min-width: 88px !important;
-  white-space: nowrap !important;
+.contest-ui-refresh .contest-results-panel .contest-results-detail-table td.contest-results-score-td {
+  width: 52px !important;
+  min-width: 52px !important;
+  max-width: 52px !important;
+  padding: 6px 2px !important;
+  white-space: normal !important;
   text-align: center;
+  vertical-align: middle;
+  overflow: hidden !important;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.contest-ui-refresh .contest-results-detail-table .contest-results-score-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  line-height: 1.15;
+}
+
+.contest-ui-refresh .contest-results-detail-table .contest-results-score-num {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.contest-ui-refresh .contest-results-detail-table .contest-results-inline-grade {
+  flex-shrink: 0;
+  display: block;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  min-width: 0 !important;
+  font-size: 1.05rem !important;
+  line-height: 1 !important;
 }
 
 .contest-ui-refresh .contest-results-panel .contest-results-compact-table th.contest-results-col-comment,
@@ -2284,8 +2371,10 @@
 }
 
 .contest-ui-refresh .contest-results-inline-grade {
-  margin-left: 6px;
-  font-size: 0.95em;
+  flex-shrink: 0;
+  margin-left: 0;
+  font-size: 1.05em;
+  line-height: 1;
   vertical-align: baseline;
 }
 
@@ -2387,19 +2476,22 @@
   }
 
   .contest-ui-refresh .contest-results-panel .contest-results-detail-table th:nth-child(2),
-  .contest-ui-refresh .contest-results-panel .contest-results-detail-table td:nth-child(2) {
-    width: 19% !important;
-    min-width: 64px !important;
+  .contest-ui-refresh .contest-results-panel .contest-results-detail-table td.contest-results-target-td {
+    width: 28% !important;
+    min-width: 72px !important;
+    max-width: 42vw !important;
     white-space: nowrap !important;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
   }
 
   .contest-ui-refresh .contest-results-panel .contest-results-detail-table th:nth-child(3),
-  .contest-ui-refresh .contest-results-panel .contest-results-detail-table td:nth-child(3) {
-    width: 14% !important;
-    min-width: 62px !important;
-    white-space: nowrap !important;
+  .contest-ui-refresh .contest-results-panel .contest-results-detail-table td.contest-results-score-td {
+    width: 48px !important;
+    min-width: 48px !important;
+    max-width: 48px !important;
+    padding: 4px 1px !important;
+    overflow: hidden !important;
   }
 
   .contest-ui-refresh .contest-results-panel .contest-results-detail-table th:last-child,
