@@ -629,7 +629,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 60px;
+  min-height: 72px;
 }
 
 .time-column.header,
@@ -672,7 +672,7 @@
   cursor: pointer;
   transition: all 0.2s;
   position: relative;
-  min-height: 60px;
+  min-height: 72px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1660,7 +1660,7 @@
   }
 
   .mobile-time-slot {
-    min-height: 65px;
+    min-height: 0;
   }
 
   .mobile-slot-time {
@@ -1709,7 +1709,7 @@
   }
 
   .time-slot {
-    min-height: 50px;
+    min-height: 68px;
   }
 
   .user-name {

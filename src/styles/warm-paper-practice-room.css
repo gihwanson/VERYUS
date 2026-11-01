@@ -37,17 +37,29 @@ html[data-ui-style="warm-paper"] .practice-room-shell {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 8px;
   flex: 1;
   min-height: 0;
   overflow: hidden;
+}
+
+html[data-ui-style="warm-paper"] .practice-room-booking .booking-controls {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 12px 12px 10px;
+  margin-bottom: 0;
 }
 
 html[data-ui-style="warm-paper"] .practice-room-booking .day-view-mobile,
 html[data-ui-style="warm-paper"] .practice-room-booking .week-view {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ===== 헤더 ===== */
@@ -55,8 +67,8 @@ html[data-ui-style="warm-paper"] .practice-room-booking .booking-header {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 10px;
-  padding: 14px 16px;
+  gap: 8px;
+  padding: 6px 8px;
   margin-bottom: 0;
   background: var(--paper-card, #fffdf8);
   border: 1px solid var(--paper-border, #e8dcc8);
@@ -77,7 +89,7 @@ html[data-ui-style="warm-paper"] .practice-room-booking .booking-header h1 {
   gap: 8px;
   margin: 0;
   font-family: var(--paper-serif, Georgia, serif);
-  font-size: 1.15rem;
+  font-size: 1.05rem;
   font-weight: 800;
   color: var(--paper-ink, #2c2416);
   letter-spacing: -0.02em;
@@ -265,11 +277,6 @@ html[data-ui-style="warm-paper"] .practice-room-booking .check-in-history-empty 
 }
 
 /* ===== 예약 컨트롤 ===== */
-html[data-ui-style="warm-paper"] .practice-room-booking .booking-controls {
-  padding: 20px 16px 16px;
-  margin-bottom: 0;
-}
-
 html[data-ui-style="warm-paper"] .practice-room-booking .nav-button,
 html[data-ui-style="warm-paper"] .practice-room-booking .today-button {
   background: var(--paper-accent, #8b5a2b);
@@ -294,12 +301,165 @@ html[data-ui-style="warm-paper"] .practice-room-booking .mobile-date-display {
   color: var(--paper-ink, #2c2416);
 }
 
-html[data-ui-style="warm-paper"] .practice-room-booking .color-legend {
-  background: var(--paper-tag-bg, #f0e6d6);
-  border: 1px dashed var(--paper-border, #e8dcc8);
+html[data-ui-style="warm-paper"] .practice-room-booking .today-button--header {
+  padding: 6px 10px;
+  font-size: 0.75rem;
+}
+
+html[data-ui-style="warm-paper"] .practice-room-booking .week-nav-lite {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 2px 0 4px;
+}
+
+html[data-ui-style="warm-paper"] .practice-room-booking .week-nav-lite__copy {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+html[data-ui-style="warm-paper"] .practice-room-booking .week-nav-lite__label {
+  margin: 0;
+  font-family: var(--paper-serif, Georgia, serif);
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--paper-ink, #2c2416);
+}
+
+html[data-ui-style="warm-paper"] .practice-room-booking .week-nav-lite__hint {
+  margin: 3px 0 0;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: var(--paper-muted, #8b7355);
+}
+
+html[data-ui-style="warm-paper"] .practice-room-booking .week-overview-button {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--paper-border, #e8dcc8);
   border-radius: var(--paper-radius, 4px);
+  background: var(--paper-tag-bg, #f0e6d6);
+  color: var(--paper-accent, #8b5a2b);
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+html[data-ui-style="warm-paper"] .practice-room-booking .day-strip-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+html[data-ui-style="warm-paper"] .practice-room-booking .day-strip {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+html[data-ui-style="warm-paper"] .practice-room-booking .day-strip-nav {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: var(--paper-radius, 4px);
+  background: transparent;
+  color: var(--paper-accent, #8b5a2b);
+  cursor: pointer;
+}
+
+html[data-ui-style="warm-paper"] .practice-room-booking .day-strip-nav:hover {
+  background: var(--paper-tag-bg, #f0e6d6);
+}
+
+html[data-ui-style="warm-paper"] .practice-room-booking .day-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-height: 44px;
+  padding: 4px 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--paper-ink, #2c2416);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+html[data-ui-style="warm-paper"] .practice-room-booking .day-chip__name {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--paper-muted, #8b7355);
+  line-height: 1;
+}
+
+html[data-ui-style="warm-paper"] .practice-room-booking .day-chip__num {
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.15;
+  font-family: var(--paper-serif, Georgia, serif);
+}
+
+html[data-ui-style="warm-paper"] .practice-room-booking .day-chip.is-weekend .day-chip__name,
+html[data-ui-style="warm-paper"] .practice-room-booking .day-chip.is-weekend .day-chip__num {
+  color: #a85050;
+}
+
+html[data-ui-style="warm-paper"] .practice-room-booking .day-chip.is-today .day-chip__num {
+  color: var(--paper-accent, #8b5a2b);
+}
+
+html[data-ui-style="warm-paper"] .practice-room-booking .day-chip.is-selected {
+  background: var(--paper-accent, #8b5a2b);
+  border-color: var(--paper-accent, #8b5a2b);
+}
+
+html[data-ui-style="warm-paper"] .practice-room-booking .day-chip.is-selected .day-chip__name,
+html[data-ui-style="warm-paper"] .practice-room-booking .day-chip.is-selected .day-chip__num,
+html[data-ui-style="warm-paper"] .practice-room-booking .day-chip.is-selected.is-weekend .day-chip__name,
+html[data-ui-style="warm-paper"] .practice-room-booking .day-chip.is-selected.is-weekend .day-chip__num,
+html[data-ui-style="warm-paper"] .practice-room-booking .day-chip.is-selected.is-today .day-chip__num {
+  color: var(--paper-card, #fffdf8);
+}
+
+html[data-ui-style="warm-paper"] .practice-room-booking .day-chip {
+  position: relative;
+}
+
+html[data-ui-style="warm-paper"] .practice-room-booking .day-chip__booked {
+  position: absolute;
+  bottom: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--pr-slot-reserved-border, #a67c1a);
+}
+
+html[data-ui-style="warm-paper"] .practice-room-booking .day-chip.is-selected .day-chip__booked {
+  background: #f6e4b8;
+}
+
+html[data-ui-style="warm-paper"] .practice-room-booking .color-legend,
+html[data-ui-style="warm-paper"] .practice-room-booking .color-legend.color-legend--compact {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
   gap: 10px;
-  padding: 10px;
+  padding: 0 4px 2px !important;
 }
 
 html[data-ui-style="warm-paper"] .practice-room-booking .legend-item {
@@ -346,12 +506,13 @@ html[data-ui-style="warm-paper"] .practice-room-booking .legend-color.exception 
 
 html[data-ui-style="warm-paper"] .practice-room-booking .daily-limit-info {
   flex-wrap: wrap;
-  background: var(--paper-tag-bg, #f0e6d6);
-  border: 1px solid var(--paper-border, #e8dcc8);
-  border-left: 3px solid var(--paper-accent, #8b5a2b);
-  border-radius: var(--paper-radius, 4px);
+  background: transparent;
+  border: none;
+  border-left: none;
+  border-radius: 0;
   box-shadow: none;
-  margin-top: 12px;
+  margin-top: 0;
+  padding: 0 4px 4px;
 }
 
 html[data-ui-style="warm-paper"] .practice-room-booking .limit-text {
@@ -570,13 +731,18 @@ html[data-ui-style="warm-paper"] .practice-room-booking .exception-badge {
 
 /* 모바일 슬롯 — 목차 행 느낌 */
 html[data-ui-style="warm-paper"] .practice-room-booking .day-slots {
-  gap: 6px;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  gap: 4px;
+  overflow: hidden;
 }
 
 html[data-ui-style="warm-paper"] .practice-room-booking .mobile-time-slot {
+  flex: 1 1 0;
   border: 1px solid var(--paper-border, #e8dcc8);
   border-radius: var(--paper-radius, 4px);
-  min-height: 64px;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -882,7 +1048,7 @@ html[data-ui-style="warm-paper"] .practice-booking-modal-overlay .exception-noti
   }
 
   html[data-ui-style="warm-paper"] .practice-room-booking .booking-header {
-    padding: 8px 16px;
+    padding: 6px 10px;
   }
 
   html[data-ui-style="warm-paper"] .practice-room-booking .booking-header h1 {
@@ -894,19 +1060,10 @@ html[data-ui-style="warm-paper"] .practice-booking-modal-overlay .exception-noti
     font-size: 0.75rem;
   }
 
-  html[data-ui-style="warm-paper"] .practice-room-booking .ticketing-notice {
-    padding: 8px 12px;
-    font-size: 0.82rem;
-    line-height: 1.35;
-  }
-
   html[data-ui-style="warm-paper"] .practice-room-booking .booking-controls {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: center;
-    column-gap: 16px;
-    row-gap: 8px;
-    padding: 16px 14px 8px;
+    display: flex;
+    flex-direction: column;
+    padding: 10px 14px 8px;
   }
 
   html[data-ui-style="warm-paper"] .practice-room-booking .week-navigation {
@@ -921,14 +1078,10 @@ html[data-ui-style="warm-paper"] .practice-booking-modal-overlay .exception-noti
   }
 
   html[data-ui-style="warm-paper"] .practice-room-booking .color-legend,
-  html[data-ui-style="warm-paper"] .practice-room-booking .daily-limit-info {
-    grid-column: 1 / -1;
-  }
-
-  html[data-ui-style="warm-paper"] .practice-room-booking .color-legend {
+  html[data-ui-style="warm-paper"] .practice-room-booking .color-legend.color-legend--compact {
     justify-content: flex-start;
     gap: 6px 14px;
-    padding: 6px 10px;
+    padding: 0 4px 4px !important;
   }
 
   html[data-ui-style="warm-paper"] .practice-room-booking .legend-item {
@@ -946,6 +1099,8 @@ html[data-ui-style="warm-paper"] .practice-booking-modal-overlay .exception-noti
   }
 
   html[data-ui-style="warm-paper"] .practice-room-booking .week-view {
+    flex: 1 1 auto;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -956,7 +1111,8 @@ html[data-ui-style="warm-paper"] .practice-booking-modal-overlay .exception-noti
     flex: 1 1 auto;
     min-width: 0;
     min-height: 0;
-    /* 09:00–22:00, 1시간 칸 13개 */
+    height: 100%;
+    /* 09:00–22:00, 1시간 칸 13개를 화면에 맞춤 */
     grid-template-rows: auto repeat(13, minmax(0, 1fr));
   }
 
@@ -1010,12 +1166,15 @@ html[data-ui-style="warm-paper"] .practice-booking-modal-overlay .exception-noti
 
 @media (max-width: 768px) {
   html[data-ui-style="warm-paper"] .practice-room-booking {
-    padding-left: 12px;
-    padding-right: 12px;
+    padding: calc(8px + env(safe-area-inset-top)) 10px calc(72px + env(safe-area-inset-bottom));
+  }
+
+  html[data-ui-style="warm-paper"] .practice-room-booking .booking-controls > .practice-section-label {
+    display: none;
   }
 
   html[data-ui-style="warm-paper"] .practice-room-booking .booking-header {
-    padding: 10px 12px;
+    padding: 4px 6px;
     gap: 6px;
   }
 
@@ -1024,74 +1183,215 @@ html[data-ui-style="warm-paper"] .practice-booking-modal-overlay .exception-noti
     white-space: nowrap;
   }
 
-  html[data-ui-style="warm-paper"] .practice-room-booking .booking-header__icon {
-    display: none;
-  }
-
-  html[data-ui-style="warm-paper"] .practice-room-booking .booking-header__sub {
-    font-size: 0.68rem;
-    white-space: nowrap;
+  html[data-ui-style="warm-paper"] .practice-room-booking .booking-back-button,
+  html[data-ui-style="warm-paper"] .practice-room-booking .refresh-button,
+  html[data-ui-style="warm-paper"] .practice-room-booking .management-button {
+    padding: 6px;
   }
 
   html[data-ui-style="warm-paper"] .practice-room-shell {
-    gap: 10px;
+    gap: 6px;
   }
 
-  html[data-ui-style="warm-paper"] .practice-room-booking .color-legend {
+  html[data-ui-style="warm-paper"] .practice-room-booking .my-reservations-section {
+    display: none;
+  }
+
+  html[data-ui-style="warm-paper"] .practice-room-booking .color-legend,
+  html[data-ui-style="warm-paper"] .practice-room-booking .color-legend.color-legend--compact {
     flex-wrap: nowrap;
-    justify-content: flex-start;
-    overflow-x: auto;
-    gap: 8px;
+    justify-content: space-between;
+    overflow: hidden;
+    gap: 6px;
+    padding: 0 2px 4px !important;
   }
 
   html[data-ui-style="warm-paper"] .practice-room-booking .legend-item {
     flex: 0 0 auto;
+    font-size: 0.68rem;
+  }
+
+  html[data-ui-style="warm-paper"] .practice-room-booking .legend-color {
+    width: 12px;
+    height: 12px;
   }
 
   html[data-ui-style="warm-paper"] .practice-room-booking .mobile-time-slot {
-    min-height: 44px;
+    min-height: 0;
     align-items: center;
   }
 
   html[data-ui-style="warm-paper"] .practice-room-booking .mobile-slot-time {
-    flex-direction: row;
-    min-width: 108px;
-    padding: 6px 8px;
-    gap: 2px;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 46px;
+    padding: 0 4px;
+    gap: 0;
+    align-self: stretch;
   }
 
   html[data-ui-style="warm-paper"] .practice-room-booking .time-label-large {
-    font-size: 0.95rem;
+    font-size: 0.92rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  html[data-ui-style="warm-paper"] .practice-room-booking .time-label-large::after {
+    content: '시';
+    font-size: 0.62rem;
+    font-weight: 600;
+    margin-left: 1px;
+    color: var(--paper-muted, #8b7355);
   }
 
   html[data-ui-style="warm-paper"] .practice-room-booking .mobile-slot-content {
-    padding: 6px 10px;
+    padding: 2px 10px;
   }
 
-  html[data-ui-style="warm-paper"] .practice-room-booking .walk-in-reason,
-  html[data-ui-style="warm-paper"] .practice-room-booking .blocked-reason {
+  html[data-ui-style="warm-paper"] .practice-room-booking .available-label::before {
     display: none;
   }
 
+  html[data-ui-style="warm-paper"] .practice-room-booking .reservation-header svg,
+  html[data-ui-style="warm-paper"] .practice-room-booking .reservation-members-mobile,
+  html[data-ui-style="warm-paper"] .practice-room-booking .reservation-purpose-mobile,
+  html[data-ui-style="warm-paper"] .practice-room-booking .mobile-cancel-btn,
+  html[data-ui-style="warm-paper"] .practice-room-booking .in-use-badge,
+  html[data-ui-style="warm-paper"] .practice-room-booking .walk-in-reason,
+  html[data-ui-style="warm-paper"] .practice-room-booking .blocked-reason,
+  html[data-ui-style="warm-paper"] .practice-room-booking .blocked-header,
+  html[data-ui-style="warm-paper"] .practice-room-booking .exception-badge {
+    display: none;
+  }
+
+  html[data-ui-style="warm-paper"] .practice-room-booking .reservation-user,
+  html[data-ui-style="warm-paper"] .practice-room-booking .slot-status,
+  html[data-ui-style="warm-paper"] .practice-room-booking .walk-in-header {
+    font-size: 0.82rem;
+    white-space: nowrap;
+  }
+
   html[data-ui-style="warm-paper"] .practice-room-booking .booking-controls {
-    padding: 14px 12px 10px;
+    padding: 6px 8px 8px;
   }
 
-  html[data-ui-style="warm-paper"] .practice-room-booking .week-navigation {
-    margin-bottom: 6px;
+  html[data-ui-style="warm-paper"] .practice-room-booking .booking-controls--day .week-view {
+    display: none !important;
   }
 
-  html[data-ui-style="warm-paper"] .practice-room-booking .ticketing-notice {
-    padding: 8px 10px;
-    font-size: 0.78rem;
-    line-height: 1.35;
+  html[data-ui-style="warm-paper"] .practice-room-booking .booking-controls--week .day-view-mobile {
+    display: none !important;
   }
 
-  html[data-ui-style="warm-paper"] .practice-room-booking .color-legend {
-    padding: 6px 8px;
+  html[data-ui-style="warm-paper"] .practice-room-booking .booking-controls--day .day-view-mobile {
+    display: flex !important;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    padding: 2px 0 0;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    flex-direction: column;
   }
 
-  html[data-ui-style="warm-paper"] .practice-room-booking .day-slots {
-    gap: 4px;
+  html[data-ui-style="warm-paper"] .practice-room-booking .booking-controls--day .day-slots {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    gap: 3px;
+    overflow: hidden;
+  }
+
+  html[data-ui-style="warm-paper"] .practice-room-booking .booking-controls--week .week-view {
+    display: flex !important;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    padding: 2px 0 0;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  html[data-ui-style="warm-paper"] .practice-room-booking .week-grid {
+    flex: 1 1 auto;
+    min-width: 0 !important;
+    min-height: 0;
+    height: 100%;
+    grid-template-columns: 32px repeat(7, minmax(0, 1fr));
+    grid-template-rows: 32px repeat(13, minmax(0, 1fr));
+    overflow: hidden;
+  }
+
+  html[data-ui-style="warm-paper"] .practice-room-booking .time-column,
+  html[data-ui-style="warm-paper"] .practice-room-booking .day-column,
+  html[data-ui-style="warm-paper"] .practice-room-booking .time-slot {
+    min-height: 0 !important;
+    padding: 0 1px;
+  }
+
+  html[data-ui-style="warm-paper"] .practice-room-booking .time-column.header,
+  html[data-ui-style="warm-paper"] .practice-room-booking .day-column.header,
+  html[data-ui-style="warm-paper"] .practice-room-booking .day-column.header:has(.day-closure) {
+    min-height: 0 !important;
+    padding: 2px 0;
+    gap: 0;
+  }
+
+  html[data-ui-style="warm-paper"] .practice-room-booking .day-column.header.is-selected {
+    box-shadow: inset 0 -2px 0 var(--paper-accent, #8b5a2b);
+  }
+
+  html[data-ui-style="warm-paper"] .practice-room-booking .day-name {
+    font-size: 10px;
+    line-height: 1.1;
+  }
+
+  html[data-ui-style="warm-paper"] .practice-room-booking .day-date {
+    font-size: 12px;
+    line-height: 1.1;
+  }
+
+  html[data-ui-style="warm-paper"] .practice-room-booking .day-closure {
+    display: none;
+  }
+
+  html[data-ui-style="warm-paper"] .practice-room-booking .time-label {
+    font-size: 9px;
+    letter-spacing: -0.03em;
+  }
+
+  html[data-ui-style="warm-paper"] .practice-room-booking .time-slot {
+    overflow: hidden;
+  }
+
+  html[data-ui-style="warm-paper"] .practice-room-booking .time-slot.available:hover {
+    transform: none;
+  }
+
+  html[data-ui-style="warm-paper"] .practice-room-booking .time-slot .user-name,
+  html[data-ui-style="warm-paper"] .practice-room-booking .time-slot .member-names,
+  html[data-ui-style="warm-paper"] .practice-room-booking .priority-slot__name,
+  html[data-ui-style="warm-paper"] .practice-room-booking .in-use-label,
+  html[data-ui-style="warm-paper"] .practice-room-booking .walk-in-reason-small,
+  html[data-ui-style="warm-paper"] .practice-room-booking .blocked-reason-small {
+    font-size: 9px;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  html[data-ui-style="warm-paper"] .practice-room-booking .priority-slot {
+    flex-direction: column;
+    gap: 0;
+    padding: 0 2px;
+  }
+
+  html[data-ui-style="warm-paper"] .practice-room-booking .weekend-blocked-label {
+    font-size: 9px;
+    writing-mode: vertical-rl;
+    letter-spacing: 0.08em;
   }
 }

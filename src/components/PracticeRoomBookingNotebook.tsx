@@ -17,7 +17,7 @@ import {
   formatDateYmdKst,
   formatKoreanPracticeDate,
   getBookableWeekRangeForDate,
-  getTicketingStatusMessage,
+  getBookableWeekRangeOnOpenSunday,
   isTargetDateUnderTicketing,
   isTicketingNonBookableWeekday,
   isUnbookedSlotWalkInOpen,
@@ -46,7 +46,6 @@ import {
   getReservationBlockHours,
   getSlotMergeInfo,
   isSlotReservationCurrentlyInUse,
-  getSundayPendingBannerText,
   isEffectivelyConfirmedReservation,
   isEffectivelyPendingReservation,
   isPracticeRoomAdminPriorityUser,
@@ -64,7 +63,7 @@ import NicknameSuggestInput, {
   normalizeMemberNicknames,
 } from './NicknameSuggestInput';
 import { getUserMentions, type UserMention } from '../utils/getUserMentions';
-import { Calendar, Clock, User, X, ChevronLeft, ChevronRight, Info, RefreshCw, LogIn, LogOut, Users, Music2, Settings } from 'lucide-react';
+import { Calendar, Clock, User, X, ChevronLeft, ChevronRight, Info, RefreshCw, LogIn, LogOut, Users, Settings } from 'lucide-react';
 
 function notifyBooking(message: string) {
   toast(message, {
@@ -184,6 +183,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
   const [memberInput, setMemberInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [mobileScheduleView, setMobileScheduleView] = useState<'week' | 'day'>('week');
   const [currentUser, setCurrentUser] = useState<any>(null);
   const isBookingInProgress = useRef(false); // 예약 진행 중 플래그
   const lastSlotInteractionAtRef = useRef(0); // 터치/클릭 중복 실행 방지
@@ -291,6 +291,12 @@ const PracticeRoomBookingNotebook: React.FC = () => {
     };
     checkMobile();
     window.addEventListener('resize', checkMobile);
+
+    if (isSundayPendingBookingWindow()) {
+      const monday = parseYmdToLocalDate(getBookableWeekRangeOnOpenSunday().start);
+      if (monday) setSelectedDate(monday);
+    }
+
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
@@ -568,7 +574,6 @@ const PracticeRoomBookingNotebook: React.FC = () => {
     }
   };
 
-  const ticketingStatusMessage = getTicketingStatusMessage(ticketingSettings);
   const usesTicketingWeekNavForDate = (date: Date) =>
     shouldUseTicketingParticipationRules(formatDateYmdKst(date), ticketingSettings);
   const usesTicketingParticipationForSelectedDate = usesTicketingWeekNavForDate(selectedDate);
@@ -581,8 +586,6 @@ const PracticeRoomBookingNotebook: React.FC = () => {
 
   const isAlwaysOpenDate = (date: Date) =>
     isDateInAlwaysOpenPeriod(date, alwaysOpenSettings);
-
-  const selectedDateAlwaysOpen = isAlwaysOpenDate(selectedDate);
 
   const loadMyReservations = async () => {
     if (!currentUser) return;
@@ -1864,16 +1867,13 @@ const PracticeRoomBookingNotebook: React.FC = () => {
     setSelectedDate(new Date());
   };
 
-  const goToPreviousDay = () => {
-    const newDate = new Date(selectedDate);
-    newDate.setDate(newDate.getDate() - 1);
-    setSelectedDate(newDate);
+  const openDayView = (date: Date) => {
+    setSelectedDate(new Date(date));
+    setMobileScheduleView('day');
   };
 
-  const goToNextDay = () => {
-    const newDate = new Date(selectedDate);
-    newDate.setDate(newDate.getDate() + 1);
-    setSelectedDate(newDate);
+  const openWeekView = () => {
+    setMobileScheduleView('week');
   };
 
   const getDayName = (date: Date): string => {
@@ -2122,6 +2122,17 @@ const PracticeRoomBookingNotebook: React.FC = () => {
     weekDates.map((date) => [formatDate(date), repeatedWeekendLabel(date)])
   );
   const selectedWeekendLabel = repeatedWeekendLabel(selectedDate);
+  const weekBookingCountByDate = new Map(
+    weekDates.map((date) => {
+      const count = generateTimeSlots(date).filter(
+        (slot) =>
+          !slot.isPast &&
+          !slot.isWalkInOpen &&
+          Boolean(slot.reservation || (slot.reservations && slot.reservations.length > 0))
+      ).length;
+      return [formatDate(date), count] as const;
+    })
+  );
 
   return (
     <div className="practice-room-booking">
@@ -2131,18 +2142,12 @@ const PracticeRoomBookingNotebook: React.FC = () => {
           <ChevronLeft size={22} />
         </button>
         <div className="booking-header__title-wrap">
-          <h1>
-            <Music2 size={20} className="booking-header__icon" aria-hidden />
-            연습실 예약
-          </h1>
-            <p className="booking-header__sub">09:00–22:00 · 1시간</p>
+          <h1>연습실</h1>
         </div>
         <div className="header-buttons">
-          {isUnlimitedUser && (
-            <span className="unlimited-admin-badge" title="예약 한도 없음">
-              무제한
-            </span>
-          )}
+          <button type="button" className="today-button today-button--header" onClick={goToToday}>
+            오늘
+          </button>
           {isUnlimitedUser && (
             <button
               type="button"
@@ -2173,27 +2178,6 @@ const PracticeRoomBookingNotebook: React.FC = () => {
           role="status"
         >
           🍒 체리 등급 회원은 연습실 예약을 이용할 수 없습니다. 체리 등급을 졸업(딸기 등급 이상)한 후 예약해 주세요.
-        </div>
-      )}
-
-      {selectedDateAlwaysOpen && alwaysOpenSettings && (
-        <div className="always-open-notice" role="status">
-          🟢 {ALWAYS_OPEN_NOTICE}
-          <span className="always-open-period">
-            ({alwaysOpenSettings.startDate} ~ {alwaysOpenSettings.endDate})
-          </span>
-        </div>
-      )}
-
-      {ticketingStatusMessage && (
-        <div className="ticketing-notice" role="status">
-          {ticketingStatusMessage}
-        </div>
-      )}
-
-      {isSundayPendingBookingWindow() && priorityWindow && (
-        <div className="ticketing-notice" role="status" style={{ background: 'rgba(217, 119, 6, 0.15)' }}>
-          ⏳ {getSundayPendingBannerText(priorityWindow)}
         </div>
       )}
 
@@ -2300,80 +2284,83 @@ const PracticeRoomBookingNotebook: React.FC = () => {
       </section>
       )}
 
-      <section className="booking-controls practice-notebook-section" aria-label="예약 일정">
-        <div className="practice-section-label">예약 일정</div>
-        <div className="week-navigation">
-          {isMobile ? (
-            <>
-              <button type="button" onClick={goToPreviousDay} className="nav-button" aria-label="이전 날">
-                <ChevronLeft size={20} />
-              </button>
-              <button onClick={goToToday} className="today-button">
-                오늘
-              </button>
-              <button type="button" onClick={goToNextDay} className="nav-button" aria-label="다음 날">
-                <ChevronRight size={20} />
-              </button>
-            </>
-          ) : (
-            <>
-              <button type="button" onClick={goToPreviousWeek} className="nav-button" aria-label="이전 주">
-                <ChevronLeft size={20} />
-              </button>
-              <button onClick={goToToday} className="today-button">
-                오늘
-              </button>
-              <button type="button" onClick={goToNextWeek} className="nav-button" aria-label="다음 주">
-                <ChevronRight size={20} />
-              </button>
-            </>
-          )}
-        </div>
-        <div className="current-week">
-          {isMobile ? (
-            <div className="mobile-date-display">
-              {formatDisplayDate(selectedDate)}
+      <section
+        className={`booking-controls practice-notebook-section booking-controls--${
+          isMobile ? mobileScheduleView : 'week'
+        }`}
+        aria-label="예약 일정"
+      >
+        {isMobile && mobileScheduleView === 'week' ? (
+          <div className="week-nav-lite">
+            <button type="button" onClick={goToPreviousWeek} className="day-strip-nav" aria-label="이전 주">
+              <ChevronLeft size={18} />
+            </button>
+            <div className="week-nav-lite__copy">
+              <p className="week-nav-lite__label">
+                {formatDisplayDate(weekDates[0])} – {formatDisplayDate(weekDates[6])}
+              </p>
+              <p className="week-nav-lite__hint">빈 칸을 누르면 예약 · 요일을 누르면 그날만 크게 봅니다</p>
             </div>
-          ) : (
-            `${formatDisplayDate(weekDates[0])} – ${formatDisplayDate(weekDates[6])}`
+            <button type="button" onClick={goToNextWeek} className="day-strip-nav" aria-label="다음 주">
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        ) : (
+        <div className="day-strip-wrap">
+          {isMobile && (
+            <button type="button" className="week-overview-button" onClick={openWeekView}>
+              주간
+            </button>
           )}
+          <button type="button" onClick={goToPreviousWeek} className="day-strip-nav" aria-label="이전 주">
+            <ChevronLeft size={18} />
+          </button>
+          <div className="day-strip" role="tablist" aria-label="요일 선택">
+            {weekDates.map((date) => {
+              const selected = formatDate(date) === formatDate(selectedDate);
+              const bookedCount = weekBookingCountByDate.get(formatDate(date)) || 0;
+              return (
+                <button
+                  key={formatDate(date)}
+                  type="button"
+                  role="tab"
+                  aria-selected={selected}
+                  className={`day-chip${selected ? ' is-selected' : ''}${isToday(date) ? ' is-today' : ''}${
+                    date.getDay() === 0 || date.getDay() === 6 ? ' is-weekend' : ''
+                  }${bookedCount > 0 ? ' has-booking' : ''}`}
+                  onClick={() => (isMobile ? openDayView(date) : setSelectedDate(new Date(date)))}
+                >
+                  <span className="day-chip__name">{getDayName(date)}</span>
+                  <span className="day-chip__num">{date.getDate()}</span>
+                  {bookedCount > 0 && (
+                    <span className="day-chip__booked" aria-label={`${bookedCount}시간 예약됨`} />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <button type="button" onClick={goToNextWeek} className="day-strip-nav" aria-label="다음 주">
+            <ChevronRight size={18} />
+          </button>
         </div>
-        
-        {/* 색상 범례 */}
-        <div className="color-legend">
+        )}
+
+        <div className="color-legend color-legend--compact">
           <div className="legend-item">
             <div className="legend-color available"></div>
             <span>예약 가능</span>
-          </div>
-          {isAdmin && (
-            <div className="legend-item">
-              <div className="legend-color exception"></div>
-              <span>✅ 예외 허용</span>
-            </div>
-          )}
-          <div className="legend-item">
-            <div className="legend-color reserved"></div>
-            <span>예약됨</span>
           </div>
           <div className="legend-item">
             <div className="legend-color my-reservation"></div>
             <span>내 예약</span>
           </div>
           <div className="legend-item">
-            <div className="legend-color blocked"></div>
-            <span>차단됨</span>
+            <div className="legend-color reserved"></div>
+            <span>예약됨</span>
           </div>
           <div className="legend-item">
             <div className="legend-color past"></div>
             <span>지난 시간</span>
-          </div>
-          <div className="legend-item">
-            <div className="legend-color priority"></div>
-            <span>우선 예약</span>
-          </div>
-          <div className="legend-item">
-            <div className="legend-color walk-in"></div>
-            <span>자유 이용</span>
           </div>
         </div>
         
@@ -2389,10 +2376,9 @@ const PracticeRoomBookingNotebook: React.FC = () => {
             </span>
           </div>
         )}
-      </section>
 
-      {/* 뷰 렌더링 */}
-      {isMobile ? (
+      {/* 모바일: 주간 현황 → 요일을 고르면 큰 칸으로 예약 */}
+      {isMobile && mobileScheduleView === 'day' ? (
         /* 모바일 일간 뷰 */
         <div className="day-view-mobile">
           {isTargetDateUnderTicketing(formatDate(selectedDate), ticketingSettings) &&
@@ -2417,11 +2403,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
               if (merge.isContinuation) return null;
 
               const isMyReservation = slot.reservation?.userId === currentUser?.uid;
-              const blockEndTime =
-                merge.span > 1
-                  ? daySlots[idx + merge.span - 1]?.endTime || slot.endTime
-                  : slot.endTime;
-              
+
               return (
                 <div
                   key={idx}
@@ -2449,12 +2431,10 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                     }
                   }}
                   onClick={(e) => handleSlotActivate(slot, selectedDate, e)}
-                  style={merge.span > 1 ? { minHeight: `${Math.max(72, merge.span * 64)}px` } : undefined}
+                  style={merge.span > 1 ? { flexGrow: merge.span } : undefined}
                 >
                   <div className="mobile-slot-time">
-                    <span className="time-label-large">{slot.time}</span>
-                    <span className="time-separator">-</span>
-                    <span className="time-label-small">{blockEndTime}</span>
+                    <span className="time-label-large">{slot.time.slice(0, 2)}</span>
                     {merge.span > 1 && (
                       <span className="merged-hours-badge">{merge.span}시간</span>
                     )}
@@ -2489,8 +2469,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                       <span className="slot-status past-label">지난 시간</span>
                     ) : slot.isWalkInOpen ? (
                       <div className="walk-in-card">
-                        <div className="walk-in-header">🟢 자유 이용</div>
-                        <div className="walk-in-reason">예약 없음 · 누구나 이용</div>
+                        <div className="walk-in-header">자유 이용</div>
                       </div>
                     ) : slot.isBlocked ? (
                       selectedWeekendLabel && !slot.reservation && !slot.isException && !slot.isWalkInOpen ? null : (
@@ -2581,7 +2560,12 @@ const PracticeRoomBookingNotebook: React.FC = () => {
           {weekDates.map((date, idx) => (
             <div 
               key={idx} 
-              className={`day-column header ${isToday(date) ? 'today' : ''}`}
+              className={`day-column header ${isToday(date) ? 'today' : ''} ${
+                formatDate(date) === formatDate(selectedDate) ? 'is-selected' : ''
+              }`}
+              role="button"
+              tabIndex={0}
+              onClick={() => (isMobile ? openDayView(date) : setSelectedDate(new Date(date)))}
             >
               <div className="day-name">{getDayName(date)}</div>
               <div className="day-date">{date.getDate()}</div>
@@ -2717,6 +2701,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
         </div>
       </div>
       )}
+      </section>
       {/* 뷰 렌더링 끝 */}
 
       {/* 내 예약 목록 */}
