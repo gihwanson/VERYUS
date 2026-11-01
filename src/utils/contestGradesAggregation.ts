@@ -92,16 +92,41 @@ export function buildContestAggregationContext(
   return { byTarget };
 }
 
+export type ContestTargetRank = {
+  target: string;
+  rank: number;
+  applyScore: number | null;
+  overallMean: number;
+};
+
+export function rankContestTargets(ctx: ContestAggregationContext): ContestTargetRank[] {
+  return Object.entries(ctx.byTarget)
+    .map(([target, data]) => ({
+      target,
+      applyScore: pickApplyContestMean(data.overallMean, data.clusterMean),
+      overallMean: data.overallMean ?? 0,
+    }))
+    .sort((a, b) => {
+      const aScore = a.applyScore ?? a.overallMean;
+      const bScore = b.applyScore ?? b.overallMean;
+      if (bScore !== aScore) return bScore - aScore;
+      return b.overallMean - a.overallMean;
+    })
+    .map((item, index) => ({
+      ...item,
+      rank: index + 1,
+    }));
+}
+
 export function computeContestTop3Targets(
   grades: ContestGradeRecord[],
   evaluatorGradeByNickname?: Record<string, string>
 ): { target: string; avg: number }[] {
   const { byTarget } = buildContestAggregationContext(grades, evaluatorGradeByNickname);
-  return Object.entries(byTarget)
-    .map(([target, data]) => ({
-      target,
-      avg: pickApplyContestMean(data.overallMean, data.clusterMean) ?? 0,
-    }))
-    .sort((a, b) => b.avg - a.avg)
-    .slice(0, 3);
+  return rankContestTargets({ byTarget })
+    .slice(0, 3)
+    .map((item) => ({
+      target: item.target,
+      avg: item.applyScore ?? item.overallMean,
+    }));
 }

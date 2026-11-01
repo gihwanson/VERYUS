@@ -19,6 +19,7 @@ import type { ClusterMeanBreakdown, ContestScoreBinScoreEntry } from '../utils/c
 import {
   buildContestAggregationContext,
   computeContestTop3Targets,
+  rankContestTargets,
   type ContestAggregationContext,
 } from '../utils/contestGradesAggregation';
 import { CONTEST_EVALUATOR_VOTE_WEIGHT, formatContestWeight } from '../utils/contestVoteWeight';
@@ -745,8 +746,13 @@ const ContestResults: React.FC = () => {
       clusterMean: number | null;
       comments: ReturnType<typeof commentsFromContestGrades>;
       targetLabel: string;
+      rank: number | null;
+      rankedCount: number | null;
     }> = [];
     const skipped: string[] = [];
+    const rankedRows = rankContestTargets(contestAggregation);
+    const rankedCount = rankedRows.length;
+    const rankByTarget = new Map(rankedRows.map((item) => [item.target, item.rank]));
     for (const row of sortedParticipants) {
       if (row.applyScore == null || !row.applyGrade) {
         skipped.push(row.display);
@@ -770,6 +776,8 @@ const ContestResults: React.FC = () => {
           clusterMean: targetData?.clusterMean ?? row.clusterAvg ?? null,
           comments,
           targetLabel: row.display,
+          rank: rankByTarget.get(row.target) ?? null,
+          rankedCount,
         });
       }
     }
@@ -804,6 +812,8 @@ const ContestResults: React.FC = () => {
             clusterMean: item.clusterMean,
             comments: item.comments,
             targetLabel: item.targetLabel,
+            rank: item.rank,
+            rankedCount: item.rankedCount,
           });
         }
       }

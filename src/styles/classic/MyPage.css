@@ -1223,7 +1223,7 @@ body {
 
 .mypage-contest-grade-metrics {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 12px;
 }
@@ -1244,6 +1244,7 @@ body {
 .mypage-contest-grade-metric-value {
   font-size: 16px;
   font-weight: 800;
+  white-space: nowrap;
 }
 
 .mypage-contest-grade-comments-label {

@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDocs,
   onSnapshot,
   serverTimestamp,
   setDoc,
@@ -8,6 +9,12 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { contestTypeLabel } from '../types/contest';
+import {
+  buildContestAggregationContext,
+  rankContestTargets,
+  type ContestGradeRecord,
+} from './contestGradesAggregation';
+import { contestBothMainUids, contestGradeTargetIds, contestStageRoles } from './contestStage';
 
 export type ContestGradeHistoryComment = {
   comment: string;
@@ -24,6 +31,8 @@ export type ContestGradeHistoryRecord = {
   clusterMean: number | null;
   comments: ContestGradeHistoryComment[];
   targetLabel: string;
+  rank: number | null;
+  rankedCount: number | null;
   appliedAt: { seconds?: number } | null;
 };
 
@@ -37,6 +46,8 @@ export type ContestGradeHistoryWrite = {
   clusterMean: number | null;
   comments: ContestGradeHistoryComment[];
   targetLabel: string;
+  rank: number | null;
+  rankedCount: number | null;
 };
 
 export function commentsFromContestGrades(
@@ -65,6 +76,8 @@ export async function saveContestGradeHistory(
     clusterMean: payload.clusterMean,
     comments: payload.comments,
     targetLabel: payload.targetLabel,
+    rank: payload.rank,
+    rankedCount: payload.rankedCount,
     appliedAt: serverTimestamp(),
   });
 }
@@ -96,6 +109,8 @@ export function subscribeContestGradeHistory(
                 .filter((item: ContestGradeHistoryComment) => item.comment)
             : [],
           targetLabel: String(data.targetLabel || ''),
+          rank: Number.isFinite(Number(data.rank)) ? Number(data.rank) : null,
+          rankedCount: Number.isFinite(Number(data.rankedCount)) ? Number(data.rankedCount) : null,
           appliedAt: data.appliedAt || null,
         } satisfies ContestGradeHistoryRecord;
       });
@@ -119,4 +134,95 @@ export function formatContestGradeHistoryDate(appliedAt: { seconds?: number } | 
 
 export function formatContestGradeHistoryType(type: string): string {
   return contestTypeLabel(type) || '등급전';
+}
+
+export function formatContestGradeHistoryRank(rank: number | null | undefined): string {
+  if (!Number.isFinite(rank) || (rank as number) < 1) return '-';
+  return `${rank}위`;
+}
+
+function mainTargetIdsForUid(
+  uid: string,
+  teams: Array<{ id: string; members?: string[]; mainUid?: string; coMainUid?: string; subUid?: string; partnerRole?: string }>
+): string[] {
+  const targets: string[] = [];
+  for (const team of teams) {
+    const gradeTargets = contestGradeTargetIds(team);
+    if (gradeTargets.includes(uid)) {
+      targets.push(uid);
+      continue;
+    }
+    const bothMains = contestBothMainUids(team);
+    const mains = bothMains ?? contestStageRoles(team)?.mainUids ?? (team.mainUid ? [team.mainUid] : []);
+    if (gradeTargets.includes(team.id) && mains.includes(uid)) {
+      targets.push(team.id);
+    }
+  }
+  return targets.length > 0 ? targets : [uid];
+}
+
+async function loadContestRankLookup(contestId: string): Promise<{
+  ranks: ReturnType<typeof rankContestTargets>;
+  teams: Array<{ id: string; members?: string[]; mainUid?: string; coMainUid?: string; subUid?: string; partnerRole?: string }>;
+} | null> {
+  if (!contestId) return null;
+  const [gradesSnap, teamsSnap, usersSnap] = await Promise.all([
+    getDocs(collection(db, 'contests', contestId, 'grades')),
+    getDocs(collection(db, 'contests', contestId, 'teams')),
+    getDocs(collection(db, 'users')),
+  ]);
+  const evaluatorGradeByNickname: Record<string, string> = {};
+  usersSnap.forEach((d) => {
+    const data = d.data();
+    const nick = String(data.nickname || '').trim();
+    if (nick) evaluatorGradeByNickname[nick] = String(data.grade ?? '');
+  });
+  const grades = gradesSnap.docs.map((d) => d.data()) as ContestGradeRecord[];
+  const ctx = buildContestAggregationContext(grades, evaluatorGradeByNickname);
+  return {
+    ranks: rankContestTargets(ctx),
+    teams: teamsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+  };
+}
+
+/** 이미 저장된 기록에 순위가 없으면 해당 콘테스트 집계로 채운다. */
+export async function fillMissingContestGradeRanks(
+  uid: string,
+  records: ContestGradeHistoryRecord[]
+): Promise<ContestGradeHistoryRecord[]> {
+  const missingIds = [...new Set(records.filter((r) => r.rank == null).map((r) => r.contestId))];
+  if (!uid || missingIds.length === 0) return records;
+  const lookups = await Promise.all(
+    missingIds.map(async (contestId) => {
+      try {
+        return [contestId, await loadContestRankLookup(contestId)] as const;
+      } catch (error) {
+        console.error('등급전 순위 불러오기 실패:', contestId, error);
+        return [contestId, null] as const;
+      }
+    })
+  );
+  const lookupByContest = new Map(lookups);
+  return records.map((record) => {
+    if (record.rank != null) return record;
+    const lookup = lookupByContest.get(record.contestId);
+    if (!lookup) return record;
+    const candidateTargets = mainTargetIdsForUid(uid, lookup.teams);
+    const match =
+      lookup.ranks.find((row) => candidateTargets.includes(row.target)) ||
+      lookup.ranks.find(
+        (row) =>
+          record.appliedScore != null &&
+          row.applyScore != null &&
+          Math.abs(row.applyScore - record.appliedScore) < 0.05
+      );
+    if (!match) {
+      return { ...record, rankedCount: lookup.ranks.length };
+    }
+    return {
+      ...record,
+      rank: match.rank,
+      rankedCount: lookup.ranks.length,
+    };
+  });
 }

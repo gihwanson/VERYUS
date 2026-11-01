@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Award } from 'lucide-react';
 import { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
 import {
+  fillMissingContestGradeRanks,
   formatContestGradeHistoryDate,
+  formatContestGradeHistoryRank,
   formatContestGradeHistoryType,
   subscribeContestGradeHistory,
   type ContestGradeHistoryRecord,
@@ -26,11 +28,15 @@ const MyPageContestGrades: React.FC<Props> = ({ profileUid, isOwner }) => {
     }
     setLoading(true);
     setError('');
+    let cancelled = false;
     const unsub = subscribeContestGradeHistory(
       profileUid,
       (next) => {
         setRecords(next);
         setLoading(false);
+        void fillMissingContestGradeRanks(profileUid, next).then((filled) => {
+          if (!cancelled) setRecords(filled);
+        });
       },
       (err) => {
         console.error('등급전 기록 불러오기 실패:', err);
@@ -38,7 +44,10 @@ const MyPageContestGrades: React.FC<Props> = ({ profileUid, isOwner }) => {
         setLoading(false);
       }
     );
-    return () => unsub();
+    return () => {
+      cancelled = true;
+      unsub();
+    };
   }, [profileUid]);
 
   if (loading) {
@@ -95,6 +104,16 @@ const MyPageContestGrades: React.FC<Props> = ({ profileUid, isOwner }) => {
               <div className="mypage-contest-grade-metric">
                 <span className="mypage-contest-grade-metric-label">적용 점수</span>
                 <span className="mypage-contest-grade-metric-value">{scoreLabel}</span>
+              </div>
+              <div className="mypage-contest-grade-metric">
+                <span className="mypage-contest-grade-metric-label">
+                  {record.rankedCount != null && record.rankedCount > 0
+                    ? `순위 · ${record.rankedCount}팀`
+                    : '순위'}
+                </span>
+                <span className="mypage-contest-grade-metric-value">
+                  {formatContestGradeHistoryRank(record.rank)}
+                </span>
               </div>
             </div>
             {record.comments.length > 0 ? (
