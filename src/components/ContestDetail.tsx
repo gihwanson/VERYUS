@@ -25,8 +25,14 @@ import {
   formatContestStageInline,
   formatContestStageLines,
   contestStageRoleToggleStep,
+  contestGradeTargetIds,
   type ContestSubRole,
 } from '../utils/contestStage';
+import {
+  contestScoringLockCollection,
+  isContestScoringTargetClosed,
+  setContestScoringClosed,
+} from '../utils/contestScoringLock';
 
 interface Contest {
   id: string;
@@ -72,6 +78,7 @@ interface Team {
   createdAt: any;
   updatedAt: any;
   order?: number; // 팀 순서 (낮을수록 위에 표시)
+  scoringClosed?: boolean;
 }
 
 interface User {
@@ -134,6 +141,9 @@ const ContestDetail: React.FC = () => {
   const isLeader = useMemo(() => {
     return user && user.role === '리더';
   }, [user]);
+
+  const isNerae = String(user?.nickname || '').trim() === '너래';
+  const [scoringClosedIds, setScoringClosedIds] = useState<ReadonlySet<string>>(() => new Set());
 
   useEffect(() => {
     if (!id || !user?.uid) {
@@ -638,6 +648,17 @@ const ContestDetail: React.FC = () => {
     }
   }, [id, sortedTeams]);
 
+  const handleToggleScoringLock = useCallback(async (targetIds: string[], currentlyClosed: boolean) => {
+    if (!id || !user || String(user.nickname || '').trim() !== '너래') return;
+    try {
+      await setContestScoringClosed(id, targetIds, !currentlyClosed, user);
+    } catch (error) {
+      console.error('채점 마감 상태 변경 실패:', error);
+      const message = error instanceof Error ? error.message : '채점 마감 상태를 바꾸지 못했습니다.';
+      alert(message);
+    }
+  }, [id, user]);
+
   // Effects
   useEffect(() => {
     if (!id) return;
@@ -708,6 +729,14 @@ const ContestDetail: React.FC = () => {
     const unsubTeams = onSnapshot(collection(db, 'contests', id, 'teams'), snap => {
       setTeams(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Team[]);
     });
+
+    const unsubScoringLocks = onSnapshot(contestScoringLockCollection(id), (snap) => {
+      const next = new Set<string>();
+      snap.docs.forEach((lockDoc) => {
+        if (lockDoc.data().closed === true) next.add(lockDoc.id);
+      });
+      setScoringClosedIds(next);
+    });
     
     // 참가자별 제출완료 여부 실시간 구독 (grades 컬렉션에서 evaluator == 참가자 닉네임)
     const unsubGrades = onSnapshot(collection(db, 'contests', id, 'grades'), (snap) => {
@@ -726,6 +755,7 @@ const ContestDetail: React.FC = () => {
       unsubEvaluationTargets();
       unsubTeams();
       unsubGrades();
+      unsubScoringLocks();
     };
   }, [id]);
 
@@ -1274,6 +1304,7 @@ const ContestDetail: React.FC = () => {
             <h3 className="contest-section-label">팀 목록</h3>
             <div className="contest-helper-box">
               평가 대상에서 만든 팀입니다.
+              {isNerae ? ' 무대가 끝나면 채점 마감으로 추가 점수 제출을 막을 수 있습니다.' : ''}
             </div>
             {sortedTeams.length === 0 ? (
               <div className="contest-empty-message">
@@ -1290,6 +1321,9 @@ const ContestDetail: React.FC = () => {
                     }
                     return false;
                   });
+                  const scoringLockIds = [team.id, ...contestGradeTargetIds(team)];
+                  const scoringClosed = Boolean(team.scoringClosed)
+                    || isContestScoringTargetClosed(scoringClosedIds, scoringLockIds);
                   return (
                     <div key={team.id} className="contest-detail-team-item contest-team-card">
                       <div className="contest-team-card__header">
@@ -1300,11 +1334,20 @@ const ContestDetail: React.FC = () => {
                           <ContestStageSummary team={team} nicknameOf={nicknameOf} />
                         </div>
                         <span
-                          className={`contest-status-pill ${teamSubmitted ? 'contest-status-pill--done' : 'contest-status-pill--pending'}`}
+                          className={`contest-status-pill ${scoringClosed ? 'contest-status-pill--closed' : teamSubmitted ? 'contest-status-pill--done' : 'contest-status-pill--pending'}`}
                         >
-                          {teamSubmitted ? '제출 완료' : '대기 중'}
+                          {scoringClosed ? '채점 마감' : teamSubmitted ? '제출 완료' : '대기 중'}
                         </span>
                       </div>
+                      {isNerae && (
+                        <button
+                          type="button"
+                          className={`contest-detail-scoring-lock-btn${scoringClosed ? ' is-closed' : ''}`}
+                          onClick={() => handleToggleScoringLock(scoringLockIds, scoringClosed)}
+                        >
+                          {scoringClosed ? '채점 재개' : '이 무대 채점 마감'}
+                        </button>
+                      )}
                     </div>
                   );
                 })}

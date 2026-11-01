@@ -1031,8 +1031,13 @@ body {
   text-align: left;
 }
 
-/* 마이페이지 탭 바: 좁은 화면에서 줄바꿈 */
+/* 마이페이지 탭 바: 가로 스크롤 */
 .mypage-tabs-bar {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
   align-content: flex-start;
 }
 
@@ -1149,4 +1154,263 @@ body {
 
 .guestbook-reply-btn:hover {
   background: rgba(255, 255, 255, 0.2);
+}
+
+.mypage-contest-grade-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.mypage-contest-grade-empty h3 {
+  margin: 12px 0 8px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.mypage-contest-grade-empty p,
+.mypage-contest-grade-privacy,
+.mypage-contest-grade-no-comment {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.mypage-contest-grade-empty-icon {
+  opacity: 0.5;
+}
+
+.mypage-contest-grade-privacy {
+  margin-bottom: 14px;
+}
+
+.mypage-contest-grade-card {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+  color: #fff;
+}
+
+.mypage-contest-grade-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.mypage-contest-grade-type {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.mypage-contest-grade-title {
+  margin: 4px 0 0;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.mypage-contest-grade-stage,
+.mypage-contest-grade-date {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.mypage-contest-grade-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.mypage-contest-grade-metric {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.mypage-contest-grade-metric-label {
+  display: block;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.65);
+  margin-bottom: 4px;
+}
+
+.mypage-contest-grade-metric-value {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.mypage-contest-grade-comments-label {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.mypage-contest-grade-comments ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mypage-contest-grade-comments li {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+.mypage-contest-grade-evaluator {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.72);
+  margin-bottom: 2px;
+}
+
+.mypage-contest-grade-comment {
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.mypage-approved-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 14px;
+}
+
+.mypage-approved-count {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.mypage-approved-note {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.mypage-approved-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: min(100%, 220px);
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.mypage-approved-search input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 14px;
+  outline: none;
+  min-width: 0;
+}
+
+.mypage-approved-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mypage-approved-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.mypage-approved-grade {
+  font-size: 22px;
+  line-height: 1;
+  padding-top: 2px;
+}
+
+.mypage-approved-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.mypage-approved-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mypage-approved-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.mypage-approved-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.mypage-approved-meta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.mypage-approved-audio {
+  width: 100%;
+  margin-top: 8px;
+  height: 36px;
+}
+
+.mypage-approved-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.14);
+  flex-shrink: 0;
+}
+
+.mypage-approved-empty,
+.mypage-approved-empty-filter {
+  text-align: center;
+  padding: 36px 16px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.mypage-approved-empty h3 {
+  margin: 10px 0 6px;
+}
+
+.mypage-approved-empty-icon {
+  opacity: 0.5;
 }

@@ -68,7 +68,6 @@ export type WeightedScoreVote = {
   evaluator?: string;
   evaluatorGradeEmoji?: string;
   valid: boolean;
-  invalidReason?: 'flat_scores';
 };
 
 export function computeWeightedOverallMean(votes: WeightedScoreVote[]): number | null {
@@ -110,7 +109,7 @@ function weightedMeanFromEntries(entries: ContestScoreBinScoreEntry[]): number |
 }
 
 function flattenScoresFromEntries(entries: ContestScoreBinScoreEntry[]): number[] {
-  return entries.flatMap((e) => Array.from({ length: e.weight }, () => e.score));
+  return entries.map((e) => e.score);
 }
 
 export function computeClusterBreakdownFromWeightedVotes(

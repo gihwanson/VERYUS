@@ -44,6 +44,23 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/contests/$(contestId)).data;
     }
 
+    function isScoringTargetClosed(contestId, targetId) {
+      return (
+        (
+          exists(/databases/$(database)/documents/contests/$(contestId)/scoringLocks/$(targetId))
+          && get(/databases/$(database)/documents/contests/$(contestId)/scoringLocks/$(targetId)).data.closed == true
+        )
+        || (
+          exists(/databases/$(database)/documents/contests/$(contestId)/teams/$(targetId))
+          && get(/databases/$(database)/documents/contests/$(contestId)/teams/$(targetId)).data.scoringClosed == true
+        )
+        || (
+          exists(/databases/$(database)/documents/contests/$(contestId)/evaluationTargets/$(targetId))
+          && get(/databases/$(database)/documents/contests/$(contestId)/evaluationTargets/$(targetId)).data.scoringClosed == true
+        )
+      );
+    }
+
     function roundDoc(contestId, roundId) {
       return get(/databases/$(database)/documents/contests/$(contestId)/rounds/$(roundId)).data;
     }
@@ -77,6 +94,12 @@ service cloud.firestore {
 
       match /pushTokens/{tokenId} {
         allow read, write: if isSelf(userId) || isAdmin();
+      }
+
+      /** 마이페이지 등급전 기록 — 본인·너래만 열람, 적용하기는 리더/너래 */
+      match /contestGradeHistory/{recordId} {
+        allow read: if isSelf(userId) || isNerae();
+        allow create, update, delete: if isNeraeOrLeader();
       }
     }
 
@@ -447,8 +470,30 @@ service cloud.firestore {
       }
       match /grades/{docId} {
         allow read: if signedIn();
-        allow create: if signedIn();
-        allow update, delete: if isNeraeOrLeader();
+        allow create: if signedIn() && (
+          isNerae() || !isScoringTargetClosed(contestId, request.resource.data.target)
+        );
+        // 제출취소 후 재제출은 update. 본인 평가만 점수·코멘트 수정 가능.
+        allow update: if (
+          (
+            isNeraeOrLeader() || (
+              signedIn()
+              && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+              && (
+                resource.data.evaluatorUid == request.auth.uid
+                || resource.data.evaluator == userDoc().nickname
+              )
+              && request.resource.data.evaluator == resource.data.evaluator
+              && request.resource.data.target == resource.data.target
+            )
+          )
+          && (isNerae() || !isScoringTargetClosed(contestId, resource.data.target))
+        );
+        allow delete: if isNeraeOrLeader();
+      }
+      match /scoringLocks/{targetId} {
+        allow read: if signedIn();
+        allow write: if isNerae() || isNeraeOrLeader();
       }
       match /evaluationTargets/{docId} {
         allow read: if signedIn();

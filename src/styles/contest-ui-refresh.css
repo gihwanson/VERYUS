@@ -485,6 +485,33 @@
   border-color: rgba(148, 163, 184, 0.28);
 }
 
+.contest-ui-refresh .contest-status-pill--closed {
+  background: rgba(245, 158, 11, 0.16);
+  color: #b45309;
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.contest-ui-refresh .contest-detail-scoring-lock-btn {
+  display: block;
+  width: calc(100% - 32px);
+  margin: 0 16px 14px;
+  border: 1px solid rgba(180, 83, 9, 0.35);
+  background: rgba(245, 158, 11, 0.12);
+  color: #92400e;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.contest-ui-refresh .contest-detail-scoring-lock-btn.is-closed {
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.1);
+  color: #047857;
+}
+
 .contest-ui-refresh .contest-participant-kick-btn {
   font-size: 0.72rem;
   font-weight: 600;
@@ -1132,9 +1159,10 @@
 .contest-ui-refresh.contest-participate-refresh {
   min-height: 100vh;
   background: var(--app-page-gradient);
-  background-attachment: fixed;
+  background-attachment: scroll;
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   color: var(--cu-text);
 }
 
@@ -1262,14 +1290,37 @@
 
 /* ── 참가(경연 채점) 무대 카드 ── */
 .contest-participate-refresh .contest-participate-stage-card {
-  background: linear-gradient(165deg, #ffffff 0%, #f8f5ff 100%);
+  background: #fff;
   border: 1px solid rgba(138, 85, 204, 0.18);
   border-radius: 16px;
   padding: 18px 16px;
   margin-bottom: 14px;
   width: 100%;
-  box-shadow: 0 4px 18px rgba(88, 55, 150, 0.08);
+  box-shadow: 0 2px 8px rgba(88, 55, 150, 0.06);
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+.contest-participate-refresh .contest-participate-solo-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  margin-bottom: 24px;
+}
+
+@media (min-width: 769px) {
+  .contest-participate-refresh .contest-participate-solo-list {
+    max-height: 600px;
+    min-height: 180px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+}
+
+@media (max-width: 768px) {
+  .contest-participate-refresh .contest-participate-bg-pattern {
+    display: none;
+  }
 }
 
 .contest-participate-refresh .contest-participate-stage-card.is-done {
@@ -1324,6 +1375,52 @@
   background: rgba(16, 185, 129, 0.14);
   border-radius: 999px;
   padding: 3px 10px;
+}
+
+.contest-participate-refresh .contest-participate-stage-badge--closed {
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.16);
+}
+
+.contest-participate-refresh .contest-participate-scoring-lock-btn {
+  position: relative;
+  z-index: 5;
+  display: block;
+  width: 100%;
+  margin: 8px 0 4px;
+  border: 1px solid rgba(180, 83, 9, 0.35);
+  background: rgba(245, 158, 11, 0.12);
+  color: #92400e;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  pointer-events: auto;
+  font-family: inherit;
+}
+
+.contest-participate-refresh .contest-participate-scoring-lock-btn.is-closed {
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.1);
+  color: #047857;
+}
+
+.contest-participate-refresh .contest-participate-scoring-closed {
+  text-align: center;
+  padding: 14px 12px;
+  border-radius: 12px;
+  background: rgba(245, 158, 11, 0.1);
+  color: #92400e;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.contest-participate-refresh .contest-participate-scoring-closed-note {
+  text-align: center;
+  color: #b45309;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .contest-participate-refresh .contest-participate-member-inline {
@@ -2256,7 +2353,7 @@
 
 .contest-ui-refresh .contest-results-score-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 10px;
 }
 
@@ -2269,6 +2366,53 @@
 
 .contest-ui-refresh .contest-results-score-tile--cluster {
   background: #f0f9ff;
+}
+
+.contest-ui-refresh .contest-results-score-tile--apply {
+  background: #ecfdf5;
+}
+
+.contest-ui-refresh .contest-results-score-tile--apply .contest-results-score-tile-label {
+  color: #047857;
+}
+
+.contest-ui-refresh .contest-results-apply-box {
+  margin-top: 20px;
+  padding: 16px;
+  border-radius: 14px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  text-align: center;
+}
+
+.contest-ui-refresh .contest-results-apply-help {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #065f46;
+}
+
+.contest-ui-refresh .contest-results-apply-btn {
+  border: none;
+  border-radius: 12px;
+  padding: 12px 28px;
+  font-size: 16px;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.contest-ui-refresh .contest-results-apply-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.contest-ui-refresh .contest-results-apply-done {
+  margin: 10px 0 0;
+  font-weight: 700;
+  color: #047857;
 }
 
 .contest-ui-refresh .contest-results-score-tile-label {

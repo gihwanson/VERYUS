@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, collection, addDoc, getDocs, query, where, onSnapshot, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -13,15 +13,21 @@ import {
 } from '../utils/contestParticipant';
 import { getContestGradeFromScore } from '../utils/contestGrade';
 import { formatContestStageLines, contestGradeTargetIds, contestBothMainUids } from '../utils/contestStage';
+import {
+  contestScoringLockCollection,
+  isContestScoringTargetClosed,
+  setContestScoringClosed,
+} from '../utils/contestScoringLock';
 import { contestTypeLabel } from '../types/contest';
 import { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
 import ContestAccessBlock from './ContestAccessBlock';
 import RoundMatchVoteView from './roundMatch/RoundMatchVoteView';
 import '../styles/contest-ui-refresh.css';
-const contestGradeEvaluatorFields = (u: { nickname: string; role: string; grade?: string }) => ({
+const contestGradeEvaluatorFields = (u: { uid?: string; nickname: string; role: string; grade?: string }) => ({
   evaluator: u.nickname,
   evaluatorRole: u.role,
   evaluatorGrade: getGradeEmoji(u.grade),
+  ...(u.uid ? { evaluatorUid: u.uid } : {}),
 });
 
 function ContestMemberName({
@@ -77,15 +83,20 @@ function ContestStageLineText({
   );
 }
 
-function ContestGradeFields({
+type GradeDraft = { score: string; comment: string };
+
+const ContestGradeFields = React.memo(function ContestGradeFields({
   targetId,
   sliceLabel,
   sliceMeta,
-  gradeInputs,
-  setGradeInputs,
-  grading,
+  initialScore,
+  initialComment,
+  isGrading,
   alreadyGraded,
   isEditing,
+  scoringClosed,
+  canOverrideScoringLock,
+  onDraftChange,
   onSubmit,
   onEdit,
   onCancelEdit,
@@ -94,20 +105,31 @@ function ContestGradeFields({
   /** 서로 메인 등 — 카드 상단과 겹치지 않는 짧은 구역 제목 */
   sliceLabel?: React.ReactNode;
   sliceMeta?: { index: number; total: number };
-  gradeInputs: Record<string, { score: string; comment: string }>;
-  setGradeInputs: React.Dispatch<React.SetStateAction<Record<string, { score: string; comment: string }>>>;
-  grading: Record<string, boolean>;
+  initialScore: string;
+  initialComment: string;
+  isGrading: boolean;
   alreadyGraded: boolean;
   isEditing: boolean;
-  onSubmit: (targetId: string) => void;
+  scoringClosed: boolean;
+  canOverrideScoringLock: boolean;
+  onDraftChange: (targetId: string, draft: GradeDraft) => void;
+  onSubmit: (targetId: string, draft: GradeDraft) => void;
   onEdit: (targetId: string) => void;
   onCancelEdit: (targetId: string) => void;
 }) {
-  const score = gradeInputs[targetId]?.score || '';
-  const comment = gradeInputs[targetId]?.comment || '';
+  const [score, setScore] = useState(initialScore);
+  const [comment, setComment] = useState(initialComment);
+
+  useEffect(() => {
+    setScore(initialScore);
+    setComment(initialComment);
+    onDraftChange(targetId, { score: initialScore, comment: initialComment });
+  }, [initialScore, initialComment, onDraftChange, targetId]);
+
   const scoreNumber = Number(score);
   const hasGradeHint = score !== '' && !isNaN(scoreNumber) && scoreNumber >= 1 && scoreNumber <= 100;
   const isSlice = Boolean(sliceLabel);
+  const scoringBlocked = scoringClosed && !canOverrideScoringLock;
 
   return (
     <div
@@ -140,25 +162,31 @@ function ContestGradeFields({
             </div>
           )}
           {comment && <div className="contest-participate-done-comment">&ldquo;{comment}&rdquo;</div>}
-          <button type="button" className="contest-participate-cancel-btn" onClick={() => onEdit(targetId)}>
-            제출취소
-          </button>
+          {!scoringBlocked && (
+            <button type="button" className="contest-participate-cancel-btn" onClick={() => onEdit(targetId)}>
+              제출취소
+            </button>
+          )}
+        </div>
+      ) : scoringBlocked ? (
+        <div className="contest-participate-scoring-closed">
+          이 무대는 채점이 마감되었습니다.
         </div>
       ) : (
         <>
           <input
             type="number"
+            inputMode="numeric"
             min={0}
             max={100}
             placeholder="0~100 사이의 점수 입력"
             value={score}
-            onChange={(e) =>
-              setGradeInputs((inputs) => ({
-                ...inputs,
-                [targetId]: { ...inputs[targetId], score: e.target.value },
-              }))
-            }
-            disabled={grading[targetId]}
+            onChange={(e) => {
+              const nextScore = e.target.value;
+              setScore(nextScore);
+              onDraftChange(targetId, { score: nextScore, comment });
+            }}
+            disabled={isGrading}
             className="contest-participate-field"
           />
           {hasGradeHint && (
@@ -168,25 +196,35 @@ function ContestGradeFields({
           )}
           <input
             type="text"
+            enterKeyHint="done"
+            autoComplete="off"
             placeholder="코멘트 (선택)"
             value={comment}
-            onChange={(e) =>
-              setGradeInputs((inputs) => ({
-                ...inputs,
-                [targetId]: { ...inputs[targetId], comment: e.target.value },
-              }))
-            }
-            disabled={grading[targetId]}
+            onChange={(e) => {
+              const nextComment = e.target.value;
+              setComment(nextComment);
+              onDraftChange(targetId, { score, comment: nextComment });
+            }}
+            disabled={isGrading}
             className="contest-participate-field"
           />
+          {scoringClosed && canOverrideScoringLock && (
+            <div className="contest-participate-scoring-closed-note">채점 마감됨 · 너래만 제출할 수 있습니다.</div>
+          )}
           <div className="contest-participate-submit-row">
             <button
               type="button"
               className="contest-participate-submit-btn"
-              onClick={() => onSubmit(targetId)}
-              disabled={grading[targetId]}
+              onClick={() => onSubmit(targetId, { score, comment })}
+              disabled={isGrading}
             >
-              {alreadyGraded ? '수정 제출' : isSlice ? '이 멤버 채점 제출' : '제출'}
+              {isGrading
+                ? '제출 중...'
+                : alreadyGraded
+                  ? '수정 제출'
+                  : isSlice
+                    ? '이 멤버 채점 제출'
+                    : '제출'}
             </button>
             {alreadyGraded && (
               <button
@@ -202,15 +240,22 @@ function ContestGradeFields({
       )}
     </div>
   );
-}
+});
 
 const ContestParticipate: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [contest, setContest] = useState<any>(null);
-  const userString = localStorage.getItem('veryus_user');
-  const user = userString ? JSON.parse(userString) : null;
+  const user = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('veryus_user');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }, []);
   const isAdmin = user && ['리더', '운영진', '부운영진'].includes(user.role);
+  const isNerae = String(user?.nickname || '').trim() === '너래';
   const [score, setScore] = useState<number | ''>('');
   const [suggestedGrade, setSuggestedGrade] = useState('');
   const [nickname, setNickname] = useState('');
@@ -223,10 +268,15 @@ const ContestParticipate: React.FC = () => {
   const [evaluationTargets, setEvaluationTargets] = useState<any[]>([]); // 평가받는 대상
   const [gradedTargets, setGradedTargets] = useState<string[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
-  const [gradeInputs, setGradeInputs] = useState<Record<string, { score: string; comment: string }>>({});
+  const [gradeInputs, setGradeInputs] = useState<Record<string, GradeDraft>>({});
+  const gradeDraftRef = useRef<Record<string, GradeDraft>>({});
+  const editingSubmittedTargetsRef = useRef<Record<string, boolean>>({});
+  const gradingRef = useRef<Record<string, boolean>>({});
   const [grading, setGrading] = useState<Record<string, boolean>>({});
   const [successMsgMap, setSuccessMsgMap] = useState<Record<string, string>>({});
   const [editingSubmittedTargets, setEditingSubmittedTargets] = useState<Record<string, boolean>>({});
+  editingSubmittedTargetsRef.current = editingSubmittedTargets;
+  gradingRef.current = grading;
   const [allSubmitted, setAllSubmitted] = useState(false);
   const [showSubmitMsg, setShowSubmitMsg] = useState(false);
   const [finalSubmitted, setFinalSubmitted] = useState(false);
@@ -235,6 +285,11 @@ const ContestParticipate: React.FC = () => {
   const [songTitles, setSongTitles] = useState<Record<string, string>>({}); // targetId -> songTitle
   const [editingSongTitle, setEditingSongTitle] = useState<string | null>(null); // 현재 수정 중인 targetId
   const [gradeByNickname, setGradeByNickname] = useState<Record<string, string>>({});
+  const [scoringClosedIds, setScoringClosedIds] = useState<ReadonlySet<string>>(() => new Set());
+  const scoringClosedIdsRef = useRef<ReadonlySet<string>>(scoringClosedIds);
+  scoringClosedIdsRef.current = scoringClosedIds;
+  const [scoringLockBusyKey, setScoringLockBusyKey] = useState('');
+  const scoringLockBusyRef = useRef(false);
 
   useEffect(() => {
     getDocs(collection(db, 'users'))
@@ -308,12 +363,19 @@ const ContestParticipate: React.FC = () => {
     const unsubTeams = onSnapshot(collection(db, 'contests', id, 'teams'), snap => {
       setTeams(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
-    // 입장 제한 상태는 위의 unsubContest에서 이미 처리됨
+    const unsubScoringLocks = onSnapshot(contestScoringLockCollection(id), (snap) => {
+      const next = new Set<string>();
+      snap.docs.forEach((lockDoc) => {
+        if (lockDoc.data().closed === true) next.add(lockDoc.id);
+      });
+      setScoringClosedIds(next);
+    });
     return () => { 
       unsubContest();
       unsub(); 
       unsubEvaluationTargets(); 
-      unsubTeams(); 
+      unsubTeams();
+      unsubScoringLocks();
     };
   }, [id]);
 
@@ -376,33 +438,28 @@ const ContestParticipate: React.FC = () => {
   };
 
   useEffect(() => {
-    if (!id || !user) return;
-    // 실시간 구독 - 이미 제출한 평가의 점수와 코멘트 복원
+    if (!id || !user?.nickname) return;
     const unsub = onSnapshot(
       query(collection(db, 'contests', id, 'grades'), where('evaluator', '==', user.nickname)),
       (snap) => {
         const targets: string[] = [];
-        const submittedGrades: Record<string, { score: string; comment: string }> = {};
-        
-        snap.docs.forEach(doc => {
-          const data = doc.data();
+        const submittedGrades: Record<string, GradeDraft> = {};
+
+        snap.docs.forEach(docSnap => {
+          const data = docSnap.data();
           const targetId = data.target;
           targets.push(targetId);
-          // 이미 제출한 평가의 점수와 코멘트를 gradeInputs에 설정
           submittedGrades[targetId] = {
             score: String(data.score || ''),
             comment: data.comment || ''
           };
         });
-        
-        // 재입장 시에도 DB 기준으로 정확히 복원
+
         setGradedTargets(Array.from(new Set(targets)));
-        // 이미 제출한 평가의 점수와 코멘트를 입력 필드에 표시
         setGradeInputs(prev => {
           const updated = { ...prev };
           Object.keys(submittedGrades).forEach(targetId => {
-            // "제출취소"로 수정 중인 항목은 사용자의 입력값을 보존
-            if (editingSubmittedTargets[targetId]) return;
+            if (editingSubmittedTargetsRef.current[targetId]) return;
             updated[targetId] = submittedGrades[targetId];
           });
           return updated;
@@ -410,7 +467,7 @@ const ContestParticipate: React.FC = () => {
       }
     );
     return () => unsub();
-  }, [id, user, editingSubmittedTargets]);
+  }, [id, user?.nickname]);
 
   const getGradeFromScore = getContestGradeFromScore;
 
@@ -445,8 +502,22 @@ const ContestParticipate: React.FC = () => {
   }, [participants]);
   
   // 평가받는 대상 목록 중복 제거 유틸
-  const uniqueEvaluationTargets = evaluationTargets.filter((t, idx, arr) => 
-    arr.findIndex(tt => tt.nickname === t.nickname) === idx
+  const uniqueEvaluationTargets = useMemo(
+    () =>
+      evaluationTargets.filter(
+        (t, idx, arr) => arr.findIndex((tt) => tt.nickname === t.nickname) === idx
+      ),
+    [evaluationTargets]
+  );
+
+  const sortedTeams = useMemo(
+    () =>
+      [...teams].sort((a, b) => {
+        const aOrder = a.order !== undefined ? a.order : (a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0);
+        const bOrder = b.order !== undefined ? b.order : (b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0);
+        return aOrder - bOrder;
+      }),
+    [teams]
   );
 
   // 평가하지 않은 대상 목록 계산 (이미 평가된 참가자, 본인, 이미 평가받은 참가자 제외)
@@ -555,49 +626,102 @@ const ContestParticipate: React.FC = () => {
     }
   };
 
+  const handleDraftChange = useCallback((targetId: string, draft: GradeDraft) => {
+    gradeDraftRef.current[targetId] = draft;
+  }, []);
+
+  const handleEditSubmitted = useCallback((tid: string) => {
+    setEditingSubmittedTargets((prev) => ({ ...prev, [tid]: true }));
+    setGrading((g) => ({ ...g, [tid]: false }));
+  }, []);
+
+  const handleCancelEditSubmitted = useCallback((tid: string) => {
+    setEditingSubmittedTargets((prev) => ({ ...prev, [tid]: false }));
+  }, []);
+
+  const handleToggleScoringLock = useCallback(async (targetIds: string[], currentlyClosed: boolean) => {
+    if (!id || !user || String(user.nickname || '').trim() !== '너래') return;
+    const unique = [...new Set(targetIds.filter(Boolean))];
+    const busyKey = unique.join('|');
+    if (!busyKey || scoringLockBusyRef.current) return;
+    scoringLockBusyRef.current = true;
+    setScoringLockBusyKey(busyKey);
+    try {
+      await setContestScoringClosed(id, unique, !currentlyClosed, user);
+    } catch (error) {
+      console.error('채점 마감 상태 변경 실패:', error);
+      const message = error instanceof Error ? error.message : '채점 마감 상태를 바꾸지 못했습니다.';
+      alert(message);
+    } finally {
+      scoringLockBusyRef.current = false;
+      setScoringLockBusyKey('');
+    }
+  }, [id, user]);
+
   // 경연 평가 제출
-  const handleSubmitGrade = async (targetId: string) => {
+  const handleSubmitGrade = useCallback(async (targetId: string, draft?: GradeDraft) => {
     if (!id || !user) return;
-    const { score, comment } = gradeInputs[targetId] || {};
+    if (gradingRef.current[targetId]) return;
+    if (
+      scoringClosedIdsRef.current.has(targetId) &&
+      user.nickname !== '너래'
+    ) {
+      alert('이 무대는 채점이 마감되었습니다.');
+      return;
+    }
+    const { score, comment } = draft || gradeDraftRef.current[targetId] || gradeInputs[targetId] || {};
     const numScore = Number(score);
     if (!score || isNaN(numScore) || numScore < 0 || numScore > 100) {
       alert('0~100점 사이의 점수를 입력하세요.');
       return;
     }
+    gradingRef.current = { ...gradingRef.current, [targetId]: true };
     setGrading(g => ({ ...g, [targetId]: true }));
-    const q = query(collection(db, 'contests', id, 'grades'), where('evaluator', '==', user.nickname), where('target', '==', targetId));
-    const snap = await getDocs(q);
-    if (!snap.empty) {
-      const gradeDocRef = snap.docs[0].ref;
-      await updateDoc(gradeDocRef, {
-        score: numScore,
-        comment: comment ?? '',
-        evaluatorGrade: getGradeEmoji(user.grade),
-        updatedAt: new Date()
-      });
-    } else {
-      await addDoc(collection(db, 'contests', id, 'grades'), {
-        ...contestGradeEvaluatorFields(user),
-        target: targetId,
-        score: numScore,
-        comment: comment ?? '',
-        createdAt: new Date()
-      });
+    try {
+      const q = query(collection(db, 'contests', id, 'grades'), where('evaluator', '==', user.nickname), where('target', '==', targetId));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        const gradeDocRef = snap.docs[0].ref;
+        await updateDoc(gradeDocRef, {
+          score: numScore,
+          comment: comment ?? '',
+          evaluatorGrade: getGradeEmoji(user.grade),
+          ...(user.uid ? { evaluatorUid: user.uid } : {}),
+          updatedAt: new Date()
+        });
+      } else {
+        await addDoc(collection(db, 'contests', id, 'grades'), {
+          ...contestGradeEvaluatorFields(user),
+          target: targetId,
+          score: numScore,
+          comment: comment ?? '',
+          createdAt: new Date()
+        });
+      }
+      setSuccessMsgMap(msgs => ({ ...msgs, [targetId]: snap.empty ? '✅ 제출완료' : '✅ 수정완료' }));
+      setEditingSubmittedTargets(prev => ({ ...prev, [targetId]: false }));
+      setGradedTargets(prev => Array.from(new Set([...prev, targetId])));
+
+      setTimeout(() => {
+        setSuccessMsgMap(msgs => {
+          const newMsgs = { ...msgs };
+          delete newMsgs[targetId];
+          return newMsgs;
+        });
+      }, 3000);
+      setGradeInputs((prev) => ({
+        ...prev,
+        [targetId]: { score: String(numScore), comment: comment ?? '' },
+      }));
+      gradeDraftRef.current[targetId] = { score: String(numScore), comment: comment ?? '' };
+    } catch (error) {
+      console.error('평가 제출 중 오류:', error);
+      alert('평가 제출 중 오류가 발생했습니다. 다시 시도해주세요.');
+    } finally {
+      gradingRef.current = { ...gradingRef.current, [targetId]: false };
+      setGrading(g => ({ ...g, [targetId]: false }));
     }
-    setGrading(g => ({ ...g, [targetId]: false }));
-    setSuccessMsgMap(msgs => ({ ...msgs, [targetId]: snap.empty ? '✅ 제출완료' : '✅ 수정완료' }));
-    setEditingSubmittedTargets(prev => ({ ...prev, [targetId]: false }));
-    setGradedTargets(prev => Array.from(new Set([...prev, targetId])));
-    
-    // 성공 메시지 3초 후 자동 제거
-    setTimeout(() => {
-      setSuccessMsgMap(msgs => {
-        const newMsgs = { ...msgs };
-        delete newMsgs[targetId];
-        return newMsgs;
-      });
-    }, 3000);
-  };
+  }, [id, user]);
 
   // 평가 완료(전체) 버튼 핸들러
   const handleAllSubmit = async () => {
@@ -623,8 +747,13 @@ const ContestParticipate: React.FC = () => {
       for (const team of teams) {
         const targetIds = contestGradeTargetIds(team);
         for (const targetId of targetIds) {
-          const input = gradeInputs[targetId];
-          if (input && input.score && !submittedTargetIds.includes(targetId)) {
+          const input = gradeDraftRef.current[targetId] || gradeInputs[targetId];
+          if (
+            input &&
+            input.score &&
+            !submittedTargetIds.includes(targetId) &&
+            (user.nickname === '너래' || !scoringClosedIds.has(targetId))
+          ) {
             const numScore = Number(input.score);
             if (!isNaN(numScore) && numScore >= 0 && numScore <= 100) {
               const isMyTeam = user && (
@@ -648,8 +777,13 @@ const ContestParticipate: React.FC = () => {
       // 솔로 평가받는 대상 평가 데이터 수집
       const soloTargets = uniqueEvaluationTargets.filter(t => !teams.some(team => Array.isArray(team.members) && team.members.includes(t.uid)));
       for (const target of soloTargets) {
-        const input = gradeInputs[target.uid];
-        if (input && input.score && !submittedTargetIds.includes(target.uid)) {
+        const input = gradeDraftRef.current[target.uid] || gradeInputs[target.uid];
+        if (
+          input &&
+          input.score &&
+          !submittedTargetIds.includes(target.uid) &&
+          (user.nickname === '너래' || !scoringClosedIds.has(target.uid))
+        ) {
           const numScore = Number(input.score);
           if (!isNaN(numScore) && numScore >= 0 && numScore <= 100) {
             const isMe = user && target.uid === user.uid;
@@ -994,14 +1128,7 @@ const ContestParticipate: React.FC = () => {
                 {teams.length > 0 && (
                   <div style={{ marginBottom: 32, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
                     <h3 className="contest-section-label contest-participate-group-label">무대</h3>
-                    {teams
-                      .sort((a, b) => {
-                        // order 기준으로 정렬 (order가 없으면 createdAt 기준)
-                        const aOrder = a.order !== undefined ? a.order : (a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0);
-                        const bOrder = b.order !== undefined ? b.order : (b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0);
-                        return aOrder - bOrder;
-                      })
-                      .map(team => {
+                    {sortedTeams.map(team => {
                         const isMyTeam = user && (
                           team.members.includes(user.uid) ||
                           getMemberNicknames(team).some((nick: string) =>
@@ -1010,10 +1137,14 @@ const ContestParticipate: React.FC = () => {
                         );
                         const scoreTargetIds = contestGradeTargetIds(team);
                         const alreadyGraded = scoreTargetIds.every((targetId) => gradedTargets.includes(targetId));
+                        const scoringLockIds = [team.id, ...scoreTargetIds];
+                        const scoringClosed = Boolean(team.scoringClosed)
+                          || isContestScoringTargetClosed(scoringClosedIds, scoringLockIds);
+                        const scoringLockBusy = scoringLockBusyKey === scoringLockIds.filter(Boolean).join('|');
                         return (
                           <div
                             key={team.id}
-                            className={`contest-participate-stage-card${alreadyGraded ? ' is-done' : ''}`}
+                            className={`contest-participate-stage-card${alreadyGraded ? ' is-done' : ''}${scoringClosed ? ' is-scoring-closed' : ''}`}
                           >
                             <div className="contest-participate-stage-head">
                               {(() => {
@@ -1074,7 +1205,24 @@ const ContestParticipate: React.FC = () => {
                               {alreadyGraded && (
                                 <span className="contest-participate-stage-badge">제출완료</span>
                               )}
+                              {scoringClosed && (
+                                <span className="contest-participate-stage-badge contest-participate-stage-badge--closed">채점 마감</span>
+                              )}
                             </div>
+                            {isNerae && (
+                              <button
+                                type="button"
+                                className={`contest-participate-scoring-lock-btn${scoringClosed ? ' is-closed' : ''}`}
+                                disabled={scoringLockBusy}
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  void handleToggleScoringLock(scoringLockIds, scoringClosed);
+                                }}
+                              >
+                                {scoringLockBusy ? '저장 중...' : scoringClosed ? '채점 재개' : '이 무대 채점 마감'}
+                              </button>
+                            )}
                             {/* 곡 제목 입력 필드 */}
                             <div className="contest-participate-song-wrap">
                               {isAdmin && editingSongTitle === team.id ? (
@@ -1160,14 +1308,17 @@ const ContestParticipate: React.FC = () => {
                                       ? { index: sliceIndex + 1, total: scoreTargetIds.length }
                                       : undefined
                                   }
-                                  gradeInputs={gradeInputs}
-                                  setGradeInputs={setGradeInputs}
-                                  grading={grading}
+                                  initialScore={gradeInputs[targetId]?.score || ''}
+                                  initialComment={gradeInputs[targetId]?.comment || ''}
+                                  isGrading={!!grading[targetId]}
                                   alreadyGraded={gradedTargets.includes(targetId)}
                                   isEditing={!!editingSubmittedTargets[targetId]}
+                                  scoringClosed={scoringClosed}
+                                  canOverrideScoringLock={!!isNerae}
+                                  onDraftChange={handleDraftChange}
                                   onSubmit={handleSubmitGrade}
-                                  onEdit={(tid) => setEditingSubmittedTargets((prev) => ({ ...prev, [tid]: true }))}
-                                  onCancelEdit={(tid) => setEditingSubmittedTargets((prev) => ({ ...prev, [tid]: false }))}
+                                  onEdit={handleEditSubmitted}
+                                  onCancelEdit={handleCancelEditSubmitted}
                                 />
                               ))}
                             </div>
@@ -1182,7 +1333,7 @@ const ContestParticipate: React.FC = () => {
                   if (soloTargets.length === 0) return null;
                   
                   return (
-                    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch', maxHeight: 600, minHeight: 180, overflowY: 'auto', marginBottom: 24, paddingRight: 4 }}>
+                    <div className="contest-participate-solo-list">
                     <h3 className="contest-section-label contest-participate-group-label">솔로 참가자</h3>
                       {soloTargets
                         .sort((a, b) => {
@@ -1197,10 +1348,12 @@ const ContestParticipate: React.FC = () => {
                           const isMeByNickname = user && t.nickname && user.nickname && t.nickname.toLowerCase().trim() === user.nickname.toLowerCase().trim();
                           const alreadyGraded = gradedTargets.includes(t.uid);
                           const isEditingSubmitted = !!editingSubmittedTargets[t.uid];
+                          const scoringClosed = Boolean(t.scoringClosed) || scoringClosedIds.has(t.uid);
+                          const scoringLockBusy = scoringLockBusyKey === t.uid;
                       return (
                         <div
                           key={t.uid}
-                          className={`contest-participate-stage-card${alreadyGraded ? ' is-done' : ''}`}
+                          className={`contest-participate-stage-card${alreadyGraded ? ' is-done' : ''}${scoringClosed ? ' is-scoring-closed' : ''}`}
                         >
                           <div className="contest-participate-stage-head">
                             <div
@@ -1211,7 +1364,24 @@ const ContestParticipate: React.FC = () => {
                             {alreadyGraded && (
                               <span className="contest-participate-stage-badge">제출완료</span>
                             )}
+                            {scoringClosed && (
+                              <span className="contest-participate-stage-badge contest-participate-stage-badge--closed">채점 마감</span>
+                            )}
                           </div>
+                          {isNerae && (
+                            <button
+                              type="button"
+                              className={`contest-participate-scoring-lock-btn${scoringClosed ? ' is-closed' : ''}`}
+                              disabled={scoringLockBusy}
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                void handleToggleScoringLock([t.uid], scoringClosed);
+                              }}
+                            >
+                              {scoringLockBusy ? '저장 중...' : scoringClosed ? '채점 재개' : '이 무대 채점 마감'}
+                            </button>
+                          )}
                           {/* 곡 제목 입력 필드 */}
                           <div className="contest-participate-song-wrap">
                             {isAdmin && editingSongTitle === t.uid ? (
@@ -1278,14 +1448,17 @@ const ContestParticipate: React.FC = () => {
                             ) : (
                               <ContestGradeFields
                                 targetId={t.uid}
-                                gradeInputs={gradeInputs}
-                                setGradeInputs={setGradeInputs}
-                                grading={grading}
+                                initialScore={gradeInputs[t.uid]?.score || ''}
+                                initialComment={gradeInputs[t.uid]?.comment || ''}
+                                isGrading={!!grading[t.uid]}
                                 alreadyGraded={alreadyGraded}
                                 isEditing={isEditingSubmitted}
+                                scoringClosed={scoringClosed}
+                                canOverrideScoringLock={!!isNerae}
+                                onDraftChange={handleDraftChange}
                                 onSubmit={handleSubmitGrade}
-                                onEdit={(tid) => setEditingSubmittedTargets((prev) => ({ ...prev, [tid]: true }))}
-                                onCancelEdit={(tid) => setEditingSubmittedTargets((prev) => ({ ...prev, [tid]: false }))}
+                                onEdit={handleEditSubmitted}
+                                onCancelEdit={handleCancelEditSubmitted}
                               />
                             )}
                           </div>

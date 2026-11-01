@@ -18,6 +18,18 @@ export function getContestGradeFromScore(score: number): string {
   return `${emoji} ${GRADE_NAMES[emoji]}`;
 }
 
+/** 적용 점수: 전체평균·중심평균 중 더 낮은 값. 등급을 보수적으로 잡기 위함. */
+export function pickApplyContestMean(
+  overallMean: number | null | undefined,
+  clusterMean: number | null | undefined
+): number | null {
+  const values = [overallMean, clusterMean].filter(
+    (n): n is number => typeof n === 'number' && Number.isFinite(n)
+  );
+  if (values.length === 0) return null;
+  return Math.min(...values);
+}
+
 /** 표·좁은 칸용 — 이모지만 (한글명은 title/aria-label에) */
 export function getContestGradeEmojiFromScore(score: number): string {
   const full = getContestGradeFromScore(score);

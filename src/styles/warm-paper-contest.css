@@ -629,6 +629,26 @@ html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-status-pill--pendi
   border-color: var(--paper-border, #e8dcc8) !important;
 }
 
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-status-pill--closed {
+  background: #f6ead8 !important;
+  color: #8b5a2b !important;
+  border-color: #e2c9a5 !important;
+}
+
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-detail-scoring-lock-btn,
+html[data-ui-style="warm-paper"] .contest-participate-refresh .contest-participate-scoring-lock-btn {
+  background: #f6ead8 !important;
+  border-color: #e2c9a5 !important;
+  color: #8b5a2b !important;
+}
+
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-detail-scoring-lock-btn.is-closed,
+html[data-ui-style="warm-paper"] .contest-participate-refresh .contest-participate-scoring-lock-btn.is-closed {
+  background: #eef5ee !important;
+  border-color: #c5dcc8 !important;
+  color: #3d6b4f !important;
+}
+
 html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-participant-kick-btn {
   color: var(--paper-muted, #8b7355) !important;
 }
@@ -724,6 +744,20 @@ html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-entry-toggle-statu
 
 html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-entry-toggle-status.opened {
   color: #3d6b4f !important;
+}
+
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-results-apply-box {
+  background: #eef5ee !important;
+  border-color: #c5dcc8 !important;
+}
+
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-results-apply-help {
+  color: #3d6b4f !important;
+}
+
+html[data-ui-style="warm-paper"] .contest-ui-refresh .contest-results-apply-btn {
+  background: var(--paper-accent, #8b5a2b) !important;
+  box-shadow: none !important;
 }
 
 /* ===== 라운드매치 투표 — 무대 영역은 유지, 바깥만 페이퍼 ===== */

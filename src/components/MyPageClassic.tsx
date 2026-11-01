@@ -35,11 +35,11 @@ import {
   Reply,
   Mic,
   Settings,
-  Download,
   Bell,
   BellOff,
   Music,
-  BarChart3
+  BarChart3,
+  Award
 } from 'lucide-react';
 import { auth } from '../firebase';
 import { NotificationService } from '../utils/notificationService';
@@ -56,6 +56,8 @@ import {
   formatMemberPassRate,
   type MemberPassRateStats,
 } from '../utils/memberEvaluationPassRate';
+import MyPageContestGrades from './MyPageContestGrades';
+import MyPageApprovedSongs from './MyPageApprovedSongs';
 
 interface User {
   uid: string;
@@ -239,7 +241,7 @@ const MyPageClassic: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<
-    'stats' | 'posts' | 'evaluations' | 'recordings' | 'approved' | 'guestbook'
+    'stats' | 'posts' | 'evaluations' | 'recordings' | 'approved' | 'contestGrades' | 'guestbook'
   >('guestbook');
   const [editingProfile, setEditingProfile] = useState(false);
   const [editingIntro, setEditingIntro] = useState(false);
@@ -284,7 +286,6 @@ const MyPageClassic: React.FC = () => {
   // 유저 등급 정보 fetch
   const [userMap, setUserMap] = useState<Record<string, {grade?: string}>>({});
   const [hasLoadedUserMap, setHasLoadedUserMap] = useState(false);
-  const [showAllSongs, setShowAllSongs] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [notificationUpdating, setNotificationUpdating] = useState(false);
   const [statsModal, setStatsModal] = useState<'posts' | 'comments' | 'likes' | null>(null);
@@ -970,11 +971,11 @@ const MyPageClassic: React.FC = () => {
     return Number.isNaN(d.getTime()) ? null : d;
   };
 
-  type MypageTabId = 'stats' | 'posts' | 'evaluations' | 'recordings' | 'approved' | 'guestbook';
+  type MypageTabId = 'stats' | 'posts' | 'evaluations' | 'recordings' | 'approved' | 'contestGrades' | 'guestbook';
 
   const mypageTabBaseStyle = (tab: MypageTabId): React.CSSProperties => ({
-    flex: '1 1 28%',
-    minWidth: '76px',
+    flex: '0 0 auto',
+    minWidth: '88px',
     padding: '12px 6px',
     borderRadius: '12px',
     border: 'none',
@@ -1164,7 +1165,7 @@ const MyPageClassic: React.FC = () => {
         }
       }));
       
-      // 명예의전당과 동일: 같은 제목은 1곡만 (최근 문서 우선)
+      // 같은 제목이라도 솔로/듀엣처럼 멤버가 다르면 각각 표시
       const deduped = dedupeApprovedSongsForNickname(songsWithAudio, nickname);
       deduped.sort((a, b) => ((b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
       setApprovedSongs(deduped);
@@ -1364,6 +1365,8 @@ const MyPageClassic: React.FC = () => {
       </div>
     );
   }
+
+  const canViewContestGrades = isOwner || currentUser?.nickname === '너래';
 
   return (
     <div style={{
@@ -1658,7 +1661,8 @@ const MyPageClassic: React.FC = () => {
         className="mypage-tabs-bar"
         style={{
           display: 'flex',
-          flexWrap: 'wrap',
+          flexWrap: 'nowrap',
+          overflowX: 'auto',
           gap: '8px',
           marginBottom: '24px',
           background: 'rgba(255, 255, 255, 0.1)',
@@ -1719,6 +1723,18 @@ const MyPageClassic: React.FC = () => {
           <Music size={15} />
           <span>합격곡</span>
         </button>
+        {canViewContestGrades && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('contestGrades')}
+            style={mypageTabBaseStyle('contestGrades')}
+            onMouseEnter={onMypageTabEnter('contestGrades')}
+            onMouseLeave={onMypageTabLeave('contestGrades')}
+          >
+            <Award size={15} />
+            <span>등급전</span>
+          </button>
+        )}
         <button
           type="button"
           onClick={() => setActiveTab('guestbook')}
@@ -2394,137 +2410,15 @@ const MyPageClassic: React.FC = () => {
         )}
 
         {activeTab === 'approved' && (
-          <div>
-            {approvedSongs.length === 0 ? (
-              <div
-                style={{
-                  textAlign: 'center',
-                  padding: '40px 20px',
-                  color: 'rgba(255, 255, 255, 0.7)'
-                }}
-              >
-                <Music size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
-                <h3
-                  style={{
-                    fontSize: '20px',
-                    fontWeight: 600,
-                    marginBottom: '8px',
-                    color: 'white',
-                    textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-                  }}
-                >
-                  합격곡이 없습니다
-                </h3>
-                <p style={{ fontSize: '14px', textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)' }}>
-                  합격 처리된 곡이 여기에 모입니다.
-                </p>
-              </div>
-            ) : (
-              <>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {(showAllSongs ? approvedSongs : approvedSongs.slice(0, 5)).map((song) => (
-                    <div
-                      key={song.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 12,
-                        padding: '12px 16px',
-                        background: 'rgba(255, 255, 255, 0.08)',
-                        borderRadius: '12px',
-                        marginBottom: '4px',
-                        border: '1px solid rgba(255, 255, 255, 0.15)'
-                      }}
-                    >
-                      <span style={{ fontSize: 22 }}>{getSongGrade(song)}</span>
-                      <span
-                        style={{
-                          fontWeight: 700,
-                          color: 'white',
-                          flex: 1,
-                          textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-                        }}
-                      >
-                        {song.title}
-                      </span>
-                      {song.audioUrl && (
-                        <a
-                          href={song.audioUrl}
-                          download={song.fileName || `${song.title}.mp3`}
-                          onClick={(e) => e.stopPropagation()}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            padding: '6px 10px',
-                            background: 'rgba(138, 85, 204, 0.35)',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
-                            textDecoration: 'none',
-                            color: 'white',
-                            border: '1px solid rgba(138, 85, 204, 0.55)'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'rgba(138, 85, 204, 0.55)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'rgba(138, 85, 204, 0.35)';
-                          }}
-                          title="녹음 파일 다운로드"
-                        >
-                          <Download size={16} />
-                        </a>
-                      )}
-                      <span
-                        style={{
-                          color: 'rgba(255, 255, 255, 0.6)',
-                          fontSize: 12,
-                          textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
-                          minWidth: '72px',
-                          textAlign: 'right'
-                        }}
-                      >
-                        {song.createdAt && song.createdAt.seconds
-                          ? new Date(song.createdAt.seconds * 1000).toLocaleDateString('ko-KR')
-                          : ''}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                {approvedSongs.length > 5 && (
-                  <button
-                    type="button"
-                    style={{
-                      marginTop: 12,
-                      background: 'rgba(255, 255, 255, 0.2)',
-                      backdropFilter: 'blur(10px)',
-                      color: 'white',
-                      border: '1px solid rgba(255, 255, 255, 0.3)',
-                      borderRadius: 12,
-                      padding: '8px 20px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      transition: 'all 0.3s ease',
-                      display: 'block',
-                      margin: '16px auto 0'
-                    }}
-                    onClick={() => setShowAllSongs((v) => !v)}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                    }}
-                  >
-                    {showAllSongs ? '접기' : `더보기 (${approvedSongs.length - 5}곡)`}
-                  </button>
-                )}
-              </>
-            )}
-          </div>
+          <MyPageApprovedSongs
+            songs={approvedSongs}
+            rankedCount={viewedProfileApprovedRank?.count ?? null}
+            getSongGrade={getSongGrade}
+          />
+        )}
+
+        {activeTab === 'contestGrades' && canViewContestGrades && user?.uid && (
+          <MyPageContestGrades profileUid={user.uid} isOwner={isOwner} />
         )}
 
         {activeTab === 'guestbook' && (

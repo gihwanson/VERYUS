@@ -1,16 +1,27 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { doc, getDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, query, orderBy, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { contestTypeLabel, type RoundDoc, type RoundVote } from '../types/contest';
-import { getContestGradeEmojiFromScore, getContestGradeFromScore } from '../utils/contestGrade';
-import { formatContestStageInline, formatContestStageLines } from '../utils/contestStage';
+import {
+  getContestGradeEmojiFromScore,
+  getContestGradeFromScore,
+  pickApplyContestMean,
+} from '../utils/contestGrade';
+import { applyMemberGradeInAdminPanel } from '../utils/userGradeSync';
+import { commentsFromContestGrades, saveContestGradeHistory } from '../utils/contestGradeHistory';
+import {
+  contestBothMainUids,
+  contestStageRoles,
+  formatContestStageInline,
+  formatContestStageLines,
+} from '../utils/contestStage';
 import type { ClusterMeanBreakdown, ContestScoreBinScoreEntry } from '../utils/contestScoreAggregation';
 import {
   buildContestAggregationContext,
+  computeContestTop3Targets,
   type ContestAggregationContext,
-  type FlatScoreInvalidation,
 } from '../utils/contestGradesAggregation';
-import { CONTEST_EVALUATOR_VOTE_WEIGHT } from '../utils/contestVoteWeight';
+import { CONTEST_EVALUATOR_VOTE_WEIGHT, formatContestWeight } from '../utils/contestVoteWeight';
 import { GRADE_NAMES, GRADE_SYSTEM } from './AdminTypes';
 import { parseRoundVoteFromDoc } from '../utils/contestParticipant';
 import { db } from '../firebase';
@@ -37,6 +48,9 @@ const ContestResults: React.FC = () => {
   const [selectedTarget, setSelectedTarget] = useState<string>('');
   const [resultsMainTab, setResultsMainTab] = useState<'rank' | 'cluster'>('rank');
   const [evaluatorGradeByNickname, setEvaluatorGradeByNickname] = useState<Record<string, string>>({});
+  const [memberUsers, setMemberUsers] = useState<Array<{ uid: string; nickname: string; grade: string }>>([]);
+  const [applyingGrades, setApplyingGrades] = useState(false);
+  const [applyResultMsg, setApplyResultMsg] = useState('');
   const [rounds, setRounds] = useState<RoundDoc[]>([]);
   const [roundVotesMap, setRoundVotesMap] = useState<Record<string, RoundVote[]>>({});
   const userString = localStorage.getItem('veryus_user');
@@ -55,11 +69,17 @@ const ContestResults: React.FC = () => {
     getDocs(collection(db, 'contests', id, 'evaluationTargets')).then(snap => setEvaluationTargets(snap.docs.map(doc => ({ uid: doc.id, ...doc.data() }))));
     getDocs(collection(db, 'users')).then((snap) => {
       const map: Record<string, string> = {};
+      const list: Array<{ uid: string; nickname: string; grade: string }> = [];
       snap.forEach((d) => {
         const data = d.data();
-        if (data.nickname) map[data.nickname] = data.grade ?? '';
+        const nick = String(data.nickname || '').trim();
+        if (nick) {
+          map[nick] = data.grade ?? '';
+          list.push({ uid: d.id, nickname: nick, grade: String(data.grade ?? '') });
+        }
       });
       setEvaluatorGradeByNickname(map);
+      setMemberUsers(list);
     });
   }, [id]);
 
@@ -97,6 +117,51 @@ const ContestResults: React.FC = () => {
     () => buildContestAggregationContext(subAdminGrades, evaluatorGradeByNickname),
     [subAdminGrades, evaluatorGradeByNickname]
   );
+
+  useEffect(() => {
+    if (!id || !contest || contest.type === '라운드매치') return;
+    if (!user || user.role !== '리더') return;
+    if (grades.length === 0) return;
+    const nickOf = (uid: string) => {
+      const evalTarget = evaluationTargets.find((et: { uid: string; nickname?: string }) => et.uid === uid);
+      if (evalTarget?.nickname) return evalTarget.nickname;
+      const solo = participants.find((p: { uid?: string; nickname?: string }) => p.uid === uid);
+      if (solo?.nickname) return solo.nickname;
+      const member = memberUsers.find((item) => item.uid === uid);
+      if (member?.nickname) return member.nickname;
+      return uid;
+    };
+    const top3 = computeContestTop3Targets(grades, evaluatorGradeByNickname).map((item, idx) => {
+      const team = teams.find((t: { id: string }) => t.id === item.target);
+      const name = team
+        ? formatContestStageInline(team, nickOf) || String(team.teamName || item.target)
+        : nickOf(item.target);
+      return { rank: idx + 1, name, score: Math.round(item.avg * 10) / 10 };
+    });
+    const prev = Array.isArray(contest.top3) ? contest.top3 : [];
+    const unchanged =
+      prev.length === top3.length &&
+      prev.every(
+        (row: { rank?: number; name?: string; score?: number }, i: number) =>
+          row.rank === top3[i].rank &&
+          row.name === top3[i].name &&
+          Number(row.score) === top3[i].score
+      );
+    if (unchanged) return;
+    updateDoc(doc(db, 'contests', id), { top3 }).catch((error) => {
+      console.error('순위 재집계 저장 실패:', error);
+    });
+  }, [
+    id,
+    contest,
+    grades,
+    teams,
+    participants,
+    evaluationTargets,
+    memberUsers,
+    evaluatorGradeByNickname,
+    user?.role,
+  ]);
 
   if (!contest) {
     return (
@@ -231,6 +296,7 @@ const ContestResults: React.FC = () => {
       .map(([target, data]) => {
         const avg = data.overallMean ?? 0;
         const stageLines = getStageLines(target);
+        const applyScore = pickApplyContestMean(data.overallMean, data.clusterMean);
         return {
           target,
           display: stageLines?.title || getTargetDisplay(target),
@@ -242,11 +308,18 @@ const ContestResults: React.FC = () => {
           effectiveWeight: data.effectiveWeight,
           grade: data.overallMean != null ? getGrade(data.overallMean) : '',
           clusterGrade: data.clusterMean != null ? getGrade(data.clusterMean) : '',
+          applyScore,
+          applyGrade: applyScore != null ? getGrade(applyScore) : '',
           comments: data.comments.join(', '),
           clusterBreakdown: data.clusterBreakdown,
         };
       })
-      .sort((a, b) => b.avg - a.avg);
+      .sort((a, b) => {
+        const aScore = a.applyScore ?? a.avg;
+        const bScore = b.applyScore ?? b.avg;
+        if (bScore !== aScore) return bScore - aScore;
+        return b.avg - a.avg;
+      });
 
   type ParticipantRankRow = {
     target: string;
@@ -259,13 +332,17 @@ const ContestResults: React.FC = () => {
     effectiveWeight: number;
     grade: string;
     clusterGrade: string;
+    applyScore: number | null;
+    applyGrade: string;
     comments: string;
     clusterBreakdown: ClusterMeanBreakdown;
   };
 
   const formatScoreEntriesLabel = (entries: ContestScoreBinScoreEntry[]) =>
     entries
-      .map((e) => (e.weight > 1 ? `${e.score}(×${e.weight})` : `${e.score}`))
+      .map((e) =>
+        e.weight !== 1 ? `${e.score}(×${formatContestWeight(e.weight)})` : `${e.score}`
+      )
       .join(', ');
 
   const formatClusterSumFormula = (entries: ContestScoreBinScoreEntry[]) => {
@@ -273,8 +350,10 @@ const ContestResults: React.FC = () => {
     const totalWeight = entries.reduce((s, e) => s + e.weight, 0);
     if (totalWeight <= 0) return null;
     const mean = entries.reduce((s, e) => s + e.score * e.weight, 0) / totalWeight;
-    const parts = entries.map((e) => (e.weight > 1 ? `${e.score}×${e.weight}` : `${e.score}`));
-    return `(${parts.join(' + ')}) ÷ ${totalWeight} = ${mean.toFixed(1)}`;
+    const parts = entries.map((e) =>
+      e.weight !== 1 ? `${e.score}×${formatContestWeight(e.weight)}` : `${e.score}`
+    );
+    return `(${parts.join(' + ')}) ÷ ${formatContestWeight(totalWeight)} = ${mean.toFixed(1)}`;
   };
 
   const voteWeightLegendItems = [
@@ -287,6 +366,7 @@ const ContestResults: React.FC = () => {
     GRADE_SYSTEM.EARTH,
     GRADE_SYSTEM.SATURN,
     GRADE_SYSTEM.SUN,
+    GRADE_SYSTEM.GALAXY,
   ];
 
   const splitCommentList = (comments: string) =>
@@ -312,7 +392,7 @@ const ContestResults: React.FC = () => {
       <span className="contest-results-mean-line">
         <strong>{mean.toFixed(1)}</strong>
         <span className="contest-results-count-badge">
-          ({count}표 · 가중 {effectiveWeight})
+          ({count}표 · 가중 {formatContestWeight(effectiveWeight)})
         </span>
       </span>
     );
@@ -371,7 +451,7 @@ const ContestResults: React.FC = () => {
                     <div className={row.bothMains ? 'contest-results-rank-card-support contest-results-rank-card-support--main' : 'contest-results-rank-card-support'}>{row.support}</div>
                   )}
                   <div className="contest-results-rank-card-meta">
-                    평가 {row.count}표 · 유효 가중 {row.effectiveWeight}
+                    평가 {row.count}표 · 유효 가중 {formatContestWeight(row.effectiveWeight)}
                   </div>
                 </div>
               </header>
@@ -392,6 +472,15 @@ const ContestResults: React.FC = () => {
                   </div>
                   <div className="contest-results-score-tile-grade">{row.clusterGrade || '-'}</div>
                 </div>
+                <div className="contest-results-score-tile contest-results-score-tile--apply">
+                  <div className="contest-results-score-tile-label">적용 등급</div>
+                  <div className="contest-results-score-tile-value">
+                    {row.applyScore != null && Number.isFinite(row.applyScore)
+                      ? row.applyScore.toFixed(1)
+                      : '-'}
+                  </div>
+                  <div className="contest-results-score-tile-grade">{row.applyGrade || '-'}</div>
+                </div>
               </div>
               {commentList.length > 0 && (
                 <div className="contest-results-rank-card-comments">
@@ -411,6 +500,7 @@ const ContestResults: React.FC = () => {
               <th>닉네임</th>
               <th>전체 (평균 · 등급)</th>
               <th>중심 (평균 · 등급)</th>
+              <th>적용 등급</th>
               <th className="contest-results-col-comment">심사 코멘트</th>
             </tr>
           </thead>
@@ -444,6 +534,14 @@ const ContestResults: React.FC = () => {
                       variant="cluster"
                     />
                   </td>
+                  <td>
+                    <ScoreSummaryCell
+                      mean={row.applyScore}
+                      count={row.count}
+                      effectiveWeight={row.effectiveWeight}
+                      grade={row.applyGrade}
+                    />
+                  </td>
                   <td className="contest-results-col-comment">
                     <BulletedComments comments={commentList} />
                   </td>
@@ -455,10 +553,10 @@ const ContestResults: React.FC = () => {
       </div>
       {showMeanLegend && (
         <p className="contest-results-mean-legend">
-          <strong>전체 평균</strong>은 받은 모든 점수를 반영합니다.{' '}
-          <strong>중심 평균</strong>은 평가가 가장 많이 모인 점수대(10점 단위)만 모아 낸 값으로,
-          소수의 극단 점수 영향을 줄입니다. 순위는 전체 평균 기준입니다.{' '}
-          <strong>등급별 표 가중치</strong>가 전체·중심 평균 모두에 적용됩니다.
+          <strong>전체 평균</strong>은 받은 모든 점수의 가중 평균입니다.{' '}
+          <strong>중심 평균</strong>은 등급 가중치 합이 가장 큰 점수대(10점 단위)만 골라
+          그 구간을 가중 평균한 값입니다.{' '}
+          <strong>적용 등급</strong>은 둘 중 더 낮은 점수로, 보수적으로 잡습니다. 고등급 심사일수록 표의 힘이 큽니다.
         </p>
       )}
     </>
@@ -468,8 +566,7 @@ const ContestResults: React.FC = () => {
     title: string;
     rows: ParticipantRankRow[];
     accent?: 'purple' | 'rose';
-    invalidatedEvaluators?: FlatScoreInvalidation[];
-  }> = ({ title, rows, accent = 'purple', invalidatedEvaluators = [] }) => (
+  }> = ({ title, rows, accent = 'purple' }) => (
     <>
       <h3
         className={`contest-results-rank-section-title contest-results-rank-section-title--${accent}`}
@@ -485,23 +582,10 @@ const ContestResults: React.FC = () => {
       <ul className="contest-results-weight-legend">
         {voteWeightLegendItems.map((emoji) => (
           <li key={emoji}>
-            {emoji} {GRADE_NAMES[emoji]} {CONTEST_EVALUATOR_VOTE_WEIGHT[emoji]}
+            {emoji} {GRADE_NAMES[emoji]} {formatContestWeight(CONTEST_EVALUATOR_VOTE_WEIGHT[emoji])}
           </li>
         ))}
       </ul>
-      {invalidatedEvaluators.length > 0 && (
-        <div className="contest-results-flat-score-notice">
-          <strong>동일 점수 무효 처리</strong> — 아래 평가자는 모든 피평가자에게 같은 점수를
-          줘 집계에서 제외했습니다.
-          <ul>
-            {invalidatedEvaluators.map((item) => (
-              <li key={item.evaluator}>
-                {item.evaluator}: 전원 {item.score}점 ({item.voteCount}표)
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
       <div className="contest-results-cluster-list">
         {rows.map((row, rowIndex) => {
           const bd = row.clusterBreakdown;
@@ -548,10 +632,10 @@ const ContestResults: React.FC = () => {
                 {bd.reason === 'mode_bin' && bd.selectedBinLabel && (
                   <>
                     <p className="contest-results-cluster-lead">
-                      유효 <strong>{bd.totalVotes}표</strong>(가중 합 {bd.totalEffectiveWeight})
-                      중{' '}
+                      유효 <strong>{bd.totalVotes}표</strong>(가중 합{' '}
+                      {formatContestWeight(bd.totalEffectiveWeight)}) 중{' '}
                       <strong>
-                        {bd.bins.find((b) => b.isSelected)?.count ?? 0} 가중
+                        가중 {formatContestWeight(bd.bins.find((b) => b.isSelected)?.count ?? 0)}
                       </strong>
                       이 <strong>{bd.selectedBinLabel}</strong> 구간에 모였습니다. 이 구간만
                       가중 평균 냈습니다.
@@ -577,7 +661,7 @@ const ContestResults: React.FC = () => {
                               {bin.isSelected ? ' ✓' : ''}
                             </span>
                             <span className="contest-results-cluster-bin-count">
-                              가중 {bin.count} ({bin.rawVoteCount}표)
+                              {bin.rawVoteCount}표 · 가중 {formatContestWeight(bin.count)}
                             </span>
                           </div>
                           <div className="contest-results-cluster-bin-bar-track">
@@ -612,6 +696,138 @@ const ContestResults: React.FC = () => {
   const sortedParticipants = buildSortedParticipantRows(contestAggregation);
   const subAdmins = subAdminGrades;
   const sortedSubAdminParticipants = buildSortedParticipantRows(subAdminAggregation);
+
+  const resolveMembersForTarget = (target: string) => {
+    const found: Array<{ uid: string; nickname: string }> = [];
+    const pushUnique = (uid: string, nickname: string) => {
+      if (!uid || found.some((item) => item.uid === uid)) return;
+      found.push({ uid, nickname });
+    };
+    const mainUidsOfTeam = (team: { members?: string[]; mainUid?: string }) => {
+      const bothMains = contestBothMainUids(team);
+      if (bothMains && bothMains.length > 0) return bothMains;
+      const roles = contestStageRoles(team);
+      if (roles?.mainUids?.length) return roles.mainUids;
+      if (team.mainUid) return [team.mainUid];
+      return [];
+    };
+    const team = teams.find((item) => item.id === target);
+    const candidateIds = (() => {
+      if (team) return mainUidsOfTeam(team);
+      const parentTeam = teams.find((item) => (item.members || []).includes(target));
+      if (parentTeam) {
+        return mainUidsOfTeam(parentTeam).includes(target) ? [target] : [];
+      }
+      return [target];
+    })();
+    for (const candidate of candidateIds) {
+      const byUid = memberUsers.find((u) => u.uid === candidate);
+      if (byUid) {
+        pushUnique(byUid.uid, byUid.nickname);
+        continue;
+      }
+      const nick = nicknameOfUid(candidate);
+      const byNick = memberUsers.find(
+        (u) => u.nickname === nick || u.nickname === candidate
+      );
+      if (byNick) pushUnique(byNick.uid, byNick.nickname);
+    }
+    return found;
+  };
+
+  const handleApplyResultGrades = async () => {
+    const assignments: Array<{
+      uid: string;
+      nickname: string;
+      grade: string;
+      score: number;
+      overallMean: number | null;
+      clusterMean: number | null;
+      comments: ReturnType<typeof commentsFromContestGrades>;
+      targetLabel: string;
+    }> = [];
+    const skipped: string[] = [];
+    for (const row of sortedParticipants) {
+      if (row.applyScore == null || !row.applyGrade) {
+        skipped.push(row.display);
+        continue;
+      }
+      const members = resolveMembersForTarget(row.target);
+      if (members.length === 0) {
+        skipped.push(row.display);
+        continue;
+      }
+      const comments = commentsFromContestGrades(grades, row.target);
+      const targetData = contestAggregation.byTarget[row.target];
+      for (const member of members) {
+        if (assignments.some((item) => item.uid === member.uid)) continue;
+        assignments.push({
+          uid: member.uid,
+          nickname: member.nickname,
+          grade: row.applyGrade,
+          score: row.applyScore,
+          overallMean: targetData?.overallMean ?? row.avg ?? null,
+          clusterMean: targetData?.clusterMean ?? row.clusterAvg ?? null,
+          comments,
+          targetLabel: row.display,
+        });
+      }
+    }
+    if (assignments.length === 0) {
+      alert('적용할 회원 등급이 없습니다. 회원 닉네임이 맞는지 확인해 주세요.');
+      return;
+    }
+    const preview = assignments
+      .map((item) => `${item.nickname}: ${item.grade} (${item.score.toFixed(1)}점)`)
+      .join('\n');
+    const skipText = skipped.length > 0 ? `\n\n건너뜀: ${skipped.join(', ')}` : '';
+    if (
+      !window.confirm(
+        `전체평균·중심평균 중 더 낮은 점수로 아래 등급을 관리자 패널(회원 등급)에 적용합니다.\n\n${preview}${skipText}\n\n계속할까요?`
+      )
+    ) {
+      return;
+    }
+    setApplyingGrades(true);
+    setApplyResultMsg('');
+    try {
+      for (const item of assignments) {
+        await applyMemberGradeInAdminPanel(item.uid, item.grade);
+        if (id) {
+          await saveContestGradeHistory(item.uid, {
+            contestId: id,
+            contestTitle: String(contest.title || '등급전'),
+            contestType: String(contest.type || '경연'),
+            appliedGrade: item.grade,
+            appliedScore: item.score,
+            overallMean: item.overallMean,
+            clusterMean: item.clusterMean,
+            comments: item.comments,
+            targetLabel: item.targetLabel,
+          });
+        }
+      }
+      if (id) {
+        await updateDoc(doc(db, 'contests', id), {
+          gradesAppliedAt: serverTimestamp(),
+          gradesAppliedCount: assignments.length,
+        });
+      }
+      setEvaluatorGradeByNickname((prev) => {
+        const next = { ...prev };
+        for (const item of assignments) {
+          next[item.nickname] = item.grade;
+        }
+        return next;
+      });
+      setApplyResultMsg(`${assignments.length}명 등급을 적용했습니다.`);
+    } catch (error) {
+      console.error('등급 적용 실패:', error);
+      alert('등급 적용 중 오류가 발생했습니다. 다시 시도해 주세요.');
+    } finally {
+      setApplyingGrades(false);
+    }
+  };
 
   // 고유 평가자 목록 생성
   const uniqueEvaluators = Array.from(new Set(grades.map(g => g.evaluator))).sort();
@@ -736,28 +952,40 @@ const ContestResults: React.FC = () => {
             중심 평균 산출 근거
           </button>
         </div>
-        {contestAggregation.invalidatedEvaluators.length > 0 && (
-          <div className="contest-results-flat-score-notice contest-results-flat-score-notice--compact">
-            동일 점수 무효:{' '}
-            {contestAggregation.invalidatedEvaluators
-              .map((item) => `${item.evaluator}(${item.score}점×${item.voteCount})`)
-              .join(', ')}{' '}
-            — 자세한 내용은 «중심 평균 산출 근거» 탭을 참고하세요.
-          </div>
-        )}
         {resultsMainTab === 'rank' ? (
+          <>
           <FinalRankBoard
-            title="🏆 최종 등급 결과 (전체 평균 순)"
+            title="🏆 최종 등급 결과 (적용 점수 순)"
             rows={sortedParticipants}
             accent="purple"
             showMeanLegend
           />
+          {sortedParticipants.length > 0 && (
+            <div className="contest-results-apply-box">
+              <p className="contest-results-apply-help">
+                적용 등급은 전체 평균과 중심 평균 중 <strong>더 낮은 점수</strong>로 계산하며,
+                <strong>메인 인원만</strong> 관리자 패널 등급이 바뀝니다. 서브는 적용되지 않습니다.
+                적용된 등급·점수·심사 코멘트는 각 인원 마이페이지의 <strong>등급전</strong> 탭에 본인만 보입니다.
+              </p>
+              <button
+                type="button"
+                className="contest-results-apply-btn"
+                onClick={() => void handleApplyResultGrades()}
+                disabled={applyingGrades}
+              >
+                {applyingGrades ? '적용 중...' : '적용하기'}
+              </button>
+              {applyResultMsg ? (
+                <p className="contest-results-apply-done">{applyResultMsg}</p>
+              ) : null}
+            </div>
+          )}
+          </>
         ) : (
           <ClusterMeanExplainBoard
             title="📊 중심 평균 산출 근거 (전체 평가)"
             rows={sortedParticipants}
             accent="purple"
-            invalidatedEvaluators={contestAggregation.invalidatedEvaluators}
           />
         )}
         {contest.type === '경연' && resultsMainTab === 'rank' && (
@@ -930,7 +1158,7 @@ const ContestResults: React.FC = () => {
               <div className="contest-results-subadmin-rank-wrap">
                 {resultsMainTab === 'rank' ? (
                   <FinalRankBoard
-                    title="🏆 부운영진 기준 최종 등급 결과 (전체 평균 순)"
+                    title="🏆 부운영진 기준 최종 등급 결과 (적용 점수 순)"
                     rows={sortedSubAdminParticipants}
                     accent="rose"
                   />
@@ -939,7 +1167,6 @@ const ContestResults: React.FC = () => {
                     title="📊 중심 평균 산출 근거 (부운영진 평가만)"
                     rows={sortedSubAdminParticipants}
                     accent="rose"
-                    invalidatedEvaluators={subAdminAggregation.invalidatedEvaluators}
                   />
                 )}
               </div>
@@ -947,25 +1174,11 @@ const ContestResults: React.FC = () => {
           )}
         </div>
       )}
-        {isAdmin && (
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.15)',
-            backdropFilter: 'blur(15px)',
-            borderRadius: '16px',
-            padding: '16px',
-            marginTop: '20px',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            textAlign: 'center'
-          }}>
-            <div style={{ 
-              color: 'rgba(255, 255, 255, 0.9)', 
-              fontWeight: 600,
-              fontSize: '16px'
-            }}>
-              ⚙️ 관리자: 전체 평가내역 확인 기능 예정
-            </div>
+        {isAdmin && applyResultMsg ? (
+          <div className="contest-results-apply-done contest-results-apply-done--footer">
+            {applyResultMsg}
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

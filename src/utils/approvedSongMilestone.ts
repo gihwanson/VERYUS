@@ -52,9 +52,21 @@ export function approvedSongCountsByNicknameFromDocs(
   return counts;
 }
 
+function approvedSongMembersKey(members: unknown): string {
+  return [...new Set(
+    (Array.isArray(members) ? members : [])
+      .map((m) => String(m || '').trim().toLowerCase())
+      .filter(Boolean)
+  )]
+    .sort()
+    .join('\0');
+}
+
 /**
- * 특정 닉네임의 합격곡 목록을 명예의전당과 같은 기준으로 정리.
- * 같은 제목은 1곡만 남기고, 더 최근(createdAt) 문서를 우선한다.
+ * 마이페이지 합격곡 목록용.
+ * 같은 제목이라도 멤버 구성이 다르면(솔로/듀엣 등) 각각 남긴다.
+ * 제목+멤버가 완전히 같은 중복 문서만 최근 것 하나로 합친다.
+ * 순위 집계(같은 제목 1곡)는 approvedSongCountsByNicknameFromDocs 를 쓴다.
  */
 export function dedupeApprovedSongsForNickname<
   T extends {
@@ -74,7 +86,7 @@ export function dedupeApprovedSongsForNickname<
     return bMs - aMs;
   });
 
-  const seenTitles = new Set<string>();
+  const seenKeys = new Set<string>();
   const result: T[] = [];
   for (const song of sorted) {
     const members = Array.isArray(song.members)
@@ -83,8 +95,11 @@ export function dedupeApprovedSongsForNickname<
     if (!members.includes(nick)) continue;
 
     const titleKey = normalizeApprovedSongTitleKey(song as Record<string, unknown>);
-    if (!titleKey || seenTitles.has(titleKey)) continue;
-    seenTitles.add(titleKey);
+    const lineupKey = approvedSongMembersKey(members);
+    if (!titleKey) continue;
+    const dedupeKey = `${titleKey}\0${lineupKey}`;
+    if (seenKeys.has(dedupeKey)) continue;
+    seenKeys.add(dedupeKey);
     result.push(song);
   }
   return result;
