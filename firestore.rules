@@ -315,6 +315,70 @@ service cloud.firestore {
     }
 
     /** 멤버 월드컵 — 집계는 전원 열람, 개별 투표는 본인·너래만 */
+    function manittoSeasonData(seasonId) {
+      return get(/databases/$(database)/documents/manittoSeasons/$(seasonId)).data;
+    }
+
+    /** 홈 마니또 — 활성 회차 ID */
+    match /manittoMeta/{docId} {
+      allow read: if signedIn();
+      allow create, update: if isNeraeOrLeader();
+      allow delete: if false;
+    }
+
+    match /manittoSeasons/{seasonId} {
+      allow read: if signedIn();
+      allow create: if isNeraeOrLeader()
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 120
+        && request.resource.data.status == 'recruiting'
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdByNickname is string;
+      allow update: if isNeraeOrLeader();
+      allow delete: if false;
+
+      match /participants/{participantUid} {
+        allow read: if signedIn();
+        allow create: if (
+          signedIn()
+          && participantUid == request.auth.uid
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.nickname is string
+          && request.resource.data.nickname.size() > 0
+          && manittoSeasonData(seasonId).status == 'recruiting'
+        ) || (
+          isNerae()
+          && participantUid == request.resource.data.uid
+          && request.resource.data.nickname is string
+          && request.resource.data.nickname.size() > 0
+          && manittoSeasonData(seasonId).status in ['recruiting', 'closed']
+        );
+        allow delete: if (
+          signedIn()
+          && participantUid == request.auth.uid
+          && manittoSeasonData(seasonId).status == 'recruiting'
+        ) || (
+          isNerae()
+          && manittoSeasonData(seasonId).status in ['recruiting', 'closed']
+        );
+        allow update: if false;
+      }
+
+      match /assignments/{giverUid} {
+        allow read: if signedIn() && (giverUid == request.auth.uid || isNerae());
+        allow create: if isNeraeOrLeader()
+          && request.resource.data.receiverUid is string
+          && request.resource.data.receiverNickname is string
+          && giverUid != request.resource.data.receiverUid;
+        allow update: if isNerae()
+          && request.resource.data.receiverUid is string
+          && request.resource.data.receiverNickname is string
+          && giverUid != request.resource.data.receiverUid;
+        allow delete: if isNerae();
+      }
+    }
+
     match /memberWorldCupQuestions/{questionId} {
       allow read, create, update: if signedIn();
       allow delete: if false;

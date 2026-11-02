@@ -4,6 +4,7 @@ import { signOut } from 'firebase/auth';
 import { toast } from 'react-toastify';
 import { User, LogOut } from 'lucide-react';
 import MemberWorldCupBubble from './MemberWorldCupBubble';
+import ManittoBubble from './ManittoBubble';
 import GlobalLoadingScreen from './GlobalLoadingScreen';
 import LogoCherryRain from './LogoCherryRain';
 import { auth } from '../firebase';
@@ -227,7 +228,10 @@ const HomeClassic: React.FC = () => {
                 target.src = '/veryus-logo.svg';
               }}
             />
-            <MemberWorldCupBubble user={user} />
+            <div className="home-bubbles">
+              <ManittoBubble user={user} />
+              <MemberWorldCupBubble user={user} />
+            </div>
           </div>
           <div className="brand-text">
             <h1 className="home-title">VERYUS</h1>
