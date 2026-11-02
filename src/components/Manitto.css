@@ -1,11 +1,4 @@
-.home-bubbles {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-  margin-left: 12px;
-  z-index: 10;
-}
+/* .home-bubbles 레이아웃 → home-hero.css */
 
 .manitto-bubble {
   position: relative;
@@ -361,14 +354,44 @@
   cursor: not-allowed;
 }
 
-@media (max-width: 480px) {
-  .home-bubbles {
-    margin-left: 0;
-    align-items: center;
-    width: 100%;
-  }
-
-  .manitto-bubble__content {
-    max-width: min(220px, 72vw);
-  }
+.manitto-modal__admin-summary {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
 }
+
+.manitto-modal__admin-summary-title {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #c2410c;
+  letter-spacing: 0.02em;
+}
+
+.manitto-modal__admin-steps {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+  color: #44403c;
+  line-height: 1.55;
+}
+
+.manitto-modal__admin-steps li {
+  margin-bottom: 4px;
+}
+
+.manitto-modal__roster-preview {
+  margin: 10px 0 0;
+  font-size: 0.8rem;
+  color: #292524;
+  line-height: 1.45;
+  word-break: keep-all;
+}
+
+.manitto-modal__roster-preview--muted {
+  color: #78716c;
+  font-style: italic;
+}
+

@@ -63,9 +63,15 @@ export function subscribeActiveManittoSeason(
   onChange: (season: ManittoSeason | null) => void,
   onError?: (err: Error) => void
 ): Unsubscribe {
-  return onSnapshot(
+  let seasonUnsub: Unsubscribe | null = null;
+
+  const metaUnsub = onSnapshot(
     manittoMetaRef(),
-    async (metaSnap) => {
+    (metaSnap) => {
+      if (seasonUnsub) {
+        seasonUnsub();
+        seasonUnsub = null;
+      }
       const seasonId = metaSnap.exists()
         ? String(metaSnap.data()?.seasonId ?? '').trim()
         : '';
@@ -73,25 +79,30 @@ export function subscribeActiveManittoSeason(
         onChange(null);
         return;
       }
-      try {
-        const seasonSnap = await getDoc(manittoSeasonRef(seasonId));
-        if (!seasonSnap.exists()) {
-          onChange(null);
-          return;
-        }
-        const season = parseSeason(seasonSnap.id, seasonSnap.data() as Record<string, unknown>);
-        if (season.status === 'archived' || season.status === 'cancelled') {
-          onChange(null);
-          return;
-        }
-        onChange(season);
-      } catch (err) {
-        onError?.(err instanceof Error ? err : new Error(String(err)));
-        onChange(null);
-      }
+      seasonUnsub = onSnapshot(
+        manittoSeasonRef(seasonId),
+        (seasonSnap) => {
+          if (!seasonSnap.exists()) {
+            onChange(null);
+            return;
+          }
+          const season = parseSeason(seasonSnap.id, seasonSnap.data() as Record<string, unknown>);
+          if (season.status === 'archived' || season.status === 'cancelled') {
+            onChange(null);
+            return;
+          }
+          onChange(season);
+        },
+        (err) => onError?.(err)
+      );
     },
     (err) => onError?.(err)
   );
+
+  return () => {
+    metaUnsub();
+    seasonUnsub?.();
+  };
 }
 
 export function subscribeManittoParticipant(

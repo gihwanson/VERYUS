@@ -17,6 +17,7 @@ import {
 } from '../utils/simpleBoardNotification';
 import { fetchHomeBoardPreviews, type HomeBoardPreviewMap } from '../utils/homeBoardPreviews';
 import HomeNotebookBody from './HomeNotebookBody';
+import './home-hero.css';
 
 interface User {
   uid: string;
@@ -187,8 +188,8 @@ const HomeNotebook: React.FC = () => {
       </header>
 
       <main className="home-content">
-        <section className="logo-section" aria-label="브랜드">
-          <div className="logo-with-bubble">
+        <section className="logo-section home-hero" aria-label="브랜드">
+          <div className="home-hero__brand">
             <img
               src="/veryus_logo.png"
               alt="VERYUS"
@@ -207,14 +208,17 @@ const HomeNotebook: React.FC = () => {
                 target.src = '/veryus-logo.svg';
               }}
             />
+            <div className="brand-text">
+              <h1 className="home-title">VERYUS</h1>
+              <p className="home-slogan">다양한 음악을 우리답게</p>
+            </div>
+          </div>
+          <div className="home-hero__extras">
+            <p className="home-hero__extras-label">베리어스 소식</p>
             <div className="home-bubbles">
               <ManittoBubble user={user} />
               <MemberWorldCupBubble user={user} />
             </div>
-          </div>
-          <div className="brand-text">
-            <h1 className="home-title">VERYUS</h1>
-            <p className="home-slogan">다양한 음악을 우리답게</p>
           </div>
         </section>
 

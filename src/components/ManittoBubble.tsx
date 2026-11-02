@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Gift, X } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -22,6 +22,7 @@ import {
 } from '../utils/manittoService';
 import { fetchWorldCupMemberOptions } from '../utils/memberWorldCupService';
 import {
+  MANITTO_MIN_PARTICIPANTS,
   MANITTO_STATUS_LABEL,
   type ManittoAssignment,
   type ManittoAssignmentRow,
@@ -70,6 +71,7 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
   const [assignmentRows, setAssignmentRows] = useState<ManittoAssignmentRow[]>([]);
   const [memberOptions, setMemberOptions] = useState<Array<{ uid: string; nickname: string }>>([]);
   const [addMemberUid, setAddMemberUid] = useState('');
+  const modalBodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const unsub = subscribeActiveManittoSeason(
@@ -77,7 +79,10 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
         setSeason(next);
         setLoading(false);
       },
-      () => setLoading(false)
+      (err) => {
+        setLoading(false);
+        toast.error(err.message || '마니또 회차를 불러오지 못했습니다.');
+      }
     );
     return () => unsub();
   }, []);
@@ -98,27 +103,31 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
     return subscribeManittoParticipantCount(season.id, setParticipantCount);
   }, [season?.id]);
 
+  const canViewRoster = Boolean(showModal && season?.id && (isManittoAdmin(user) || isNeraeUser(user)));
+
   useEffect(() => {
-    if (!showModal || !isNeraeUser(user) || !season?.id) {
+    if (!canViewRoster || !season?.id) {
       setRoster([]);
       setAssignmentRows([]);
       return;
     }
     const unsubRoster = subscribeManittoParticipants(season.id, setRoster);
     const unsubAssign =
-      season.status === 'drawn'
+      isNeraeUser(user) && season.status === 'drawn'
         ? subscribeManittoAssignmentRows(season.id, setAssignmentRows)
         : () => {
             setAssignmentRows([]);
           };
-    void fetchWorldCupMemberOptions().then((list) =>
-      setMemberOptions(list.map((m) => ({ uid: m.uid, nickname: m.nickname })))
-    );
+    if (isNeraeUser(user)) {
+      void fetchWorldCupMemberOptions().then((list) =>
+        setMemberOptions(list.map((m) => ({ uid: m.uid, nickname: m.nickname })))
+      );
+    }
     return () => {
       unsubRoster();
       unsubAssign();
     };
-  }, [showModal, user?.nickname, season?.id, season?.status]);
+  }, [canViewRoster, user, season?.id, season?.status]);
 
   const rosterUidSet = useMemo(() => new Set(roster.map((p) => p.uid)), [roster]);
   const addableMembers = useMemo(
@@ -200,7 +209,7 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
           </div>
         </div>
 
-        <div className="manitto-modal__body">
+        <div className="manitto-modal__body" ref={modalBodyRef}>
           {!season ? (
             <div className="manitto-modal__empty">
               <p>지금 진행 중인 마니또 회차가 없습니다.</p>
@@ -284,6 +293,49 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
 
               {season.status === 'drawn' && !participant ? (
                 <p className="manitto-modal__empty">이번 회차에 참가하지 않아 배정이 없습니다.</p>
+              ) : null}
+
+              {isManittoAdmin(user) ? (
+                <div className="manitto-modal__admin-summary">
+                  <p className="manitto-modal__admin-summary-title">운영 확인</p>
+                  <ul className="manitto-modal__admin-steps">
+                    <li>
+                      <strong>회차</strong> · {season.title} ({MANITTO_STATUS_LABEL[season.status]})
+                    </li>
+                    <li>
+                      <strong>참가</strong> · {participantCount}명
+                      {season.status !== 'drawn' && participantCount < MANITTO_MIN_PARTICIPANTS
+                        ? ` (추첨 최소 ${MANITTO_MIN_PARTICIPANTS}명)`
+                        : ''}
+                    </li>
+                    {season.status === 'recruiting' ? (
+                      <li>
+                        <strong>다음</strong> · 멤버 참가 유도 → 「참가 모집 마감」 → 「추첨 실행」
+                      </li>
+                    ) : null}
+                    {season.status === 'closed' ? (
+                      <li>
+                        <strong>다음</strong> · 참가 {MANITTO_MIN_PARTICIPANTS}명 이상이면 「추첨 실행」
+                      </li>
+                    ) : null}
+                    {season.status === 'drawn' ? (
+                      <li>
+                        <strong>다음</strong> · 행사 후 「회차 종료(아카이브)」
+                      </li>
+                    ) : null}
+                  </ul>
+                  {season.status !== 'drawn' ? (
+                    roster.length > 0 ? (
+                      <p className="manitto-modal__roster-preview">
+                        참가자: {roster.map((p) => p.nickname).join(', ')}
+                      </p>
+                    ) : (
+                      <p className="manitto-modal__roster-preview manitto-modal__roster-preview--muted">
+                        아직 참가자가 없습니다. 본인도 「이번 회차 참가하기」로 넣을 수 있어요.
+                      </p>
+                    )
+                  ) : null}
+                </div>
               ) : null}
             </>
           )}
@@ -456,15 +508,27 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
                     disabled={busy}
                     onClick={() =>
                       void run(async () => {
-                        await createManittoSeason({
-                          title: adminTitle,
-                          giftGuide: adminGuide,
+                        const title = adminTitle.trim();
+                        const giftGuide = adminGuide.trim();
+                        const seasonId = await createManittoSeason({
+                          title,
+                          giftGuide,
                           createdBy: user.uid,
                           createdByNickname: user.nickname ?? '',
                         });
+                        setSeason({
+                          id: seasonId,
+                          title,
+                          status: 'recruiting',
+                          giftGuide: giftGuide || undefined,
+                          createdBy: user.uid,
+                          createdByNickname: user.nickname ?? '',
+                          participantCount: 0,
+                        });
                         setAdminTitle('');
                         setAdminGuide('');
-                        toast.success('마니또 회차를 열었습니다.');
+                        toast.success(`「${title}」 회차를 열었습니다. 위에서 상태를 확인하세요.`);
+                        modalBodyRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
                       })
                     }
                   >
