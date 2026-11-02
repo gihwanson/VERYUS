@@ -12,6 +12,7 @@ export {
 export { deleteUserAuthAccount, reclaimEmailForSignup } from './adminUserManagement';
 export { scheduledGameWeeklyReset } from './gameWeeklyReset';
 export { scheduledPracticeRoomPendingConfirm } from './practiceRoomPendingConfirm';
+export { syncManittoPairing, syncManittoOnParticipantChange } from './manittoLivePairing';
 const WEB_APP_ORIGIN = 'https://veryusduet.web.app';
 
 const getRouteByPostType = (postType: string, postId: string): string => {

@@ -17,6 +17,8 @@ export type ManittoSeason = {
   createdAt?: { seconds: number; nanoseconds?: number };
   drawnAt?: { seconds: number; nanoseconds?: number };
   participantCount?: number;
+  livePairing?: boolean;
+  pairingSyncedAt?: { seconds: number; nanoseconds?: number };
 };
 
 export type ManittoParticipant = {

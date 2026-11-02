@@ -395,3 +395,11 @@
   font-style: italic;
 }
 
+.manitto-modal__nerae-live-badge {
+  margin: 0 0 8px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #c2410c;
+  text-align: center;
+}
+

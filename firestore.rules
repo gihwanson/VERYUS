@@ -375,7 +375,7 @@ service cloud.firestore {
           && request.resource.data.receiverUid is string
           && request.resource.data.receiverNickname is string
           && giverUid != request.resource.data.receiverUid;
-        allow delete: if isNerae();
+        allow delete: if isNerae() || isNeraeOrLeader();
       }
     }
 

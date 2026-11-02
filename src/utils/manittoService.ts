@@ -11,7 +11,8 @@ import {
   writeBatch,
   type Unsubscribe,
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../firebase';
 import { computeManittoAssignments } from './manittoDraw';
 import {
   MANITTO_MIN_PARTICIPANTS,
@@ -40,7 +41,78 @@ function parseSeason(id: string, data: Record<string, unknown>): ManittoSeason {
     drawnAt: data.drawnAt as ManittoSeason['drawnAt'],
     participantCount:
       typeof data.participantCount === 'number' ? data.participantCount : undefined,
+    livePairing: data.livePairing === true ? true : data.livePairing === false ? false : undefined,
+    pairingSyncedAt: data.pairingSyncedAt as ManittoSeason['pairingSyncedAt'],
   };
+}
+
+/** 참가·인원 변경 후 서버에서 실시간 배정 (Cloud Function) */
+export async function requestSyncManittoPairing(seasonId: string): Promise<number> {
+  try {
+    const fn = httpsCallable<{ seasonId: string }, { ok: boolean; count: number }>(
+      functions,
+      'syncManittoPairing'
+    );
+    const res = await fn({ seasonId });
+    return typeof res.data?.count === 'number' ? res.data.count : 0;
+  } catch {
+    return syncLiveManittoAssignmentsClient(seasonId);
+  }
+}
+
+/** Functions 미배포·오류 시 리더 클라이언트 폴백 */
+async function syncLiveManittoAssignmentsClient(seasonId: string): Promise<number> {
+  const seasonRef = manittoSeasonRef(seasonId);
+  const seasonSnap = await getDoc(seasonRef);
+  if (!seasonSnap.exists()) return 0;
+  const status = seasonSnap.data()?.status;
+  if (status !== 'recruiting' && status !== 'closed') return 0;
+
+  const participantsSnap = await getDocs(
+    collection(db, MANITTO_SEASONS_COLLECTION, seasonId, 'participants')
+  );
+  const participants = participantsSnap.docs.map((d) => ({
+    uid: d.id,
+    nickname: String(d.data().nickname ?? ''),
+  }));
+
+  const assignSnap = await getDocs(
+    collection(db, MANITTO_SEASONS_COLLECTION, seasonId, 'assignments')
+  );
+
+  if (participants.length < MANITTO_MIN_PARTICIPANTS) {
+    const batch = writeBatch(db);
+    assignSnap.docs.forEach((d) => batch.delete(d.ref));
+    batch.update(seasonRef, {
+      participantCount: participants.length,
+      livePairing: true,
+    });
+    await batch.commit();
+    return 0;
+  }
+
+  const assignments = computeManittoAssignments(participants.map((p) => p.uid));
+  const nicknameByUid = new Map(participants.map((p) => [p.uid, p.nickname]));
+  const newGivers = new Set(assignments.keys());
+
+  const batch = writeBatch(db);
+  assignSnap.docs.forEach((d) => {
+    if (!newGivers.has(d.id)) batch.delete(d.ref);
+  });
+  for (const [giverUid, receiverUid] of assignments) {
+    batch.set(manittoAssignmentRef(seasonId, giverUid), {
+      receiverUid,
+      receiverNickname: nicknameByUid.get(receiverUid) ?? receiverUid,
+      live: true,
+      updatedAt: serverTimestamp(),
+    });
+  }
+  batch.update(seasonRef, {
+    participantCount: participants.length,
+    livePairing: true,
+  });
+  await batch.commit();
+  return participants.length;
 }
 
 export function manittoMetaRef() {
@@ -186,6 +258,7 @@ export async function createManittoSeason(input: {
       createdByNickname: input.createdByNickname,
       createdAt: serverTimestamp(),
       participantCount: 0,
+      livePairing: true,
     });
     tx.set(manittoMetaRef(), { seasonId: seasonRef.id, updatedAt: serverTimestamp() }, { merge: true });
   });
@@ -221,6 +294,7 @@ export async function joinManittoSeason(
       joinedAt: serverTimestamp(),
     });
   });
+  await requestSyncManittoPairing(seasonId);
 }
 
 export async function leaveManittoSeason(seasonId: string, uid: string): Promise<void> {
@@ -241,6 +315,7 @@ export async function leaveManittoSeason(seasonId: string, uid: string): Promise
     }
     tx.delete(partRef);
   });
+  await requestSyncManittoPairing(seasonId);
 }
 
 export async function closeManittoRecruiting(seasonId: string): Promise<void> {
@@ -260,35 +335,26 @@ export async function drawManittoSeason(seasonId: string): Promise<number> {
     throw new Error('추첨할 수 있는 상태가 아닙니다.');
   }
 
-  const participantsSnap = await getDocs(collection(db, MANITTO_SEASONS_COLLECTION, seasonId, 'participants'));
-  const participants = participantsSnap.docs.map((d) => ({
-    uid: d.id,
-    nickname: String(d.data().nickname ?? ''),
-  }));
-
-  if (participants.length < MANITTO_MIN_PARTICIPANTS) {
+  const count = await requestSyncManittoPairing(seasonId);
+  if (count < MANITTO_MIN_PARTICIPANTS) {
     throw new Error(`추첨하려면 참가자가 ${MANITTO_MIN_PARTICIPANTS}명 이상이어야 합니다.`);
   }
 
-  const assignments = computeManittoAssignments(participants.map((p) => p.uid));
-  const nicknameByUid = new Map(participants.map((p) => [p.uid, p.nickname]));
-
-  const batch = writeBatch(db);
-  for (const [giverUid, receiverUid] of assignments) {
-    batch.set(manittoAssignmentRef(seasonId, giverUid), {
-      receiverUid,
-      receiverNickname: nicknameByUid.get(receiverUid) ?? receiverUid,
-      createdAt: serverTimestamp(),
-    });
+  const assignSnap = await getDocs(
+    collection(db, MANITTO_SEASONS_COLLECTION, seasonId, 'assignments')
+  );
+  if (assignSnap.size < MANITTO_MIN_PARTICIPANTS) {
+    throw new Error('배정을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.');
   }
-  batch.update(seasonRef, {
+
+  await updateDoc(seasonRef, {
     status: 'drawn',
     drawnAt: serverTimestamp(),
-    participantCount: participants.length,
+    participantCount: count,
+    livePairing: false,
   });
-  await batch.commit();
 
-  return participants.length;
+  return count;
 }
 
 export async function archiveManittoSeason(seasonId: string): Promise<void> {
@@ -414,6 +480,7 @@ export async function adminAddManittoParticipant(
     { uid: user.uid, nickname, joinedAt: serverTimestamp() },
     { merge: true }
   );
+  await requestSyncManittoPairing(seasonId);
 }
 
 /** 너래 — 추첨 전 참가자 제거 */
@@ -427,6 +494,7 @@ export async function adminRemoveManittoParticipant(seasonId: string, uid: strin
   await runTransaction(db, async (tx) => {
     tx.delete(manittoParticipantRef(seasonId, uid));
   });
+  await requestSyncManittoPairing(seasonId);
 }
 
 /** 너래 — 추첨 결과 한 쌍 수정 (다른 사람과 받는 사람 교환) */
@@ -487,6 +555,8 @@ export async function adminClearManittoDraw(seasonId: string): Promise<void> {
   batch.update(manittoSeasonRef(seasonId), {
     status: 'closed',
     drawnAt: null,
+    livePairing: true,
   });
   await batch.commit();
+  await requestSyncManittoPairing(seasonId);
 }

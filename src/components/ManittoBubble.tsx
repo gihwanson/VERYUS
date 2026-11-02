@@ -108,26 +108,25 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
   useEffect(() => {
     if (!canViewRoster || !season?.id) {
       setRoster([]);
+      return;
+    }
+    return subscribeManittoParticipants(season.id, setRoster);
+  }, [canViewRoster, season?.id]);
+
+  useEffect(() => {
+    if (!isNeraeUser(user) || !season?.id) {
       setAssignmentRows([]);
       return;
     }
-    const unsubRoster = subscribeManittoParticipants(season.id, setRoster);
-    const unsubAssign =
-      isNeraeUser(user) && season.status === 'drawn'
-        ? subscribeManittoAssignmentRows(season.id, setAssignmentRows)
-        : () => {
-            setAssignmentRows([]);
-          };
-    if (isNeraeUser(user)) {
-      void fetchWorldCupMemberOptions().then((list) =>
-        setMemberOptions(list.map((m) => ({ uid: m.uid, nickname: m.nickname })))
-      );
-    }
-    return () => {
-      unsubRoster();
-      unsubAssign();
-    };
-  }, [canViewRoster, user, season?.id, season?.status]);
+    return subscribeManittoAssignmentRows(season.id, setAssignmentRows);
+  }, [user, season?.id]);
+
+  useEffect(() => {
+    if (!isNeraeUser(user)) return;
+    void fetchWorldCupMemberOptions().then((list) =>
+      setMemberOptions(list.map((m) => ({ uid: m.uid, nickname: m.nickname })))
+    );
+  }, [user?.nickname]);
 
   const rosterUidSet = useMemo(() => new Set(roster.map((p) => p.uid)), [roster]);
   const addableMembers = useMemo(
@@ -135,30 +134,46 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
     [memberOptions, rosterUidSet]
   );
 
+  const pairingActive =
+    season?.status === 'recruiting' ||
+    season?.status === 'closed' ||
+    season?.status === 'drawn';
+
   useEffect(() => {
-    if (!season?.id || !user?.uid || season.status !== 'drawn') {
+    if (!season?.id || !user?.uid || !participant || !pairingActive) {
       setAssignment(null);
       return;
     }
     return subscribeMyManittoAssignment(season.id, user.uid, setAssignment);
-  }, [season?.id, season?.status, user?.uid]);
+  }, [season?.id, season?.status, user?.uid, participant, pairingActive]);
 
   const bubblePreview = useMemo(() => {
     if (!season) return '진행 중인 회차 없음';
-    if (season.status === 'drawn' && assignment) {
+    if (isNeraeUser(user) && assignmentRows.length > 0) {
+      return `매칭 ${assignmentRows.length}명 · 전체 열람`;
+    }
+    if (assignment) {
       return `🎁 ${assignment.receiverNickname}`;
     }
     if (participant) return `${season.title} · 참여 중`;
     return season.title;
-  }, [season, participant, assignment]);
+  }, [season, participant, assignment, user, assignmentRows.length]);
 
   const bubbleHint = useMemo(() => {
     if (!season) return '리더가 회차를 열면 알려드려요';
-    if (season.status === 'recruiting') return '탭해서 참가하기';
-    if (season.status === 'closed') return '추첨 대기 중';
+    if (isNeraeUser(user) && assignmentRows.length > 0) return '탭해서 전체 짝 확인';
+    if (assignment && season.status !== 'drawn') return '실시간 배정 · 탭해서 확인';
+    if (season.status === 'recruiting') return participant ? '배정 대기 또는 확인' : '탭해서 참가하기';
+    if (season.status === 'closed') return assignment ? '내 마니또 확인' : '추첨 대기 중';
     if (season.status === 'drawn') return participant ? '내 마니또 확인' : '추첨 완료';
     return '';
-  }, [season, participant]);
+  }, [season, participant, assignment, user, assignmentRows.length]);
+
+  const showMyAssignment =
+    Boolean(participant && assignment) &&
+    (season?.status === 'drawn' ||
+      season?.status === 'recruiting' ||
+      season?.status === 'closed');
 
   const openModal = useCallback(() => {
     setShowModal(true);
@@ -239,15 +254,36 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
                 ) : null}
               </div>
 
-              {season.status === 'drawn' && participant && assignment ? (
+              {showMyAssignment ? (
                 <div className="manitto-modal__card manitto-modal__receiver">
                   <Gift size={28} color="#c2410c" aria-hidden />
                   <p className="manitto-modal__receiver-note">내가 챙길 마니또</p>
-                  <p className="manitto-modal__receiver-name">{assignment.receiverNickname}</p>
+                  <p className="manitto-modal__receiver-name">{assignment!.receiverNickname}</p>
                   <p className="manitto-modal__receiver-note">
-                    추첨 후에는 배정이 바뀌지 않습니다. 즐거운 선물 되세요!
+                    {season.status === 'drawn'
+                      ? '추첨이 확정되었습니다. 배정은 바뀌지 않습니다.'
+                      : '참가 인원이 바뀌면 배정이 자동으로 다시 맞춰집니다.'}
                   </p>
                 </div>
+              ) : null}
+
+              {participant &&
+              !assignment &&
+              pairingActive &&
+              participantCount >= MANITTO_MIN_PARTICIPANTS ? (
+                <p className="manitto-modal__receiver-note" style={{ textAlign: 'center' }}>
+                  배정을 맞추는 중입니다…
+                </p>
+              ) : null}
+
+              {participant &&
+              !assignment &&
+              pairingActive &&
+              participantCount > 0 &&
+              participantCount < MANITTO_MIN_PARTICIPANTS ? (
+                <p className="manitto-modal__receiver-note" style={{ textAlign: 'center' }}>
+                  참가 {MANITTO_MIN_PARTICIPANTS}명 이상이 되면 자동으로 짝이 배정됩니다.
+                </p>
               ) : null}
 
               {season.status === 'recruiting' && !participant ? (
@@ -285,9 +321,9 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
                 </button>
               ) : null}
 
-              {season.status === 'closed' && participant ? (
+              {season.status === 'closed' && participant && !assignment ? (
                 <p className="manitto-modal__receiver-note" style={{ textAlign: 'center' }}>
-                  모집이 마감되었습니다. 추첨이 끝나면 여기서 마니또를 확인할 수 있어요.
+                  모집이 마감되었습니다. 참가 인원이 충분하면 위에서 마니또를 확인할 수 있어요.
                 </p>
               ) : null}
 
@@ -310,12 +346,13 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
                     </li>
                     {season.status === 'recruiting' ? (
                       <li>
-                        <strong>다음</strong> · 멤버 참가 유도 → 「참가 모집 마감」 → 「추첨 실행」
+                        <strong>다음</strong> · {MANITTO_MIN_PARTICIPANTS}명 이상이면 자동 짝 배정 →
+                        「추첨 확정」으로 고정
                       </li>
                     ) : null}
                     {season.status === 'closed' ? (
                       <li>
-                        <strong>다음</strong> · 참가 {MANITTO_MIN_PARTICIPANTS}명 이상이면 「추첨 실행」
+                        <strong>다음</strong> · 인원 조정 후 「추첨 확정」으로 배정 고정
                       </li>
                     ) : null}
                     {season.status === 'drawn' ? (
@@ -344,9 +381,9 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
             <div className="manitto-modal__nerae">
               <p className="manitto-modal__nerae-title">너래 전용 · 전체 매칭 · 인원 조정</p>
               <p className="manitto-modal__nerae-hint">
-                추첨 전에는 참가자를 추가·제거할 수 있습니다. 추첨 후에는 전체 짝을 확인하고
-                받는 사람을 바꿀 때는 드롭다운으로 교환(서로 맞바꿈)됩니다. 인원을 크게
-                바꿀 때는 「재추첨 준비」 후 다시 추첨하세요.
+                참가 {MANITTO_MIN_PARTICIPANTS}명 이상이면 짝이 <strong>실시간 자동 배정</strong>
+                됩니다. 아래 표에서 바로 전체 매칭을 확인할 수 있어요. 추첨 확정 후에는
+                드롭다운으로 받는 사람을 교환할 수 있습니다.
               </p>
 
               {(season.status === 'recruiting' || season.status === 'closed') && (
@@ -383,8 +420,11 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
                 </div>
               )}
 
-              {season.status === 'drawn' ? (
+              {assignmentRows.length > 0 ? (
                 <>
+                  <p className="manitto-modal__nerae-live-badge">
+                    {season.status === 'drawn' ? '추첨 확정' : '실시간 매칭'} · {assignmentRows.length}명
+                  </p>
                   <table className="manitto-modal__roster-table">
                     <thead>
                       <tr>
@@ -397,56 +437,69 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
                         <tr key={row.giverUid}>
                           <td>{row.giverNickname}</td>
                           <td>
-                            <select
-                              className="manitto-modal__roster-select"
-                              value={row.receiverUid}
-                              disabled={busy}
-                              onChange={(e) => {
-                                const next = e.target.value;
-                                if (!next || next === row.receiverUid) return;
-                                void run(async () => {
-                                  await adminSwapManittoReceiver(season.id, row.giverUid, next);
-                                  toast.success('배정을 수정했습니다.');
-                                });
-                              }}
-                            >
-                              {roster.map((p) => (
-                                <option
-                                  key={p.uid}
-                                  value={p.uid}
-                                  disabled={p.uid === row.giverUid}
-                                >
-                                  {p.nickname}
-                                </option>
-                              ))}
-                            </select>
+                            {season.status === 'drawn' ? (
+                              <select
+                                className="manitto-modal__roster-select"
+                                value={row.receiverUid}
+                                disabled={busy}
+                                onChange={(e) => {
+                                  const next = e.target.value;
+                                  if (!next || next === row.receiverUid) return;
+                                  void run(async () => {
+                                    await adminSwapManittoReceiver(season.id, row.giverUid, next);
+                                    toast.success('배정을 수정했습니다.');
+                                  });
+                                }}
+                              >
+                                {roster.map((p) => (
+                                  <option
+                                    key={p.uid}
+                                    value={p.uid}
+                                    disabled={p.uid === row.giverUid}
+                                  >
+                                    {p.nickname}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <span>{row.receiverNickname}</span>
+                            )}
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                  <button
-                    type="button"
-                    className="manitto-modal__btn manitto-modal__btn--secondary"
-                    disabled={busy}
-                    onClick={() =>
-                      void run(async () => {
-                        if (
-                          !window.confirm(
-                            '추첨 결과를 지우고 마감 상태로 돌아갑니다. 인원을 수정한 뒤 다시 추첨하세요.'
-                          )
-                        ) {
-                          return;
-                        }
-                        await adminClearManittoDraw(season.id);
-                        toast.info('재추첨 준비 완료. 인원 조정 후 추첨을 실행하세요.');
-                      })
-                    }
-                  >
-                    재추첨 준비 (결과 삭제)
-                  </button>
+                  {season.status === 'drawn' ? (
+                    <button
+                      type="button"
+                      className="manitto-modal__btn manitto-modal__btn--secondary"
+                      disabled={busy}
+                      onClick={() =>
+                        void run(async () => {
+                          if (
+                            !window.confirm(
+                              '추첨 결과를 지우고 마감 상태로 돌아갑니다. 인원을 수정한 뒤 다시 확정하세요.'
+                            )
+                          ) {
+                            return;
+                          }
+                          await adminClearManittoDraw(season.id);
+                          toast.info('재추첨 준비 완료. 인원 조정 후 추첨 확정하세요.');
+                        })
+                      }
+                    >
+                      재추첨 준비 (결과 삭제)
+                    </button>
+                  ) : null}
                 </>
               ) : (
+                <p className="manitto-modal__roster-preview manitto-modal__roster-preview--muted">
+                  참가 {participantCount}/{MANITTO_MIN_PARTICIPANTS}명 · 인원이 차면 자동으로 짝이
+                  표시됩니다.
+                </p>
+              )}
+
+              {(season.status === 'recruiting' || season.status === 'closed') && (
                 <table className="manitto-modal__roster-table">
                   <thead>
                     <tr>
@@ -564,7 +617,7 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
                         })
                       }
                     >
-                      추첨 실행
+                      추첨 확정 (배정 고정)
                     </button>
                   )}
                   {season.status === 'drawn' ? (
