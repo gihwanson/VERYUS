@@ -13,7 +13,7 @@ import {
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../firebase';
-import { computeManittoAssignments } from './manittoDraw';
+import { assignManittoStable } from './manittoDraw';
 import {
   MANITTO_MIN_PARTICIPANTS,
   type ManittoAssignment,
@@ -46,7 +46,15 @@ function parseSeason(id: string, data: Record<string, unknown>): ManittoSeason {
   };
 }
 
-/** 참가·인원 변경 후 서버에서 실시간 배정 (Cloud Function) */
+function sameReceiverMap(a: Map<string, string>, b: Map<string, string>): boolean {
+  if (a.size !== b.size) return false;
+  for (const [giver, receiver] of a) {
+    if (b.get(giver) !== receiver) return false;
+  }
+  return true;
+}
+
+/** 참가·인원 변경 후 배정을 맞춘다. 같은 인원이면 기존 짝을 유지한다. */
 export async function requestSyncManittoPairing(seasonId: string): Promise<number> {
   try {
     const fn = httpsCallable<{ seasonId: string }, { ok: boolean; count: number }>(
@@ -60,7 +68,7 @@ export async function requestSyncManittoPairing(seasonId: string): Promise<numbe
   }
 }
 
-/** Functions 미배포·오류 시 리더 클라이언트 폴백 */
+/** Functions 미배포·오류 시 리더 클라이언트 폴백. 이미 맞는 짝은 다시 섞지 않는다. */
 async function syncLiveManittoAssignmentsClient(seasonId: string): Promise<number> {
   const seasonRef = manittoSeasonRef(seasonId);
   const seasonSnap = await getDoc(seasonRef);
@@ -79,8 +87,15 @@ async function syncLiveManittoAssignmentsClient(seasonId: string): Promise<numbe
   const assignSnap = await getDocs(
     collection(db, MANITTO_SEASONS_COLLECTION, seasonId, 'assignments')
   );
+  const existing = new Map<string, string>();
+  assignSnap.docs.forEach((d) => {
+    existing.set(d.id, String(d.data().receiverUid ?? ''));
+  });
 
   if (participants.length < MANITTO_MIN_PARTICIPANTS) {
+    if (assignSnap.empty && seasonSnap.data()?.participantCount === participants.length) {
+      return 0;
+    }
     const batch = writeBatch(db);
     assignSnap.docs.forEach((d) => batch.delete(d.ref));
     batch.update(seasonRef, {
@@ -91,7 +106,17 @@ async function syncLiveManittoAssignmentsClient(seasonId: string): Promise<numbe
     return 0;
   }
 
-  const assignments = computeManittoAssignments(participants.map((p) => p.uid));
+  const assignments = assignManittoStable(
+    participants.map((p) => p.uid),
+    existing
+  );
+  if (
+    sameReceiverMap(existing, assignments) &&
+    seasonSnap.data()?.participantCount === participants.length
+  ) {
+    return participants.length;
+  }
+
   const nicknameByUid = new Map(participants.map((p) => [p.uid, p.nickname]));
   const newGivers = new Set(assignments.keys());
 
@@ -100,6 +125,7 @@ async function syncLiveManittoAssignmentsClient(seasonId: string): Promise<numbe
     if (!newGivers.has(d.id)) batch.delete(d.ref);
   });
   for (const [giverUid, receiverUid] of assignments) {
+    if (existing.get(giverUid) === receiverUid) continue;
     batch.set(manittoAssignmentRef(seasonId, giverUid), {
       receiverUid,
       receiverNickname: nicknameByUid.get(receiverUid) ?? receiverUid,
@@ -323,7 +349,17 @@ export async function closeManittoRecruiting(seasonId: string): Promise<void> {
   const snap = await getDoc(ref);
   if (!snap.exists()) throw new Error('회차를 찾을 수 없습니다.');
   if (snap.data()?.status !== 'recruiting') throw new Error('모집 중인 회차만 마감할 수 있습니다.');
-  await updateDoc(ref, { status: 'closed' });
+  const assignSnap = await getDocs(
+    collection(db, MANITTO_SEASONS_COLLECTION, seasonId, 'assignments')
+  );
+  if (assignSnap.size < MANITTO_MIN_PARTICIPANTS) {
+    try {
+      await requestSyncManittoPairing(seasonId);
+    } catch {
+      // 배정이 없으면 마감 후에도 인원이 차야 공개할 수 있다.
+    }
+  }
+  await updateDoc(ref, { status: 'closed', livePairing: false });
 }
 
 export async function drawManittoSeason(seasonId: string): Promise<number> {

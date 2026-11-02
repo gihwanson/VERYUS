@@ -42,6 +42,80 @@ function computeManittoAssignments(giverUids: string[]): Map<string, string> {
   return map;
 }
 
+function isCompleteDerangement(uids: string[], map: Map<string, string>): boolean {
+  if (map.size !== uids.length || uids.length < 2) return false;
+  const receivers = new Set<string>();
+  const uidSet = new Set(uids);
+  for (const uid of uids) {
+    const receiver = map.get(uid);
+    if (!receiver || receiver === uid || !uidSet.has(receiver) || receivers.has(receiver)) {
+      return false;
+    }
+    receivers.add(receiver);
+  }
+  return receivers.size === uids.length;
+}
+
+/** 같은 인원이면 기존 짝을 유지하고, 입·퇴장만 순환에 반영한다. */
+function assignManittoStable(
+  participantUids: string[],
+  existing: Map<string, string>
+): Map<string, string> {
+  const uids = [...new Set(participantUids)];
+  if (uids.length < MIN_PARTICIPANTS) return new Map();
+
+  if (isCompleteDerangement(uids, existing)) {
+    const copy = new Map<string, string>();
+    for (const uid of uids) copy.set(uid, existing.get(uid)!);
+    return copy;
+  }
+
+  const prevList = [...existing.keys()];
+  if (prevList.length >= MIN_PARTICIPANTS && isCompleteDerangement(prevList, existing)) {
+    const working = new Map(existing);
+    const nextSet = new Set(uids);
+
+    for (const removed of prevList) {
+      if (nextSet.has(removed)) continue;
+      let giver: string | undefined;
+      for (const [candidate, receiver] of working) {
+        if (receiver === removed) {
+          giver = candidate;
+          break;
+        }
+      }
+      const next = working.get(removed);
+      working.delete(removed);
+      if (giver && next && giver !== removed) {
+        if (giver === next) working.delete(giver);
+        else working.set(giver, next);
+      }
+    }
+
+    for (const added of uids) {
+      if (working.has(added)) continue;
+      const givers = [...working.keys()];
+      if (givers.length === 0) break;
+      const giver = givers[Math.floor(Math.random() * givers.length)];
+      const oldReceiver = working.get(giver)!;
+      working.set(giver, added);
+      working.set(added, oldReceiver);
+    }
+
+    if (isCompleteDerangement(uids, working)) return working;
+  }
+
+  return computeManittoAssignments(uids);
+}
+
+function sameReceiverMap(a: Map<string, string>, b: Map<string, string>): boolean {
+  if (a.size !== b.size) return false;
+  for (const [giver, receiver] of a) {
+    if (b.get(giver) !== receiver) return false;
+  }
+  return true;
+}
+
 async function assertCanSyncSeason(callerUid: string, seasonId: string): Promise<void> {
   const db = admin.firestore();
   const [userSnap, partSnap] = await Promise.all([
@@ -81,8 +155,15 @@ export async function syncManittoAssignmentsForSeason(seasonId: string): Promise
 
   const assignCol = seasonRef.collection('assignments');
   const existingAssign = await assignCol.get();
+  const existing = new Map<string, string>();
+  existingAssign.docs.forEach((d) => {
+    existing.set(d.id, String(d.data().receiverUid || ''));
+  });
 
   if (participants.length < MIN_PARTICIPANTS) {
+    if (existingAssign.empty && Number(seasonSnap.data()?.participantCount) === participants.length) {
+      return 0;
+    }
     const batch = db.batch();
     existingAssign.docs.forEach((d) => batch.delete(d.ref));
     batch.set(
@@ -98,7 +179,17 @@ export async function syncManittoAssignmentsForSeason(seasonId: string): Promise
     return 0;
   }
 
-  const assignments = computeManittoAssignments(participants.map((p) => p.uid));
+  const assignments = assignManittoStable(
+    participants.map((p) => p.uid),
+    existing
+  );
+  if (
+    sameReceiverMap(existing, assignments) &&
+    Number(seasonSnap.data()?.participantCount) === participants.length
+  ) {
+    return participants.length;
+  }
+
   const nicknameByUid = new Map(participants.map((p) => [p.uid, p.nickname]));
   const newGivers = new Set(assignments.keys());
 
@@ -107,12 +198,13 @@ export async function syncManittoAssignmentsForSeason(seasonId: string): Promise
     if (!newGivers.has(d.id)) batch.delete(d.ref);
   });
   for (const [giverUid, receiverUid] of assignments) {
+    if (existing.get(giverUid) === receiverUid) continue;
     batch.set(
       assignCol.doc(giverUid),
       {
         receiverUid,
         receiverNickname: nicknameByUid.get(receiverUid) ?? receiverUid,
-        live: true,
+        live: status === 'recruiting',
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       },
       { merge: true }
@@ -123,7 +215,7 @@ export async function syncManittoAssignmentsForSeason(seasonId: string): Promise
     {
       participantCount: participants.length,
       pairingSyncedAt: admin.firestore.FieldValue.serverTimestamp(),
-      livePairing: true,
+      livePairing: status === 'recruiting',
     },
     { merge: true }
   );

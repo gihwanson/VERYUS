@@ -134,46 +134,57 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
     [memberOptions, rosterUidSet]
   );
 
-  const pairingActive =
-    season?.status === 'recruiting' ||
-    season?.status === 'closed' ||
-    season?.status === 'drawn';
+  const namesRevealed = season?.status === 'closed' || season?.status === 'drawn';
 
   useEffect(() => {
-    if (!season?.id || !user?.uid || !participant || !pairingActive) {
+    if (!season?.id || !user?.uid || !participant || !namesRevealed) {
       setAssignment(null);
       return;
     }
     return subscribeMyManittoAssignment(season.id, user.uid, setAssignment);
-  }, [season?.id, season?.status, user?.uid, participant, pairingActive]);
+  }, [season?.id, season?.status, user?.uid, participant, namesRevealed]);
+
+  const pairCandidates = useMemo(() => {
+    if (roster.length > 0) {
+      return roster.map((p) => ({ uid: p.uid, nickname: p.nickname }));
+    }
+    const map = new Map<string, string>();
+    for (const row of assignmentRows) {
+      map.set(row.giverUid, row.giverNickname);
+      if (!map.has(row.receiverUid)) map.set(row.receiverUid, row.receiverNickname);
+    }
+    return [...map.entries()]
+      .map(([uid, nickname]) => ({ uid, nickname }))
+      .sort((a, b) => a.nickname.localeCompare(b.nickname, 'ko'));
+  }, [roster, assignmentRows]);
 
   const bubblePreview = useMemo(() => {
     if (!season) return '진행 중인 회차 없음';
-    if (isNeraeUser(user) && assignmentRows.length > 0) {
-      return `매칭 ${assignmentRows.length}명 · 전체 열람`;
+    if (!namesRevealed) {
+      if (isNeraeUser(user) && assignmentRows.length > 0) {
+        return `비공개 매칭 ${assignmentRows.length}명`;
+      }
+      if (participant) return `${season.title} · 참여 중`;
+      return season.title;
     }
-    if (assignment) {
-      return `🎁 ${assignment.receiverNickname}`;
-    }
+    if (assignment) return `🎁 ${assignment.receiverNickname}`;
     if (participant) return `${season.title} · 참여 중`;
     return season.title;
-  }, [season, participant, assignment, user, assignmentRows.length]);
+  }, [season, participant, assignment, user, assignmentRows.length, namesRevealed]);
 
   const bubbleHint = useMemo(() => {
     if (!season) return '리더가 회차를 열면 알려드려요';
-    if (isNeraeUser(user) && assignmentRows.length > 0) return '탭해서 전체 짝 확인';
-    if (assignment && season.status !== 'drawn') return '실시간 배정 · 탭해서 확인';
-    if (season.status === 'recruiting') return participant ? '배정 대기 또는 확인' : '탭해서 참가하기';
-    if (season.status === 'closed') return assignment ? '내 마니또 확인' : '추첨 대기 중';
+    if (!namesRevealed) {
+      if (isNeraeUser(user)) return '마감 전 · 탭해서 짝 조정';
+      return participant ? '모집 마감 전까지 마니또 비공개' : '탭해서 참가하기';
+    }
+    if (isNeraeUser(user)) return '탭해서 전체 짝 확인·조정';
+    if (season.status === 'closed') return assignment ? '내 마니또 확인' : '배정 준비 중';
     if (season.status === 'drawn') return participant ? '내 마니또 확인' : '추첨 완료';
     return '';
-  }, [season, participant, assignment, user, assignmentRows.length]);
+  }, [season, participant, assignment, user, namesRevealed]);
 
-  const showMyAssignment =
-    Boolean(participant && assignment) &&
-    (season?.status === 'drawn' ||
-      season?.status === 'recruiting' ||
-      season?.status === 'closed');
+  const showMyAssignment = Boolean(participant && assignment && namesRevealed);
 
   const openModal = useCallback(() => {
     setShowModal(true);
@@ -261,15 +272,21 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
                   <p className="manitto-modal__receiver-name">{assignment!.receiverNickname}</p>
                   <p className="manitto-modal__receiver-note">
                     {season.status === 'drawn'
-                      ? '추첨이 확정되었습니다. 배정은 바뀌지 않습니다.'
-                      : '참가 인원이 바뀌면 배정이 자동으로 다시 맞춰집니다.'}
+                      ? '추첨이 확정되었습니다.'
+                      : '참가 모집이 마감되어 마니또가 공개되었습니다.'}
                   </p>
                 </div>
               ) : null}
 
+              {season.status === 'recruiting' && participant ? (
+                <p className="manitto-modal__receiver-note" style={{ textAlign: 'center' }}>
+                  참가 모집 마감 버튼을 누르기 전에는 내 마니또가 공개되지 않습니다.
+                </p>
+              ) : null}
+
               {participant &&
+              namesRevealed &&
               !assignment &&
-              pairingActive &&
               participantCount >= MANITTO_MIN_PARTICIPANTS ? (
                 <p className="manitto-modal__receiver-note" style={{ textAlign: 'center' }}>
                   배정을 맞추는 중입니다…
@@ -277,12 +294,12 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
               ) : null}
 
               {participant &&
+              namesRevealed &&
               !assignment &&
-              pairingActive &&
               participantCount > 0 &&
               participantCount < MANITTO_MIN_PARTICIPANTS ? (
                 <p className="manitto-modal__receiver-note" style={{ textAlign: 'center' }}>
-                  참가 {MANITTO_MIN_PARTICIPANTS}명 이상이 되면 자동으로 짝이 배정됩니다.
+                  참가 {MANITTO_MIN_PARTICIPANTS}명 이상이 되면 마니또를 정할 수 있습니다.
                 </p>
               ) : null}
 
@@ -346,13 +363,13 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
                     </li>
                     {season.status === 'recruiting' ? (
                       <li>
-                        <strong>다음</strong> · {MANITTO_MIN_PARTICIPANTS}명 이상이면 자동 짝 배정 →
-                        「추첨 확정」으로 고정
+                        <strong>다음</strong> · 마감 전까지 참가자에게 마니또는 보이지 않습니다.
+                        「참가 모집 마감」을 누르면 공개됩니다.
                       </li>
                     ) : null}
                     {season.status === 'closed' ? (
                       <li>
-                        <strong>다음</strong> · 인원 조정 후 「추첨 확정」으로 배정 고정
+                        <strong>다음</strong> · 공개된 짝을 확인한 뒤 「추첨 확정」으로 고정
                       </li>
                     ) : null}
                     {season.status === 'drawn' ? (
@@ -381,9 +398,8 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
             <div className="manitto-modal__nerae">
               <p className="manitto-modal__nerae-title">너래 전용 · 전체 매칭 · 인원 조정</p>
               <p className="manitto-modal__nerae-hint">
-                참가 {MANITTO_MIN_PARTICIPANTS}명 이상이면 짝이 <strong>실시간 자동 배정</strong>
-                됩니다. 아래 표에서 바로 전체 매칭을 확인할 수 있어요. 추첨 확정 후에는
-                드롭다운으로 받는 사람을 교환할 수 있습니다.
+                참가 모집 마감 전에는 다른 사람에게 마니또가 보이지 않습니다. 이름이 적힌
+                버튼을 누르면 그 사람으로 바뀌고, 겹치지 않게 서로 맞바뀝니다.
               </p>
 
               {(season.status === 'recruiting' || season.status === 'closed') && (
@@ -423,52 +439,55 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
               {assignmentRows.length > 0 ? (
                 <>
                   <p className="manitto-modal__nerae-live-badge">
-                    {season.status === 'drawn' ? '추첨 확정' : '실시간 매칭'} · {assignmentRows.length}명
+                    {season.status === 'drawn'
+                      ? '추첨 확정'
+                      : season.status === 'closed'
+                        ? '공개됨 · 모집 마감'
+                        : '비공개 · 모집 중'}{' '}
+                    · {assignmentRows.length}명
                   </p>
-                  <table className="manitto-modal__roster-table">
-                    <thead>
-                      <tr>
-                        <th>참가자</th>
-                        <th>→ 마니또(받는 사람)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {assignmentRows.map((row) => (
-                        <tr key={row.giverUid}>
-                          <td>{row.giverNickname}</td>
-                          <td>
-                            {season.status === 'drawn' ? (
-                              <select
-                                className="manitto-modal__roster-select"
-                                value={row.receiverUid}
-                                disabled={busy}
-                                onChange={(e) => {
-                                  const next = e.target.value;
-                                  if (!next || next === row.receiverUid) return;
-                                  void run(async () => {
-                                    await adminSwapManittoReceiver(season.id, row.giverUid, next);
-                                    toast.success('배정을 수정했습니다.');
-                                  });
-                                }}
-                              >
-                                {roster.map((p) => (
-                                  <option
-                                    key={p.uid}
-                                    value={p.uid}
-                                    disabled={p.uid === row.giverUid}
-                                  >
-                                    {p.nickname}
-                                  </option>
-                                ))}
-                              </select>
-                            ) : (
-                              <span>{row.receiverNickname}</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <div className="manitto-modal__pair-list">
+                    {assignmentRows.map((row) => (
+                      <div key={row.giverUid} className="manitto-modal__pair-card">
+                        <div className="manitto-modal__pair-head">
+                          <span className="manitto-modal__pair-giver">{row.giverNickname}</span>
+                          <span className="manitto-modal__pair-current">
+                            → {row.receiverNickname}
+                          </span>
+                        </div>
+                        <div
+                          className="manitto-modal__pair-choices"
+                          role="group"
+                          aria-label={`${row.giverNickname}의 마니또`}
+                        >
+                          {pairCandidates
+                            .filter((p) => p.uid !== row.giverUid)
+                            .map((p) => {
+                              const selected = p.uid === row.receiverUid;
+                              return (
+                                <button
+                                  key={p.uid}
+                                  type="button"
+                                  className={`manitto-modal__pair-btn${selected ? ' is-current' : ''}`}
+                                  aria-pressed={selected}
+                                  disabled={busy || selected}
+                                  onClick={() =>
+                                    void run(async () => {
+                                      await adminSwapManittoReceiver(season.id, row.giverUid, p.uid);
+                                      toast.success(
+                                        `${row.giverNickname} → ${p.nickname} 으로 바꿨습니다.`
+                                      );
+                                    })
+                                  }
+                                >
+                                  {p.nickname}
+                                </button>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                   {season.status === 'drawn' ? (
                     <button
                       type="button"
@@ -494,8 +513,9 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
                 </>
               ) : (
                 <p className="manitto-modal__roster-preview manitto-modal__roster-preview--muted">
-                  참가 {participantCount}/{MANITTO_MIN_PARTICIPANTS}명 · 인원이 차면 자동으로 짝이
-                  표시됩니다.
+                  참가 {participantCount}/{MANITTO_MIN_PARTICIPANTS}명 ·{' '}
+                  {MANITTO_MIN_PARTICIPANTS}명이 모이면 여기서 짝을 맞출 수 있습니다. 마감 전에는
+                  참가자에게 보이지 않습니다.
                 </p>
               )}
 

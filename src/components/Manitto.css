@@ -87,7 +87,7 @@
 
 .manitto-modal {
   width: min(100%, 420px);
-  max-height: min(90vh, 640px);
+  max-height: min(92vh, 780px);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -401,5 +401,68 @@
   font-weight: 800;
   color: #c2410c;
   text-align: center;
+}
+
+.manitto-modal__pair-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.manitto-modal__pair-card {
+  background: #fff;
+  border: 1px solid #fed7aa;
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.manitto-modal__pair-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 0.82rem;
+}
+
+.manitto-modal__pair-giver {
+  font-weight: 800;
+  color: #1c1917;
+}
+
+.manitto-modal__pair-current {
+  font-weight: 800;
+  color: #c2410c;
+  text-align: right;
+}
+
+.manitto-modal__pair-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.manitto-modal__pair-btn {
+  border: 1px solid #fdba74;
+  background: #fff7ed;
+  color: #9a3412;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.manitto-modal__pair-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.manitto-modal__pair-btn.is-current {
+  background: #ea580c;
+  border-color: #c2410c;
+  color: #fff;
+  opacity: 1;
 }
 

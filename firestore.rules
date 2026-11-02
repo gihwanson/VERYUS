@@ -366,7 +366,12 @@ service cloud.firestore {
       }
 
       match /assignments/{giverUid} {
-        allow read: if signedIn() && (giverUid == request.auth.uid || isNerae());
+        allow read: if isNerae()
+          || (
+            signedIn()
+            && giverUid == request.auth.uid
+            && manittoSeasonData(seasonId).status in ['closed', 'drawn', 'archived']
+          );
         allow create: if isNeraeOrLeader()
           && request.resource.data.receiverUid is string
           && request.resource.data.receiverNickname is string
