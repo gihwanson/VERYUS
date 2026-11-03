@@ -69,6 +69,53 @@ export function assignManittoStable(
   return computeManittoAssignments(uids);
 }
 
+/**
+ * 한 사람의 마니또를 바꾼다.
+ * 그 사람을 이미 맡고 있던 쪽은 다른 사람으로 옮기고, 전원은 한 명씩만 맡는다.
+ * 맞바꾸면 본인이 되는 경우에는 한 명을 더 돌려 빈칸을 메운다.
+ */
+export function reassignManittoReceiver(
+  assignments: Map<string, string>,
+  giverUid: string,
+  newReceiverUid: string
+): Map<string, string> {
+  if (giverUid === newReceiverUid) {
+    throw new Error('본인에게 배정할 수 없습니다.');
+  }
+
+  const oldReceiver = assignments.get(giverUid);
+  if (!oldReceiver) throw new Error('해당 참가자의 배정을 찾을 수 없습니다.');
+  if (oldReceiver === newReceiverUid) return new Map(assignments);
+
+  let otherGiver: string | undefined;
+  for (const [giver, receiver] of assignments) {
+    if (receiver === newReceiverUid) {
+      otherGiver = giver;
+      break;
+    }
+  }
+  if (!otherGiver) throw new Error('배정을 교환할 상대를 찾을 수 없습니다.');
+
+  const next = new Map(assignments);
+
+  if (otherGiver !== oldReceiver) {
+    next.set(giverUid, newReceiverUid);
+    next.set(otherGiver, oldReceiver);
+  } else {
+    const displacedReceiver = assignments.get(newReceiverUid);
+    if (!displacedReceiver) throw new Error('배정을 맞출 수 없습니다.');
+    next.set(giverUid, newReceiverUid);
+    next.set(newReceiverUid, oldReceiver);
+    next.set(oldReceiver, displacedReceiver);
+  }
+
+  const uids = [...next.keys()];
+  if (!isCompleteDerangement(uids, next)) {
+    throw new Error('겹치지 않게 마니또를 맞추지 못했습니다.');
+  }
+  return next;
+}
+
 /** 참가자 UID 목록 → 마니또(받는 사람) UID. 본인에게 배정되지 않는 순열 */
 export function computeManittoAssignments(giverUids: string[]): Map<string, string> {
   const n = giverUids.length;

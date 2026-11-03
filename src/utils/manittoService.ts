@@ -13,7 +13,7 @@ import {
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../firebase';
-import { assignManittoStable } from './manittoDraw';
+import { assignManittoStable, reassignManittoReceiver } from './manittoDraw';
 import {
   MANITTO_MIN_PARTICIPANTS,
   type ManittoAssignment,
@@ -533,48 +533,51 @@ export async function adminRemoveManittoParticipant(seasonId: string, uid: strin
   await requestSyncManittoPairing(seasonId);
 }
 
-/** 너래 — 추첨 결과 한 쌍 수정 (다른 사람과 받는 사람 교환) */
+export type ManittoReceiverChange = {
+  giverUid: string;
+  giverNickname: string;
+  receiverUid: string;
+  receiverNickname: string;
+};
+
+/** 너래 — 한 사람의 마니또를 바꾸고, 겹치던 사람은 다른 사람으로 옮긴다. */
 export async function adminSwapManittoReceiver(
   seasonId: string,
   giverUid: string,
   newReceiverUid: string
-): Promise<void> {
-  if (giverUid === newReceiverUid) {
-    throw new Error('본인에게 배정할 수 없습니다.');
-  }
-
+): Promise<ManittoReceiverChange[]> {
   const rows = await fetchAllManittoAssignmentRows(seasonId);
   if (rows.length === 0) throw new Error('추첨 결과가 없습니다.');
 
   const byGiver = new Map(rows.map((r) => [r.giverUid, r.receiverUid]));
-  const giverOfReceiver = new Map<string, string>();
+  const next = reassignManittoReceiver(byGiver, giverUid, newReceiverUid);
+
+  const participants = await fetchManittoParticipants(seasonId);
+  const nicknameByUid = new Map(participants.map((p) => [p.uid, p.nickname]));
   for (const row of rows) {
-    giverOfReceiver.set(row.receiverUid, row.giverUid);
+    if (!nicknameByUid.has(row.giverUid)) nicknameByUid.set(row.giverUid, row.giverNickname);
+    if (!nicknameByUid.has(row.receiverUid)) nicknameByUid.set(row.receiverUid, row.receiverNickname);
   }
+  const nameOf = (uid: string) => nicknameByUid.get(uid) ?? uid;
 
-  const oldReceiver = byGiver.get(giverUid);
-  if (!oldReceiver) throw new Error('해당 참가자의 배정을 찾을 수 없습니다.');
-  if (oldReceiver === newReceiverUid) return;
-
-  const otherGiver = giverOfReceiver.get(newReceiverUid);
-  if (!otherGiver) throw new Error('배정을 교환할 상대를 찾을 수 없습니다.');
-
-  const nicknameByUid = new Map(
-    (await fetchManittoParticipants(seasonId)).map((p) => [p.uid, p.nickname])
-  );
-
+  const changed: ManittoReceiverChange[] = [];
   const batch = writeBatch(db);
-  batch.update(manittoAssignmentRef(seasonId, giverUid), {
-    receiverUid: newReceiverUid,
-    receiverNickname: nicknameByUid.get(newReceiverUid) ?? newReceiverUid,
-    updatedAt: serverTimestamp(),
-  });
-  batch.update(manittoAssignmentRef(seasonId, otherGiver), {
-    receiverUid: oldReceiver,
-    receiverNickname: nicknameByUid.get(oldReceiver) ?? oldReceiver,
-    updatedAt: serverTimestamp(),
-  });
-  await batch.commit();
+  for (const [uid, receiverUid] of next) {
+    if (byGiver.get(uid) === receiverUid) continue;
+    batch.update(manittoAssignmentRef(seasonId, uid), {
+      receiverUid,
+      receiverNickname: nameOf(receiverUid),
+      updatedAt: serverTimestamp(),
+    });
+    changed.push({
+      giverUid: uid,
+      giverNickname: nameOf(uid),
+      receiverUid,
+      receiverNickname: nameOf(receiverUid),
+    });
+  }
+  if (changed.length > 0) await batch.commit();
+  return changed;
 }
 
 /** 너래 — 추첨 결과 삭제 후 마감 상태로 (인원 조정 후 재추첨) */

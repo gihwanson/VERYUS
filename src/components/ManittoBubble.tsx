@@ -398,8 +398,9 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
             <div className="manitto-modal__nerae">
               <p className="manitto-modal__nerae-title">너래 전용 · 전체 매칭 · 인원 조정</p>
               <p className="manitto-modal__nerae-hint">
-                참가 모집 마감 전에는 다른 사람에게 마니또가 보이지 않습니다. 이름이 적힌
-                버튼을 누르면 그 사람으로 바뀌고, 겹치지 않게 서로 맞바뀝니다.
+                한 줄이 한 짝입니다. 오른쪽 이름을 고르면 그 사람을 맡고 있던 마니또는
+                다른 사람으로 자동으로 옮겨집니다. 모집 마감 전에는 다른 사람에게 마니또가
+                보이지 않습니다.
               </p>
 
               {(season.status === 'recruiting' || season.status === 'closed') && (
@@ -447,44 +448,52 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
                     · {assignmentRows.length}명
                   </p>
                   <div className="manitto-modal__pair-list">
+                    <div className="manitto-modal__pair-legend" aria-hidden>
+                      <span>주는 사람</span>
+                      <span />
+                      <span>마니또</span>
+                    </div>
                     {assignmentRows.map((row) => (
-                      <div key={row.giverUid} className="manitto-modal__pair-card">
-                        <div className="manitto-modal__pair-head">
-                          <span className="manitto-modal__pair-giver">{row.giverNickname}</span>
-                          <span className="manitto-modal__pair-current">
-                            → {row.receiverNickname}
-                          </span>
-                        </div>
-                        <div
-                          className="manitto-modal__pair-choices"
-                          role="group"
+                      <div key={row.giverUid} className="manitto-modal__pair-row">
+                        <span className="manitto-modal__pair-giver">{row.giverNickname}</span>
+                        <span className="manitto-modal__pair-arrow" aria-hidden>
+                          →
+                        </span>
+                        <select
+                          className="manitto-modal__pair-select"
+                          value={row.receiverUid}
+                          disabled={busy}
                           aria-label={`${row.giverNickname}의 마니또`}
+                          onChange={(e) => {
+                            const nextUid = e.target.value;
+                            if (!nextUid || nextUid === row.receiverUid) return;
+                            const nextName =
+                              pairCandidates.find((p) => p.uid === nextUid)?.nickname ?? nextUid;
+                            void run(async () => {
+                              const changed = await adminSwapManittoReceiver(
+                                season.id,
+                                row.giverUid,
+                                nextUid
+                              );
+                              const others = changed.filter((item) => item.giverUid !== row.giverUid);
+                              const moved =
+                                others.length > 0
+                                  ? ` 겹치던 쪽도 옮겼습니다: ${others
+                                      .map((item) => `${item.giverNickname} → ${item.receiverNickname}`)
+                                      .join(', ')}`
+                                  : '';
+                              toast.success(`${row.giverNickname} → ${nextName} 으로 바꿨습니다.${moved}`);
+                            });
+                          }}
                         >
                           {pairCandidates
                             .filter((p) => p.uid !== row.giverUid)
-                            .map((p) => {
-                              const selected = p.uid === row.receiverUid;
-                              return (
-                                <button
-                                  key={p.uid}
-                                  type="button"
-                                  className={`manitto-modal__pair-btn${selected ? ' is-current' : ''}`}
-                                  aria-pressed={selected}
-                                  disabled={busy || selected}
-                                  onClick={() =>
-                                    void run(async () => {
-                                      await adminSwapManittoReceiver(season.id, row.giverUid, p.uid);
-                                      toast.success(
-                                        `${row.giverNickname} → ${p.nickname} 으로 바꿨습니다.`
-                                      );
-                                    })
-                                  }
-                                >
-                                  {p.nickname}
-                                </button>
-                              );
-                            })}
-                        </div>
+                            .map((p) => (
+                              <option key={p.uid} value={p.uid}>
+                                {p.nickname}
+                              </option>
+                            ))}
+                        </select>
                       </div>
                     ))}
                   </div>
