@@ -29,6 +29,7 @@ import {
 type Props = {
   post: GradeBattlePostLike & {
     id: string;
+    title?: string;
     writerNickname: string;
     writerUid: string;
     assignedMemberGrade?: string;
@@ -61,7 +62,6 @@ const EvaluationGradeBattleSection: React.FC<Props> = ({
   const [evaluatorGradeByNickname, setEvaluatorGradeByNickname] = useState<Record<string, string>>({});
   const [selectedGrade, setSelectedGrade] = useState('');
   const [assigning, setAssigning] = useState(false);
-  const [resultsTab, setResultsTab] = useState<'overall' | 'cluster'>('overall');
 
   const targetNickname = post.writerNickname;
   const scoringOpen = isGradeBattleScoringOpen(post);
@@ -222,13 +222,15 @@ const EvaluationGradeBattleSection: React.FC<Props> = ({
       await assignGradeBattleMemberGrade({
         postId: post.id,
         writerUid: post.writerUid,
+        writerNickname: post.writerNickname,
+        postTitle: post.title || '',
         gradeEmoji: selectedGrade,
       });
       onPostPatch({
         status: GRADE_BATTLE_STATUS_ASSIGNED,
         assignedMemberGrade: selectedGrade,
       });
-      alert('등급이 부여되었습니다. 관리자 패널 회원 목록에 반영됩니다.');
+      alert('등급이 부여되었습니다. 마이페이지 등급전에 점수와 코멘트가 기록됩니다.');
     } catch (e) {
       console.error(e);
       alert('등급 부여 중 오류가 발생했습니다.');
@@ -407,83 +409,72 @@ const EvaluationGradeBattleSection: React.FC<Props> = ({
         </p>
       )}
 
-      {(pendingAssign || (isNerae && assigned)) && (
+      {isNerae && (
         <div style={{ marginTop: 16 }}>
-          {isNerae && targetStats ? (
+          <div style={{ fontWeight: 800, fontSize: 14, color: '#5B21B6', textAlign: 'center', marginBottom: 10 }}>
+            채점 평균 (너래만 표시)
+          </div>
+          {targetStats ? (
             <>
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 12 }}>
-                <button
-                  type="button"
-                  onClick={() => setResultsTab('overall')}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div
                   style={{
-                    padding: '8px 14px',
-                    borderRadius: 8,
-                    border: 'none',
-                    fontWeight: 600,
-                    background: resultsTab === 'overall' ? '#6366F1' : '#E2E8F0',
-                    color: resultsTab === 'overall' ? '#fff' : '#334155',
+                    background: '#F6F2FF',
+                    borderRadius: 10,
+                    padding: '12px 10px',
+                    textAlign: 'center',
                   }}
                 >
-                  전체평균
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setResultsTab('cluster')}
-                  style={{
-                    padding: '8px 14px',
-                    borderRadius: 8,
-                    border: 'none',
-                    fontWeight: 600,
-                    background: resultsTab === 'cluster' ? '#6366F1' : '#E2E8F0',
-                    color: resultsTab === 'cluster' ? '#fff' : '#334155',
-                  }}
-                >
-                  중심평균
-                </button>
-              </div>
-              <div
-                style={{
-                  background: '#fff',
-                  borderRadius: 12,
-                  padding: 16,
-                  border: '1px solid #E2E8F0',
-                  marginBottom: 12,
-                }}
-              >
-                <div style={{ fontSize: 15, marginBottom: 6 }}>
-                  <strong>전체평균(가중):</strong> {formatMean(targetStats.overallMean)}점
-                  {targetStats.overallMean != null && (
-                    <span style={{ marginLeft: 8, color: '#7C3AED' }}>
-                      {getContestGradeFromScore(targetStats.overallMean)}
-                    </span>
-                  )}
-                </div>
-                <div style={{ fontSize: 15 }}>
-                  <strong>중심평균:</strong> {formatMean(targetStats.clusterMean)}점
-                  {targetStats.clusterMean != null && (
-                    <span style={{ marginLeft: 8, color: '#7C3AED' }}>
-                      {getContestGradeFromScore(targetStats.clusterMean)}
-                    </span>
-                  )}
-                </div>
-                {resultsTab === 'cluster' && targetStats.clusterBreakdown.selectedBinLabel && (
-                  <div style={{ marginTop: 10, fontSize: 13, color: '#475569' }}>
-                    선택 구간: {targetStats.clusterBreakdown.selectedBinLabel}
-                    {targetStats.clusterBreakdown.tieNote && (
-                      <div style={{ marginTop: 4 }}>{targetStats.clusterBreakdown.tieNote}</div>
-                    )}
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#7C4DBC', marginBottom: 4 }}>전체 평균</div>
+                  <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#111827' }}>
+                    {formatMean(targetStats.overallMean)}
                   </div>
-                )}
-                <div style={{ marginTop: 10, fontSize: 13, color: '#64748B' }}>
-                  유효 채점 {targetStats.effectiveWeight}표 (제출 {targetStats.rawVoteCount}건)
+                  <div style={{ marginTop: 4, fontSize: 13, fontWeight: 600, color: '#374151' }}>
+                    {targetStats.overallMean != null ? getContestGradeFromScore(targetStats.overallMean) : '—'}
+                  </div>
                 </div>
+                <div
+                  style={{
+                    background: '#F0F9FF',
+                    borderRadius: 10,
+                    padding: '12px 10px',
+                    textAlign: 'center',
+                  }}
+                >
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#0369A1', marginBottom: 4 }}>중심 평균</div>
+                  <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#111827' }}>
+                    {formatMean(targetStats.clusterMean)}
+                  </div>
+                  <div style={{ marginTop: 4, fontSize: 13, fontWeight: 600, color: '#374151' }}>
+                    {targetStats.clusterMean != null ? getContestGradeFromScore(targetStats.clusterMean) : '—'}
+                  </div>
+                </div>
+              </div>
+              {targetStats.clusterBreakdown.selectedBinLabel && (
+                <div style={{ marginTop: 10, fontSize: 13, color: '#475569', textAlign: 'center' }}>
+                  중심 구간: {targetStats.clusterBreakdown.selectedBinLabel}
+                  {targetStats.clusterBreakdown.tieNote ? ` · ${targetStats.clusterBreakdown.tieNote}` : ''}
+                </div>
+              )}
+              <div style={{ marginTop: 8, fontSize: 13, color: '#64748B', textAlign: 'center' }}>
+                유효 채점 {targetStats.effectiveWeight}표 (제출 {targetStats.rawVoteCount}건)
               </div>
             </>
-          ) : isNerae && pendingAssign ? (
-            <p style={{ textAlign: 'center', color: '#64748B', fontSize: 14, marginBottom: 12 }}>
-              아직 제출된 채점이 없습니다. 등급은 직접 선택해 부여할 수 있습니다.
+          ) : (
+            <p style={{ textAlign: 'center', color: '#64748B', fontSize: 14, margin: 0 }}>
+              아직 제출된 채점이 없습니다.
             </p>
-          ) : null}
+          )}
+        </div>
+      )}
+
+      {isNerae && pendingAssign && (
+        <div style={{ marginTop: 16 }}>
+          {!targetStats && (
+            <p style={{ textAlign: 'center', color: '#64748B', fontSize: 14, marginBottom: 12 }}>
+              등급은 직접 선택해 부여할 수 있습니다.
+            </p>
+          )}
 
           {isNerae && pendingAssign && (
             <div style={{ maxWidth: 360, margin: '0 auto' }}>

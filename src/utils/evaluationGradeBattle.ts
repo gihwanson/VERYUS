@@ -10,6 +10,15 @@ import {
   type DocumentReference,
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { pickApplyContestMean } from './contestGrade';
+import {
+  commentsFromContestGrades,
+  saveContestGradeHistory,
+} from './contestGradeHistory';
+import {
+  buildContestAggregationContext,
+  type ContestGradeRecord,
+} from './contestGradesAggregation';
 import { getEvaluationCreatedAtMs } from './evaluationMemberRound';
 
 export const GRADE_BATTLE_CATEGORY = 'gradeBattle';
@@ -126,15 +135,60 @@ async function syncUserGradeInDocuments(targetUid: string, grade: string) {
   await commitRefs(commentsSnapshot.docs.map((d) => d.ref));
 }
 
-/** 너래 등급 부여 — 관리자 패널과 동일하게 users.grade + 게시물 writerGrade 반영 */
+/** 평가게시판 등급전 기록. 콘테스트 순위 조회와 구분한다. */
+export function evaluationGradeHistoryId(postId: string): string {
+  return `evaluation-${postId}`;
+}
+
+/**
+ * 콘테스트 결과보기 반영하기와 같이, 전체·중심 평균 중 더 낮은 점수와
+ * 멤버 코멘트를 마이페이지 등급전 기록에 남긴다.
+ */
+async function saveGradeBattleHistory(params: {
+  postId: string;
+  writerUid: string;
+  writerNickname: string;
+  postTitle: string;
+  gradeEmoji: string;
+}): Promise<void> {
+  const scoresSnap = await getDocs(gradeBattleScoresCollection(params.postId));
+  const grades = scoresSnap.docs.map((d) => d.data() as ContestGradeRecord);
+  const aggregation = buildContestAggregationContext(grades);
+  const targetKey =
+    aggregation.byTarget[params.writerNickname]
+      ? params.writerNickname
+      : Object.keys(aggregation.byTarget)[0];
+  const stats = targetKey ? aggregation.byTarget[targetKey] : undefined;
+  const applyScore = stats
+    ? pickApplyContestMean(stats.overallMean, stats.clusterMean)
+    : null;
+  await saveContestGradeHistory(params.writerUid, {
+    contestId: evaluationGradeHistoryId(params.postId),
+    contestTitle: params.postTitle.trim() || '등급전',
+    contestType: '경연',
+    appliedGrade: params.gradeEmoji,
+    appliedScore: applyScore,
+    overallMean: stats?.overallMean ?? null,
+    clusterMean: stats?.clusterMean ?? null,
+    comments: commentsFromContestGrades(grades, targetKey || params.writerNickname),
+    targetLabel: params.writerNickname,
+    rank: null,
+    rankedCount: null,
+  });
+}
+
+/** 너래 등급 부여 — 회원 등급과 마이페이지 등급전 기록을 함께 반영 */
 export async function assignGradeBattleMemberGrade(params: {
   postId: string;
   writerUid: string;
+  writerNickname: string;
+  postTitle: string;
   gradeEmoji: string;
 }): Promise<void> {
   const { postId, writerUid, gradeEmoji } = params;
   await updateDoc(doc(db, 'users', writerUid), { grade: gradeEmoji });
   await syncUserGradeInDocuments(writerUid, gradeEmoji);
+  await saveGradeBattleHistory(params);
   await updateDoc(doc(db, 'posts', postId), {
     status: GRADE_BATTLE_STATUS_ASSIGNED,
     assignedMemberGrade: gradeEmoji,

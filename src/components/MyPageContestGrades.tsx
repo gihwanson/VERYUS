@@ -75,9 +75,10 @@ const MyPageContestGrades: React.FC<Props> = ({ profileUid, isOwner }) => {
       </p>
       {records.map((record) => {
         const gradeEmoji = getGradeEmoji(record.appliedGrade);
-        const scoreLabel = Number.isFinite(record.appliedScore)
-          ? `${record.appliedScore.toFixed(1)}점`
-          : '-';
+        const scoreLabel =
+          record.appliedScore != null && Number.isFinite(record.appliedScore)
+            ? `${record.appliedScore.toFixed(1)}점`
+            : '-';
         return (
           <article key={record.id} className="mypage-contest-grade-card">
             <header className="mypage-contest-grade-card-head">

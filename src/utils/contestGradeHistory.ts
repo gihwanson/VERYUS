@@ -26,7 +26,7 @@ export type ContestGradeHistoryRecord = {
   contestTitle: string;
   contestType: string;
   appliedGrade: string;
-  appliedScore: number;
+  appliedScore: number | null;
   overallMean: number | null;
   clusterMean: number | null;
   comments: ContestGradeHistoryComment[];
@@ -41,7 +41,7 @@ export type ContestGradeHistoryWrite = {
   contestTitle: string;
   contestType: string;
   appliedGrade: string;
-  appliedScore: number;
+  appliedScore: number | null;
   overallMean: number | null;
   clusterMean: number | null;
   comments: ContestGradeHistoryComment[];
@@ -98,7 +98,7 @@ export function subscribeContestGradeHistory(
           contestTitle: String(data.contestTitle || '등급전'),
           contestType: String(data.contestType || ''),
           appliedGrade: String(data.appliedGrade || ''),
-          appliedScore: Number(data.appliedScore),
+          appliedScore: data.appliedScore == null ? Number.NaN : Number(data.appliedScore),
           overallMean: data.overallMean == null ? null : Number(data.overallMean),
           clusterMean: data.clusterMean == null ? null : Number(data.clusterMean),
           comments: Array.isArray(data.comments)
@@ -190,7 +190,11 @@ export async function fillMissingContestGradeRanks(
   uid: string,
   records: ContestGradeHistoryRecord[]
 ): Promise<ContestGradeHistoryRecord[]> {
-  const missingIds = [...new Set(records.filter((r) => r.rank == null).map((r) => r.contestId))];
+  const missingIds = [...new Set(
+    records
+      .filter((r) => r.rank == null && !r.contestId.startsWith('evaluation-'))
+      .map((r) => r.contestId)
+  )];
   if (!uid || missingIds.length === 0) return records;
   const lookups = await Promise.all(
     missingIds.map(async (contestId) => {
