@@ -12,6 +12,8 @@ export type ManittoSeason = {
   giftGuide?: string;
   recruitEndsAt?: { seconds: number; nanoseconds?: number } | null;
   eventDate?: { seconds: number; nanoseconds?: number } | null;
+  /** 마니또가 끝나는 날 */
+  endsAt?: { seconds: number; nanoseconds?: number } | null;
   createdBy: string;
   createdByNickname: string;
   createdAt?: { seconds: number; nanoseconds?: number };

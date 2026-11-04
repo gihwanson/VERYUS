@@ -1,6 +1,7 @@
 import { Timestamp } from 'firebase/firestore';
 import { GRADE_ORDER, GRADE_SYSTEM } from './AdminTypes';
-import { getGradeEmoji } from '../utils/gradeDisplay';
+import { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
+import { isTestNickname } from '../utils/testNickname';
 
 // 타입 정의
 export interface ApprovedSong {
@@ -168,19 +169,26 @@ const BUSKING_MEMBER_GRADE_EMOJIS = new Set<string>([
   GRADE_SYSTEM.MELON,
   GRADE_SYSTEM.WATERMELON,
   GRADE_SYSTEM.EARTH,
+  '🌎',
+  '🌏',
   GRADE_SYSTEM.SATURN,
   GRADE_SYSTEM.SUN,
   GRADE_SYSTEM.GALAXY,
 ].map((grade) => grade.replace(/\uFE0F/g, '')));
 
+const BUSKING_MEMBER_GRADE_NAMES = new Set(['사과', '멜론', '수박', '지구', '토성', '태양', '은하']);
+
 export const isBuskingMemberGrade = (grade: string | undefined): boolean => {
   const raw = (grade ?? '').trim().replace(/\uFE0F/g, '');
-  if (raw && BUSKING_MEMBER_GRADE_EMOJIS.has(raw)) return true;
+  if (!raw) return false;
+  if (BUSKING_MEMBER_GRADE_EMOJIS.has(raw)) return true;
+  if (BUSKING_MEMBER_GRADE_NAMES.has(raw)) return true;
   const emoji = getGradeEmoji(grade).replace(/\uFE0F/g, '');
-  return BUSKING_MEMBER_GRADE_EMOJIS.has(emoji);
+  if (emoji && emoji !== '🍒' && BUSKING_MEMBER_GRADE_EMOJIS.has(emoji)) return true;
+  return BUSKING_MEMBER_GRADE_NAMES.has(getGradeName(grade));
 };
 
-/** 합격곡 관리 탭 버스킹멤버. 합격곡 보유(당월 최초 등재 제외) 또는 사과·멜론·수박·지구·토성·태양·은하. 일반멤버 전환·삭제된 회원 제외 */
+/** 합격곡 관리 탭 버스킹멤버. 합격곡 보유(당월 최초 등재 제외) 또는 사과·멜론·수박·지구·토성·태양·은하. */
 export const getBuskingMembers = (songs: ApprovedSong[], userMap: UserMap): string[] => {
   const firstApprovedDates = getMemberFirstApprovedDates(songs);
   const members = new Set(
@@ -189,12 +197,15 @@ export const getBuskingMembers = (songs: ApprovedSong[], userMap: UserMap): stri
     )
   );
 
-  for (const [nickname, user] of Object.entries(userMap)) {
-    if (!nickname || user.isRegularMember) continue;
+  for (const [rawNickname, user] of Object.entries(userMap)) {
+    const nickname = rawNickname.trim();
+    if (!nickname) continue;
     if (isBuskingMemberGrade(user.grade)) members.add(nickname);
   }
 
-  return Array.from(members).sort((a, b) => a.localeCompare(b, 'ko'));
+  return Array.from(members)
+    .filter((nickname) => !isTestNickname(nickname))
+    .sort((a, b) => a.localeCompare(b, 'ko'));
 };
 
 /** 합격곡 관리 탭 일반멤버 */
@@ -208,9 +219,10 @@ export const getRegularMembers = (
   const firstApprovedDates = getMemberFirstApprovedDates(songs);
   return allNicknames
     .filter((nickname) => {
+      if (isTestNickname(nickname)) return false;
       if (userMap[nickname]?.grade === GRADE_SYSTEM.CRESCENT) return false;
-      if (userMap[nickname]?.isRegularMember) return true;
       if (buskingSet.has(nickname)) return false;
+      if (userMap[nickname]?.isRegularMember) return true;
       if (isApprovedInCurrentMonth(firstApprovedDates[nickname])) return true;
       const joinDate = parseFirestoreDate(userMap[nickname]?.createdAt);
       return !isJoinedInCurrentMonth(joinDate);

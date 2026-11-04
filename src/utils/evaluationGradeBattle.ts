@@ -27,23 +27,36 @@ export type GradeBattlePostLike = {
   writerUid?: string;
 };
 
+function startOfLocalDay(ms: number): number {
+  const date = new Date(ms);
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+}
+
+/** 올린 날의 자정부터 GRADE_BATTLE_DAYS번째 자정. 23시에 올려도 다음 자정에 하루가 줄어든다. */
+function addLocalCalendarDays(ms: number, days: number): number {
+  const date = new Date(ms);
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days).getTime();
+}
+
 export function computeGradeBattleEndsAt(fromMs = Date.now()): Date {
-  return new Date(fromMs + GRADE_BATTLE_DAYS * 24 * 60 * 60 * 1000);
+  return new Date(addLocalCalendarDays(fromMs, GRADE_BATTLE_DAYS));
 }
 
 export function getGradeBattleDeadlineMs(post: GradeBattlePostLike, now = Date.now()): number {
+  const created = getEvaluationCreatedAtMs(post.createdAt);
+  if (created) return addLocalCalendarDays(created, GRADE_BATTLE_DAYS);
   const ends = getEvaluationCreatedAtMs(post.gradeBattleEndsAt);
-  if (ends) return ends;
-  return now + GRADE_BATTLE_DAYS * 24 * 60 * 60 * 1000;
+  if (ends) return startOfLocalDay(ends);
+  return addLocalCalendarDays(now, GRADE_BATTLE_DAYS);
 }
 
 export function getGradeBattleDaysLeft(post: GradeBattlePostLike, now = Date.now()): number | null {
   if (post.category !== GRADE_BATTLE_CATEGORY) return null;
   if (post.status && post.status !== '대기') return null;
   const deadline = getGradeBattleDeadlineMs(post, now);
-  const remainingMs = deadline - now;
-  if (remainingMs <= 0) return 0;
-  return Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
+  if (now >= deadline) return 0;
+  const days = Math.round((startOfLocalDay(deadline) - startOfLocalDay(now)) / (24 * 60 * 60 * 1000));
+  return Math.max(0, days);
 }
 
 export function formatGradeBattleDday(post: GradeBattlePostLike, now = Date.now()): string | null {

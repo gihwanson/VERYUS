@@ -260,6 +260,38 @@
   font-size: 0.9rem;
 }
 
+.manitto-modal__date-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #57534e;
+}
+
+.manitto-modal__date-label .manitto-modal__field {
+  margin-top: 6px;
+  margin-bottom: 0;
+}
+
+.manitto-modal__date-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.manitto-modal__date-row .manitto-modal__field {
+  flex: 1;
+  margin-top: 0;
+}
+
+.manitto-modal__date-row .manitto-modal__btn {
+  width: auto;
+  flex: 0 0 auto;
+  margin-top: 0;
+  padding: 10px 14px;
+}
+
 .manitto-modal__empty {
   text-align: center;
   padding: 24px 12px;

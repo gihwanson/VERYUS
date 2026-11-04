@@ -10,6 +10,7 @@ import {
   archiveManittoSeason,
   closeManittoRecruiting,
   createManittoSeason,
+  updateManittoEndsAt,
   drawManittoSeason,
   joinManittoSeason,
   leaveManittoSeason,
@@ -38,13 +39,31 @@ type HomeUser = {
 };
 
 function formatFirestoreDate(
-  value: ManittoSeason['recruitEndsAt'] | ManittoSeason['eventDate']
+  value: ManittoSeason['recruitEndsAt'] | ManittoSeason['eventDate'] | ManittoSeason['endsAt']
 ): string {
   if (!value?.seconds) return '';
   return new Date(value.seconds * 1000).toLocaleDateString('ko-KR', {
+    year: 'numeric',
     month: 'long',
     day: 'numeric',
   });
+}
+
+function dateInputToDate(value: string): Date | null {
+  if (!value) return null;
+  const [year, month, day] = value.split('-').map((part) => Number(part));
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+}
+
+function timestampToDateInput(
+  value: ManittoSeason['recruitEndsAt'] | ManittoSeason['eventDate'] | ManittoSeason['endsAt']
+): string {
+  if (!value?.seconds) return '';
+  const date = new Date(value.seconds * 1000);
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
 }
 
 function isManittoAdmin(user: HomeUser | null): boolean {
@@ -71,6 +90,7 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
   const [assignmentRows, setAssignmentRows] = useState<ManittoAssignmentRow[]>([]);
   const [memberOptions, setMemberOptions] = useState<Array<{ uid: string; nickname: string }>>([]);
   const [addMemberUid, setAddMemberUid] = useState('');
+  const [adminDeadline, setAdminDeadline] = useState('');
   const modalBodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -137,6 +157,10 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
   const namesRevealed = season?.status === 'closed' || season?.status === 'drawn';
 
   useEffect(() => {
+    setAdminDeadline(timestampToDateInput(season?.endsAt));
+  }, [season?.id, season?.endsAt?.seconds]);
+
+  useEffect(() => {
     if (!season?.id || !user?.uid || !participant || !namesRevealed) {
       setAssignment(null);
       return;
@@ -172,17 +196,20 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
     return season.title;
   }, [season, participant, assignment, user, assignmentRows.length, namesRevealed]);
 
+  const deadlineText = season?.endsAt ? formatFirestoreDate(season.endsAt) : '';
+
   const bubbleHint = useMemo(() => {
+    const withEnd = (text: string) => (deadlineText ? `마감 ${deadlineText} · ${text}` : text);
     if (!season) return '리더가 회차를 열면 알려드려요';
     if (!namesRevealed) {
-      if (isNeraeUser(user)) return '마감 전 · 탭해서 짝 조정';
-      return participant ? '모집 마감 전까지 마니또 비공개' : '탭해서 참가하기';
+      if (isNeraeUser(user)) return withEnd('탭해서 짝 조정');
+      return participant ? withEnd('모집 마감 전까지 마니또 비공개') : withEnd('탭해서 참가하기');
     }
-    if (isNeraeUser(user)) return '탭해서 전체 짝 확인·조정';
+    if (isNeraeUser(user)) return withEnd('탭해서 전체 짝 확인·조정');
     if (season.status === 'closed') return assignment ? '내 마니또 확인' : '배정 준비 중';
-    if (season.status === 'drawn') return participant ? '내 마니또 확인' : '추첨 완료';
-    return '';
-  }, [season, participant, assignment, user, namesRevealed]);
+    if (season.status === 'drawn') return participant ? withEnd('내 마니또 확인') : withEnd('추첨 완료');
+    return deadlineText ? `마감 ${deadlineText}` : '';
+  }, [season, participant, assignment, user, namesRevealed, deadlineText]);
 
   const showMyAssignment = Boolean(participant && assignment && namesRevealed);
 
@@ -250,8 +277,8 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
               <span className="manitto-modal__status">{MANITTO_STATUS_LABEL[season.status]}</span>
               <div className="manitto-modal__card">
                 <p className="manitto-modal__card-title">{season.title}</p>
-                {season.recruitEndsAt ? (
-                  <p className="manitto-modal__meta">참가 마감: {formatFirestoreDate(season.recruitEndsAt)}</p>
+                {season.endsAt ? (
+                  <p className="manitto-modal__meta">마감일자: {formatFirestoreDate(season.endsAt)}</p>
                 ) : null}
                 {season.eventDate ? (
                   <p className="manitto-modal__meta">선물·공개일: {formatFirestoreDate(season.eventDate)}</p>
@@ -584,6 +611,15 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
                     value={adminGuide}
                     onChange={(e) => setAdminGuide(e.target.value)}
                   />
+                  <label className="manitto-modal__date-label">
+                    마니또가 끝나는 날
+                    <input
+                      type="date"
+                      className="manitto-modal__field"
+                      value={adminDeadline}
+                      onChange={(e) => setAdminDeadline(e.target.value)}
+                    />
+                  </label>
                   <button
                     type="button"
                     className="manitto-modal__btn manitto-modal__btn--primary"
@@ -592,9 +628,11 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
                       void run(async () => {
                         const title = adminTitle.trim();
                         const giftGuide = adminGuide.trim();
+                        const endsAt = dateInputToDate(adminDeadline);
                         const seasonId = await createManittoSeason({
                           title,
                           giftGuide,
+                          endsAt,
                           createdBy: user.uid,
                           createdByNickname: user.nickname ?? '',
                         });
@@ -603,6 +641,7 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
                           title,
                           status: 'recruiting',
                           giftGuide: giftGuide || undefined,
+                          endsAt: endsAt ? { seconds: Math.floor(endsAt.getTime() / 1000) } : null,
                           createdBy: user.uid,
                           createdByNickname: user.nickname ?? '',
                           participantCount: 0,
@@ -619,6 +658,32 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
                 </>
               ) : (
                 <>
+                  <label className="manitto-modal__date-label">
+                    마니또가 끝나는 날
+                    <div className="manitto-modal__date-row">
+                      <input
+                        type="date"
+                        className="manitto-modal__field"
+                        value={adminDeadline}
+                        onChange={(e) => setAdminDeadline(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="manitto-modal__btn manitto-modal__btn--secondary"
+                        disabled={busy}
+                        onClick={() =>
+                          void run(async () => {
+                            await updateManittoEndsAt(season.id, dateInputToDate(adminDeadline));
+                            toast.success(
+                              adminDeadline ? '마감일자를 저장했습니다.' : '마감일자를 지웠습니다.'
+                            );
+                          })
+                        }
+                      >
+                        저장
+                      </button>
+                    </div>
+                  </label>
                   {season.status === 'recruiting' ? (
                     <button
                       type="button"

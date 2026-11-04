@@ -35,6 +35,7 @@ function parseSeason(id: string, data: Record<string, unknown>): ManittoSeason {
     giftGuide: data.giftGuide != null ? String(data.giftGuide) : undefined,
     recruitEndsAt: data.recruitEndsAt as ManittoSeason['recruitEndsAt'],
     eventDate: data.eventDate as ManittoSeason['eventDate'],
+    endsAt: data.endsAt as ManittoSeason['endsAt'],
     createdBy: String(data.createdBy ?? ''),
     createdByNickname: String(data.createdByNickname ?? ''),
     createdAt: data.createdAt as ManittoSeason['createdAt'],
@@ -254,6 +255,7 @@ export async function createManittoSeason(input: {
   giftGuide?: string;
   recruitEndsAt?: Date | null;
   eventDate?: Date | null;
+  endsAt?: Date | null;
   createdBy: string;
   createdByNickname: string;
 }): Promise<string> {
@@ -280,6 +282,7 @@ export async function createManittoSeason(input: {
       giftGuide: (input.giftGuide ?? '').trim(),
       recruitEndsAt: input.recruitEndsAt ?? null,
       eventDate: input.eventDate ?? null,
+      endsAt: input.endsAt ?? null,
       createdBy: input.createdBy,
       createdByNickname: input.createdByNickname,
       createdAt: serverTimestamp(),
@@ -290,6 +293,14 @@ export async function createManittoSeason(input: {
   });
 
   return seasonRef.id;
+}
+
+/** 진행 중인 회차의 마니또 종료일 */
+export async function updateManittoEndsAt(seasonId: string, endsAt: Date | null): Promise<void> {
+  const ref = manittoSeasonRef(seasonId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error('회차를 찾을 수 없습니다.');
+  await updateDoc(ref, { endsAt });
 }
 
 export async function joinManittoSeason(

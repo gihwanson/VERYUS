@@ -391,7 +391,7 @@ const EvaluationPostWrite: React.FC = () => {
         
         alert(`버스킹심사곡이 업로드되었습니다!\n\n이번 주 업로드: ${thisWeekPosts.length}/${effectiveLimit}곡`);
       } else if (category === GRADE_BATTLE_CATEGORY) {
-        alert('등급전 글이 업로드되었습니다!\n\n3일간 멤버 채점 후 등급 부여 대기 상태가 됩니다.');
+        alert('등급전 글이 업로드되었습니다!\n\n자정마다 하루가 줄고, 올린 날부터 3일째 자정에 채점이 끝납니다.');
       } else if (category === 'rejudge') {
         alert('재심사 글이 업로드되었습니다!');
       } else {
