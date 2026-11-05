@@ -30,6 +30,16 @@ function formatSongDate(createdAt?: { seconds?: number }): string {
 const MyPageApprovedSongs: React.FC<Props> = ({ songs, rankedCount, getSongGrade }) => {
   const [queryText, setQueryText] = useState('');
 
+  const uniqueTitleCount = useMemo(() => {
+    if (rankedCount != null) return rankedCount;
+    const keys = new Set(
+      songs
+        .map((song) => String(song.title || '').replace(/\s/g, '').toLowerCase())
+        .filter(Boolean)
+    );
+    return keys.size;
+  }, [rankedCount, songs]);
+
   const filtered = useMemo(() => {
     const q = queryText.trim().toLowerCase();
     if (!q) return songs;
@@ -56,8 +66,7 @@ const MyPageApprovedSongs: React.FC<Props> = ({ songs, rankedCount, getSongGrade
         <div>
           <div className="mypage-approved-count">목록 {songs.length}곡</div>
           <p className="mypage-approved-note">
-            솔로·듀엣처럼 멤버가 다르면 같은 제목도 각각 보여 줍니다.
-            {rankedCount != null ? ` 순위 집계는 같은 제목 ${rankedCount}곡입니다.` : ' 순위 집계는 같은 제목을 1곡으로 셉니다.'}
+            솔로와 듀엣은 멤버 구성에 따라 동일한 곡명이라도 각각 별도로 표시되며, 순위 집계는 중복 곡명을 제외한 총 {uniqueTitleCount}곡을 기준으로 표시됩니다.
           </p>
         </div>
         <label className="mypage-approved-search">
