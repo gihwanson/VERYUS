@@ -23,6 +23,7 @@ import {
   deleteField
 } from 'firebase/firestore';
 import { auth, db } from '../firebase';
+import GlobalLoadingScreen from './GlobalLoadingScreen';
 import { NotificationService } from '../utils/notificationService';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { GRADE_NAMES, GRADE_ORDER, GRADE_SYSTEM } from './AdminTypes';
@@ -530,11 +531,7 @@ const Settings: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="settings-container">
-        <div className="loading">설정을 불러오는 중...</div>
-      </div>
-    );
+    return <GlobalLoadingScreen message="설정을 불러오는 중..." />;
   }
 
   if (!user) {

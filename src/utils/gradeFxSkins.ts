@@ -9,7 +9,14 @@ export const GRADE_FX_CHANGE_EVENT = 'veryus-grade-fx-change';
 /** 리더 미리보기·전체 해금용 닉네임 */
 export const GRADE_FX_FULL_ACCESS_NICKNAMES = ['너래'] as const;
 
-export type GradeFxSkinId = 'sparkle' | 'cherry-aura' | 'breath' | 'orbit' | 'pulse';
+export type GradeFxSkinId =
+  | 'sparkle'
+  | 'cherry-aura'
+  | 'breath'
+  | 'orbit'
+  | 'pulse'
+  | 'comet'
+  | 'dash-ring';
 
 export interface GradeFxSkin {
   id: GradeFxSkinId;
@@ -53,7 +60,23 @@ export const GRADE_FX_SKINS: GradeFxSkin[] = [
     description: '작은 별이 등급 주위를 천천히 돕니다.',
     acquireLabel: '별가루 궤도 스킨',
     className: 'grade-fx grade-fx--orbit',
-    unlockCondition: '미니게임 20회 플레이',
+    unlockCondition: '연습장에 곡 10곡 추가',
+  },
+  {
+    id: 'comet',
+    name: '꼬리별',
+    description: '등급 이모지 주변을 작은 별이 한 바퀴 돕니다.',
+    acquireLabel: '꼬리별 스킨',
+    className: 'grade-fx grade-fx--comet',
+    unlockCondition: '서로 다른 멤버 방명록 12명',
+  },
+  {
+    id: 'dash-ring',
+    name: '점선 고리',
+    description: '등급 이모지 둘레에 점선 고리가 천천히 돕니다.',
+    acquireLabel: '점선 고리 스킨',
+    className: 'grade-fx grade-fx--dash-ring',
+    unlockCondition: '연습실 예약 8회',
   },
   {
     id: 'pulse',
@@ -107,6 +130,22 @@ export function isGradeFxUnlocked(skinId: GradeFxSkinId, nickname?: string | nul
 /** localStorage 기준 해금 여부 (리더 전체 해금과 무관) */
 export function isGradeFxUnlockedInStorage(skinId: GradeFxSkinId): boolean {
   return readJsonArray(GRADE_FX_UNLOCKS_KEY).includes(skinId);
+}
+
+export function readStoredGradeFxUnlockIds(): GradeFxSkinId[] {
+  return readJsonArray(GRADE_FX_UNLOCKS_KEY).filter((id): id is GradeFxSkinId =>
+    Boolean(getGradeFxSkin(id))
+  );
+}
+
+/** 이미 받은 스킨을 장착하지 않고 기록만 남긴다 */
+export function rememberGradeFxUnlock(skinId: string): void {
+  if (!getGradeFxSkin(skinId)) return;
+  const unlocked = readJsonArray(GRADE_FX_UNLOCKS_KEY);
+  if (unlocked.includes(skinId)) return;
+  unlocked.push(skinId);
+  localStorage.setItem(GRADE_FX_UNLOCKS_KEY, JSON.stringify(unlocked));
+  emitGradeFxChange();
 }
 
 /** 조건 미달 시 해금 회수 */

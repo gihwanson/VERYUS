@@ -68,6 +68,30 @@ export const NICKNAME_SKINS: CosmeticSkin[] = [
     unlockCondition: '방명록 주고받기 20회',
     className: 'nick-skin nick-skin--breath-fade',
   },
+  {
+    id: 'ink',
+    name: '먹물',
+    description: '닉네임 아래로 먹물이 살짝 번집니다',
+    acquireLabel: '먹물 닉네임 스킨',
+    unlockCondition: '받은 좋아요 100개',
+    className: 'nick-skin nick-skin--ink',
+  },
+  {
+    id: 'beat',
+    name: '박자',
+    description: '닉네임 아래에 박자 점이 생깁니다',
+    acquireLabel: '박자 닉네임 스킨',
+    unlockCondition: '익명투표 20일 참여',
+    className: 'nick-skin nick-skin--beat',
+  },
+  {
+    id: 'side-by-side',
+    name: '나란히',
+    description: '닉네임 양옆에 작은 점이 붙습니다',
+    acquireLabel: '나란히 닉네임 스킨',
+    unlockCondition: '채택된 익명 질문 5개',
+    className: 'nick-skin nick-skin--side-by-side',
+  },
 ];
 
 export const BADGE_SKINS: CosmeticSkin[] = [
@@ -102,6 +126,22 @@ export const BADGE_SKINS: CosmeticSkin[] = [
     acquireLabel: '시즌 배지 스킨',
     unlockCondition: '콘테스트 참가 5회',
     className: 'badge-skin badge-skin--season',
+  },
+  {
+    id: 'sprout',
+    name: '새싹',
+    description: '배지 옆에 새싹이 붙습니다',
+    acquireLabel: '새싹 배지 스킨',
+    unlockCondition: '익명 쪽지 15개 등록',
+    className: 'badge-skin badge-skin--sprout',
+  },
+  {
+    id: 'tape',
+    name: '테이프',
+    description: '배지가 마스킹 테이프처럼 보입니다',
+    acquireLabel: '테이프 배지 스킨',
+    unlockCondition: '내 글에 달린 댓글 40개',
+    className: 'badge-skin badge-skin--tape',
   },
 ];
 
@@ -138,6 +178,22 @@ export const POST_TITLE_SKINS: CosmeticSkin[] = [
     unlockCondition: '자유글 40개 작성',
     className: 'post-title-skin post-title-skin--handwriting',
   },
+  {
+    id: 'hairline',
+    name: '가는선',
+    description: '제목 아래에 가는 밑줄이 그어집니다',
+    acquireLabel: '가는선 제목 스킨',
+    unlockCondition: '콘테스트 심사 10회',
+    className: 'post-title-skin post-title-skin--hairline',
+  },
+  {
+    id: 'duet',
+    name: '듀엣',
+    description: '제목 앞에 작은 음표가 붙습니다',
+    acquireLabel: '듀엣 제목 스킨',
+    unlockCondition: '등급전 채점 10회',
+    className: 'post-title-skin post-title-skin--duet',
+  },
 ];
 
 export const POST_BODY_SKINS: CosmeticSkin[] = [
@@ -172,6 +228,22 @@ export const POST_BODY_SKINS: CosmeticSkin[] = [
     acquireLabel: '엽서 글 스킨',
     unlockCondition: '파트너 모집글 10개 작성',
     className: 'post-body-skin post-body-skin--postcard',
+  },
+  {
+    id: 'pencil',
+    name: '연필 메모',
+    description: '카드 왼쪽에 연필로 그은 선이 생깁니다',
+    acquireLabel: '연필 메모 글 스킨',
+    unlockCondition: '함께 만든 연습 곡 8곡',
+    className: 'post-body-skin post-body-skin--pencil',
+  },
+  {
+    id: 'stripe',
+    name: '줄무늬',
+    description: '카드 위에 옅은 가로줄이 깔립니다',
+    acquireLabel: '줄무늬 글 스킨',
+    unlockCondition: '마니또 참여',
+    className: 'post-body-skin post-body-skin--stripe',
   },
 ];
 
@@ -245,6 +317,23 @@ export function isCosmeticUnlocked(
 /** localStorage 기준 해금 여부 (리더 전체 해금과 무관) */
 export function isCosmeticUnlockedInStorage(category: CosmeticCategory, skinId: string): boolean {
   return readJsonArray(CATEGORY_KEYS[category].unlocks).includes(skinId);
+}
+
+export function readStoredCosmeticUnlockIds(category: CosmeticCategory): string[] {
+  return readJsonArray(CATEGORY_KEYS[category].unlocks).filter((id) =>
+    Boolean(getCosmeticSkin(category, id))
+  );
+}
+
+/** 이미 받은 스킨을 장착하지 않고 기록만 남긴다 */
+export function rememberCosmeticUnlock(category: CosmeticCategory, skinId: string): void {
+  if (!getCosmeticSkin(category, skinId)) return;
+  const key = CATEGORY_KEYS[category].unlocks;
+  const unlocked = readJsonArray(key);
+  if (unlocked.includes(skinId)) return;
+  unlocked.push(skinId);
+  localStorage.setItem(key, JSON.stringify(unlocked));
+  emitCosmeticChange();
 }
 
 /** 조건 미달 시 해금 회수 */

@@ -1,22 +1,27 @@
+import { doc, updateDoc } from 'firebase/firestore';
 import { toast } from 'react-toastify';
+import { db } from '../firebase';
 import { NotificationService } from './notificationService';
 import {
   getCosmeticSkin,
-  isCosmeticUnlockedInStorage,
-  lockCosmeticSkin,
+  hasCosmeticFullAccess,
+  readStoredCosmeticUnlockIds,
+  rememberCosmeticUnlock,
   unlockCosmeticSkin,
   type CosmeticCategory,
 } from './cosmeticSkins';
 import {
   getGradeFxSkin,
-  isGradeFxUnlockedInStorage,
-  lockGradeFxSkin,
+  hasGradeFxFullAccess,
+  readStoredGradeFxUnlockIds,
+  rememberGradeFxUnlock,
   unlockGradeFxSkin,
   type GradeFxSkinId,
 } from './gradeFxSkins';
 import {
   fetchSkinUnlockMetrics,
   type SkinUnlockMetrics,
+  type StoredSkinUnlocks,
 } from './skinUnlockMetrics';
 
 const UNLOCK_GUIDE = '마이페이지 → 설정에서 스킨을 적용할 수 있어요.';
@@ -84,7 +89,19 @@ const GRADE_FX_RULES: GradeFxRule[] = [
     kind: 'gradeFx',
     id: 'orbit',
     autoManage: true,
-    met: (m) => m.minigamePlays >= 20,
+    met: (m) => m.practiceSongs >= 10,
+  },
+  {
+    kind: 'gradeFx',
+    id: 'comet',
+    autoManage: true,
+    met: (m) => m.guestbookUniqueRecipients >= 12,
+  },
+  {
+    kind: 'gradeFx',
+    id: 'dash-ring',
+    autoManage: true,
+    met: (m) => m.practiceRoomBookings >= 8,
   },
   {
     kind: 'gradeFx',
@@ -115,6 +132,14 @@ const COSMETIC_RULES: CosmeticRule[] = [
     id: 'breath-fade',
     met: (m) => m.guestbookGiven + m.guestbookReceived >= 20,
   },
+  { kind: 'cosmetic', category: 'nickname', id: 'ink', met: (m) => m.likesReceived >= 100 },
+  { kind: 'cosmetic', category: 'nickname', id: 'beat', met: (m) => m.worldCupVoteDays >= 20 },
+  {
+    kind: 'cosmetic',
+    category: 'nickname',
+    id: 'side-by-side',
+    met: (m) => m.adoptedAnonymousQuestions >= 5,
+  },
   {
     kind: 'cosmetic',
     category: 'badge',
@@ -139,6 +164,8 @@ const COSMETIC_RULES: CosmeticRule[] = [
     id: 'season',
     met: (m) => m.contestParticipations >= 5,
   },
+  { kind: 'cosmetic', category: 'badge', id: 'sprout', met: (m) => m.anonymousNotes >= 15 },
+  { kind: 'cosmetic', category: 'badge', id: 'tape', met: (m) => m.commentsOnMyPosts >= 40 },
   {
     kind: 'cosmetic',
     category: 'postTitle',
@@ -163,6 +190,8 @@ const COSMETIC_RULES: CosmeticRule[] = [
     id: 'handwriting',
     met: (m) => m.postsFree >= 40,
   },
+  { kind: 'cosmetic', category: 'postTitle', id: 'hairline', met: (m) => m.contestGradesGiven >= 10 },
+  { kind: 'cosmetic', category: 'postTitle', id: 'duet', met: (m) => m.gradeBattleScores >= 10 },
   {
     kind: 'cosmetic',
     category: 'postBody',
@@ -187,6 +216,8 @@ const COSMETIC_RULES: CosmeticRule[] = [
     id: 'postcard',
     met: (m) => m.postsPartner >= 10,
   },
+  { kind: 'cosmetic', category: 'postBody', id: 'pencil', met: (m) => m.sharedPracticeSongs >= 8 },
+  { kind: 'cosmetic', category: 'postBody', id: 'stripe', met: (m) => m.manittoSeasons >= 1 },
 ];
 
 async function notifyUnlock(params: {
@@ -238,8 +269,28 @@ export type SkinUnlockCheckResult = {
   metrics: SkinUnlockMetrics;
 };
 
+const SKIN_UNLOCKS_FIELD = 'skinUnlocks';
+
+function sameIds(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const right = new Set(b);
+  return a.every((id) => right.has(id));
+}
+
+function mergeIds(remote: string[], local: string[], known: (id: string) => boolean): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const id of [...remote, ...local]) {
+    if (!known(id) || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  return out;
+}
+
 /**
- * 조건에 맞는 스킨만 해금하고, 미달이면 해금을 회수한다.
+ * 조건을 달성하면 해금하고, 계정에 저장한다.
+ * 한 번 받은 스킨은 조건이 바뀌어도 회수하지 않는다.
  * (체리 오라는 이스터에그 전용으로 여기서 다루지 않음)
  */
 export async function syncSkinUnlocksByMetrics(params: {
@@ -250,54 +301,85 @@ export async function syncSkinUnlocksByMetrics(params: {
   const { uid, nickname, notify = true } = params;
   const metrics = await fetchSkinUnlockMetrics(uid, nickname || '');
   const unlocked: string[] = [];
-  const locked: string[] = [];
+  const quiet = hasGradeFxFullAccess(nickname) || hasCosmeticFullAccess(nickname);
+  const next: StoredSkinUnlocks = {
+    gradeFx: mergeIds(metrics.storedUnlocks.gradeFx, readStoredGradeFxUnlockIds(), (id) =>
+      Boolean(getGradeFxSkin(id))
+    ),
+    nickname: mergeIds(
+      metrics.storedUnlocks.nickname,
+      readStoredCosmeticUnlockIds('nickname'),
+      (id) => Boolean(getCosmeticSkin('nickname', id))
+    ),
+    badge: mergeIds(
+      metrics.storedUnlocks.badge,
+      readStoredCosmeticUnlockIds('badge'),
+      (id) => Boolean(getCosmeticSkin('badge', id))
+    ),
+    postTitle: mergeIds(
+      metrics.storedUnlocks.postTitle,
+      readStoredCosmeticUnlockIds('postTitle'),
+      (id) => Boolean(getCosmeticSkin('postTitle', id))
+    ),
+    postBody: mergeIds(
+      metrics.storedUnlocks.postBody,
+      readStoredCosmeticUnlockIds('postBody'),
+      (id) => Boolean(getCosmeticSkin('postBody', id))
+    ),
+  };
+
+  for (const id of next.gradeFx) rememberGradeFxUnlock(id);
+  (['nickname', 'badge', 'postTitle', 'postBody'] as const).forEach((category) => {
+    next[category].forEach((id) => rememberCosmeticUnlock(category, id));
+  });
 
   for (const rule of GRADE_FX_RULES) {
-    if (!rule.autoManage) continue;
-    const meets = rule.met(metrics);
-    const inStorage = isGradeFxUnlockedInStorage(rule.id);
-    if (meets && !inStorage) {
-      if (unlockGradeFxSkin(rule.id)) {
-        unlocked.push(`gradeFx:${rule.id}`);
-        if (notify) {
-          const skin = getGradeFxSkin(rule.id);
-          await notifyUnlock({
-            uid,
-            skinLabel: skin?.acquireLabel ?? rule.id,
-            postId: `grade-fx-unlock-${rule.id}-${uid}`,
-          });
-        }
-      }
-    } else if (!meets && inStorage) {
-      if (lockGradeFxSkin(rule.id)) {
-        locked.push(`gradeFx:${rule.id}`);
-      }
+    if (!rule.autoManage || next.gradeFx.includes(rule.id) || !rule.met(metrics)) continue;
+    next.gradeFx.push(rule.id);
+    const granted = quiet ? (rememberGradeFxUnlock(rule.id), true) : unlockGradeFxSkin(rule.id);
+    if (!granted) continue;
+    unlocked.push(`gradeFx:${rule.id}`);
+    if (notify && !quiet) {
+      const skin = getGradeFxSkin(rule.id);
+      await notifyUnlock({
+        uid,
+        skinLabel: skin?.acquireLabel ?? rule.id,
+        postId: `grade-fx-unlock-${rule.id}-${uid}`,
+      });
     }
   }
 
   for (const rule of COSMETIC_RULES) {
-    const meets = rule.met(metrics);
-    const inStorage = isCosmeticUnlockedInStorage(rule.category, rule.id);
-    if (meets && !inStorage) {
-      if (unlockCosmeticSkin(rule.category, rule.id)) {
-        unlocked.push(`${rule.category}:${rule.id}`);
-        if (notify) {
-          const skin = getCosmeticSkin(rule.category, rule.id);
-          await notifyUnlock({
-            uid,
-            skinLabel: skin?.acquireLabel ?? rule.id,
-            postId: `cosmetic-unlock-${rule.category}-${rule.id}-${uid}`,
-          });
-        }
-      }
-    } else if (!meets && inStorage) {
-      if (lockCosmeticSkin(rule.category, rule.id)) {
-        locked.push(`${rule.category}:${rule.id}`);
-      }
+    const owned = next[rule.category];
+    if (owned.includes(rule.id) || !rule.met(metrics)) continue;
+    owned.push(rule.id);
+    const granted = quiet
+      ? (rememberCosmeticUnlock(rule.category, rule.id), true)
+      : unlockCosmeticSkin(rule.category, rule.id);
+    if (!granted) continue;
+    unlocked.push(`${rule.category}:${rule.id}`);
+    if (notify && !quiet) {
+      const skin = getCosmeticSkin(rule.category, rule.id);
+      await notifyUnlock({
+        uid,
+        skinLabel: skin?.acquireLabel ?? rule.id,
+        postId: `cosmetic-unlock-${rule.category}-${rule.id}-${uid}`,
+      });
     }
   }
 
-  return { unlocked, locked, metrics };
+  const changed = (Object.keys(next) as Array<keyof StoredSkinUnlocks>).some(
+    (key) => !sameIds(next[key], metrics.storedUnlocks[key])
+  );
+  if (changed) {
+    try {
+      await updateDoc(doc(db, 'users', uid), { [SKIN_UNLOCKS_FIELD]: next });
+    } catch (error) {
+      console.error('스킨 해금 목록 저장 실패:', error);
+    }
+  }
+
+  return { unlocked, locked: [], metrics };
 }
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;

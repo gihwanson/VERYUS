@@ -80,6 +80,29 @@ html[data-ui-style="warm-paper"] .author-position.badge-skin.badge-skin--season,
   text-shadow: none !important;
 }
 
+html[data-ui-style="warm-paper"] .badge-skin.badge-skin--sprout::after,
+.badge-skin.badge-skin--sprout::after {
+  content: '🌱' !important;
+  margin-left: 4px !important;
+  font-size: 0.85em !important;
+  line-height: 1 !important;
+}
+
+html[data-ui-style="warm-paper"] .role-badge.badge-skin.badge-skin--tape,
+html[data-ui-style="warm-paper"] .author-position.badge-skin.badge-skin--tape,
+.role-badge.badge-skin.badge-skin--tape,
+.author-position.badge-skin.badge-skin--tape {
+  border: 1px solid rgba(214, 196, 150, 0.95) !important;
+  border-radius: 2px !important;
+  background: repeating-linear-gradient(
+    -12deg,
+    #fff3d2 0 6px,
+    #f3ddb0 6px 8px
+  ) !important;
+  box-shadow: 0 1px 0 rgba(139, 115, 85, 0.28) !important;
+  text-shadow: none !important;
+}
+
 /* ===== 글 제목 스킨 (warm-paper background:none !important 덮기) ===== */
 html[data-ui-style="warm-paper"] .post-title.post-title-skin--highlighter,
 html[data-ui-style="warm-paper"] .post-detail-title.post-title-skin--highlighter,
@@ -195,6 +218,46 @@ html[data-ui-style="warm-paper"] .post-detail.post-body-skin--stage::before,
   background: linear-gradient(90deg, transparent, rgba(255, 220, 140, 0.95), transparent) !important;
   pointer-events: none !important;
   z-index: 2 !important;
+}
+
+html[data-ui-style="warm-paper"] .post-title.post-title-skin--hairline,
+html[data-ui-style="warm-paper"] .post-detail-title.post-title-skin--hairline,
+.post-title.post-title-skin--hairline,
+.post-detail-title.post-title-skin--hairline {
+  border-bottom: 1px solid rgba(44, 36, 22, 0.35) !important;
+  padding-bottom: 1px !important;
+  background: transparent !important;
+  -webkit-text-fill-color: inherit !important;
+}
+
+html[data-ui-style="warm-paper"] .post-title.post-title-skin--duet::before,
+html[data-ui-style="warm-paper"] .post-detail-title.post-title-skin--duet::before,
+.post-title.post-title-skin--duet::before,
+.post-detail-title.post-title-skin--duet::before {
+  content: '♫ ' !important;
+}
+
+html[data-ui-style="warm-paper"] .post-item.post-body-skin--pencil,
+html[data-ui-style="warm-paper"] .post-card.post-body-skin--pencil,
+html[data-ui-style="warm-paper"] .post-detail.post-body-skin--pencil,
+.post-item.post-body-skin--pencil,
+.post-card.post-body-skin--pencil,
+.post-detail.post-body-skin--pencil {
+  box-shadow: inset 3px 0 0 rgba(90, 74, 58, 0.4) !important;
+}
+
+html[data-ui-style="warm-paper"] .post-item.post-body-skin--stripe,
+html[data-ui-style="warm-paper"] .post-card.post-body-skin--stripe,
+html[data-ui-style="warm-paper"] .post-detail.post-body-skin--stripe,
+.post-item.post-body-skin--stripe,
+.post-card.post-body-skin--stripe,
+.post-detail.post-body-skin--stripe {
+  background-color: var(--paper-card, #fffdf8) !important;
+  background-image: repeating-linear-gradient(
+    transparent,
+    transparent 10px,
+    rgba(196, 180, 154, 0.35) 11px
+  ) !important;
 }
 
 html[data-ui-style="warm-paper"] .post-item.post-body-skin--postcard,

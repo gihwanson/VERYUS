@@ -61,6 +61,48 @@ export const UserProfileProvider: React.FC<UserProfileProviderProps> = ({ authUs
     void reloadProfile();
   }, [reloadProfile]);
 
+  useEffect(() => {
+    if (!authUser?.uid) return;
+    const uid = authUser.uid;
+    let cancelled = false;
+    let midnightTimer = 0;
+
+    const bumpIfNewDay = () => {
+      void import('../utils/skinUnlockMetrics').then(async ({ touchActiveLoginDay }) => {
+        const result = await touchActiveLoginDay(uid);
+        if (cancelled || !result.newlyCounted) return;
+        const { queueSkinUnlockSync } = await import('../utils/skinUnlockService');
+        const stored = readVeryusUserFromStorage();
+        queueSkinUnlockSync({ uid, nickname: stored?.nickname });
+      });
+    };
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') bumpIfNewDay();
+    };
+
+    const scheduleMidnight = () => {
+      void import('../utils/skinUnlockMetrics').then(({ msUntilNextKstMidnight }) => {
+        if (cancelled) return;
+        midnightTimer = window.setTimeout(() => {
+          bumpIfNewDay();
+          scheduleMidnight();
+        }, msUntilNextKstMidnight() + 1500);
+      });
+    };
+
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', bumpIfNewDay);
+    scheduleMidnight();
+
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', bumpIfNewDay);
+      window.clearTimeout(midnightTimer);
+    };
+  }, [authUser?.uid]);
+
   const value = useMemo(
     () => ({
       profile,

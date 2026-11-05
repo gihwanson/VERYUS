@@ -143,6 +143,33 @@
   50% { opacity: 1; }
 }
 
+.nick-skin--ink {
+  text-shadow: 0 2px 0 rgba(44, 36, 22, 0.18);
+}
+
+.nick-skin--beat::after {
+  content: '· ·';
+  margin-left: 4px;
+  letter-spacing: 2px;
+  font-size: 0.7em;
+  opacity: 0.7;
+}
+
+.nick-skin--side-by-side::before,
+.nick-skin--side-by-side::after {
+  content: '·';
+  opacity: 0.55;
+  font-size: 0.8em;
+}
+
+.nick-skin--side-by-side::before {
+  margin-right: 3px;
+}
+
+.nick-skin--side-by-side::after {
+  margin-left: 3px;
+}
+
 /* —— 배지 스킨 (warm-paper .role-badge !important 덮어쓰기) —— */
 .badge-skin {
   position: relative;
@@ -235,6 +262,36 @@ html[data-ui-style="warm-paper"] .author-position.badge-skin--season {
   border: 1px solid var(--paper-border, #e8dcc8);
 }
 
+.badge-skin--sprout::after {
+  content: '🌱';
+  margin-left: 4px;
+  font-size: 0.85em;
+  line-height: 1;
+}
+
+.role-badge.badge-skin--tape,
+.author-position.badge-skin--tape,
+html[data-ui-style="warm-paper"] .role-badge.badge-skin--tape,
+html[data-ui-style="warm-paper"] .author-position.badge-skin--tape,
+.cosmetic-skin-picker__preview.badge-skin--tape {
+  border-color: rgba(214, 196, 150, 0.9) !important;
+  background: repeating-linear-gradient(
+    -12deg,
+    rgba(255, 236, 196, 0.85),
+    rgba(255, 236, 196, 0.85) 6px,
+    rgba(245, 220, 170, 0.85) 6px,
+    rgba(245, 220, 170, 0.85) 8px
+  ) !important;
+  box-shadow: 0 1px 0 rgba(139, 115, 85, 0.25) !important;
+  border-radius: 2px !important;
+}
+
+.cosmetic-skin-picker__preview.badge-skin--sprout {
+  border-radius: 999px;
+  padding: 2px 8px;
+  border: 1px solid var(--paper-border, #e8dcc8);
+}
+
 /* —— 제목 스킨 —— */
 .post-title-skin--highlighter {
   background-image: linear-gradient(
@@ -265,6 +322,17 @@ html[data-ui-style="warm-paper"] .author-position.badge-skin--season {
   font-family: var(--paper-serif, Georgia, 'Times New Roman', serif);
   font-weight: 600;
   letter-spacing: -0.01em;
+}
+
+.post-title-skin--hairline {
+  border-bottom: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+  padding-bottom: 1px;
+}
+
+.post-title-skin--duet::before {
+  content: '♫ ';
+  font-size: 0.85em;
+  opacity: 0.7;
 }
 
 /* —— 본문/카드 스킨 —— */
@@ -305,4 +373,16 @@ html[data-ui-style="warm-paper"] .author-position.badge-skin--season {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--paper-accent, #8b5a2b) 28%, transparent);
   background-image:
     radial-gradient(circle at 92% 12%, color-mix(in srgb, #c45c4a 22%, transparent) 0 10px, transparent 11px);
+}
+
+.post-body-skin--pencil {
+  box-shadow: inset 3px 0 0 rgba(90, 74, 58, 0.35);
+}
+
+.post-body-skin--stripe {
+  background-image: repeating-linear-gradient(
+    transparent,
+    transparent 10px,
+    rgba(196, 180, 154, 0.28) 11px
+  );
 }
