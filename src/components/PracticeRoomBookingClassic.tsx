@@ -184,6 +184,21 @@ const PracticeRoomBookingClassic: React.FC = () => {
   /** 일요일 티켓팅: 예약자 닉네임/상세 비공개(팀 수만, 관리자 예약만 표시) */
   const hideTicketingReservationIdentities = isSundayPendingBookingWindow();
 
+  const findOwnCancellableReservation = (
+    slot: { reservation?: Reservation; reservations?: Reservation[] }
+  ): Reservation | undefined => {
+    const list = slot.reservations?.length
+      ? slot.reservations
+      : slot.reservation
+        ? [slot.reservation]
+        : [];
+    return list.find(
+      (item) =>
+        item.userId === currentUser?.uid &&
+        (item.status === 'confirmed' || item.status === 'pending')
+    );
+  };
+
   const formatSlotOccupancyLabel = (
     reservations: Reservation[] | undefined,
     fallback?: Reservation
@@ -1049,6 +1064,14 @@ const PracticeRoomBookingClassic: React.FC = () => {
     
     // 과거 시간은 클릭 불가 (확정 예약 이용 중인 슬롯은 상세 보기 가능)
     if (slot.isPast && !slot.isInUse) {
+      return;
+    }
+
+    const ownReservation = findOwnCancellableReservation(slot);
+    if (ownReservation) {
+      setSelectedTimeSlot(slot);
+      setBookingDate(date);
+      setShowDetailModal(true);
       return;
     }
 
@@ -2306,7 +2329,23 @@ const PracticeRoomBookingClassic: React.FC = () => {
               const merge = getSlotMergeInfo(daySlots, idx);
               if (merge.isContinuation) return null;
 
-              const isMyReservation = slot.reservation?.userId === currentUser?.uid;
+              const ownReservation = findOwnCancellableReservation(slot);
+              const isMyReservation = Boolean(ownReservation);
+              const showCancel =
+                isMyReservation ||
+                (isAdmin && Boolean(slot.reservation) && slot.reservation?.status !== 'outbid');
+              const cancelButton = showCancel ? (
+                <button
+                  className="mobile-cancel-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const target = ownReservation || slot.reservation;
+                    if (target) handleCancelReservation(target);
+                  }}
+                >
+                  {isMyReservation ? '예약 취소' : '관리자 취소'}
+                </button>
+              ) : null;
               const blockEndTime =
                 merge.span > 1
                   ? daySlots[idx + merge.span - 1]?.endTime || slot.endTime
@@ -2366,6 +2405,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
                             💡 {slot.reservation.purpose}
                           </div>
                         )}
+                        {cancelButton}
                       </div>
                     ) : slot.isPast ? (
                       <span className="slot-status past-label">지난 시간</span>
@@ -2427,17 +2467,7 @@ const PracticeRoomBookingClassic: React.FC = () => {
                             💡 {slot.reservation.purpose}
                           </div>
                         )}
-                        {(isMyReservation || isAdmin) && slot.reservation && slot.reservation.status !== 'outbid' && (
-                          <button
-                            className="mobile-cancel-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCancelReservation(slot.reservation!);
-                            }}
-                          >
-                            {isAdmin && !isMyReservation ? '관리자 취소' : '예약 취소'}
-                          </button>
-                        )}
+                        {cancelButton}
                       </div>
                     ) : null}
                   </div>
@@ -2506,7 +2536,8 @@ const PracticeRoomBookingClassic: React.FC = () => {
                   const merge = getSlotMergeInfo(slots, hourIdx);
                   if (merge.isContinuation) return null;
 
-                  const isMyReservation = slot.reservation?.userId === currentUser?.uid;
+                  const ownReservation = findOwnCancellableReservation(slot);
+                  const isMyReservation = Boolean(ownReservation);
                   
                   return (
                     <div
@@ -3016,20 +3047,29 @@ const PracticeRoomBookingClassic: React.FC = () => {
                   우선 예약하기
                 </button>
               )}
-              {(selectedTimeSlot.reservation.userId === currentUser?.uid || isAdmin) && (
+              {(() => {
+                const ownReservation = findOwnCancellableReservation(selectedTimeSlot);
+                const canAdminCancel =
+                  isAdmin &&
+                  selectedTimeSlot.reservation.userId !== currentUser?.uid &&
+                  selectedTimeSlot.reservation.status !== 'outbid';
+                if (!ownReservation && !canAdminCancel) return null;
+                const target = ownReservation || selectedTimeSlot.reservation;
+                return (
                 <>
                   <button 
                     className="delete-btn" 
-                    onClick={() => handleCancelReservation(selectedTimeSlot.reservation!)}
+                    onClick={() => handleCancelReservation(target)}
                     disabled={loading}
                   >
-                    {loading ? '취소 중...' : isAdmin && selectedTimeSlot.reservation.userId !== currentUser?.uid ? '관리자 취소' : '예약 취소'}
+                    {loading ? '취소 중...' : ownReservation ? '예약 취소' : '관리자 취소'}
                   </button>
-                  {isAdmin && selectedTimeSlot.reservation.userId !== currentUser?.uid && (
+                  {!ownReservation && canAdminCancel && (
                     <span className="admin-badge-modal">🔧 관리자 권한</span>
                   )}
                 </>
-              )}
+                );
+              })()}
               <button 
                 className="cancel-btn" 
                 onClick={() => setShowDetailModal(false)}
