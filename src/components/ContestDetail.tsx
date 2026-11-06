@@ -61,6 +61,7 @@ interface Participant {
   uid: string;
   nickname: string;
   joinedAt: any;
+  participationRole?: '출연자' | '관객' | null;
   selectedSongRequestId?: string | null;
   selectedSongTitle?: string | null;
   selectedAt?: unknown;
