@@ -148,6 +148,7 @@ const ContestCreateClassic: React.FC = () => {
             >
               <option value="경연">등급전 - 현장에서 라이브를 듣고 평가</option>
               <option value="라운드매치">라운드매치 - A/B 팀 투표 대결</option>
+              <option value="신청곡">신청곡 - 멤버가 출연자에게 곡을 신청</option>
             </select>
             <div
               style={{
@@ -156,9 +157,24 @@ const ContestCreateClassic: React.FC = () => {
                 borderRadius: '8px',
                 fontSize: '14px',
                 lineHeight: '1.6',
-                background: isRoundMatch ? '#FFF7ED' : '#F6F2FF',
-                border: isRoundMatch ? '1px solid #FED7AA' : '1px solid #8A55CC',
-                color: isRoundMatch ? '#9A3412' : '#6B21A8',
+                background:
+                  formData.type === '신청곡'
+                    ? '#ECFDF5'
+                    : isRoundMatch
+                      ? '#FFF7ED'
+                      : '#F6F2FF',
+                border:
+                  formData.type === '신청곡'
+                    ? '1px solid #A7F3D0'
+                    : isRoundMatch
+                      ? '1px solid #FED7AA'
+                      : '1px solid #8A55CC',
+                color:
+                  formData.type === '신청곡'
+                    ? '#065F46'
+                    : isRoundMatch
+                      ? '#9A3412'
+                      : '#6B21A8',
               }}
             >
               {formData.type === '경연' && (
@@ -181,6 +197,30 @@ const ContestCreateClassic: React.FC = () => {
                     }}
                   >
                     <strong>📝 다음 단계:</strong> 개최하면 앱 사용자가 바로 참여합니다. 무대에 서는 사람은 상세 페이지의 평가 대상에서 등록해주세요.
+                  </div>
+                </div>
+              )}
+              {formData.type === '신청곡' && (
+                <div>
+                  <strong>🎵 신청곡</strong>
+                  <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
+                    <li>출연자는 상세 페이지에서 등록합니다</li>
+                    <li>로그인한 멤버 모두가 출연자 전원에게 각각 신청곡을 넣을 수 있습니다</li>
+                    <li>출연자는 받은 신청곡 중 하나를 골라 부릅니다</li>
+                    <li>개최되면 확정된 곡이 전원에게 공개됩니다</li>
+                  </ul>
+                  <div
+                    style={{
+                      marginTop: '8px',
+                      padding: '10px',
+                      background: '#EFF6FF',
+                      borderRadius: '6px',
+                      border: '1px solid #BFDBFE',
+                      color: '#1E40AF',
+                      fontSize: '13px',
+                    }}
+                  >
+                    <strong>📝 다음 단계:</strong> 생성 후 상세 페이지에서 출연자를 등록한 뒤, 멤버들이 신청하고 출연자가 곡을 고르면 개최하세요.
                   </div>
                 </div>
               )}

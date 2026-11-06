@@ -13,12 +13,16 @@ import {
   parseRoundVoteFromDoc,
   parseParticipantFromDoc,
   participantMatchesRoundVote,
+  isRegisteredParticipant,
+  isSongRequestPerformer as participantIsSongRequestPerformer,
+  isSongRequestAudience,
   CONTEST_SUBMISSION_DONE_MESSAGE,
   hasFinalContestSubmission,
   registerOnParticipateClick,
   coerceFirestoreString,
 } from '../utils/contestParticipant';
 import RoundMatchLeaderPanel from './roundMatch/RoundMatchLeaderPanel';
+import { buildSongRequestLineup } from '../utils/contestSongRequest';
 import {
   assignContestStageUid,
   CONTEST_SUB_ROLES,
@@ -57,6 +61,9 @@ interface Participant {
   uid: string;
   nickname: string;
   joinedAt: any;
+  selectedSongRequestId?: string | null;
+  selectedSongTitle?: string | null;
+  selectedAt?: unknown;
 }
 
 interface EvaluationTarget {
@@ -180,6 +187,11 @@ const ContestDetail: React.FC = () => {
     const isLeaderUser = user.role === '리더';
 
     try {
+      if (contest.type === '신청곡') {
+        navigate(`/contests/${contest.id}/participate`);
+        return;
+      }
+
       if (user.uid && await hasFinalContestSubmission(contest.id, user.uid)) {
         alert(CONTEST_SUBMISSION_DONE_MESSAGE);
         return;
@@ -322,8 +334,42 @@ const ContestDetail: React.FC = () => {
     setAddingParticipant(true);
     
     try {
+      const trimmedNickname = newParticipantNickname.trim();
+      // 신청곡: 실제 유저 UID로 등록해 본인이 곡을 선택할 수 있게 한다.
+      if (contest?.type === '신청곡') {
+        const nickSnap = await getDocs(
+          query(collection(db, 'users'), where('nickname', '==', trimmedNickname))
+        );
+        if (nickSnap.empty) {
+          alert('해당 닉네임의 멤버를 찾을 수 없습니다. 닉네임을 정확히 입력해주세요.');
+          return;
+        }
+        const userDoc = nickSnap.docs[0];
+        const uid = userDoc.id;
+        const already = participants.some(
+          (p) =>
+            p.uid === uid ||
+            (p.nickname && p.nickname.toLowerCase() === trimmedNickname.toLowerCase())
+        );
+        if (already) {
+          alert('이미 출연자로 등록된 멤버입니다.');
+          return;
+        }
+        await setDoc(firestoreDoc(db, 'contests', id, 'participants', uid), {
+          nickname: trimmedNickname,
+          uid,
+          joinedAt: new Date(),
+          participationRole: '출연자',
+          selectedSongRequestId: null,
+          selectedSongTitle: null,
+          selectedAt: null,
+        });
+        setNewParticipantNickname('');
+        return;
+      }
+
       // 닉네임 정규화(소문자+trim)
-      const normalizedNickname = newParticipantNickname.trim().toLowerCase();
+      const normalizedNickname = trimmedNickname.toLowerCase();
       // 고유한 ID 생성 (timestamp + random을 사용하여 중복 방지)
       const docId = 'custom_' + normalizedNickname + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
       const participantRef = firestoreDoc(db, 'contests', id, 'participants', docId);
@@ -340,7 +386,7 @@ const ContestDetail: React.FC = () => {
     } finally {
       setAddingParticipant(false);
     }
-  }, [id, newParticipantNickname]);
+  }, [id, newParticipantNickname, contest?.type, participants]);
 
   // 평가받는 대상 추가. 대기 중인 메인이 없으면 메인, 있으면 그 메인의 서브로 팀을 만든다.
   const handleAddEvaluationTarget = useCallback(async () => {
@@ -594,6 +640,26 @@ const ContestDetail: React.FC = () => {
     [participants]
   );
 
+  const songRequestPerformers = useMemo(
+    () => uniqueParticipants.filter((p) => participantIsSongRequestPerformer(p)),
+    [uniqueParticipants]
+  );
+
+  const songRequestAudience = useMemo(
+    () => uniqueParticipants.filter((p) => isSongRequestAudience(p)),
+    [uniqueParticipants]
+  );
+
+  const songRequestLineup = useMemo(
+    () => buildSongRequestLineup(uniqueParticipants),
+    [uniqueParticipants]
+  );
+
+  const isCurrentUserSongPerformer = useMemo(
+    () => (user ? isRegisteredParticipant(songRequestPerformers, user) : false),
+    [songRequestPerformers, user]
+  );
+
   // 팀 목록을 순서(order) 기준으로 정렬하는 유틸
   const sortedTeams = useMemo(() => {
     // order가 없는 팀들을 위해 초기화
@@ -837,15 +903,19 @@ const ContestDetail: React.FC = () => {
           </div>
           <div className="contest-detail-summary-actions contest-buttons">
             {!ended && (
-              finalSubmitted ? (
+              finalSubmitted && contest.type !== '신청곡' ? (
                 <span className="contest-submit-done-note">{CONTEST_SUBMISSION_DONE_MESSAGE}</span>
               ) : (
                 <button type="button" className="contest-button participate" onClick={handleParticipate}>
-                  참여
+                  {contest.type === '신청곡'
+                    ? isCurrentUserSongPerformer
+                      ? '신청곡 확인·넣기'
+                      : '신청곡 넣기'
+                    : '참여'}
                 </button>
               )
             )}
-            {(contest.type !== '라운드매치' || isLeader) && (
+            {contest.type !== '신청곡' && (contest.type !== '라운드매치' || isLeader) && (
               <button
                 type="button"
                 className="contest-button detail"
@@ -901,6 +971,48 @@ const ContestDetail: React.FC = () => {
           </section>
         )}
 
+        {contest.type === '신청곡' && (
+          <section className="contest-detail-section contest-info-section">
+            <div className="contest-info-card">
+              <h3 className="contest-info-title">신청곡 안내</h3>
+              <ul className="contest-info-list">
+                <li>홈 말풍선에서 출연자 또는 관객으로 참여할 수 있습니다</li>
+                <li>출연자로 참여하면 다른 멤버에게 신청곡을 받을 수 있습니다</li>
+                <li>관객·멤버는 출연자 전원에게 각각 신청곡을 넣을 수 있습니다</li>
+                <li>출연자는 받은 신청곡 중 하나를 선택합니다</li>
+                <li>개최되면 확정된 곡이 전원에게 공개됩니다</li>
+              </ul>
+            </div>
+          </section>
+        )}
+
+        {contest.type === '신청곡' && contest.isStarted && (
+          <section className="contest-detail-section">
+            <h3 className="contest-section-label">확정 신청곡</h3>
+            {songRequestLineup.length === 0 ? (
+              <p className="contest-helper-box">등록된 출연자가 없습니다.</p>
+            ) : (
+              <ul className="contest-info-list" style={{ listStyle: 'none', padding: 0 }}>
+                {songRequestLineup.map((entry) => (
+                  <li
+                    key={entry.uid}
+                    style={{
+                      padding: '12px 14px',
+                      marginBottom: 8,
+                      borderRadius: 8,
+                      border: '1px solid var(--paper-border, #e8dcc8)',
+                      background: 'var(--paper-card, #fffdf8)',
+                    }}
+                  >
+                    <strong>{entry.nickname}</strong>
+                    <div style={{ marginTop: 4 }}>{entry.selectedSongTitle || '미선택'}</div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
+
         {isLeader && contest.type === '라운드매치' && !ended && (
           <RoundMatchLeaderPanel
             contestId={contest.id}
@@ -944,7 +1056,9 @@ const ContestDetail: React.FC = () => {
         {/* 참가자현황 섹션 (평가하는 인원) */}
         {isAdmin && adminTab === 'participants' && (
           <section className="contest-detail-section">
-            <h3 className="contest-section-label">{contest.type === '경연' ? '평가자' : '참가자'}</h3>
+            <h3 className="contest-section-label">
+              {contest.type === '경연' ? '평가자' : contest.type === '신청곡' ? '출연자' : '참가자'}
+            </h3>
             
             <div className="contest-helper-box">
               {contest.type === '경연' && (
@@ -953,7 +1067,9 @@ const ContestDetail: React.FC = () => {
                   <br />
                 </>
               )}
-              {canAutoJoinBeforeStart(contest.type) ? (
+              {contest.type === '신청곡' ? (
+                <>💡 홈에서 출연자·관객으로 참여할 수 있습니다. 여기서는 출연자를 직접 추가할 수도 있습니다.</>
+              ) : canAutoJoinBeforeStart(contest.type) ? (
                 <>💡 개최 후 참여한 멤버는 이 명단에 자동으로 들어옵니다. 미리 등록하지 않아도 됩니다.</>
               ) : (
                 <>💡 참가자는 관리자가 닉네임을 추가해 등록합니다. 개최 후 늦게 참여할 멤버도 여기서 추가할 수 있습니다.</>
@@ -964,7 +1080,13 @@ const ContestDetail: React.FC = () => {
               <input
                 type="text"
                 className="contest-detail-add-input"
-                placeholder={contest.type === '경연' ? '평가자 닉네임을 입력하세요' : '참가자 닉네임을 입력하세요'}
+                placeholder={
+                  contest.type === '경연'
+                    ? '평가자 닉네임을 입력하세요'
+                    : contest.type === '신청곡'
+                      ? '출연자 닉네임을 입력하세요'
+                      : '참가자 닉네임을 입력하세요'
+                }
                 value={newParticipantNickname}
                 onChange={(e) => setNewParticipantNickname(e.target.value)}
                 onKeyDown={(e) => !e.nativeEvent.isComposing && e.key === 'Enter' && handleAddParticipant()}
@@ -981,11 +1103,15 @@ const ContestDetail: React.FC = () => {
             {/* 실시간 참가자 명단 */}
             <div className="contest-list-header-box">
               <div className="contest-list-header-title">
-                {contest.type === '경연' ? '평가자' : '참가자'} 명단 ({uniqueParticipants.length}명)
+                {contest.type === '경연'
+                  ? `평가자 명단 (${uniqueParticipants.length}명)`
+                  : contest.type === '신청곡'
+                    ? `출연자 명단 (${songRequestPerformers.length}명) · 관객 ${songRequestAudience.length}명`
+                    : `참가자 명단 (${uniqueParticipants.length}명)`}
               </div>
             </div>
             <div className="contest-detail-participant-list" ref={soloListRef}>
-              {uniqueParticipants
+              {(contest.type === '신청곡' ? songRequestPerformers : uniqueParticipants)
                 .map(p => {
                   const isSubmitted =
                     contest.type === '라운드매치'
@@ -1051,10 +1177,45 @@ const ContestDetail: React.FC = () => {
                     </div>
                   );
                 })}
-              {uniqueParticipants.length === 0 && (
-                <div className="contest-empty-message">참가자가 없습니다. 닉네임을 추가해주세요.</div>
+              {(contest.type === '신청곡' ? songRequestPerformers : uniqueParticipants).length === 0 && (
+                <div className="contest-empty-message">
+                  {contest.type === '신청곡'
+                    ? '출연자가 없습니다. 홈 말풍선에서 출연자로 참여하거나 닉네임을 추가해주세요.'
+                    : '참가자가 없습니다. 닉네임을 추가해주세요.'}
+                </div>
               )}
             </div>
+            {contest.type === '신청곡' && songRequestAudience.length > 0 && (
+              <div className="contest-list-header-box" style={{ marginTop: 12 }}>
+                <div className="contest-list-header-title">
+                  관객 명단 ({songRequestAudience.length}명)
+                </div>
+              </div>
+            )}
+            {contest.type === '신청곡' && songRequestAudience.length > 0 && (
+              <div className="contest-detail-participant-list">
+                {songRequestAudience.map((p) => (
+                  <div key={p.uid} className="contest-detail-participant-item">
+                    <span className="contest-detail-participant-name">{p.nickname}</span>
+                    <div className="contest-detail-participant-trailing">
+                      <span className="contest-status-pill contest-status-pill--pending">관객</span>
+                      <button
+                        type="button"
+                        className="contest-participant-kick-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (window.confirm(`${p.nickname}님을 관객 목록에서 제거하시겠습니까?`)) {
+                            handleDeleteParticipant(p.uid);
+                          }
+                        }}
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
             {contest.type === '경연' && participantMainUid && participantSubUid && (
               <ContestStageBuildPanel
                 mainName={nicknameOf(participantMainUid)}

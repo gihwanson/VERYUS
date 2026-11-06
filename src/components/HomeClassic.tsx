@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 import { User, LogOut } from 'lucide-react';
 import MemberWorldCupBubble from './MemberWorldCupBubble';
 import ManittoBubble from './ManittoBubble';
+import ContestSongRequestBubble from './ContestSongRequestBubble';
 import GlobalLoadingScreen from './GlobalLoadingScreen';
 import LogoCherryRain from './LogoCherryRain';
 import { auth } from '../firebase';
@@ -237,6 +238,7 @@ const HomeClassic: React.FC = () => {
           <div className="home-hero__extras">
             <p className="home-hero__extras-label">베리어스 소식</p>
             <div className="home-bubbles">
+              <ContestSongRequestBubble user={user} />
               <ManittoBubble user={user} />
               <MemberWorldCupBubble user={user} />
             </div>

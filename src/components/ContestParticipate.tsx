@@ -22,6 +22,7 @@ import { contestTypeLabel } from '../types/contest';
 import { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
 import ContestAccessBlock from './ContestAccessBlock';
 import RoundMatchVoteView from './roundMatch/RoundMatchVoteView';
+import ContestSongRequestView from './ContestSongRequestView';
 import '../styles/contest-ui-refresh.css';
 const contestGradeEvaluatorFields = (u: { uid?: string; nickname: string; role: string; grade?: string }) => ({
   evaluator: u.nickname,
@@ -845,6 +846,26 @@ const ContestParticipate: React.FC = () => {
           <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
           <div className="contest-participate-state-msg contest-participate-state-msg--loading">콘테스트 정보를 불러오는 중...</div>
         </div>
+      </div>
+    );
+  }
+
+  if (contest.type === '신청곡' && id && user) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          background: 'var(--app-page-gradient)',
+          backgroundAttachment: 'fixed',
+        }}
+      >
+        <ContestSongRequestView
+          contestId={id}
+          contestTitle={contest.title || '신청곡'}
+          isStarted={!!contest.isStarted}
+          ended={ended}
+          user={user}
+        />
       </div>
     );
   }

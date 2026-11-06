@@ -152,6 +152,7 @@ const ContestCreateNotebook: React.FC = () => {
             >
               <option value="경연">등급전 - 현장에서 라이브를 듣고 평가</option>
               <option value="라운드매치">라운드매치 - A/B 팀 투표 대결</option>
+              <option value="신청곡">신청곡 - 멤버가 출연자에게 곡을 신청</option>
             </select>
             <div className={`contest-type-hint${isRoundMatch ? ' contest-type-hint--round' : ''}`}>
               {formData.type === '경연' && (
@@ -164,6 +165,20 @@ const ContestCreateNotebook: React.FC = () => {
                   </ul>
                   <div className="contest-type-hint__note">
                     <strong>다음 단계:</strong> 개최하면 앱 사용자가 바로 참여합니다. 무대에 서는 사람은 상세 페이지의 평가 대상에서 등록해주세요.
+                  </div>
+                </div>
+              )}
+              {formData.type === '신청곡' && (
+                <div>
+                  <strong>신청곡</strong>
+                  <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
+                    <li>출연자는 상세 페이지에서 등록합니다</li>
+                    <li>로그인한 멤버 모두가 출연자 전원에게 각각 신청곡을 넣을 수 있습니다</li>
+                    <li>출연자는 받은 신청곡 중 하나를 골라 부릅니다</li>
+                    <li>개최되면 확정된 곡이 전원에게 공개됩니다</li>
+                  </ul>
+                  <div className="contest-type-hint__note">
+                    <strong>다음 단계:</strong> 생성 후 상세 페이지에서 출연자를 등록한 뒤, 멤버들이 신청하고 출연자가 곡을 고르면 개최하세요.
                   </div>
                 </div>
               )}

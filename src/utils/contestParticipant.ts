@@ -1,6 +1,11 @@
 import { doc, getDoc, getDocs, collection, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
-import type { ContestType, ParticipantRecord, RoundVote } from '../types/contest';
+import type {
+  ContestType,
+  ParticipantRecord,
+  RoundVote,
+  SongRequestParticipationRole,
+} from '../types/contest';
 
 export const CONTEST_NOT_REGISTERED_MESSAGE =
   '참가자 목록에 등록된 멤버만 참여할 수 있습니다. 관리자에게 참가 등록을 요청해주세요.';
@@ -36,11 +41,33 @@ export function parseParticipantFromDoc(
   docId: string,
   data: Record<string, unknown>
 ): ParticipantRecord {
+  const roleRaw = coerceFirestoreString(data.participationRole);
+  const participationRole: SongRequestParticipationRole | null =
+    roleRaw === '출연자' || roleRaw === '관객' ? roleRaw : null;
   return {
     uid: resolveParticipantUid(docId, data),
     nickname: coerceFirestoreString(data.nickname),
     joinedAt: data.joinedAt,
+    participationRole,
+    selectedSongRequestId:
+      typeof data.selectedSongRequestId === 'string' ? data.selectedSongRequestId : null,
+    selectedSongTitle:
+      typeof data.selectedSongTitle === 'string' ? data.selectedSongTitle : null,
+    selectedAt: data.selectedAt,
   };
+}
+
+/** 신청곡 출연자(역할 없음=관리자 등록 출연자로 취급) */
+export function isSongRequestPerformer(participant: {
+  participationRole?: string | null;
+}): boolean {
+  return !participant.participationRole || participant.participationRole === '출연자';
+}
+
+export function isSongRequestAudience(participant: {
+  participationRole?: string | null;
+}): boolean {
+  return participant.participationRole === '관객';
 }
 
 /** Firestore votes/{authUid} 문서를 RoundVote로 변환 (본문 uid 누락 시 doc ID 사용) */
