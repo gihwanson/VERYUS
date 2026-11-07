@@ -110,6 +110,14 @@ service cloud.firestore {
         && request.resource.data.participationRole in ['출연자', '관객'];
     }
 
+    /** 개최 전 신청곡 참여를 본인이 취소 */
+    function isSongRequestSelfCancel(contestId, docId) {
+      return signedIn()
+        && isSongRequestContestOpen(contestId)
+        && request.auth.uid == docId
+        && resource.data.uid == request.auth.uid;
+    }
+
     /**
      * users: 로그인 전 닉네임→이메일 조회(Login.tsx)와 게시판에서의 프로필 읽기가 필요해 read 공개.
      * (예전 테스트 모드에 가깝게 동작 — 민감 필드는 클라이언트에 노출하지 않도록 앱에서 제한 권장)
@@ -563,7 +571,8 @@ service cloud.firestore {
         allow update: if isNeraeOrLeader()
           || isSongSelectionSelfUpdate(contestId, docId)
           || isSongRequestSelfJoin(contestId, docId);
-        allow delete: if isNeraeOrLeader();
+        allow delete: if isNeraeOrLeader()
+          || isSongRequestSelfCancel(contestId, docId);
       }
       match /songRequests/{requestId} {
         // 목록 쿼리(where)와 맞추기 위해 로그인 읽기 허용. UI에서 대상·본인 건만 노출.

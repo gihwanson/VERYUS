@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  deleteDoc,
   getDocs,
   onSnapshot,
   orderBy,
@@ -50,12 +51,22 @@ export async function joinSongRequestContest(params: {
     joinedAt: serverTimestamp(),
     participationRole: params.role,
   };
-  if (params.role === '출연자') {
-    payload.selectedSongRequestId = null;
-    payload.selectedSongTitle = null;
-    payload.selectedAt = null;
-  }
+  payload.selectedSongRequestId = null;
+  payload.selectedSongTitle = null;
+  payload.selectedAt = null;
   await setDoc(ref, payload, { merge: true });
+}
+
+/** 개최 전, 본인이 고른 출연자/관객 참여를 취소 */
+export async function leaveSongRequestContest(params: {
+  contestId: string;
+  user: { uid: string };
+}): Promise<void> {
+  if (!params.contestId || !params.user.uid) {
+    throw new Error('로그인 정보가 없어 참여를 취소할 수 없습니다.');
+  }
+  const ref = doc(db, 'contests', params.contestId, 'participants', params.user.uid);
+  await deleteDoc(ref);
 }
 
 export function songRequestDocId(requesterUid: string, targetUid: string): string {
