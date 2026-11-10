@@ -169,6 +169,14 @@ service cloud.firestore {
             !('characterFrame' in request.resource.data)
             || request.resource.data.characterFrame in ['circle', 'polaroid', 'ribbon']
           )
+          && (
+            !('guestbookStyle' in request.resource.data)
+            || request.resource.data.guestbookStyle in ['sticky', 'scrap', 'compact']
+          )
+          && (
+            !('guestbookPreviewLimit' in request.resource.data)
+            || request.resource.data.guestbookPreviewLimit in [3, 5, 8]
+          )
           && request.resource.data.updatedBy == request.auth.uid;
         allow delete: if isAdmin();
       }

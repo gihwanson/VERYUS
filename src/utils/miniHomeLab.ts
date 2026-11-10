@@ -1,4 +1,16 @@
-import { doc, onSnapshot, serverTimestamp, setDoc, type Unsubscribe } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  limit,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  where,
+  type Timestamp,
+  type Unsubscribe,
+} from 'firebase/firestore';
 import { db } from '../firebase';
 
 export const MINI_HOME_LAB_DOC_ID = 'main';
@@ -126,6 +138,106 @@ const POSE_IDS = new Set(MINI_HOME_CHARACTER_POSES.map((p) => p.id));
 const SIZE_IDS = new Set(MINI_HOME_CHARACTER_SIZES.map((s) => s.id));
 const FRAME_IDS = new Set(MINI_HOME_CHARACTER_FRAMES.map((f) => f.id));
 
+export type MiniHomeGuestbookStyle = 'sticky' | 'scrap' | 'compact';
+
+export type MiniHomeGuestbookPreviewLimit = 3 | 5 | 8;
+
+export type MiniHomeGuestbookStyleOption = {
+  id: MiniHomeGuestbookStyle;
+  name: string;
+  description: string;
+  panelClass: string;
+};
+
+export const MINI_HOME_GUESTBOOK_STYLES: MiniHomeGuestbookStyleOption[] = [
+  {
+    id: 'sticky',
+    name: '포스트잇',
+    description: '싸이월드 방명록 스티커 느낌',
+    panelClass: 'mhl-gb--sticky',
+  },
+  {
+    id: 'scrap',
+    name: '스크랩',
+    description: '테두리·그림자 강조',
+    panelClass: 'mhl-gb--scrap',
+  },
+  {
+    id: 'compact',
+    name: '한 줄',
+    description: '최근 글만 얇게 나열',
+    panelClass: 'mhl-gb--compact',
+  },
+];
+
+export const MINI_HOME_GUESTBOOK_LIMITS: Array<{ id: MiniHomeGuestbookPreviewLimit; label: string }> =
+  [
+    { id: 3, label: '3개' },
+    { id: 5, label: '5개' },
+    { id: 8, label: '8개' },
+  ];
+
+const GB_STYLE_IDS = new Set(MINI_HOME_GUESTBOOK_STYLES.map((s) => s.id));
+const GB_LIMITS = new Set(MINI_HOME_GUESTBOOK_LIMITS.map((l) => l.id));
+
+export type GuestbookEntry = {
+  id: string;
+  fromNickname: string;
+  toNickname: string;
+  message: string;
+  createdAt?: Timestamp;
+  parentMessageId?: string;
+};
+
+export function getMiniHomeGuestbookStyle(id: string | undefined | null): MiniHomeGuestbookStyleOption {
+  const found = MINI_HOME_GUESTBOOK_STYLES.find((s) => s.id === id);
+  return found ?? MINI_HOME_GUESTBOOK_STYLES[0];
+}
+
+export function subscribeGuestbookPreview(
+  toNickname: string,
+  maxItems: number,
+  onChange: (entries: GuestbookEntry[]) => void
+): Unsubscribe {
+  const nick = toNickname.trim();
+  if (!nick) {
+    onChange([]);
+    return () => undefined;
+  }
+  const capped = Math.min(8, Math.max(3, maxItems));
+  const q = query(
+    collection(db, 'guestbook'),
+    where('toNickname', '==', nick),
+    orderBy('createdAt', 'desc'),
+    limit(capped)
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      const entries = snap.docs.map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          fromNickname: String(data.fromNickname ?? ''),
+          toNickname: String(data.toNickname ?? ''),
+          message: String(data.message ?? ''),
+          createdAt: data.createdAt as Timestamp | undefined,
+          parentMessageId: data.parentMessageId as string | undefined,
+        } satisfies GuestbookEntry;
+      });
+      onChange(entries);
+    },
+    () => onChange([])
+  );
+}
+
+export function formatGuestbookWhen(ts: Timestamp | undefined): string {
+  if (!ts) return '';
+  const d = ts.toDate();
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+}
+
 export type MiniHomeLabState = {
   backgroundId: MiniHomeBackgroundId;
   tagline: string;
@@ -133,8 +245,11 @@ export type MiniHomeLabState = {
   characterPose: MiniHomeCharacterPose;
   characterSize: MiniHomeCharacterSize;
   characterFrame: MiniHomeCharacterFrame;
+  guestbookStyle: MiniHomeGuestbookStyle;
+  guestbookPreviewLimit: MiniHomeGuestbookPreviewLimit;
   /** Firestore에 캐릭터 필드가 저장된 경우만 true (1단계만 저장한 문서 구분) */
   hasCharacterLayer: boolean;
+  hasGuestbookLayer: boolean;
 };
 
 export function getMiniHomeCharacterPose(id: string | undefined | null): MiniHomeCharacterPoseOption {
@@ -181,6 +296,8 @@ export function subscribeMiniHomeLab(
       const poseRaw = String(data.characterPose ?? 'neutral');
       const sizeRaw = String(data.characterSize ?? 'm');
       const frameRaw = String(data.characterFrame ?? 'circle');
+      const gbStyleRaw = String(data.guestbookStyle ?? 'sticky');
+      const gbLimitRaw = Number(data.guestbookPreviewLimit ?? 5);
 
       onChange({
         backgroundId,
@@ -197,7 +314,14 @@ export function subscribeMiniHomeLab(
         characterFrame: (FRAME_IDS.has(frameRaw as MiniHomeCharacterFrame)
           ? frameRaw
           : 'circle') as MiniHomeCharacterFrame,
+        guestbookStyle: (GB_STYLE_IDS.has(gbStyleRaw as MiniHomeGuestbookStyle)
+          ? gbStyleRaw
+          : 'sticky') as MiniHomeGuestbookStyle,
+        guestbookPreviewLimit: (GB_LIMITS.has(gbLimitRaw as MiniHomeGuestbookPreviewLimit)
+          ? gbLimitRaw
+          : 5) as MiniHomeGuestbookPreviewLimit,
         hasCharacterLayer: 'characterSlot' in data,
+        hasGuestbookLayer: 'guestbookStyle' in data,
       });
     },
     () => onChange(null)
@@ -206,7 +330,7 @@ export function subscribeMiniHomeLab(
 
 export async function saveMiniHomeLab(
   userId: string,
-  patch: Partial<MiniHomeLabState>,
+  patch: MiniHomeLabSavePatch,
   updatedBy: string
 ): Promise<void> {
   const backgroundId = patch.backgroundId;
@@ -227,6 +351,15 @@ export async function saveMiniHomeLab(
   if (patch.characterFrame && !FRAME_IDS.has(patch.characterFrame)) {
     throw new Error('알 수 없는 프레임입니다.');
   }
+  if (patch.guestbookStyle && !GB_STYLE_IDS.has(patch.guestbookStyle)) {
+    throw new Error('알 수 없는 방명록 스타일입니다.');
+  }
+  if (
+    patch.guestbookPreviewLimit != null &&
+    !GB_LIMITS.has(patch.guestbookPreviewLimit)
+  ) {
+    throw new Error('미리보기 개수는 3·5·8 중 하나여야 합니다.');
+  }
 
   await setDoc(
     miniHomeLabRef(userId),
@@ -237,9 +370,18 @@ export async function saveMiniHomeLab(
       ...(patch.characterPose ? { characterPose: patch.characterPose } : {}),
       ...(patch.characterSize ? { characterSize: patch.characterSize } : {}),
       ...(patch.characterFrame ? { characterFrame: patch.characterFrame } : {}),
+      ...(patch.guestbookStyle ? { guestbookStyle: patch.guestbookStyle } : {}),
+      ...(patch.guestbookPreviewLimit != null
+        ? { guestbookPreviewLimit: patch.guestbookPreviewLimit }
+        : {}),
       updatedAt: serverTimestamp(),
       updatedBy,
     },
     { merge: true }
   );
 }
+
+export type MiniHomeLabSavePatch = Omit<
+  Partial<MiniHomeLabState>,
+  'hasCharacterLayer' | 'hasGuestbookLayer'
+>;
