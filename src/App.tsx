@@ -137,6 +137,7 @@ class AppErrorBoundary extends React.Component<
 
 const AdminPanel = lazy(() => import('./components/AdminPanel'));
 const MyPage = lazy(() => import('./components/MyPage'));
+const MyPageLab = lazy(() => import('./components/MyPageLab'));
 const Settings = lazy(() => import('./components/Settings'));
 const Login = lazy(() => import('./components/Login'));
 const Home = lazy(() => import('./components/Home'));
@@ -1046,6 +1047,24 @@ function App() {
                     <MyPage />
                   </ProtectedRoute>
                 } 
+              />
+
+              {/* 싸이월드형 마이페이지 — 관리자 전용 실험실 (일반 회원 비공개) */}
+              <Route
+                path="/mypage-lab"
+                element={
+                  <AdminRoute>
+                    <MyPageLab />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/mypage-lab/:uid"
+                element={
+                  <AdminRoute>
+                    <MyPageLab />
+                  </AdminRoute>
+                }
               />
               
               {/* 설정 페이지 - 로그인한 사용자만 접근 가능 */}

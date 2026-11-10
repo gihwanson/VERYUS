@@ -2073,6 +2073,14 @@ const AdminPanel: React.FC = () => {
           <p className="admin-hero-subtitle">
             회원·등급·로그를 한곳에서 관리합니다.
           </p>
+          <button
+            type="button"
+            className="admin-mypage-lab-entry"
+            onClick={() => navigate('/mypage-lab')}
+          >
+            <FlaskConical size={16} aria-hidden />
+            미니홈 실험실 (싸이월드형 마이페이지 · 관리자만)
+          </button>
         </div>
       </header>
 

@@ -137,6 +137,41 @@ service cloud.firestore {
         allow read: if isSelf(userId) || isNerae();
         allow create, update, delete: if isNeraeOrLeader();
       }
+
+      /** 싸이월드형 마이페이지 실험실 — 관리자만 (일반 /mypage 미노출) */
+      match /miniHomeLab/{docId} {
+        allow read: if isAdmin();
+        allow create, update: if isAdmin()
+          && request.resource.data.backgroundId is string
+          && request.resource.data.backgroundId in [
+            'peach', 'mint', 'lavender', 'midnight', 'paper', 'vinyl'
+          ]
+          && (
+            !('tagline' in request.resource.data)
+            || (
+              request.resource.data.tagline is string
+              && request.resource.data.tagline.size() <= 80
+            )
+          )
+          && (
+            !('characterSlot' in request.resource.data)
+            || request.resource.data.characterSlot in ['center', 'left', 'right']
+          )
+          && (
+            !('characterPose' in request.resource.data)
+            || request.resource.data.characterPose in ['neutral', 'wave', 'music']
+          )
+          && (
+            !('characterSize' in request.resource.data)
+            || request.resource.data.characterSize in ['s', 'm', 'l']
+          )
+          && (
+            !('characterFrame' in request.resource.data)
+            || request.resource.data.characterFrame in ['circle', 'polaroid', 'ribbon']
+          )
+          && request.resource.data.updatedBy == request.auth.uid;
+        allow delete: if isAdmin();
+      }
     }
 
     match /anonymousChatProfiles/{userId} {
