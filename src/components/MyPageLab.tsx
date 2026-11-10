@@ -3,11 +3,14 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
   Check,
+  ChevronDown,
+  ChevronUp,
   FlaskConical,
   Home,
   MessageCircle,
   Palette,
   Send,
+  Settings2,
   Shield,
   Smile,
   User,
@@ -76,6 +79,8 @@ const MyPageLab: React.FC = () => {
   const [newGuestMessage, setNewGuestMessage] = useState('');
   const [guestSending, setGuestSending] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [shellTab, setShellTab] = useState<'home' | 'guestbook'>('home');
+  const [editorOpen, setEditorOpen] = useState(false);
 
   const targetUid = routeUid?.trim() || (profile?.uid ? String(profile.uid) : '');
   const isAdmin = checkAdminAccess({
@@ -220,167 +225,261 @@ const MyPageLab: React.FC = () => {
     }
   };
 
+  const renderGuestbookPanel = (compact?: boolean) =>
+    previewUser ? (
+      <section
+        className={`mypage-lab__guestbook cy-shell__guestbook ${previewGb.panelClass}${
+          compact ? ' cy-shell__guestbook--compact' : ''
+        }`}
+        aria-label="방명록"
+      >
+        <div className="mypage-lab__guestbook-head">
+          <h3 className="mypage-lab__guestbook-title">
+            <MessageCircle size={16} aria-hidden />
+            방명록
+          </h3>
+          <span className="mypage-lab__guestbook-meta">{previewGb.name}</span>
+        </div>
+        {guestbookEntries.length === 0 ? (
+          <p className="mypage-lab__guestbook-empty">아직 방명록이 없습니다.</p>
+        ) : (
+          <ul className="mypage-lab__guestbook-list">
+            {guestbookEntries.map((entry, index) => (
+              <li
+                key={entry.id}
+                className="mypage-lab__guestbook-card"
+                style={
+                  previewGb.id === 'sticky'
+                    ? { transform: `rotate(${index % 2 === 0 ? -2 : 2.5}deg)` }
+                    : undefined
+                }
+              >
+                <p className="mypage-lab__guestbook-from">
+                  {entry.fromNickname}
+                  {entry.parentMessageId ? (
+                    <span className="mypage-lab__guestbook-reply">답글</span>
+                  ) : null}
+                </p>
+                <p className="mypage-lab__guestbook-text">{entry.message}</p>
+                <span className="mypage-lab__guestbook-date">{formatGuestbookWhen(entry.createdAt)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {profile?.nickname && !compact ? (
+          <div className="mypage-lab__guestbook-write">
+            <textarea
+              id="mhl-guest-msg"
+              className="mypage-lab__guestbook-field"
+              rows={2}
+              maxLength={280}
+              placeholder={`${previewUser.nickname}님에게…`}
+              value={newGuestMessage}
+              onChange={(e) => setNewGuestMessage(e.target.value)}
+              aria-label="방명록 메시지"
+            />
+            <button
+              type="button"
+              className="cy-shell__btn cy-shell__btn--primary mypage-lab__guestbook-send"
+              disabled={guestSending || !newGuestMessage.trim()}
+              onClick={() => void sendGuestMessage()}
+            >
+              <Send size={14} aria-hidden />
+              {guestSending ? '전송 중…' : '남기기'}
+            </button>
+          </div>
+        ) : null}
+      </section>
+    ) : null;
+
   return (
-    <div className="mypage-lab">
-      <header className="mypage-lab__header">
-        <button type="button" className="mypage-lab__back" onClick={() => navigate('/admin')}>
-          <ArrowLeft size={18} aria-hidden />
-          관리자 패널
-        </button>
-        <span className="mypage-lab__badge">
-          <Shield size={14} aria-hidden />
-          관리자 전용 · 미니홈 실험실
-        </span>
-        <h1 className="mypage-lab__title">싸이월드형 마이페이지 (프리뷰)</h1>
-        <p className="mypage-lab__lead">
-          <strong>1~2단계 꾸미기</strong>와 <strong>3단계 방명록</strong>(기존 Firestore 연동)을 실험할 수
-          있습니다. 일반 회원에게는 노출되지 않습니다.
-        </p>
+    <div className="mypage-lab mypage-lab--cyworld">
+      <header className="mypage-lab__admin-bar">
+        <div className="mypage-lab__admin-bar-start">
+          <button type="button" className="mypage-lab__back" onClick={() => navigate('/admin')}>
+            <ArrowLeft size={18} aria-hidden />
+            관리자
+          </button>
+          <span className="mypage-lab__badge">
+            <Shield size={14} aria-hidden />
+            미니홈 실험실
+          </span>
+        </div>
+        {canEdit ? (
+          <button
+            type="button"
+            className="mypage-lab__decorate-toggle"
+            aria-expanded={editorOpen}
+            onClick={() => setEditorOpen((o) => !o)}
+          >
+            <Settings2 size={16} aria-hidden />
+            꾸미기
+            {editorOpen ? <ChevronUp size={16} aria-hidden /> : <ChevronDown size={16} aria-hidden />}
+          </button>
+        ) : null}
       </header>
 
       {loadError ? <p className="mypage-lab__error">{loadError}</p> : null}
 
-      <section className="mypage-lab__stage-wrap" aria-label="미니홈 미리보기">
-        <div className="mypage-lab__stage">
-          <p className="mypage-lab__stage-label">
-            미니룸 · {previewBg.name}
-            {labState?.backgroundId && labState.backgroundId !== draftBg ? ' (미저장 미리보기)' : ''}
-          </p>
-          <div className={`mypage-lab__room ${previewBg.roomClass}`}>
-            <div
-              className={`mypage-lab__room-inner ${previewSlot.roomClass} ${previewSize.roomClass} ${previewPose.roomClass}`}
-            >
-              <div
-                className={`mypage-lab__char-layer ${previewSlot.roomClass} ${previewSize.roomClass} ${previewFrame.roomClass}`}
-              >
-                <span className="mypage-lab__pose-bubble" aria-hidden>
-                  {previewPose.emoji}
-                </span>
-                <div className="mypage-lab__avatar">
-                  {previewUser?.profileImageUrl ? (
-                    <img src={previewUser.profileImageUrl} alt="" decoding="async" />
-                  ) : (
-                    <User size={48} strokeWidth={1.5} aria-hidden />
-                  )}
+      <div className="cy-world-stage">
+        <div className="cy-shell-outer" aria-label="미니홈 미리보기">
+          <div className="cy-shell">
+            <div className="cy-shell__rings" aria-hidden>
+              <span />
+              <span />
+              <span />
+            </div>
+            <div className="cy-shell__body">
+              <aside className="cy-shell__left">
+                <p className="cy-shell__visitors">
+                  <span className="cy-shell__today">TODAY</span>{' '}
+                  <strong>{guestbookEntries.length > 0 ? Math.min(99, guestbookEntries.length) : 0}</strong>
+                  <span className="cy-shell__visitors-sep">|</span>
+                  <span className="cy-shell__total-label">TOTAL</span> —
+                </p>
+                <div className="cy-shell__today-is">
+                  <span className="cy-shell__today-is-label">TODAY IS…</span>
+                  <span className="cy-shell__today-is-mood" aria-hidden>
+                    {previewPose.emoji}
+                  </span>
                 </div>
-              </div>
-              <div className="mypage-lab__hud">
-                <p className="mypage-lab__nickname">{previewUser?.nickname ?? '…'}</p>
-                {previewUser?.grade ? <p className="mypage-lab__meta">{previewUser.grade}</p> : null}
-                <p className="mypage-lab__tagline">{displayTagline}</p>
-              </div>
-            </div>
-          </div>
-          {labState ? (
-            <p className="mypage-lab__saved-hint">
-              저장된 배경: {activeBg.name}
-              {labState.tagline ? ` · “${labState.tagline}”` : ''}
-            </p>
-          ) : (
-            <p className="mypage-lab__saved-hint">아직 저장된 꾸미기가 없습니다. 아래에서 선택 후 저장하세요.</p>
-          )}
-        </div>
+                <div className={`cy-shell__minime ${previewFrame.roomClass} ${previewSize.roomClass}`}>
+                  <div className="mypage-lab__avatar">
+                    {previewUser?.profileImageUrl ? (
+                      <img src={previewUser.profileImageUrl} alt="" decoding="async" />
+                    ) : (
+                      <User size={40} strokeWidth={1.5} aria-hidden />
+                    )}
+                  </div>
+                </div>
+                <p className="cy-shell__owner-name">{previewUser?.nickname ?? '…'}</p>
+                {previewUser?.grade ? <p className="cy-shell__owner-grade">{previewUser.grade}</p> : null}
+                <p className="cy-shell__owner-tagline">{displayTagline}</p>
+                {labState?.backgroundId && labState.backgroundId !== draftBg ? (
+                  <p className="cy-shell__draft-hint">미저장 미리보기</p>
+                ) : null}
+              </aside>
 
-        <aside className="mypage-lab__side">
-          <h2 className="mypage-lab__side-title">
-            <FlaskConical size={18} aria-hidden />
-            진행 체크
-          </h2>
-          <ul className="mypage-lab__checklist">
-            {labFeatures.map((f) => (
-              <li key={f.id}>
-                <span>{f.label}</span>
-                <span
-                  className={`mypage-lab__chip${
-                    f.status === '1단계 완료' ||
-                    f.status === '2단계 완료' ||
-                    f.status === '3단계 완료'
-                      ? ' mypage-lab__chip--done'
-                      : ''
-                  }`}
-                >
-                  {f.status}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <p className="mypage-lab__uid-hint">
-            대상 UID: <code>{targetUid || '—'}</code>
-            {isSelf ? ' (본인)' : routeUid ? ' (타 회원 미리보기)' : ''}
-          </p>
-        </aside>
-      </section>
-
-      {previewUser ? (
-        <section
-          className={`mypage-lab__guestbook ${previewGb.panelClass}`}
-          aria-label="방명록 미리보기"
-        >
-          <div className="mypage-lab__guestbook-head">
-            <h2 className="mypage-lab__guestbook-title">
-              <MessageCircle size={18} aria-hidden />
-              방명록 · {previewGb.name}
-            </h2>
-            <span className="mypage-lab__guestbook-meta">
-              {previewUser.nickname}님 · 최근 {draftGbLimit}개
-            </span>
-          </div>
-          {guestbookEntries.length === 0 ? (
-            <p className="mypage-lab__guestbook-empty">아직 방명록이 없습니다. 테스트로 한 줄 남겨 보세요.</p>
-          ) : (
-            <ul className="mypage-lab__guestbook-list">
-              {guestbookEntries.map((entry, index) => (
-                <li
-                  key={entry.id}
-                  className="mypage-lab__guestbook-card"
-                  style={
-                    previewGb.id === 'sticky'
-                      ? { transform: `rotate(${index % 2 === 0 ? -2 : 2.5}deg)` }
-                      : undefined
-                  }
-                >
-                  <p className="mypage-lab__guestbook-from">
-                    {entry.fromNickname}
-                    {entry.parentMessageId ? (
-                      <span className="mypage-lab__guestbook-reply">답글</span>
-                    ) : null}
+              <main className="cy-shell__main">
+                <div className="cy-shell__main-head">
+                  <h1 className="cy-shell__slogan">사이좋은 사람들, 베리어스</h1>
+                  <p className="cy-shell__room-caption">
+                    미니룸 · {previewBg.name}
+                    {labState ? ` · ${activeBg.name} 저장됨` : ''}
                   </p>
-                  <p className="mypage-lab__guestbook-text">{entry.message}</p>
-                  <span className="mypage-lab__guestbook-date">{formatGuestbookWhen(entry.createdAt)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          {profile?.nickname ? (
-            <div className="mypage-lab__guestbook-write">
-              <label className="mypage-lab__field-label" htmlFor="mhl-guest-msg">
-                실험용 방명록 (공식 guestbook에 저장됨)
-              </label>
-              <textarea
-                id="mhl-guest-msg"
-                className="mypage-lab__guestbook-field"
-                rows={2}
-                maxLength={280}
-                placeholder={`${previewUser.nickname}님에게…`}
-                value={newGuestMessage}
-                onChange={(e) => setNewGuestMessage(e.target.value)}
-              />
-              <button
-                type="button"
-                className="mypage-lab__btn mypage-lab__btn--primary mypage-lab__guestbook-send"
-                disabled={guestSending || !newGuestMessage.trim()}
-                onClick={() => void sendGuestMessage()}
-              >
-                <Send size={16} aria-hidden />
-                {guestSending ? '전송 중…' : '방명록 남기기'}
-              </button>
+                </div>
+
+                {shellTab === 'home' ? (
+                  <>
+                    <div className={`mypage-lab__room cy-shell__room ${previewBg.roomClass}`}>
+                      <div
+                        className={`mypage-lab__room-inner cy-shell__room-inner ${previewSlot.roomClass} ${previewSize.roomClass} ${previewPose.roomClass}`}
+                      >
+                        <div
+                          className={`mypage-lab__char-layer ${previewSlot.roomClass} ${previewSize.roomClass} ${previewFrame.roomClass}`}
+                        >
+                          <span className="mypage-lab__pose-bubble" aria-hidden>
+                            {previewPose.emoji}
+                          </span>
+                          <div className="mypage-lab__avatar">
+                            {previewUser?.profileImageUrl ? (
+                              <img src={previewUser.profileImageUrl} alt="" decoding="async" />
+                            ) : (
+                              <User size={48} strokeWidth={1.5} aria-hidden />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="cy-shell__gb-teaser">
+                      <button
+                        type="button"
+                        className="cy-shell__link-btn"
+                        onClick={() => setShellTab('guestbook')}
+                      >
+                        방명록 {guestbookEntries.length}건 · 전체 보기
+                      </button>
+                    </div>
+                    {guestbookEntries.length > 0 ? (
+                      <div className="cy-shell__gb-preview">{renderGuestbookPanel(true)}</div>
+                    ) : null}
+                  </>
+                ) : (
+                  renderGuestbookPanel(false)
+                )}
+              </main>
             </div>
-          ) : null}
-        </section>
-      ) : null}
+
+            <nav className="cy-shell__tabs" aria-label="미니홈 메뉴">
+              {(
+                [
+                  { id: 'home' as const, label: 'Home' },
+                  { id: 'guestbook' as const, label: 'Guestbook' },
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  className={`cy-shell__tab${shellTab === tab.id ? ' cy-shell__tab--active' : ''}`}
+                  onClick={() => setShellTab(tab.id)}
+                  aria-current={shellTab === tab.id ? 'page' : undefined}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
+          </div>
+
+          <aside className="cy-shell__widgets" aria-label="미니홈 위젯">
+            <div className="cy-shell__widget">
+              <p className="cy-shell__widget-title">실험 진행</p>
+              <ul className="mypage-lab__checklist cy-shell__checklist">
+                {labFeatures.map((f) => (
+                  <li key={f.id}>
+                    <span>{f.label}</span>
+                    <span
+                      className={`mypage-lab__chip${
+                        f.status === '1단계 완료' ||
+                        f.status === '2단계 완료' ||
+                        f.status === '3단계 완료'
+                          ? ' mypage-lab__chip--done'
+                          : ''
+                      }`}
+                    >
+                      {f.status}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="cy-shell__widget">
+              <p className="cy-shell__widget-title">방명록</p>
+              <p className="cy-shell__widget-stat">
+                <strong>{guestbookEntries.length}</strong> / 최근 {draftGbLimit}
+              </p>
+            </div>
+            <div className="cy-shell__widget cy-shell__widget--muted">
+              <p className="cy-shell__widget-title">BGM</p>
+              <p className="cy-shell__widget-stat">준비 중</p>
+            </div>
+            <p className="mypage-lab__uid-hint cy-shell__uid">
+              UID <code>{targetUid || '—'}</code>
+              {isSelf ? ' · 본인' : routeUid ? ' · 타 회원' : ''}
+            </p>
+          </aside>
+        </div>
+      </div>
 
       {canEdit ? (
-        <section className="mypage-lab__editor" aria-label="1단계 꾸미기">
+        <div
+          className={`mypage-lab__editor-dock${editorOpen ? ' mypage-lab__editor-dock--open' : ''}`}
+          hidden={!editorOpen}
+        >
+          <h2 className="mypage-lab__editor-dock-title">
+            <FlaskConical size={18} aria-hidden />
+            꾸미기 설정
+          </h2>
+          <section className="mypage-lab__editor" aria-label="1단계 꾸미기">
           <h2 className="mypage-lab__editor-title">
             <Palette size={18} aria-hidden />
             1단계 · 미니룸 배경
@@ -428,9 +527,7 @@ const MyPageLab: React.FC = () => {
             {saving ? '저장 중…' : '1단계 저장'}
           </button>
         </section>
-      ) : null}
 
-      {canEdit ? (
         <section className="mypage-lab__editor" aria-label="2단계 캐릭터">
           <h2 className="mypage-lab__editor-title">
             <Smile size={18} aria-hidden />
@@ -517,9 +614,7 @@ const MyPageLab: React.FC = () => {
             {saving ? '저장 중…' : '미니룸·캐릭터 전체 저장'}
           </button>
         </section>
-      ) : null}
 
-      {canEdit ? (
         <section className="mypage-lab__editor" aria-label="3단계 방명록">
           <h2 className="mypage-lab__editor-title">
             <MessageCircle size={18} aria-hidden />
@@ -575,6 +670,7 @@ const MyPageLab: React.FC = () => {
             {saving ? '저장 중…' : '전체 설정 저장 (배경·캐릭터·방명록)'}
           </button>
         </section>
+        </div>
       ) : null}
 
       <nav className="mypage-lab__actions" aria-label="바로가기">
