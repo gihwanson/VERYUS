@@ -1,0 +1,273 @@
+.mypage-minihome {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 0 16px;
+  box-sizing: border-box;
+}
+
+.mypage-inner .mypage-minihome__frame {
+  width: 100%;
+}
+
+.mypage-minihome__frame {
+  display: grid;
+  grid-template-columns: minmax(108px, 132px) minmax(0, 1fr);
+  width: 100%;
+  min-height: min(58vw, 380px);
+  max-height: 420px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.1);
+  background: #fff;
+}
+
+.mypage-minihome__profile {
+  padding: 12px 10px;
+  border-right: 1px solid rgba(148, 163, 184, 0.25);
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  font-size: 0.72rem;
+  color: #334155;
+  overflow-y: auto;
+}
+
+.mypage-minihome__visitors {
+  margin: 0 0 8px;
+  width: 100%;
+  font-size: 0.62rem;
+}
+
+.mypage-minihome__visitors-label {
+  color: #e11d48;
+  font-weight: 800;
+}
+
+.mypage-minihome__minime {
+  width: 76px;
+  height: 76px;
+  border-radius: 8px;
+  border: 2px solid #fff;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+}
+
+.mypage-minihome__minime--editable {
+  cursor: pointer;
+}
+
+.mypage-minihome__minime img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mypage-minihome__name {
+  margin: 10px 0 0;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.25;
+  word-break: keep-all;
+}
+
+.mypage-minihome__role {
+  margin: 4px 0 0;
+  font-size: 0.62rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+}
+
+.mypage-minihome__grade {
+  margin-top: 6px;
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.mypage-minihome__tagline {
+  margin: 8px 0 0;
+  font-size: 0.62rem;
+  line-height: 1.45;
+  opacity: 0.9;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.mypage-minihome__stage {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.mypage-minihome__room {
+  position: relative;
+  flex: 1;
+  min-height: 200px;
+  background: linear-gradient(180deg, #dbeafe 0%, #bfdbfe 42%, #fef3c7 42%, #fde68a 100%);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px 20px 20px;
+}
+
+.mypage-minihome__room-floor {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 38%;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(180, 140, 90, 0.12) 0,
+    rgba(180, 140, 90, 0.12) 12px,
+    rgba(160, 120, 70, 0.08) 12px,
+    rgba(160, 120, 70, 0.08) 24px
+  );
+  border-top: 2px solid rgba(255, 255, 255, 0.45);
+  pointer-events: none;
+}
+
+.mypage-minihome__character {
+  position: relative;
+  z-index: 1;
+  width: clamp(96px, 28vw, 140px);
+  height: clamp(96px, 28vw, 140px);
+  border-radius: 50%;
+  border: 4px solid #fff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.2);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mypage-minihome__character--editable {
+  cursor: pointer;
+}
+
+.mypage-minihome__character img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mypage-minihome__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+  background: #f8fafc;
+}
+
+.mypage-minihome__action {
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #334155;
+  cursor: pointer;
+}
+
+.mypage-minihome__action:hover {
+  background: #f1f5f9;
+}
+
+.mypage-minihome__footer-extra {
+  margin-top: 10px;
+  font-size: 0.82rem;
+}
+
+.mypage-minihome__details summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.78rem;
+  padding: 6px 0;
+}
+
+.mypage-minihome__details-body {
+  padding: 8px 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Classic UI — glass on dark bg */
+.mypage-minihome--classic .mypage-minihome__frame {
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+.mypage-minihome--classic .mypage-minihome__profile {
+  background: rgba(255, 255, 255, 0.08);
+  border-right-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.mypage-minihome--classic .mypage-minihome__role {
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.mypage-minihome--classic .mypage-minihome__actions {
+  background: rgba(0, 0, 0, 0.12);
+  border-top-color: rgba(255, 255, 255, 0.15);
+}
+
+.mypage-minihome--classic .mypage-minihome__action {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+@media (min-width: 640px) {
+  .mypage-minihome__frame {
+    grid-template-columns: minmax(120px, 160px) minmax(0, 1fr);
+    min-height: 340px;
+    max-height: 440px;
+  }
+
+  .mypage-minihome__room {
+    min-height: 260px;
+  }
+
+  .mypage-minihome__minime {
+    width: 88px;
+    height: 88px;
+  }
+}
+
+@media (max-width: 400px) {
+  .mypage-minihome__frame {
+    grid-template-columns: 96px 1fr;
+    min-height: 300px;
+  }
+
+  .mypage-minihome__profile {
+    padding: 8px 6px;
+  }
+
+  .mypage-minihome__minime {
+    width: 64px;
+    height: 64px;
+  }
+}
