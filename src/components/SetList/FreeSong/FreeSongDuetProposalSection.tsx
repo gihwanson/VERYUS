@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import { getGradeName } from '../../../utils/gradeDisplay';
-import { isDuetPartnerGrade } from '../buskingGradeAccess';
 import { normalizeBuskingNickname } from '../BuskingMember/buskingParticipantsUtils';
 import type { BuskingMemberOption } from '../BuskingMember/useBuskingMemberList';
 
@@ -40,7 +39,7 @@ const FreeSongDuetProposalSection: React.FC<FreeSongDuetProposalSectionProps> = 
     return members
       .filter((member) => {
         const nickname = normalizeBuskingNickname(member.nickname);
-        return Boolean(nickname) && nickname !== self && participantSet.has(nickname) && isDuetPartnerGrade(member.grade);
+        return Boolean(nickname) && nickname !== self && participantSet.has(nickname);
       })
       .sort((a, b) => a.nickname.localeCompare(b.nickname, 'ko'));
   }, [members, participants, userNickname]);
@@ -59,7 +58,7 @@ const FreeSongDuetProposalSection: React.FC<FreeSongDuetProposalSectionProps> = 
     <div className="setlist-manage-panel">
       <h2 className="setlist-manage-heading free-song-heading">제안곡 전송</h2>
       <p className="setlist-manage-sub free-song-desc">
-        지구·토성·태양 등급은 참가 멤버 중 사과·멜론·수박 등급에게 듀엣을 제안할 수 있습니다.
+        지구·토성·태양 등급은 참가 멤버 중 원하는 등급의 파트너에게 듀엣을 제안할 수 있습니다.
         {isLeader
           ? ' 리더가 보낸 제안곡은 3곡 한도에 포함되지 않습니다.'
           : ` 제안곡도 합격곡과 같이 최대 ${submissionLimit}곡 한도에 포함되며, 파트너가 전송한 곡과 합산됩니다.`}
@@ -81,7 +80,7 @@ const FreeSongDuetProposalSection: React.FC<FreeSongDuetProposalSectionProps> = 
         <p className="free-song-empty-sub" style={{ marginTop: 12 }}>파트너 목록을 불러오는 중…</p>
       ) : partnerOptions.length === 0 ? (
         <p className="free-song-empty-sub" style={{ marginTop: 12 }}>
-          참가 멤버 중 사과·멜론·수박 등급이 없습니다.
+          참가 멤버 중 선택할 파트너가 없습니다.
         </p>
       ) : (
         <form className="free-song-manual-entry__form" style={{ marginTop: 14 }} onSubmit={(event) => void handleSubmit(event)}>

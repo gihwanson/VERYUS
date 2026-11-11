@@ -1,5 +1,5 @@
 import { ROLE_SYSTEM, SUPER_ADMIN_NICKNAMES } from '../AdminTypes';
-import { canHostBuskingByGrade } from './buskingGradeAccess';
+import { canHostBuskingByActivity, canHostBuskingByGrade } from './buskingGradeAccess';
 import type { SetListData } from './types';
 
 export interface BuskingSessionUser {
@@ -7,6 +7,8 @@ export interface BuskingSessionUser {
   nickname?: string;
   role?: string | null;
   grade?: string | null;
+  createdAtMs?: number | null;
+  approvedSongCount?: number | null;
 }
 
 /** 버스킹 관리 탭(편성·선정 등) 접근 — 리더·조장 */
@@ -35,8 +37,12 @@ export function canManageBuskingSession(
   return false;
 }
 
-/** 새 버스킹 세션을 열 수 있는지 — 리더·조장, 또는 토성 이상 */
+/** 새 버스킹 세션을 열 수 있는지 — 리더·조장, 토성 이상·은하·별, 또는 활동 1년·합격곡 10곡 */
 export function canHostBuskingSession(user: BuskingSessionUser | null | undefined): boolean {
   if (!user) return false;
-  return canAccessBuskingManage(user.role) || canHostBuskingByGrade(user.grade);
+  return (
+    canAccessBuskingManage(user.role) ||
+    canHostBuskingByGrade(user.grade) ||
+    canHostBuskingByActivity(user.createdAtMs, user.approvedSongCount)
+  );
 }

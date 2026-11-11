@@ -221,11 +221,21 @@ service cloud.firestore {
         );
     }
 
-    /** 토성 이상(토성·태양·초승달·은하). 등급은 이모지 또는 한글명 */
+    /** 토성 이상(토성·태양·초승달·은하)과 별. 등급은 이모지 또는 한글명 */
     function canHostBuskingByStoredGrade() {
       return exists(/databases/$(database)/documents/users/$(request.auth.uid))
         && userDoc().grade is string
-        && userDoc().grade.matches('.*(🪐|토성|☀|태양|🌙|초승달|🌌|은하).*');
+        && userDoc().grade.matches('.*(🪐|토성|☀|태양|🌙|초승달|🌌|은하|⭐|별).*');
+    }
+
+    /**
+     * 활동기간 1년 이상.
+     * 합격곡 10곡은 규칙에서 컬렉션 건수를 셀 수 없어 클라이언트에서 함께 확인한다.
+     */
+    function canHostBuskingByActivity() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && userDoc().createdAt is timestamp
+        && request.time >= userDoc().createdAt + duration.value(365, 'd');
     }
 
     function isLeaderRole() {
@@ -281,6 +291,7 @@ service cloud.firestore {
           canManageSetList()
           || isNerae()
           || canHostBuskingByStoredGrade()
+          || canHostBuskingByActivity()
         );
       allow update: if signedIn() && (
         isBuskingSessionManager() ||

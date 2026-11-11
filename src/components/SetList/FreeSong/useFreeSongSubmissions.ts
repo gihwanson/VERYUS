@@ -30,7 +30,7 @@ import {
   FREE_SONG_SUBMISSION_LIMIT,
   isDuetProposal,
 } from './freeSongSubmissionUtils';
-import { canProposeBuskingDuet, isDuetPartnerGrade } from '../buskingGradeAccess';
+import { canProposeBuskingDuet } from '../buskingGradeAccess';
 import { normalizeBuskingLyrics } from './freeSongLyricsUtils';
 import {
   mutateSetlistFreeSong,
@@ -374,16 +374,13 @@ export function useFreeSongSubmissions(
         const partnerSnap = await getDocs(
           query(collection(db, 'users'), where('nickname', '==', partnerNick))
         );
-        const partnerGrade = partnerSnap.docs
-          .map((d) => String(d.data().grade ?? ''))
-          .find((grade) => isDuetPartnerGrade(grade));
-        if (!partnerGrade) {
-          alert('듀엣 제안은 사과·멜론·수박 등급 멤버에게만 보낼 수 있습니다.');
+        if (partnerSnap.empty) {
+          alert('같이 할 파트너 계정을 찾지 못했습니다.');
           return false;
         }
       } catch (error) {
-        console.error('파트너 등급 확인 실패:', error);
-        alert('파트너 등급을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+        console.error('파트너 확인 실패:', error);
+        alert('파트너를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.');
         return false;
       }
 

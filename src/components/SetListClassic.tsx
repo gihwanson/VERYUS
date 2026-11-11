@@ -44,6 +44,8 @@ const SetListClassic: React.FC = () => {
         nickname: user.nickname || '',
         role: liveSessionUser?.role ?? user.role,
         grade: liveSessionUser?.grade ?? user.grade,
+        createdAtMs: liveSessionUser?.createdAtMs,
+        approvedSongCount: liveSessionUser?.approvedSongCount,
       }
     : null;
 

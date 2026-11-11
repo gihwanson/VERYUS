@@ -37,7 +37,7 @@ const FreeSongAdminPanel: React.FC<FreeSongAdminPanelProps> = ({
     return (
       <FreeSongEmptyState
         title="활성 버스킹 세션이 없습니다."
-        subtitle="토성 이상 또는 조장·리더가 버스킹을 열면 세션이 준비됩니다."
+        subtitle="토성 이상·별, 활동 1년·합격곡 10곡 이상, 또는 조장·리더가 버스킹을 열면 세션이 준비됩니다."
       />
     );
   }

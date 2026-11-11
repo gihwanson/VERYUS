@@ -17,7 +17,7 @@ export interface FreeSongSubmission {
   quotaExempt?: boolean;
   /** 버스킹용 가사 (연습장과 별도, 전송 시·이후 직접 입력) */
   lyrics?: string;
-  /** duetProposal: 지구 이상이 사과·멜론·수박에게 보낸 제안곡. 없으면 합격곡 전송 */
+  /** duetProposal: 지구·토성·태양이 참가 멤버에게 보낸 제안곡. 없으면 합격곡 전송 */
   kind?: 'approved' | 'duetProposal';
 }
 
