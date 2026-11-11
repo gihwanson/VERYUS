@@ -7,11 +7,16 @@ import { FreeSongEmptyState, SongRow } from './FreeSongShared';
 import FreeSongSubmitModal from './FreeSongSubmitModal';
 import FreeSongLyricsModal from './FreeSongLyricsModal';
 import { canEditBuskingLyrics, hasBuskingLyrics } from './freeSongLyricsUtils';
+import { isDuetProposal, isPartnerSubmitted } from './freeSongSubmissionUtils';
+import { canProposeBuskingDuet } from '../buskingGradeAccess';
+import { useBuskingMemberList } from '../BuskingMember/useBuskingMemberList';
+import FreeSongDuetProposalSection from './FreeSongDuetProposalSection';
 
 interface FreeSongPanelProps {
   activeSetList: SetListData | null;
   userNickname: string;
   userUid: string;
+  userGrade?: string | null;
   submissionsState: FreeSongSubmissionsState;
 }
 
@@ -19,6 +24,7 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
   activeSetList,
   userNickname,
   userUid,
+  userGrade,
   submissionsState,
 }) => {
   const {
@@ -38,6 +44,8 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
     loading,
     actionLoading,
     submitSong,
+    submitDuetProposal,
+    activeSubmissions,
     updateSubmissionLyrics,
     cancelSubmission,
     dismissRejectedSubmission,
@@ -46,12 +54,16 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
   const [submitModalOpen, setSubmitModalOpen] = useState(false);
   const [pendingCancelId, setPendingCancelId] = useState<string | null>(null);
   const [lyricsTarget, setLyricsTarget] = useState<FreeSongSubmission | null>(null);
+  const canProposeDuet = canProposeBuskingDuet(userGrade);
+  const { members: duetMembers, loading: duetMembersLoading } = useBuskingMemberList(
+    Boolean(activeSetList) && canProposeDuet
+  );
 
   if (!activeSetList) {
     return (
       <FreeSongEmptyState
         title="활성 버스킹 세션이 없습니다."
-        subtitle="리더·조장이 버스킹 페이지에 접속하면 세션이 자동으로 준비됩니다."
+        subtitle="토성 이상 또는 조장·리더가 버스킹을 열면 세션이 준비됩니다."
       />
     );
   }
@@ -62,7 +74,7 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
 
   const handleSubmit = async (song: ApprovedSong, lyrics: string): Promise<boolean> => {
     if (!canSubmitMore) {
-      alert(`최대 ${submissionLimit}곡까지 전송할 수 있습니다. 본인 전송·파트너 전송 곡을 합쳐 집계됩니다.`);
+      alert(`최대 ${submissionLimit}곡까지 전송할 수 있습니다. 합격곡·듀엣 제안·파트너 전송 곡을 합쳐 집계됩니다.`);
       return false;
     }
     const partnerEntry = partnerSubmittedSongs.find((item) => item.song.id === song.id);
@@ -198,6 +210,9 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
 
   const quotaExemptPartnerSongs = partnerSubmittedSongs.filter(({ submission }) => submission.quotaExempt);
   const quotaCountingPartnerSongs = partnerSubmittedSongs.filter(({ submission }) => !submission.quotaExempt);
+  const incomingDuetProposals = activeSubmissions.filter(
+    (submission) => isDuetProposal(submission) && isPartnerSubmitted(submission, userNickname)
+  );
 
   return (
     <div className="free-song-panel">
@@ -215,7 +230,7 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
         <p className="setlist-manage-sub free-song-desc">
           {isLeader
             ? '리더는 참가 멤버의 합격곡을 제한 없이 전송할 수 있습니다. 리더가 대신 전송한 곡은 해당 멤버의 3곡 한도에 포함되지 않습니다.'
-            : `참가 멤버로 편성되어 합격곡을 전송할 수 있습니다. 최대 ${submissionLimit}곡까지 전송 가능하며, 파트너가 전송한 곡도 한도에 포함됩니다.`}
+            : `참가 멤버로 편성되어 합격곡을 전송할 수 있습니다. 최대 ${submissionLimit}곡까지 전송 가능하며, 파트너가 전송한 곡과 듀엣 제안곡도 한도에 포함됩니다.`}
           {' '}전송 시 버스킹용 가사를 따로 올릴 수 있습니다.
         </p>
         <p className="free-song-desc" style={{ marginTop: 12, marginBottom: 12 }}>
@@ -224,7 +239,7 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
         {availableSongs.length === 0 ? (
           <p className="free-song-empty-sub">
             {!canSubmitMore
-              ? `전송 한도(${submissionLimit}곡)에 도달했습니다. 본인 전송·파트너 전송 곡을 합쳐 집계됩니다.`
+              ? `전송 한도(${submissionLimit}곡)에 도달했습니다. 합격곡·듀엣 제안·파트너 전송 곡을 합쳐 집계됩니다.`
               : approvedSongs.length === 0
                 ? isLeader
                   ? '참가 멤버의 합격곡이 없습니다.'
@@ -250,6 +265,27 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
         )}
       </div>
 
+      <FreeSongDuetProposalSection
+        canPropose={canProposeDuet}
+        isParticipant={participants.includes(userNickname.trim())}
+        isLeader={isLeader}
+        canSubmitMore={canSubmitMore}
+        submissionLimit={submissionLimit}
+        participants={participants}
+        userNickname={userNickname}
+        members={duetMembers}
+        membersLoading={duetMembersLoading}
+        actionLoading={actionLoading}
+        onSubmit={async (title, partner) => {
+          if (!canSubmitMore) {
+            alert(`최대 ${submissionLimit}곡까지 전송할 수 있습니다. 합격곡·듀엣 제안·파트너 전송 곡을 합쳐 집계됩니다.`);
+            return false;
+          }
+          const ok = await submitDuetProposal(title, partner);
+          return !!ok;
+        }}
+      />
+
       {(mySubmissions.length > 0 || myRejectedSubmissions.length > 0) && (
         <div className="setlist-manage-panel">
           <h3 className="free-song-section-title">내 전송 현황 ({mySubmissions.length + myRejectedSubmissions.length})</h3>
@@ -262,11 +298,13 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
                 badge={
                   lineupSubmissionIds.has(sub.id)
                     ? '선정됨'
-                    : sub.quotaExempt
-                      ? '리더 전송'
-                      : hasBuskingLyrics(sub.lyrics)
-                        ? '가사있음'
-                        : '전송됨'
+                    : isDuetProposal(sub)
+                      ? '듀엣 제안'
+                      : sub.quotaExempt
+                        ? '리더 전송'
+                        : hasBuskingLyrics(sub.lyrics)
+                          ? '가사있음'
+                          : '전송됨'
                 }
                 badgeVariant={lineupSubmissionIds.has(sub.id) ? 'selected' : 'submitted'}
                 action={renderRowActions(sub)}
@@ -291,6 +329,28 @@ const FreeSongPanel: React.FC<FreeSongPanelProps> = ({
                     </button>
                   </div>
                 }
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {incomingDuetProposals.length > 0 && (
+        <div className="setlist-manage-panel">
+          <h3 className="free-song-section-title">받은 듀엣 제안 ({incomingDuetProposals.length})</h3>
+          <p className="free-song-desc" style={{ marginBottom: 12 }}>
+            받은 듀엣 제안도 전송 한도에 포함됩니다. 진행하지 않을 제안은 취소할 수 있습니다.
+          </p>
+          <div className="free-song-list">
+            {incomingDuetProposals.map((submission) => (
+              <SongRow
+                key={submission.id}
+                title={submission.title}
+                members={submission.members}
+                submittedBy={submission.submittedBy}
+                badge={lineupSubmissionIds.has(submission.id) ? '선정됨' : '듀엣 제안'}
+                badgeVariant={lineupSubmissionIds.has(submission.id) ? 'selected' : 'submitted'}
+                action={renderRowActions(submission, true)}
               />
             ))}
           </div>

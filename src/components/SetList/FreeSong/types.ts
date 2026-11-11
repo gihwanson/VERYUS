@@ -17,9 +17,11 @@ export interface FreeSongSubmission {
   quotaExempt?: boolean;
   /** 버스킹용 가사 (연습장과 별도, 전송 시·이후 직접 입력) */
   lyrics?: string;
+  /** duetProposal: 지구 이상이 사과·멜론·수박에게 보낸 제안곡. 없으면 합격곡 전송 */
+  kind?: 'approved' | 'duetProposal';
 }
 
-export type FreeSongLineupItemKind = 'approved' | 'request' | 'openMic' | 'other' | 'custom';
+export type FreeSongLineupItemKind = 'approved' | 'duetProposal' | 'request' | 'openMic' | 'other' | 'custom';
 
 /** 관리자가 선택한 자유곡 진행 순서 항목 */
 export interface FreeSongLineupItem {

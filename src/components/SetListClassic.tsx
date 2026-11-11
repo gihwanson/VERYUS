@@ -13,6 +13,7 @@ import { useSetListData } from './SetList/hooks/useSetListData';
 import { useBuskingSession } from './SetList/hooks/useBuskingSession';
 import { useBuskingSessionBootstrap } from './SetList/hooks/useBuskingSessionBootstrap';
 import { useFreeSongSubmissions } from './SetList/FreeSong/useFreeSongSubmissions';
+import { useBuskingSessionUser } from './SetList/hooks/useBuskingSessionUser';
 import {
   canAccessBuskingManage,
   canHostBuskingSession,
@@ -36,8 +37,14 @@ const SetListClassic: React.FC = () => {
   const navigate = useNavigate();
   const userString = localStorage.getItem('veryus_user');
   const user = userString ? JSON.parse(userString) : null;
+  const liveSessionUser = useBuskingSessionUser();
   const sessionUser = user?.uid
-    ? { uid: user.uid, nickname: user.nickname || '', role: user.role }
+    ? {
+        uid: user.uid,
+        nickname: user.nickname || '',
+        role: liveSessionUser?.role ?? user.role,
+        grade: liveSessionUser?.grade ?? user.grade,
+      }
     : null;
 
   const canAccessManage = canAccessBuskingManage(user?.role);
@@ -66,7 +73,8 @@ const SetListClassic: React.FC = () => {
     user?.nickname || '',
     user?.uid || '',
     loading,
-    user?.role
+    user?.role,
+    sessionUser?.grade
   );
 
   const goToPerformView = useCallback(() => {
@@ -217,13 +225,14 @@ const SetListClassic: React.FC = () => {
       );
     }
     if (freeSongView === 'stats' && canManageCurrent) {
-      return <FreeSongStatsPanel activeSetList={activeSetList} canManage={canManageCurrent} userUid={user?.uid} userNickname={user?.nickname} userRole={user?.role} />;
+      return <FreeSongStatsPanel activeSetList={activeSetList} setLists={setLists} canManage={canManageCurrent} userUid={user?.uid} userNickname={user?.nickname} userRole={user?.role} />;
     }
     return (
       <FreeSongPanel
         activeSetList={activeSetList}
         userNickname={user?.nickname || ''}
         userUid={user?.uid || ''}
+        userGrade={sessionUser?.grade}
         submissionsState={submissionsState}
       />
     );

@@ -20,6 +20,10 @@ export function isRejectedSubmission(submission: FreeSongSubmission): boolean {
   return submission.status === 'rejected';
 }
 
+export function isDuetProposal(submission: { kind?: string | null }): boolean {
+  return submission.kind === 'duetProposal';
+}
+
 export function findSubmissionBySongId(
   submissions: FreeSongSubmission[],
   approvedSongId: string,

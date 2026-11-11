@@ -113,7 +113,7 @@ const BuskingSessionShell: React.FC<BuskingSessionShellProps> = ({
           subtitle={
             category === 'setlist'
               ? '위에서 버스킹을 선택하거나, 관리자가 셋리스트를 편성하면 이곳에 표시됩니다.'
-              : '조장이 버스킹을 열면 여기서 곡 전송·진행 순서를 확인할 수 있습니다.'
+              : '토성 이상 멤버나 조장·리더가 버스킹을 열면 여기서 곡 전송·진행 순서를 확인할 수 있습니다.'
           }
         />
       ) : !activeSetList && !needsSessionPicker && !awaitingVenue && !showCreate && canHost ? (

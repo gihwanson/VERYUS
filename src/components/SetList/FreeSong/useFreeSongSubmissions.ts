@@ -28,7 +28,9 @@ import {
   normalizeSubmissions,
   countUserQuotaSubmissions,
   FREE_SONG_SUBMISSION_LIMIT,
+  isDuetProposal,
 } from './freeSongSubmissionUtils';
+import { canProposeBuskingDuet, isDuetPartnerGrade } from '../buskingGradeAccess';
 import { normalizeBuskingLyrics } from './freeSongLyricsUtils';
 import {
   mutateSetlistFreeSong,
@@ -76,7 +78,8 @@ export function useFreeSongSubmissions(
   userNickname: string,
   userUid: string,
   setlistLoading: boolean,
-  userRole?: string | null
+  userRole?: string | null,
+  userGrade?: string | null
 ) {
   const [approvedSongs, setApprovedSongs] = useState<ApprovedSong[]>([]);
   const [approvedSongsLoading, setApprovedSongsLoading] = useState(false);
@@ -324,6 +327,169 @@ export function useFreeSongSubmissions(
     [setlistId, activeSetList, normalizedNickname, participants, withLoading, readFreshSubmissions, isLeader]
   );
 
+  const submitDuetProposal = useCallback(
+    async (titleInput: string, partnerNickname: string) => {
+      if (!setlistId || !activeSetList) return false;
+      const title = titleInput.trim();
+      const partnerNick = normalizeBuskingNickname(partnerNickname);
+      if (!title) {
+        alert('제안곡 제목을 입력해 주세요.');
+        return false;
+      }
+      if (title.length > 80) {
+        alert('제목은 80자 이내로 입력해 주세요.');
+        return false;
+      }
+      if (!partnerNick) {
+        alert('같이 할 파트너를 선택해 주세요.');
+        return false;
+      }
+      if (partnerNick === normalizedNickname) {
+        alert('본인에게는 듀엣을 제안할 수 없습니다.');
+        return false;
+      }
+      if (!isFreeSongParticipant(activeSetList, normalizedNickname)) {
+        alert('참가 멤버로 편성된 뒤에 듀엣을 제안할 수 있습니다.');
+        return false;
+      }
+      if (!isFreeSongParticipant(activeSetList, partnerNick)) {
+        alert('같이 할 파트너가 이번 버스킹 참가 멤버여야 합니다.');
+        return false;
+      }
+
+      let proposerGrade = userGrade ?? '';
+      try {
+        const proposerSnap = await getDoc(doc(db, 'users', userUid));
+        const liveGrade = proposerSnap.data()?.grade;
+        if (typeof liveGrade === 'string' && liveGrade.trim()) proposerGrade = liveGrade;
+      } catch (error) {
+        console.error('제안자 등급 확인 실패:', error);
+      }
+      if (!canProposeBuskingDuet(proposerGrade)) {
+        alert('지구·토성·태양 등급만 듀엣을 제안할 수 있습니다.');
+        return false;
+      }
+
+      try {
+        const partnerSnap = await getDocs(
+          query(collection(db, 'users'), where('nickname', '==', partnerNick))
+        );
+        const partnerGrade = partnerSnap.docs
+          .map((d) => String(d.data().grade ?? ''))
+          .find((grade) => isDuetPartnerGrade(grade));
+        if (!partnerGrade) {
+          alert('듀엣 제안은 사과·멜론·수박 등급 멤버에게만 보낼 수 있습니다.');
+          return false;
+        }
+      } catch (error) {
+        console.error('파트너 등급 확인 실패:', error);
+        alert('파트너 등급을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+        return false;
+      }
+
+      const submissionId = doc(collection(db, 'setlists')).id;
+      const newSubmission: FreeSongSubmission = {
+        id: submissionId,
+        approvedSongId: `duet:${submissionId}`,
+        title,
+        members: [normalizedNickname, partnerNick],
+        submittedBy: normalizedNickname,
+        submittedByUid: userUid,
+        createdAt: Timestamp.now(),
+        kind: 'duetProposal',
+        ...(isLeader ? { quotaExempt: true } : {}),
+      };
+
+      const result = await withLoading(async () => {
+        try {
+          const ok = await mutateSetlistFreeSong(setlistId, (state) => {
+            const duplicate = state.submissions.some(
+              (submission) =>
+                isDuetProposal(submission) &&
+                !isRejectedSubmission(submission) &&
+                submission.title.trim() === title &&
+                submission.members.some((member) => normalizeBuskingNickname(member) === partnerNick) &&
+                (submission.submittedByUid === userUid ||
+                  normalizeBuskingNickname(submission.submittedBy) === normalizedNickname)
+            );
+            if (duplicate) return null;
+
+            if (
+              !isLeader &&
+              findMemberOverSubmissionQuota(
+                state.submissions,
+                newSubmission.members,
+                userUid,
+                normalizedNickname
+              )
+            ) {
+              return null;
+            }
+
+            return { freeSongSubmissions: [...state.submissions, newSubmission] };
+          });
+
+          if (!ok) {
+            const freshSubmissions = await readFreshSubmissions();
+            const duplicate = freshSubmissions.some(
+              (submission) =>
+                isDuetProposal(submission) &&
+                !isRejectedSubmission(submission) &&
+                submission.title.trim() === title &&
+                submission.members.some((member) => normalizeBuskingNickname(member) === partnerNick) &&
+                (submission.submittedByUid === userUid ||
+                  normalizeBuskingNickname(submission.submittedBy) === normalizedNickname)
+            );
+            if (duplicate) {
+              alert('같은 제목으로 이 파트너에게 이미 제안한 곡이 있습니다.');
+              return false;
+            }
+            if (!isLeader) {
+              const overQuotaMember = findMemberOverSubmissionQuota(
+                freshSubmissions,
+                newSubmission.members,
+                userUid,
+                normalizedNickname
+              );
+              if (overQuotaMember) {
+                if (overQuotaMember === normalizedNickname) {
+                  alert(
+                    `최대 ${FREE_SONG_SUBMISSION_LIMIT}곡까지 전송할 수 있습니다. 합격곡·듀엣 제안·파트너 전송 곡을 합쳐 집계됩니다.`
+                  );
+                } else {
+                  alert(
+                    `파트너 ${overQuotaMember}님은 이미 최대 ${FREE_SONG_SUBMISSION_LIMIT}곡 한도에 도달했습니다.`
+                  );
+                }
+                return false;
+              }
+            }
+            alert('전송에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+            return false;
+          }
+          return true;
+        } catch (error) {
+          console.error('듀엣 제안 전송 실패:', error);
+          alert('전송에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+          return false;
+        }
+      });
+
+      if (result === 'busy') return false;
+      return result;
+    },
+    [
+      setlistId,
+      activeSetList,
+      normalizedNickname,
+      userUid,
+      userGrade,
+      isLeader,
+      withLoading,
+      readFreshSubmissions,
+    ]
+  );
+
   const updateSubmissionLyrics = useCallback(
     async (submissionId: string, lyricsInput: string) => {
       if (!setlistId || !activeSetList) return false;
@@ -524,6 +690,7 @@ export function useFreeSongSubmissions(
     loading,
     actionLoading,
     submitSong,
+    submitDuetProposal,
     updateSubmissionLyrics,
     cancelSubmission,
     rejectSubmission,

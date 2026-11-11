@@ -14,7 +14,7 @@ export interface BuskingSessionBootstrapUser {
   nickname: string;
 }
 
-/** 조장·리더가 자유곡에 들어왔을 때 본인 호스트 세션이 없으면 생성 UI 표시 */
+/** 버스킹을 열 수 있는 멤버가 자유곡에 들어왔을 때 본인 호스트 세션이 없으면 생성 UI 표시 */
 export function useBuskingSessionBootstrap(
   setLists: SetListData[],
   hostHasLiveSession: boolean,

@@ -48,7 +48,6 @@ import { enablePushNotifications, removeAllPushTokens } from '../utils/pushNotif
 import { GRADE_NAMES, GRADE_ORDER, GRADE_SYSTEM } from './AdminTypes';
 import { getGradeBadgeLabel, getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
 import GradeFxEmoji from './GradeFxEmoji';
-import MyPageMiniHomeStage from './MyPageMiniHomeStage';
 import {
   approvedSongCountsByNicknameFromDocs,
   dedupeApprovedSongsForNickname,
@@ -244,7 +243,7 @@ const MyPageNotebook: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<
     'stats' | 'posts' | 'evaluations' | 'recordings' | 'approved' | 'contestGrades' | 'guestbook'
-  >('stats');
+  >('guestbook');
   const [editingProfile, setEditingProfile] = useState(false);
   const [editingIntro, setEditingIntro] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
@@ -369,7 +368,7 @@ const MyPageNotebook: React.FC = () => {
   }, [navigate, uid]);
 
   useEffect(() => {
-    setActiveTab('stats');
+    setActiveTab('guestbook');
     setHasLoadedEvaluationPosts(false);
     setHasLoadedRecordings(false);
     setHasLoadedApprovedSongs(false);
@@ -1306,19 +1305,33 @@ const MyPageNotebook: React.FC = () => {
         </div>
       )}
 
-      <MyPageMiniHomeStage
-        variant="notebook"
-        nickname={user?.nickname ?? ''}
-        profileImageUrl={user?.profileImageUrl}
-        intro={user?.intro}
-        role={user?.role}
-        isOwner={isOwner}
-        onProfileImageClick={isOwner ? handleProfileImageClick : undefined}
-        onOpenGuestbook={() => setActiveTab('guestbook')}
-        onOpenStats={() => setActiveTab('stats')}
-        guestbookCount={guestMessages.length}
-        gradeDisplay={
-          <>
+      {/* 프로필 히어로 섹션 */}
+        <div className="mypage-profile-hero">
+          <div className="mypage-profile-avatar-wrap">
+            <div
+              className={`mypage-profile-avatar${isOwner ? '' : ' mypage-profile-avatar--readonly'}`}
+              onClick={isOwner ? handleProfileImageClick : undefined}
+              role={isOwner ? 'button' : undefined}
+              tabIndex={isOwner ? 0 : undefined}
+              onKeyDown={isOwner ? (e) => { if (e.key === 'Enter' || e.key === ' ') handleProfileImageClick(); } : undefined}
+            >
+            {user?.profileImageUrl ? (
+                <img src={user.profileImageUrl} alt="프로필" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+                <User size={64} color="#8b7355" />
+            )}
+          </div>
+        </div>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, justifyContent: 'center' }}>
+              <span className="mypage-profile-nickname">{user?.nickname}</span>
+            {user?.role && user.role !== '일반' && user.role !== '평가자' && (
+                <span className="mypage-profile-role">{user.role}</span>
+            )}
+          </div>
+          <div className="mypage-profile-intro">{user?.intro || '등록된 소개가 없습니다.'}</div>
+          <div className="mypage-profile-grade">
+            등급:{' '}
             <GradeFxEmoji
               grade={user?.grade || GRADE_SYSTEM.CHERRY}
               writerUid={user?.uid}
@@ -1326,59 +1339,48 @@ const MyPageNotebook: React.FC = () => {
               applyEquippedFx={isOwner}
             />{' '}
             <span className="author-grade-label">{getGradeBadgeLabel(user?.grade || GRADE_SYSTEM.CHERRY)}</span>
-          </>
-        }
-        footerExtra={
-          <details className="mypage-minihome__details">
-            <summary>프로필·가입 정보</summary>
-            <div className="mypage-minihome__details-body">
-              {isOwner && (
-                <div
-                  className="mypage-profile-pass-rate"
-                  title={
-                    myPassRateStats && myPassRateStats.passRate != null
-                      ? `평가 합격 ${myPassRateStats.evalPasses} · 평가 불합격 ${myPassRateStats.evalFails} · 관리자 등록 ${myPassRateStats.adminDirectPasses}`
-                      : undefined
-                  }
-                >
-                  {myPassRateLoading
-                    ? '합격률 불러오는 중…'
-                    : formatMemberPassRate(myPassRateStats ?? undefined)}
-                </div>
-              )}
-              {user?.pendingGrade && user.pendingGrade !== user.grade ? (
-                <div className="mypage-profile-pending">
-                  승인 대기: {getGradeBadgeLabel(user.pendingGrade)} — 설정에서 요청한 등급입니다.
-                </div>
-              ) : null}
-              <div className="mypage-profile-meta">
-                가입일: {getCreatedDate(user?.createdAt)?.toLocaleDateString('ko-KR') || '-'}
-              </div>
-              <div className="mypage-profile-meta">
-                활동기간:{' '}
-                {Math.max(
-                  0,
-                  Math.floor(
-                    (Date.now() - (getCreatedDate(user?.createdAt)?.getTime() || Date.now())) /
-                      (1000 * 60 * 60 * 24)
-                  )
-                )}
-                일
-              </div>
-              {isOwner && user?.pendingCreatedAt ? (
-                <div className="mypage-profile-meta">
-                  가입일 변경 승인 대기: {getCreatedDate(user.pendingCreatedAt)?.toLocaleDateString('ko-KR')}
-                </div>
-              ) : null}
-              {isOwner ? (
-                <button type="button" onClick={() => navigate('/settings')} className="mypage-profile-edit-btn">
-                  설정에서 프로필 수정
-                </button>
-              ) : null}
+          </div>
+          {isOwner && (
+            <div
+              className="mypage-profile-pass-rate"
+              title={
+                myPassRateStats && myPassRateStats.passRate != null
+                  ? `평가 합격 ${myPassRateStats.evalPasses} · 평가 불합격 ${myPassRateStats.evalFails} · 관리자 등록 ${myPassRateStats.adminDirectPasses}`
+                  : undefined
+              }
+            >
+              {myPassRateLoading
+                ? '합격률 불러오는 중…'
+                : formatMemberPassRate(myPassRateStats ?? undefined)}
             </div>
-          </details>
-        }
-      />
+          )}
+          {user?.pendingGrade && user.pendingGrade !== user.grade && (
+            <div className="mypage-profile-pending">
+              승인 대기: {getGradeBadgeLabel(user.pendingGrade)} — 설정에서 요청한 등급입니다.
+            </div>
+          )}
+          <div className="mypage-profile-meta">
+            가입일: {getCreatedDate(user?.createdAt)?.toLocaleDateString('ko-KR') || '-'}
+          </div>
+          <div className="mypage-profile-meta" style={{ marginTop: 4 }}>
+            활동기간: {Math.max(0, Math.floor(((Date.now()) - (getCreatedDate(user?.createdAt)?.getTime() || Date.now())) / (1000 * 60 * 60 * 24)))}일
+          </div>
+          {isOwner && user?.pendingCreatedAt && (
+            <div className="mypage-profile-meta" style={{ marginTop: 6, fontSize: 12 }}>
+              가입일 변경 승인 대기: {getCreatedDate(user.pendingCreatedAt)?.toLocaleDateString('ko-KR')}
+            </div>
+          )}
+          {isOwner && (
+            <button
+              type="button"
+              onClick={() => navigate('/settings')}
+              className="mypage-profile-edit-btn"
+            >
+              설정에서 프로필 수정
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* 탭 네비게이션 */}
       <div className="mypage-tabs-bar">

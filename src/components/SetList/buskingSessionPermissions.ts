@@ -1,10 +1,12 @@
 import { ROLE_SYSTEM, SUPER_ADMIN_NICKNAMES } from '../AdminTypes';
+import { canHostBuskingByGrade } from './buskingGradeAccess';
 import type { SetListData } from './types';
 
 export interface BuskingSessionUser {
   uid?: string;
   nickname?: string;
   role?: string | null;
+  grade?: string | null;
 }
 
 /** 버스킹 관리 탭(편성·선정 등) 접근 — 리더·조장 */
@@ -22,18 +24,19 @@ export function canManageAnyBuskingSession(user: BuskingSessionUser | null | und
   return user?.role === ROLE_SYSTEM.LEADER || isNeraeBuskingSupervisor(user);
 }
 
-/** 현재 세션 문서를 수정할 수 있는지 (호스트 조장 또는 리더·너래) */
+/** 현재 세션 문서를 수정할 수 있는지 (세션을 연 호스트, 또는 리더·너래) */
 export function canManageBuskingSession(
   session: SetListData | null | undefined,
   user: BuskingSessionUser | null | undefined
 ): boolean {
   if (!session || !user?.uid) return false;
   if (canManageAnyBuskingSession(user)) return true;
-  if (user.role === ROLE_SYSTEM.SQUAD_LEADER && session.hostUid === user.uid) return true;
+  if (session.hostUid === user.uid && canHostBuskingSession(user)) return true;
   return false;
 }
 
-/** 새 버스킹 세션을 열 수 있는지 */
+/** 새 버스킹 세션을 열 수 있는지 — 리더·조장, 또는 토성 이상 */
 export function canHostBuskingSession(user: BuskingSessionUser | null | undefined): boolean {
-  return canAccessBuskingManage(user?.role);
+  if (!user) return false;
+  return canAccessBuskingManage(user.role) || canHostBuskingByGrade(user.grade);
 }

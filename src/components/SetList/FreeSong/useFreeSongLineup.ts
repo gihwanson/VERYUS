@@ -101,6 +101,7 @@ export function useFreeSongLineup(
         members: string[];
         submittedBy: string;
         lyrics?: string;
+        kind?: 'approved' | 'duetProposal';
       },
       _currentLineup: FreeSongLineupItem[]
     ) => {
@@ -111,6 +112,9 @@ export function useFreeSongLineup(
           if (state.lineup.some((item) => item.submissionId === submission.id)) return null;
           const fresh = state.submissions.find((s) => s.id === submission.id);
           const lyrics = (fresh?.lyrics ?? submission.lyrics ?? '').trim();
+          const kind = fresh?.kind === 'duetProposal' || submission.kind === 'duetProposal'
+            ? 'duetProposal' as const
+            : undefined;
           const next = [
             ...state.lineup,
             {
@@ -120,6 +124,7 @@ export function useFreeSongLineup(
               members: submission.members,
               submittedBy: submission.submittedBy,
               order: state.lineup.length,
+              ...(kind ? { kind } : {}),
               ...(lyrics ? { lyrics } : {}),
             },
           ];

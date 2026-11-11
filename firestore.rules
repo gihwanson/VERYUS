@@ -137,49 +137,6 @@ service cloud.firestore {
         allow read: if isSelf(userId) || isNerae();
         allow create, update, delete: if isNeraeOrLeader();
       }
-
-      /** 싸이월드형 마이페이지 실험실 — 관리자만 (일반 /mypage 미노출) */
-      match /miniHomeLab/{docId} {
-        allow read: if isAdmin();
-        allow create, update: if isAdmin()
-          && request.resource.data.backgroundId is string
-          && request.resource.data.backgroundId in [
-            'peach', 'mint', 'lavender', 'midnight', 'paper', 'vinyl'
-          ]
-          && (
-            !('tagline' in request.resource.data)
-            || (
-              request.resource.data.tagline is string
-              && request.resource.data.tagline.size() <= 80
-            )
-          )
-          && (
-            !('characterSlot' in request.resource.data)
-            || request.resource.data.characterSlot in ['center', 'left', 'right']
-          )
-          && (
-            !('characterPose' in request.resource.data)
-            || request.resource.data.characterPose in ['neutral', 'wave', 'music']
-          )
-          && (
-            !('characterSize' in request.resource.data)
-            || request.resource.data.characterSize in ['s', 'm', 'l']
-          )
-          && (
-            !('characterFrame' in request.resource.data)
-            || request.resource.data.characterFrame in ['circle', 'polaroid', 'ribbon']
-          )
-          && (
-            !('guestbookStyle' in request.resource.data)
-            || request.resource.data.guestbookStyle in ['sticky', 'scrap', 'compact']
-          )
-          && (
-            !('guestbookPreviewLimit' in request.resource.data)
-            || request.resource.data.guestbookPreviewLimit in [3, 5, 8]
-          )
-          && request.resource.data.updatedBy == request.auth.uid;
-        allow delete: if isAdmin();
-      }
     }
 
     match /anonymousChatProfiles/{userId} {
@@ -264,6 +221,13 @@ service cloud.firestore {
         );
     }
 
+    /** 토성 이상(토성·태양·초승달·은하). 등급은 이모지 또는 한글명 */
+    function canHostBuskingByStoredGrade() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && userDoc().grade is string
+        && userDoc().grade.matches('.*(🪐|토성|☀|태양|🌙|초승달|🌌|은하).*');
+    }
+
     function isLeaderRole() {
       return signedIn()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
@@ -312,7 +276,12 @@ service cloud.firestore {
       allow read: if signedIn();
       allow create: if signedIn()
         && request.resource.data.hostUid == request.auth.uid
-        && request.resource.data.status == 'live';
+        && request.resource.data.status == 'live'
+        && (
+          canManageSetList()
+          || isNerae()
+          || canHostBuskingByStoredGrade()
+        );
       allow update: if signedIn() && (
         isBuskingSessionManager() ||
         (isBuskingSessionParticipant() && !touchesBuskingManagementFields())

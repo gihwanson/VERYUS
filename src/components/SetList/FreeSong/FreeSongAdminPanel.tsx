@@ -37,7 +37,7 @@ const FreeSongAdminPanel: React.FC<FreeSongAdminPanelProps> = ({
     return (
       <FreeSongEmptyState
         title="활성 버스킹 세션이 없습니다."
-        subtitle="리더·조장이 버스킹 페이지에 접속하면 세션이 자동으로 준비됩니다."
+        subtitle="토성 이상 또는 조장·리더가 버스킹을 열면 세션이 준비됩니다."
       />
     );
   }
@@ -77,7 +77,7 @@ const FreeSongAdminPanel: React.FC<FreeSongAdminPanelProps> = ({
       <div className="setlist-manage-panel">
         <h2 className="setlist-manage-heading free-song-heading">곡 선정</h2>
         <p className="setlist-manage-sub free-song-desc">
-          전송된 합격곡 중 버스킹에 사용할 곡을 선택하세요. 순서 변경은 <strong>진행 순서</strong> 탭에서 할 수 있습니다.
+          전송된 합격곡과 듀엣 제안곡 중 버스킹에 사용할 곡을 선택하세요. 순서 변경은 <strong>진행 순서</strong> 탭에서 할 수 있습니다.
           {activeSubmissions.length > 0 && (
             <span className="free-song-admin-count"> · 총 {activeSubmissions.length}곡 전송됨</span>
           )}
@@ -106,7 +106,7 @@ const FreeSongAdminPanel: React.FC<FreeSongAdminPanelProps> = ({
                         key={sub.id}
                         title={sub.title}
                         members={sub.members}
-                        badge="전송됨"
+                        badge={sub.kind === 'duetProposal' ? '듀엣 제안' : '전송됨'}
                         badgeVariant="submitted"
                         action={
                           <div className="free-song-row__actions free-song-row__actions--admin">

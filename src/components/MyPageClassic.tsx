@@ -47,7 +47,6 @@ import { enablePushNotifications, removeAllPushTokens } from '../utils/pushNotif
 import { GRADE_NAMES, GRADE_ORDER, GRADE_SYSTEM } from './AdminTypes';
 import { getGradeEmoji, getGradeName } from '../utils/gradeDisplay';
 import GradeFxEmoji from './GradeFxEmoji';
-import MyPageMiniHomeStage from './MyPageMiniHomeStage';
 import {
   approvedSongCountsByNicknameFromDocs,
   dedupeApprovedSongsForNickname,
@@ -243,7 +242,7 @@ const MyPageClassic: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<
     'stats' | 'posts' | 'evaluations' | 'recordings' | 'approved' | 'contestGrades' | 'guestbook'
-  >('stats');
+  >('guestbook');
   const [editingProfile, setEditingProfile] = useState(false);
   const [editingIntro, setEditingIntro] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
@@ -368,7 +367,7 @@ const MyPageClassic: React.FC = () => {
   }, [navigate, uid]);
 
   useEffect(() => {
-    setActiveTab('stats');
+    setActiveTab('guestbook');
     setHasLoadedEvaluationPosts(false);
     setHasLoadedRecordings(false);
     setHasLoadedApprovedSongs(false);
@@ -1500,19 +1499,85 @@ const MyPageClassic: React.FC = () => {
         </div>
       )}
 
-      <MyPageMiniHomeStage
-        variant="classic"
-        nickname={user?.nickname ?? ''}
-        profileImageUrl={user?.profileImageUrl}
-        intro={user?.intro}
-        role={user?.role}
-        isOwner={isOwner}
-        onProfileImageClick={isOwner ? handleProfileImageClick : undefined}
-        onOpenGuestbook={() => setActiveTab('guestbook')}
-        onOpenStats={() => setActiveTab('stats')}
-        guestbookCount={guestMessages.length}
-        gradeDisplay={
-          <>
+      {/* 프로필 히어로 섹션 */}
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.1)',
+          backdropFilter: 'blur(15px)',
+        borderRadius: '24px',
+          padding: '40px 32px',
+        marginBottom: '32px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '24px',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+        }}>
+          <div style={{ 
+            minWidth: 120, 
+            minHeight: 120, 
+            marginBottom: 16, 
+            display: 'flex', 
+            justifyContent: 'center' 
+          }}>
+            <div style={{ 
+              width: 120, 
+              height: 120, 
+              border: '4px solid rgba(255, 255, 255, 0.3)', 
+              borderRadius: '50%',
+              overflow: 'hidden',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)', 
+              cursor: isOwner ? 'pointer' : 'default', 
+              position: 'relative',
+              background: 'rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(10px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+            {user?.profileImageUrl ? (
+                <img src={user.profileImageUrl} alt="프로필" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+                <User size={64} color="rgba(255, 255, 255, 0.8)" />
+            )}
+          </div>
+        </div>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, justifyContent: 'center' }}>
+              <span style={{ 
+                fontSize: 24, 
+                fontWeight: 700, 
+                color: 'white', 
+                textAlign: 'center',
+                textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
+              }}>{user?.nickname}</span>
+            {user?.role && user.role !== '일반' && user.role !== '평가자' && (
+                <span style={{
+                fontSize: 16,
+                color: '#fff',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: 12,
+                  padding: '4px 16px',
+                fontWeight: 700,
+                marginLeft: 8,
+                letterSpacing: '0.02em',
+                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)',
+                display: 'inline-block',
+                verticalAlign: 'middle'
+              }}>{user.role}</span>
+            )}
+          </div>
+          <div style={{ 
+            marginTop: 8, 
+            fontSize: 16, 
+            color: 'rgba(255, 255, 255, 0.8)', 
+            textAlign: 'center',
+            textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+          }}>{user?.intro || '등록된 소개가 없습니다.'}</div>
+          <div style={{ marginTop: 12, color: 'rgba(255, 255, 255, 0.9)', fontWeight: 600, fontSize: 15 }}>
+            등급:{' '}
             <GradeFxEmoji
               grade={user?.grade || GRADE_SYSTEM.CHERRY}
               writerUid={user?.uid}
@@ -1520,75 +1585,76 @@ const MyPageClassic: React.FC = () => {
               applyEquippedFx={isOwner}
             />{' '}
             {getGradeName(user?.grade || GRADE_SYSTEM.CHERRY)}
-          </>
-        }
-        footerExtra={
-          <details className="mypage-minihome__details">
-            <summary style={{ color: 'rgba(255,255,255,0.9)' }}>프로필·가입 정보</summary>
-            <div className="mypage-minihome__details-body" style={{ color: 'rgba(255,255,255,0.85)' }}>
-              {isOwner && (
-                <div
-                  style={{
-                    color: 'rgba(167, 243, 208, 0.98)',
-                    fontWeight: 700,
-                    fontSize: 14,
-                  }}
-                  title={
-                    myPassRateStats && myPassRateStats.passRate != null
-                      ? `평가 합격 ${myPassRateStats.evalPasses} · 평가 불합격 ${myPassRateStats.evalFails} · 관리자 등록 ${myPassRateStats.adminDirectPasses}`
-                      : undefined
-                  }
-                >
-                  {myPassRateLoading
-                    ? '합격률 불러오는 중…'
-                    : formatMemberPassRate(myPassRateStats ?? undefined)}
-                </div>
-              )}
-              {user?.pendingGrade && user.pendingGrade !== user.grade ? (
-                <div style={{ fontSize: 13, fontWeight: 600 }}>
-                  승인 대기: {getGradeEmoji(user.pendingGrade)} {getGradeName(user.pendingGrade)}
-                </div>
-              ) : null}
-              <div>가입일: {getCreatedDate(user?.createdAt)?.toLocaleDateString('ko-KR') || '-'}</div>
-              <div>
-                활동기간:{' '}
-                {Math.max(
-                  0,
-                  Math.floor(
-                    (Date.now() - (getCreatedDate(user?.createdAt)?.getTime() || Date.now())) /
-                      (1000 * 60 * 60 * 24)
-                  )
-                )}
-                일
-              </div>
-              {isOwner && user?.pendingCreatedAt ? (
-                <div style={{ fontSize: 12 }}>
-                  가입일 변경 승인 대기: {getCreatedDate(user.pendingCreatedAt)?.toLocaleDateString('ko-KR')}
-                </div>
-              ) : null}
-              {isOwner ? (
-                <button
-                  type="button"
-                  onClick={() => navigate('/settings')}
-                  style={{
-                    marginTop: 8,
-                    padding: '9px 18px',
-                    borderRadius: 12,
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
-                    background: 'rgba(255, 255, 255, 0.15)',
-                    color: 'white',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    fontSize: 14,
-                  }}
-                >
-                  설정에서 프로필 수정
-                </button>
-              ) : null}
+          </div>
+          {isOwner && (
+            <div
+              style={{
+                marginTop: 8,
+                color: 'rgba(167, 243, 208, 0.98)',
+                fontWeight: 700,
+                fontSize: 14,
+                textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
+              }}
+              title={
+                myPassRateStats && myPassRateStats.passRate != null
+                  ? `평가 합격 ${myPassRateStats.evalPasses} · 평가 불합격 ${myPassRateStats.evalFails} · 관리자 등록 ${myPassRateStats.adminDirectPasses}`
+                  : undefined
+              }
+            >
+              {myPassRateLoading
+                ? '합격률 불러오는 중…'
+                : formatMemberPassRate(myPassRateStats ?? undefined)}
             </div>
-          </details>
-        }
-      />
+          )}
+          {user?.pendingGrade && user.pendingGrade !== user.grade && (
+            <div
+              style={{
+                marginTop: 8,
+                fontSize: 13,
+                fontWeight: 600,
+                color: 'rgba(255, 255, 255, 0.95)',
+                background: 'rgba(127, 95, 255, 0.25)',
+                border: '1px solid rgba(255,255,255,0.35)',
+                borderRadius: 10,
+                padding: '8px 12px',
+                maxWidth: 360,
+                textAlign: 'center'
+              }}
+            >
+              승인 대기: {getGradeEmoji(user.pendingGrade)} {getGradeName(user.pendingGrade)} — 설정에서 요청한 등급입니다.
+            </div>
+          )}
+          <div style={{ marginTop: 8, fontSize: 14, color: 'rgba(255, 255, 255, 0.75)' }}>
+            가입일: {getCreatedDate(user?.createdAt)?.toLocaleDateString('ko-KR') || '-'}
+          </div>
+          <div style={{ marginTop: 4, fontSize: 14, color: 'rgba(255, 255, 255, 0.75)' }}>
+            활동기간: {Math.max(0, Math.floor(((Date.now()) - (getCreatedDate(user?.createdAt)?.getTime() || Date.now())) / (1000 * 60 * 60 * 24)))}일
+          </div>
+          {isOwner && user?.pendingCreatedAt && (
+            <div style={{ marginTop: 6, fontSize: 12, color: 'rgba(255,255,255,0.9)' }}>
+              가입일 변경 승인 대기: {getCreatedDate(user.pendingCreatedAt)?.toLocaleDateString('ko-KR')}
+            </div>
+          )}
+          {isOwner && (
+            <button
+              onClick={() => navigate('/settings')}
+              style={{
+                marginTop: 14,
+                padding: '9px 18px',
+                borderRadius: 12,
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                background: 'rgba(255, 255, 255, 0.15)',
+                color: 'white',
+                fontWeight: 700,
+                cursor: 'pointer',
+                fontSize: 14
+              }}
+            >
+              설정에서 프로필 수정
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* 탭 네비게이션 */}
       <div

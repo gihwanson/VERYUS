@@ -393,7 +393,13 @@ const FreeSongOrderPanel: React.FC<FreeSongOrderPanelProps> = ({
                   order={index + 1}
                   title={item.title}
                   members={item.members}
-                  badge={hasBuskingLyrics(item.lyrics) ? '가사' : undefined}
+                  badge={
+                    item.kind === 'duetProposal'
+                      ? '듀엣'
+                      : hasBuskingLyrics(item.lyrics)
+                        ? '가사'
+                        : undefined
+                  }
                   badgeVariant="default"
                   action={action}
                 />

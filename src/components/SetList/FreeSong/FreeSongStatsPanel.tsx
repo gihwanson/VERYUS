@@ -1,20 +1,82 @@
 import React, { useMemo, useState } from 'react';
 import type { SetListData } from '../types';
+import { formatBuskingSessionLabel } from '../buskingSessionUtils';
 import { getFreeSongParticipants } from '../BuskingMember/buskingParticipantsUtils';
 import { useFreeSongLineup, useGlobalFreeSongStats } from './useFreeSongLineup';
-import { buildRosterSessionStats, computeStatsFromLineup } from './freeSongStatsUtils';
-import { FreeSongEmptyState } from './FreeSongShared';
+import {
+  buildRosterSessionStats,
+  collectCompletedSongsForMember,
+  computeStatsFromLineup,
+  type CompletedMemberSong,
+} from './freeSongStatsUtils';
+import { formatMembers, FreeSongEmptyState } from './FreeSongShared';
 
 interface FreeSongStatsPanelProps {
   activeSetList: SetListData | null;
+  setLists?: SetListData[];
   canManage?: boolean;
   userUid?: string;
   userNickname?: string;
   userRole?: string | null;
 }
 
+function songMeta(song: CompletedMemberSong, showSession: boolean): string {
+  const members = formatMembers(song.members);
+  if (showSession && song.sessionLabel) {
+    return members ? `${song.sessionLabel} · ${members}` : song.sessionLabel;
+  }
+  return members;
+}
+
+const MemberStatsList: React.FC<{
+  rows: [string, number][];
+  songsFor: (nickname: string) => CompletedMemberSong[];
+  expandedNickname: string | null;
+  onToggle: (nickname: string) => void;
+  showSession: boolean;
+}> = ({ rows, songsFor, expandedNickname, onToggle, showSession }) => (
+  <div className="free-song-stats-list">
+    {rows.map(([nickname, count], index) => {
+      const open = expandedNickname === nickname;
+      const songs = open ? songsFor(nickname) : [];
+      return (
+        <div key={nickname}>
+          <button
+            type="button"
+            className={`free-song-stats-row${open ? ' free-song-stats-row--open' : ''}`}
+            aria-expanded={open}
+            onClick={() => onToggle(nickname)}
+          >
+            <span className="free-song-stats-rank">{index + 1}</span>
+            <span className="free-song-stats-name">{nickname}</span>
+            <span className="free-song-stats-count">{count}곡</span>
+          </button>
+          {open && (
+            songs.length === 0 ? (
+              <p className="free-song-empty-sub" style={{ margin: '6px 8px 0' }}>완료한 곡이 없습니다.</p>
+            ) : (
+              <ul className="free-song-stats-songs">
+                {songs.map((song) => {
+                  const meta = songMeta(song, showSession);
+                  return (
+                    <li key={song.key} className="free-song-stats-song">
+                      <div className="free-song-stats-song__title">{song.title}</div>
+                      {meta ? <div className="free-song-stats-song__meta">{meta}</div> : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            )
+          )}
+        </div>
+      );
+    })}
+  </div>
+);
+
 const FreeSongStatsPanel: React.FC<FreeSongStatsPanelProps> = ({
   activeSetList,
+  setLists = [],
   canManage = false,
   userUid,
   userNickname,
@@ -28,6 +90,8 @@ const FreeSongStatsPanel: React.FC<FreeSongStatsPanelProps> = ({
   });
 
   const [confirmReset, setConfirmReset] = useState(false);
+  const [expandedSessionMember, setExpandedSessionMember] = useState<string | null>(null);
+  const [expandedGlobalMember, setExpandedGlobalMember] = useState<string | null>(null);
 
   const completedStats = useMemo(
     () => computeStatsFromLineup(activeSetList?.freeSongLineup),
@@ -110,43 +174,54 @@ const FreeSongStatsPanel: React.FC<FreeSongStatsPanelProps> = ({
           )}
         </div>
         <p className="free-song-desc free-song-desc--admin">
-          버스킹에 편성된 멤버별 완료 곡 수입니다.
+          버스킹에 편성된 멤버별 완료 곡 수입니다. 이름을 누르면 이번 세션에서 완료한 곡이 펼쳐집니다.
         </p>
         {participants.length === 0 ? (
           <p className="free-song-empty-sub">아직 참가 멤버가 편성되지 않았습니다.</p>
         ) : (
-          <div className="free-song-stats-list">
-            {rosterSessionStats.map(([nickname, count], index) => (
-              <div key={nickname} className="free-song-stats-row">
-                <span className="free-song-stats-rank">{index + 1}</span>
-                <span className="free-song-stats-name">{nickname}</span>
-                <span className="free-song-stats-count">{count}곡</span>
-              </div>
-            ))}
-          </div>
+          <MemberStatsList
+            rows={rosterSessionStats}
+            expandedNickname={expandedSessionMember}
+            showSession={false}
+            onToggle={(nickname) =>
+              setExpandedSessionMember((current) => (current === nickname ? null : nickname))
+            }
+            songsFor={(nickname) =>
+              collectCompletedSongsForMember(
+                [{ sessionId: activeSetList.id, lineup: activeSetList.freeSongLineup }],
+                nickname
+              )
+            }
+          />
         )}
       </div>
 
       <div className="setlist-manage-panel">
         <h3 className="free-song-section-title">전체 누적</h3>
         <p className="free-song-desc free-song-desc--admin">
-          지금까지 자유곡 버스킹에서 완료한 누적 곡 수입니다.
+          지금까지 자유곡 버스킹에서 완료한 누적 곡 수입니다. 이름을 누르면 완료한 곡이 모두 펼쳐집니다.
         </p>
         {Object.keys(globalStats).length === 0 ? (
           <p className="free-song-empty-sub">아직 누적 통계가 없습니다.</p>
         ) : (
-          <div className="free-song-stats-list">
-            {buildRosterSessionStats(
-              Object.keys(globalStats),
-              globalStats
-            ).map(([nickname, count], index) => (
-              <div key={nickname} className="free-song-stats-row">
-                <span className="free-song-stats-rank">{index + 1}</span>
-                <span className="free-song-stats-name">{nickname}</span>
-                <span className="free-song-stats-count">{count}곡</span>
-              </div>
-            ))}
-          </div>
+          <MemberStatsList
+            rows={buildRosterSessionStats(Object.keys(globalStats), globalStats)}
+            expandedNickname={expandedGlobalMember}
+            showSession
+            onToggle={(nickname) =>
+              setExpandedGlobalMember((current) => (current === nickname ? null : nickname))
+            }
+            songsFor={(nickname) =>
+              collectCompletedSongsForMember(
+                setLists.map((list) => ({
+                  sessionId: list.id,
+                  sessionLabel: formatBuskingSessionLabel(list),
+                  lineup: list.freeSongLineup,
+                })),
+                nickname
+              )
+            }
+          />
         )}
       </div>
     </div>

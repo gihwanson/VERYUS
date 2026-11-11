@@ -2229,10 +2229,48 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  width: 100%;
   padding: 12px 14px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.15);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.free-song-stats-row--open {
+  border-color: rgba(251, 191, 36, 0.65);
+}
+
+.free-song-stats-songs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0 4px 4px 8px;
+}
+
+.free-song-stats-song {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.free-song-stats-song__title {
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.free-song-stats-song__meta {
+  margin-top: 3px;
+  font-size: 12px;
+  line-height: 1.4;
+  opacity: 0.78;
 }
 
 .free-song-stats-rank {
