@@ -1028,6 +1028,7 @@
   justify-content: center;
   box-sizing: border-box;
   padding: 12px;
+  overflow: hidden;
 }
 
 .practice-booking-modal-overlay .modal-content {
@@ -1038,6 +1039,8 @@
   max-height: 90vh;
   max-height: 90dvh;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   box-shadow: 0 24px 60px rgba(31, 41, 55, 0.35);
   border: 1px solid rgba(255, 255, 255, 0.7);
   animation: slideUp 0.3s;
@@ -1577,6 +1580,7 @@
     max-width: 100%;
     width: 100%;
     margin: 0;
+    max-height: calc(100dvh - 16px);
   }
 
   .practice-booking-modal-overlay .modal-header {

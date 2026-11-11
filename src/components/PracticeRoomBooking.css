@@ -1109,6 +1109,7 @@
   justify-content: center;
   box-sizing: border-box;
   padding: 12px;
+  overflow: hidden;
 }
 
 .practice-confirm-overlay {
@@ -1154,6 +1155,9 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 
 @keyframes fadeIn {
@@ -1734,6 +1738,7 @@
     max-width: 100%;
     width: 100%;
     margin: 0;
+    max-height: calc(100dvh - 16px);
   }
 
   .practice-booking-modal-overlay .modal-header {
@@ -1745,7 +1750,21 @@
   }
 
   .practice-booking-modal-overlay .modal-body {
-    padding: 16px 18px;
+    padding: 12px 14px;
+  }
+
+  .practice-booking-modal-overlay .booking-info {
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .practice-booking-modal-overlay .info-row {
+    padding: 8px 10px;
+  }
+
+  .practice-booking-modal-overlay .members-input {
+    gap: 6px;
+    margin-bottom: 10px;
   }
 
   .practice-booking-modal-overlay .modal-footer {
