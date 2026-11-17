@@ -25,6 +25,8 @@ import {
   SkinnedPosition,
 } from './SkinnedAuthor';
 import { getPublicRoleBadge, shouldShowPublicPosition } from '../utils/publicRoleBadge';
+import { newcomerJoinPurposeBadge } from '../utils/newcomerJoinPurpose';
+import '../styles/NewcomerPostWrite.css';
 import PullToRefresh from './PullToRefresh';
 import { 
   ArrowLeft, 
@@ -57,6 +59,7 @@ interface Post {
   commentCount: number;
   views: number;
   category?: string;
+  joinPurpose?: string;
   likes: string[];
   bookmarks?: string[];
 }
@@ -578,6 +581,11 @@ const NewcomerPostList: React.FC = () => {
                 <div className="post-main-info">
                   <div className="post-category-title">
                     <span className="post-category category-badge">{getCategoryName(post.category)}</span>
+                    {newcomerJoinPurposeBadge(post.joinPurpose) && (
+                      <span className={`newcomer-join-purpose newcomer-join-purpose--${post.joinPurpose}`}>
+                        {newcomerJoinPurposeBadge(post.joinPurpose)}
+                      </span>
+                    )}
                     <SkinnedPostTitle
                       title={post.title}
                       writerNickname={post.writerNickname} writerUid={post.writerUid}

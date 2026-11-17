@@ -44,6 +44,8 @@ import {
 } from 'lucide-react';
 import { useAudioPlayer } from '../App';
 import { stopBoardAudio } from '../utils/boardAudioPlayer';
+import { NEWCOMER_JOIN_PURPOSES, newcomerJoinPurposeBadge } from '../utils/newcomerJoinPurpose';
+import '../styles/NewcomerPostWrite.css';
 
 interface Category {
   id: string;
@@ -68,6 +70,7 @@ interface Post {
   reportCount?: number;
   views: number;
   category?: string;
+  joinPurpose?: string;
   audioUrl?: string;
   duration?: number;
   fileName?: string;
@@ -493,7 +496,14 @@ const NewcomerPostDetail: React.FC = () => {
         <div className="post-detail-header">
           <div className="title-container">
             <div className="title-section">
-              {post.category && <span className="category-tag">{categories.find(c => c.id === post.category)?.name || '일반'}</span>}
+              <div className="newcomer-post-tags">
+                {post.category && <span className="category-tag">{categories.find(c => c.id === post.category)?.name || '일반'}</span>}
+                {newcomerJoinPurposeBadge(post.joinPurpose) && (
+                  <span className={`newcomer-join-purpose newcomer-join-purpose--detail newcomer-join-purpose--${post.joinPurpose}`}>
+                    {NEWCOMER_JOIN_PURPOSES.find((purpose) => purpose.id === post.joinPurpose)?.label}
+                  </span>
+                )}
+              </div>
               <SkinnedPostTitle
                 title={post.title}
                 writerNickname={post.writerNickname} writerUid={post.writerUid}

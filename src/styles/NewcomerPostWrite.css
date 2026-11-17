@@ -61,3 +61,86 @@
   font-size: 0.78rem;
   margin: 0.25rem 0 0.5rem;
 }
+
+.newcomer-join-purpose-field {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+}
+
+.newcomer-join-purpose-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.newcomer-join-purpose-option {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid rgba(139, 90, 43, 0.28);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.55);
+  color: #5c4030;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.newcomer-join-purpose-option input {
+  width: 1.05rem;
+  height: 1.05rem;
+  margin: 0;
+  accent-color: #8b5a2b;
+  flex-shrink: 0;
+}
+
+.newcomer-join-purpose-option.is-checked {
+  border-color: #8b5a2b;
+  background: #f6efe4;
+}
+
+.newcomer-join-purpose {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0.22rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.newcomer-join-purpose--sing {
+  color: #9a3412;
+  background: #ffedd5;
+}
+
+.newcomer-join-purpose--social {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.post-category-title:has(.newcomer-join-purpose) {
+  flex-wrap: wrap;
+}
+
+.newcomer-post-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.newcomer-join-purpose--detail {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.82rem;
+  white-space: normal;
+}

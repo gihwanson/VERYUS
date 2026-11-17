@@ -12,6 +12,11 @@ import { ref as storageRef, getDownloadURL, uploadBytesResumable } from 'firebas
 import { db, storage } from '../firebase';
 import { ArrowLeft, UserRound, Save, Loader, X, FileAudio } from 'lucide-react';
 import { rejectBoardAttachmentIfTooLarge } from '../utils/boardAttachmentLimits';
+import {
+  NEWCOMER_JOIN_PURPOSES,
+  isNewcomerJoinPurpose,
+  type NewcomerJoinPurpose,
+} from '../utils/newcomerJoinPurpose';
 import '../styles/FreePostWrite.css';
 import '../styles/RecordingPostWrite.css';
 import '../styles/NewcomerPostWrite.css';
@@ -43,6 +48,7 @@ const NewcomerPostWrite: React.FC = () => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState(INTRO_TEMPLATE);
   const [category] = useState('intro');
+  const [joinPurpose, setJoinPurpose] = useState<NewcomerJoinPurpose | ''>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   const [user] = useState<User | null>(() => {
@@ -73,6 +79,7 @@ const NewcomerPostWrite: React.FC = () => {
           }
           setTitle(data.title || '');
           setContent(data.content || INTRO_TEMPLATE);
+          setJoinPurpose(isNewcomerJoinPurpose(data.joinPurpose) ? data.joinPurpose : '');
           if (data.audioUrl) {
             setExistingAudioUrl(data.audioUrl);
             setDisplayFileName(data.fileName || '첨부된 녹음파일');
@@ -229,6 +236,10 @@ const NewcomerPostWrite: React.FC = () => {
       alert('제목과 내용을 모두 입력해주세요.');
       return;
     }
+    if (!joinPurpose) {
+      alert('들어온 목적을 하나 선택해 주세요.');
+      return;
+    }
 
     try {
       setIsSubmitting(true);
@@ -271,6 +282,7 @@ const NewcomerPostWrite: React.FC = () => {
           title,
           content,
           category,
+          joinPurpose,
           ...audioFields,
           updatedAt: serverTimestamp(),
         });
@@ -281,6 +293,7 @@ const NewcomerPostWrite: React.FC = () => {
           title,
           content,
           category,
+          joinPurpose,
           type: 'newcomer',
           writerUid: user.uid,
           writerNickname: user.nickname || '익명',
@@ -351,6 +364,33 @@ const NewcomerPostWrite: React.FC = () => {
                   </button>
                 ))}
               </div>
+            </section>
+
+            <section className="free-post-write__section" aria-labelledby="newcomer-purpose-label">
+              <span id="newcomer-purpose-label" className="free-post-write__section-label">
+                들어온 목적
+              </span>
+              <p className="free-post-write__hint">
+                하나만 선택해 주세요. 둘 다 관심이 있으면 「버스킹/노래에 관심이 있어요!」에 체크해 주세요.
+              </p>
+              <fieldset className="newcomer-join-purpose-field" aria-label="들어온 목적">
+                <div className="newcomer-join-purpose-options">
+                  {NEWCOMER_JOIN_PURPOSES.map((purpose) => (
+                    <label
+                      key={purpose.id}
+                      className={`newcomer-join-purpose-option${joinPurpose === purpose.id ? ' is-checked' : ''}`}
+                    >
+                      <input
+                        type="checkbox"
+                        name="joinPurpose"
+                        checked={joinPurpose === purpose.id}
+                        onChange={() => setJoinPurpose(purpose.id)}
+                      />
+                      <span>{purpose.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
             </section>
 
             <section className="free-post-write__section">
