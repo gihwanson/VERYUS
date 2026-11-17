@@ -16,6 +16,7 @@ import {
   leaveManittoSeason,
   subscribeActiveManittoSeason,
   subscribeManittoAssignmentRows,
+  subscribeManittoGuessReviews,
   subscribeManittoParticipant,
   subscribeManittoParticipantCount,
   subscribeManittoParticipants,
@@ -30,6 +31,7 @@ import {
   type ManittoAssignment,
   type ManittoAssignmentRow,
   type ManittoGuess,
+  type ManittoGuessReview,
   type ManittoParticipant,
   type ManittoSeason,
 } from '../utils/manittoTypes';
@@ -98,6 +100,7 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
   const [guessName, setGuessName] = useState('');
   const [myGuess, setMyGuess] = useState<ManittoGuess | null>(null);
   const [guessRoster, setGuessRoster] = useState<ManittoParticipant[]>([]);
+  const [guessReviews, setGuessReviews] = useState<ManittoGuessReview[]>([]);
   const modalBodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -147,6 +150,14 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
     }
     return subscribeManittoAssignmentRows(season.id, setAssignmentRows);
   }, [user, season?.id]);
+
+  useEffect(() => {
+    if (!isNeraeUser(user) || !season?.id || (season.status !== 'closed' && season.status !== 'drawn')) {
+      setGuessReviews([]);
+      return;
+    }
+    return subscribeManittoGuessReviews(season.id, setGuessReviews);
+  }, [user, season?.id, season?.status]);
 
   useEffect(() => {
     if (!isNeraeUser(user)) return;
@@ -653,6 +664,41 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
                   참가자에게 보이지 않습니다.
                 </p>
               )}
+
+              {season.status === 'closed' || season.status === 'drawn' ? (
+                <div className="manitto-guess-review">
+                  <p className="manitto-modal__nerae-title">참가자가 맞힌 답</p>
+                  <p className="manitto-modal__nerae-hint">
+                    각 참가자가 나를 챙겨 준 마니또로 고른 이름과, 그 답이 맞는지입니다.
+                  </p>
+                  <p className="manitto-modal__nerae-live-badge">
+                    제출 {guessReviews.filter((row) => row.correct !== null).length}/{guessReviews.length}
+                    명 · 정답 {guessReviews.filter((row) => row.correct === true).length}명
+                  </p>
+                  <div className="manitto-guess-review__list">
+                    {guessReviews.map((row) => (
+                      <div key={row.guesserUid} className="manitto-guess-review__row">
+                        <span className="manitto-guess-review__name">{row.guesserNickname}</span>
+                        {row.correct === null ? (
+                          <span className="manitto-guess-review__pending">아직 안 맞춤</span>
+                        ) : (
+                          <span className="manitto-guess-review__answer">
+                            <span>{row.guessedNickname}</span>
+                            <span
+                              className={`manitto-guess-review__mark${row.correct ? ' manitto-guess-review__mark--correct' : ' manitto-guess-review__mark--wrong'}`}
+                            >
+                              {row.correct ? '정답' : '오답'}
+                            </span>
+                            {row.correct ? null : (
+                              <span className="manitto-guess-review__actual">정답 {row.actualNickname}</span>
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               {(season.status === 'recruiting' || season.status === 'closed') && (
                 <table className="manitto-modal__roster-table">

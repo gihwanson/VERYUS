@@ -538,3 +538,75 @@
   cursor: default;
 }
 
+.manitto-guess-review {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px dashed #fdba74;
+}
+
+.manitto-guess-review__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.manitto-guess-review__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid #fed7aa;
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+
+.manitto-guess-review__name {
+  font-weight: 800;
+  color: #1c1917;
+  font-size: 0.88rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.manitto-guess-review__answer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #9a3412;
+}
+
+.manitto-guess-review__mark {
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.manitto-guess-review__mark--correct {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.manitto-guess-review__mark--wrong {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.manitto-guess-review__actual {
+  color: #78716c;
+  font-weight: 700;
+}
+
+.manitto-guess-review__pending {
+  color: #a8a29e;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+

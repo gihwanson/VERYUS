@@ -47,6 +47,15 @@ export type ManittoGuess = {
   correct: boolean;
 };
 
+/** 너래가 보는 참가자별 맞히기 결과. correct가 null이면 아직 제출 전 */
+export type ManittoGuessReview = {
+  guesserUid: string;
+  guesserNickname: string;
+  guessedNickname: string | null;
+  actualNickname: string | null;
+  correct: boolean | null;
+};
+
 export const MANITTO_MIN_PARTICIPANTS = 3;
 
 export const MANITTO_STATUS_LABEL: Record<ManittoSeasonStatus, string> = {

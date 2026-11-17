@@ -19,6 +19,7 @@ import {
   type ManittoAssignment,
   type ManittoAssignmentRow,
   type ManittoGuess,
+  type ManittoGuessReview,
   type ManittoParticipant,
   type ManittoSeason,
   type ManittoSeasonStatus,
@@ -263,6 +264,69 @@ export function subscribeMyManittoGuess(
       correct: data.correct === true,
     });
   });
+}
+
+/** 너래 전용. 참가자 전체와 맞힌 답을 닉네임으로 맞춰 돌려준다. */
+export function subscribeManittoGuessReviews(
+  seasonId: string,
+  onChange: (rows: ManittoGuessReview[]) => void
+): Unsubscribe {
+  let participants: ManittoParticipant[] = [];
+  let guesses: Array<{
+    guesserUid: string;
+    guessedNickname: string;
+    actualNickname: string;
+    correct: boolean;
+  }> = [];
+
+  const emit = () => {
+    const nicknameByUid = new Map(participants.map((p) => [p.uid, p.nickname]));
+    const guessByUid = new Map(guesses.map((guess) => [guess.guesserUid, guess]));
+    const uids = new Set<string>([
+      ...participants.map((p) => p.uid),
+      ...guesses.map((guess) => guess.guesserUid),
+    ]);
+    onChange(
+      [...uids]
+        .map((uid) => {
+          const guess = guessByUid.get(uid);
+          return {
+            guesserUid: uid,
+            guesserNickname: nicknameByUid.get(uid) ?? uid,
+            guessedNickname: guess ? guess.guessedNickname : null,
+            actualNickname: guess ? guess.actualNickname : null,
+            correct: guess ? guess.correct : null,
+          };
+        })
+        .sort((a, b) => {
+          if (a.correct === null && b.correct !== null) return 1;
+          if (a.correct !== null && b.correct === null) return -1;
+          return a.guesserNickname.localeCompare(b.guesserNickname, 'ko');
+        })
+    );
+  };
+
+  const unsubParticipants = subscribeManittoParticipants(seasonId, (list) => {
+    participants = list;
+    emit();
+  });
+  const unsubGuesses = onSnapshot(
+    collection(db, MANITTO_SEASONS_COLLECTION, seasonId, 'guesses'),
+    (snap) => {
+      guesses = snap.docs.map((d) => ({
+        guesserUid: d.id,
+        guessedNickname: String(d.data().guessedNickname ?? ''),
+        actualNickname: String(d.data().actualNickname ?? ''),
+        correct: d.data().correct === true,
+      }));
+      emit();
+    }
+  );
+
+  return () => {
+    unsubParticipants();
+    unsubGuesses();
+  };
 }
 
 export async function submitManittoGuess(
