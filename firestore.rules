@@ -441,6 +441,12 @@ service cloud.firestore {
           && giverUid != request.resource.data.receiverUid;
         allow delete: if isNerae() || isNeraeOrLeader();
       }
+
+      /** 내 마니또 맞히기 결과. 쓰기는 서버 함수만 */
+      match /guesses/{guesserUid} {
+        allow read: if signedIn() && (guesserUid == request.auth.uid || isNerae());
+        allow create, update, delete: if false;
+      }
     }
 
     match /memberWorldCupQuestions/{questionId} {

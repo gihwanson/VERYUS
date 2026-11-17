@@ -18,6 +18,7 @@ import {
   MANITTO_MIN_PARTICIPANTS,
   type ManittoAssignment,
   type ManittoAssignmentRow,
+  type ManittoGuess,
   type ManittoParticipant,
   type ManittoSeason,
   type ManittoSeasonStatus,
@@ -158,6 +159,10 @@ export function manittoAssignmentRef(seasonId: string, giverUid: string) {
   return doc(db, MANITTO_SEASONS_COLLECTION, seasonId, 'assignments', giverUid);
 }
 
+export function manittoGuessRef(seasonId: string, uid: string) {
+  return doc(db, MANITTO_SEASONS_COLLECTION, seasonId, 'guesses', uid);
+}
+
 export function subscribeActiveManittoSeason(
   onChange: (season: ManittoSeason | null) => void,
   onError?: (err: Error) => void
@@ -239,6 +244,41 @@ export function subscribeMyManittoAssignment(
       receiverNickname: String(data.receiverNickname ?? ''),
     });
   });
+}
+
+export function subscribeMyManittoGuess(
+  seasonId: string,
+  uid: string,
+  onChange: (guess: ManittoGuess | null) => void
+): Unsubscribe {
+  return onSnapshot(manittoGuessRef(seasonId, uid), (snap) => {
+    if (!snap.exists()) {
+      onChange(null);
+      return;
+    }
+    const data = snap.data();
+    onChange({
+      guessedNickname: String(data.guessedNickname ?? ''),
+      actualNickname: String(data.actualNickname ?? ''),
+      correct: data.correct === true,
+    });
+  });
+}
+
+export async function submitManittoGuess(
+  seasonId: string,
+  guessedNickname: string
+): Promise<ManittoGuess> {
+  const fn = httpsCallable<
+    { seasonId: string; guessedNickname: string },
+    ManittoGuess & { alreadySubmitted?: boolean }
+  >(functions, 'submitManittoGuess');
+  const res = await fn({ seasonId, guessedNickname: guessedNickname.trim() });
+  return {
+    guessedNickname: String(res.data?.guessedNickname ?? guessedNickname.trim()),
+    actualNickname: String(res.data?.actualNickname ?? ''),
+    correct: res.data?.correct === true,
+  };
 }
 
 export function subscribeManittoParticipantCount(

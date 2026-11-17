@@ -41,6 +41,12 @@ export type ManittoAssignmentRow = {
   receiverNickname: string;
 };
 
+export type ManittoGuess = {
+  guessedNickname: string;
+  actualNickname: string;
+  correct: boolean;
+};
+
 export const MANITTO_MIN_PARTICIPANTS = 3;
 
 export const MANITTO_STATUS_LABEL: Record<ManittoSeasonStatus, string> = {

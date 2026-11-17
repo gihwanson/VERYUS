@@ -20,6 +20,8 @@ import {
   subscribeManittoParticipantCount,
   subscribeManittoParticipants,
   subscribeMyManittoAssignment,
+  subscribeMyManittoGuess,
+  submitManittoGuess,
 } from '../utils/manittoService';
 import { fetchWorldCupMemberOptions } from '../utils/memberWorldCupService';
 import {
@@ -27,6 +29,7 @@ import {
   MANITTO_STATUS_LABEL,
   type ManittoAssignment,
   type ManittoAssignmentRow,
+  type ManittoGuess,
   type ManittoParticipant,
   type ManittoSeason,
 } from '../utils/manittoTypes';
@@ -91,6 +94,10 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
   const [memberOptions, setMemberOptions] = useState<Array<{ uid: string; nickname: string }>>([]);
   const [addMemberUid, setAddMemberUid] = useState('');
   const [adminDeadline, setAdminDeadline] = useState('');
+  const [guessOpen, setGuessOpen] = useState(false);
+  const [guessName, setGuessName] = useState('');
+  const [myGuess, setMyGuess] = useState<ManittoGuess | null>(null);
+  const [guessRoster, setGuessRoster] = useState<ManittoParticipant[]>([]);
   const modalBodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -167,6 +174,29 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
     }
     return subscribeMyManittoAssignment(season.id, user.uid, setAssignment);
   }, [season?.id, season?.status, user?.uid, participant, namesRevealed]);
+
+  const canGuessManitto = Boolean(participant && namesRevealed && assignment && user?.uid && season?.id);
+
+  useEffect(() => {
+    setGuessOpen(false);
+    setGuessName('');
+  }, [season?.id]);
+
+  useEffect(() => {
+    if (!canGuessManitto || !season?.id || !user?.uid) {
+      setMyGuess(null);
+      return;
+    }
+    return subscribeMyManittoGuess(season.id, user.uid, setMyGuess);
+  }, [canGuessManitto, season?.id, user?.uid]);
+
+  useEffect(() => {
+    if (!showModal || !canGuessManitto || !season?.id) {
+      setGuessRoster([]);
+      return;
+    }
+    return subscribeManittoParticipants(season.id, setGuessRoster);
+  }, [showModal, canGuessManitto, season?.id]);
 
   const pairCandidates = useMemo(() => {
     if (roster.length > 0) {
@@ -303,6 +333,75 @@ const ManittoBubble: React.FC<{ user: HomeUser | null }> = ({ user }) => {
                       : '참가 모집이 마감되어 마니또가 공개되었습니다.'}
                   </p>
                 </div>
+              ) : null}
+
+              {canGuessManitto ? (
+                myGuess ? (
+                  <div
+                    className={`manitto-modal__card manitto-guess-result${myGuess.correct ? ' manitto-guess-result--correct' : ' manitto-guess-result--wrong'}`}
+                  >
+                    <p className="manitto-guess-result__title">
+                      {myGuess.correct ? '맞아요!' : '아니에요.'}
+                    </p>
+                    <p className="manitto-guess-result__body">
+                      내 마니또는 <strong>{myGuess.actualNickname}</strong>님이었어요.
+                    </p>
+                    <p className="manitto-guess-result__mine">내가 적은 답: {myGuess.guessedNickname}</p>
+                  </div>
+                ) : guessOpen ? (
+                  <form
+                    className="manitto-modal__card manitto-guess-form"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      const nickname = guessName.trim();
+                      if (!nickname || !season) return;
+                      void run(async () => {
+                        const result = await submitManittoGuess(season.id, nickname);
+                        setMyGuess(result);
+                        setGuessOpen(false);
+                        toast.success(result.correct ? '정답입니다!' : '결과를 확인했어요.');
+                      });
+                    }}
+                  >
+                    <label className="manitto-modal__date-label" htmlFor="manitto-guess-name">
+                      내 마니또는 누구였을까요?
+                      <input
+                        id="manitto-guess-name"
+                        className="manitto-modal__field"
+                        list="manitto-guess-options"
+                        value={guessName}
+                        onChange={(event) => setGuessName(event.target.value)}
+                        placeholder="닉네임을 입력하세요"
+                        autoComplete="off"
+                        disabled={busy}
+                      />
+                    </label>
+                    <datalist id="manitto-guess-options">
+                      {guessRoster
+                        .filter((person) => person.uid !== user.uid)
+                        .map((person) => (
+                          <option key={person.uid} value={person.nickname} />
+                        ))}
+                    </datalist>
+                    <button type="submit" className="manitto-modal__btn manitto-modal__btn--primary" disabled={busy || !guessName.trim()}>
+                      {busy ? '확인 중…' : '제출하고 확인'}
+                    </button>
+                  </form>
+                ) : (
+                  <>
+                    <p className="manitto-modal__receiver-note" style={{ textAlign: 'center' }}>
+                      마감일 전에도 여기서 종료할 수 있어요. 마감을 누르면 내 마니또를 맞힐 수 있습니다.
+                    </p>
+                    <button
+                      type="button"
+                      className="manitto-modal__btn manitto-modal__btn--primary"
+                      disabled={busy}
+                      onClick={() => setGuessOpen(true)}
+                    >
+                      마감
+                    </button>
+                  </>
+                )
               ) : null}
 
               {season.status === 'recruiting' && participant ? (

@@ -255,3 +255,91 @@ export const syncManittoOnParticipantChange = onDocumentWritten(
     }
   }
 );
+
+/** 참가자가 자신의 마니또(나를 뽑은 사람)를 한 번 맞힌다. */
+export const submitManittoGuess = onCall(
+  { region: 'asia-northeast3', timeoutSeconds: 30 },
+  async (request) => {
+    const callerUid = request.auth?.uid;
+    if (!callerUid) {
+      throw new HttpsError('unauthenticated', '로그인이 필요합니다.');
+    }
+    const seasonId = String(request.data?.seasonId ?? '').trim();
+    const guessedNickname = String(request.data?.guessedNickname ?? '').trim();
+    if (!seasonId || !guessedNickname) {
+      throw new HttpsError('invalid-argument', '마니또 닉네임을 입력해 주세요.');
+    }
+
+    const db = admin.firestore();
+    const seasonRef = db.doc(`manittoSeasons/${seasonId}`);
+    const seasonSnap = await seasonRef.get();
+    if (!seasonSnap.exists) {
+      throw new HttpsError('not-found', '마니또 회차를 찾을 수 없습니다.');
+    }
+    const status = String(seasonSnap.data()?.status ?? '');
+    if (status !== 'drawn' && status !== 'closed') {
+      throw new HttpsError('failed-precondition', '마니또가 공개된 뒤에 맞힐 수 있습니다.');
+    }
+
+    const participantSnap = await db.doc(`manittoSeasons/${seasonId}/participants/${callerUid}`).get();
+    if (!participantSnap.exists) {
+      throw new HttpsError('permission-denied', '이번 회차 참가자만 맞힐 수 있습니다.');
+    }
+
+    const guessRef = db.doc(`manittoSeasons/${seasonId}/guesses/${callerUid}`);
+    const existingGuess = await guessRef.get();
+    if (existingGuess.exists) {
+      const saved = existingGuess.data() ?? {};
+      return {
+        correct: saved.correct === true,
+        guessedNickname: String(saved.guessedNickname ?? ''),
+        actualNickname: String(saved.actualNickname ?? ''),
+        alreadySubmitted: true,
+      };
+    }
+
+    const participantsSnap = await db.collection(`manittoSeasons/${seasonId}/participants`).get();
+    const nicknameByUid = new Map<string, string>();
+    participantsSnap.docs.forEach((docSnap) => {
+      nicknameByUid.set(docSnap.id, String(docSnap.data().nickname ?? '').trim());
+    });
+
+    const matched = [...nicknameByUid.entries()].filter(([, nickname]) => nickname === guessedNickname);
+    if (matched.length !== 1) {
+      throw new HttpsError('invalid-argument', '참가자 닉네임과 똑같이 입력해 주세요.');
+    }
+    const guessedUid = matched[0][0];
+    if (guessedUid === callerUid) {
+      throw new HttpsError('invalid-argument', '본인은 내 마니또가 될 수 없습니다.');
+    }
+
+    const assignmentsSnap = await db.collection(`manittoSeasons/${seasonId}/assignments`).get();
+    let actualUid = '';
+    assignmentsSnap.docs.forEach((docSnap) => {
+      if (String(docSnap.data().receiverUid ?? '') === callerUid) {
+        actualUid = docSnap.id;
+      }
+    });
+    if (!actualUid || !nicknameByUid.has(actualUid)) {
+      throw new HttpsError('failed-precondition', '아직 내 마니또가 정해지지 않았습니다.');
+    }
+
+    const actualNickname = nicknameByUid.get(actualUid) ?? actualUid;
+    const correct = guessedUid === actualUid;
+    await guessRef.set({
+      guessedUid,
+      guessedNickname,
+      actualUid,
+      actualNickname,
+      correct,
+      submittedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return {
+      correct,
+      guessedNickname,
+      actualNickname,
+      alreadySubmitted: false,
+    };
+  }
+);
