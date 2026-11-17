@@ -537,3 +537,50 @@
     gap: 12px;
   }
 }
+
+.strawberry-checks {
+  margin: 10px 0 4px;
+  padding: 12px 12px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #2c2416;
+}
+
+.strawberry-checks legend {
+  padding: 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.strawberry-checks label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 8px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.strawberry-checks label.is-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.strawberry-checks input {
+  margin-top: 3px;
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: #7f5fff;
+  flex-shrink: 0;
+}
+
+.strawberry-checks small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #6b5344;
+}

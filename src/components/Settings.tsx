@@ -65,10 +65,35 @@ interface User {
   pendingGradeRequestedAt?: unknown;
   pendingCreatedAt?: any;
   pendingCreatedAtRequestedAt?: unknown;
+  pendingStrawberryChecks?: {
+    days100: boolean;
+    newcomerOt: boolean;
+    offline3: boolean;
+    signupDays: number;
+  };
   profileImageUrl?: string;
   createdAt?: any;
   notificationsEnabled?: boolean;
   isLoggedIn: boolean;
+}
+
+const STRAWBERRY_MIN_DAYS = 100;
+
+function gradeMatches(grade: string | undefined, emoji: string, name: string) {
+  if (!grade) return false;
+  return grade.includes(emoji) || grade.includes(name);
+}
+
+function signupDaysFromCreatedAt(createdAt: unknown): number {
+  if (!createdAt) return 0;
+  const value = createdAt as { seconds?: number; toDate?: () => Date };
+  const created = value.seconds
+    ? new Date(value.seconds * 1000)
+    : typeof value.toDate === 'function'
+      ? value.toDate()
+      : new Date(createdAt as string | number);
+  if (Number.isNaN(created.getTime())) return 0;
+  return Math.max(0, Math.floor((Date.now() - created.getTime()) / (1000 * 60 * 60 * 24)));
 }
 
 const Settings: React.FC = () => {
@@ -79,6 +104,11 @@ const Settings: React.FC = () => {
   const [editingNickname, setEditingNickname] = useState(false);
   const [newIntro, setNewIntro] = useState('');
   const [newGrade, setNewGrade] = useState<string>(GRADE_SYSTEM.CHERRY);
+  const [strawberryChecks, setStrawberryChecks] = useState({
+    days100: false,
+    newcomerOt: false,
+    offline3: false,
+  });
   const [newJoinDate, setNewJoinDate] = useState('');
   const [savingProfileMeta, setSavingProfileMeta] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -156,6 +186,12 @@ const Settings: React.FC = () => {
       setNewNickname(userData.nickname || '');
       setNewIntro(userData.intro || '');
       setNewGrade(userData.pendingGrade || userData.grade || GRADE_SYSTEM.CHERRY);
+      const savedChecks = userData.pendingStrawberryChecks;
+      setStrawberryChecks({
+        days100: Boolean(savedChecks?.days100),
+        newcomerOt: Boolean(savedChecks?.newcomerOt),
+        offline3: Boolean(savedChecks?.offline3),
+      });
 
       const createdAt = userData.createdAt;
       const date = createdAt?.seconds
@@ -192,6 +228,7 @@ const Settings: React.FC = () => {
             pendingGradeRequestedAt: dbUser.pendingGradeRequestedAt,
             pendingCreatedAt: dbUser.pendingCreatedAt,
             pendingCreatedAtRequestedAt: dbUser.pendingCreatedAtRequestedAt,
+            pendingStrawberryChecks: dbUser.pendingStrawberryChecks,
             profileImageUrl: (dbUser.profileImageUrl as string) || profile?.profileImageUrl || localUser?.profileImageUrl,
             notificationsEnabled:
               typeof dbUser.notificationsEnabled === 'boolean'
@@ -297,6 +334,21 @@ const Settings: React.FC = () => {
       const chosenGrade = newGrade || GRADE_SYSTEM.CHERRY;
       const samePendingRequest =
         chosenGrade !== user.grade && user.pendingGrade === chosenGrade;
+      const requestingStrawberry =
+        gradeMatches(user.grade, GRADE_SYSTEM.CHERRY, '체리') &&
+        gradeMatches(chosenGrade, GRADE_SYSTEM.STRAWBERRY, '딸기');
+      const signupDays = signupDaysFromCreatedAt(user.createdAt);
+
+      if (requestingStrawberry && !samePendingRequest) {
+        if (signupDays < STRAWBERRY_MIN_DAYS) {
+          toast.warning(`딸기 등급은 앱 가입일 기준 ${STRAWBERRY_MIN_DAYS}일 이후 신청할 수 있습니다. 현재 ${signupDays}일입니다.`);
+          return;
+        }
+        if (!strawberryChecks.days100 || !strawberryChecks.newcomerOt || !strawberryChecks.offline3) {
+          toast.warning('아래 사항을 모두 체크한 뒤 저장해 주세요.');
+          return;
+        }
+      }
 
       const updates: {
         intro: string;
@@ -304,6 +356,7 @@ const Settings: React.FC = () => {
         pendingCreatedAtRequestedAt?: ReturnType<typeof serverTimestamp> | ReturnType<typeof deleteField>;
         pendingGrade?: string | ReturnType<typeof deleteField>;
         pendingGradeRequestedAt?: ReturnType<typeof serverTimestamp> | ReturnType<typeof deleteField>;
+        pendingStrawberryChecks?: User['pendingStrawberryChecks'] | ReturnType<typeof deleteField>;
       } = {
         intro: newIntro.trim()
       };
@@ -316,9 +369,22 @@ const Settings: React.FC = () => {
           updates.pendingGradeRequestedAt = deleteField();
           toastExtra = ' 등급 승인 요청을 취소했습니다.';
         }
+        if (user.pendingStrawberryChecks) {
+          updates.pendingStrawberryChecks = deleteField();
+        }
       } else if (!samePendingRequest) {
         updates.pendingGrade = chosenGrade;
         updates.pendingGradeRequestedAt = serverTimestamp();
+        if (requestingStrawberry) {
+          updates.pendingStrawberryChecks = {
+            days100: true,
+            newcomerOt: true,
+            offline3: true,
+            signupDays,
+          };
+        } else if (user.pendingStrawberryChecks) {
+          updates.pendingStrawberryChecks = deleteField();
+        }
       }
 
       if (!joinDateChanged) {
@@ -352,10 +418,19 @@ const Settings: React.FC = () => {
       if (chosenGrade === user.grade) {
         delete updatedUser.pendingGrade;
         delete updatedUser.pendingGradeRequestedAt;
+        delete updatedUser.pendingStrawberryChecks;
       } else {
         updatedUser.pendingGrade = chosenGrade;
         if (!samePendingRequest) {
           updatedUser.pendingGradeRequestedAt = new Date();
+        }
+        if (requestingStrawberry && !samePendingRequest) {
+          updatedUser.pendingStrawberryChecks = {
+            days100: true,
+            newcomerOt: true,
+            offline3: true,
+            signupDays,
+          };
         }
       }
 
@@ -649,6 +724,45 @@ const Settings: React.FC = () => {
                 </option>
               ))}
             </select>
+            {gradeMatches(user.grade, GRADE_SYSTEM.CHERRY, '체리') &&
+              gradeMatches(newGrade, GRADE_SYSTEM.STRAWBERRY, '딸기') && (
+              <fieldset className="strawberry-checks">
+                <legend>아래 사항을 충족하셨나요?</legend>
+                <label className={signupDaysFromCreatedAt(user.createdAt) < STRAWBERRY_MIN_DAYS ? 'is-disabled' : ''}>
+                  <input
+                    type="checkbox"
+                    checked={strawberryChecks.days100}
+                    disabled={signupDaysFromCreatedAt(user.createdAt) < STRAWBERRY_MIN_DAYS}
+                    onChange={(e) => setStrawberryChecks((prev) => ({ ...prev, days100: e.target.checked }))}
+                  />
+                  <span>
+                    100일 이상 (앱 가입일 기준)
+                    <small>
+                      앱 가입일부터 계산합니다. 현재 {signupDaysFromCreatedAt(user.createdAt)}일
+                      {signupDaysFromCreatedAt(user.createdAt) < STRAWBERRY_MIN_DAYS
+                        ? ' · 100일이 지나야 체크할 수 있습니다.'
+                        : ''}
+                    </small>
+                  </span>
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={strawberryChecks.newcomerOt}
+                    onChange={(e) => setStrawberryChecks((prev) => ({ ...prev, newcomerOt: e.target.checked }))}
+                  />
+                  <span>신입 OT 1회 참석</span>
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={strawberryChecks.offline3}
+                    onChange={(e) => setStrawberryChecks((prev) => ({ ...prev, offline3: e.target.checked }))}
+                  />
+                  <span>오프라인 3회 참석</span>
+                </label>
+              </fieldset>
+            )}
             <p className="settings-field-hint settings-field-hint--small">
               승인 대기를 취소하려면 현재 반영 등급과 동일한 항목을 선택한 뒤 저장하세요.
             </p>

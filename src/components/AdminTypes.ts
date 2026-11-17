@@ -28,6 +28,13 @@ export interface AdminUser {
   /** 설정에서 요청한 가입일(승인 전). 없으면 승인 대기 없음 */
   pendingCreatedAt?: Timestamp | Date;
   pendingCreatedAtRequestedAt?: Timestamp | Date;
+  /** 체리 → 딸기 신청 시 회원이 확인한 조건 */
+  pendingStrawberryChecks?: {
+    days100: boolean;
+    newcomerOt: boolean;
+    offline3: boolean;
+    signupDays: number;
+  };
   /** true이면 합격곡이 있어도 합격곡 관리 탭에서 일반멤버로 분류 */
   isRegularMember?: boolean;
 }

@@ -1554,6 +1554,13 @@ const AdminPanel: React.FC = () => {
                   </span>
                 </div>
               )}
+              {u.pendingStrawberryChecks && (
+                <ul className="grade-approval-checks">
+                  <li>100일 이상 (앱 가입일 기준) · 현재 {u.pendingStrawberryChecks.signupDays}일</li>
+                  <li>신입 OT 1회 참석</li>
+                  <li>오프라인 3회 참석</li>
+                </ul>
+              )}
               <div className="grade-approval-actions">
                 <button
                   type="button"
@@ -1732,7 +1739,8 @@ const AdminPanel: React.FC = () => {
         pendingGrade: deleteField(),
         pendingGradeRequestedAt: deleteField(),
         pendingCreatedAt: deleteField(),
-        pendingCreatedAtRequestedAt: deleteField()
+        pendingCreatedAtRequestedAt: deleteField(),
+        pendingStrawberryChecks: deleteField()
       };
 
       if (target.pendingGrade) {
@@ -1789,7 +1797,8 @@ const AdminPanel: React.FC = () => {
         pendingGrade: deleteField(),
         pendingGradeRequestedAt: deleteField(),
         pendingCreatedAt: deleteField(),
-        pendingCreatedAtRequestedAt: deleteField()
+        pendingCreatedAtRequestedAt: deleteField(),
+        pendingStrawberryChecks: deleteField()
       });
       if (target.pendingGrade) {
         await NotificationService.notifyUserGradeRequestResolved({
