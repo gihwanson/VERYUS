@@ -1063,6 +1063,23 @@
   margin-bottom: 8px;
   width: 100%;
 }
+.edit-date-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.edit-date-hint {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: #78716c;
+}
+
 .edit-checkbox-label {
   display: flex;
   align-items: center;
@@ -2464,6 +2481,11 @@
 
 .busking-limit-input--narrow {
   max-width: 140px;
+}
+
+.join-date-input {
+  width: 11.5rem;
+  max-width: 100%;
 }
 
 .detail-badge-grade {

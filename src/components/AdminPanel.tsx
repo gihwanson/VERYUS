@@ -51,7 +51,9 @@ import { httpsCallable } from 'firebase/functions';
 import { startOfWeek, endOfWeek } from 'date-fns';
 import { migrateExistingMessages } from '../utils/chatService';
 import { 
-  formatDate, 
+  formatDate,
+  createdAtToDateInput,
+  dateInputToCreatedAt,
   calculateActivityDays, 
   calculateStats, 
   exportToExcel,
@@ -154,6 +156,9 @@ const AdminPanel: React.FC = () => {
 
   // 편집 상태
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+  const [editingJoinDate, setEditingJoinDate] = useState('');
+  const [detailJoinDate, setDetailJoinDate] = useState('');
+  const [savingJoinDate, setSavingJoinDate] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [selectedUserBuskingCount, setSelectedUserBuskingCount] = useState<number | null>(null);
   const [selectedUserBuskingLoading, setSelectedUserBuskingLoading] = useState(false);
@@ -324,6 +329,10 @@ const AdminPanel: React.FC = () => {
     };
   }, [navigate, fetchUsers]);
 
+  useEffect(() => {
+    setDetailJoinDate(selectedUser ? createdAtToDateInput(selectedUser.createdAt) : '');
+  }, [selectedUser?.uid]);
+
   // 현재 회원 닉네임 기준으로 합격률 집계 (users 로드 후)
   useEffect(() => {
     if (users.length === 0) return;
@@ -481,19 +490,36 @@ const AdminPanel: React.FC = () => {
           after: Boolean(editingUser.isRegularMember)
         };
       }
+      const beforeJoinDate = createdAtToDateInput(user.createdAt);
+      const nextCreatedAt = editingJoinDate ? dateInputToCreatedAt(editingJoinDate) : null;
+      if (editingJoinDate !== beforeJoinDate) {
+        if (!nextCreatedAt) {
+          alert('가입일을 입력해 주세요.');
+          return;
+        }
+        changes['가입일'] = { before: formatDate(user.createdAt), after: formatDate(nextCreatedAt) };
+      }
 
       const userPatch: {
         nickname: string;
         role: string;
         grade: string;
+        createdAt?: Timestamp;
         pendingGrade?: ReturnType<typeof deleteField>;
         pendingGradeRequestedAt?: ReturnType<typeof deleteField>;
+        pendingCreatedAt?: ReturnType<typeof deleteField>;
+        pendingCreatedAtRequestedAt?: ReturnType<typeof deleteField>;
         isRegularMember?: boolean | ReturnType<typeof deleteField>;
       } = {
         nickname: editingUser.nickname,
         role: editingUser.role,
         grade: editingUser.grade
       };
+      if (nextCreatedAt && editingJoinDate !== beforeJoinDate) {
+        userPatch.createdAt = nextCreatedAt;
+        userPatch.pendingCreatedAt = deleteField();
+        userPatch.pendingCreatedAtRequestedAt = deleteField();
+      }
       if (changes.grade) {
         userPatch.pendingGrade = deleteField();
         userPatch.pendingGradeRequestedAt = deleteField();
@@ -530,6 +556,7 @@ const AdminPanel: React.FC = () => {
       
       await fetchUsers();
       setEditingUser(null);
+      setEditingJoinDate('');
       alert('사용자 정보가 성공적으로 업데이트되었습니다.');
     } catch (error) {
       console.error('사용자 업데이트 실패:', error);
@@ -582,6 +609,54 @@ const AdminPanel: React.FC = () => {
     } catch (error) {
       console.error('버스킹 업로드 제한 저장 실패:', error);
       alert('업로드 제한 저장 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleSaveDetailJoinDate = async () => {
+    if (!selectedUser || !currentUser || savingJoinDate) return;
+    const beforeJoinDate = createdAtToDateInput(selectedUser.createdAt);
+    if (detailJoinDate === beforeJoinDate) {
+      alert('변경된 가입일이 없습니다.');
+      return;
+    }
+    const nextCreatedAt = dateInputToCreatedAt(detailJoinDate);
+    if (!nextCreatedAt) {
+      alert('가입일을 입력해 주세요.');
+      return;
+    }
+
+    setSavingJoinDate(true);
+    try {
+      await updateDoc(doc(db, 'users', selectedUser.uid), {
+        createdAt: nextCreatedAt,
+        pendingCreatedAt: deleteField(),
+        pendingCreatedAtRequestedAt: deleteField(),
+      });
+      await logAdminAction(
+        currentUser.uid,
+        adminLogName(currentUser),
+        'user_update',
+        `${selectedUser.nickname}님의 가입일을 ${formatDate(selectedUser.createdAt)}에서 ${formatDate(nextCreatedAt)}로 바꿨습니다.`,
+        selectedUser.uid,
+        selectedUser.nickname,
+        { createdAt: selectedUser.createdAt },
+        { createdAt: nextCreatedAt }
+      );
+      const patched: AdminUser = {
+        ...selectedUser,
+        createdAt: nextCreatedAt,
+        pendingCreatedAt: undefined,
+        pendingCreatedAtRequestedAt: undefined,
+      };
+      setSelectedUser(patched);
+      setUsers((prev) => prev.map((user) => (user.uid === patched.uid ? { ...user, ...patched } : user)));
+      setDetailJoinDate(createdAtToDateInput(nextCreatedAt));
+      alert('가입일을 수정했습니다.');
+    } catch (error) {
+      console.error('가입일 수정 실패:', error);
+      alert('가입일 수정 중 오류가 발생했습니다.');
+    } finally {
+      setSavingJoinDate(false);
     }
   };
 
@@ -1441,14 +1516,22 @@ const AdminPanel: React.FC = () => {
                 <UserCard
                   user={user}
                   isEditing={editingUser?.uid === user.uid}
-                  onEdit={() => setEditingUser(user)}
+                  onEdit={() => {
+                    setEditingUser(user);
+                    setEditingJoinDate(createdAtToDateInput(user.createdAt));
+                  }}
                   onSave={() => handleUpdateUser(user)}
-                  onCancel={() => setEditingUser(null)}
+                  onCancel={() => {
+                    setEditingUser(null);
+                    setEditingJoinDate('');
+                  }}
                   onDelete={() => requestDeleteUser(user)}
                   isDeleting={deletingUserUid === user.uid}
                   onView={() => setSelectedUser(user)}
                   onStatusChange={() => openStatusModal(user)}
                   editingUser={editingUser || undefined}
+                  joinDateInput={editingUser?.uid === user.uid ? editingJoinDate : undefined}
+                  onJoinDateChange={setEditingJoinDate}
                   onEditChange={(field, value) => {
                     if (editingUser) {
                       setEditingUser({ ...editingUser, [field]: value });
@@ -2251,9 +2334,25 @@ const AdminPanel: React.FC = () => {
                     <span className="password-reset-feedback">{passwordResetMessage}</span>
                   )}
                 </div>
-                <div className="detail-row">
-                  <strong>가입일:</strong> 
-                  <span>{formatDate(selectedUser.createdAt)}</span>
+                <div className="detail-row detail-row--align-center">
+                  <strong>가입일:</strong>
+                  <div className="detail-row__actions">
+                    <input
+                      type="date"
+                      className="edit-input join-date-input"
+                      value={detailJoinDate}
+                      onChange={(e) => setDetailJoinDate(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="action-btn save-btn"
+                      onClick={() => void handleSaveDetailJoinDate()}
+                      disabled={savingJoinDate}
+                    >
+                      {savingJoinDate ? '저장 중...' : '저장'}
+                    </button>
+                  </div>
+                  <span className="edit-date-hint">저장하면 바로 반영되고, 대기 중인 가입일 변경 요청은 취소됩니다.</span>
                 </div>
                 <div className="detail-row">
                   <strong>활동 기간:</strong> 

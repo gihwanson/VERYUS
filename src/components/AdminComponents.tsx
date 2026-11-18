@@ -3,7 +3,7 @@ import ModalPortal from './ModalPortal';
 import { Crown, Shield, User, Users, Activity, X, Edit3, AlertCircle, MessageSquare, Heart, FileText, Clock, TrendingUp, History, Eye, Search, Filter, Award, Plus, Target, Mail, Send, Trash2 } from 'lucide-react';
 import type { AdminUser, UserActivity, ActivityStats, UserActivitySummary, AdminLog, AdminAction, LogStats, ExtendedUserStats, UserAnalytics, BulkAction, Notification, NotificationType, NotificationTemplate, NotificationStats, NotificationTarget } from './AdminTypes';
 import { NOTIFICATION_TYPE_LABELS, NOTIFICATION_TYPE_COLORS, ADMIN_ACTION_LABELS, ADMIN_ACTION_COLORS, ROLE_SYSTEM, ROLE_OPTIONS, GRADE_NAMES, GRADES_FOR_ADMIN_SELECT } from './AdminTypes';
-import { formatDate, getGradeDisplay, calculateActivityDays, createRoleDisplay, createRoleIcon, getUserStatus, createStatusDisplay, getSuspensionTimeLeft, getActivityIcon, formatActivityTime, getActivityLevel, getLogActionIcon, formatLogTime, calculateStats, calculateActivityScore, calculateActivityStats, changeUserStatus, isUserSuspended, executeBulkAction, generateUserAnalytics, logAdminAction, fetchAdminLogs, calculateLogStats, getNotificationTypeIcon, getNotificationStatusDisplay, getDefaultTemplates, createNotificationTargets, fetchNotificationTemplates, toggleAllTargets } from './AdminUtils';
+import { formatDate, createdAtToDateInput, getGradeDisplay, calculateActivityDays, createRoleDisplay, createRoleIcon, getUserStatus, createStatusDisplay, getSuspensionTimeLeft, getActivityIcon, formatActivityTime, getActivityLevel, getLogActionIcon, formatLogTime, calculateStats, calculateActivityScore, calculateActivityStats, changeUserStatus, isUserSuspended, executeBulkAction, generateUserAnalytics, logAdminAction, fetchAdminLogs, calculateLogStats, getNotificationTypeIcon, getNotificationStatusDisplay, getDefaultTemplates, createNotificationTargets, fetchNotificationTemplates, toggleAllTargets } from './AdminUtils';
 import { Timestamp } from 'firebase/firestore';
 import GlobalLoadingScreen from './GlobalLoadingScreen';
 import {
@@ -51,6 +51,8 @@ interface UserCardProps {
   onView: () => void;
   onStatusChange?: () => void;
   editingUser?: AdminUser;
+  joinDateInput?: string;
+  onJoinDateChange?: (value: string) => void;
   onEditChange: (field: string, value: string | boolean) => void;
   existingLeaderUid?: string;
   passRateStats?: MemberPassRateStats;
@@ -67,6 +69,8 @@ export const UserCard: React.FC<UserCardProps> = ({
   onView,
   onStatusChange,
   editingUser,
+  joinDateInput,
+  onJoinDateChange,
   onEditChange,
   existingLeaderUid,
   passRateStats,
@@ -197,6 +201,16 @@ export const UserCard: React.FC<UserCardProps> = ({
               ))}
             </select>
           </div>
+          <label className="edit-date-label">
+            가입일
+            <input
+              type="date"
+              className="edit-input"
+              value={joinDateInput ?? createdAtToDateInput(editingUser.createdAt)}
+              onChange={(e) => onJoinDateChange?.(e.target.value)}
+            />
+          </label>
+          <p className="edit-date-hint">저장하면 바로 반영되고, 대기 중인 가입일 변경 요청은 취소됩니다.</p>
           <label className="edit-checkbox-label">
             <input
               type="checkbox"

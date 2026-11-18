@@ -50,6 +50,34 @@ export const formatDate = (timestamp: any): string => {
   return date.toLocaleDateString('ko-KR');
 };
 
+/** 가입일 입력칸용. 로컬 달력 날짜(YYYY-MM-DD) */
+export const createdAtToDateInput = (timestamp: unknown): string => {
+  if (!timestamp) return '';
+  const date = timestamp instanceof Timestamp
+    ? timestamp.toDate()
+    : timestamp instanceof Date
+      ? timestamp
+      : new Date(timestamp as string | number);
+  if (Number.isNaN(date.getTime())) return '';
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+};
+
+/** 입력한 달력 날짜를 당일 정오(로컬) Timestamp로 저장한다. */
+export const dateInputToCreatedAt = (value: string): Timestamp | null => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(year, month - 1, day, 12, 0, 0, 0);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    return null;
+  }
+  return Timestamp.fromDate(date);
+};
+
 // 등급 표시
 export const getGradeDisplay = (grade: string): string => {
   return `${grade} ${GRADE_NAMES[grade] || ''}`;
