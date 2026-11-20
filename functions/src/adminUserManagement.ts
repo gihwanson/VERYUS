@@ -111,3 +111,63 @@ export const reclaimEmailForSignup = onCall(
     }
   }
 );
+
+/**
+ * 비밀번호를 잊은 회원의 로그인 비밀번호를 관리자가 새 값으로 바꿉니다.
+ * 비밀번호 원문은 로그에 남기지 않습니다.
+ */
+export const resetUserPassword = onCall(
+  {
+    region: 'asia-northeast3',
+    timeoutSeconds: 30
+  },
+  async (request) => {
+    const callerUid = request.auth?.uid;
+    if (!callerUid) {
+      throw new HttpsError('unauthenticated', '로그인이 필요합니다.');
+    }
+
+    await assertAdminAccess(callerUid);
+
+    const targetUid = String(request.data?.uid || '').trim();
+    const newPassword = String(request.data?.password ?? '');
+
+    if (!targetUid) {
+      throw new HttpsError('invalid-argument', '대상 사용자 uid가 필요합니다.');
+    }
+
+    if (targetUid === callerUid) {
+      throw new HttpsError(
+        'failed-precondition',
+        '본인 비밀번호는 설정 화면에서 변경해 주세요.'
+      );
+    }
+
+    if (newPassword.length < 6) {
+      throw new HttpsError('invalid-argument', '비밀번호는 최소 6자 이상이어야 합니다.');
+    }
+
+    if (newPassword.length > 128) {
+      throw new HttpsError('invalid-argument', '비밀번호는 128자 이하여야 합니다.');
+    }
+
+    const targetDoc = await admin.firestore().doc(`users/${targetUid}`).get();
+    if (!targetDoc.exists) {
+      throw new HttpsError('not-found', '회원 정보를 찾을 수 없습니다.');
+    }
+
+    try {
+      await admin.auth().updateUser(targetUid, { password: newPassword });
+      logger.info('관리자 비밀번호 초기화 완료', { targetUid, callerUid });
+      return { ok: true };
+    } catch (error: unknown) {
+      const code = (error as { code?: string })?.code;
+      if (code === 'auth/user-not-found') {
+        throw new HttpsError('not-found', '로그인 계정을 찾을 수 없습니다.');
+      }
+
+      logger.error('관리자 비밀번호 초기화 실패', { targetUid, callerUid, error });
+      throw new HttpsError('internal', '비밀번호 초기화에 실패했습니다.');
+    }
+  }
+);

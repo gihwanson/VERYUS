@@ -210,7 +210,11 @@ const AdminPanel: React.FC = () => {
   });
 
   const [passwordResetLoadingUid, setPasswordResetLoadingUid] = useState<string | null>(null);
+  const [passwordResetAction, setPasswordResetAction] = useState<'set' | 'email' | null>(null);
   const [passwordResetMessage, setPasswordResetMessage] = useState<string>('');
+  const [passwordResetTone, setPasswordResetTone] = useState<'ok' | 'error' | ''>('');
+  const [resetPasswordDraft, setResetPasswordDraft] = useState('');
+  const [showResetPassword, setShowResetPassword] = useState(false);
   const [deleteConfirmUser, setDeleteConfirmUser] = useState<AdminUser | null>(null);
   const [deletingUserUid, setDeletingUserUid] = useState<string | null>(null);
 
@@ -331,6 +335,10 @@ const AdminPanel: React.FC = () => {
 
   useEffect(() => {
     setDetailJoinDate(selectedUser ? createdAtToDateInput(selectedUser.createdAt) : '');
+    setResetPasswordDraft('');
+    setShowResetPassword(false);
+    setPasswordResetMessage('');
+    setPasswordResetTone('');
   }, [selectedUser?.uid]);
 
   // 현재 회원 닉네임 기준으로 합격률 집계 (users 로드 후)
@@ -840,17 +848,110 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  // 관리자 비밀번호 초기화 메일 발송
+  const reportPasswordReset = (message: string, tone: 'ok' | 'error') => {
+    setPasswordResetMessage(message);
+    setPasswordResetTone(tone);
+  };
+
+  const passwordResetErrorMessage = (error: unknown): string => {
+    const err = error as { code?: string; message?: string };
+    const code = err.code || '';
+    const message = String(err.message || '').replace(/^Firebase:\s*/i, '').trim();
+
+    if (code === 'functions/not-found' && !message.includes('찾을 수 없습니다')) {
+      return '비밀번호 초기화 기능이 서버에 배포되지 않았습니다. Functions 배포 후 다시 시도해 주세요.';
+    }
+    if (code === 'functions/unauthenticated') return '로그인이 필요합니다. 다시 로그인한 뒤 시도해 주세요.';
+    if (code === 'functions/permission-denied') return '관리자 권한이 필요합니다.';
+    if (
+      code === 'functions/invalid-argument' ||
+      code === 'functions/failed-precondition' ||
+      code === 'functions/not-found'
+    ) {
+      return message || '비밀번호 초기화에 실패했습니다.';
+    }
+    if (code === 'auth/invalid-email') return '이메일 형식이 올바르지 않아 발송에 실패했습니다.';
+    if (code === 'auth/too-many-requests' || code === 'functions/resource-exhausted') {
+      return '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.';
+    }
+    return message && message !== 'internal' ? message : '비밀번호 초기화에 실패했습니다.';
+  };
+
+  const isDeliverableResetEmail = (email?: string) => {
+    const value = (email || '').trim().toLowerCase();
+    return value.includes('@') && !value.endsWith('@veryus.internal');
+  };
+
+  // 관리자가 새 비밀번호를 지정해 바로 바꿉니다. (내부 이메일은 재설정 메일을 받을 수 없음)
+  const handleSetUserPassword = async (targetUser: AdminUser) => {
+    if (!currentUser) return;
+    if (targetUser.uid === currentUser.uid) {
+      reportPasswordReset('본인 비밀번호는 설정 화면에서 변경해 주세요.', 'error');
+      return;
+    }
+
+    const nextPassword = resetPasswordDraft;
+    if (nextPassword.length < 6) {
+      reportPasswordReset('비밀번호는 최소 6자 이상이어야 합니다.', 'error');
+      return;
+    }
+    if (nextPassword.length > 128) {
+      reportPasswordReset('비밀번호는 128자 이하여야 합니다.', 'error');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `${targetUser.nickname}님의 비밀번호를 입력한 값으로 바꾸시겠습니까?\n기존 비밀번호로는 더 이상 로그인할 수 없습니다.`
+    );
+    if (!confirmed) return;
+
+    try {
+      setPasswordResetLoadingUid(targetUser.uid);
+      setPasswordResetAction('set');
+      setPasswordResetMessage('');
+      setPasswordResetTone('');
+
+      const resetPassword = httpsCallable<{ uid: string; password: string }, { ok: boolean }>(
+        functions,
+        'resetUserPassword'
+      );
+      await resetPassword({ uid: targetUser.uid, password: nextPassword });
+
+      await logAdminAction(
+        currentUser.uid,
+        adminLogName(currentUser),
+        'user_update',
+        `${targetUser.nickname}님의 비밀번호를 초기화했습니다.`,
+        targetUser.uid,
+        targetUser.nickname
+      );
+
+      reportPasswordReset(
+        `${targetUser.nickname}님의 비밀번호를 변경했습니다. 위에 보이는 비밀번호를 회원에게 전달해 주세요.`,
+        'ok'
+      );
+    } catch (error: unknown) {
+      console.error('관리자 비밀번호 초기화 실패:', error);
+      reportPasswordReset(passwordResetErrorMessage(error), 'error');
+    } finally {
+      setPasswordResetLoadingUid(null);
+      setPasswordResetAction(null);
+    }
+  };
+
+  // 실제 이메일이 있는 회원에게 비밀번호 초기화 메일 발송
   const handleAdminPasswordReset = async (targetUser: AdminUser) => {
     if (!currentUser) return;
-    if (!targetUser.email) {
-      setPasswordResetMessage('해당 사용자의 이메일 정보가 없습니다.');
+    if (!isDeliverableResetEmail(targetUser.email)) {
+      reportPasswordReset('이 계정은 재설정 메일을 받을 수 없습니다. 새 비밀번호를 직접 지정해 주세요.', 'error');
       return;
     }
 
     try {
       setPasswordResetLoadingUid(targetUser.uid);
+      setPasswordResetAction('email');
       setPasswordResetMessage('');
+      setPasswordResetTone('');
       const auth = getAuth();
       await sendPasswordResetEmail(auth, targetUser.email, {
         url: `${window.location.origin}/login`,
@@ -866,19 +967,13 @@ const AdminPanel: React.FC = () => {
         targetUser.nickname
       );
 
-      setPasswordResetMessage(`초기화 메일 발송 완료: ${targetUser.email}`);
-    } catch (error: any) {
+      reportPasswordReset(`초기화 메일 발송 완료: ${targetUser.email}`, 'ok');
+    } catch (error: unknown) {
       console.error('관리자 비밀번호 초기화 메일 발송 실패:', error);
-      const code = error?.code || '';
-      if (code === 'auth/invalid-email') {
-        setPasswordResetMessage('이메일 형식이 올바르지 않아 발송에 실패했습니다.');
-      } else if (code === 'auth/too-many-requests') {
-        setPasswordResetMessage('요청이 너무 많습니다. 잠시 후 다시 시도해주세요.');
-      } else {
-        setPasswordResetMessage('비밀번호 초기화 메일 발송에 실패했습니다.');
-      }
+      reportPasswordReset(passwordResetErrorMessage(error), 'error');
     } finally {
       setPasswordResetLoadingUid(null);
+      setPasswordResetAction(null);
     }
   };
 
@@ -2319,20 +2414,93 @@ const AdminPanel: React.FC = () => {
                   <strong>이메일:</strong> 
                   <span>{selectedUser.email}</span>
                 </div>
-                <div className="detail-row detail-row--align-center">
-                  <strong>비밀번호 초기화:</strong>
-                  <div className="detail-row__actions">
-                    <button
-                      className="action-btn save-btn"
-                      onClick={() => handleAdminPasswordReset(selectedUser)}
-                      disabled={passwordResetLoadingUid === selectedUser.uid}
-                    >
-                      {passwordResetLoadingUid === selectedUser.uid ? '발송 중...' : '초기화 메일 발송'}
-                    </button>
+                <div className="detail-row">
+                  <strong>비밀번호 초기화</strong>
+                  <p className="form-hint">
+                    비밀번호를 잊은 회원에게 새 비밀번호를 지정합니다. 변경한 뒤 회원에게 직접 전달해 주세요.
+                    {isDeliverableResetEmail(selectedUser.email)
+                      ? ' 실제 이메일이 있으면 재설정 메일도 보낼 수 있습니다.'
+                      : ' 이 계정은 내부 이메일이라 재설정 메일을 받을 수 없습니다.'}
+                  </p>
+                  <div className="password-reset-box">
+                    <div className="password-field">
+                      <input
+                        type={showResetPassword ? 'text' : 'password'}
+                        className="edit-input"
+                        value={resetPasswordDraft}
+                        onChange={(e) => setResetPasswordDraft(e.target.value)}
+                        placeholder="새 비밀번호 (6자 이상)"
+                        autoComplete="new-password"
+                        maxLength={128}
+                        disabled={passwordResetLoadingUid === selectedUser.uid}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowResetPassword((prev) => !prev)}
+                        className="admin-password-toggle"
+                        aria-label={showResetPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
+                      >
+                        {showResetPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                    <div className="detail-row__actions">
+                      <button
+                        type="button"
+                        className="action-btn cancel-btn"
+                        onClick={() => {
+                          setResetPasswordDraft(generateTemporaryPassword());
+                          setShowResetPassword(true);
+                          reportPasswordReset('임시 비밀번호를 만들었습니다. 확인 후 변경을 눌러 주세요.', 'ok');
+                        }}
+                        disabled={passwordResetLoadingUid === selectedUser.uid}
+                      >
+                        임시 비밀번호
+                      </button>
+                      <button
+                        type="button"
+                        className="action-btn view-btn"
+                        onClick={() => {
+                          if (!resetPasswordDraft) {
+                            reportPasswordReset('복사할 비밀번호를 먼저 입력해 주세요.', 'error');
+                            return;
+                          }
+                          void copyToClipboard(resetPasswordDraft).then((copied) => {
+                            reportPasswordReset(
+                              copied ? '비밀번호를 복사했습니다.' : '복사에 실패했습니다. 비밀번호를 직접 선택해 복사해 주세요.',
+                              copied ? 'ok' : 'error'
+                            );
+                          });
+                        }}
+                        disabled={!resetPasswordDraft || passwordResetLoadingUid === selectedUser.uid}
+                      >
+                        <Copy size={16} />
+                        복사
+                      </button>
+                      <button
+                        type="button"
+                        className="action-btn save-btn"
+                        onClick={() => void handleSetUserPassword(selectedUser)}
+                        disabled={passwordResetLoadingUid === selectedUser.uid || resetPasswordDraft.length < 6}
+                      >
+                        {passwordResetLoadingUid === selectedUser.uid && passwordResetAction === 'set' ? '변경 중...' : '비밀번호 변경'}
+                      </button>
+                      {isDeliverableResetEmail(selectedUser.email) && (
+                        <button
+                          type="button"
+                          className="action-btn edit-btn"
+                          onClick={() => void handleAdminPasswordReset(selectedUser)}
+                          disabled={passwordResetLoadingUid === selectedUser.uid}
+                        >
+                          {passwordResetLoadingUid === selectedUser.uid && passwordResetAction === 'email' ? '발송 중...' : '초기화 메일 발송'}
+                        </button>
+                      )}
+                    </div>
+                    {passwordResetMessage && (
+                      <span className={`password-reset-feedback${passwordResetTone ? ` password-reset-feedback--${passwordResetTone}` : ''}`}>
+                        {passwordResetMessage}
+                      </span>
+                    )}
                   </div>
-                  {passwordResetMessage && (
-                    <span className="password-reset-feedback">{passwordResetMessage}</span>
-                  )}
                 </div>
                 <div className="detail-row detail-row--align-center">
                   <strong>가입일:</strong>

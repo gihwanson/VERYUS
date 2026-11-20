@@ -2474,9 +2474,28 @@
   flex-wrap: wrap;
 }
 
+.password-reset-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.password-reset-box .password-field {
+  width: 100%;
+}
+
 .password-reset-feedback {
   font-size: 0.9rem;
   color: #334155;
+}
+
+.password-reset-feedback--ok {
+  color: #166534;
+}
+
+.password-reset-feedback--error {
+  color: #b91c1c;
 }
 
 .busking-limit-input--narrow {

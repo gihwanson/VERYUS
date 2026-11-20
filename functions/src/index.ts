@@ -9,7 +9,7 @@ export {
   deleteAnonymousChatRoom,
   scheduledAnonymousChatCleanup
 } from './anonymousChatCleanup';
-export { deleteUserAuthAccount, reclaimEmailForSignup } from './adminUserManagement';
+export { deleteUserAuthAccount, reclaimEmailForSignup, resetUserPassword } from './adminUserManagement';
 export { scheduledGameWeeklyReset } from './gameWeeklyReset';
 export { scheduledPracticeRoomPendingConfirm } from './practiceRoomPendingConfirm';
 export { syncManittoPairing, syncManittoOnParticipantChange, submitManittoGuess } from './manittoLivePairing';
