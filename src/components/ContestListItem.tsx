@@ -1,6 +1,7 @@
 import React from 'react';
 import { contestTypeLabel } from '../types/contest';
 import type { ContestType } from '../types/contest';
+import { prettifyStoredContestRankName } from '../utils/contestStage';
 
 export type ContestListItemContest = {
   id: string;
@@ -63,7 +64,7 @@ const ContestListItem: React.FC<Props> = ({
           <div className="contest-top3 contest-list-card__top3">
             {contest.top3.map((item) => (
               <span key={item.rank} className={`contest-top3-badge rank-${item.rank}`}>
-                {rankLabel(item.rank)} {item.name} ({item.score ? item.score.toFixed(1) : '-'})
+                {rankLabel(item.rank)} {prettifyStoredContestRankName(item.name)} ({item.score ? item.score.toFixed(1) : '-'})
               </span>
             ))}
           </div>

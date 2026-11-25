@@ -9,6 +9,7 @@ import '../styles/contest-ui-refresh.css';
 import type { ContestType } from '../types/contest';
 import { CONTEST_SUBMISSION_DONE_MESSAGE, hasFinalContestSubmission, registerOnParticipateClick } from '../utils/contestParticipant';
 import { computeContestTop3Targets, type ContestGradeRecord } from '../utils/contestGradesAggregation';
+import { displayNameFromContestUid } from '../utils/contestStage';
 import ContestListItem from './ContestListItem';
 import { useContestSubmissionLocks } from '../hooks/useContestSubmissionLocks';
 
@@ -142,12 +143,12 @@ const ContestListClassic: React.FC = () => {
           if (team) {
             const memberNames = Array.isArray(team.members) ? team.members.map((uid: string) => {
               const p = participants.find((pp: any) => pp.uid === uid);
-              return p && p.nickname ? p.nickname : uid;
+              return p && p.nickname ? p.nickname : displayNameFromContestUid(uid);
             }).join(', ') : '';
             return { rank: idx + 1, name: `${team.teamName} (${memberNames})`, score: item.avg };
           }
           const solo = participants.find((p: any) => p.uid === item.target);
-          return { rank: idx + 1, name: solo && solo.nickname ? solo.nickname : item.target, score: item.avg };
+          return { rank: idx + 1, name: solo && solo.nickname ? solo.nickname : displayNameFromContestUid(item.target), score: item.avg };
         });
       }
       

@@ -181,6 +181,23 @@ export function buildSongRequestLineup(
     .sort((a, b) => a.nickname.localeCompare(b.nickname, 'ko'));
 }
 
+/** 너래 확인용. 콘테스트의 신청곡 전체를 구독한다. */
+export function subscribeAllSongRequests(
+  contestId: string,
+  onChange: (requests: SongRequestRecord[]) => void
+): Unsubscribe {
+  return onSnapshot(
+    collection(db, 'contests', contestId, SONG_REQUESTS_COLLECTION),
+    (snap) => {
+      const list = snap.docs
+        .map((d) => parseSongRequestFromDoc(d.id, d.data() as Record<string, unknown>))
+        .sort((a, b) => a.songTitle.localeCompare(b.songTitle, 'ko'));
+      onChange(list);
+    },
+    () => onChange([])
+  );
+}
+
 export function subscribeSongRequestsForTarget(
   contestId: string,
   targetUid: string,

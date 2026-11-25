@@ -425,7 +425,26 @@ export function getReservationPhaseLabel(
   return shouldConfirmPendingForDate(dateYmd, now) ? '확정' : '대기';
 }
 
-/** 슬롯 라벨: 닉네임+(대기|확정). 2팀 이상이면 너래(1순위·대기), 민주(2순위·확정) */
+/** 팀일정으로 표시할 예약이면 닉네임 대신 이 문구를 쓴다 */
+export const TEAM_SCHEDULE_LABEL = '팀일정';
+
+export function isTeamScheduleReservation(
+  r: { teamSchedule?: boolean } | null | undefined
+): boolean {
+  return r?.teamSchedule === true;
+}
+
+/** 일정에 보여줄 이름. 팀일정이면 닉네임(확정) 대신 팀일정 */
+export function reservationPublicName(
+  r: { userDisplayName?: string; teamSchedule?: boolean } | null | undefined,
+  fallback = ''
+): string {
+  if (isTeamScheduleReservation(r)) return TEAM_SCHEDULE_LABEL;
+  const name = String(r?.userDisplayName || '').trim();
+  return name || fallback;
+}
+
+/** 슬롯 라벨: 닉네임+(대기|확정). 2팀 이상이면 너래(1순위·대기), 민주(2순위·확정). 팀일정은 닉네임 없이 팀일정 */
 export function formatSlotReservationSummary<T extends {
   userId: string;
   userDisplayName?: string;
@@ -436,6 +455,7 @@ export function formatSlotReservationSummary<T extends {
   createdAt?: unknown;
   totalDuration?: number;
   duration?: number;
+  teamSchedule?: boolean;
 }>(
   candidates: T[],
   ranking: PriorityRankEntry[],
@@ -446,6 +466,7 @@ export function formatSlotReservationSummary<T extends {
 
   return sorted
     .map((r, index) => {
+      if (isTeamScheduleReservation(r)) return TEAM_SCHEDULE_LABEL;
       const name = String(r.userDisplayName || '예약').trim() || '예약';
       const status = getReservationPhaseLabel(r, now);
       if (sorted.length === 1) {
@@ -547,6 +568,7 @@ export function formatSlotReservationLabel<T extends {
   createdAt?: unknown;
   totalDuration?: number;
   duration?: number;
+  teamSchedule?: boolean;
 }>(
   candidates: T[],
   ranking: PriorityRankEntry[],
@@ -564,6 +586,10 @@ export function formatSlotReservationLabel<T extends {
   const parts: string[] = [];
 
   for (const admin of admins) {
+    if (isTeamScheduleReservation(admin)) {
+      parts.push(TEAM_SCHEDULE_LABEL);
+      continue;
+    }
     const name = String(admin.userDisplayName || '관리자').trim() || '관리자';
     const hours = getReservationBlockHours(admin);
     const status = getReservationPhaseLabel(admin, options?.now);

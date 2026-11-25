@@ -172,6 +172,41 @@ html[data-ui-style='warm-paper'] .song-request-bubble__tail {
   padding: 12px 14px 18px;
 }
 
+.song-request-modal__review {
+  margin-bottom: 16px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+}
+
+.song-request-modal__review .song-request-modal__chips {
+  margin-bottom: 0;
+}
+
+.song-request-modal__review-detail {
+  margin-top: 10px;
+}
+
+.song-request-modal__review-item {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d6d3d1;
+  border-radius: 10px;
+  background: #fff;
+  text-align: left;
+  line-height: 1.4;
+  box-sizing: border-box;
+}
+
+.song-request-modal__review-item.is-selected {
+  border-color: #059669;
+  background: #ecfdf5;
+}
+
 .song-request-modal__inbox {
   margin-bottom: 16px;
   padding: 12px;
@@ -369,6 +404,16 @@ html[data-ui-style='warm-paper'] .song-request-bubble__tail {
   font-size: 11px;
   color: #78716c;
   line-height: 1.4;
+}
+
+html[data-ui-style='warm-paper'] .song-request-modal__review {
+  background: #fbf6ea;
+  border-color: #e6d3b0;
+}
+
+html[data-ui-style='warm-paper'] .song-request-modal__review-item.is-selected {
+  border-color: #2f7a52;
+  background: #f7fbf4;
 }
 
 html[data-ui-style='warm-paper'] .song-request-modal__inbox {

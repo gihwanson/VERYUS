@@ -1332,6 +1332,43 @@
   border-color: var(--primary-color, #8A55CC);
 }
 
+.team-schedule-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 4px;
+  padding: 12px;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f8fafc;
+  cursor: pointer;
+}
+
+.team-schedule-check input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: var(--primary-color, #8A55CC);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.team-schedule-check span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.team-schedule-check small {
+  font-size: 12px;
+  font-weight: 400;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
 .members-display {
   display: flex;
   flex-direction: column;

@@ -12,6 +12,7 @@ import { commentsFromContestGrades, saveContestGradeHistory } from '../utils/con
 import {
   contestBothMainUids,
   contestStageRoles,
+  displayNameFromContestUid,
   formatContestStageInline,
   formatContestStageLines,
 } from '../utils/contestStage';
@@ -130,7 +131,7 @@ const ContestResults: React.FC = () => {
       if (solo?.nickname) return solo.nickname;
       const member = memberUsers.find((item) => item.uid === uid);
       if (member?.nickname) return member.nickname;
-      return uid;
+      return displayNameFromContestUid(uid);
     };
     const top3 = computeContestTop3Targets(grades, evaluatorGradeByNickname).map((item, idx) => {
       const team = teams.find((t: { id: string }) => t.id === item.target);

@@ -267,6 +267,29 @@ const ContestDetail: React.FC = () => {
     }
   }, [id, contest, startingContest]);
 
+  const handleReopenSongRequests = useCallback(async () => {
+    if (!id || !contest || startingContest || contest.type !== '신청곡') return;
+    if (
+      !window.confirm(
+        '개최를 취소하고 신청곡을 다시 받을까요?\n멤버가 신청하고 출연자가 곡을 고를 수 있게 됩니다.'
+      )
+    ) {
+      return;
+    }
+
+    setStartingContest(true);
+    try {
+      await updateDoc(doc(db, 'contests', id), { isStarted: false });
+      setIsStarted(false);
+      alert('신청곡을 다시 받을 수 있습니다.');
+    } catch (error) {
+      console.error('신청곡 재개 중 오류:', error);
+      alert('신청을 다시 열지 못했습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setStartingContest(false);
+    }
+  }, [id, contest, startingContest]);
+
   const handleMakeDuet = useCallback(async () => {
     if (!id || selectedSolo.length !== 2) return;
     const teamId = uuidv4();
@@ -933,6 +956,16 @@ const ContestDetail: React.FC = () => {
                 disabled={startingContest}
               >
                 {startingContest ? '개최 중...' : '콘테스트 개최'}
+              </button>
+            )}
+            {(isLeader || isNerae) && contest.type === '신청곡' && contest.isStarted && !ended && (
+              <button
+                type="button"
+                className="contest-button detail"
+                onClick={handleReopenSongRequests}
+                disabled={startingContest}
+              >
+                {startingContest ? '여는 중...' : '신청 다시 받기'}
               </button>
             )}
             {isAdmin && (

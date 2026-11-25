@@ -53,6 +53,7 @@ import {
   loadPriorityRankingForWindow,
   pickLeadingReservation,
   reservationHasAdminPriority,
+  reservationPublicName,
   sortReservationsForDisplay,
   type PriorityRankEntry,
   type VoteTallyWindow,
@@ -100,6 +101,8 @@ interface Reservation {
   priorityRank?: number;
   /** 관리자 예약 — 무조건 1순위 */
   adminPriority?: boolean;
+  /** 너래가 팀일정으로 표시한 예약. 멤버 일정에는 닉네임(확정) 대신 팀일정 */
+  teamSchedule?: boolean;
 }
 
 interface TimeSlot {
@@ -179,6 +182,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
   ticketingSettingsRef.current = ticketingSettings;
   const [memberCandidates, setMemberCandidates] = useState<UserMention[]>([]);
   const [purpose, setPurpose] = useState('');
+  const [teamScheduleChecked, setTeamScheduleChecked] = useState(false);
   const [duration, setDuration] = useState(1);
   const [maxAvailableDuration, setMaxAvailableDuration] = useState<number>(1);
   const [members, setMembers] = useState<string[]>([]);
@@ -1095,6 +1099,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
     setMaxAvailableDuration(allowedDuration);
     setDuration(1);
     setPurpose('');
+    setTeamScheduleChecked(false);
     setMembers([]);
     setMemberInput('');
     setSelectedTimeSlot({ ...slot });
@@ -1599,13 +1604,20 @@ const PracticeRoomBookingNotebook: React.FC = () => {
           endTime: slotEndTime,
           duration: SLOT_DURATION,
           totalDuration: duration * SLOT_DURATION,
-          purpose: trimmedPurpose || (isAdminPriorityUser ? '관리자 예약' : ''),
+          purpose:
+            trimmedPurpose ||
+            (isUnlimitedUser && teamScheduleChecked
+              ? ''
+              : isAdminPriorityUser
+                ? '관리자 예약'
+                : ''),
           status: usePendingStatus ? 'pending' : 'confirmed',
           reservationGroup: reservationGroup,
           isFirstSlot: i === 0,
           priorityRank: isAdminPriorityUser ? 1 : Number.isFinite(myRank) ? myRank : null,
           priorityVoteCount: myVoteCount,
           adminPriority: isAdminPriorityUser,
+          teamSchedule: Boolean(isUnlimitedUser && teamScheduleChecked),
           createdAt: Timestamp.now()
         };
         
@@ -1624,6 +1636,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
       setSelectedTimeSlot(null);
       setBookingDate(null);
       setPurpose('');
+      setTeamScheduleChecked(false);
       setDuration(1);
       setMembers([]);
       setMemberInput('');
@@ -2752,6 +2765,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                   <Calendar size={16} />
                   <span>
                     {formatKoreanPracticeDate(reservation.date)}
+                    {reservation.teamSchedule ? ' · 팀일정' : ''}
                     {(() => {
                       const phase = getReservationPhaseLabel(reservation);
                       if (phase === '대기') return ' · 대기(월 00시 확정)';
@@ -2894,6 +2908,19 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                   required
                 />
               </div>
+              {isUnlimitedUser && (
+                <label className="team-schedule-check">
+                  <input
+                    type="checkbox"
+                    checked={teamScheduleChecked}
+                    onChange={(e) => setTeamScheduleChecked(e.target.checked)}
+                  />
+                  <span>
+                    팀일정
+                    <small>체크하면 멤버 일정에는 팀일정으로 표시됩니다.</small>
+                  </span>
+                </label>
+              )}
               <div className="duration-selector">
                 <label>예약 시간 <span className="auto-selected">기본 1시간</span></label>
                 <div className="duration-buttons">
@@ -3026,15 +3053,18 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                   <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10, fontSize: 14, lineHeight: 1.45 }}>
                     <div>
                       <strong>예약자</strong>
-                      <div>{selectedTimeSlot.reservation.userDisplayName}</div>
+                      <div>{reservationPublicName(selectedTimeSlot.reservation)}</div>
                     </div>
                     <div>
                       <strong>함께 사용</strong>
                       <div>
-                        {[
-                          selectedTimeSlot.reservation.userDisplayName,
-                          ...(selectedTimeSlot.reservation.members || []),
-                        ]
+                        {(selectedTimeSlot.reservation.teamSchedule
+                          ? selectedTimeSlot.reservation.members || []
+                          : [
+                              selectedTimeSlot.reservation.userDisplayName,
+                              ...(selectedTimeSlot.reservation.members || []),
+                            ]
+                        )
                           .map((name) => String(name || '').trim())
                           .filter(Boolean)
                           .join(', ') || '없음'}
@@ -3085,7 +3115,9 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                               fontSize: 13,
                             }}
                           >
-                            <div style={{ fontWeight: 700 }}>{r.userDisplayName} · 관리자</div>
+                            <div style={{ fontWeight: 700 }}>
+                              {r.teamSchedule ? '팀일정' : `${r.userDisplayName} · 관리자`}
+                            </div>
                             {r.members && r.members.length > 0 && (
                               <div style={{ marginTop: 4 }}>👥 {r.members.join(', ')}</div>
                             )}
@@ -3131,12 +3163,15 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                         }}
                       >
                         <div style={{ fontWeight: 700, color: '#334155' }}>
-                          {arr.length === 1
-                            ? `${r.userDisplayName}(${getReservationPhaseLabel(r) || '예약'})`
-                            : `${r.userDisplayName}(${i + 1}순위·${getReservationPhaseLabel(r) || '예약'})`}
+                          {r.teamSchedule
+                            ? '팀일정'
+                            : arr.length === 1
+                              ? `${r.userDisplayName}(${getReservationPhaseLabel(r) || '예약'})`
+                              : `${r.userDisplayName}(${i + 1}순위·${getReservationPhaseLabel(r) || '예약'})`}
                           {r.userId === currentUser?.uid ? ' (나)' : ''}
-                          {reservationHasAdminPriority(r) ? ' · 관리자' : ''}
+                          {!r.teamSchedule && reservationHasAdminPriority(r) ? ' · 관리자' : ''}
                         </div>
+                        {!r.teamSchedule && (
                         <div style={{ fontSize: 12, color: '#64748B', marginTop: 2 }}>
                           {getReservationPhaseLabel(r) === '대기'
                             ? '티켓팅 대기 — 월요일 00시에 확정'
@@ -3146,6 +3181,7 @@ const PracticeRoomBookingNotebook: React.FC = () => {
                                 ? '확정'
                                 : r.status}
                         </div>
+                        )}
                         {r.members && r.members.length > 0 && (
                           <div style={{ fontSize: 12, marginTop: 4 }}>👥 {r.members.join(', ')}</div>
                         )}

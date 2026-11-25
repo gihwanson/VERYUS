@@ -62,13 +62,37 @@ export function contestGradeTargetIds(team: ContestStageTeamLike & { id: string 
   return contestBothMainUids(team) ?? [team.id];
 }
 
+export function displayNameFromContestUid(uid: string): string {
+  const value = String(uid || '').trim();
+  if (!value) return '';
+  if (value.startsWith('target_') || value.startsWith('custom_')) {
+    const nickname = value.split('_')[1]?.trim();
+    if (nickname) return nickname;
+  }
+  return value;
+}
+
+/** 저장된 순위 문구 안의 target_/custom_ ID를 닉네임으로 바꾼다. */
+export function prettifyStoredContestRankName(name: string): string {
+  return String(name || '').replace(/(?:target|custom)_[^\s·,)]+/g, (token) =>
+    displayNameFromContestUid(token)
+  );
+}
+
 export function formatContestStageLines(
   team: ContestStageTeamLike,
   nicknameOf: (uid: string) => string
 ): { title: string; support: string; bothMains: boolean } | null {
   const roles = contestStageRoles(team);
   if (!roles) return null;
-  const mainNames = roles.mainUids.map((uid) => nicknameOf(uid) || uid).filter(Boolean);
+  const nameOf = (uid: string) => {
+    const named = String(nicknameOf(uid) || '').trim();
+    if (!named || named.startsWith('target_') || named.startsWith('custom_')) {
+      return displayNameFromContestUid(named || uid);
+    }
+    return named;
+  };
+  const mainNames = roles.mainUids.map((uid) => nameOf(uid)).filter(Boolean);
   if (mainNames.length === 0) return null;
   if (roles.mainUids.length >= 2) {
     return {
@@ -77,7 +101,7 @@ export function formatContestStageLines(
       bothMains: true,
     };
   }
-  const subNames = roles.subUids.map((uid) => nicknameOf(uid) || uid).filter(Boolean);
+  const subNames = roles.subUids.map((uid) => nameOf(uid)).filter(Boolean);
   if (subNames.length === 0) return null;
   const roleSuffix = roles.subRole ? ` (${roles.subRole})` : '';
   return {

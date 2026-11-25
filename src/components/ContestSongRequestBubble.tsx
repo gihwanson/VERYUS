@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { X } from 'lucide-react';
 import { db } from '../firebase';
+import { SUPER_ADMIN_NICKNAMES } from './AdminTypes';
 import type { ParticipantRecord, SongRequestParticipationRole, SongRequestRecord } from '../types/contest';
 import {
   dedupeContestParticipants,
@@ -17,6 +18,7 @@ import {
   leaveSongRequestContest,
   selectSongRequest,
   subscribeActiveSongRequestContest,
+  subscribeAllSongRequests,
   subscribeMySongRequests,
   subscribeSongRequestsForTarget,
   upsertSongRequest,
@@ -60,6 +62,9 @@ const ContestSongRequestBubble: React.FC<{ user: HomeUser | null }> = ({ user })
   >(null);
   const [message, setMessage] = useState('');
   const [spotlightUid, setSpotlightUid] = useState<string | null>(null);
+  const [allRequests, setAllRequests] = useState<SongRequestRecord[]>([]);
+  const [inspectUid, setInspectUid] = useState<string | null>(null);
+  const isNerae = Boolean(user?.nickname && SUPER_ADMIN_NICKNAMES.includes(user.nickname));
 
   useEffect(() => {
     if (!user?.uid) {
@@ -102,6 +107,15 @@ const ContestSongRequestBubble: React.FC<{ user: HomeUser | null }> = ({ user })
     }
     return subscribeMySongRequests(contest.id, user.uid, setMyRequests);
   }, [contest?.id, user?.uid]);
+
+  useEffect(() => {
+    if (!isNerae || !contest?.id) {
+      setAllRequests([]);
+      setInspectUid(null);
+      return;
+    }
+    return subscribeAllSongRequests(contest.id, setAllRequests);
+  }, [isNerae, contest?.id]);
 
   const uniqueParticipants = useMemo(
     () => dedupeContestParticipants(participants),
@@ -163,6 +177,27 @@ const ContestSongRequestBubble: React.FC<{ user: HomeUser | null }> = ({ user })
     () => filterSongRequestPerformers(uniqueParticipants),
     [uniqueParticipants]
   );
+
+  const reviewPerformers = useMemo(
+    () => [...performers].sort((a, b) => a.nickname.localeCompare(b.nickname, 'ko')),
+    [performers]
+  );
+
+  const requestsByTarget = useMemo(() => {
+    const map = new Map<string, SongRequestRecord[]>();
+    for (const req of allRequests) {
+      const list = map.get(req.targetUid);
+      if (list) list.push(req);
+      else map.set(req.targetUid, [req]);
+    }
+    return map;
+  }, [allRequests]);
+
+  const inspectMember = useMemo(
+    () => reviewPerformers.find((p) => p.uid === inspectUid) || null,
+    [reviewPerformers, inspectUid]
+  );
+  const inspectedRequests = inspectMember ? requestsByTarget.get(inspectMember.uid) || [] : [];
 
   const requestableTargets = useMemo(() => {
     return performers.filter((p) => {
@@ -368,6 +403,7 @@ const ContestSongRequestBubble: React.FC<{ user: HomeUser | null }> = ({ user })
         onClick={() => {
           setShowModal(false);
           setPendingRoleAction(null);
+          setInspectUid(null);
         }}
         role="presentation"
       >
@@ -399,6 +435,7 @@ const ContestSongRequestBubble: React.FC<{ user: HomeUser | null }> = ({ user })
                 onClick={() => {
                   setShowModal(false);
                   setPendingRoleAction(null);
+                  setInspectUid(null);
                 }}
                 aria-label="닫기"
               >
@@ -408,6 +445,72 @@ const ContestSongRequestBubble: React.FC<{ user: HomeUser | null }> = ({ user })
           </div>
 
           <div className="song-request-modal__body">
+            {isNerae && (
+              <section className="song-request-modal__review" aria-label="참여 멤버가 받은 신청곡">
+                <p className="song-request-modal__inbox-label">참여 멤버</p>
+                <p className="song-request-modal__inbox-picked">
+                  멤버를 누르면 그 멤버가 받은 신청곡을 볼 수 있습니다.
+                </p>
+                {reviewPerformers.length === 0 ? (
+                  <p className="song-request-modal__inbox-empty">아직 참여한 출연자가 없습니다.</p>
+                ) : (
+                  <div className="song-request-modal__chips" role="list">
+                    {reviewPerformers.map((p) => {
+                      const count = requestsByTarget.get(p.uid)?.length ?? 0;
+                      const active = inspectUid === p.uid;
+                      return (
+                        <button
+                          key={p.uid}
+                          type="button"
+                          role="listitem"
+                          className={`song-request-modal__chip${active ? ' is-active' : ''}`}
+                          onClick={() => setInspectUid(active ? null : p.uid)}
+                        >
+                          {withNim(p.nickname)}
+                          {count > 0 ? ` ${count}` : ''}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                {inspectMember && (
+                  <div className="song-request-modal__review-detail">
+                    <p className="song-request-modal__inbox-label">
+                      {withNim(inspectMember.nickname)}이 받은 신청곡 {inspectedRequests.length}곡
+                    </p>
+                    {inspectMember.selectedSongTitle ? (
+                      <p className="song-request-modal__inbox-picked">
+                        고른 곡 · {inspectMember.selectedSongTitle}
+                      </p>
+                    ) : (
+                      <p className="song-request-modal__inbox-picked">아직 부를 곡을 고르지 않았습니다.</p>
+                    )}
+                    {inspectedRequests.length === 0 ? (
+                      <p className="song-request-modal__inbox-empty">아직 받은 신청곡이 없습니다.</p>
+                    ) : (
+                      <div className="song-request-modal__inbox-list">
+                        {inspectedRequests.map((req) => {
+                          const picked = inspectMember.selectedSongRequestId === req.id;
+                          return (
+                            <div
+                              key={req.id}
+                              className={`song-request-modal__review-item${picked ? ' is-selected' : ''}`}
+                            >
+                              <span className="song-request-modal__inbox-title">{req.songTitle}</span>
+                              <span className="song-request-modal__inbox-from">
+                                신청자: {withoutNim(req.requesterNickname)}
+                                {picked ? ' · 선택' : ''}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
+            )}
+
             {myRole === '출연자' && (
               <section className="song-request-modal__inbox" aria-label="받은 신청곡">
                 <p className="song-request-modal__inbox-label">
