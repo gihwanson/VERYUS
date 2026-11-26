@@ -42,7 +42,7 @@ import {
   Check,
   Eye,
   EyeOff,
-  FlaskConical,
+  Snowflake,
   Mail
 } from 'lucide-react';
 import { db } from '../firebase';
@@ -104,10 +104,9 @@ import {
   type UserStatus,
   type AdminLog,
   type AdminAction,
-  type LogStats,
-  SUPER_ADMIN_NICKNAMES
+  type LogStats
 } from './AdminTypes';
-import AdminDesignLab from './AdminDesignLab';
+import AdminAppEffectsPanel from './AdminAppEffectsPanel';
 import './AdminUserPanel.css';
 import { FaUsers, FaUserShield, FaChartPie, FaFire } from "react-icons/fa";
 import { subscribeAdminVerification } from '../utils/adminSessionVerify';
@@ -289,9 +288,6 @@ const AdminPanel: React.FC = () => {
   );
 
   const adminLogName = (u: VeryusUser) => u.nickname?.trim() || '관리자';
-  const isSuperAdmin = Boolean(
-    currentUser?.nickname && SUPER_ADMIN_NICKNAMES.includes(currentUser.nickname)
-  );
 
   // Auth + Firestore users 문서로 권한 재확인 (라우트 통과 후에도 역할 변경·조작 방지)
   useEffect(() => {
@@ -2300,16 +2296,14 @@ const AdminPanel: React.FC = () => {
             <History size={18} />
             <span>관리자 로그</span>
           </button>
-          {isSuperAdmin && (
-            <button
-              type="button"
-              className={`tab-button ${activeTab === 'lab' ? 'active' : ''}`}
-              onClick={() => setActiveTab('lab')}
-            >
-              <FlaskConical size={18} />
-              <span>실험실</span>
-            </button>
-          )}
+          <button
+            type="button"
+            className={`tab-button ${activeTab === 'effects' ? 'active' : ''}`}
+            onClick={() => setActiveTab('effects')}
+          >
+            <Snowflake size={18} />
+            <span>앱 효과</span>
+          </button>
         </div>
       </nav>
 
@@ -2323,7 +2317,11 @@ const AdminPanel: React.FC = () => {
           <AdminEmailHistoryPanel isActive={activeTab === 'emails'} />
         </div>
         {activeTab === 'logs' && renderLogsPanel()}
-        {activeTab === 'lab' && isSuperAdmin && <AdminDesignLab />}
+        {activeTab === 'effects' && (
+          <AdminAppEffectsPanel
+            actor={currentUser ? { uid: currentUser.uid, nickname: currentUser.nickname } : null}
+          />
+        )}
       </main>
 
       {deletingUserUid && (

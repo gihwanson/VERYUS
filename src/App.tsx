@@ -23,6 +23,8 @@ import { CosmeticSkinsProvider } from './contexts/CosmeticSkinsContext';
 import { UserProfileProvider } from './contexts/UserProfileContext';
 import GlobalLoadingScreen from './components/GlobalLoadingScreen';
 import RouteLoadShell from './components/RouteLoadShell';
+import Snowfall from './components/Snowfall';
+import { subscribeSnowEnabled } from './utils/appEffects';
 import './App.css';
 import './styles/gradeFx.css';
 import './styles/cosmeticSkins.css';
@@ -822,7 +824,10 @@ function App() {
   const [anonymousChatUnreadCount, setAnonymousChatUnreadCount] = useState(0);
   const [csHasUnread, setCsHasUnread] = useState(false);
   const [showSearchSystem, setShowSearchSystem] = useState(false);
+  const [snowEnabled, setSnowEnabledState] = useState(false);
   const lastLurkingClickAtRef = useRef<Record<string, number>>({});
+
+  useEffect(() => subscribeSnowEnabled(setSnowEnabledState), []);
   
   useEffect(() => {
     const loadingGuard = window.setTimeout(() => {
@@ -955,7 +960,12 @@ function App() {
 
 
   if (loading) {
-    return <GlobalLoadingScreen message="앱을 준비하고 있어요" />;
+    return (
+      <>
+        <GlobalLoadingScreen message="앱을 준비하고 있어요" />
+        {snowEnabled && <Snowfall />}
+      </>
+    );
   }
 
   return (
@@ -965,6 +975,7 @@ function App() {
         <Router>
           <AudioPlayerProvider>
             <div className="App">
+              {snowEnabled && <Snowfall />}
               <RouteTransition>
               <Suspense fallback={<RouteLoadShell />}>
                 <Routes>

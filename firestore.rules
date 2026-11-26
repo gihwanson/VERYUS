@@ -139,6 +139,20 @@ service cloud.firestore {
       }
     }
 
+    /** 관리자 패널 앱 효과. 읽기는 전체 화면에 눈을 뿌리기 위해 공개 */
+    match /appConfig/{docId} {
+      allow read: if docId == 'effects';
+      allow create, update: if isAdmin()
+        && docId == 'effects'
+        && request.resource.data.keys().hasOnly(['snowEnabled', 'updatedAt', 'updatedByUid', 'updatedByNickname'])
+        && request.resource.data.snowEnabled is bool
+        && request.resource.data.updatedByUid is string
+        && request.resource.data.updatedByUid.size() <= 128
+        && request.resource.data.updatedByNickname is string
+        && request.resource.data.updatedByNickname.size() <= 40;
+      allow delete: if false;
+    }
+
     match /anonymousChatProfiles/{userId} {
       allow read: if isSelf(userId);
       allow create: if isSelf(userId);

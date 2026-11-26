@@ -81,7 +81,7 @@ export interface BulkAction {
   parameters?: Record<string, any>;
 }
 
-export type TabType = 'users' | 'grades' | 'logs' | 'emails' | 'lab';
+export type TabType = 'users' | 'grades' | 'logs' | 'emails' | 'effects';
 
 export interface DeletedApprovedSongSummary {
   id: string;

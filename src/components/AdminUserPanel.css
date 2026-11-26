@@ -302,6 +302,11 @@
   gap: 8px;
 }
 
+.admin-tab-strip .tab-button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .tab-button {
   display: inline-flex;
   align-items: center;
@@ -386,6 +391,107 @@
 
 .admin-tab-panel--hidden {
   display: none;
+}
+
+.admin-effects {
+  max-width: 640px;
+  width: 100%;
+}
+
+.admin-effects-header h2 {
+  margin: 8px 0 6px;
+  font-size: 1.35rem;
+  font-family: var(--paper-serif, Georgia, serif);
+  color: var(--paper-ink, #2c2416);
+}
+
+.admin-effects-header p,
+.admin-effects-copy p,
+.admin-effects-status {
+  margin: 0;
+  color: var(--paper-muted, #8b7355);
+  line-height: 1.5;
+  font-size: 0.92rem;
+}
+
+.admin-effects-card {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 18px;
+  border-radius: var(--paper-radius, 4px);
+  background: var(--paper-card, #fffdf8);
+  border: 1px solid var(--paper-border, #e8dcc8);
+}
+
+.admin-effects-copy {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.admin-effects-copy svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--paper-accent, #8b5a2b);
+}
+
+.admin-effects-title {
+  font-weight: 700;
+  color: var(--paper-ink, #2c2416);
+  margin-bottom: 4px;
+}
+
+.admin-effects-switch {
+  position: relative;
+  width: 56px;
+  height: 32px;
+  flex-shrink: 0;
+  border: 1px solid var(--paper-border, #e8dcc8);
+  border-radius: 16px;
+  background: var(--paper-bg, #f5f0e8);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.admin-effects-switch.active {
+  background: var(--paper-accent, #8b5a2b);
+  border-color: var(--primary-dark, #6b4423);
+}
+
+.admin-effects-switch:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.admin-effects-switch-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--paper-card, #fffdf8);
+  box-shadow: 0 1px 3px rgba(44, 36, 22, 0.12);
+  transition: transform 0.2s ease;
+}
+
+.admin-effects-switch.active .admin-effects-switch-knob {
+  transform: translateX(24px);
+}
+
+.admin-effects-status {
+  margin-top: 12px;
+}
+
+.admin-effects-error {
+  margin: 8px 0 0;
+  color: #9b3b3b;
+  font-size: 0.9rem;
 }
 
 .stats-grid {
