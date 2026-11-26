@@ -10,15 +10,10 @@ import {
   Pencil,
   Plus,
   RefreshCw,
-  Shuffle,
   Users,
   X,
 } from 'lucide-react';
 import { canManageAnonymousNotes, ROLE_SYSTEM, SUPER_ADMIN_NICKNAMES } from './AdminTypes';
-import NicknameSuggestInput, {
-  findInvalidMemberNicknames,
-  normalizeMemberNicknames,
-} from './NicknameSuggestInput';
 import {
   fetchAllMemberWorldCupVotesForQuestion,
   fetchMemberWorldCupQuestionStats,
@@ -99,47 +94,6 @@ interface MemberWorldCupBubbleProps {
   } | null;
 }
 
-const RANDOM_PICK_COUNT = 4;
-
-function pickRandomMembers(
-  all: WorldCupMemberOption[],
-  count: number,
-  exclude: Set<string> = new Set()
-): WorldCupMemberOption[] {
-  let pool = all.filter((member) => !exclude.has(member.uid));
-  if (pool.length < count) {
-    pool = [...all];
-  }
-  const shuffled = [...pool].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, Math.min(count, shuffled.length));
-}
-
-function buildRandomMemberSet(
-  all: WorldCupMemberOption[],
-  previousUids: string[],
-  ensureUids: string[] = []
-): WorldCupMemberOption[] {
-  const exclude = new Set(previousUids);
-  let picked = pickRandomMembers(all, RANDOM_PICK_COUNT, exclude);
-
-  if (picked.length < RANDOM_PICK_COUNT && all.length >= RANDOM_PICK_COUNT) {
-    picked = pickRandomMembers(all, RANDOM_PICK_COUNT);
-  }
-
-  for (const ensureUid of ensureUids) {
-    if (!ensureUid || picked.some((member) => member.uid === ensureUid)) continue;
-    const ensured = all.find((member) => member.uid === ensureUid);
-    if (ensured) {
-      picked = [ensured, ...picked.filter((member) => member.uid !== ensureUid)].slice(
-        0,
-        RANDOM_PICK_COUNT
-      );
-    }
-  }
-
-  return picked;
-}
-
 function memberInitial(nickname: string): string {
   return nickname.trim().charAt(0) || '?';
 }
@@ -170,15 +124,14 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
   const [members, setMembers] = useState<WorldCupMemberOption[]>([]);
   const [stats, setStats] = useState<MemberWorldCupQuestionStats[]>([]);
   const [myVotes, setMyVotes] = useState<Record<string, MemberWorldCupVote>>({});
-  const [customNicknames, setCustomNicknames] = useState<string[]>(['']);
+  const [selectedUids, setSelectedUids] = useState<string[]>([]);
+  const [memberQuery, setMemberQuery] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showRevealModal, setShowRevealModal] = useState(false);
   const [revealVotes, setRevealVotes] = useState<MemberWorldCupVote[]>([]);
   const [revealLoading, setRevealLoading] = useState(false);
-  const [randomMembers, setRandomMembers] = useState<WorldCupMemberOption[]>([]);
   const [showResultsPanel, setShowResultsPanel] = useState(false);
-  const [selectedUids, setSelectedUids] = useState<string[]>([]);
   const [showQuestionPicker, setShowQuestionPicker] = useState(false);
   const [customQuestions, setCustomQuestions] = useState<MemberWorldCupQuestionDefinition[]>([]);
   const [newQuestionText, setNewQuestionText] = useState('');
@@ -313,32 +266,25 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
     () => (user?.uid ? members.filter((member) => member.uid !== user.uid) : members),
     [members, user?.uid]
   );
-  const memberCandidates = useMemo(
-    () => votableMembers.map((member) => ({ uid: member.uid, nickname: member.nickname })),
-    [votableMembers]
-  );
+  const filteredMembers = useMemo(() => {
+    const query = memberQuery.trim().toLowerCase();
+    const matched = votableMembers.filter(
+      (member) => !query || member.nickname.toLowerCase().includes(query)
+    );
+    return [...matched].sort((a, b) => {
+      const aSelected = selectedUids.includes(a.uid) ? 0 : 1;
+      const bSelected = selectedUids.includes(b.uid) ? 0 : 1;
+      if (aSelected !== bSelected) return aSelected - bSelected;
+      return a.nickname.localeCompare(b.nickname, 'ko');
+    });
+  }, [votableMembers, memberQuery, selectedUids]);
   const dayLabel = useMemo(() => formatDayKeyLabel(currentDayKey), [currentDayKey]);
   const nextResetLabel = useMemo(
     () => formatNextDayResetLabel(getNextDayResetAtKst()),
     []
   );
 
-  const maxCustomFields = Math.max(0, MAX_WORLD_CUP_SELECTIONS - selectedUids.length);
-  const filledCustomCount = useMemo(
-    () => customNicknames.filter((nickname) => nickname.trim()).length,
-    [customNicknames]
-  );
-  const totalSelectionCount = selectedUids.length + filledCustomCount;
-
-  const customNicknameInvalid = useMemo(
-    () =>
-      customNicknames.some(
-        (nickname) =>
-          nickname.trim().length > 0 &&
-          findInvalidMemberNicknames([nickname], memberCandidates).length > 0
-      ),
-    [customNicknames, memberCandidates]
-  );
+  const totalSelectionCount = selectedUids.length;
 
   const answeredCount = useMemo(
     () => activeQuestions.filter((q) => myVotes[q.id]).length,
@@ -408,13 +354,6 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
 
       setMyVotes(myVoteMap);
       setShowResultsPanel(Boolean(questions[0] && myVoteMap[questions[0].id]));
-
-      const ensureUids =
-        myVoteMap[questions[0]?.id]?.selectedMembers.map((m) => m.uid) ?? [];
-      const votable = user.uid
-        ? memberOptions.filter((member) => member.uid !== user.uid)
-        : memberOptions;
-      setRandomMembers(buildRandomMemberSet(votable, [], ensureUids));
     } catch (error) {
       console.error('멤버 월드컵 로딩 실패:', error);
     } finally {
@@ -450,7 +389,7 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
   useEffect(() => {
     if (!currentQuestion) return;
     const existing = myVotes[currentQuestion.id];
-    setCustomNicknames(['']);
+    setMemberQuery('');
     setSelectedUids(existing?.selectedMembers.map((member) => member.uid) ?? []);
     setShowResultsPanel(Boolean(existing));
   }, [currentQuestion?.id, myVotes]);
@@ -459,21 +398,6 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
     if (!showRevealModal || !canViewVoters || !revealQuestion) return;
     void loadRevealVotes(revealQuestion.id);
   }, [showRevealModal, revealQuestion?.id, canViewVoters, loadRevealVotes]);
-
-  useEffect(() => {
-    if (votableMembers.length === 0) return;
-    const ensureUids = myVote?.selectedMembers.map((member) => member.uid) ?? [];
-    setRandomMembers(buildRandomMemberSet(votableMembers, [], ensureUids));
-  }, [currentQuestion?.id, votableMembers, myVote?.selectedMembers]);
-
-  useEffect(() => {
-    if (maxCustomFields <= 0) return;
-    setCustomNicknames((prev) => {
-      if (prev.length === 0) return [''];
-      if (prev.length <= maxCustomFields) return prev;
-      return prev.slice(0, maxCustomFields);
-    });
-  }, [maxCustomFields]);
 
   useEffect(() => {
     const onPopState = () => {
@@ -521,12 +445,6 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
-
-  const handleShuffleMembers = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    const previousUids = randomMembers.map((member) => member.uid);
-    setRandomMembers(buildRandomMemberSet(votableMembers, previousUids, selectedUids));
-  };
 
   const toggleMemberSelection = (memberUid: string) => {
     if (submitting) return;
@@ -581,37 +499,8 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
       .filter((member): member is WorldCupMemberOption => Boolean(member))
       .map((member) => ({ uid: member.uid, nickname: member.nickname }));
 
-    const customFilled = customNicknames.map((nickname) => nickname.trim()).filter(Boolean);
-    if (customFilled.length > 0) {
-      if (memberCandidates.length === 0) {
-        toast.info('회원 목록을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.');
-        return;
-      }
-      const invalidNicknames = findInvalidMemberNicknames(customFilled, memberCandidates);
-      if (invalidNicknames.length > 0) {
-        toast.error(
-          `앱에 없는 닉네임이 있습니다.\n드롭다운에서 정확한 회원 닉네임을 선택해 주세요.\n\n잘못된 닉네임: ${invalidNicknames.join(', ')}`
-        );
-        return;
-      }
-      const normalized = normalizeMemberNicknames(customFilled, memberCandidates);
-      for (const resolvedNickname of normalized) {
-        const customMember = memberCandidates.find((member) => member.nickname === resolvedNickname);
-        if (!customMember) continue;
-        if (selectedMembers.some((member) => member.uid === customMember.uid)) continue;
-        if (selectedMembers.length >= MAX_WORLD_CUP_SELECTIONS) {
-          toast.info(`최대 ${MAX_WORLD_CUP_SELECTIONS}명까지 선택할 수 있어요.`);
-          return;
-        }
-        selectedMembers = [
-          ...selectedMembers,
-          { uid: customMember.uid, nickname: customMember.nickname },
-        ];
-      }
-    }
-
     if (selectedMembers.length === 0) {
-      toast.info('멤버를 1명 이상 선택하거나 등록된 닉네임을 입력해 주세요.');
+      toast.info('멤버를 1명 이상 선택해 주세요.');
       return;
     }
     if (user.uid && selectedMembers.some((member) => member.uid === user.uid)) {
@@ -696,11 +585,8 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
       }
     }
 
-    const votable = user.uid
-      ? memberList.filter((member) => member.uid !== user.uid)
-      : memberList;
-    const ensureUids = myVote?.selectedMembers.map((member) => member.uid) ?? [];
-    setRandomMembers(buildRandomMemberSet(votable, [], ensureUids));
+    setMemberQuery('');
+    if (!myVote) setSelectedUids([]);
     setShowResultsPanel(Boolean(myVote));
     if (!showModal) {
       setShowModal(true);
@@ -713,6 +599,8 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
   const closeModal = () => {
     guardModalClickThrough();
     setShowModal(false);
+    setMemberQuery('');
+    setSelectedUids([]);
     setShowRevealModal(false);
     setRevealVotes([]);
     setShowResultsPanel(false);
@@ -1122,102 +1010,46 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
                 </span>
               </div>
 
-              <div className="mwc-modal__pick-grid">
-                {randomMembers.length === 0 ? (
+              <label className="mwc-modal__member-search">
+                <input
+                  type="search"
+                  value={memberQuery}
+                  onChange={(e) => setMemberQuery(e.target.value)}
+                  placeholder="닉네임 검색"
+                  disabled={submitting}
+                  aria-label="멤버 검색"
+                />
+                <span>{filteredMembers.length}/{votableMembers.length}명</span>
+              </label>
+
+              <div className="mwc-modal__member-list" role="listbox" aria-label="멤버 전체" aria-multiselectable="true">
+                {votableMembers.length === 0 ? (
                   <p className="mwc-modal__empty">멤버를 불러오는 중이거나 목록이 비어 있습니다</p>
+                ) : filteredMembers.length === 0 ? (
+                  <p className="mwc-modal__empty">검색한 닉네임이 없습니다</p>
                 ) : (
-                  randomMembers.map((member) => {
+                  filteredMembers.map((member) => {
                     const isSelected = selectedUids.includes(member.uid);
                     return (
                       <button
                         key={member.uid}
                         type="button"
-                        className={`mwc-modal__pick-card ${isSelected ? 'is-selected' : ''}`}
+                        role="option"
+                        aria-selected={isSelected}
+                        className={`mwc-modal__member-row${isSelected ? ' is-selected' : ''}`}
                         disabled={submitting}
                         onClick={() => toggleMemberSelection(member.uid)}
                       >
-                        {isSelected && (
-                          <span className="mwc-modal__pick-check">
-                            <Check size={11} aria-hidden />
-                          </span>
-                        )}
+                        <span className={`mwc-modal__member-check${isSelected ? ' is-on' : ''}`}>
+                          {isSelected ? <Check size={12} aria-hidden /> : null}
+                        </span>
                         <span className="mwc-modal__pick-initial">{memberInitial(member.nickname)}</span>
-                        <span>{member.nickname}</span>
+                        <span className="mwc-modal__member-name">{member.nickname}</span>
                       </button>
                     );
                   })
                 )}
               </div>
-
-              <div className="mwc-modal__shuffle-row">
-                <button
-                  type="button"
-                  className="mwc-modal__shuffle"
-                  disabled={submitting || votableMembers.length <= RANDOM_PICK_COUNT}
-                  onClick={handleShuffleMembers}
-                  title="다른 멤버 4명 보기"
-                >
-                  <Shuffle size={13} aria-hidden />
-                  다른 멤버 보기
-                </button>
-              </div>
-
-              {maxCustomFields > 0 && (
-                <>
-                  <div className="mwc-modal__divider">또는 닉네임 직접 입력</div>
-                  <div className="mwc-modal__custom">
-                    {customNicknames.map((nickname, idx) => (
-                      <div key={idx} className="mwc-modal__custom-row">
-                        <NicknameSuggestInput
-                          value={nickname}
-                          onChange={(next) =>
-                            setCustomNicknames((prev) =>
-                              prev.map((item, itemIdx) => (itemIdx === idx ? next : item))
-                            )
-                          }
-                          candidates={memberCandidates}
-                          excludeNicknames={[
-                            ...(user?.nickname ? [user.nickname] : []),
-                            ...selectedUids
-                              .map((uid) => memberByUid.get(uid)?.nickname)
-                              .filter((name): name is string => Boolean(name)),
-                            ...customNicknames.filter((_, itemIdx) => itemIdx !== idx),
-                          ]}
-                          placeholder={`멤버 닉네임 ${idx + 1}`}
-                          disabled={submitting}
-                          className="mwc-modal__nickname-input"
-                        />
-                        {customNicknames.length > 1 && (
-                          <button
-                            type="button"
-                            className="mwc-modal__custom-btn mwc-modal__custom-btn--remove"
-                            disabled={submitting}
-                            onClick={() =>
-                              setCustomNicknames((prev) => {
-                                const next = prev.filter((_, itemIdx) => itemIdx !== idx);
-                                return next.length > 0 ? next : [''];
-                              })
-                            }
-                          >
-                            삭제
-                          </button>
-                        )}
-                        {idx === customNicknames.length - 1 &&
-                          customNicknames.length < maxCustomFields && (
-                            <button
-                              type="button"
-                              className="mwc-modal__custom-btn mwc-modal__custom-btn--add"
-                              disabled={submitting}
-                              onClick={() => setCustomNicknames((prev) => [...prev, ''])}
-                            >
-                              추가
-                            </button>
-                          )}
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
 
               <div className="mwc-modal__submit-bar">
                 {isTestVoter ? (
@@ -1229,17 +1061,13 @@ const MemberWorldCupBubble: React.FC<MemberWorldCupBubbleProps> = ({ user }) => 
                     <button
                       type="button"
                       className="mwc-modal__submit-vote"
-                      disabled={
-                        submitting ||
-                        customNicknameInvalid ||
-                        (selectedUids.length === 0 && filledCustomCount === 0)
-                      }
+                      disabled={submitting || selectedUids.length === 0}
                       onClick={() => void handleSubmitVote()}
                     >
                       {submitting ? '제출 중…' : '🔒 익명 제출하기'}
                     </button>
                     <span className="mwc-modal__result-hint">
-                      1~{MAX_WORLD_CUP_SELECTIONS}명 선택 · 제출 후 오늘은 수정 불가
+                      목록에서 최대 {MAX_WORLD_CUP_SELECTIONS}명까지 고를 수 있어요 · 제출 후 오늘은 수정 불가
                     </span>
                   </>
                 )}
